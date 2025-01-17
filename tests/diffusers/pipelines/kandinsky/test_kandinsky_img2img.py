@@ -17,6 +17,7 @@ import random
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from PIL import Image
@@ -24,10 +25,16 @@ from PIL import Image
 import mindspore as ms
 
 from mindone.diffusers.pipelines.kandinsky.text_encoder import MCLIPConfig
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -226,4 +233,65 @@ class KandinskyImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KandinskyImg2ImgPipelineNightlyTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky_img2img_ddpm(self, mode, dtype):
+        # TODO: this pipeline has precision issue in float16 and we need to fix it
+        if dtype == "float16":
+            pytest.skip("Skipping this case since this pipeline has precision issue in float16")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "frog.png",
+            subfolder="kandinsky",
+        )
+        prompt = "A red cartoon frog, 4k"
+
+        pipe_prior_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyPriorPipeline")
+        pipe_prior = pipe_prior_cls.from_pretrained("kandinsky-community/kandinsky-2-1-prior", mindspore_dtype=ms_dtype)
+
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_ddpm.DDPMScheduler")
+        scheduler = scheduler_cls.from_pretrained("kandinsky-community/kandinsky-2-1", subfolder="ddpm_scheduler")
+        pipeline_cls = get_module("mindone.diffusers.pipelines.kandinsky.KandinskyImg2ImgPipeline")
+        pipeline = pipeline_cls.from_pretrained(
+            "kandinsky-community/kandinsky-2-1", scheduler=scheduler, mindspore_dtype=ms_dtype
+        )
+
+        pipeline.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        image_emb, zero_image_emb = pipe_prior(
+            prompt,
+            num_inference_steps=5,
+            negative_prompt="",
+        )
+
+        torch.manual_seed(0)
+        output = pipeline(
+            prompt,
+            image=init_image,
+            image_embeds=image_emb,
+            negative_image_embeds=zero_image_emb,
+            num_inference_steps=100,
+            height=768,
+            width=768,
+            strength=0.2,
+        )
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"img2img_ddpm_{dtype}.npy",
+            subfolder="kandinsky",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

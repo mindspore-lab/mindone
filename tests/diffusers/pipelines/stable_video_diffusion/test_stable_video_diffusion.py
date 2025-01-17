@@ -8,9 +8,16 @@ from transformers import CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -181,4 +188,45 @@ class StableVideoDiffusionPipelineFastTests(PipelineTesterMixin, unittest.TestCa
         ms_output_slice = ms_output[0, -1, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_output_slice - ms_output_slice) / np.linalg.norm(pt_output_slice)) < threshold
+        assert np.linalg.norm(pt_output_slice - ms_output_slice) / np.linalg.norm(pt_output_slice) < threshold
+
+
+@slow
+@ddt
+class StableVideoDiffusionPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_sd_video(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.stable_video_diffusion.StableVideoDiffusionPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stabilityai/stable-video-diffusion-img2vid",
+            variant="fp16",
+            mindspore_dtype=ms_dtype,
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat_6.png",
+            subfolder="pix2pix",
+        )
+        num_frames = 3
+
+        torch.manual_seed(0)
+        output = pipe(
+            image=image,
+            num_frames=num_frames,
+            num_inference_steps=3,
+        )
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"sd_video_{dtype}.npy",
+            subfolder="stable_video_diffusion",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

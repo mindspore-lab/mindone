@@ -1,17 +1,19 @@
 import copy
 import csv
-import glob
 import logging
 import os
 import random
+from pathlib import Path
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
-import albumentations
 import cv2
 import imageio
 import numpy as np
 from decord import VideoReader
 
-import mindspore as ms
+from mindone.data import BaseDataset
+
+__all__ = ["VideoDataset", "BatchTransform"]
 
 logger = logging.getLogger()
 
@@ -20,21 +22,25 @@ def create_video_transforms(
     size=384, crop_size=256, interpolation="bicubic", backend="al", random_crop=False, flip=False, num_frames=None
 ):
     if backend == "al":
+        os.environ["NO_ALBUMENTATIONS_UPDATE"] = "1"  # prevent albumentations from being annoying
         # expect rgb image in range 0-255, shape (h w c)
-        from albumentations import CenterCrop, HorizontalFlip, RandomCrop, SmallestMaxSize
+        from albumentations import CenterCrop, Compose, HorizontalFlip, RandomCrop, SmallestMaxSize
+
+        if isinstance(crop_size, int):
+            crop_size = (crop_size, crop_size)
 
         # NOTE: to ensure augment all frames in a video in the same way.
         assert num_frames is not None, "num_frames must be parsed"
-        targets = {"image{}".format(i): "image" for i in range(num_frames)}
+        targets = {f"image{i}": "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
         transforms = [
             SmallestMaxSize(max_size=size, interpolation=mapping[interpolation]),
-            CenterCrop(crop_size, crop_size) if not random_crop else RandomCrop(crop_size, crop_size),
+            CenterCrop(*crop_size) if not random_crop else RandomCrop(*crop_size),
         ]
         if flip:
             transforms += [HorizontalFlip(p=0.5)]
 
-        pixel_transforms = albumentations.Compose(
+        pixel_transforms = Compose(
             transforms,
             additional_targets=targets,
         )
@@ -44,29 +50,40 @@ def create_video_transforms(
     return pixel_transforms
 
 
-def get_video_path_list(folder):
-    # TODO: find recursively
-    fmts = ["avi", "mp4", "gif"]
-    out = []
-    for fmt in fmts:
-        out += glob.glob(os.path.join(folder, f"*.{fmt}"))
-    return sorted(out)
+def get_video_path_list(folder: str, video_column: str) -> List[Dict[str, str]]:
+    """
+    Constructs a list of images and videos in the given directory (recursively).
+
+    Args:
+        folder: path to a directory containing images and videos.
+        video_column: name of the column to store video paths.
+    Returns:
+        A list of paths to images and videos in the given directory (absolute and relative).
+    """
+    exts = (".jpg", ".jpeg", ".png", ".gif", ".mp4", ".avi")
+    data = [
+        {video_column: str(item), "rel_path": str(item.relative_to(folder))}
+        for item in Path(folder).rglob("*")
+        if (item.is_file() and item.suffix.lower() in exts)
+    ]
+    return sorted(data, key=lambda x: x[video_column])
 
 
-class VideoDataset:
+class VideoDataset(BaseDataset):
     def __init__(
         self,
-        csv_path=None,
-        data_folder=None,
-        size=384,
-        crop_size=256,
-        random_crop=False,
-        flip=False,
-        sample_stride=4,
-        sample_n_frames=16,
-        return_image=False,
-        transform_backend="al",
-        video_column="video",
+        csv_path: Optional[str],
+        folder: str,
+        size: int = 384,
+        crop_size: Union[int, Tuple[int, int]] = 256,
+        random_crop: bool = False,
+        flip: bool = False,
+        sample_stride: int = 1,
+        sample_n_frames: int = 16,
+        return_image: bool = False,
+        video_column: str = "video",
+        *,
+        output_columns: List[str],
     ):
         """
         size: image resize size
@@ -76,17 +93,18 @@ class VideoDataset:
 
         if csv_path is not None:
             with open(csv_path, "r") as csvfile:
-                self.dataset = list(csv.DictReader(csvfile))
-            self.read_from_csv = True
+                self.dataset = [
+                    {**item, video_column: os.path.join(folder, item[video_column]), "rel_path": item[video_column]}
+                    for item in csv.DictReader(csvfile)
+                ]
         else:
-            self.dataset = get_video_path_list(data_folder)
-            self.read_from_csv = False
+            self.dataset = get_video_path_list(folder, video_column)
 
         self.length = len(self.dataset)
         logger.info(f"Num data samples: {self.length}")
         logger.info(f"sample_n_frames: {sample_n_frames}")
 
-        self.data_folder = data_folder
+        self.folder = folder
         self.sample_stride = sample_stride
         self.sample_n_frames = sample_n_frames
         self.return_image = return_image
@@ -98,8 +116,8 @@ class VideoDataset:
             flip=flip,
             num_frames=sample_n_frames,
         )
-        self.transform_backend = transform_backend
         self.video_column = video_column
+        self.output_columns = output_columns
 
         # prepare replacement data
         max_attempts = 100
@@ -123,12 +141,8 @@ class VideoDataset:
 
     def get_batch(self, idx):
         # get video raw pixels (batch of frame) and its caption
-        if self.read_from_csv:
-            video_dict = self.dataset[idx]
-            video_fn = video_dict[list(video_dict.keys())[0]]
-            video_path = os.path.join(self.data_folder, video_fn)
-        else:
-            video_path = self.dataset[idx]
+        video_dict = self.dataset[idx].copy()
+        video_path = video_dict[self.video_column]
 
         video_reader = VideoReader(video_path)
 
@@ -142,13 +156,13 @@ class VideoDataset:
             batch_index = [random.randint(0, video_length - 1)]
 
         if video_path.endswith(".gif"):
-            pixel_values = video_reader[batch_index]  # shape: (f, h, w, c)
+            video_dict[self.video_column] = video_reader[batch_index]  # shape: (f, h, w, c)
         else:
-            pixel_values = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
+            video_dict[self.video_column] = video_reader.get_batch(batch_index).asnumpy()  # shape: (f, h, w, c)
 
         del video_reader
 
-        return pixel_values
+        return tuple(video_dict[c] for c in self.output_columns)
 
     def __len__(self):
         return self.length
@@ -159,44 +173,47 @@ class VideoDataset:
             video: preprocessed video frames in shape (f, c, h, w), normalized to [-1, 1]
         """
         try:
-            pixel_values = self.get_batch(idx)
+            data = self.get_batch(idx)
             if (self.prev_ok_sample is None) or (self.require_update_prev):
-                self.prev_ok_sample = copy.deepcopy(pixel_values)
+                self.prev_ok_sample = copy.deepcopy(data)
                 self.require_update_prev = False
         except Exception as e:
             logger.warning(f"Fail to get sample of idx {idx}. The corrupted video will be replaced.")
             print("\tError msg: {}".format(e), flush=True)
             assert self.prev_ok_sample is not None
-            pixel_values = self.prev_ok_sample  # unless the first sample is already not ok
+            data = self.prev_ok_sample  # unless the first sample is already not ok
             self.require_update_prev = True
 
             if idx >= self.length:
                 raise IndexError  # needed for checking the end of dataset iteration
 
+        pixel_values = data[0]
         num_frames = len(pixel_values)
         # pixel value: (f, h, w, 3) -> transforms -> (f 3 h' w')
-        if self.transform_backend == "al":
-            # NOTE:it's to ensure augment all frames in a video in the same way.
-            # ref: https://albumentations.ai/docs/examples/example_multi_target/
+        # NOTE:it's to ensure augment all frames in a video in the same way.
+        # ref: https://albumentations.ai/docs/examples/example_multi_target/
 
-            inputs = {"image": pixel_values[0]}
-            for i in range(num_frames - 1):
-                inputs[f"image{i}"] = pixel_values[i + 1]
+        inputs = {"image": pixel_values[0]}
+        for i in range(num_frames - 1):
+            inputs[f"image{i}"] = pixel_values[i + 1]
 
-            output = self.pixel_transforms(**inputs)
+        output = self.pixel_transforms(**inputs)
 
-            pixel_values = np.stack(list(output.values()), axis=0)
-            # (t h w c) -> (c t h w)
-            pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
-        else:
-            raise NotImplementedError
+        pixel_values = np.stack(list(output.values()), axis=0)
+        # (t h w c) -> (c t h w)
+        pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
 
         if self.return_image:
             pixel_values = pixel_values[1]
 
         pixel_values = (pixel_values / 127.5 - 1.0).astype(np.float32)
 
-        return pixel_values
+        return pixel_values, *data[1:]
+
+    @staticmethod
+    def train_transforms(**kwargs) -> List[dict]:
+        # train transforms are performed during data reading
+        pass
 
 
 # TODO: parse in config dict
@@ -214,87 +231,48 @@ def check_sanity(x, save_fp="./tmp.gif"):
 
 
 class BatchTransform:
-    def __init__(self, mixed_strategy, mixed_image_ratio=0.2):
-        self.mixed_strategy = mixed_strategy
+    def __init__(
+        self,
+        mixed_strategy: Literal["mixed_video_image", "mixed_video_random", "image_only"],
+        mixed_image_ratio: float = 0.2,
+    ):
+        if mixed_strategy == "mixed_video_image":
+            self._trans_fn = self._mixed_video_image
+        elif mixed_strategy == "mixed_video_random":
+            self._trans_fn = self._mixed_video_random
+        elif mixed_strategy == "image_only":
+            self._trans_fn = self._image_only
+        else:
+            raise NotImplementedError(f"Unknown mixed_strategy: {mixed_strategy}")
         self.mixed_image_ratio = mixed_image_ratio
+
+    def _mixed_video_image(self, x: np.ndarray) -> np.ndarray:
+        if random.random() < self.mixed_image_ratio:
+            x = x[:, :, :1, :, :]
+        return x
+
+    @staticmethod
+    def _mixed_video_random(x: np.ndarray) -> np.ndarray:
+        # TODO: somehow it's slow. consider do it with tensor in NetWithLoss
+        length = random.randint(1, x.shape[2])
+        return x[:, :, :length, :, :]
+
+    @staticmethod
+    def _image_only(x: np.ndarray) -> np.ndarray:
+        return x[:, :, :1, :, :]
 
     def __call__(self, x):
         # x: (bs, c, t, h, w)
-        if self.mixed_strategy == "mixed_video_image":
-            if random.random() < self.mixed_image_ratio:
-                x = x[:, :, :1, :, :]
-        elif self.mixed_strategy == "mixed_video_random":
-            # TODO: somehow it's slow. consider do it with tensor in NetWithLoss
-            length = random.randint(1, x.shape[2])
-            x = x[:, :, :length, :, :]
-        elif self.mixed_strategy == "image_only":
-            x = x[:, :, :1, :, :]
-        else:
-            raise ValueError
-        return x
-
-
-def create_dataloader(
-    ds_config,
-    batch_size,
-    mixed_strategy=None,
-    mixed_image_ratio=0.0,
-    num_parallel_workers=12,
-    max_rowsize=32,
-    shuffle=True,
-    device_num=1,
-    rank_id=0,
-    drop_remainder=True,
-):
-    """
-    Args:
-        mixed_strategy:
-            None - all output batches are videoes [bs, c, T, h, w]
-            mixed_video_image - with prob of mixed_image_ratio, output batch are images [b, c, 1, h, w]
-            mixed_video_random - output batch has a random number of frames [bs, c, t, h, w],  t is the same of samples in a batch
-        mixed_image_ratio:
-        ds_config, dataset config, args for ImageDataset or VideoDataset
-        ds_name: dataset name, image or video
-    """
-    dataset = VideoDataset(**ds_config)
-    print("Total number of samples: ", len(dataset))
-
-    # Larger value leads to more memory consumption. Default: 16
-    # prefetch_size = config.get("prefetch_size", 16)
-    # ms.dataset.config.set_prefetch_size(prefetch_size)
-
-    dataloader = ms.dataset.GeneratorDataset(
-        source=dataset,
-        column_names=["video"],
-        num_shards=device_num,
-        shard_id=rank_id,
-        python_multiprocessing=True,
-        shuffle=shuffle,
-        num_parallel_workers=num_parallel_workers,
-        max_rowsize=max_rowsize,
-    )
-
-    dl = dataloader.batch(
-        batch_size,
-        drop_remainder=drop_remainder,
-    )
-
-    if mixed_strategy is not None:
-        batch_map_fn = BatchTransform(mixed_strategy, mixed_image_ratio)
-        dl = dl.map(
-            operations=batch_map_fn,
-            input_columns=["video"],
-            num_parallel_workers=1,
-        )
-
-    return dl
+        return self._trans_fn(x)
 
 
 if __name__ == "__main__":
+    from mindone.data import create_dataloader
+
     test = "dl"
     if test == "dataset":
         ds_config = dict(
-            data_folder="../videocomposer/datasets/webvid5",
+            folder="../videocomposer/datasets/webvid5",
             random_crop=True,
             flip=True,
         )
@@ -312,19 +290,16 @@ if __name__ == "__main__":
 
         ds_config = dict(
             csv_path="../videocomposer/datasets/webvid5_copy.csv",
-            data_folder="../videocomposer/datasets/webvid5",
+            folder="../videocomposer/datasets/webvid5",
             sample_n_frames=17,
             size=128,
             crop_size=128,
         )
+        ds = VideoDataset(**ds_config)
+        bt = BatchTransform(mixed_strategy="mixed_video_random", mixed_image_ratio=0.2)
 
         # test loader
-        dl = create_dataloader(
-            ds_config,
-            4,
-            mixed_strategy="mixed_video_random",
-            mixed_image_ratio=0.2,
-        )
+        dl = create_dataloader(ds, batch_size=4, batch_transforms={"operations": bt, "input_columns": ["video"]})
 
         num_batches = dl.get_dataset_size()
         # ms.set_context(mode=0)

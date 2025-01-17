@@ -1,7 +1,9 @@
 import math
+from typing import Literal, Optional, Tuple
 
-import mindspore as ms
-from mindspore import nn, ops
+from mindspore import Tensor
+from mindspore import dtype as mstype
+from mindspore import load_checkpoint, load_param_into_net, mint, nn, ops
 
 from .modules import Conv2_5d, Decoder, Encoder
 
@@ -54,7 +56,7 @@ class TemporalAutoencoder(nn.Cell):
     def __init__(
         self,
         config: dict = TAE_CONFIG,
-        pretrained: str = None,
+        pretrained: Optional[str] = None,
         use_recompute: bool = False,
         sample_deterministic: bool = False,
         use_tile: bool = False,
@@ -62,8 +64,14 @@ class TemporalAutoencoder(nn.Cell):
         encode_overlap: int = 0,
         decode_tile: int = 32,
         decode_overlap: int = 16,
+        dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
     ):
         super().__init__()
+        self.out_channels = config["z_channels"]
+        self.scale_factor = config["scaling_factor"]
+        self.shift_factor = config["shift_factor"]
+        # not used yet, just for CLI initialization convenience
+        self._dtype = {"fp32": mstype.float32, "fp16": mstype.float16, "bf16": mstype.bfloat16}[dtype]
 
         # encoder
         self.encoder = Encoder(**config)
@@ -83,7 +91,7 @@ class TemporalAutoencoder(nn.Cell):
 
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
-        self.split = ms.ops.split
+        self.split = ops.split
 
         self.sample_deterministic = sample_deterministic
         self.discard_spurious_frames = True
@@ -110,8 +118,12 @@ class TemporalAutoencoder(nn.Cell):
             self.recompute(self.encoder)
             self.recompute(self.decoder)
 
-        if pretrained is not None:
+        if pretrained:
             self.load_pretrained(pretrained)
+
+    @property
+    def dtype(self):
+        return self._dtype
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -140,7 +152,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return z
 
-    def encode(self, x: ms.Tensor) -> ms.Tensor:
+    def encode(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         r"""
         Encode a batch of videos into latents
 
@@ -152,7 +164,12 @@ class TemporalAutoencoder(nn.Cell):
             posterior_mean (Tensor): mean of latent distribution
             posterior_logvar (Tensor): logvar of latent distribution
         """
+        if self.use_tile:
+            return self.encode_with_tile(x)
+        else:
+            return self._encode_no_tile(x)
 
+    def _encode_no_tile(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         posterior_mean, posterior_logvar = self._encode(x)
         if self.sample_deterministic:
             return posterior_mean
@@ -160,19 +177,25 @@ class TemporalAutoencoder(nn.Cell):
 
         return z, posterior_mean, posterior_logvar
 
-    def decode(self, z: ms.Tensor, target_num_frames: int = None) -> ms.Tensor:
+    def decode(self, z: Tensor, target_num_frames: int = None) -> Tensor:
         r"""
         Decode a batch of latents to videos
 
         Args:
-            x (Tensor): input latent tensor of shape (b z t' h' w')
-            target_num_frames (int): target number of frames for output, if None, all the decoded frames will be reserved. \
-                    Otherwise, the previous this number of frames will be reserved.
+            z (Tensor): input latent tensor of shape (b z t' h' w')
+            target_num_frames (int): target number of frames for output.
+                                     If None, all the decoded frames will be reserved.
+                                     Otherwise, the previous this number of frames will be reserved.
 
         Returns:
             z (Tensor): the decoded videos of shape (b c t h w)
         """
+        if self.use_tile:
+            return self.decode_with_tile(z, target_num_frames)
+        else:
+            return self._decode_no_tile(z, target_num_frames)
 
+    def _decode_no_tile(self, z: Tensor, target_num_frames: int = None) -> Tensor:
         if self.use_post_quant_conv:
             z = self.post_quant_conv(z)
         dec = self.decoder(z)
@@ -182,7 +205,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return dec
 
-    def encode_with_tile(self, x: ms.Tensor) -> ms.Tensor:
+    def encode_with_tile(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
         r"""
         Encode a batch of videos into latents with tiling
 
@@ -197,23 +220,25 @@ class TemporalAutoencoder(nn.Cell):
 
         tf = self.encode_tile
 
-        z_out, mean, logvar = self.encode(x[:, :, :tf])
+        z_out, mean, logvar = self._encode_no_tile(x[:, :, :tf])
 
         for i in range(tf, x.shape[2], tf):
-            z_cur, mean, logvar = self.encode(x[:, :, i : i + tf])
-            z_out = ops.cat((z_out, z_cur), axis=2)
+            z_cur, mean_cur, logvar_cur = self._encode_no_tile(x[:, :, i : i + tf])
+            z_out = mint.cat((z_out, z_cur), dim=2)
+            mean = mint.cat((mean, mean_cur), dim=2)
+            logvar = mint.cat((logvar, logvar_cur), dim=2)
 
-        # TODO: merge mean, logvar for different slices for training tae with tile
         return z_out, mean, logvar
 
-    def decode_with_tile(self, z: ms.Tensor, target_num_frames: int = None) -> ms.Tensor:
+    def decode_with_tile(self, z: Tensor, target_num_frames: int = None) -> Tensor:
         r"""
         Decode a batch of latents to videos with tiling
 
         Args:
             x (Tensor): input latent tensor of shape (b z t' h' w')
-            target_num_frames (int): target number of frames for output, if None, all the decoded frames will be reserved. \
-                    Otherwise, the previous this number of frames will be reserved.
+            target_num_frames (int): target number of frames for output.
+                                     If None, all the decoded frames will be reserved.
+                                     Otherwise, the previous this number of frames will be reserved.
 
         Returns:
             z (Tensor): the decoded videos of shape (b c t h w)
@@ -228,13 +253,13 @@ class TemporalAutoencoder(nn.Cell):
             num_slices += 1
 
         # ms graph mode requires an init x_out
-        x_out = self.decode(z[:, :, :tl])
+        x_out = self._decode_no_tile(z[:, :, :tl])
 
         visited = tl
         i = stride  # start position
         while visited < in_len:
-            x_cur = self.decode(z[:, :, i : i + tl])
-            x_out = ops.cat((x_out, x_cur), axis=2)
+            x_cur = self._decode_no_tile(z[:, :, i : i + tl])
+            x_out = mint.cat((x_out, x_cur), dim=2)
 
             visited = i + tl
             i += stride
@@ -248,7 +273,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return x_out
 
-    def blend_slices(self, x: ms.Tensor, slice_len=32, overlap_len=16):
+    def blend_slices(self, x: Tensor, slice_len=32, overlap_len=16):
         """
         Blend decoded latent slices, used with decode_with_tile
 
@@ -260,7 +285,7 @@ class TemporalAutoencoder(nn.Cell):
             Note that the length of the last slice can be shorter than slice_len.
 
         Returns:
-            ms.Tensor
+            Tensor
         """
 
         B, C, in_len, H, W = x.shape
@@ -271,8 +296,8 @@ class TemporalAutoencoder(nn.Cell):
         last_slice_len = in_len - (num_slices - 1) * slice_len
         out_len += last_slice_len - overlap_len
 
-        out_tensor = ops.zeros((B, C, out_len, H, W), ms.float32)
-        out_cnt = ops.zeros((B, C, out_len, H, W), ms.float32)
+        out_tensor = mint.zeros((B, C, out_len, H, W), dtype=mstype.float32)
+        out_cnt = mint.zeros((B, C, out_len, H, W), dtype=mstype.float32)
 
         for i in range(num_slices):
             # get the slice form the concatnated latent
@@ -288,7 +313,7 @@ class TemporalAutoencoder(nn.Cell):
 
         return out_tensor
 
-    def construct(self, x: ms.Tensor) -> ms.Tensor:
+    def construct(self, x: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         r"""
         Video reconstruction
 
@@ -308,10 +333,7 @@ class TemporalAutoencoder(nn.Cell):
             posterior_mean, posterior_logvar = self._encode(x)
             z = self.sample(posterior_mean, posterior_logvar)
 
-        if self.use_tile:
-            recons = self.decode_with_tile(z)
-        else:
-            recons = self.decode(z)
+        recons = self.decode(z)
 
         if self.discard_spurious_frames and (recons.shape[-3] != x.shape[-3]):
             recons = recons[:, :, : x.shape[-3], :, :]
@@ -329,7 +351,7 @@ class TemporalAutoencoder(nn.Cell):
                 state_dict[key] = ckpt.get_tensor(key)
             raise NotImplementedError
         else:
-            param_dict = ms.load_checkpoint(ckpt_path)
+            param_dict = load_checkpoint(ckpt_path)
 
             # remove the added prefix in the trained checkpoint
             pnames = list(param_dict.keys())
@@ -337,10 +359,15 @@ class TemporalAutoencoder(nn.Cell):
                 new_pn = pn.replace("autoencoder.", "").replace("_backbone.", "")
                 param_dict[new_pn] = param_dict.pop(pn)
 
-            param_not_load, ckpt_not_load = ms.load_param_into_net(self, param_dict, strict_load=True)
+            param_not_load, ckpt_not_load = load_param_into_net(self, param_dict, strict_load=True)
 
             if param_not_load or ckpt_not_load:
                 print(f"{param_not_load} in network is not loaded")
                 print(f"{ckpt_not_load} in checkpoint is not loaded!")
 
         print("TAE checkpoint loaded")
+
+    @staticmethod
+    def get_latent_size(input_size: Tuple[int, int, int]) -> Tuple[int, int, int]:
+        # FIXME: validate
+        return max(input_size[0] // 8, 1), input_size[1] // 8, input_size[2] // 8

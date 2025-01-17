@@ -3,6 +3,8 @@ from mindspore import Parameter, Tensor, nn, ops
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
 
+__all__ = ["EMA"]
+
 _ema_op = C.MultitypeFuncGraph("grad_ema_op")
 
 
@@ -18,7 +20,14 @@ class EMA(nn.Cell):
         offloading: if True, offload the assign computation to CPU to avoid OOM issue.
     """
 
-    def __init__(self, network, ema_decay=0.9999, updates=0, trainable_only=True, offloading=True):
+    def __init__(
+        self,
+        network: nn.Cell,
+        ema_decay: float = 0.9999,
+        updates: int = 0,
+        trainable_only: bool = True,
+        offloading: bool = True,
+    ):
         super().__init__()
         # TODO: net.trainable_params() is more reasonable?
         if trainable_only:
