@@ -1112,10 +1112,15 @@ class UNet2DConditionModel(
             else:
                 sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
                 if is_adapter and len(down_intrablock_additional_residuals) > adapter_index:
-                    # `sample` here is one of element in `res_samples`, in PyTorch they refer to the same object
-                    # which means changes on sample will take effect on the counterpart in res_samples. However it
-                    # doesn't work in MindSpore as they are different objects thus we need change both of them manually.
-                    sample += down_intrablock_additional_residuals[adapter_index]
+                    # `sample` here is one of element in `res_samples`, they refer to the same object which means
+                    # in-placed changes on `sample` will take effect on the counterpart in `res_samples`. In PyTorch,
+                    # `sample += ...` is such an in-placed operation, meawhile it will create new node in MindSpore thus
+                    # we need change both of them manually.
+                    #
+                    # In MindSpore, the `+=` operation has been converted into an in-place operation in PyNative mode,
+                    # but this behavior is not the same in Graph mode. Therefore, we need to modify the `+=` operation
+                    # to ensure compatibility with both PyNative mode and Graph mode.
+                    sample = sample + down_intrablock_additional_residuals[adapter_index]
                     res_samples = list(res_samples)  # convert to list to support item assignment
                     res_samples[-1] += down_intrablock_additional_residuals[adapter_index]
                     res_samples = tuple(res_samples)  # convert back to tuple to concat
