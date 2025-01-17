@@ -2,7 +2,6 @@ import bisect
 import gc
 import math
 import os
-import subprocess
 from contextlib import contextmanager
 
 import pandas as pd
@@ -92,32 +91,7 @@ class NPUConfig:
             comm_fusion=getattr(args, "comm_fusion", False),
         )
         self.rank = rank_id
-        self.bind_thread_to_cpu()
         return rank_id, device_num
-
-    def get_total_cores(self):
-        try:
-            total_cores = os.sysconf("SC_NPROCESSORS_ONLN")
-        except (AttributeError, ValueError):
-            total_cores = os.cpu_count()
-        return total_cores
-
-    def bind_thread_to_cpu(self):
-        total_cores = self.get_total_cores()
-        # 每个卡的核心数量
-        cores_per_rank = total_cores // 8
-        # 计算本地rank
-        local_rank = self.rank % 8
-        # 计算当前 rank 的 CPU 核范围
-        start_core = local_rank * cores_per_rank
-        end_core = start_core + cores_per_rank - 1
-        # 构建 CPU 核范围字符串
-        cpu_cores_range = f"{start_core}-{end_core}"
-        pid = os.getpid()
-        command = f"taskset -cp {cpu_cores_range} {pid}"
-
-        subprocess.run(command, shell=True, check=True)
-        return f"Binding Cores: {self.rank} {pid}  {cpu_cores_range}"
 
     def get_attention_mask(self, attention_mask, repeat_num):
         if self.on_npu and attention_mask is not None:
