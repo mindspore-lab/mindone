@@ -9,8 +9,8 @@ train:
   # pretrained:
   pretrained: pretrained_ckpts/svd-d19a808f_embkeychanged_asinsv3d.ckpt  # as in the sv3d paper, finetuning from svd
   output_dir: ./outputs/
-  save_interval: 10       # in epochs
-  log_interval: 10        # same as the dataset size (in scenes/steps)
+  save_interval: 10      # in epochs
+  log_interval: 1        # in steps, same as the dataset size (in scenes/steps)
   amp_level: O2
   ckpt_max_keep: 1
 

@@ -51,10 +51,12 @@ class LlamaDecoderLayer(nn.Cell):
         attention_bias: bool = False,
         hidden_act: str = "silu",
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
+        not_recompute_fa: bool = False,
         dtype: mstype = mstype.float32,
     ) -> None:
         super().__init__()
 
+        kwargs = {"not_recompute_fa": not_recompute_fa} if attn_implementation == "flash_attention" else {}
         self.self_attn = Llama_ATTENTION_CLASSES[attn_implementation](
             hidden_size=hidden_size,
             num_attention_heads=num_attention_heads,
@@ -62,6 +64,7 @@ class LlamaDecoderLayer(nn.Cell):
             attention_dropout=attention_dropout,
             attention_bias=attention_bias,
             dtype=dtype,
+            **kwargs,
         )
 
         self.cross_attn = Llama_ATTENTION_CLASSES[attn_implementation](
@@ -167,6 +170,7 @@ class LlamaModel(nn.Cell):
         max_length: Tuple[int, int, int] = (128, 64, 64),
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         recompute_every_nth_block: Optional[int] = None,
+        not_recompute_fa: bool = False,
         use_linear_patch_embedder: bool = True,
         post_init_weight: bool = True,
         dtype: mstype.Type = mstype.float32,
@@ -194,6 +198,7 @@ class LlamaModel(nn.Cell):
                     attention_bias=attention_bias,
                     hidden_act=hidden_act,
                     attn_implementation=attn_implementation,
+                    not_recompute_fa=not_recompute_fa,
                     dtype=dtype,
                 )
                 for _ in range(num_hidden_layers)
