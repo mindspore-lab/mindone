@@ -27,14 +27,13 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 
-from ...activations import ACT2FN
+from mindone.transformers.activations import ACT2FN
 from ...cache_utils import get_max_length, get_seq_length, update
-from ...mindspore_adapter import recompute_except_output
-from ...mindspore_adapter.attention import FlashAttention2
-from ...mindspore_utils import ALL_LAYERNORM_LAYERS
-from ...modeling_attn_mask_utils import _MIN_FP16
-from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
-from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
+from ...mindspore_adapter import recompute_except_output, FlashAttention2
+from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
+from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16
+from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 
 logger = logging.get_logger(__name__)
 

@@ -39,7 +39,7 @@ max_length = text_len + crop_start
 # args
 text_encoder_name = "llm"
 tokenizer = "llm"
-text_encoder_precision = "fp16"
+text_encoder_precision = "fp32"    # fp16 may get bad results
 
 text_encoder_2_name = "clipL"
 tokenizer_2 = "clipL"
@@ -103,6 +103,7 @@ def encode(text: Union[str, List[str]], text_encoder_choices: List[str]):
             do_sample=False,
             hidden_state_skip_layer=None,
             return_texts=False,
+            data_type="video",
         )
 
     # clipL
@@ -114,6 +115,7 @@ def encode(text: Union[str, List[str]], text_encoder_choices: List[str]):
             do_sample=False,
             hidden_state_skip_layer=None,
             return_texts=False,
+            data_type="video",
         )
 
     return output, output_2

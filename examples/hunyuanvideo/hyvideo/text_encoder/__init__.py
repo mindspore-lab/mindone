@@ -344,13 +344,15 @@ class TextEncoder(nn.Cell):
         do_sample=False,
         hidden_state_skip_layer=None,
         return_texts=False,
+        data_type="image",
     ):
-        batch_encoding = self.text2tokens(text)
+        batch_encoding = self.text2tokens(text, data_type)
         return self.encode(
             batch_encoding,
             use_attention_mask=use_attention_mask,
             output_hidden_states=output_hidden_states,
-            do_sample=do_sample,
+            # do_sample=do_sample,
             hidden_state_skip_layer=hidden_state_skip_layer,
             return_texts=return_texts,
+            data_type=data_type,
         )
