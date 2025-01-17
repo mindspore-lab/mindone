@@ -175,31 +175,27 @@ def main(args):
         model_dtype = get_precision(args.precision)
     else:
         model_dtype = get_precision(args.precision)
-        if not args.global_bf16:
-            if model_dtype == ms.float16:
-                custom_fp32_cells = [LayerNorm, Attention, PatchEmbed2D, nn.SiLU, SiLU, nn.GELU]
-            else:
-                custom_fp32_cells = [
-                    nn.MaxPool2d,
-                    nn.MaxPool3d,
-                    PatchEmbed2D,
-                    LayerNorm,
-                    nn.SiLU,
-                    SiLU,
-                    nn.GELU,
-                ]
-            model = auto_mixed_precision(
-                model,
-                amp_level=args.amp_level,
-                dtype=model_dtype,
-                custom_fp32_cells=custom_fp32_cells,
-            )
-            logger.info(
-                f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
-            )
+        if model_dtype == ms.float16:
+            custom_fp32_cells = [LayerNorm, Attention, PatchEmbed2D, nn.SiLU, SiLU, nn.GELU]
         else:
-            logger.info(f"Using global bf16 for transformer model. Force model dtype from {model_dtype} to ms.bfloat16")
-            model_dtype = ms.bfloat16
+            custom_fp32_cells = [
+                nn.MaxPool2d,
+                nn.MaxPool3d,
+                PatchEmbed2D,
+                LayerNorm,
+                nn.SiLU,
+                SiLU,
+                nn.GELU,
+            ]
+        model = auto_mixed_precision(
+            model,
+            amp_level=args.amp_level,
+            dtype=model_dtype,
+            custom_fp32_cells=custom_fp32_cells,
+        )
+        logger.info(
+            f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+        )
 
     # load checkpoint
     if args.pretrained is not None and len(args.pretrained) > 0:
@@ -573,21 +569,13 @@ def main(args):
     net_with_grads.set_inputs(video, attention_mask, text_tokens, encoder_attention_mask)
     logger.info("Dynamic inputs are initialized for training!")
 
-    if not args.global_bf16:
-        model = Model(
-            net_with_grads,
-            eval_network=latent_diffusion_eval,
-            metrics=metrics,
-            eval_indexes=eval_indexes,
-        )
-    else:
-        model = Model(
-            net_with_grads,
-            eval_network=latent_diffusion_eval,
-            metrics=metrics,
-            eval_indexes=eval_indexes,
-            amp_level="O0",
-        )
+    model = Model(
+        net_with_grads,
+        eval_network=latent_diffusion_eval,
+        metrics=metrics,
+        eval_indexes=eval_indexes,
+    )
+
     # callbacks
     callback = [TimeMonitor(args.log_interval), EMAEvalSwapCallback(ema)]
     ofm_cb = OverflowMonitor()
@@ -672,7 +660,7 @@ def main(args):
                 f"Num params: {num_params} (transformer: {num_params_transformer}, vae: {num_params_vae})",
                 f"Num trainable params: {num_params_trainable}",
                 f"Transformer model dtype: {model_dtype}",
-                f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
+                f"Transformer AMP level: {args.amp_level}",
                 f"VAE dtype: {vae_dtype}"
                 + (f"\nText encoder dtype: {text_encoder_dtype}" if text_encoder_dtype is not None else ""),
                 f"Learning rate: {learning_rate}",

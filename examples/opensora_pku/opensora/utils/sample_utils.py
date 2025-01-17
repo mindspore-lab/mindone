@@ -221,35 +221,32 @@ def prepare_pipeline(args):
     # Mixed precision
     dtype = get_precision(args.precision)
     if args.precision in ["fp16", "bf16"]:
-        if not args.global_bf16:
-            if dtype == ms.float16:
-                custom_fp32_cells = [
-                    LayerNorm,
-                    Attention,
-                    PatchEmbed2D,
-                    nn.SiLU,
-                    nn.GELU,
-                    PixArtAlphaCombinedTimestepSizeEmbeddings,
-                ]
-            else:
-                custom_fp32_cells = [
-                    nn.MaxPool2d,
-                    nn.MaxPool3d,  # do not support bf16
-                    PatchEmbed2D,  # low accuracy if using bf16
-                    LayerNorm,
-                    nn.SiLU,
-                    nn.GELU,
-                    PixArtAlphaCombinedTimestepSizeEmbeddings,
-                ]
-            transformer_model = auto_mixed_precision(
-                transformer_model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells
-            )
-            logger.info(
-                f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
-            )
+        if dtype == ms.float16:
+            custom_fp32_cells = [
+                LayerNorm,
+                Attention,
+                PatchEmbed2D,
+                nn.SiLU,
+                nn.GELU,
+                PixArtAlphaCombinedTimestepSizeEmbeddings,
+            ]
         else:
-            logger.info(f"Using global bf16. Force model dtype from {dtype} to ms.bfloat16")
-            dtype = ms.bfloat16
+            custom_fp32_cells = [
+                nn.MaxPool2d,
+                nn.MaxPool3d,  # do not support bf16
+                PatchEmbed2D,  # low accuracy if using bf16
+                LayerNorm,
+                nn.SiLU,
+                nn.GELU,
+                PixArtAlphaCombinedTimestepSizeEmbeddings,
+            ]
+        transformer_model = auto_mixed_precision(
+            transformer_model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells
+        )
+        logger.info(
+            f"Set mixed precision to {args.amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
+        )
+
     elif args.precision == "fp32":
         pass
     else:
@@ -654,9 +651,6 @@ def get_args():
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
-    )
-    parser.add_argument(
-        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
     )
     parser.add_argument(
         "--vae_precision",

@@ -81,7 +81,6 @@ class NPUConfig:
             max_device_memory=getattr(args, "max_device_memory", None),
             parallel_mode=getattr(args, "parallel_mode", "data"),
             mempool_block_size=getattr(args, "mempool_block_size", "9GB"),
-            global_bf16=getattr(args, "global_bf16", False),
             strategy_ckpt_save_file=strategy_ckpt_save_file,
             optimizer_weight_shard_size=getattr(args, "optimizer_weight_shard_size", 8),
             sp_size=getattr(args, "sp_size", 1),
