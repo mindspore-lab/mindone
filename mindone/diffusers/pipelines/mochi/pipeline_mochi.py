@@ -679,7 +679,6 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 latents = latents.to(latents_dtype)
 
                 if latents.dtype != latents_dtype:
-                    # some platforms (eg. apple mps) misbehave due to a pytorch bug: https://github.com/pytorch/pytorch/pull/99272
                     latents = latents.to(latents_dtype)
 
                 if callback_on_step_end is not None:
