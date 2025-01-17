@@ -48,7 +48,7 @@ python  opensora/train/train_t2v_diffusers.py \
     --parallel_mode "zero" \
     --zero_stage 2 \
     --max_device_memory "59GB" \
-    --dataset_sink_mode True \
+    --dataset_sink_mode False \
     --prediction_type "v_prediction" \
     --hw_stride 32 \
     --sparse1d \
