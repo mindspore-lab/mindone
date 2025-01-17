@@ -1,0 +1,3 @@
+opencv-python==4.10.0.84
+easydict==1.13
+numpy==1.24
