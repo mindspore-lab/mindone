@@ -13,7 +13,8 @@ from mindspore import nn, Tensor
 
 from constants import TEXT_ENCODER_PATH, TOKENIZER_PATH
 from constants import PRECISION_TO_TYPE
-from mindone.transformers import CLIPTextModel, LlamaModel
+from mindone.transformers import CLIPTextModel
+from .transformers import LlamaModel
 
 
 def use_default(value, default):
