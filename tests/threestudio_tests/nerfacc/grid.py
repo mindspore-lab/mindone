@@ -5,7 +5,7 @@ from mindspore import Tensor, mint
 
 
 def test_ray_aabb_intersect():
-    from nerfacc_ms.grid import _ray_aabb_intersect, ray_aabb_intersect
+    from mindone.models.nerfacc.grid import _ray_aabb_intersect, ray_aabb_intersect
 
     ms.manual_seed(42)
     n_rays = 1000
@@ -34,7 +34,7 @@ def test_ray_aabb_intersect():
 
 
 def test_traverse_grids():
-    from nerfacc_ms.grid import _enlarge_aabb, traverse_grids
+    from mindone.models.nerfacc.grid import _enlarge_aabb, traverse_grids
 
     ms.set_context(mode=1, pynative_synchronize=False)
 
@@ -64,8 +64,8 @@ def test_traverse_grids():
 
 
 def test_traverse_grids_test_mode():
-    from nerfacc_ms.grid import _enlarge_aabb, traverse_grids
-    from nerfacc_ms.volrend import accumulate_along_rays
+    from mindone.models.nerfacc.grid import _enlarge_aabb, traverse_grids
+    from mindone.models.nerfacc.volrend import accumulate_along_rays
 
     ms.set_context(mode=1, pynative_synchronize=True)
     ms.manual_seed(42)
@@ -119,7 +119,7 @@ def test_traverse_grids_test_mode():
 
 
 def test_traverse_grids_with_near_far_planes():
-    from nerfacc_ms.grid import traverse_grids
+    from mindone.models.nerfacc.grid import traverse_grids
 
     rays_o = Tensor([[-1.0, 0.0, 0.0]])
     rays_d = Tensor([[1.0, 0.01, 0.01]])
@@ -222,7 +222,7 @@ if __name__ == "__main__":
     # sigmas = Tensor([0.4, 0.8, 0.1, 0.8, 0.1, 0.0, 0.9])
     # ray_indices = Tensor([0, 0, 0, 1, 1, 2, 2], dtype=ms.int32)
 
-    # from nerfacc_ms.volrend import (
+    # from mindone.models.nerfacc.volrend import (
     #     render_weight_from_density,
     # )
     # weights, transmittance, alphas = render_weight_from_density(

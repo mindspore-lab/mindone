@@ -2,11 +2,12 @@ from abc import abstractmethod
 from typing import Literal, Optional
 
 import numpy as np
-from nerfstudio_ms.base_field import FieldComponent
-from nerfstudio_ms.spherical_harmonics import MAX_SH_DEGREE, components_from_spherical_harmonics
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
+
+from .base_field import FieldComponent
+from .spherical_harmonics import MAX_SH_DEGREE, components_from_spherical_harmonics
 
 
 class Encoding(FieldComponent):

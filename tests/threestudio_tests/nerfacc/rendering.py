@@ -5,7 +5,7 @@ from mindspore import Tensor, mint
 
 
 def test_render_visibility():
-    from nerfacc_ms.volrend import render_visibility_from_alpha
+    from mindone.models.nerfacc.volrend import render_visibility_from_alpha
 
     ray_indices = Tensor([0, 2, 2, 2, 2], dtype=ms.int32)  # (all_samples,)
     alphas = Tensor([0.4, 0.3, 0.8, 0.8, 0.5], dtype=ms.float32)  # (all_samples,)
@@ -22,7 +22,7 @@ def test_render_visibility():
 
 
 def test_render_weight_from_alpha():
-    from nerfacc_ms.volrend import render_weight_from_alpha
+    from mindone.models.nerfacc.volrend import render_weight_from_alpha
 
     ray_indices = Tensor([0, 2, 2, 2, 2], dtype=ms.int32)  # (all_samples,)
     alphas = Tensor([0.4, 0.3, 0.8, 0.8, 0.5], dtype=ms.float32)  # (all_samples,)
@@ -34,7 +34,7 @@ def test_render_weight_from_alpha():
 
 
 def test_render_weight_from_density():
-    from nerfacc_ms.volrend import render_weight_from_alpha, render_weight_from_density
+    from mindone.models.nerfacc.volrend import render_weight_from_alpha, render_weight_from_density
 
     ray_indices = Tensor([0, 2, 2, 2, 2], dtype=ms.int32)  # (all_samples,)
     sigmas = mint.rand((ray_indices.shape[0],))  # (all_samples,)
@@ -48,7 +48,7 @@ def test_render_weight_from_density():
 
 
 def test_accumulate_along_rays():
-    from nerfacc_ms.volrend import accumulate_along_rays
+    from mindone.models.nerfacc.volrend import accumulate_along_rays
 
     ray_indices = Tensor([0, 2, 2, 2, 2], dtype=ms.int32)  # (all_samples,)
     weights = Tensor([0.4, 0.3, 0.8, 0.8, 0.5], dtype=ms.float32)  # (all_samples,)
@@ -62,7 +62,7 @@ def test_accumulate_along_rays():
 
 
 def test_grads():
-    from nerfacc_ms.volrend import (
+    from mindone.models.nerfacc.volrend import (
         render_transmittance_from_density,
         render_weight_from_alpha,
         render_weight_from_density,
@@ -128,7 +128,7 @@ def test_grads():
 
 
 def test_rendering():
-    from nerfacc_ms.volrend import rendering
+    from mindone.models.nerfacc.volrend import rendering
 
     def rgb_sigma_fn(t_starts, t_ends, ray_indices):
         return ms.stack([t_starts] * 3, dim=-1), t_starts

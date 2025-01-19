@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
-from spherical_harmonics import components_from_spherical_harmonics, num_sh_bases
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
+
+from mindone.models.nerfstudio.spherical_harmonics import components_from_spherical_harmonics, num_sh_bases
 
 
 @pytest.mark.parametrize("degree", list(range(0, 5)))
