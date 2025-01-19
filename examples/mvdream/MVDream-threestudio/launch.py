@@ -8,13 +8,13 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import threestudio
 from omegaconf import OmegaConf
-from threestudio.systems.base import BaseSystem
 
 import mindspore as ms
 from mindspore import nn
 
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.systems.base import BaseSystem
 from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.train_step import TrainOneStepWrapper

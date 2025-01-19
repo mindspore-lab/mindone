@@ -19,7 +19,7 @@ from threestudio.models.mesh import Mesh
 
 from mindspore import Tensor
 
-sys.path.insert(0, "~/examples")  # to include sv3d path for the DumperGif
+sys.path.insert(0, "../..")  # relative to the run path of `launch.py`, to include sv3d path for the DumperGif
 from sv3d.tools.vid2gif import DumperGif
 
 gif_dumper = DumperGif(30)

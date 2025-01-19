@@ -1,13 +1,8 @@
 import sys
-
-sys.path.insert(0, "~/mvdream/MVDream/")
-
 from dataclasses import dataclass
 from typing import Any, Optional
 
 import threestudio
-from mvdream.camera_utils import normalize_camera
-from mvdream.model_zoo import build_model
 from threestudio.models.prompt_processors.base import PromptProcessorOutput
 from threestudio.utils.base import BaseModule
 from threestudio.utils.misc import C
@@ -15,6 +10,10 @@ from threestudio.utils.misc import C
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint, nn, ops
+
+sys.path.insert(0, "../MVDream/")  # relative to the run path of `launch.py`
+from mvdream.camera_utils import normalize_camera
+from mvdream.model_zoo import build_model
 
 
 @threestudio.register("multiview-diffusion-guidance")
