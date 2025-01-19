@@ -1,4 +1,3 @@
-
 # train low res
 python launch.py \
         --train \
@@ -6,6 +5,6 @@ python launch.py \
 # train high res
 python launch.py \
         --train \
-        --resume_ckpt CKPT_OUTPUT_ABOVE \
         --train_highres \
+        resume="CKPT_OUTPUT_ABOVE" \
         system.use_recompute=true \

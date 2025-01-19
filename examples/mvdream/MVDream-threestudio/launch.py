@@ -313,7 +313,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--train", action="store_true", help="mode")
     parser.add_argument("--test", action="store_true", help="mode")
-    parser.add_argument("--resume_ckpt", default=None)
     parser.add_argument("--assign_output_ckpt_path", default=None)
     parser.add_argument("--ckpt_max_keep", default=1, type=int, help="Maximum number of checkpoints to keep")
     parser.add_argument(
