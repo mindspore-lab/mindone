@@ -32,9 +32,12 @@ from .controlnet import (
 )
 from .deepfloyd_if import IFImg2ImgPipeline, IFInpaintingPipeline, IFPipeline
 from .flux import (
+    FluxControlImg2ImgPipeline,
+    FluxControlInpaintPipeline,
     FluxControlNetImg2ImgPipeline,
     FluxControlNetInpaintPipeline,
     FluxControlNetPipeline,
+    FluxControlPipeline,
     FluxImg2ImgPipeline,
     FluxInpaintPipeline,
     FluxPipeline,
@@ -137,6 +140,7 @@ AUTO_IMAGE2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("lcm", LatentConsistencyModelImg2ImgPipeline),
         ("flux", FluxImg2ImgPipeline),
         ("flux-controlnet", FluxControlNetImg2ImgPipeline),
+        ("flux-control", FluxControlImg2ImgPipeline),
     ]
 )
 
@@ -154,6 +158,7 @@ AUTO_INPAINT_PIPELINES_MAPPING = OrderedDict(
         ("stable-diffusion-xl-pag", StableDiffusionXLPAGInpaintPipeline),
         ("flux", FluxInpaintPipeline),
         ("flux-controlnet", FluxControlNetInpaintPipeline),
+        ("flux-control", FluxControlInpaintPipeline),
     ]
 )
 
