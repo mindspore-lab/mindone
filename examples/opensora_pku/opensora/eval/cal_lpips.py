@@ -22,7 +22,7 @@ print("Calculating LPIPS loss using VGG16.")
 def trans(x):
     # if greyscale images add channel
     if x.shape[-3] == 1:
-        x = x.repeat_interleave(3, dim=2)
+        x = x.tile((1, 1, 3, 1, 1))
 
     # value range [0, 1] -> [-1, 1]
     x = x * 2 - 1

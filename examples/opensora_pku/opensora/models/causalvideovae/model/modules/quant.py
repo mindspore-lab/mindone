@@ -21,7 +21,7 @@ class Codebook(nn.Cell):
         if d < self.n_codes:
             n_repeats = (self.n_codes + d - 1) // d
             std = 0.01 / np.sqrt(ew)
-            x = x.repeat_interleave(n_repeats, dim=1)
+            x = x.tile((n_repeats, 1))
             x = x + ops.randn_like(x) * std
         return x
 

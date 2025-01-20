@@ -84,7 +84,7 @@ def create_loader(
         num_parallel_workers=min(8, num_parallel_workers),
         drop_remainder=drop_remainder,
     )
-    ds = ds.repeat_interleave(epoch_size)
+    ds = ds.repeat(epoch_size)
 
     return ds
 
@@ -153,6 +153,6 @@ def create_loader_dreambooth(
         num_parallel_workers=min(8, num_parallel_workers),
         drop_remainder=drop_remainder,
     )
-    ds = ds.repeat_interleave(epoch_size)
+    ds = ds.repeat(epoch_size)
 
     return ds

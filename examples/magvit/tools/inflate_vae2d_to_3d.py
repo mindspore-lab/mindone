@@ -60,7 +60,7 @@ def inflate(vae2d_ckpt, save_fp):
                 shape_3d_new = tuple([shape_3d[0] // 2]) + shape_3d[1:]
                 new_w = ms.ops.zeros(shape_3d_new, dtype=weights.dtype)
                 new_w[:, :, -1, :, :] = weights
-                new_w = new_w.repeat_interleave(2, 0)
+                new_w = new_w.tile((2, 1, 1, 1, 1))
 
                 new_w = ms.Parameter(new_w, name=key_3d)
                 new_state_dict[key_3d] = new_w
