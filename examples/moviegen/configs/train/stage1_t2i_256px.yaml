@@ -11,6 +11,7 @@ model:
   enable_flash_attention: True
   recompute_every_nth_block: 1
   not_recompute_fa: False
+  max_length: [1, 28, 28]
   dtype: bf16
 
 tae:

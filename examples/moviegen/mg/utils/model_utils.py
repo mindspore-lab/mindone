@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Literal, Optional, Tuple, Union
 
+import numpy as np
 from jsonargparse.typing import Path_fr
 from mg.models import LlamaModel, llama3_1B, llama3_5B, llama3_30B
 
@@ -30,6 +31,28 @@ def load_ckpt_params(model: nn.Cell, ckpt: Union[str, Dict]) -> None:
         param_dict = {k.replace("network.model.", ""): v for k, v in param_dict.items()}
     else:
         param_dict = ckpt
+
+    # 3.2.2 PE expansion
+    for pe in ["pos_embedding_table_t", "pos_embedding_table_h", "pos_embedding_table_w"]:
+        if (model_shape := model.__getattr__(pe).__getattr__("embedding_table").shape[0]) != (
+            weight_shape := param_dict[pe + ".embedding_table"].shape[0]
+        ):
+            logger.info(
+                f"PE({pe[-1].upper()}): the model shape ({model_shape}) doesn't match the weight shape ({weight_shape})."
+                " Expanding linearly."
+            )
+            # do linear interpolation in FP32 as BF16 is not supported by numpy
+            weight = param_dict[pe + ".embedding_table"].to(ms.float32).numpy()
+            interp_weight = np.apply_along_axis(
+                lambda y: np.interp(
+                    np.linspace(0, weight_shape - 1, model_shape), np.linspace(0, weight_shape - 1, weight_shape), y
+                ),
+                axis=0,
+                arr=weight,
+            ).astype(weight.dtype)
+            param_dict[pe + ".embedding_table"] = ms.Parameter(
+                ms.tensor(interp_weight, dtype=model.dtype), name=param_dict[pe + ".embedding_table"].name
+            )
 
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, param_dict)
     if param_not_load or ckpt_not_load:
@@ -66,6 +89,7 @@ def init_model(
     enable_flash_attention: bool = True,
     recompute_every_nth_block: Optional[int] = None,
     not_recompute_fa: bool = False,
+    max_length: Tuple[int, int, int] = (128, 64, 64),
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
 ) -> LlamaModel:
     attn_implementation = "flash_attention" if enable_flash_attention else "eager"
@@ -74,6 +98,7 @@ def init_model(
         attn_implementation=attn_implementation,
         recompute_every_nth_block=recompute_every_nth_block,
         not_recompute_fa=not_recompute_fa,
+        max_length=max_length,
         dtype=MODEL_DTYPE[dtype],
     )
 
