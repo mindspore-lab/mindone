@@ -5,6 +5,7 @@ from pathlib import Path
 from loguru import logger
 from datetime import datetime
 import numpy as np
+import mindspore as ms
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -14,6 +15,9 @@ from mindone.visualize.videos import save_videos
 # from hyvideo.utils.file_utils import save_videos_grid
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
+
+def init_env(args):
+    ms.set_context(mode=args.ms_mode) 
 
 
 def main():
@@ -27,6 +31,8 @@ def main():
     save_path = args.save_path if args.save_path_suffix=="" else f'{args.save_path}_{args.save_path_suffix}'
     if not os.path.exists(args.save_path):
         os.makedirs(save_path, exist_ok=True)
+
+    # ms env init
 
     # Load models
     hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args)
@@ -60,7 +66,6 @@ def main():
     for i, sample in enumerate(samples):
         sample = samples[i].unsqueeze(0)
         time_flag = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d-%H:%M:%S")
-        import pdb; pdb.set_trace()
         save_path = f"{save_path}/{time_flag}_seed{outputs['seeds'][i]}_{outputs['prompts'][i][:100].replace('/','')}.mp4"
 
         if args.output_type != 'latent':

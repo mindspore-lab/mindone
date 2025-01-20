@@ -1,5 +1,6 @@
 import torch
 
+
 def extract(ckpt_path, mm_double_blocks_depth=None, mm_single_blocks_depth=None):
     state_dict = torch.load(ckpt_path)
     load_key = 'module'
@@ -21,9 +22,9 @@ def extract(ckpt_path, mm_double_blocks_depth=None, mm_single_blocks_depth=None)
                     sd.pop(pname)
 
     if extract_ckpt:
-        torch.save(state_dict, 'ckpts/dit_small.pt')
+        torch.save(state_dict, f'ckpts/transformer_depth{mm_double_blocks_depth}.pt')
 
 if __name__ == '__main__':
-    # extract("/Users/Samit/Downloads/mp_rank_00_model_states.pt", 1, 1)
-    extract("ckpts/dit_small.pt")
+    extract("ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt", 1, 1)
+    # extract("ckpts/dit_small.pt")
 

@@ -349,6 +349,8 @@ def add_inference_args(parser: argparse.ArgumentParser):
         action="store_true",
         help="Enable reproducibility by setting random seeds and deterministic algorithms.",
     )
+    # mindspore args
+    group.add_argument("--ms_mode", type=int, default=1, help="0 graph, 1 pynative")
 
     return parser
 

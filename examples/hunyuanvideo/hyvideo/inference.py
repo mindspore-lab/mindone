@@ -438,29 +438,34 @@ class HunyuanVideoSampler(Inference):
                 f"`negative_prompt` must be a string, but got {type(negative_prompt)}"
             )
         negative_prompt = [negative_prompt.strip()]
-
+        
         if text_embed_path is not None:
             # read embedding from folder
             data = np.load(text_embed_path)
             prompt_embeds = data['prompt_embeds']
             prompt_mask = data['prompt_mask']
-            negative_prompt_embeds = data['negative_prompt_embeds']
-            negative_prompt_mask = data['negative_prompt_mask']
             prompt_embeds_2 = data['prompt_embeds_2']
-            negative_prompt_embeds_2 = data['negative_prompt_embeds_2']
-
             prompt_embeds = ms.Tensor(prompt_embeds)
             prompt_mask = ms.Tensor(prompt_mask)
             prompt_embeds_2 = ms.Tensor(prompt_embeds_2)
-            negative_prompt_embeds = ms.Tensor(negative_prompt_embeds)
-            negative_prompt_mask = ms.Tensor(negative_prompt_mask)
-            negative_prompt_embeds_2 = ms.Tensor(negative_prompt_embeds_2)
+            
+            if self.args.cfg_scale > 1.0:    
+                negative_prompt_embeds = data['negative_prompt_embeds']
+                negative_prompt_mask = data['negative_prompt_mask']
+                negative_prompt_embeds_2 = data['negative_prompt_embeds_2']
+                negative_prompt_embeds = ms.Tensor(negative_prompt_embeds)
+                negative_prompt_mask = ms.Tensor(negative_prompt_mask)
+                negative_prompt_embeds_2 = ms.Tensor(negative_prompt_embeds_2)
+            else:
+                negative_prompt_embeds = None
+                negative_prompt_mask = None
+                negative_prompt_embeds_2 = None
         else:
             prompt_embeds = None
             prompt_mask = None
+            prompt_embeds_2 = None
             negative_prompt_embeds = None
             negative_prompt_mask = None
-            prompt_embeds_2 = None
             negative_prompt_embeds_2 = None
 
         # ========================================================================

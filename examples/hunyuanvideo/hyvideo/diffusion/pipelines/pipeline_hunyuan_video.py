@@ -888,10 +888,8 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             )
 
         assert prompt_embeds is not None
-        assert negative_prompt_embeds is not None
         assert prompt_mask is not None
         assert prompt_embeds_2 is not None
-        assert negative_prompt_embeds_2 is not None
 
         # For classifier free guidance, we need to do two forward passes.
         # Here we concatenate the unconditional and text embeddings into a single batch
@@ -1039,7 +1037,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     if callback is not None and i % callback_steps == 0:
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         # latents (b, c, t, h, w) = (1, 16, 33, 90, 160)
         if not output_type == "latent":
             expand_temporal_dim = False
