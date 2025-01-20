@@ -472,7 +472,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             if self.use_spatial_tiling and (
                 tile.shape[-1] > self.tile_latent_min_size or tile.shape[-2] > self.tile_latent_min_size
             ):
-                decoded = self.spatial_tiled_decode(tile, return_dict=True)
+                decoded = self.spatial_tiled_decode(tile)
             else:
                 tile = self.post_quant_conv(tile)
                 decoded = self.decoder(tile)

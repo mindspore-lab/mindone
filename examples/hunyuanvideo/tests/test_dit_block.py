@@ -320,7 +320,7 @@ if __name__ == "__main__":
     # test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
 
     # test_hyvtransformer()
-    # test_hyvtransformer(pt_ckpt='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.bfloat16, debug=False)
+    test_hyvtransformer(pt_ckpt='ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.bfloat16, debug=False)
     # test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 
-    test_nd_rope()
+    # test_nd_rope()

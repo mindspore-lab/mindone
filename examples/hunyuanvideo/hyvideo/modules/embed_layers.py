@@ -25,8 +25,9 @@ class PatchEmbed(nn.Cell):
 
         # print('D--: patch_size, ', patch_size)
 
-        # TODO: doing here. replace with conv2d. refer to opensora
         self.use_conv2d = use_conv2d
+        if self.use_conv2d:
+            print('PatchEmbed with conv2d equivalence')
         if use_conv2d:
             assert patch_size[0] == 1
             self.proj = nn.Conv2d(

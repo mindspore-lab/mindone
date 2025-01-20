@@ -1,6 +1,8 @@
 import argparse
 import re
 
+from mindone.utils.config import str2bool
+
 from .constants import PRECISIONS, PROMPT_TEMPLATE, TEXT_ENCODER_PATH, TOKENIZER_PATH, VAE_PATH
 from .modules.models import HUNYUAN_VIDEO_CONFIG
 
@@ -68,12 +70,19 @@ def add_extra_models_args(parser: argparse.ArgumentParser):
         choices=PRECISIONS,
         help="Precision mode for the VAE model.",
     )
+    # group.add_argument(
+    #    "--vae-tiling",
+    #    action="store_true",
+    #    help="Enable tiling for the VAE model to save GPU memory.",
+    # )
+    # group.set_defaults(vae_tiling=True)
+    
     group.add_argument(
         "--vae-tiling",
-        action="store_true",
+        default=True,
+        type=str2bool,
         help="Enable tiling for the VAE model to save GPU memory.",
     )
-    group.set_defaults(vae_tiling=True)
 
     group.add_argument(
         "--text-encoder",
@@ -336,21 +345,23 @@ def add_inference_args(parser: argparse.ArgumentParser):
         default=6.0,
         help="Embeded classifier free guidance scale.",
     )
-
-    group.add_argument("--use-fp8", action="store_true", help="Enable use fp8 for inference acceleration.")
-    group.add_argument("--text-embed-path", type=str, help="path to npz containing text embeds, "
-                       "including positive/negative prompt embed of text encoder 1 and 2"
-                       ", and the mask for positive and negative prompt")
-    group.add_argument("--attn-mode", type=str, default='flash', help="vanilla or flash")
-    group.add_argument("--output-type", type=str, default='pil', help="pil or latent")
-
     group.add_argument(
         "--reproduce",
         action="store_true",
         help="Enable reproducibility by setting random seeds and deterministic algorithms.",
     )
+
+    group.add_argument("--use-fp8", action="store_true", help="Enable use fp8 for inference acceleration.")
+    group.add_argument("--attn-mode", type=str, default='flash', help="vanilla or flash")
+    group.add_argument("--use-conv2d-patchify", type=str2bool, default=False, help="use conv2d equivalence in PatchEmbed instead of conv3d")
+    group.add_argument("--output-type", type=str, default='pil', help="pil or latent")
+    group.add_argument("--latent-noise-path", type=str, help="path to npy containing latent noise")
+    group.add_argument("--text-embed-path", type=str, help="path to npz containing text embeds, "
+                       "including positive/negative prompt embed of text encoder 1 and 2"
+                       ", and the mask for positive and negative prompt")
+
     # mindspore args
-    group.add_argument("--ms_mode", type=int, default=1, help="0 graph, 1 pynative")
+    group.add_argument("--ms-mode", type=int, default=1, help="0 graph, 1 pynative")
 
     return parser
 

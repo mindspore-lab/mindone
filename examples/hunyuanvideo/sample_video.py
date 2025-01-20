@@ -16,8 +16,12 @@ from mindone.visualize.videos import save_videos
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
 
+
 def init_env(args):
     ms.set_context(mode=args.ms_mode) 
+    ms.set_context(jit_config={"jit_level": "O0"})
+    ms.set_context(max_device_memory="59GB")
+    # ms.set_context(ascend_config = {"precision_mode": "allow_fp32_to_bf16"})
 
 
 def main():
@@ -33,6 +37,7 @@ def main():
         os.makedirs(save_path, exist_ok=True)
 
     # ms env init
+    init_env(args)
 
     # Load models
     hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args)

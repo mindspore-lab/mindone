@@ -477,6 +477,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         self.text_states_dim = args.text_states_dim
         self.text_states_dim_2 = args.text_states_dim_2
 
+        self.param_dtype = dtype
+
         if hidden_size % heads_num != 0:
             raise ValueError(
                 f"Hidden size {hidden_size} must be divisible by heads_num {heads_num}"
@@ -620,7 +622,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         vec = self.time_in(t)
 
         # text modulation
-        vec = vec + self.vector_in(text_states_2)
+        # TODO: remove cast after debug
+        vec = vec + self.vector_in(text_states_2) #.to(self.param_dtype))
 
         # guidance modulation
         if self.guidance_embed:
@@ -633,10 +636,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
             vec = vec + self.guidance_in(guidance)
 
         # Embed image and text.
-        img = self.img_in(img)
+        # TODO: remove cast after debug
+        img = self.img_in(img) # .to(self.param_dtype))
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
         elif self.text_projection == "single_refiner":
+            # TODO: remove cast after debug
+            # txt = txt.to(self.param_dtype)
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(
@@ -719,6 +725,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
             state_dict = torch.load(ckpt_path)
             load_key = 'module'
             sd = state_dict[load_key]
+            # NOTE: self.dtype is get from parameter.dtype in real-time
             param_dtype = ms.float32 if self.dtype is None else self.dtype
             print('D--: get param dtype: ', param_dtype)
             # TODO: support bf16 net params

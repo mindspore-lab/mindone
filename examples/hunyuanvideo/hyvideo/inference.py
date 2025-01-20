@@ -9,7 +9,7 @@ from pathlib import Path
 from loguru import logger
 
 import mindspore as ms
-from mindspore import amp
+from mindspore import amp, nn
 
 from hyvideo.utils.helpers import set_model_param_dtype
 from hyvideo.constants import PROMPT_TEMPLATE, NEGATIVE_PROMPT, PRECISION_TO_TYPE
@@ -18,8 +18,11 @@ from hyvideo.modules import load_model
 # from hyvideo.text_encoder import TextEncoder
 from hyvideo.utils.data_utils import align_to
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
+from hyvideo.modules.attention import FlashAttention
 from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
 from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
+
+from mindone.utils.amp import auto_mixed_precision
 
 
 def parallelize_transformer(pipe):
@@ -71,7 +74,10 @@ class Inference(object):
 
         # =========================== Build main model ===========================
         logger.info("Building model...")
-        factor_kwargs = {"dtype": PRECISION_TO_TYPE[args.precision], "attn_mode": args.attn_mode}
+        factor_kwargs = {"dtype": PRECISION_TO_TYPE[args.precision],
+                        "attn_mode": args.attn_mode,
+                        "use_conv2d_patchify": args.use_conv2d_patchify,
+                        }
         in_channels = args.latent_channels
         out_channels = args.latent_channels
         dtype = factor_kwargs['dtype']
@@ -84,27 +90,45 @@ class Inference(object):
         if args.use_fp8:
             raise NotImplementedError("fp8 is not supported yet.")
         if  dtype!= ms.float32:
+            # TODO: put it in load_mode
             set_model_param_dtype(model, dtype=dtype)
+
             # TODO: debug
-            amp.auto_mixed_precision(model, amp_level='auto', dtype=dtype)
-            # amp.auto_mixed_precision(model, amp_level='O2', dtype=dtype)
+            # import pdb; pdb.set_trace()
+            amp_level = 'O2'
+            from hyvideo.modules.norm_layers import LayerNorm, RMSNorm, FP32LayerNorm 
+            from hyvideo.modules.embed_layers import SinusoidalEmbedding 
+            # TODO: check and add postional embedding to whitelist
+            # TODO: check other layers containing cos/sin/exp/log/accum_sum 
+            # TODO: SiLU, GELU may not be needed
+            from mindspore.nn import SiLU, GELU
+            whitelist_ops = [LayerNorm, RMSNorm, FP32LayerNorm, nn.GroupNorm,
+                            SiLU, GELU,  
+                            SinusoidalEmbedding,
+                            ]
+            print('D--: custom fp32 cell for dit: ', whitelist_ops)
+            # model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
+            
+            amp.auto_mixed_precision(model, amp_level=amp_level, dtype=dtype)
+            # lead to very blurry video
+            # amp.auto_mixed_precision(model, amp_level='auto', dtype=dtype)
+            
+            # amp.get_white_list()
+            # amp.custom_mixed_precision(model, white_list=[FlashAttention, nn.Dense], dtype=dtype)
+            logger.info(f"dit amp level: {amp_level}")
 
         model = Inference.load_state_dict(args, model, pretrained_model_path)
         model.set_train(False)
 
         # ============================= Build extra models ========================
         # VAE
+        # TODO: support tiling ?
         vae, _, s_ratio, t_ratio = load_vae(
             args.vae,
-            # vae_path=,
-            # args.vae_precision,
+            vae_precision=args.vae_precision,
             logger=logger,
         )
         vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
-        vae_dtype = PRECISION_TO_TYPE[args.vae_precision]
-        # TODO: debug vae amp precision
-        if vae_dtype!= ms.float32:
-            amp.auto_mixed_precision(vae, amp_level='auto', dtype=dtype)
 
         # Text encoder
         # TODO: add text encoders and set amp
@@ -276,7 +300,7 @@ class HunyuanVideoSampler(Inference):
             raise NotImplementedError
 
         return pipeline
-
+    
     def get_rotary_pos_embed(self, video_length, height, width):
         target_ndim = 3
         ndim = 5 - 2
@@ -315,6 +339,8 @@ class HunyuanVideoSampler(Inference):
         assert (
             sum(rope_dim_list) == head_dim
         ), "sum(rope_dim_list) should equal to head_dim of attention layer"
+
+        # NOTE: make sure rotary embed is computed in fp32
         freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
             rope_dim_list,
             rope_sizes,
