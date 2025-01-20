@@ -74,6 +74,7 @@ class LlamaDecoderLayer(nn.Cell):
             attention_dropout=attention_dropout,
             attention_bias=attention_bias,
             dtype=dtype,
+            **kwargs,
         )
 
         self.mlp = LlamaMLP(
