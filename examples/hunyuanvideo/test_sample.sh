@@ -1,0 +1,15 @@
+python sample_video.py \
+    --video-size 128 128 \
+    --video-length 17 \
+    --infer-steps 2 \
+    --prompt "A cat walks on the grass, realistic style." \
+    --flow-reverse \
+    --seed-type 'fixed' \
+    --seed 42 \
+    --save-path ./results \
+    --precision 'fp16' \
+    --attn-mode 'vanilla' \
+    --model  "HYVideo-T/2-depth1" \
+    --dit-weight 'ckpts/transformer_depth1.pt' \
+    --output-type 'latent' \
+    --text-embed-path 'text_embed/test.npz' \
