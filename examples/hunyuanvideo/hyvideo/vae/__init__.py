@@ -35,14 +35,17 @@ def load_vae(
         vae = AutoencoderKLCausal3D.from_config(config)
     if state_dict is None:
         vae_ckpt = Path(vae_path) / "model.safetensors"
-        assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
+        # assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
 
-        ckpt = load_file(vae_ckpt)
-        if "state_dict" in ckpt:
-            ckpt = ckpt["state_dict"]
-        if any(k.startswith("vae.") for k in ckpt.keys()):
-            ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
-        vae.load_state_dict(ckpt)
+        if vae_ckpt.exists():
+            ckpt = load_file(vae_ckpt)
+            if "state_dict" in ckpt:
+                ckpt = ckpt["state_dict"]
+            if any(k.startswith("vae.") for k in ckpt.keys()):
+                ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
+            vae.load_state_dict(ckpt)
+        else:
+            print('No vae ckpt is loaded')
     else:
         vae.load_state_dict(state_dict)
 

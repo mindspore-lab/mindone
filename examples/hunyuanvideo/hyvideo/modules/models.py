@@ -5,6 +5,9 @@ import mindspore as ms
 from mindspore import nn, ops
 import mindspore.ops.functional as F
 
+from mindone.diffusers.models import ModelMixin
+from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
+
 from .norm_layers import LayerNorm, get_norm_layer
 from .activation_layers import get_activation_layer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
@@ -378,7 +381,7 @@ class MMSingleStreamBlock(nn.Cell):
         return x + apply_gate(output, gate=mod_gate)
 
 # TODO: inherit ModelMixin, ConfigMixin
-class HYVideoDiffusionTransformer(nn.Cell):
+class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
     """
     HunyuanVideo Transformer backbone
 
@@ -428,7 +431,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         The dtype of the model, i.e. model parameter dtype
     """
 
-    # @register_to_config
+    @register_to_config
     def __init__(
         self,
         args: Any,
@@ -462,7 +465,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
         self.guidance_embed = guidance_embed
         self.rope_dim_list = rope_dim_list
         self.use_conv2d_patchify = use_conv2d_patchify
-        self.dtype = dtype
+        # self.dtype = dtype
         print('attn_mode: ', attn_mode)
 
         # Text projection. Default to linear projection.
@@ -717,6 +720,7 @@ class HYVideoDiffusionTransformer(nn.Cell):
             load_key = 'module'
             sd = state_dict[load_key]
             param_dtype = ms.float32 if self.dtype is None else self.dtype
+            print('D--: get param dtype: ', param_dtype)
             # TODO: support bf16 net params
             parameter_dict = dict()
             # import pdb; pdb.set_trace()
@@ -782,6 +786,15 @@ HUNYUAN_VIDEO_CONFIG = {
     "HYVideo-T/2-cfgdistill": {
         "mm_double_blocks_depth": 20,
         "mm_single_blocks_depth": 40,
+        "rope_dim_list": [16, 56, 56],
+        "hidden_size": 3072,
+        "heads_num": 24,
+        "mlp_width_ratio": 4,
+        "guidance_embed": True,
+    },
+    "HYVideo-T/2-depth1": {
+        "mm_double_blocks_depth": 1,
+        "mm_single_blocks_depth": 1,
         "rope_dim_list": [16, 56, 56],
         "hidden_size": 3072,
         "heads_num": 24,

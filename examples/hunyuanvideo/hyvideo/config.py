@@ -338,6 +338,11 @@ def add_inference_args(parser: argparse.ArgumentParser):
     )
 
     group.add_argument("--use-fp8", action="store_true", help="Enable use fp8 for inference acceleration.")
+    group.add_argument("--text-embed-path", type=str, help="path to npz containing text embeds, "
+                       "including positive/negative prompt embed of text encoder 1 and 2"
+                       ", and the mask for positive and negative prompt")
+    group.add_argument("--attn-mode", type=str, default='flash', help="vanilla or flash")
+    group.add_argument("--output-type", type=str, default='pil', help="pil or latent")
 
     group.add_argument(
         "--reproduce",

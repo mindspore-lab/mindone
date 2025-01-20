@@ -8,11 +8,15 @@ from easydict import EasyDict as edict
 import time
 
 sys.path.insert(0, ".")
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
 
 from hyvideo.modules.models import MMDoubleStreamBlock, MMSingleStreamBlock, HYVideoDiffusionTransformer, HUNYUAN_VIDEO_CONFIG
 from hyvideo.modules.attention import VanillaAttention
 from hyvideo.modules.token_refiner import SingleTokenRefiner
 from hyvideo.utils.helpers import set_model_param_dtype
+from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
 
 
 
@@ -47,7 +51,7 @@ def _diff_res(ms_val, pt_val, eps=1e-8):
 def _convert_ckpt(pt_ckpt, rename_norm=False):
     # sd = torch.load(pt_ckpt, map_location="CPU")['model_state_dict']
     sd = torch.load(pt_ckpt)["model_state_dict"]
-    state_dict = torch.load(model_path) #, map_location=lambda storage, loc: storage)
+    state_dict = torch.load(pt_ckpt) #, map_location=lambda storage, loc: storage)
     target_data = []
 
     for k in sd:
@@ -286,17 +290,37 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
         print(diff)
 
 
+def test_nd_rope():
+    latents_size = [16, 32, 32]
+    patch_size = [1, 2, 2]
+    rope_sizes = [
+                s // patch_size[idx] for idx, s in enumerate(latents_size)
+            ]
+    target_ndim = 3
+    rope_dim_list = [16, 56, 56]
+    freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
+            rope_dim_list,
+            rope_sizes,
+            theta=256,
+            use_real=True,
+            theta_rescale_factor=1,
+        )
+
+    print(freqs_cos.sum(), freqs_cos.std())
+    print(freqs_sin.sum(), freqs_sin.std())
+
 if __name__ == "__main__":
-    ms.set_context(mode=0)
+    ms.set_context(mode=1)
     # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
     # test_dualstream_block('tests/dual_stream.pth', 'tests/pt_dual_stream.npz')
     # test_singlestream_block('tests/single_stream.pth', 'tests/pt_single_stream.npy')
     # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy')
-    test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy', attn_mode='vanilla', dtype=ms.float16)
+    # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy', attn_mode='vanilla', dtype=ms.float16)
     # test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
 
     # test_hyvtransformer()
     # test_hyvtransformer(pt_ckpt='ckpts/HunyuanVideo/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.bfloat16, debug=False)
     # test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 
+    test_nd_rope()
