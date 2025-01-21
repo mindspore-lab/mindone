@@ -1,7 +1,7 @@
 from typing import Callable
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, mint
 
 
 class ModulateDiT(nn.Cell):
@@ -17,8 +17,8 @@ class ModulateDiT(nn.Cell):
         super().__init__()
         self.act = act_layer()
         # Zero-initialize the modulation
-        self.linear = nn.Dense(
-            hidden_size, factor * hidden_size, has_bias=True, weight_init='zero', bias_init='zero') #, **factory_kwargs)
+        self.linear = mint.nn.Linear(
+            hidden_size, factor * hidden_size, bias=True, weight_init='zero', bias_init='zero') #, **factory_kwargs)
         
         self.dtype = dtype
 

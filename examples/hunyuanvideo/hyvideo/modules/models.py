@@ -2,7 +2,7 @@ from typing import Any, List, Tuple, Optional, Union, Dict
 import math
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 import mindspore.ops.functional as F
 
 from mindone.diffusers.models import ModelMixin
@@ -56,8 +56,8 @@ class MMDoubleStreamBlock(nn.Cell):
         self.img_norm1 = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
-        self.img_attn_qkv = nn.Dense(
-            hidden_size, hidden_size * 3, has_bias=qkv_bias)
+        self.img_attn_qkv = mint.nn.Linear(
+            hidden_size, hidden_size * 3, bias=qkv_bias)
 
         qk_norm_layer = get_norm_layer(qk_norm_type)
         self.img_attn_q_norm = (
@@ -70,8 +70,8 @@ class MMDoubleStreamBlock(nn.Cell):
             if qk_norm
             else nn.Identity()
         )
-        self.img_attn_proj = nn.Dense(
-            hidden_size, hidden_size, has_bias=qkv_bias)
+        self.img_attn_proj = mint.nn.Linear(
+            hidden_size, hidden_size, bias=qkv_bias)
 
         self.img_norm2 = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
@@ -94,8 +94,8 @@ class MMDoubleStreamBlock(nn.Cell):
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
 
-        self.txt_attn_qkv = nn.Dense(
-            hidden_size, hidden_size * 3, has_bias=qkv_bias
+        self.txt_attn_qkv = mint.nn.Linear(
+            hidden_size, hidden_size * 3, bias=qkv_bias
         )
         self.txt_attn_q_norm = (
             qk_norm_layer(head_dim, elementwise_affine=True, eps=1e-6, **factory_kwargs)
@@ -107,8 +107,8 @@ class MMDoubleStreamBlock(nn.Cell):
             if qk_norm
             else nn.Identity()
         )
-        self.txt_attn_proj = nn.Dense(
-            hidden_size, hidden_size, has_bias=qkv_bias,
+        self.txt_attn_proj = mint.nn.Linear(
+            hidden_size, hidden_size, bias=qkv_bias,
         )
 
         self.txt_norm2 = FP32LayerNorm(
@@ -290,11 +290,11 @@ class MMSingleStreamBlock(nn.Cell):
         self.scale = qk_scale or head_dim ** -0.5
 
         # qkv and mlp_in
-        self.linear1 = nn.Dense(
+        self.linear1 = mint.nn.Linear(
             hidden_size, hidden_size * 3 + mlp_hidden_dim,
         )
         # proj and mlp_out
-        self.linear2 = nn.Dense(
+        self.linear2 = mint.nn.Linear(
             hidden_size + mlp_hidden_dim, hidden_size,
         )
 
@@ -637,7 +637,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
 
         # text modulation
         # TODO: AMP: mlp bf16;  ts2 fp16 x param bf16, how is it computed? fp16 to bf16? 
-        vec = vec + self.vector_in(text_states_2) # .to(self.param_dtype))
+        vec = vec + self.vector_in(text_states_2.to(self.param_dtype))
 
         # guidance modulation
         if self.guidance_embed:

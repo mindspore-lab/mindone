@@ -1,6 +1,6 @@
 from typing import Optional
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 from .embed_layers import TimestepEmbedder, TextProjection
 from .norm_layers import LayerNorm, FP32LayerNorm
 from .mlp_layers import MLP
@@ -50,8 +50,8 @@ class IndividualTokenRefinerBlock(nn.Cell):
         self.norm1 = FP32LayerNorm(
             hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
         )
-        self.self_attn_qkv = nn.Dense(
-            hidden_size, hidden_size * 3, has_bias=qkv_bias,
+        self.self_attn_qkv = mint.nn.Linear(
+            hidden_size, hidden_size * 3, bias=qkv_bias,
         )
         qk_norm_layer = get_norm_layer(qk_norm_type)
         self.self_attn_q_norm = (
@@ -64,8 +64,8 @@ class IndividualTokenRefinerBlock(nn.Cell):
             if qk_norm
             else nn.Identity()
         )
-        self.self_attn_proj = nn.Dense(
-            hidden_size, hidden_size, has_bias=qkv_bias,
+        self.self_attn_proj = mint.nn.Linear(
+            hidden_size, hidden_size, bias=qkv_bias,
         )
 
         self.norm2 = FP32LayerNorm(
@@ -82,7 +82,7 @@ class IndividualTokenRefinerBlock(nn.Cell):
 
         self.adaLN_modulation = nn.SequentialCell(
             act_layer(),
-            nn.Dense(hidden_size, 2 * hidden_size, has_bias=True, weight_init='zeros', bias_init='zeros'),
+            mint.nn.Linear(hidden_size, 2 * hidden_size, bias=True, weight_init='zeros', bias_init='zeros'),
         )
 
         if attn_mode == 'vanilla':
@@ -213,8 +213,8 @@ class SingleTokenRefiner(nn.Cell):
         super().__init__()
         self.attn_mode = attn_mode
 
-        self.input_embedder = nn.Dense(
-            in_channels, hidden_size, has_bias=True,
+        self.input_embedder = mint.nn.Linear(
+            in_channels, hidden_size, bias=True,
         )
 
         act_layer = get_activation_layer(act_type)

@@ -1,7 +1,7 @@
 import math
 import numpy as np
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 from mindspore.common.initializer import Normal, XavierUniform, initializer
 from ..utils.helpers import to_2tuple
 
@@ -89,16 +89,16 @@ class TextProjection(nn.Cell):
     def __init__(self, in_channels, hidden_size, act_layer, dtype=None):
         factory_kwargs = {"dtype": dtype}
         super().__init__()
-        self.linear_1 = nn.Dense(
+        self.linear_1 = mint.nn.Linear(
             in_channels,
             hidden_size,
-            has_bias=True,
+            bias=True,
         )
         self.act_1 = act_layer()
-        self.linear_2 = nn.Dense(
+        self.linear_2 = mint.nn.Linear(
             hidden_size,
             hidden_size,
-            has_bias=True,
+            bias=True,
         )
 
     def construct(self, caption):
@@ -154,11 +154,11 @@ class TimestepEmbedder(nn.Cell):
             out_size = hidden_size
 
         self.mlp = nn.SequentialCell(
-            nn.Dense(
-                frequency_embedding_size, hidden_size, has_bias=True,
+            mint.nn.Linear(
+                frequency_embedding_size, hidden_size, bias=True,
             ),
             act_layer(),
-            nn.Dense(hidden_size, out_size, has_bias=True),
+            mint.nn.Linear(hidden_size, out_size, bias=True),
         )
         init_normal(self.mlp[0].weight, std=0.02)
         init_normal(self.mlp[2].weight, std=0.02)
@@ -168,5 +168,6 @@ class TimestepEmbedder(nn.Cell):
 
     def construct(self, t):
         t_freq = self.timestep_embedding(t).to(self.mlp[0].weight.dtype)
+        # import pdb; pdb.set_trace()
         t_emb = self.mlp(t_freq)
         return t_emb
