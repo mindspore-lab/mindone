@@ -89,7 +89,8 @@ class Inference(object):
         )
         if args.use_fp8:
             raise NotImplementedError("fp8 is not supported yet.")
-        use_ms_amp = True
+        '''
+        use_ms_amp = False
         if  use_ms_amp and dtype!= ms.float32:
             amp_level = 'O2'
             from hyvideo.modules.norm_layers import LayerNorm, RMSNorm, FP32LayerNorm 
@@ -107,6 +108,7 @@ class Inference(object):
             # amp.get_white_list()
             # amp.custom_mixed_precision(model, white_list=[FlashAttention, nn.Dense], dtype=dtype)
             logger.info(f"Use MS auto mixed precision, amp_level: {amp_level}")
+        '''
 
         model = Inference.load_state_dict(args, model, pretrained_model_path)
         model.set_train(False)

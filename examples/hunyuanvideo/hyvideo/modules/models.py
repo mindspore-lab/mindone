@@ -8,7 +8,7 @@ import mindspore.ops.functional as F
 from mindone.diffusers.models import ModelMixin
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 
-from .norm_layers import LayerNorm, get_norm_layer
+from .norm_layers import LayerNorm, FP32LayerNorm, get_norm_layer
 from .activation_layers import get_activation_layer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .mlp_layers import MLP, MLPEmbedder, FinalLayer
@@ -53,7 +53,7 @@ class MMDoubleStreamBlock(nn.Cell):
             act_layer=get_activation_layer("silu"),
             **factory_kwargs,
         )
-        self.img_norm1 = LayerNorm(
+        self.img_norm1 = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
         self.img_attn_qkv = nn.Dense(
@@ -73,7 +73,7 @@ class MMDoubleStreamBlock(nn.Cell):
         self.img_attn_proj = nn.Dense(
             hidden_size, hidden_size, has_bias=qkv_bias)
 
-        self.img_norm2 = LayerNorm(
+        self.img_norm2 = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
         self.img_mlp = MLP(
@@ -90,7 +90,7 @@ class MMDoubleStreamBlock(nn.Cell):
             act_layer=get_activation_layer("silu"),
             **factory_kwargs,
         )
-        self.txt_norm1 = LayerNorm(
+        self.txt_norm1 = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
 
@@ -111,7 +111,7 @@ class MMDoubleStreamBlock(nn.Cell):
             hidden_size, hidden_size, has_bias=qkv_bias,
         )
 
-        self.txt_norm2 = LayerNorm(
+        self.txt_norm2 = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
         self.txt_mlp = MLP(
@@ -151,6 +151,11 @@ class MMDoubleStreamBlock(nn.Cell):
         txt: (B S_t HD)
         vec: (B HD), projected representation of timestep and global text embed (from CLIP)
         '''
+        # DOING: img -> M
+        # txt = txt.to(self.param_dtype)
+        # vec = vec.to(self.param_dtype)
+        
+        # AMP: in xx_mode, silu (input cast to bf16) -> linear (bf16), so output bf16
         (
             img_mod1_shift,
             img_mod1_scale,
@@ -169,29 +174,34 @@ class MMDoubleStreamBlock(nn.Cell):
         ) = self.txt_mod(vec).chunk(6, axis=-1)
 
         # Prepare image for attention.
+        # AMP: img bf16, norm fp32, out bf16
         img_modulated = self.img_norm1(img)
+
+        # AMP: matmul and add/sum ops, should be bf16
         img_modulated = modulate(
             img_modulated, shift=img_mod1_shift, scale=img_mod1_scale
         )
+
         img_qkv = self.img_attn_qkv(img_modulated)
         # "B L (K H D) -> K B L H D", K=3, H=self.heads_num
         img_q, img_k, img_v = rearrange_qkv(img_qkv, self.heads_num)
 
         # Apply QK-Norm if needed
-        # TODO: check whether need to cast to dtype of img_v
-        img_q = self.img_attn_q_norm(img_q) # .to(img_v)
-        img_k = self.img_attn_k_norm(img_k) # .to(img_v)
+        # AMP: img_q bf16, rms norm (fp32) output cast to bf16, out bf16
+        img_q = self.img_attn_q_norm(img_q)  # .to(img_v)
+        img_k = self.img_attn_k_norm(img_k)  # .to(img_v)
 
         # Apply RoPE if needed.
         if freqs_cis is not None:
+            # AMP: img_q, img_k cast to fp32 inside, cast back in output, out bf16
             img_qq, img_kk = apply_rotary_emb(img_q, img_k, freqs_cis, head_first=False)
-            # assert (
-            #    img_qq.shape == img_q.shape and img_kk.shape == img_k.shape
-            # ), f"img_kk: {img_qq.shape}, img_q: {img_q.shape}, img_kk: {img_kk.shape}, img_k: {img_k.shape}"
+
             img_q, img_k = img_qq, img_kk
 
         # Prepare txt for attention.
+        # AMP: txt bf16, norm fp32, out bf16
         txt_modulated = self.txt_norm1(txt)
+
         txt_modulated = modulate(
             txt_modulated, shift=txt_mod1_shift, scale=txt_mod1_scale
         )
@@ -300,7 +310,7 @@ class MMSingleStreamBlock(nn.Cell):
             else nn.Identity()
         )
 
-        self.pre_norm = LayerNorm(
+        self.pre_norm = FP32LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
 
@@ -601,9 +611,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         guidance: ms.Tensor = None,  # Guidance for modulation, should be cfg_scale x 1000.
     ) -> ms.Tensor:
         '''
-        x: (B C T H W), video latent
-        t: (B,)
-        text_states: (B S_t D_t); S_t - seq len of padded text tokens, D_t: text feature dim, from LM text encoder, default: S_t=256, D_t = 4096
+        x: (B C T H W), video latent. dtype same as vae-precision, which is fp16 by default
+        t: (B,), float32
+        text_states: (B S_t D_t); S_t - seq len of padded text tokens, D_t: text feature dim, from LM text encoder, default: S_t=256, D_t = 4096; dtype same as text-encoder-precision, which is fp16 by default. 
         text_mask: (B S_t), 1 - retain, 0 - drop
         text_states_2: (B D_t2), from CLIP text encoder, global text feature (fuse 77 tokens), D_t2=768
         freqs_cos: (S attn_head_dim), S - seq len of the patchified video latent (T * H //2 * W//2)
@@ -618,12 +628,16 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
             oh // self.patch_size[1],
             ow // self.patch_size[2],
         )
+
+        # import pdb; pdb.set_trace()
+
         # Prepare modulation vectors.
+        # AMP: t (fp16) -> sinusoidal (fp32) -> mlp (bf16), out bf16
         vec = self.time_in(t)
 
         # text modulation
-        # TODO: remove cast after debug
-        vec = vec + self.vector_in(text_states_2) #.to(self.param_dtype))
+        # TODO: AMP: mlp bf16;  ts2 fp16 x param bf16, how is it computed? fp16 to bf16? 
+        vec = vec + self.vector_in(text_states_2) # .to(self.param_dtype))
 
         # guidance modulation
         if self.guidance_embed:
@@ -631,18 +645,19 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                 raise ValueError(
                     "Didn't get guidance strength for guidance distilled model."
                 )
-
             # our timestep_embedding is merged into guidance_in(TimestepEmbedder)
+            # AMP: sinusoidal (fp32) -> mlp (bf16), out bf16
             vec = vec + self.guidance_in(guidance)
 
         # Embed image and text.
-        # TODO: remove cast after debug
-        img = self.img_in(img) # .to(self.param_dtype))
+        # AMP: img (fp16) -> conv bf16, out bf16
+        img = self.img_in(img.to(self.param_dtype))
         if self.text_projection == "linear":
             txt = self.txt_in(txt)
         elif self.text_projection == "single_refiner":
             # TODO: remove cast after debug
             # txt = txt.to(self.param_dtype)
+            # AMP: txt -> mask sum (fp32) -> c; txt (fp16/fp32) -> linear (bf16); out bf16
             txt = self.txt_in(txt, t, text_mask if self.use_attention_mask else None)
         else:
             raise NotImplementedError(
@@ -662,6 +677,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
         for _, block in enumerate(self.double_blocks):
+            # AMP: img bf16, txt bf16, vec bf16, freqs fp32 
             img, txt = block(
                 img,
                 txt,

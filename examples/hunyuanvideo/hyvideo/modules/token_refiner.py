@@ -2,7 +2,7 @@ from typing import Optional
 import mindspore as ms
 from mindspore import nn, ops
 from .embed_layers import TimestepEmbedder, TextProjection
-from .norm_layers import LayerNorm
+from .norm_layers import LayerNorm, FP32LayerNorm
 from .mlp_layers import MLP
 from .attention import VanillaAttention, FlashAttention
 from .norm_layers import get_norm_layer
@@ -47,7 +47,7 @@ class IndividualTokenRefinerBlock(nn.Cell):
         head_dim = hidden_size // heads_num
         mlp_hidden_dim = int(hidden_size * mlp_width_ratio)
 
-        self.norm1 = LayerNorm(
+        self.norm1 = FP32LayerNorm(
             hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
         )
         self.self_attn_qkv = nn.Dense(
@@ -68,7 +68,7 @@ class IndividualTokenRefinerBlock(nn.Cell):
             hidden_size, hidden_size, has_bias=qkv_bias,
         )
 
-        self.norm2 = LayerNorm(
+        self.norm2 = FP32LayerNorm(
             hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
         )
         act_layer = get_activation_layer(act_type)
@@ -239,6 +239,8 @@ class SingleTokenRefiner(nn.Cell):
             **factory_kwargs,
         )
 
+        self.dtype = dtype
+
     def construct(
         self,
         x: ms.Tensor,
@@ -247,15 +249,15 @@ class SingleTokenRefiner(nn.Cell):
     ):
         '''
         Inputs:
-            x: float32, (B, S_token_padded, emb_dim)
+            x: float16, (B, S_token_padded, emb_dim), text embedding (from llama)
             t: float32, (1,), e.g. [1000.]
             mask: int, (B, S_token_padded)
         Output:
             (B, S_token_padded, out_emb_dim)
         '''
-
         # import pdb; pdb.set_trace()
 
+        # AMP: t (fp32) -> TimestepEmbed (sinusoidal, mlp) -> bf16
         # (B, hidden_dim)
         timestep_aware_representations = self.t_embedder(t)
 
@@ -263,14 +265,18 @@ class SingleTokenRefiner(nn.Cell):
             context_aware_representations = x.mean(axis=1)
         else:
             mask_float = mask.float().unsqueeze(-1)  # [b, s1, 1]
+            # TODO: AMP: x fp16, mask_float fp32, should we upcast x to fp32 manully?
             context_aware_representations = (x * mask_float).sum(
                 axis=1
             ) / mask_float.sum(axis=1)
-        context_aware_representations = self.c_embedder(context_aware_representations)
+        # AMP: car -> c_embedder mlp (bf16) -> bf16
+        context_aware_representations = self.c_embedder(context_aware_representations.to(self.dtype))
         c = timestep_aware_representations + context_aware_representations
-
-        x = self.input_embedder(x)
-
-        x = self.individual_token_refiner(x, c, mask)
+        
+        # AMP: linear bf16, out x bf16
+        x = self.input_embedder(x.to(self.dtype))
+        
+        # AMP: x bf16, c float32; c -> adaLN_modulation (silu, linear)
+        x = self.individual_token_refiner(x, c.to(self.dtype), mask)
 
         return x

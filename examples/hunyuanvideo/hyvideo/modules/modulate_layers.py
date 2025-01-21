@@ -19,10 +19,15 @@ class ModulateDiT(nn.Cell):
         # Zero-initialize the modulation
         self.linear = nn.Dense(
             hidden_size, factor * hidden_size, has_bias=True, weight_init='zero', bias_init='zero') #, **factory_kwargs)
+        
+        self.dtype = dtype
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
-        return self.linear(self.act(x))
+        # AMP: silu better be fp32, linear bf16. currently just use bf16 
+        # TODO: in torch autocast, silu-exp is cast to fp32. 
+        return self.linear(self.act(x.to(self.dtype)))
 
+        # return self.linear(self.act(x.float()).to(self.dtype))
 
 def modulate(x, shift=None, scale=None):
     """modulate by shift and scale

@@ -60,6 +60,7 @@ class LayerNorm(nn.Cell):
 
     def construct(self, x: Tensor):
         # TODO: use minit layernorm for better speed
+        # AMP: sum fp32
         x, _, _ = self.layer_norm(x, self.weight.to(x.dtype), self.bias.to(x.dtype))
         return x
 
@@ -73,7 +74,6 @@ class FP32LayerNorm(LayerNorm):
             self.bias.float() if self.bias is not None else None,
         )
         return x.to(origin_dtype)
-
 
 
 class RMSNorm(nn.Cell):
@@ -112,8 +112,8 @@ class RMSNorm(nn.Cell):
 
     def construct(self, x):
         input_dtype = x.dtype
-        # TODO: no need to cast x to fp32 if RMSNorm is added to the amp fp32list
-        output = self._norm(x.to(ms.float32))
+        # AMP: pt also cast x to float32 for rmsnorm
+        output = self._norm(x.float())
         if self.weight is not None:
             output = output.to(self.weight.dtype) * self.weight
         else:
@@ -132,7 +132,8 @@ def get_norm_layer(norm_layer):
         norm_layer (nn.Module): The normalization layer.
     """
     if norm_layer == "layer":
-        return LayerNorm
+        # return LayerNorm
+        return FP32LayerNorm
     elif norm_layer == "rms":
         return RMSNorm
     else:

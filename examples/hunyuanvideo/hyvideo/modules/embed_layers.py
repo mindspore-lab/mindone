@@ -120,7 +120,8 @@ class SinusoidalEmbedding(nn.Cell):
         self._dim = dim
 
     def construct(self, t):
-        args = t[:, None] * self._freqs
+        # AMP: cos, sin fp32
+        args = t[:, None].float() * self._freqs
         embedding = ops.cat([ops.cos(args), ops.sin(args)], axis=-1)
         if self._dim % 2:
             embedding = ops.cat([embedding, ops.zeros_like(embedding[:, :1])], axis=-1)
@@ -163,8 +164,9 @@ class TimestepEmbedder(nn.Cell):
         init_normal(self.mlp[2].weight, std=0.02)
 
         self.timestep_embedding = SinusoidalEmbedding(frequency_embedding_size, max_period=max_period)
+        self.dtype = dtype
 
     def construct(self, t):
-        t_freq = self.timestep_embedding(t) # .to(self.mlp[0].weight.dtype)
+        t_freq = self.timestep_embedding(t).to(self.mlp[0].weight.dtype)
         t_emb = self.mlp(t_freq)
         return t_emb
