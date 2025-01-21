@@ -19,7 +19,8 @@ from hyvideo.inference import HunyuanVideoSampler
 
 def init_env(args):
     ms.set_context(mode=args.ms_mode) 
-    ms.set_context(jit_config={"jit_level": "O0"})
+    if args.ms_mode == 0:
+        ms.set_context(jit_config={"jit_level": "O0"})
     ms.set_context(max_device_memory="59GB")
     # ms.set_context(ascend_config = {"precision_mode": "allow_fp32_to_bf16"})
 
