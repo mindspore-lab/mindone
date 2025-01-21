@@ -3,7 +3,7 @@ import logging
 import os
 import random
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import cv2
 import imageio
@@ -12,6 +12,7 @@ from decord import VideoReader
 
 from mindone.data import BaseDataset
 
+from .buckets import get_target_size
 from .transforms import HorizontalFlip, ResizeCrop
 
 __all__ = ["VideoDataset", "BatchTransform"]
@@ -43,11 +44,11 @@ class VideoDataset(BaseDataset):
         self,
         csv_path: Optional[str],
         folder: str,
-        size: Tuple[int, int] = (256, 256),
+        size: Union[str, Tuple[int, int]] = "256px",
         random_crop: bool = False,
         random_flip: bool = False,
-        sample_stride: int = 1,
         sample_n_frames: int = 16,
+        sample_stride: int = 1,
         deterministic_sample: bool = False,
         return_image: bool = False,
         video_column: str = "video",
@@ -74,7 +75,12 @@ class VideoDataset(BaseDataset):
         self.return_image = return_image
         self._deterministic = deterministic_sample
 
-        self._transforms = self.train_transforms(size=size, random_crop=random_crop, random_flip=random_flip)
+        self._transforms = self.train_transforms(
+            lambda h, w: get_target_size(size, h, w) if isinstance(size, str) else size,
+            random_crop=random_crop,
+            random_flip=random_flip,
+            video_column=video_column,
+        )
         self.video_column = video_column
         self.output_columns = output_columns
 
@@ -155,6 +161,7 @@ class VideoDataset(BaseDataset):
         size: Tuple[int, int],
         random_crop: bool = False,
         random_flip: bool = False,
+        video_column: str = "video",
         interpolation: int = cv2.INTER_CUBIC,
     ) -> List[dict]:
         if random_crop:
@@ -166,7 +173,7 @@ class VideoDataset(BaseDataset):
         operations.append(lambda x: np.transpose(x, (3, 0, 1, 2)))  # T H W C -> C T H W
         operations.append(lambda x: x.astype(np.float32) / 127.5 - 1)
 
-        return [{"operations": operations, "input_columns": ["video"]}]
+        return [{"operations": operations, "input_columns": [video_column]}]
 
 
 # TODO: parse in config dict

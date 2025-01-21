@@ -12,5 +12,5 @@ python scripts/inference_tae.py \
 --tae.dtype bf16 \
 --video_data.folder PATH_TO_IN_DIR \
 --video_data.sample_n_frames -1 \
---video_data.size [192,340] \
+--video_data.size 256px \
 --output_path "$output_dir"

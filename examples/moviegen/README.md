@@ -231,7 +231,7 @@ python scripts/inference_tae.py \
 --video_data.folder=/path/to/folder/with/videos/ \
 --output_path=/path/to/output/directory/ \
 --video_data.sample_n_frames=256 \
---video_data.size=[256,455]
+--video_data.size=256px
 ```
 
 > [!TIP]

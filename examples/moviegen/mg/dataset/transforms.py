@@ -1,5 +1,5 @@
 import random
-from typing import Optional, Tuple
+from typing import Callable, Tuple, Union
 
 import cv2
 import numpy as np
@@ -17,7 +17,7 @@ class ResizeCrop:
 
     def __init__(
         self,
-        size: Optional[Tuple[int, int]] = None,
+        size: Union[Tuple[int, int], Callable[[Tuple[int, int]], Tuple[int, int]]],
         interpolation: int = cv2.INTER_LINEAR,
         preserve_orientation: bool = True,
     ):
@@ -25,17 +25,16 @@ class ResizeCrop:
         self._inter = interpolation
         self._po = preserve_orientation
 
-    def __call__(self, x: np.ndarray, size: Optional[Tuple[int, int]] = None) -> np.ndarray:
+    def __call__(self, x: np.ndarray) -> np.ndarray:
         """
         Args:
             x: An array containing either an image (h, w, c) or a video (f, h, w, c).
-            size: The target size. If None, the target size must be passed during initialization.
 
         Returns:
             A resized and cropped image or video.
         """
         h, w = x.shape[-3:-1]  # support images and videos
-        th, tw = size or self._size
+        th, tw = self._size if isinstance(self._size, tuple) else self._size(h, w)
 
         scale = max(th / h, tw / w)
         if self._po and (new_scale := max(th / w, tw / h)) < scale:  # preserve orientation

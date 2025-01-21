@@ -37,30 +37,38 @@ logger = logging.getLogger(__name__)
 def initialize_dataset(
     dataset_args, dataloader_args, device_num: int, shard_rank_id: int
 ) -> Tuple[Union[ds.BatchDataset, ds.BucketBatchByLengthDataset], int]:
+    dataloader_args = dataloader_args.as_dict()
+    batch_size = dataloader_args.pop("batch_size")
+    if isinstance(batch_size, dict):  # overwrite fixed length with variable for bucketing
+        batch_size = {max(f // 8, 1): bs for f, bs in batch_size.items()}
+        dataset_args.sample_n_frames = list(batch_size.keys())
+
     dataset = ImageVideoDataset(**dataset_args)
     transforms = (
         dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
     )
 
-    dataloader_args = dataloader_args.as_dict()
-    batch_size = dataloader_args.pop("batch_size")
     dataloader = create_dataloader(
         dataset,
-        batch_size=batch_size if isinstance(batch_size, int) else 0,  # Turn off batching if using buckets
+        batch_size=0,  # Turn off batching when using buckets
         transforms=transforms,
         device_num=device_num,
         rank_id=shard_rank_id,
         **dataloader_args,
     )
-    if isinstance(batch_size, dict):  # if buckets are used
-        hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(**batch_size)
-        dataloader = dataloader.bucket_batch_by_length(
-            ["video"],
-            bucket_boundaries,
-            bucket_batch_sizes,
-            element_length_function=hash_func,
-            drop_remainder=dataloader_args["drop_remainder"],
-        )
+
+    # Bucketization
+    hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(
+        batch_size if isinstance(batch_size, dict) else {dataset_args.sample_n_frames: batch_size}
+    )
+    dataloader = dataloader.bucket_batch_by_length(
+        ["video"],
+        bucket_boundaries,
+        bucket_batch_sizes,
+        element_length_function=hash_func,
+        drop_remainder=dataloader_args["drop_remainder"],
+    )
+    dataloader.dataset_size = 1  # prevent MS from iterating over the dataset once at the beginning
     return dataloader, len(dataset)
 
 
@@ -71,8 +79,8 @@ def main(args):
     device_id, rank_id, device_num = init_train_env(**args.env)
     mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
 
-    # if bucketing is used in Graph mode, activate dynamic mode
-    if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
+    # Activate dynamic graph mode because bucketing is used
+    if mode == GRAPH_MODE:
         set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     # 1.1 init model parallel
@@ -88,7 +96,7 @@ def main(args):
 
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
 
-    # instantiate classes only after initializing training environment
+    # instantiate classes only after initializing the training environment
     initializer = parser.instantiate_classes(cfg)
 
     # 2. model initialize and weight loading
@@ -160,13 +168,10 @@ def main(args):
         start_epoch, global_step = resume_train_net(net_with_grads, resume_ckpt=os.path.abspath(args.train.resume_ckpt))
 
     # TODO: validation graph?
-    # if bucketing is used in Graph mode, activate dynamic inputs
-    if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
+    # Activate dynamic graph mode because bucketing is used
+    if mode == GRAPH_MODE:
         bs = Symbol(unique=True)
-        if tae is None:
-            video = Tensor(shape=[bs, None, args.model.in_channels, None, None], dtype=mstype.float32)
-        else:  # FIXME: Align TAE to B T C H W order
-            video = Tensor(shape=[bs, 3, None, None, None], dtype=mstype.float32)
+        video = Tensor(shape=[bs, None, args.model.in_channels if tae is None else 3, None, None], dtype=mstype.float32)
         # FIXME: fix sequence length
         ul2_emb = Tensor(shape=[bs, 300, 4096], dtype=mstype.float32)
         byt5_emb = Tensor(shape=[bs, 100, 1472], dtype=mstype.float32)
@@ -286,8 +291,8 @@ if __name__ == "__main__":
         "dataloader",
         skip={"dataset", "batch_size", "transforms", "batch_transforms", "device_num", "rank_id"},
     )
-    parser.add_argument(  # FIXME: support bucketing
-        "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
+    parser.add_argument(
+        "--dataloader.batch_size", default=1, type=Union[int, Dict[int, int]], help="Number of samples per batch"
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")

@@ -11,7 +11,7 @@ model:
   enable_flash_attention: True
   recompute_every_nth_block: 1
   not_recompute_fa: False
-  max_length: [32, 28, 28]
+  max_length: [32, 24, 24]
   dtype: bf16
 
 tae:
@@ -30,15 +30,18 @@ dataset:
     byt5: EMPTY_TEXT_EMB
   deterministic_sample: False
   text_drop_prob: 0.2
-  target_size: [ 256, 455 ]
-  sample_n_frames: 256  # FIXME: add variable frames support.
+  target_size: 256px
   apply_transforms_dataset: True
   output_columns: [ "video", "ul2_caption", "byt5_caption" ]
 
 dataloader:
   batch_size:
-    image_batch_size: 1
-    video_batch_size: 1
+    # num_frames: batch size
+    1: 1
+    64: 1
+    128: 1
+    192: 1
+    256: 1
   shuffle: True
   num_workers_dataset: 4
 

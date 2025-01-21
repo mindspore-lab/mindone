@@ -168,7 +168,7 @@ class LlamaModel(nn.Cell):
         hidden_act: str = "silu",
         initializer_range: float = 0.02,
         patch_size: Tuple[int, int, int] = (1, 2, 2),
-        max_length: Tuple[int, int, int] = (128, 64, 64),
+        max_length: Tuple[int, int, int] = (32, 73, 73),
         attn_implementation: Literal["eager", "flash_attention"] = "eager",
         recompute_every_nth_block: Optional[int] = None,
         not_recompute_fa: bool = False,

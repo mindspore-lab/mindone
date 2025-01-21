@@ -89,7 +89,7 @@ def init_model(
     enable_flash_attention: bool = True,
     recompute_every_nth_block: Optional[int] = None,
     not_recompute_fa: bool = False,
-    max_length: Tuple[int, int, int] = (128, 64, 64),
+    max_length: Tuple[int, int, int] = (32, 73, 73),
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
 ) -> LlamaModel:
     attn_implementation = "flash_attention" if enable_flash_attention else "eager"

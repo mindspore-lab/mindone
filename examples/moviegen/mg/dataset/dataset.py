@@ -13,6 +13,7 @@ from tqdm import tqdm
 from mindone.data import BaseDataset
 from mindone.data.video_reader import VideoReader
 
+from .buckets import get_target_size
 from .transforms import ResizeCrop
 
 _logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ class ImageVideoDataset(BaseDataset):
         tae_latent_folder: The folder containing the TAE latent files. Default: None.
         tae_scale_factor: The scale factor for TAE latent files. Default: 1.5305.
         tae_shift_factor: The shift factor for TAE latent files. Default: 0.0609.
-        target_size: The target size for resizing the frames. Default: None.
+        target_size: The target size for resizing the frames. Default: 256px.
         sample_n_frames: The number of frames to sample from a video. Default: 16.
         sample_stride: The stride for sampling frames. Default: 1.
         deterministic_sample: Whether to sample frames starting from the beginning
@@ -57,8 +58,8 @@ class ImageVideoDataset(BaseDataset):
         tae_latent_folder: Optional[str] = None,
         tae_scale_factor: float = 1.5305,
         tae_shift_factor: float = 0.0609,
-        target_size: Optional[Tuple[int, int]] = None,
-        sample_n_frames: int = 16,
+        target_size: Union[str, Tuple[int, int]] = "256px",
+        sample_n_frames: Union[int, List[int]] = 16,
         sample_stride: int = 1,
         deterministic_sample: bool = False,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
@@ -69,9 +70,10 @@ class ImageVideoDataset(BaseDataset):
         output_columns: List[str],
     ):
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, tae_latent_folder, filter_data)
-        self._frames = sample_n_frames
+        self._frames = sample_n_frames if isinstance(sample_n_frames, int) else sorted(sample_n_frames)
+        if isinstance(self._frames, list) and self._frames[0] == 1:
+            self._frames.pop(0)  # drop image length
         self._stride = sample_stride
-        self._min_length = (self._frames - 1) * self._stride + 1
         self._deterministic = deterministic_sample
 
         self._text_emb_folder = text_emb_folder
@@ -85,16 +87,22 @@ class ImageVideoDataset(BaseDataset):
         self._text_drop_prob = text_drop_prob
 
         self._tae_latent_folder = tae_latent_folder
+        if tae_latent_folder and (sample_stride > 1):
+            _logger.info("TAE latent folder is specified, strides for sampling will be ignored.")
         self._tae_scale_factor = tae_scale_factor
         self._tae_shift_factor = tae_shift_factor
+
         self._fmask_gen = frames_mask_generator
         self._t_compress_func = t_compress_func or (lambda x: x)
 
         self.output_columns = output_columns
 
-        self._transforms = (
-            self.train_transforms(target_size, interpolation=cv2.INTER_AREA) if apply_transforms_dataset else None
-        )
+        self._transforms = None
+        if apply_transforms_dataset:
+            self._transforms = self.train_transforms(
+                lambda h, w: get_target_size(target_size, h, w) if isinstance(target_size, str) else target_size,
+                interpolation=cv2.INTER_AREA,
+            )
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
@@ -168,9 +176,8 @@ class ImageVideoDataset(BaseDataset):
 
         raise RuntimeError(f"Fail to load a replacement sample in {attempts} attempts. Error: {repr(error)}")
 
-    def _get_item(self, idx: int, thw: Optional[Tuple[int, int, int]] = None) -> Tuple[np.ndarray, ...]:
+    def _get_item(self, idx: int) -> Tuple[np.ndarray, ...]:
         data = self._data[idx].copy()
-        num_frames = self._frames
 
         if self._text_emb_folder:
             if self._empty_text_emb and random.random() <= self._text_drop_prob:
@@ -187,13 +194,24 @@ class ImageVideoDataset(BaseDataset):
         if self._tae_latent_folder:
             tae_latent_data = np.load(data["tae_latent"])
             latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]  # T C H W
-            if 1 < len(latent_mean) < self._min_length:  # TODO: add support for buckets
-                raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - self._min_length)
-            batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
+            # find the video target length
+            min_length = 1
+            if len(latent_mean) > 1:  # if a video
+                if isinstance(self._frames, int):
+                    min_length = self._frames
+                else:
+                    min_length = float("inf")
+                    for i in range(len(self._frames) - 1, -1, -1):
+                        if len(latent_mean) >= self._frames[i]:
+                            min_length = self._frames[i]
+                            break
+                if len(latent_mean) < min_length:
+                    raise ValueError(f"Video is too short: {data['video']}")
 
-            latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
+            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - min_length)
+            latent_mean = latent_mean[start_pos : start_pos + min_length]
+            latent_std = latent_std[start_pos : start_pos + min_length]
             tae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
             data["video"] = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
 
@@ -204,19 +222,26 @@ class ImageVideoDataset(BaseDataset):
                 data["video"] = cv2.cvtColor(cv2.imread(data["video"]), cv2.COLOR_BGR2RGB)
             else:
                 with VideoReader(data["video"]) as reader:
-                    min_length = self._min_length
-                    if thw is not None:
-                        num_frames, *data["size"] = thw
-                        min_length = (num_frames - 1) * self._stride + 1
+                    if isinstance(self._frames, int):
+                        num_frames = self._frames
+                        min_length = (self._frames - 1) * self._stride + 1
+                    else:
+                        min_length = float("inf")
+                        for i in range(len(self._frames) - 1, -1, -1):
+                            if len(reader) >= (self._frames[i] - 1) * self._stride + 1:
+                                num_frames = self._frames[i]
+                                min_length = (self._frames[i] - 1) * self._stride + 1
+                                break
                     if len(reader) < min_length:
                         raise ValueError(f"Video is too short: {data['video']}")
+
                     start_pos = 0 if self._deterministic else random.randint(0, len(reader) - min_length)
                     data["video"] = reader.fetch_frames(
                         num=num_frames, start_pos=start_pos, step=self._stride
                     )  # T H W C
                     data["fps"] = np.array(reader.fps / self._stride, dtype=np.float32)
 
-        data["num_frames"] = np.array(num_frames, dtype=np.float32)
+            data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
             # return frames mask with respect to the TAE's latent temporal compression
@@ -226,10 +251,6 @@ class ImageVideoDataset(BaseDataset):
             data = self._apply_transforms(data, self._transforms)
 
         return tuple(data[c] for c in self.output_columns)
-
-    def get_bucket(self, thw: Tuple[int, int, int], sample_ids: List[int]) -> Tuple[np.ndarray, ...]:
-        batch = [self._get_item(sample_id, thw) for sample_id in sample_ids]
-        return tuple(np.stack(item) for item in map(list, zip(*batch)))
 
     def __getitem__(self, idx: int) -> Tuple[np.ndarray, ...]:
         try:
@@ -249,7 +270,7 @@ class ImageVideoDataset(BaseDataset):
 
     def train_transforms(
         self,
-        target_size: Tuple[int, int],
+        target_size: Union[Tuple[int, int], Callable[[Tuple[int, int]], Tuple[int, int]]],
         interpolation: int = cv2.INTER_LINEAR,
         tokenizer: Optional[Callable[[str], np.ndarray]] = None,
     ) -> List[dict]:
@@ -261,7 +282,7 @@ class ImageVideoDataset(BaseDataset):
                         ResizeCrop(target_size, interpolation=interpolation),
                         lambda x: x.astype(np.float32) / 127.5 - 1,
                         lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
-                        lambda x: np.transpose(x, (3, 0, 1, 2)),  # T H W C -> C T H W
+                        lambda x: np.transpose(x, (0, 3, 1, 2)),  # T H W C -> T C H W
                     ],
                     "input_columns": ["video"],
                 }
