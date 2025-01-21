@@ -24,6 +24,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
+from transformers.generation import GenerationConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
     ADAPTER_SAFE_WEIGHTS_NAME,
@@ -41,7 +42,6 @@ from transformers.utils import (
     cached_file,
     download_url,
     extract_commit_hash,
-    find_adapter_config_file,
     has_file,
     is_offline_mode,
     is_remote_url,
@@ -52,7 +52,10 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
+from mindspore.nn import Identity
 
+from .activations import get_activation
+from .generation import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .modeling_attn_mask_utils import dtype_to_min
 
@@ -70,10 +73,8 @@ _init_weights = True
 def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
-        if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
-                ops.expand_dims(x, axis=-2), name=x.name
-            )
+        if isinstance(cell, nn.Conv1d):
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ops.expand_dims(x, axis=-2)
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -86,19 +87,6 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
-    if key_pt.startswith(prefix):
-        key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
-        key_ms = prefix + key_ms
-    else:
-        key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
-
-    if value_pt is None:
-        return key_ms, None
-    else:
-        return key_ms, value_mapping(value_pt)
-
-
 def _convert_state_dict(m, state_dict_pt, prefix=""):
     if not state_dict_pt:
         return state_dict_pt
@@ -106,7 +94,15 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
     state_dict_ms = {}
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        name_ms, data_ms = _get_pt2ms_mapped_kv(pt2ms_mappings, name_pt, data_pt, prefix)
+        for name, param in m.parameters_and_names():
+            name_ms = param.name
+            length = len(prefix) + 1
+            if name_pt.startswith(prefix) and name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:]:
+                name_pt = name_pt[length:]
+            elif not name_pt.startswith(prefix) and name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:]:
+                name_pt = ".".join([prefix, name_pt])
+        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        data_ms = data_mapping(data_pt)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -291,7 +287,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
-    local_state = {start_prefix + k: v for k, v in model_to_load.parameters_and_names()}
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
@@ -511,7 +507,7 @@ class ModuleUtilsMixin:
         return sum(total_numel)
 
 
-class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
+class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin, GenerationMixin):
     r"""
     Base class for all models.
 
@@ -639,7 +635,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         self.config = config
         self.name_or_path = config.name_or_path
         self.warnings_issued = {}
-        self.generation_config = None
+        self.generation_config = GenerationConfig.from_model_config(config)
         # Overwrite the class attribute to make it an instance attribute, so models like
         # `InstructBlipForConditionalGeneration` can dynamically update it without modifying the class attribute
         # when a different component (e.g. language_model) is used.
@@ -1488,8 +1484,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
-        adapter_kwargs = kwargs.pop("adapter_kwargs", {})
-        adapter_name = kwargs.pop("adapter_name", "default")
 
         if use_auth_token is not None:
             warnings.warn(
@@ -1501,9 +1495,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                     "`token` and `use_auth_token` are both specified. Please set only the argument `token`."
                 )
             token = use_auth_token
-
-        if token is not None and adapter_kwargs is not None and "token" not in adapter_kwargs:
-            adapter_kwargs["token"] = token
 
         if use_safetensors is None and not is_safetensors_available():
             use_safetensors = False
@@ -1529,25 +1520,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 commit_hash = extract_commit_hash(resolved_config_file, commit_hash)
             else:
                 commit_hash = getattr(config, "_commit_hash", None)
-
-        # Always True: if is_peft_available():
-        _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
-
-        if _adapter_model_path is None:
-            _adapter_model_path = find_adapter_config_file(
-                pretrained_model_name_or_path,
-                cache_dir=cache_dir,
-                force_download=force_download,
-                resume_download=resume_download,
-                proxies=proxies,
-                local_files_only=local_files_only,
-                _commit_hash=commit_hash,
-                **adapter_kwargs,
-            )
-        if _adapter_model_path is not None and os.path.isfile(_adapter_model_path):
-            with open(_adapter_model_path, "r", encoding="utf-8") as f:
-                _adapter_model_path = pretrained_model_name_or_path
-                pretrained_model_name_or_path = json.load(f)["base_model_name_or_path"]
 
         from_pt = not (from_tf | from_flax)
 
@@ -1844,7 +1816,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             with safe_open(resolved_archive_file, framework="np") as f:
                 metadata = f.metadata()
 
-            if metadata.get("format") in ("np", "pt"):
+            if metadata.get("format") == "pt":
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
@@ -1943,14 +1915,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 keep_in_fp32_modules=keep_in_fp32_modules,
             )
 
-        if _adapter_model_path is not None:
-            model.load_adapter(
-                _adapter_model_path,
-                adapter_name=adapter_name,
-                token=token,
-                adapter_kwargs=adapter_kwargs,
-            )
-
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
 
@@ -1981,15 +1945,20 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
     ):
         model.tie_weights()
 
-        # Mapping loaded_keys from pt to ms
-        pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [
-            _get_pt2ms_mapped_kv(pt2ms_mappings, s, None, f"{model.base_model_prefix}.")[0] for s in loaded_keys
-        ]
+        loaded_keys = [_get_pt2ms_mappings(model).get(k, (k, None))[0] for k in loaded_keys]
+        prefix = model.base_model_prefix
+
+        # if prefix is not None:
+        #     _prefix = f"{prefix}."
+        #     for i in range(len(loaded_keys)):
+        #         if _prefix not in loaded_keys[i]:
+        #             data = state_dict.pop(loaded_keys[i])
+        #             loaded_keys[i] = _prefix + loaded_keys[i]
+        #             state_dict[loaded_keys[i]] = data
+
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
-        prefix = model.base_model_prefix
         original_loaded_keys = loaded_keys
 
         if len(prefix) > 0:
@@ -2086,7 +2055,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
         if state_dict is not None:
             # Whole checkpoint
-            state_dict = _convert_state_dict(model, state_dict, start_prefix)
+            state_dict = _convert_state_dict(model, state_dict, prefix)
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
@@ -2110,7 +2079,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                state_dict = _convert_state_dict(model, state_dict, start_prefix)
+                state_dict = _convert_state_dict(model, state_dict)
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
@@ -2178,3 +2147,132 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             )
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
+
+    def warn_if_padding_and_no_attention_mask(self, input_ids, attention_mask):
+        """
+        Shows a one-time warning if the input_ids appear to contain padding and no attention mask was given.
+        """
+
+        if (attention_mask is not None) or (self.config.pad_token_id is None):
+            return
+
+        # Check only the first and last input IDs to reduce overhead.
+        if self.config.pad_token_id in input_ids[:, [-1, 0]]:
+            warn_string = (
+                "We strongly recommend passing in an `attention_mask` since your input_ids may be padded. See "
+                "https://huggingface.co/docs/transformers/troubleshooting"
+                "#incorrect-output-when-padding-tokens-arent-masked."
+            )
+
+            # If the pad token is equal to either BOS, EOS, or SEP, we do not know whether the user should use an
+            # attention_mask or not. In this case, we should still show a warning because this is a rare case.
+            if (
+                (self.config.bos_token_id is not None and self.config.bos_token_id == self.config.pad_token_id)
+                or (self.config.eos_token_id is not None and self.config.eos_token_id == self.config.pad_token_id)
+                or (self.config.sep_token_id is not None and self.config.sep_token_id == self.config.pad_token_id)
+            ):
+                warn_string += (
+                    f"\nYou may ignore this warning if your `pad_token_id` ({self.config.pad_token_id}) is identical "
+                    f"to the `bos_token_id` ({self.config.bos_token_id}), `eos_token_id` ({self.config.eos_token_id}), "
+                    f"or the `sep_token_id` ({self.config.sep_token_id}), and your input is not padded."
+                )
+
+            logger.warning_once(warn_string)
+
+
+class SequenceSummary(nn.Cell):
+    r"""
+    Compute a single vector summary of a sequence hidden states.
+
+    Args:
+        config ([`PretrainedConfig`]):
+            The config used by the model. Relevant arguments in the config class of the model are (refer to the actual
+            config class of your model for the default values it uses):
+
+            - **summary_type** (`str`) -- The method to use to make this summary. Accepted values are:
+
+                - `"last"` -- Take the last token hidden state (like XLNet)
+                - `"first"` -- Take the first token hidden state (like Bert)
+                - `"mean"` -- Take the mean of all tokens hidden states
+                - `"cls_index"` -- Supply a Tensor of classification token position (GPT/GPT-2)
+                - `"attn"` -- Not implemented now, use multi-head attention
+
+            - **summary_use_proj** (`bool`) -- Add a projection after the vector extraction.
+            - **summary_proj_to_labels** (`bool`) -- If `True`, the projection outputs to `config.num_labels` classes
+              (otherwise to `config.hidden_size`).
+            - **summary_activation** (`Optional[str]`) -- Set to `"tanh"` to add a tanh activation to the output,
+              another string or `None` will add no activation.
+            - **summary_first_dropout** (`float`) -- Optional dropout probability before the projection and activation.
+            - **summary_last_dropout** (`float`)-- Optional dropout probability after the projection and activation.
+    """
+
+    def __init__(self, config: PretrainedConfig):
+        super().__init__()
+
+        self.summary_type = getattr(config, "summary_type", "last")
+        if self.summary_type == "attn":
+            # We should use a standard multi-head attention module with absolute positional embedding for that.
+            # Cf. https://github.com/zihangdai/xlnet/blob/master/modeling.py#L253-L276
+            # We can probably just use the multi-head attention module of PyTorch >=1.1.0
+            raise NotImplementedError
+
+        self.summary = Identity()
+        if hasattr(config, "summary_use_proj") and config.summary_use_proj:
+            if hasattr(config, "summary_proj_to_labels") and config.summary_proj_to_labels and config.num_labels > 0:
+                num_classes = config.num_labels
+            else:
+                num_classes = config.hidden_size
+            self.summary = nn.Dense(config.hidden_size, num_classes)
+
+        activation_string = getattr(config, "summary_activation", None)
+        self.activation: Callable = get_activation(activation_string) if activation_string else Identity()
+
+        self.first_dropout = Identity()
+        if hasattr(config, "summary_first_dropout") and config.summary_first_dropout > 0:
+            self.first_dropout = nn.Dropout(config.summary_first_dropout)
+
+        self.last_dropout = Identity()
+        if hasattr(config, "summary_last_dropout") and config.summary_last_dropout > 0:
+            self.last_dropout = nn.Dropout(config.summary_last_dropout)
+
+    def construct(self, hidden_states: ms.Tensor, cls_index: Optional[ms.Tensor] = None) -> ms.Tensor:
+        """
+        Compute a single vector summary of a sequence hidden states.
+
+        Args:
+            hidden_states (`torch.FloatTensor` of shape `[batch_size, seq_len, hidden_size]`):
+                The hidden states of the last layer.
+            cls_index (`torch.LongTensor` of shape `[batch_size]` or `[batch_size, ...]`
+            where ... are optional leading dimensions of `hidden_states`, *optional*):
+                Used if `summary_type == "cls_index"` and takes the last token of the sequence as classification token.
+
+        Returns:
+            `torch.FloatTensor`: The summary of the sequence hidden states.
+        """
+        if self.summary_type == "last":
+            output = hidden_states[:, -1]
+        elif self.summary_type == "first":
+            output = hidden_states[:, 0]
+        elif self.summary_type == "mean":
+            output = hidden_states.mean(axis=1)
+        elif self.summary_type == "cls_index":
+            if cls_index is None:
+                cls_index = ops.full_like(
+                    hidden_states[..., :1, :],
+                    hidden_states.shape[-2] - 1,
+                    dtype=ms.int64,
+                )
+            else:
+                cls_index = cls_index.unsqueeze(-1).unsqueeze(-1)
+                cls_index = cls_index.expand((-1,) * (cls_index.dim() - 1) + (hidden_states.size(-1),))
+            # shape of cls_index: (bsz, XX, 1, hidden_size) where XX are optional leading dim of hidden_states
+            output = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, XX, hidden_size)
+        elif self.summary_type == "attn":
+            raise NotImplementedError
+
+        output = self.first_dropout(output)
+        output = self.summary(output)
+        output = self.activation(output)
+        output = self.last_dropout(output)
+
+        return output

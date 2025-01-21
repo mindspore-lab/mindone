@@ -4,6 +4,8 @@ from typing import Dict
 
 from transformers.utils import add_end_docstrings
 
+import mindspore as ms
+
 from ..utils import is_mindspore_available
 from .base import Pipeline, build_pipeline_init_args
 
@@ -302,7 +304,7 @@ class TextGenerationPipeline(Pipeline):
                 **tokenizer_kwargs,
             )
         else:
-            inputs = self.tokenizer(prefix + prompt_text, return_tensors=self.framework, **tokenizer_kwargs)
+            inputs = self.tokenizer(prefix + prompt_text, return_tensors="np", **tokenizer_kwargs)
 
         inputs["prompt_text"] = prompt_text
 
@@ -325,6 +327,10 @@ class TextGenerationPipeline(Pipeline):
                 inputs["input_ids"] = inputs["input_ids"][:, -keep_length:]
                 if "attention_mask" in inputs:
                     inputs["attention_mask"] = inputs["attention_mask"][:, -keep_length:]
+
+        for key in inputs.keys():
+            if not isinstance(inputs[key], str):
+                inputs[key] = ms.tensor(inputs[key])
 
         return inputs
 
