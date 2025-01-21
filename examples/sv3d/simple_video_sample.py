@@ -41,8 +41,7 @@ class SV3DInferPipeline:
         self,
         model_config: str,
         ckpt_path: str,
-        num_frames: Optional[int],  # 21 default by sv3d
-        device: str,
+        num_frames: Optional[int],
         num_steps: int,
         version: str,
         cond_aug: float,
@@ -54,7 +53,7 @@ class SV3DInferPipeline:
     ):
         super().__init__()
         model_config = OmegaConf.load(model_config)
-        model_config.model.params.config_arch_toload_vanilla_sv3d_ckpt = True
+        model_config.model.params.config_arch_toload_vanilla_sv3d_ckpt = True if version == "sv3d_u" else False
         model_config.model.params.sampler_config.params.verbose = verbose
         model_config.model.params.sampler_config.params.num_steps = num_steps
         model_config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
@@ -70,12 +69,11 @@ class SV3DInferPipeline:
         # for alignment of randomness with th
         img_shape = (576, 576)
         self.cond_c = np.random.randn(*img_shape).astype(np.float32)
-        self.randn_n = np.random.randn(21, 4, img_shape[0] // 8, img_shape[1] // 8)
+        self.randn_n = np.random.randn(21, 4, img_shape[0] // 8, img_shape[1] // 8).astype(np.float32)
 
         self.cond_aug = cond_aug
         self.num_frames = num_frames
         self.version = version
-        self.device = device
 
         # preproc for graph mode
         self.expand_dims_ops = ops.ExpandDims()
@@ -147,13 +145,11 @@ class SV3DInferPipeline:
 def sample(
     input_path: str,
     ckpt_path: str,
-    num_steps: Optional[int] = None,
     version: str = "sv3d_u",
+    num_steps: Optional[int] = None,
     seed: int = 42,
     decoding_t: int = 7,  # Number of frames decoded at a time! This eats most VRAM. Reduce if necessary.
     mode: int = 1,
-    device: str = "Ascend",
-    device_id: int = 0,
     output_folder: Optional[str] = None,
     image_frame_ratio: Optional[float] = None,
 ):
@@ -164,12 +160,14 @@ def sample(
 
     if version == "sv3d_u":
         num_frames = 21
-        num_steps = default(num_steps, 50)
-        output_folder = default(output_folder, "outputs/sv3d_u/")
-        model_config = "configs/sampling/sv3d_u.yaml"
-        cond_aug = 1e-5
+    elif version == "sv3d_u_overffitted_ckpt":
+        num_frames = 6  # overfitted under this number, larger leads to oom during overfitting
     else:
         raise ValueError(f"Version {version} is not supported for this example yet.")
+    num_steps = default(num_steps, 50)
+    output_folder = default(output_folder, "outputs/sv3d_u/")
+    model_config = "configs/sampling/sv3d_u.yaml"
+    cond_aug = 1e-5
 
     logger = set_logger(
         name="",
@@ -177,10 +175,11 @@ def sample(
     )  # all the logger needs to follow name, to use the mindone callbacks directly, need to put name as ""
     logger.info("program started")
 
-    ms.context.set_context(mode=mode, device_target=device, device_id=device_id)
+    device_id = int(os.getenv("DEVICE_ID", 0))
+    ms.context.set_context(mode=mode, device_target="Ascend", device_id=device_id)
     set_random_seed(seed)
     path = Path(input_path)
-    pipeline = SV3DInferPipeline(model_config, ckpt_path, num_frames, device, num_steps, version, cond_aug, decoding_t)
+    pipeline = SV3DInferPipeline(model_config, ckpt_path, num_frames, num_steps, version, cond_aug, decoding_t)
     all_img_paths = []
     logger.info(f"path posix: {path}")
     if path.is_file():
@@ -247,7 +246,7 @@ def sample(
         samples = pipeline(image)
         logger.info("program finished")
 
-        logger.info(f"Samples of {input_img_path} generated")
+        logger.info(f"Samples of input {input_img_path} are generated")
         os.makedirs(output_folder, exist_ok=True)
         base_count = len(glob(os.path.join(output_folder, "*.mp4")))
 
@@ -276,11 +275,10 @@ if __name__ == "__main__":
         help="path to the input img, or the input imgs dir path",
     )
     parser.add_argument(
-        "--mode", default="1", type=str, help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]"
+        "--mode", default=1, type=int, help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]"
     )
-    parser.add_argument(
-        "--device_id", default="2", type=str, help="MindSpore execution mode: Graph mode[0] or Pynative mode[1]"
-    )
+    parser.add_argument("--decoding_t", default=7, type=int, help="# of decoding steps")
+    parser.add_argument("--version", default="sv3d_u", choices=["sv3d_u", "sv3d_u_overfitted_ckpt"], type=str)
     args = parser.parse_args()
     print(args)
-    sample(args.input, args.ckpt, mode=int(args.mode), device_id=int(args.device_id), output_folder="")
+    sample(args.input, args.ckpt, args.version, decoding_t=args.decoding_t, mode=args.mode)

@@ -1,9 +1,9 @@
+import logging
 import math
 import os
 import sys
 from typing import List, Optional, Tuple, Union
 
-from loguru import logger
 from PIL import Image
 
 import mindspore as ms
@@ -13,6 +13,7 @@ from mindone.utils.seed import set_random_seed
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../../..")))  # for loading mindone
+logger = logging.getLogger("")
 
 
 def str2bool(b):

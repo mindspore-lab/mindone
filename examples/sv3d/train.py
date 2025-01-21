@@ -9,7 +9,6 @@ from omegaconf import OmegaConf
 sys.path.append("../..")  # FIXME: loading mindone, remove in future when mindone is ready for install
 
 from sgm.helpers import create_model_sv3d
-from sgm.modules.train.callback import LossMonitor
 from sgm.util import get_obj_from_str
 from utils import mixed_precision
 
@@ -17,7 +16,7 @@ from mindspore import Callback, Model, nn
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
+from mindone.trainers.callback import EvalSaveCallback
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
@@ -94,12 +93,11 @@ def main(args):
         ldm_with_loss, optimizer=optimizer, scale_sense=loss_scaler, **train_cfg.settings
     )
 
-    callbacks = [OverflowMonitor(), SetTrainCallback()]
+    callbacks = [SetTrainCallback()]
 
     if rank_id == 0:
         callbacks.extend(
             [
-                LossMonitor(),
                 EvalSaveCallback(
                     network=ldm_with_loss,
                     model_name="sv3d",
@@ -127,9 +125,9 @@ def main(args):
             [
                 f"Debugging: {_debug}",
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {_mode}",
-                f"Num params sv3d: {num_params: , } (unet: {num_params_unet: , }, \
-                    text encoder: {num_params_text_encoder: , }, vae: {num_params_vae: , })",
-                f"Num trainable params: {num_trainable_params: , }",
+                f"Num params sv3d: {num_params:,} (unet: {num_params_unet:,}, \
+                    text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num trainable params: {num_trainable_params:,}",
                 f"Precision sv3d: {train_cfg.amp_level}",
                 f"Num epochs: {train_cfg.epochs}",
                 f"Learning rate: {train_cfg.scheduler.lr}",

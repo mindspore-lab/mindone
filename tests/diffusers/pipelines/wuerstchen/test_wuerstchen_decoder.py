@@ -16,15 +16,19 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -182,4 +186,40 @@ class WuerstchenDecoderPipelineFastTests(PipelineTesterMixin, unittest.TestCase)
         ms_image_slice = ms_image[0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class WuerstchenDecoderPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_wuerstchen_decoder(self, mode, dtype):
+        if dtype == "float16":
+            pytest.skip("Skipping this case since this pipeline has precision issue in float16")
+
+        # If strict mode is disabled, this pipeline will throw an error.
+        if mode == ms.GRAPH_MODE:
+            ms.set_context(mode=mode, jit_syntax_level=ms.STRICT)
+        else:
+            ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        prior_pipe_cls = get_module("mindone.diffusers.pipelines.wuerstchen.WuerstchenPriorPipeline")
+        prior_pipe = prior_pipe_cls.from_pretrained("warp-ai/wuerstchen-prior", mindspore_dtype=ms_dtype)
+        gen_pipe_cls = get_module("mindone.diffusers.pipelines.wuerstchen.WuerstchenDecoderPipeline")
+        gen_pipe = gen_pipe_cls.from_pretrained("warp-ai/wuerstchen", mindspore_dtype=ms_dtype)
+
+        prompt = "an image of a shiba inu, donning a spacesuit and helmet"
+
+        torch.manual_seed(0)
+        prior_output = prior_pipe(prompt)
+        torch.manual_seed(0)
+        image = gen_pipe(prior_output[0], prompt=prompt)[0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"wuerstchen_decoder_{dtype}.npy",
+            subfolder="wuerstchen",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
