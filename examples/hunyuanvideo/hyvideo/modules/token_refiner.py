@@ -47,7 +47,7 @@ class IndividualTokenRefinerBlock(nn.Cell):
         head_dim = hidden_size // heads_num
         mlp_hidden_dim = int(hidden_size * mlp_width_ratio)
 
-        self.norm1 = FP32LayerNorm(
+        self.norm1 = LayerNorm(
             hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
         )
         self.self_attn_qkv = mint.nn.Linear(
@@ -68,7 +68,7 @@ class IndividualTokenRefinerBlock(nn.Cell):
             hidden_size, hidden_size, bias=qkv_bias,
         )
 
-        self.norm2 = FP32LayerNorm(
+        self.norm2 = LayerNorm(
             hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
         )
         act_layer = get_activation_layer(act_type)
@@ -111,8 +111,6 @@ class IndividualTokenRefinerBlock(nn.Cell):
         k = self.self_attn_k_norm(k) # .to(v)
 
         # Self-Attention
-        # TODO; support attn_mask
-        #  import pdb; pdb.set_trace()
         attn = self.compute_attention(q, k, v, mask=attn_mask)
 
         x = x + apply_gate(self.self_attn_proj(attn), gate_msa)
@@ -255,8 +253,6 @@ class SingleTokenRefiner(nn.Cell):
         Output:
             (B, S_token_padded, out_emb_dim)
         '''
-        # import pdb; pdb.set_trace()
-
         # AMP: t (fp32) -> TimestepEmbed (sinusoidal, mlp) -> bf16
         # (B, hidden_dim)
         timestep_aware_representations = self.t_embedder(t)
@@ -276,6 +272,7 @@ class SingleTokenRefiner(nn.Cell):
         # AMP: linear bf16, out x bf16
         x = self.input_embedder(x.to(self.dtype))
         
+        # TODO: check precision here
         # AMP: x bf16, c float32; c -> adaLN_modulation (silu, linear)
         x = self.individual_token_refiner(x, c.to(self.dtype), mask)
 

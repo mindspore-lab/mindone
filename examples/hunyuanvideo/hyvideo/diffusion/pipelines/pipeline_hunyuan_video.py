@@ -924,7 +924,6 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             video_length = video_length
 
         # 5. Prepare latent variables
-        # import pdb; pdb.set_trace()
         if self.args.latent_noise_path is not None:
             if os.path.exists(self.args.latent_noise_path):
                 latents = np.load(self.args.latent_noise_path)

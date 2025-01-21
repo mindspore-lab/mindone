@@ -53,7 +53,7 @@ class MMDoubleStreamBlock(nn.Cell):
             act_layer=get_activation_layer("silu"),
             **factory_kwargs,
         )
-        self.img_norm1 = FP32LayerNorm(
+        self.img_norm1 = LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
         self.img_attn_qkv = mint.nn.Linear(
@@ -73,7 +73,7 @@ class MMDoubleStreamBlock(nn.Cell):
         self.img_attn_proj = mint.nn.Linear(
             hidden_size, hidden_size, bias=qkv_bias)
 
-        self.img_norm2 = FP32LayerNorm(
+        self.img_norm2 = LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
         self.img_mlp = MLP(
@@ -90,7 +90,7 @@ class MMDoubleStreamBlock(nn.Cell):
             act_layer=get_activation_layer("silu"),
             **factory_kwargs,
         )
-        self.txt_norm1 = FP32LayerNorm(
+        self.txt_norm1 = LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
 
@@ -111,7 +111,7 @@ class MMDoubleStreamBlock(nn.Cell):
             hidden_size, hidden_size, bias=qkv_bias,
         )
 
-        self.txt_norm2 = FP32LayerNorm(
+        self.txt_norm2 = LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
         self.txt_mlp = MLP(
@@ -145,11 +145,13 @@ class MMDoubleStreamBlock(nn.Cell):
         max_seqlen_q: Optional[int] = None,
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: tuple = None,
+        text_mask: ms.Tensor=None,
     ):
         '''
         img: (B S_v HD), HD - hidden_size = (num_heads * head_dim)
         txt: (B S_t HD)
         vec: (B HD), projected representation of timestep and global text embed (from CLIP)
+        text_mask: (B S_t)
         '''
         # DOING: img -> M
         # txt = txt.to(self.param_dtype)
@@ -225,8 +227,26 @@ class MMDoubleStreamBlock(nn.Cell):
 
         # attention computation start
 
-        attn = self.compute_attention(q, k, v)
-        # TODO: support FA and parallel attn
+        # import pdb; pdb.set_trace()
+        # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
+        # TODO: FIXME: pre-compute these masks in dataloader to save time 
+        # valid seq length = img_len + text_len, text_len=text_mask.sum(dim=1)
+        S_v = img_q.shape[1]
+        # S_t = txt_q.shape[1]
+        bs, seq_len, _, _ = q.shape  # seq_len = S_v + S_t 
+        # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
+        mask = ops.ones((bs, 1, 1, seq_len), dtype=text_mask.dtype)
+        # TODO: this slicing operation can be slow in ms
+        mask[:, 0, 0, S_v:] =  text_mask
+        mask = mask.tile((1, 1, seq_len, 1)) # beginning n columns are all 1
+        # TODO: may rm this varible to save time/mem
+        mask_trans = mask.transpose((0, 1, 3, 2)) 
+        # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
+        mask = ops.logical_and(mask, mask_trans)
+        # TODO: need to add? 
+        # mask[:, :, :, 0] = True
+
+        attn = self.compute_attention(q, k, v, mask=mask)
 
         # attention computation end
 
@@ -310,7 +330,7 @@ class MMSingleStreamBlock(nn.Cell):
             else nn.Identity()
         )
 
-        self.pre_norm = FP32LayerNorm(
+        self.pre_norm = LayerNorm(
             hidden_size, elementwise_affine=False, eps=1e-6, **factory_kwargs
         )
 
@@ -346,6 +366,7 @@ class MMSingleStreamBlock(nn.Cell):
         max_seqlen_q: Optional[int] = None,
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: Tuple[ms.Tensor, ms.Tensor] = None,
+        text_mask: ms.Tensor = None,
     ) -> ms.Tensor:
         mod_shift, mod_scale, mod_gate = self.modulation(vec).chunk(3, axis=-1)
         x_mod = modulate(self.pre_norm(x), shift=mod_shift, scale=mod_scale)
@@ -376,14 +397,34 @@ class MMSingleStreamBlock(nn.Cell):
         # assert (
         #     cu_seqlens_q.shape[0] == 2 * x.shape[0] + 1
         # ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, x.shape[0]:{x.shape[0]}"
+        # TODO: FIXME: pre-compute these masks in dataloader to save time 
+
+        # import pdb; pdb.set_trace()
+        # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
+        # TODO: FIXME: pre-compute these masks in dataloader to save time 
+        # valid seq length = img_len + text_len, text_len=text_mask.sum(dim=1)
+        S_v = img_q.shape[1]
+        # S_t = txt_q.shape[1]
+        bs, seq_len, _, _ = q.shape  # seq_len = S_v + S_t 
+        # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
+        mask = ops.ones((bs, 1, 1, seq_len), dtype=text_mask.dtype)
+        # TODO: this slicing operation can be slow in ms
+        mask[:, 0, 0, S_v:] =  text_mask
+        mask = mask.tile((1, 1, seq_len, 1)) # beginning n columns are all 1
+        # TODO: may rm this varible to save time/mem
+        mask_trans = mask.transpose((0, 1, 3, 2)) 
+        # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
+        mask = ops.logical_and(mask, mask_trans)
+        # TODO: need to add? 
+        # mask[:, :, :, 0] = True
 
         # attention computation start
         attn = self.compute_attention(
             q,
             k,
             v,
+            mask=mask,
         )
-        # TODO: add FA
         # attention computation end
 
         # Compute activation in mlp stream, cat again and run second linear layer.
@@ -614,7 +655,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         x: (B C T H W), video latent. dtype same as vae-precision, which is fp16 by default
         t: (B,), float32
         text_states: (B S_t D_t); S_t - seq len of padded text tokens, D_t: text feature dim, from LM text encoder, default: S_t=256, D_t = 4096; dtype same as text-encoder-precision, which is fp16 by default. 
-        text_mask: (B S_t), 1 - retain, 0 - drop
+        text_mask: (B S_t), 1 - retain, 0 - drop;  
         text_states_2: (B D_t2), from CLIP text encoder, global text feature (fuse 77 tokens), D_t2=768
         freqs_cos: (S attn_head_dim), S - seq len of the patchified video latent (T * H //2 * W//2)
         freqs_sin: (S attn_head_dim)
@@ -629,7 +670,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
             ow // self.patch_size[2],
         )
 
-        # import pdb; pdb.set_trace()
 
         # Prepare modulation vectors.
         # AMP: t (fp16) -> sinusoidal (fp32) -> mlp (bf16), out bf16
@@ -682,11 +722,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                 img,
                 txt,
                 vec,
-                # cu_seqlens_q,
-                # cu_seqlens_kv,
-                # max_seqlen_q,
-                # max_seqlen_kv,
                 freqs_cis=freqs_cis,
+                text_mask=text_mask,
                 )
 
         # Merge txt and img to pass through single stream blocks.
@@ -697,11 +734,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                     x,
                     vec,
                     txt_seq_len,
-                    # cu_seqlens_q,
-                    # cu_seqlens_kv,
-                    # max_seqlen_q,
-                    # max_seqlen_kv,
                     freqs_cis=freqs_cis,
+                    text_mask=text_mask,
                     )
 
         # TODO: slicing replaced with
