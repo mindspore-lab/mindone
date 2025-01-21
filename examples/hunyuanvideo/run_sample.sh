@@ -4,7 +4,7 @@
 python sample_video.py \
     --ms-mode 1 \
     --video-size 544 960 \
-    --video-length 25 \
+    --video-length 129 \
     --infer-steps 50 \
     --prompt "A cat walks on the grass, realistic style." \
     --flow-reverse \
@@ -13,7 +13,7 @@ python sample_video.py \
     --save-path ./results \
     --precision 'bf16' \
     --attn-mode 'flash' \
-    --use-conv2d-patchify=False \
+    --use-conv2d-patchify=True \
     --model  "HYVideo-T/2-cfgdistill" \
     --dit-weight "ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt" \
     --text-embed-path 'pt_io/text_embed_with_neg-A-cat-wa.npz' \

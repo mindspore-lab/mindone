@@ -673,7 +673,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
 
         txt_seq_len = txt.shape[1]
         img_seq_len = img.shape[1]
-
+        
+        # import pdb; pdb.set_trace()
         # TODO: support setting max_seqlen
         # Compute cu_squlens and max_seqlen for flash attention
         # cu_seqlens_q = get_cu_seqlens(text_mask, img_seq_len)
@@ -688,11 +689,13 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         mask[:, 0, 0, img_seq_len:] =  text_mask
         mask = mask.tile((1, 1, max_seq_len, 1)) # beginning n columns are all 1
         # TODO: may rm this varible to save time/mem
-        mask_trans = mask.transpose((0, 1, 3, 2)) 
+        # mask_trans =  mask.transpose((0, 1, 3, 2))
         # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
-        mask = ops.logical_and(mask, mask_trans)
+        mask = ops.logical_and(mask, mask.transpose((0, 1, 3, 2)))
         # TODO: need to add? 
         # mask[:, :, :, 0] = True
+
+        print("D--: attn mask shape: ", mask.shape)
 
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
