@@ -39,8 +39,8 @@ from mindspore import nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...generation import GenerationMixin
 from ...cache_utils import StaticCache
+from ...generation import GenerationMixin
 from ...mindspore_utils import Conv1D, find_pruneable_heads_and_indices, prune_conv1d_layer
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask_for_sdpa, _prepare_4d_causal_attention_mask_for_sdpa
 from ...modeling_outputs import (
@@ -72,6 +72,7 @@ def dtype_to_min(dtype):
     else:
         raise ValueError(f"Only support get minimum value of (bfloat16, float16, float32, float64), but got {dtype}")
 
+
 logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "openai-community/gpt2"
@@ -98,7 +99,8 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
         sequence_length (`int`):
             The sequence length being processed.
         target_length (`int`):
-            The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+            The target length: when generating with static cache, the mask should be as long as the static cache,
+            to account for the 0 padding, the part of the cache that is not filled yet.
         dtype (`torch.dtype`):
             The dtype to use for the 4D attention mask.
         device (`torch.device`):
@@ -132,12 +134,15 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
                 causal_mask = causal_mask.masked_fill(padding_mask, min_dtype)
             else:
                 causal_mask = ops.cat(
-                    [ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(padding_mask, min_dtype),
-                     ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length)],
-                    axis=-1
+                    [
+                        ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(padding_mask, min_dtype),
+                        ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length),
+                    ],
+                    axis=-1,
                 )
 
     return causal_mask
+
 
 def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
     """Load tf checkpoints in a pytorch model"""
@@ -200,9 +205,9 @@ class GPT2Attention(nn.Cell):
         super().__init__()
         self.config = config
         max_positions = config.max_position_embeddings
-        self.bias = ops.tril(ops.ones((max_positions, max_positions))).view(
-            1, 1, max_positions, max_positions
-        ).astype(ms.bool_)
+        self.bias = (
+            ops.tril(ops.ones((max_positions, max_positions))).view(1, 1, max_positions, max_positions).astype(ms.bool_)
+        )
         self.masked_bias = ms.tensor(-1e4)
 
         self.embed_dim = config.hidden_size
@@ -641,13 +646,23 @@ class GPT2PreTrainedModel(MSPreTrainedModel):
         if isinstance(module, (nn.Dense, Conv1D)):
             # Slightly different from the TF version which uses truncated_normal for initialization
             # cf https://github.com/pytorch/pytorch/pull/5617
-            module.weight.set_data(init.initializer(init.Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype))
+            module.weight.set_data(
+                init.initializer(init.Normal(self.config.initializer_range), module.weight.shape, module.weight.dtype)
+            )
             if module.bias is not None:
                 module.bias.set_data(init.initializer("zeros", module.bias.shape, module.bias.dtype))
         elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(init.initializer(init.Normal(self.config.initializer_range), module.embedding_table.shape, module.embedding_table.dtype))
+            module.embedding_table.set_data(
+                init.initializer(
+                    init.Normal(self.config.initializer_range),
+                    module.embedding_table.shape,
+                    module.embedding_table.dtype,
+                )
+            )
             if module.padding_idx is not None:
-                module.embedding_table.data[module.padding_idx].set_data(init.initializer("zeros", module.embedding_table.shape, module.embedding_table.dtype))
+                module.embedding_table.data[module.padding_idx].set_data(
+                    init.initializer("zeros", module.embedding_table.shape, module.embedding_table.dtype)
+                )
         elif isinstance(module, nn.LayerNorm):
             module.beta.set_data(init.initializer("zeros", module.beta.shape, module.beta.dtype))
             module.gamma.set_data(init.initializer("ones", module.gamma.shape, module.gamma.dtype))
@@ -661,7 +676,13 @@ class GPT2PreTrainedModel(MSPreTrainedModel):
         for name, p in module.parameters_and_names():
             if name == "c_proj.weight":
                 # Special Scaled Initialization --> There are 2 Layer Norms per Transformer Block
-                p.set_data(init.initializer(init.Normal(self.config.initializer_range / math.sqrt(2 * self.config.n_layer)), p.shape, p.dtype))
+                p.set_data(
+                    init.initializer(
+                        init.Normal(self.config.initializer_range / math.sqrt(2 * self.config.n_layer)),
+                        p.shape,
+                        p.dtype,
+                    )
+                )
 
 
 @dataclass
@@ -1303,7 +1324,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel, GenerationMixin):
             #     input_ids = input_ids[:, :cache_position.shape[0]]
             if inputs_embeds is not None:  # Exception 1
                 if 0 not in input_ids.shape:
-                    input_ids = input_ids[:, -cache_position.shape[0]:]
+                    input_ids = input_ids[:, -cache_position.shape[0] :]
             elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
                 input_ids = ops.index_select(input_ids, -1, cache_position)
 
@@ -1312,9 +1333,12 @@ class GPT2LMHeadModel(GPT2PreTrainedModel, GenerationMixin):
             position_ids = attention_mask.int().cumsum(-1) - 1
             position_ids.masked_fill(attention_mask == 0, 1)
             if past_key_values:
-                position_ids = position_ids[:, -input_ids.shape[1]:]
+                position_ids = position_ids[:, -input_ids.shape[1] :]
 
-                # This `clone` call is needed to avoid recapturing cuda graphs with `torch.compile`'s  `mode="reduce-overhead`, as otherwise the input `position_ids` would have various stride during the decoding. Here, simply using `.contiguous()` is not sufficient as in the batch size = 1 case, `position_ids` is already contiguous but with varying stride which retriggers a capture.
+                # This `clone` call is needed to avoid recapturing cuda graphs with `torch.compile`'s  `mode="reduce-overhead`,
+                # as otherwise the input `position_ids` would have various stride during the decoding.
+                # Here, simply using `.contiguous()` is not sufficient as in the batch size = 1 case,
+                # `position_ids` is already contiguous but with varying stride which retriggers a capture.
                 position_ids = position_ids
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
@@ -1354,6 +1378,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel, GenerationMixin):
             }
         )
         return model_inputs
+
 
 @add_start_docstrings(
     """
