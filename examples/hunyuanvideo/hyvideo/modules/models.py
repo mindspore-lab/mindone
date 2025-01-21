@@ -145,13 +145,13 @@ class MMDoubleStreamBlock(nn.Cell):
         max_seqlen_q: Optional[int] = None,
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: tuple = None,
-        text_mask: ms.Tensor=None,
+        attn_mask: ms.Tensor=None,
     ):
         '''
         img: (B S_v HD), HD - hidden_size = (num_heads * head_dim)
         txt: (B S_t HD)
         vec: (B HD), projected representation of timestep and global text embed (from CLIP)
-        text_mask: (B S_t)
+        attn_mask: (B 1 S_v+S_t S_v+S_t)
         '''
         # DOING: img -> M
         # txt = txt.to(self.param_dtype)
@@ -227,26 +227,9 @@ class MMDoubleStreamBlock(nn.Cell):
 
         # attention computation start
 
-        # import pdb; pdb.set_trace()
         # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
-        # TODO: FIXME: pre-compute these masks in dataloader to save time 
-        # valid seq length = img_len + text_len, text_len=text_mask.sum(dim=1)
-        S_v = img_q.shape[1]
-        # S_t = txt_q.shape[1]
-        bs, seq_len, _, _ = q.shape  # seq_len = S_v + S_t 
-        # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
-        mask = ops.ones((bs, 1, 1, seq_len), dtype=text_mask.dtype)
-        # TODO: this slicing operation can be slow in ms
-        mask[:, 0, 0, S_v:] =  text_mask
-        mask = mask.tile((1, 1, seq_len, 1)) # beginning n columns are all 1
-        # TODO: may rm this varible to save time/mem
-        mask_trans = mask.transpose((0, 1, 3, 2)) 
-        # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
-        mask = ops.logical_and(mask, mask_trans)
-        # TODO: need to add? 
-        # mask[:, :, :, 0] = True
-
-        attn = self.compute_attention(q, k, v, mask=mask)
+        # import pdb; pdb.set_trace()
+        attn = self.compute_attention(q, k, v, mask=attn_mask)
 
         # attention computation end
 
@@ -366,8 +349,11 @@ class MMSingleStreamBlock(nn.Cell):
         max_seqlen_q: Optional[int] = None,
         max_seqlen_kv: Optional[int] = None,
         freqs_cis: Tuple[ms.Tensor, ms.Tensor] = None,
-        text_mask: ms.Tensor = None,
+        attn_mask: ms.Tensor = None,
     ) -> ms.Tensor:
+        '''
+        attn_mask: (B 1 S_v+S_t S_v+S_t)
+        '''
         mod_shift, mod_scale, mod_gate = self.modulation(vec).chunk(3, axis=-1)
         x_mod = modulate(self.pre_norm(x), shift=mod_shift, scale=mod_scale)
         qkv, mlp = ops.split(
@@ -397,33 +383,14 @@ class MMSingleStreamBlock(nn.Cell):
         # assert (
         #     cu_seqlens_q.shape[0] == 2 * x.shape[0] + 1
         # ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, x.shape[0]:{x.shape[0]}"
-        # TODO: FIXME: pre-compute these masks in dataloader to save time 
-
+        # attention computation start
         # import pdb; pdb.set_trace()
         # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
-        # TODO: FIXME: pre-compute these masks in dataloader to save time 
-        # valid seq length = img_len + text_len, text_len=text_mask.sum(dim=1)
-        S_v = img_q.shape[1]
-        # S_t = txt_q.shape[1]
-        bs, seq_len, _, _ = q.shape  # seq_len = S_v + S_t 
-        # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
-        mask = ops.ones((bs, 1, 1, seq_len), dtype=text_mask.dtype)
-        # TODO: this slicing operation can be slow in ms
-        mask[:, 0, 0, S_v:] =  text_mask
-        mask = mask.tile((1, 1, seq_len, 1)) # beginning n columns are all 1
-        # TODO: may rm this varible to save time/mem
-        mask_trans = mask.transpose((0, 1, 3, 2)) 
-        # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
-        mask = ops.logical_and(mask, mask_trans)
-        # TODO: need to add? 
-        # mask[:, :, :, 0] = True
-
-        # attention computation start
         attn = self.compute_attention(
             q,
             k,
             v,
-            mask=mask,
+            mask=attn_mask,
         )
         # attention computation end
 
@@ -711,8 +678,21 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         # Compute cu_squlens and max_seqlen for flash attention
         # cu_seqlens_q = get_cu_seqlens(text_mask, img_seq_len)
         # cu_seqlens_kv = cu_seqlens_q
-        # max_seqlen_q = img_seq_len + txt_seq_len
         # max_seqlen_kv = max_seqlen_q
+        max_seq_len = img_seq_len + txt_seq_len
+        # TODO: FIXME: pre-compute these masks in dataloader to save time 
+        # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
+        bs  = img.shape[0] 
+        mask = ops.ones((bs, 1, 1, max_seq_len), dtype=text_mask.dtype)
+        # TODO: this slicing operation can be slow in ms
+        mask[:, 0, 0, img_seq_len:] =  text_mask
+        mask = mask.tile((1, 1, max_seq_len, 1)) # beginning n columns are all 1
+        # TODO: may rm this varible to save time/mem
+        mask_trans = mask.transpose((0, 1, 3, 2)) 
+        # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
+        mask = ops.logical_and(mask, mask_trans)
+        # TODO: need to add? 
+        # mask[:, :, :, 0] = True
 
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
@@ -723,7 +703,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                 txt,
                 vec,
                 freqs_cis=freqs_cis,
-                text_mask=text_mask,
+                attn_mask=mask,
                 )
 
         # Merge txt and img to pass through single stream blocks.
@@ -735,7 +715,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                     vec,
                     txt_seq_len,
                     freqs_cis=freqs_cis,
-                    text_mask=text_mask,
+                    attn_mask=mask,
                     )
 
         # TODO: slicing replaced with
@@ -756,7 +736,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         c = self.unpatchify_channels
         pt, ph, pw = self.patch_size
         assert t * h * w == x.shape[1]
-        # import pdb; pdb.set_trace()
         x = x.reshape((x.shape[0], t, h, w, c, pt, ph, pw))
 
         # x = torch.einsum("nthwcopq->nctohpwq", x)
@@ -780,7 +759,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
             print('D--: get param dtype: ', param_dtype)
             # TODO: support bf16 net params
             parameter_dict = dict()
-            # import pdb; pdb.set_trace()
 
             for pname in sd:
                 # np doesn't support bf16
@@ -788,7 +766,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                 np_val = sd[pname].cpu().detach().float().numpy()
                 parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
 
-            # import pdb; pdb.set_trace()
             # reshape conv3d weight to conv2d if use conv2d in PatchEmbed
             if self.use_conv2d_patchify:
                 key_3d = "img_in.proj.weight"
