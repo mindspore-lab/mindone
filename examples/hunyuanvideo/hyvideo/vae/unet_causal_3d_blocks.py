@@ -321,7 +321,7 @@ class ResnetBlockCausal3D(nn.Cell):
         self.time_embedding_norm = time_embedding_norm
         self.skip_time_act = skip_time_act
 
-        linear_cls = nn.Dense
+        linear_cls = mint.nn.Linear
 
         if groups_out is None:
             groups_out = groups
