@@ -7,25 +7,16 @@ from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.diffusers.models.activations import get_activation
-from mindone.diffusers.models.attention_processor import Attention, SpatialNorm
+from mindone.diffusers.models.attention_processor import SpatialNorm
 from mindone.diffusers.models.normalization import AdaGroupNorm, GroupNorm, RMSNorm
 from mindone.diffusers.utils import logging
+
+from .attention import Attention
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 MIN_VALUE = -1e5
 MAX_VALUE = 1e5
-
-
-def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None):
-    seq_len = n_frame * n_hw
-    mask = ops.full((seq_len, seq_len), MIN_VALUE, dtype=ms.float32)
-    mask_cond = ops.arange(mask.shape[-1])
-    mask = ops.masked_fill(mask, mask_cond < (mask_cond + 1).view(mask.shape[-1], 1), 0.0)
-    mask = mask.astype(dtype)
-    if batch_size is not None:
-        mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
-    return mask
 
 
 class MSPad(nn.Cell):
@@ -641,8 +632,8 @@ class UNetMidBlockCausal3D(nn.Cell):
                 # b c f h w -> b (f h w) c
                 hidden_states = ops.permute(hidden_states, (0, 2, 3, 4, 1))
                 hidden_states = hidden_states.reshape((hidden_states.shape[0], -1, hidden_states.shape[-1]))
-                attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
-                hidden_states = attn(hidden_states, temb=temb, attention_mask=attention_mask)
+                # attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
+                hidden_states = attn(hidden_states, temb=temb, attention_mask=None, is_causal=True)
                 # b (f h w) c -> b c f h w
                 hidden_states = ops.permute(hidden_states, (0, 2, 1))
                 hidden_states = hidden_states.reshape((hidden_states.shape[0], hidden_states.shape[1], T, H, W))
