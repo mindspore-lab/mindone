@@ -17,12 +17,7 @@ from typing import Callable, Optional
 import mindspore as ms
 from mindspore import nn, ops
 
-from mindone.diffusers.models.attention_processor import (
-    AttentionProcessor,
-    AttnProcessor,
-    SpatialNorm,
-    XFormersAttnProcessor,
-)
+from mindone.diffusers.models.attention_processor import AttnProcessor, SpatialNorm, XFormersAttnProcessor
 from mindone.diffusers.utils import is_mindspore_version, logging
 from mindone.diffusers.utils.mindspore_utils import dtype_to_min
 
@@ -379,7 +374,7 @@ class Attention(nn.Cell):
 
         self.processor = processor
 
-    def get_processor(self) -> "AttentionProcessor":
+    def get_processor(self):
         r"""
         Get the attention processor in use.
 
