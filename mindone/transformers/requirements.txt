@@ -1,0 +1,6 @@
+transformers==4.42.4
+evaluate
+datasets
+safetensors
+ezcolorlog
+ipython==8.12.3
