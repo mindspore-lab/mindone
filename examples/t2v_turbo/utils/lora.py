@@ -22,7 +22,7 @@ def load_lora_from_pkl(file_path):
     with open(file_path, "rb") as file:
         loras = pickle.load(file)
 
-    loras = [ms.Tensor(lora_weight) for lora_weight in loras if isinstance(lora_weight, np.ndarray)]
+    loras = [ms.Tensor(lora_weight) if isinstance(lora_weight, np.ndarray) else lora_weight for lora_weight in loras]
     return loras
 
 
