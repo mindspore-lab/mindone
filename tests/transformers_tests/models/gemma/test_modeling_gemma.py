@@ -31,6 +31,8 @@ MODES = [0, 1]
 
 
 class GemmaModelTester:
+    config_class = GemmaConfig
+
     def __init__(
         self,
         batch_size=13,
@@ -107,7 +109,7 @@ class GemmaModelTester:
         return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
 
     def get_config(self):
-        return GemmaConfig(
+        return self.config_class(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
