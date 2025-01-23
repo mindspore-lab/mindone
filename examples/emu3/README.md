@@ -60,6 +60,13 @@ pip install -r requirements.txt
 | **Emu3-Gen**             | [🤗 HF link](https://huggingface.co/BAAI/Emu3-Gen)             | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-Gen)             | [Wisemodel link](https://wisemodel.cn/models/BAAI/Emu3-Gen)             |
 | **Emu3-VisionTokenizer** | [🤗 HF link](https://huggingface.co/BAAI/Emu3-VisionTokenizer) | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-VisionTokenizer) | [Wisemodel link](https://wisemodel.cn/models/BAAI/Emu3-VisionTokenizer) |
 
+Weight conversion:
+
+For some incompatible network layer variable names are not auto converted, we need to convert some weight names in advanved before loading the pre-trained weights:
+```
+python python convert_model.py --safetensor_path PYTORCH.safetensors --ms_safetensor_path MINDSPORE.savetensors
+```
+
 ### Quickstart
 
 #### Use 🤗mindone.transformers to run Emu3-Gen/Stage1 for image generation

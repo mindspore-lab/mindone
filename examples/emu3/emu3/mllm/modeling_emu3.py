@@ -63,8 +63,6 @@ from mindone.utils.version_control import (
     is_old_ms_version,
 )
 from mindone.transformers.utils import is_flash_attn_2_available # Ascend
-ENABLE_FLASH_ATTENTION = is_flash_attn_2_available and FLASH_IS_AVAILABLE
-
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 FA_MS23_UPDATE = False
 if FLASH_IS_AVAILABLE:

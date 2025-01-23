@@ -44,6 +44,8 @@ class Emu3VisionVQUpsample(nn.Cell):
             kernel_size=3,
             stride=1,
             padding=1,
+            pad_mode="pad",
+            has_bias=True
         )
 
     def construct(self, x: ms.Tensor):
@@ -406,7 +408,7 @@ class Emu3VisionVQAttnBlock(nn.Cell):
         k = k.reshape(b, c, h * w)
         score = ops.bmm(q.permute(0, 2, 1), k)
         score = score / (c ** 0.5)
-        score = F.softmax(score, dim=2)
+        score = ops.softmax(score, axis=2)
 
         # attend to values
         v = v.reshape(b, c, h * w)
@@ -479,8 +481,8 @@ class Emu3VisionVQVectorQuantizer(nn.Cell):
         self.embedding = nn.Embedding(config.codebook_size, config.embed_dim)
         self.embedding.embedding_table.set_data(
                 initializer(Uniform(scale=1.0 / config.codebook_size), 
-                module.embedding_table.shape, 
-                module.embedding_table.dtype)
+                self.embedding.embedding_table.shape, 
+                self.embedding.embedding_table.dtype)
             )
 
     def construct(self, x: ms.Tensor):
@@ -722,7 +724,7 @@ class Emu3VisionVQDecoder(nn.Cell):
         )
 
     def construct(self, z: ms.Tensor, zq: ms.Tensor):
-        z_zq = torch.cat((z, zq), dim=0)
+        z_zq = mint.cat((z, zq), dim=0)
         z_zq = z_zq.permute(0, 2, 1, 3, 4)
         z_zq = self.time_res_stack(z_zq)
 
@@ -779,16 +781,19 @@ class Emu3VisionVQPretrainedModel(MSPreTrainedModel):
                 module.weight.dtype)
             )
         elif isinstance(module, nn.Linear):
-            weigth = initializer(HeNormal(negative_slope=math.sqrt(5)), module.weight.shape, module.weight.dtype)
+            weight = initializer(HeNormal(negative_slope=math.sqrt(5)), module.weight.shape, module.weight.dtype)
             module.weight.set_data(weight)
             if module.bias is not None:
                 fan_in, _ = initializer._calculate_fan_in_and_fan_out(module.weight.shape)
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
                 bias_weight = initializer(Uniform(scale=bound), module.embedding_table.shape, module.embedding_table.dtype)
                 module.bias.set_data(bias_weight)
-        elif isinstance(module, (nn.BatchNorm2d, nn.BatchNorm3d, nn.GroupNorm)):
-            module.weight.set_data(initializer(Constant(1), module.weight.shape, module.weight.dtype))
-            module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
+        elif isinstance(module, (nn.BatchNorm2d, nn.GroupNorm)):
+            module.gamma.set_data(initializer(Constant(1), module.gamma.shape, module.gamma.dtype))
+            module.beta.set_data(initializer(Constant(0), module.beta.shape, module.beta.dtype))
+        elif isinstance(module, nn.BatchNorm3d):
+            module.bn2d.gamma.set_data(initializer(Constant(1), module.bn2d.gamma.shape, module.bn2d.gamma.dtype))
+            module.bn2d.beta.set_data(initializer(Constant(0), module.bn2d.beta.shape, module.bn2d.beta.dtype))
 
 
 class Emu3VisionVQModel(Emu3VisionVQPretrainedModel):
