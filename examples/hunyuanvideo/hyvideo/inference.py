@@ -69,7 +69,6 @@ class Inference(object):
         """
         # ========================================================================
         logger.info(f"Got text-to-video model root path: {pretrained_model_path}")
-        # TODO: allow parallel inference
         parallel_args = None
 
         # =========================== Build main model ===========================
@@ -89,34 +88,25 @@ class Inference(object):
         )
         if args.use_fp8:
             raise NotImplementedError("fp8 is not supported yet.")
-        use_ms_amp = False
-        if  use_ms_amp and dtype!= ms.float32:
-            amp_level = 'O2'
-            from hyvideo.modules.norm_layers import LayerNorm, RMSNorm, FP32LayerNorm 
-            from hyvideo.modules.embed_layers import SinusoidalEmbedding 
-            from mindspore.nn import SiLU, GELU
-            '''
-            whitelist_ops = [LayerNorm, RMSNorm, FP32LayerNorm,
-                            # SiLU, GELU,  
-                            SinusoidalEmbedding,
-                            ]
-            '''
-            whitelist_ops = []
-            print('D--: custom fp32 cell for dit: ', whitelist_ops)
-            if amp_level == 'auto':
-                # lead to very blurry video
-                amp.auto_mixed_precision(model, amp_level=amp_level, dtype=dtype)
+
+        if  args.enable_ms_amp and dtype!= ms.float32:
+            logger.warning(f"Use MS auto mixed precision, amp_level: {args.amp_level}")
+            if args.amp_level == 'auto':
+                amp.auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype)
             else:
-                model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
-            
-            logger.warning(f"Use MS auto mixed precision, amp_level: {amp_level}")
+                from hyvideo.modules.norm_layers import LayerNorm, RMSNorm, FP32LayerNorm 
+                from hyvideo.modules.embed_layers import SinusoidalEmbedding 
+                whitelist_ops = [LayerNorm, RMSNorm, FP32LayerNorm,
+                                SinusoidalEmbedding,
+                                ]
+                logger.info('custom fp32 cell for dit: ', whitelist_ops)
+                model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
 
         model = Inference.load_state_dict(args, model, pretrained_model_path)
         model.set_train(False)
 
         # ============================= Build extra models ========================
         # VAE
-        # TODO: support tiling ?
         vae, _, s_ratio, t_ratio = load_vae(
             args.vae,
             vae_precision=args.vae_precision,
@@ -388,7 +378,7 @@ class HunyuanVideoSampler(Inference):
             seed = seed.asnumpy().tolist()
         if seed is None:
             seeds = [
-                # TODO: original is random.randint(0, 1_000_000)
+                # NOTE: original is random.randint(0, 1_000_000)
                 random.randint(0, 100)
                 for _ in range(batch_size * num_videos_per_prompt)
             ]

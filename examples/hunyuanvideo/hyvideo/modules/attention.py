@@ -27,11 +27,7 @@ class VanillaAttention(nn.Cell):
         attn= attn.to(ms.float32)  # (B N Sq Sk)
 
         if mask is not None:
-            # TODO: shape of mask ??
-            # mask = self.repeat_interleave(mask.to(ms.int32), h, 0)
-            # mask = mask.to(ms.bool_)
             # TODO: get different -inf based on data type
-            # import pdb; pdb.set_trace()
             mask = mask.tile((1, num_heads, 1, 1))
             mask = ops.logical_not(mask)  # [1, 1, 0, 0 ..] -> [0, 0, 1, 1, ..]
             attn = ops.masked_fill(attn, mask, -ms.numpy.inf)

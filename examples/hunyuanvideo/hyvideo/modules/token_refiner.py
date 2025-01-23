@@ -167,7 +167,6 @@ class IndividualTokenRefiner(nn.Cell):
             # mask shape: (b, s)
             batch_size = mask.shape[0]
             seq_len = mask.shape[1]
-            # TODO: check tile op
             # batch_size x 1 x seq_len x seq_len
             self_attn_mask_1 = mask.reshape((batch_size, 1, 1, seq_len)).tile(
                 (1, 1, seq_len, 1),
@@ -272,7 +271,6 @@ class SingleTokenRefiner(nn.Cell):
         # AMP: linear bf16, out x bf16
         x = self.input_embedder(x.to(self.dtype))
         
-        # TODO: check precision here
         # AMP: x bf16, c float32; c -> adaLN_modulation (silu, linear)
         x = self.individual_token_refiner(x, c.to(self.dtype), mask)
 

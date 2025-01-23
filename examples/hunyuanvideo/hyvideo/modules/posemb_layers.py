@@ -183,7 +183,6 @@ def get_meshgrid_nd(start, *args, dim=2):
         g = np.linspace(start[i], stop[i], num[i] + 1, dtype=np.float32)[:num[i]]
         axis_grid.append(g)
 
-    # TODO; will use ms ops faster?
     grid = np.meshgrid(*axis_grid, indexing="ij")  # dim x [W, H, D]
     grid = np.stack(grid, axis=0)  # [dim, W, H, D]
     grid = ms.Tensor(grid)
@@ -308,7 +307,6 @@ def get_1d_rotary_pos_embed(
         freqs_sin = ops.repeat_interleave(freqs.sin(), repeats=2, axis=1)  # [S, D]
         return freqs_cos, freqs_sin
     else:
-        # TODO: check polar ops, use_real is True in inference
         freqs_cis = ops.polar(
             ops.ones_like(freqs), freqs
         )  # complex64     # [S, D/2]

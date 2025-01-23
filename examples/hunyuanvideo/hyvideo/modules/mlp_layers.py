@@ -28,7 +28,6 @@ class MLP(nn.Cell):
         hidden_channels = hidden_channels or in_channels
         bias = to_2tuple(bias)
         drop_probs = to_2tuple(drop)
-        # TODO: doing here
         if use_conv:
             linear_layer = partial(nn.Conv2d, kernel_size=1, pad_mode='valid', has_bias=True)
         else:

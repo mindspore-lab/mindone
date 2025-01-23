@@ -71,7 +71,6 @@ class LayerNorm(nn.Cell):
         self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        # TODO: use minit layernorm for better speed
         # AMP: sum fp32
         x, _, _ = self.layer_norm(x, self.weight.to(x.dtype), self.bias.to(x.dtype))
         return x

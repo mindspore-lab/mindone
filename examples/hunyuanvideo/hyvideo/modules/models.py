@@ -226,9 +226,6 @@ class MMDoubleStreamBlock(nn.Cell):
 
         # attention computation start
 
-        # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
-        # import pdb; pdb.set_trace()
-        # attn = self.compute_attention(q, k, v, mask=attn_mask)
         attn = self.compute_attention(q, k, v, 
             actual_seq_qlen=actual_seq_qlen,
             actual_seq_kvlen=actual_seq_kvlen,
@@ -381,13 +378,7 @@ class MMSingleStreamBlock(nn.Cell):
             k = ops.concat((img_k, txt_k), axis=1)
 
         # Compute attention.
-        # assert (
-        #     cu_seqlens_q.shape[0] == 2 * x.shape[0] + 1
-        # ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, x.shape[0]:{x.shape[0]}"
-        # attention computation start
-        # import pdb; pdb.set_trace()
-        # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
-        # attn = self.compute_attention(q, k, v, mask=attn_mask)
+
         attn = self.compute_attention(q, k, v,
             actual_seq_qlen=actual_seq_qlen,
             actual_seq_kvlen=actual_seq_kvlen,
@@ -398,8 +389,8 @@ class MMSingleStreamBlock(nn.Cell):
         output = self.linear2(ops.concat((attn, self.mlp_act(mlp)), axis=2))
         return x + apply_gate(output, gate=mod_gate)
 
-# TODO: inherit ModelMixin, ConfigMixin
-class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
+
+class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
     """
     HunyuanVideo Transformer backbone
 
@@ -644,7 +635,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         vec = self.time_in(t)
 
         # text modulation
-        # TODO: AMP: mlp bf16;  ts2 fp16 x param bf16, how is it computed? fp16 to bf16? 
         vec = vec + self.vector_in(text_states_2.to(self.param_dtype))
 
         # guidance modulation
@@ -675,28 +665,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         txt_seq_len = txt.shape[1]
         img_seq_len = img.shape[1]
         bs  = img.shape[0] 
-        ''' 
-        # import pdb; pdb.set_trace()
-        # TODO: support setting max_seqlen
-        # Compute cu_squlens and max_seqlen for flash attention
-        # cu_seqlens_q = get_cu_seqlens(text_mask, img_seq_len)
-        # cu_seqlens_kv = cu_seqlens_q
-        # max_seqlen_kv = max_seqlen_q
-        max_seq_len = img_seq_len + txt_seq_len
-        # TODO: FIXME: pre-compute these masks in dataloader to save time 
-        # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
-        mask = ops.ones((bs, 1, 1, max_seq_len), dtype=text_mask.dtype)
-        # TODO: this slicing operation can be slow in ms
-        mask[:, 0, 0, img_seq_len:] =  text_mask
-        mask = mask.tile((1, 1, max_seq_len, 1)) # beginning n columns are all 1
-        # TODO: may rm this varible to save time/mem
-        # mask_trans =  mask.transpose((0, 1, 3, 2))
-        # vision-text mask, shape [bs, 1, S_v+S_t, S_v+S_t] 
-        mask = ops.logical_and(mask, mask.transpose((0, 1, 3, 2)))
-        # TODO: need to add? 
-        # mask[:, :, :, 0] = True
-        print("D--: attn mask shape: ", mask.shape)
-        '''
         
         # TODO: for stable training in graph mode, better prepare actual_seq_qlen in data prepartion
         # import pdb; pdb.set_trace()
@@ -736,7 +704,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                     # attn_mask=mask,
                     )
 
-        # TODO: slicing replaced with
         img = x[:, :img_seq_len, ...]
 
         # ---------------------------- Final layer ------------------------------
@@ -775,7 +742,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
             # NOTE: self.dtype is get from parameter.dtype in real-time
             param_dtype = ms.float32 if self.dtype is None else self.dtype
             print('D--: get param dtype: ', param_dtype)
-            # TODO: support bf16 net params
             parameter_dict = dict()
 
             for pname in sd:

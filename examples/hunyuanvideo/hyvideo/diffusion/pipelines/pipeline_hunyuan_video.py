@@ -506,6 +506,8 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     raise ValueError(
                         f"`video_length` has to be 1 or a multiple of 8 but is {video_length}."
                     )
+
+        # TODO: uncomment after text encoder done
         '''
         if callback_steps is not None and (
             not isinstance(callback_steps, int) or callback_steps <= 0
@@ -583,7 +585,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                 shape, generator=generator, dtype=dtype
             )
         else:
-            assert tuple(latents.shape) == shape, f'the latent noise loaded from npy shape {tuple(latent.shape)}, no equal to the expected shape {shape}' 
+            assert tuple(latents.shape) == shape, f'the latent noise loaded from npy shape {tuple(latents.shape)}, no equal to the expected shape {shape}' 
             latents = latents
 
         # Check existence to make it compatible with FlowMatchEulerDiscreteScheduler
@@ -813,7 +815,6 @@ class HunyuanVideoPipeline(DiffusionPipeline):
         # to deal with lora scaling and other possible forward hooks
 
         # 1. Check inputs. Raise error if not correct
-        # TODO: uncomment after debug
         self.check_inputs(
             prompt,
             height,
@@ -990,7 +991,6 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
                 # predict the noise residual
                 # with torch.autocast(device_type="cuda", dtype=target_dtype, enabled=autocast_enabled):
-                # import pdb; pdb.set_trace()
                 # auto mixed precision is set with ms AMP
                 noise_pred = self.transformer(  # For an input image (129, 192, 336) (1, 256, 256)
                     latent_model_input,  # [2, 16, 33, 24, 42]
@@ -1045,10 +1045,8 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
 
-        # import pdb; pdb.set_trace()
-        # TODO: rm after debug
-        # import pdb; pdb.set_trace()
-        np.save('debug_ms/latent_output.npy', latents.asnumpy())
+        # np.save('debug_ms/latent_output.npy', latents.asnumpy())
+
         # latents (b, c, t, h, w) = (1, 16, 33, 90, 160)
         if not output_type == "latent":
             expand_temporal_dim = False
@@ -1075,15 +1073,12 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                 latents = latents / self.vae.config.scaling_factor
 
             # with torch.autocast(device_type="cuda", dtype=vae_dtype, enabled=vae_autocast_enabled):
-            # import pdb; pdb.set_trace()
             if enable_tiling:
-                print('D--: vae tiling enabled')
                 self.vae.enable_tiling()
                 image = self.vae.decode(
                     latents, # return_dict=False, generator=generator
                 )
             else:
-                print('D--: vae tiling disabled')
                 image = self.vae.decode(
                     latents, # return_dict=False, generator=generator
                 )

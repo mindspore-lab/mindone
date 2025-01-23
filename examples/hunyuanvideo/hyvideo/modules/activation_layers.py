@@ -3,7 +3,6 @@ from mindspore import nn
 class SiLU(nn.SiLU):
     # compute in FP32
     def construct(self, x):
-        # import pdb; pdb.set_trace()
         input_dtype = x.dtype
         out = super().construct(x.float())
         return out.to(input_dtype)
@@ -18,7 +17,6 @@ def get_activation_layer(act_type):
     elif act_type == "relu":
         return nn.ReLU
     elif act_type == "silu":
-        # TODO; debugging whether we need fp32 silu
         return nn.SiLU
         # return SiLU
     else:
