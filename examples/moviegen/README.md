@@ -19,18 +19,18 @@ this project!
 - Movie Gen 5B (T2I/V)
     - [x] Inference
     - [x] Training stage 1: T2I 256px
-    - [x] Training stage 2: T2I/V 256px 256frames
-    - [ ] Training stage 3: T2I/V 768px 256frames (under verification)
+    - [x] Training stage 2: T2I/V 256px 256 frames
+    - [x] Training stage 3: T2I/V 768px 256 frames
     - [x] Web Demo (Gradio)
 - Movie Gen 30B (T2I/V)
     - [x] Inference
     - [x] Mixed parallelism training (support Ulysses-SP + ZeRO-3)
     - [x] Training stage 1: T2I 256px
-    - [x] Training stage 2: T2V 256px 256frames
-    - [ ] Training stage 3: T2I/V 768px 256frames
+    - [x] Training stage 2: T2V 256px 256 frames
+    - [x] Training stage 3: T2I/V 768px 256 frames
 - Training with Buckets
-    - [ ] Support variable resolutions and aspect ratios
-    - [ ] Support variable number of frames
+    - [x] Support variable resolutions and aspect ratios
+    - [x] Support variable number of frames
 - Video Personalization (PT2V)
     - [ ] Inference
     - [ ] Training
@@ -118,8 +118,14 @@ python scripts/inference_text_enc.py \
 --model_max_length 512
 ```
 
+Alternatively, you can run this shell script:
+
+```shell
+scripts/text_emb/generate_text_emb.sh PATH_TO_CSV EMB_OUT_PATH
+```
+
 > [!NOTE]
-> We use the sequence length of 512 tokens for UL2, 256 for MetaCLIP, and 100 for ByT5.
+> We use the sequence length of 512 tokens for UL2, 256 for MetaCLIP, and 128 for ByT5.
 
 ### Text-to-Image
 
@@ -151,6 +157,15 @@ python scripts/inference.py \
 --num_frames 32 \
 --batch_size 2 \
 --save_format mp4
+```
+
+### Inference without TAE
+
+To generate embeddings in 2 steps (Movie Gen latents → TAE decoding), add the `--tae=""` argument to the
+`scripts/inference.py` script, then use `scripts/tae/encode_tae.sh` to decode the latents:
+
+```shell
+scripts/tae/decode_tae.sh PATH_TO_LATENTS_DIR VIDEO_OUT_DIR NUM_FRAMES
 ```
 
 ### Gradio Demo
@@ -187,7 +202,7 @@ Movie Gen is trained jointly on images and videos in 4 stages:
 1. Training on images at 256 px resolution.
 2. Joint training on images and videos at 256 px resolution.
 3. Joint training at 768 px resolution.
-4. Fine-tune the model on high quality videos.
+4. Fine-tune the model on high-quality videos.
 
 Images are treated as single frame videos, enabling the use of the same model to generate both images and videos.
 Compared to video data, paired image-text datasets are easier to scale with diverse concepts and styles,
@@ -198,7 +213,7 @@ To train Movie Gen, run the following commands:
 ```shell
 scripts/moviegen/stage1_train.sh  # for stage 1 training
 scripts/moviegen/stage2_train.sh  # for stage 2 training
-scripts/moviegen/stage3_train.sh  # for stage 3 training (currently under verification)
+scripts/moviegen/stage3_train.sh  # for stage 3 training
 ```
 
 ### Dataset Preparation
@@ -220,7 +235,7 @@ Inference section for details.
 
 ### Cache Video Embedding (Optional)
 
-If you have sufficient storage budget, you can cache the video embeddings to speed up training by using the following
+If you have a sufficient storage budget, you can cache the video embeddings to speed up training by using the following
 command:
 
 ```shell
@@ -234,6 +249,8 @@ python scripts/inference_tae.py \
 --video_data.size=256px
 ```
 
+For more details, check `scripts/tae/encode_tae.sh` or run `scripts/inference_tae.py --help`.
+
 > [!TIP]
 > Set `video_data.sample_n_frames` to `-1` to encode the full videos.
 
@@ -245,17 +262,17 @@ Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in Graph mode.
 > We trained all the models using BF16 precision and JIT level `O1`.  
 > To disable Flash Attention recompute, set `model.not_recompute_fa` to `True`.
 
-| Model | Cards |   Stage   |      Batch size       |       Resolution        | Compile time |        Recompute         | Gradient Acc | ZeRO | Sequence Parallel | TAE Cache | Time (s/step) |                             Config                             |
-|:-----:|:-----:|:---------:|:---------------------:|:-----------------------:|:------------:|:------------------------:|:------------:|:----:|:-----------------:|:---------:|:-------------:|:--------------------------------------------------------------:|
-|  30B  |   8   |  1 (T2I)  |          10           |         256x455         |      6m      |            ON            |      1       |  3   |        No         |    Yes    |     5.14      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
-|  30B  |   8   |  2 (T2V)  |       Video: 1        |       256x256x455       |      7m      |            ON            |      1       |  3   |     8 shards      |    Yes    |     4.04      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
-|  30B  |   8   |  3 (T2V)  |       Video: 1        |      256x576x1024       |      7m      |            ON            |      1       |  3   |     8 shards      |    Yes    |     37.7      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
-|  5B   |   8   |  1 (T2I)  |          10           |         256x455         |      3m      |           OFF            |      1       |  3   |        No         |    Yes    |     0.82      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
-|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  |      3m      | ON<br/>(No FA recompute) |      5       |  2   |        No         |    Yes    |     4.12      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
-|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames |    5m 40s    |            ON            |      5       |  2   |        No         |    Yes    |     83.2      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
-|  1B   |   8   |  1 (T2I)  |          10           |         256x455         |      2m      |           OFF            |      1       |  No  |        No         |    Yes    |     0.32      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
-|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256x455<br/>256 frames  |    2m 20s    |           OFF            |      5       |  No  |        No         |    Yes    |     2.12      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
-|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 576x1024<br/>256 frames |    2m 30s    | ON<br/>(No FA recompute) |      5       |  No  |        No         |    Yes    |     23.2      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
+| Model | Cards |   Stage   |      Batch size       |      Resolution      | Compile time |        Recompute         | Gradient Acc | ZeRO | Sequence Parallel | TAE Cache | Time (s/step) |                             Config                             |
+|:-----:|:-----:|:---------:|:---------------------:|:--------------------:|:------------:|:------------------------:|:------------:|:----:|:-----------------:|:---------:|:-------------:|:--------------------------------------------------------------:|
+|  30B  |   8   |  1 (T2I)  |          10           |       256x455        |    4m 40s    |            ON            |      1       |  3   |        No         |    Yes    |     3.37      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
+|  30B  |   8   |  2 (T2V)  |       Video: 1        |     256x256x455      |    7m 40s    |            ON            |      1       |  3   |     8 shards      |    Yes    |     2.58      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
+|  30B  |   8   |  3 (T2V)  |       Video: 1        |     256x576x1024     |    7m 40s    |            ON            |      1       |  3   |     8 shards      |    Yes    |     31.9      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
+|  5B   |   8   |  1 (T2I)  |          10           |        256px         |    2m 30s    |           OFF            |      1       |  3   |        No         |    Yes    |     0.64      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
+|  5B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256px<br/>256 frames |    2m 40s    |           OFF            |      5       |  2   |        No         |    Yes    |     1.54      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
+|  5B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 768px<br/>256 frames |      4m      |            ON            |      5       |  2   |        No         |    Yes    |     82.8      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
+|  1B   |   8   |  1 (T2I)  |          10           |        256px         |    1m 40s    |           OFF            |      1       |  No  |        No         |    Yes    |     0.34      |  [stage1_t2i_256px.yaml](configs/train/stage1_t2i_256px.yaml)  |
+|  1B   |   8   | 2 (T2I/V) | Image: 1<br/>Video: 1 | 256px<br/>256 frames |    1m 40s    |           OFF            |      5       |  No  |        No         |    Yes    |     0.55      | [stage2_t2iv_256px.yaml](configs/train/stage2_t2iv_256px.yaml) |
+|  1B   |   8   | 3 (T2I/V) | Image: 1<br/>Video: 1 | 768px<br/>256 frames |      2m      | ON<br/>(No FA recompute) |      5       |  No  |        No         |    Yes    |     22.1      | [stage3_t2iv_768px.yaml](configs/train/stage3_t2iv_768px.yaml) |
 
 ### Validation During Training
 
