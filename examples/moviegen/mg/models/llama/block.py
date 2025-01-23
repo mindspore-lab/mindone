@@ -38,9 +38,9 @@ class LlamaMLP(nn.Cell):
         super().__init__()
         self.hidden_size = hidden_size
         self.intermediate_size = intermediate_size
-        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
-        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False, dtype=dtype)
-        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False, dtype=dtype)
+        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False, dtype=dtype)
+        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False, dtype=dtype)
+        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False, dtype=dtype)
         self.act_fn = ACT2FN[hidden_act]
 
     def construct(self, hidden_state: Tensor) -> Tensor:
@@ -81,14 +81,14 @@ class LlamaAttention(nn.Cell):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=attention_bias, dtype=dtype)
-        self.k_proj = mint.nn.Linear(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
+        self.q_proj = nn.Dense(self.hidden_size, self.num_heads * self.head_dim, has_bias=attention_bias, dtype=dtype)
+        self.k_proj = nn.Dense(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=attention_bias, dtype=dtype
         )
-        self.v_proj = mint.nn.Linear(
-            self.hidden_size, self.num_key_value_heads * self.head_dim, bias=attention_bias, dtype=dtype
+        self.v_proj = nn.Dense(
+            self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=attention_bias, dtype=dtype
         )
-        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=attention_bias, dtype=dtype)
+        self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=attention_bias, dtype=dtype)
 
         if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
@@ -240,8 +240,8 @@ class LinearPatchEmbed3D(nn.Cell):
     ) -> None:
         super().__init__()
         self.patch_size = patch_size
-        self.proj = mint.nn.Linear(
-            patch_size[0] * patch_size[1] * patch_size[2] * in_channels, hidden_size, bias=False, dtype=dtype
+        self.proj = nn.Dense(
+            patch_size[0] * patch_size[1] * patch_size[2] * in_channels, hidden_size, has_bias=False, dtype=dtype
         )
 
     def construct(self, x: Tensor) -> Tensor:
@@ -270,9 +270,9 @@ class TimestepEmbedder(nn.Cell):
     ) -> None:
         super().__init__()
         self.mlp = nn.SequentialCell(
-            mint.nn.Linear(frequency_embedding_size, hidden_size, bias=False, dtype=dtype),
+            nn.Dense(frequency_embedding_size, hidden_size, has_bias=False, dtype=dtype),
             ACT2FN[hidden_act],
-            mint.nn.Linear(hidden_size, hidden_size, bias=False, dtype=dtype),
+            nn.Dense(hidden_size, hidden_size, has_bias=False, dtype=dtype),
         )
         self.frequency_embedding_size = frequency_embedding_size
         half = frequency_embedding_size // 2

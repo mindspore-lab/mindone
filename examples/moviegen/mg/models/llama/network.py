@@ -138,8 +138,8 @@ class LlamaFinalLayer(nn.Cell):
     ) -> None:
         super().__init__()
         self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps)
-        self.proj = mint.nn.Linear(
-            hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, bias=False, dtype=dtype
+        self.proj = nn.Dense(
+            hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
         )
         self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size) / hidden_size**0.5, dtype=dtype))
 
@@ -225,7 +225,7 @@ class LlamaModel(nn.Cell):
 
         self.timestep_embedder = TimestepEmbedder(self.hidden_size, dtype=dtype)
         self.adaLN_modulation = nn.SequentialCell(
-            ACT2FN[hidden_act], mint.nn.Linear(self.hidden_size, 6 * self.hidden_size, bias=False, dtype=dtype)
+            ACT2FN[hidden_act], nn.Dense(self.hidden_size, 6 * self.hidden_size, has_bias=False, dtype=dtype)
         )
 
         self.text_projector = TextProjector(
@@ -260,7 +260,7 @@ class LlamaModel(nn.Cell):
         std = self.initializer_range
 
         def _init_weights(module):
-            if isinstance(module, mint.nn.Linear):
+            if isinstance(module, nn.Dense):
                 normal_(module.weight, mean=0.0, std=std)
                 if module.bias is not None:
                     zeros_(module.weight)

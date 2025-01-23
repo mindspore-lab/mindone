@@ -21,13 +21,13 @@ class TextProjector(nn.Cell):
     ):
         super().__init__()
         # split layers for easier exclusion from weight decay
-        self.ul2_linear = mint.nn.Linear(ul2_in_features, out_features, bias=False, dtype=dtype)
+        self.ul2_linear = nn.Dense(ul2_in_features, out_features, has_bias=False, dtype=dtype)
         self.ul2_layernorm = layer_norm((out_features,), eps=norm_eps)
 
-        self.metaclip_linear = mint.nn.Linear(metaclip_in_features, out_features, bias=False, dtype=dtype)
+        self.metaclip_linear = nn.Dense(metaclip_in_features, out_features, has_bias=False, dtype=dtype)
         self.metaclip_layernorm = layer_norm((out_features,), eps=norm_eps)
 
-        self.byt5_linear = mint.nn.Linear(byt5_in_features, out_features, bias=False, dtype=dtype)
+        self.byt5_linear = nn.Dense(byt5_in_features, out_features, has_bias=False, dtype=dtype)
         self.byt5_layernorm = layer_norm((out_features,), eps=norm_eps)
 
         self.initializer_range = initializer_range
@@ -41,7 +41,7 @@ class TextProjector(nn.Cell):
         std = self.initializer_range
 
         def _init_weights(module):
-            if isinstance(module, mint.nn.Linear):
+            if isinstance(module, nn.Dense):
                 normal_(module.weight, mean=0.0, std=std)
                 if module.bias is not None:
                     zeros_(module.weight)
