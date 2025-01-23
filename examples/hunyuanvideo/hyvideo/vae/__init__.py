@@ -1,8 +1,9 @@
 from pathlib import Path
 
+import mindspore as ms
+
 from mindone.safetensors.mindspore import load_file
 from mindone.utils.amp import auto_mixed_precision
-import mindspore as ms
 
 from ..constants import PRECISION_TO_TYPE, VAE_PATH
 from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
@@ -11,7 +12,7 @@ from .unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
 def load_vae(
     vae_type: str = "884-16c-hy",
-    vae_precision: str=None,
+    vae_precision: str = None,
     sample_size: tuple = None,
     vae_path: str = None,
     logger=None,
@@ -49,30 +50,31 @@ def load_vae(
                 ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
             vae.load_state_dict(ckpt)
         else:
-            print('No vae ckpt is loaded')
+            print("No vae ckpt is loaded")
     else:
         vae.load_state_dict(state_dict)
 
     spatial_compression_ratio = vae.config.spatial_compression_ratio
     time_compression_ratio = vae.config.time_compression_ratio
-    
+
     # set mixed precision
     if vae_precision is not None:
-        if vae_precision != 'fp32':
+        if vae_precision != "fp32":
             dtype = PRECISION_TO_TYPE[vae_precision]
             if dtype == ms.float16:
                 custom_fp32_cells = [GroupNorm]
-            elif dtype == ms.bfloat16 :
+            elif dtype == ms.bfloat16:
                 custom_fp32_cells = [MSPad, MSInterpolate]
             else:
                 raise ValueError
-            
+
             # TODO: try 'auto' in ms.amp.auto_mixed_precision
             amp_level = "O2"
             vae = auto_mixed_precision(vae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
             logger.info(
-                f"Set mixed precision to {amp_level} with dtype={vae_precision}, custom fp32_cells {custom_fp32_cells}")
-  
+                f"Set mixed precision to {amp_level} with dtype={vae_precision}, custom fp32_cells {custom_fp32_cells}"
+            )
+
     vae.set_train(False)
     for param in vae.trainable_params():
         param.requires_grad = False

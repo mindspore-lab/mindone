@@ -1,26 +1,21 @@
-import os
-import numpy as np
-import time
 import random
-import functools
-from typing import List, Optional, Tuple, Union
-
+import time
 from pathlib import Path
+
+import numpy as np
+from hyvideo.constants import NEGATIVE_PROMPT, PRECISION_TO_TYPE  # , PROMPT_TEMPLATE
+from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
+from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
+from hyvideo.modules import load_model
+from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
+
+# from hyvideo.text_encoder import TextEncoder
+from hyvideo.utils.data_utils import align_to
+from hyvideo.vae import load_vae
 from loguru import logger
 
 import mindspore as ms
-from mindspore import amp, nn
-
-from hyvideo.utils.helpers import set_model_param_dtype
-from hyvideo.constants import PROMPT_TEMPLATE, NEGATIVE_PROMPT, PRECISION_TO_TYPE
-from hyvideo.vae import load_vae
-from hyvideo.modules import load_model
-# from hyvideo.text_encoder import TextEncoder
-from hyvideo.utils.data_utils import align_to
-from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
-from hyvideo.modules.attention import FlashAttention
-from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
-from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
+from mindspore import amp
 
 from mindone.utils.amp import auto_mixed_precision
 
@@ -73,13 +68,14 @@ class Inference(object):
 
         # =========================== Build main model ===========================
         logger.info("Building model...")
-        factor_kwargs = {"dtype": PRECISION_TO_TYPE[args.precision],
-                        "attn_mode": args.attn_mode,
-                        "use_conv2d_patchify": args.use_conv2d_patchify,
-                        }
+        factor_kwargs = {
+            "dtype": PRECISION_TO_TYPE[args.precision],
+            "attn_mode": args.attn_mode,
+            "use_conv2d_patchify": args.use_conv2d_patchify,
+        }
         in_channels = args.latent_channels
         out_channels = args.latent_channels
-        dtype = factor_kwargs['dtype']
+        dtype = factor_kwargs["dtype"]
         model = load_model(
             args,
             in_channels=in_channels,
@@ -89,18 +85,24 @@ class Inference(object):
         if args.use_fp8:
             raise NotImplementedError("fp8 is not supported yet.")
 
-        if  args.enable_ms_amp and dtype!= ms.float32:
+        if args.enable_ms_amp and dtype != ms.float32:
             logger.warning(f"Use MS auto mixed precision, amp_level: {args.amp_level}")
-            if args.amp_level == 'auto':
+            if args.amp_level == "auto":
                 amp.auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype)
             else:
-                from hyvideo.modules.norm_layers import LayerNorm, RMSNorm, FP32LayerNorm 
-                from hyvideo.modules.embed_layers import SinusoidalEmbedding 
-                whitelist_ops = [LayerNorm, RMSNorm, FP32LayerNorm,
-                                SinusoidalEmbedding,
-                                ]
-                logger.info('custom fp32 cell for dit: ', whitelist_ops)
-                model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
+                from hyvideo.modules.embed_layers import SinusoidalEmbedding
+                from hyvideo.modules.norm_layers import FP32LayerNorm, LayerNorm, RMSNorm
+
+                whitelist_ops = [
+                    LayerNorm,
+                    RMSNorm,
+                    FP32LayerNorm,
+                    SinusoidalEmbedding,
+                ]
+                logger.info("custom fp32 cell for dit: ", whitelist_ops)
+                model = auto_mixed_precision(
+                    model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops
+                )
 
         model = Inference.load_state_dict(args, model, pretrained_model_path)
         model.set_train(False)
@@ -128,7 +130,7 @@ class Inference(object):
             model=model,
             use_cpu_offload=args.use_cpu_offload,
             logger=logger,
-            parallel_args=parallel_args
+            parallel_args=parallel_args,
         )
 
     @staticmethod
@@ -143,15 +145,11 @@ class Inference(object):
                 raise ValueError(f"No model weights found in {model_dir}")
             if str(files[0]).startswith("pytorch_model_"):
                 model_path = dit_weight / f"pytorch_model_{load_key}.pt"
-                bare_model = True
             elif any(str(f).endswith("_model_states.pt") for f in files):
                 files = [f for f in files if str(f).endswith("_model_states.pt")]
                 model_path = files[0]
                 if len(files) > 1:
-                    logger.warning(
-                        f"Multiple model weights found in {dit_weight}, using {model_path}"
-                    )
-                bare_model = False
+                    logger.warning(f"Multiple model weights found in {dit_weight}, using {model_path}")
             else:
                 raise ValueError(
                     f"Invalid model path: {dit_weight} with unrecognized weight format: "
@@ -167,15 +165,11 @@ class Inference(object):
                     raise ValueError(f"No model weights found in {dit_weight}")
                 if str(files[0]).startswith("pytorch_model_"):
                     model_path = dit_weight / f"pytorch_model_{load_key}.pt"
-                    bare_model = True
                 elif any(str(f).endswith("_model_states.pt") for f in files):
                     files = [f for f in files if str(f).endswith("_model_states.pt")]
                     model_path = files[0]
                     if len(files) > 1:
-                        logger.warning(
-                            f"Multiple model weights found in {dit_weight}, using {model_path}"
-                        )
-                    bare_model = False
+                        logger.warning(f"Multiple model weights found in {dit_weight}, using {model_path}")
                 else:
                     raise ValueError(
                         f"Invalid model path: {dit_weight} with unrecognized weight format: "
@@ -186,7 +180,6 @@ class Inference(object):
                     )
             elif dit_weight.is_file():
                 model_path = dit_weight
-                bare_model = "unknown"
             else:
                 raise ValueError(f"Invalid model path: {dit_weight}")
 
@@ -223,7 +216,7 @@ class HunyuanVideoSampler(Inference):
         pipeline=None,
         use_cpu_offload=False,
         logger=None,
-        parallel_args=None
+        parallel_args=None,
     ):
         super().__init__(
             args,
@@ -235,7 +228,7 @@ class HunyuanVideoSampler(Inference):
             pipeline=pipeline,
             use_cpu_offload=use_cpu_offload,
             logger=logger,
-            parallel_args=parallel_args
+            parallel_args=parallel_args,
         )
 
         self.pipeline = self.load_diffusion_pipeline(
@@ -284,7 +277,7 @@ class HunyuanVideoSampler(Inference):
             raise NotImplementedError
 
         return pipeline
-    
+
     def get_rotary_pos_embed(self, video_length, height, width):
         target_ndim = 3
         ndim = 5 - 2
@@ -303,16 +296,11 @@ class HunyuanVideoSampler(Inference):
             )
             rope_sizes = [s // self.model.patch_size for s in latents_size]
         elif isinstance(self.model.patch_size, list):
-            assert all(
-                s % self.model.patch_size[idx] == 0
-                for idx, s in enumerate(latents_size)
-            ), (
+            assert all(s % self.model.patch_size[idx] == 0 for idx, s in enumerate(latents_size)), (
                 f"Latent size(last {ndim} dimensions) should be divisible by patch size({self.model.patch_size}), "
                 f"but got {latents_size}."
             )
-            rope_sizes = [
-                s // self.model.patch_size[idx] for idx, s in enumerate(latents_size)
-            ]
+            rope_sizes = [s // self.model.patch_size[idx] for idx, s in enumerate(latents_size)]
 
         if len(rope_sizes) != target_ndim:
             rope_sizes = [1] * (target_ndim - len(rope_sizes)) + rope_sizes  # time axis
@@ -320,9 +308,7 @@ class HunyuanVideoSampler(Inference):
         rope_dim_list = self.model.rope_dim_list
         if rope_dim_list is None:
             rope_dim_list = [head_dim // target_ndim for _ in range(target_ndim)]
-        assert (
-            sum(rope_dim_list) == head_dim
-        ), "sum(rope_dim_list) should equal to head_dim of attention layer"
+        assert sum(rope_dim_list) == head_dim, "sum(rope_dim_list) should equal to head_dim of attention layer"
 
         # NOTE: make sure rotary embed is computed in fp32
         freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
@@ -350,7 +336,7 @@ class HunyuanVideoSampler(Inference):
         batch_size=1,
         num_videos_per_prompt=1,
         text_embed_path=None,
-        output_type='pil',
+        output_type="pil",
         **kwargs,
     ):
         """
@@ -383,18 +369,10 @@ class HunyuanVideoSampler(Inference):
                 for _ in range(batch_size * num_videos_per_prompt)
             ]
         elif isinstance(seed, int):
-            seeds = [
-                seed + i
-                for _ in range(batch_size)
-                for i in range(num_videos_per_prompt)
-            ]
+            seeds = [seed + i for _ in range(batch_size) for i in range(num_videos_per_prompt)]
         elif isinstance(seed, (list, tuple)):
             if len(seed) == batch_size:
-                seeds = [
-                    int(seed[i]) + j
-                    for i in range(batch_size)
-                    for j in range(num_videos_per_prompt)
-                ]
+                seeds = [int(seed[i]) + j for i in range(batch_size) for j in range(num_videos_per_prompt)]
             elif len(seed) == batch_size * num_videos_per_prompt:
                 seeds = [int(s) for s in seed]
             else:
@@ -403,9 +381,7 @@ class HunyuanVideoSampler(Inference):
                     f"batch_size * num_videos_per_prompt ({batch_size} * {num_videos_per_prompt}), got {seed}."
                 )
         else:
-            raise ValueError(
-                f"Seed must be an integer, a list of integers, or None, got {seed}."
-            )
+            raise ValueError(f"Seed must be an integer, a list of integers, or None, got {seed}.")
         # TODO: can enable it to check align with torch
         # generator = [torch.Generator(self.device).manual_seed(seed) for seed in seeds]
         generator = [np.random.Generator(np.random.PCG64(seed=seed)) for seed in seeds]
@@ -419,13 +395,9 @@ class HunyuanVideoSampler(Inference):
                 f"`height` and `width` and `video_length` must be positive integers, got height={height}, width={width}, video_length={video_length}"
             )
         if (video_length - 1) % 4 != 0:
-            raise ValueError(
-                f"`video_length-1` must be a multiple of 4, got {video_length}"
-            )
+            raise ValueError(f"`video_length-1` must be a multiple of 4, got {video_length}")
 
-        logger.info(
-            f"Input (height, width, video_length) = ({height}, {width}, {video_length})"
-        )
+        logger.info(f"Input (height, width, video_length) = ({height}, {width}, {video_length})")
 
         target_height = align_to(height, 16)
         target_width = align_to(width, 16)
@@ -444,25 +416,23 @@ class HunyuanVideoSampler(Inference):
         if negative_prompt is None or negative_prompt == "":
             negative_prompt = self.default_negative_prompt
         if not isinstance(negative_prompt, str):
-            raise TypeError(
-                f"`negative_prompt` must be a string, but got {type(negative_prompt)}"
-            )
+            raise TypeError(f"`negative_prompt` must be a string, but got {type(negative_prompt)}")
         negative_prompt = [negative_prompt.strip()]
-        
+
         if text_embed_path is not None:
             # read embedding from folder
             data = np.load(text_embed_path)
-            prompt_embeds = data['prompt_embeds']
-            prompt_mask = data['prompt_mask']
-            prompt_embeds_2 = data['prompt_embeds_2']
+            prompt_embeds = data["prompt_embeds"]
+            prompt_mask = data["prompt_mask"]
+            prompt_embeds_2 = data["prompt_embeds_2"]
             prompt_embeds = ms.Tensor(prompt_embeds)
             prompt_mask = ms.Tensor(prompt_mask, dtype=ms.bool_)
             prompt_embeds_2 = ms.Tensor(prompt_embeds_2)
-            
-            if self.args.cfg_scale > 1.0:    
-                negative_prompt_embeds = data['negative_prompt_embeds']
-                negative_prompt_mask = data['negative_prompt_mask']
-                negative_prompt_embeds_2 = data['negative_prompt_embeds_2']
+
+            if self.args.cfg_scale > 1.0:
+                negative_prompt_embeds = data["negative_prompt_embeds"]
+                negative_prompt_mask = data["negative_prompt_mask"]
+                negative_prompt_embeds_2 = data["negative_prompt_embeds_2"]
                 negative_prompt_embeds = ms.Tensor(negative_prompt_embeds)
                 negative_prompt_mask = ms.Tensor(negative_prompt_mask, dtype=ms.bool_)
                 negative_prompt_embeds_2 = ms.Tensor(negative_prompt_embeds_2)
@@ -478,14 +448,11 @@ class HunyuanVideoSampler(Inference):
             negative_prompt_mask = None
             negative_prompt_embeds_2 = None
 
-
         # ========================================================================
         # Scheduler
         # ========================================================================
         scheduler = FlowMatchDiscreteScheduler(
-            shift=flow_shift,
-            reverse=self.args.flow_reverse,
-            solver=self.args.flow_solver
+            shift=flow_shift, reverse=self.args.flow_reverse, solver=self.args.flow_solver
         )
         self.pipeline.scheduler = scheduler
 
@@ -493,9 +460,7 @@ class HunyuanVideoSampler(Inference):
         # Build Rope freqs
         # ========================================================================
         # TODO: part of RopE can be pre-compute
-        freqs_cos, freqs_sin = self.get_rotary_pos_embed(
-            target_video_length, target_height, target_width
-        )
+        freqs_cos, freqs_sin = self.get_rotary_pos_embed(target_video_length, target_height, target_width)
         n_tokens = freqs_cos.shape[0]
 
         # ========================================================================
@@ -552,4 +517,3 @@ class HunyuanVideoSampler(Inference):
         logger.info(f"Success, time: {gen_time}")
 
         return out_dict
-

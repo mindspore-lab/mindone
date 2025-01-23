@@ -1,6 +1,7 @@
 import mindspore as ms
+
 from ..utils.helpers import set_model_param_dtype
-from .models import HYVideoDiffusionTransformer, HUNYUAN_VIDEO_CONFIG
+from .models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
 
 
 def load_model(args, in_channels, out_channels, factor_kwargs):
@@ -25,12 +26,10 @@ def load_model(args, in_channels, out_channels, factor_kwargs):
         )
 
         # half model parameter
-        dtype = factor_kwargs['dtype']
-        if  dtype!= ms.float32:
+        dtype = factor_kwargs["dtype"]
+        if dtype != ms.float32:
             set_model_param_dtype(model, dtype=dtype)
 
         return model
     else:
         raise NotImplementedError()
-
-

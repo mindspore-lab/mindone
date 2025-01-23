@@ -1,5 +1,6 @@
 import collections.abc
 from itertools import repeat
+
 import mindspore as ms
 
 
@@ -11,6 +12,7 @@ def _ntuple(n):
                 x = tuple(repeat(x[0], n))
             return x
         return tuple(repeat(x, n))
+
     return parse
 
 
@@ -59,5 +61,3 @@ def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
         print(f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}.")
 
     return model
-
-

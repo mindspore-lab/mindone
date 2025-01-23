@@ -76,7 +76,7 @@ def add_extra_models_args(parser: argparse.ArgumentParser):
     #    help="Enable tiling for the VAE model to save GPU memory.",
     # )
     # group.set_defaults(vae_tiling=True)
-    
+
     group.add_argument(
         "--vae-tiling",
         default=True,
@@ -352,19 +352,45 @@ def add_inference_args(parser: argparse.ArgumentParser):
     )
 
     group.add_argument("--use-fp8", action="store_true", help="Enable use fp8 for inference acceleration.")
-    group.add_argument("--attn-mode", type=str, default='flash', help="vanilla or flash")
-    group.add_argument("--use-conv2d-patchify", type=str2bool, default=False, help="use conv2d equivalence in PatchEmbed instead of conv3d")
-    group.add_argument("--output-type", type=str, default='pil', help="pil or latent")
+    group.add_argument("--attn-mode", type=str, default="flash", help="vanilla or flash")
+    group.add_argument(
+        "--use-conv2d-patchify",
+        type=str2bool,
+        default=False,
+        help="use conv2d equivalence in PatchEmbed instead of conv3d",
+    )
+    group.add_argument("--output-type", type=str, default="pil", help="pil or latent")
     group.add_argument("--latent-noise-path", type=str, help="path to npy containing latent noise")
-    group.add_argument("--text-embed-path", type=str, help="path to npz containing text embeds, "
-                       "including positive/negative prompt embed of text encoder 1 and 2"
-                       ", and the mask for positive and negative prompt")
+    group.add_argument(
+        "--text-embed-path",
+        type=str,
+        help="path to npz containing text embeds, "
+        "including positive/negative prompt embed of text encoder 1 and 2"
+        ", and the mask for positive and negative prompt",
+    )
 
     # mindspore args
     group.add_argument("--ms-mode", type=int, default=1, help="0 graph, 1 pynative")
-    group.add_argument("--jit-level", type=str, default="O0", choices=["O0", "O1", "O2"], help="determine graph optimizatio/fusion level. only effective when in graph mode")
-    group.add_argument("--enable-ms-amp", type=str2bool, default=False, help="enable mindspore auto mixed precision. if False, use mixed precision set in the network definition")
-    group.add_argument("--amp-level", type=str, choices=["O0", "O1", "O2"], default="O2", help="determine auto mixed precision level. only effective when enable_ms_amp is True")
+    group.add_argument(
+        "--jit-level",
+        type=str,
+        default="O0",
+        choices=["O0", "O1", "O2"],
+        help="determine graph optimizatio/fusion level. only effective when in graph mode",
+    )
+    group.add_argument(
+        "--enable-ms-amp",
+        type=str2bool,
+        default=False,
+        help="enable mindspore auto mixed precision. if False, use mixed precision set in the network definition",
+    )
+    group.add_argument(
+        "--amp-level",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        default="O2",
+        help="determine auto mixed precision level. only effective when enable_ms_amp is True",
+    )
 
     return parser
 

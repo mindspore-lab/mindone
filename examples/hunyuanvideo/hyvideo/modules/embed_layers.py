@@ -1,9 +1,13 @@
 import math
+
 import numpy as np
+
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, XavierUniform, initializer
+
 from ..utils.helpers import to_2tuple
+
 
 class PatchEmbed(nn.Cell):
     def __init__(
@@ -27,7 +31,7 @@ class PatchEmbed(nn.Cell):
 
         self.use_conv2d = use_conv2d
         if self.use_conv2d:
-            print('PatchEmbed with conv2d equivalence')
+            print("PatchEmbed with conv2d equivalence")
         if use_conv2d:
             assert patch_size[0] == 1
             self.proj = nn.Conv2d(
@@ -36,8 +40,8 @@ class PatchEmbed(nn.Cell):
                 kernel_size=patch_size[1:],
                 stride=patch_size[1:],
                 has_bias=bias,
-                pad_mode='valid',
-                bias_init='zeros',
+                pad_mode="valid",
+                bias_init="zeros",
                 **factory_kwargs,
             )
         else:
@@ -47,8 +51,8 @@ class PatchEmbed(nn.Cell):
                 kernel_size=patch_size,
                 stride=patch_size,
                 has_bias=bias,
-                pad_mode='valid',
-                bias_init='zeros',
+                pad_mode="valid",
+                bias_init="zeros",
                 **factory_kwargs,
             )
         # nn.init.xavier_uniform_(self.proj.weight.view(self.proj.weight.size(0), -1))
@@ -71,13 +75,14 @@ class PatchEmbed(nn.Cell):
         if self.use_conv2d:
             _, Co, Ho, Wo = x.shape
             # (B*T C H W) -> (B C T H W)
-            x = x.reshape(B, T, Co, Ho, Wo).permute(0, 2, 1 ,3, 4)
+            x = x.reshape(B, T, Co, Ho, Wo).permute(0, 2, 1, 3, 4)
 
         if self.flatten:
             # (B C T H W) -> (B C THW) -> (B THW C)
             x = x.flatten(start_dim=2).transpose((0, 2, 1))  # BCHW -> BNC
         x = self.norm(x)
         return x
+
 
 class TextProjection(nn.Cell):
     """
@@ -87,7 +92,7 @@ class TextProjection(nn.Cell):
     """
 
     def __init__(self, in_channels, hidden_size, act_layer, dtype=None):
-        factory_kwargs = {"dtype": dtype}
+        # factory_kwargs = {"dtype": dtype}
         super().__init__()
         self.linear_1 = mint.nn.Linear(
             in_channels,
@@ -128,7 +133,7 @@ class SinusoidalEmbedding(nn.Cell):
         return embedding
 
 
-def init_normal(param, mean=0., std=1.) -> None:
+def init_normal(param, mean=0.0, std=1.0) -> None:
     param.set_data(initializer(Normal(std, mean), param.shape, param.dtype))
 
 
@@ -146,7 +151,7 @@ class TimestepEmbedder(nn.Cell):
         out_size=None,
         dtype=None,
     ):
-        factory_kwargs = {"dtype": dtype}
+        # factory_kwargs = {"dtype": dtype}
         super().__init__()
         self.frequency_embedding_size = frequency_embedding_size
         self.max_period = max_period
@@ -155,7 +160,9 @@ class TimestepEmbedder(nn.Cell):
 
         self.mlp = nn.SequentialCell(
             mint.nn.Linear(
-                frequency_embedding_size, hidden_size, bias=True,
+                frequency_embedding_size,
+                hidden_size,
+                bias=True,
             ),
             act_layer(),
             mint.nn.Linear(hidden_size, out_size, bias=True),

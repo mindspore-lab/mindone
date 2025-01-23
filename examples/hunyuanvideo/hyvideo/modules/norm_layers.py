@@ -1,9 +1,11 @@
 import numbers
-import numpy as np
-from typing import Dict, Optional, Tuple
+
 import mindspore as ms
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
-from mindspore import Parameter, Tensor, nn, ops, mint
+
+# from typing import Tuple
+# import numpy as np
 
 
 class LayerNorm(nn.Cell):
@@ -16,7 +18,7 @@ class LayerNorm(nn.Cell):
         self.elementwise_affine = elementwise_affine
         if self.elementwise_affine:
             self.weight = Parameter(initializer("ones", normalized_shape, dtype=dtype))
-            if bias: 
+            if bias:
                 self.bias = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
             else:
                 self.bias = ops.zeros(normalized_shape, dtype=dtype)
@@ -41,7 +43,8 @@ class FP32LayerNorm(LayerNorm):
 
         return x.to(origin_dtype)
 
-'''
+
+"""
 class LayerNorm(nn.Cell):
     normalized_shape: Tuple[int, ...]
     eps: float
@@ -85,7 +88,8 @@ class FP32LayerNorm(LayerNorm):
         )
         return x.to(origin_dtype)
 
-'''
+"""
+
 
 class RMSNorm(nn.Cell):
     def __init__(
@@ -107,7 +111,7 @@ class RMSNorm(nn.Cell):
             weight (nn.Parameter): Learnable scaling parameter.
 
         """
-        factory_kwargs = {"dtype": dtype}
+        # factory_kwargs = {"dtype": dtype}
         super().__init__()
         self.eps = eps
         if elementwise_affine:

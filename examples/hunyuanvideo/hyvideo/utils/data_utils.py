@@ -12,4 +12,3 @@ def align_to(value, alignment):
         int: the aligned value
     """
     return int(math.ceil(value / alignment) * alignment)
-

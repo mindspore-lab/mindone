@@ -21,12 +21,12 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
-from mindone.diffusers.utils import BaseOutput, logging
 from mindone.diffusers.schedulers.scheduling_utils import SchedulerMixin
-
+from mindone.diffusers.utils import BaseOutput, logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -83,19 +83,17 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         self.sigmas = sigmas
         # the value fed to model
-        self.timesteps = (sigmas[:-1] * num_train_timesteps)
+        self.timesteps = sigmas[:-1] * num_train_timesteps
 
         self.sigmas = ms.Tensor(self.sigmas, dtype=ms.float32)
-        self.timesteps= ms.Tensor(self.timesteps, dtype=ms.float32)
+        self.timesteps = ms.Tensor(self.timesteps, dtype=ms.float32)
 
         self._step_index = None
         self._begin_index = None
 
         self.supported_solver = ["euler"]
         if solver not in self.supported_solver:
-            raise ValueError(
-                f"Solver {solver} not supported. Supported solvers: {self.supported_solver}"
-            )
+            raise ValueError(f"Solver {solver} not supported. Supported solvers: {self.supported_solver}")
 
     @property
     def step_index(self):
@@ -149,10 +147,10 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
             sigmas = 1 - sigmas
 
         self.sigmas = sigmas
-        self.timesteps = (sigmas[:-1] * self.config.num_train_timesteps)
+        self.timesteps = sigmas[:-1] * self.config.num_train_timesteps
 
         self.sigmas = ms.Tensor(self.sigmas, dtype=ms.float32)
-        self.timesteps= ms.Tensor(self.timesteps, dtype=ms.float32)
+        self.timesteps = ms.Tensor(self.timesteps, dtype=ms.float32)
 
         # Reset step index
         self._step_index = None
@@ -177,9 +175,7 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
         else:
             self._step_index = self._begin_index
 
-    def scale_model_input(
-        self, sample: ms.Tensor, timestep: Optional[int] = None
-    ) -> ms.Tensor:
+    def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         return sample
 
     def sd3_time_shift(self, t):
@@ -239,9 +235,7 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if self.config.solver == "euler":
             prev_sample = sample + model_output.to(ms.float32) * dt
         else:
-            raise ValueError(
-                f"Solver {self.config.solver} not supported. Supported solvers: {self.supported_solver}"
-            )
+            raise ValueError(f"Solver {self.config.solver} not supported. Supported solvers: {self.supported_solver}")
 
         # upon completion increase step index by one
         self._step_index += 1
@@ -253,4 +247,3 @@ class FlowMatchDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
     def __len__(self):
         return self.config.num_train_timesteps
-

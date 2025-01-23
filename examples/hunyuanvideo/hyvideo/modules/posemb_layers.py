@@ -1,12 +1,15 @@
+from typing import List, Tuple, Union
+
 import numpy as np
+
 import mindspore as ms
 from mindspore import ops
-from typing import Union, Tuple, List
 
 #################################################################################
 #                   Rotary Positional Embedding Functions                       #
 #################################################################################
 # https://github.com/meta-llama/llama/blob/be327c427cc5e89cc1d3ab3d3fec4484df771245/llama/model.py#L80
+
 
 def view_as_complex(input: ms.Tensor) -> ms.Tensor:
     # assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
@@ -49,7 +52,7 @@ def reshape_for_broadcast(
     # freqs_cis[0] or freqs_cis: (S D)
     # shape = (1 S 1 D)
     _, S, _, D = x.shape
-    shape = (1, S, 1, D) # [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
+    shape = (1, S, 1, D)  # [d if i == 1 or i == ndim - 1 else 1 for i, d in enumerate(x.shape)]
 
     if isinstance(freqs_cis, tuple):
         # freqs_cis: (cos, sin) in real space
@@ -97,7 +100,8 @@ def apply_rotary_emb(
     Args:
         xq (ms.Tensor): Query tensor to apply rotary embeddings. [B, S, H, D]
         xk (ms.Tensor): Key tensor to apply rotary embeddings.   [B, S, H, D]
-        freqs_cis (ms.Tensor or tuple): Precomputed frequency tensor for complex exponential. can be a complex tensor or a tuple of two tensors (cos, sin) representing a complex
+        freqs_cis (ms.Tensor or tuple): Precomputed frequency tensor for complex exponential.
+            can be a complex tensor or a tuple of two tensors (cos, sin) representing a complex
         head_first (bool): head dimension first (except batch dim) or not. (true if FA use BNSD format for better speed). not supported.
 
     Returns:
@@ -116,21 +120,16 @@ def apply_rotary_emb(
         xk_out = (xk.to(ms.float32) * cos + rotate_half(xk.to(ms.float32)) * sin).to(xk_dtype)
     else:
         # view_as_complex will pack [..., D/2, 2](real) to [..., D/2](complex)
-        xq_ = view_as_complex(
-            xq.float().reshape(xq.shape[:-1] + (-1, 2))
-        )  # [B, S, H, D//2]
-        freqs_cis = reshape_for_broadcast(freqs_cis, xq_, head_first) # [S, D//2] --> [1, S, 1, D//2]
+        xq_ = view_as_complex(xq.float().reshape(xq.shape[:-1] + (-1, 2)))  # [B, S, H, D//2]
+        freqs_cis = reshape_for_broadcast(freqs_cis, xq_, head_first)  # [S, D//2] --> [1, S, 1, D//2]
         # (real, imag) * (cos, sin) = (real * cos - imag * sin, imag * cos + real * sin)
         # view_as_real will expand [..., D/2](complex) to [..., D/2, 2](real)
         xq_out = ops.view_as_real(xq_ * freqs_cis).flatten(start_dim=3).to(xq_dtype)
 
-        xk_ = view_as_complex(
-            xk.float().reshape(xk.shape[:-1] + (-1, 2))
-        )  # [B, S, H, D//2]
+        xk_ = view_as_complex(xk.float().reshape(xk.shape[:-1] + (-1, 2)))  # [B, S, H, D//2]
         xk_out = ops.view_as_real(xk_ * freqs_cis).flatten(start_dim=3).to(xk_dtype)
 
     return xq_out, xk_out
-
 
 
 def _to_tuple(x, dim=2):
@@ -180,7 +179,7 @@ def get_meshgrid_nd(start, *args, dim=2):
     for i in range(dim):
         # a, b, n = start[i], stop[i], num[i]
         # g = torch.linspace(a, b, n + 1, dtype=torch.float32)[:n]
-        g = np.linspace(start[i], stop[i], num[i] + 1, dtype=np.float32)[:num[i]]
+        g = np.linspace(start[i], stop[i], num[i] + 1, dtype=np.float32)[: num[i]]
         axis_grid.append(g)
 
     grid = np.meshgrid(*axis_grid, indexing="ij")  # dim x [W, H, D]
@@ -217,9 +216,7 @@ def get_nd_rotary_pos_embed(
     Returns:
         pos_embed (torch.Tensor): [HW, D/2]
     """
-    grid = get_meshgrid_nd(
-        start, *args, dim=len(rope_dim_list)
-    )  # [3, W, H, D] / [2, W, H]
+    grid = get_meshgrid_nd(start, *args, dim=len(rope_dim_list))  # [3, W, H, D] / [2, W, H]
 
     if isinstance(theta_rescale_factor, int) or isinstance(theta_rescale_factor, float):
         theta_rescale_factor = [theta_rescale_factor] * len(rope_dim_list)
@@ -295,9 +292,7 @@ def get_1d_rotary_pos_embed(
     if theta_rescale_factor != 1.0:
         theta *= theta_rescale_factor ** (dim / (dim - 2))
 
-    freqs = 1.0 / (
-        theta ** (ops.arange(0, dim, 2)[: (dim // 2)].float() / dim)
-    )  # [D/2]
+    freqs = 1.0 / (theta ** (ops.arange(0, dim, 2)[: (dim // 2)].float() / dim))  # [D/2]
     # assert interpolation_factor == 1.0, f"interpolation_factor: {interpolation_factor}"
     # TODO: outer doesn't support broadcasting
     freqs = ops.outer(pos * interpolation_factor, freqs)  # [S, D/2]
@@ -307,7 +302,5 @@ def get_1d_rotary_pos_embed(
         freqs_sin = ops.repeat_interleave(freqs.sin(), repeats=2, axis=1)  # [S, D]
         return freqs_cos, freqs_sin
     else:
-        freqs_cis = ops.polar(
-            ops.ones_like(freqs), freqs
-        )  # complex64     # [S, D/2]
+        freqs_cis = ops.polar(ops.ones_like(freqs), freqs)  # complex64     # [S, D/2]
         return freqs_cis

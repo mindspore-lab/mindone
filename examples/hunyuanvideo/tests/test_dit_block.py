@@ -1,34 +1,41 @@
-import os, sys
+# flake8: noqa
+
+import os
+import sys
+import time
+
 import numpy as np
-from PIL import Image
-import mindspore as ms
-from mindspore import amp
 import torch
 from easydict import EasyDict as edict
-import time
+
+import mindspore as ms
+from mindspore import amp
 
 sys.path.insert(0, ".")
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from hyvideo.modules.models import MMDoubleStreamBlock, MMSingleStreamBlock, HYVideoDiffusionTransformer, HUNYUAN_VIDEO_CONFIG
-from hyvideo.modules.attention import VanillaAttention
+# from hyvideo.modules.attention import VanillaAttention
+from hyvideo.modules.models import (
+    HUNYUAN_VIDEO_CONFIG,
+    HYVideoDiffusionTransformer,
+    MMDoubleStreamBlock,
+    MMSingleStreamBlock,
+)
+from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
 from hyvideo.modules.token_refiner import SingleTokenRefiner
 from hyvideo.utils.helpers import set_model_param_dtype
-from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
-
-
 
 np.random.seed(42)
 
 (B, L, N, D) = (1, 32, 6, 48)
 L_txt = 18
-hidden_size = N*D
+hidden_size = N * D
 
-img_shape = (B, L, N*D)
-txt_shape = (B, L_txt, N*D)
-vec_shape = (B, N*D)
+img_shape = (B, L, N * D)
+txt_shape = (B, L_txt, N * D)
+vec_shape = (B, N * D)
 freqs_cis_shape = (L, D)
 img_ = np.random.normal(size=img_shape).astype(np.float32)
 txt_ = np.random.normal(size=txt_shape).astype(np.float32)
@@ -48,10 +55,11 @@ def _diff_res(ms_val, pt_val, eps=1e-8):
 
     return dict(mae=mae, max_ae=max_ae, mre=mre, max_re=max_re)
 
+
 def _convert_ckpt(pt_ckpt, rename_norm=False):
     # sd = torch.load(pt_ckpt, map_location="CPU")['model_state_dict']
     sd = torch.load(pt_ckpt)["model_state_dict"]
-    state_dict = torch.load(pt_ckpt) #, map_location=lambda storage, loc: storage)
+    state_dict = torch.load(pt_ckpt)  # , map_location=lambda storage, loc: storage)
     target_data = []
 
     for k in sd:
@@ -67,11 +75,12 @@ def _convert_ckpt(pt_ckpt, rename_norm=False):
     return save_fn
 
 
-def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key='model_state_dict'):
-    '''
+def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key="model_state_dict"):
+    """
     model param dtype
-    '''
+    """
     import torch
+
     state_dict = torch.load(ckpt_path)
     sd = state_dict[load_key]
     parameter_dict = dict()
@@ -81,8 +90,8 @@ def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key='model_state
         parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=dtype))
 
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, parameter_dict, strict_load=True)
-    print('param not load: ', param_not_load)
-    print('ckpt not load: ', ckpt_not_load)
+    print("param not load: ", param_not_load)
+    print("ckpt not load: ", ckpt_not_load)
 
 
 def test_attn():
@@ -107,9 +116,9 @@ def test_dualstream_block(pt_ckpt=None, pt_np=None):
     # freqs_cis_cos = ms.Tensor(freqs_cis_cos)
     # freqs_cis_sin = ms.Tensor(freqs_cis_sin)
 
-    print('input sum: ', img.sum())
+    print("input sum: ", img.sum())
     block = MMDoubleStreamBlock(
-        hidden_size = hidden_size,
+        hidden_size=hidden_size,
         heads_num=N,
         mlp_width_ratio=1,
         qkv_bias=True,
@@ -126,23 +135,23 @@ def test_dualstream_block(pt_ckpt=None, pt_np=None):
 
     if pt_np:
         pt_dict = np.load(pt_np)
-        pt_img_out, pt_txt_out = pt_dict['img_out'], pt_dict['txt_out']
+        pt_img_out, pt_txt_out = pt_dict["img_out"], pt_dict["txt_out"]
         img_diff = _diff_res(img_out.asnumpy(), pt_img_out)
         txt_diff = _diff_res(txt_out.asnumpy(), pt_txt_out)
-        print('img diff: ', img_diff)
-        print('txt diff: ', txt_diff)
+        print("img diff: ", img_diff)
+        print("txt diff: ", txt_diff)
 
 
-def test_singlestream_block(pt_ckpt: str=None, pt_np: str=None):
+def test_singlestream_block(pt_ckpt: str = None, pt_np: str = None):
     img = ms.Tensor(img_)
     txt = ms.Tensor(txt_)
     x = ms.ops.concat([img, txt], 1)
     vec = ms.Tensor(vec_)
     freqs_cis = (ms.Tensor(freqs_cis_cos_), ms.Tensor(freqs_cis_sin_))
 
-    print('input sum: ', x.sum())
+    print("input sum: ", x.sum())
     block = MMSingleStreamBlock(
-        hidden_size = hidden_size,
+        hidden_size=hidden_size,
         heads_num=N,
         mlp_width_ratio=1,
     )
@@ -161,10 +170,10 @@ def test_singlestream_block(pt_ckpt: str=None, pt_np: str=None):
         print(diff)
 
 
-def test_token_refiner(pt_ckpt=None, pt_np=None, attn_mode='vanilla', dtype=ms.float32):
+def test_token_refiner(pt_ckpt=None, pt_np=None, attn_mode="vanilla", dtype=ms.float32):
     token_shape = (bs, max_text_len, emb_dim) = 1, 32, 64
     x = np.random.normal(size=token_shape).astype(np.float32)
-    t = np.array([1000. for _ in range(bs)], dtype=np.float32)
+    t = np.array([1000.0 for _ in range(bs)], dtype=np.float32)
     mask = np.zeros(shape=(bs, max_text_len), dtype=np.int32)
     mask[0, :4] = 1
 
@@ -184,7 +193,7 @@ def test_token_refiner(pt_ckpt=None, pt_np=None, attn_mode='vanilla', dtype=ms.f
         load_pt_checkpoint(block, pt_ckpt)
 
     if dtype != ms.float32:
-        amp.auto_mixed_precision(block, amp_level='O2', dtype=dtype)
+        amp.auto_mixed_precision(block, amp_level="O2", dtype=dtype)
 
     out = block(x, t, mask)
     print(out.shape)
@@ -203,18 +212,18 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
         "HYVideo-T/2-cfgdistill": {
             "mm_double_blocks_depth": 1,
             "mm_single_blocks_depth": 1,
-            "rope_dim_list": [4, 14, 14], # [16, 56, 56], list sum = head_dim = pe_dim
-            "hidden_size":  6 * 32,
+            "rope_dim_list": [4, 14, 14],  # [16, 56, 56], list sum = head_dim = pe_dim
+            "hidden_size": 6 * 32,
             "heads_num": 6,
             "mlp_width_ratio": 1,
             "guidance_embed": True,
         },
     }
     model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
-    args.model = 'HYVideo-T/2-cfgdistill'
+    args.model = "HYVideo-T/2-cfgdistill"
     if depth is not None:
-        model_cfg[args.model]['mm_double_blocks_depth'] = depth
-        model_cfg[args.model]['mm_single_blocks_depth'] = depth
+        model_cfg[args.model]["mm_double_blocks_depth"] = depth
+        model_cfg[args.model]["mm_single_blocks_depth"] = depth
 
     if debug:
         args.text_states_dim = 64
@@ -230,7 +239,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     latent_shape = (bs, C, T, H, W) = (bs, in_channels, 5, 8, 8)
     clip_txt_len, clip_emb_dim = 18, args.text_states_dim_2
     patch_size = 2
-    S_vid = T * (H//patch_size) * (W//patch_size)
+    S_vid = T * (H // patch_size) * (W // patch_size)
     num_heads = model_cfg[args.model]["heads_num"]
     hidden_size = model_cfg[args.model]["hidden_size"]
     pe_dim = head_dim = hidden_size // num_heads
@@ -238,13 +247,13 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
 
     # np
     video_latent = np.random.normal(size=latent_shape).astype(np.float32)
-    t = np.array([1000. for _ in range(bs)], dtype=np.float32)
+    t = np.array([1000.0 for _ in range(bs)], dtype=np.float32)
     text_states = np.random.normal(size=token_shape).astype(np.float32)
     text_mask = np.zeros(shape=(bs, max_text_len), dtype=np.int32)  #
-    text_states_2 = np.random.normal(size=(bs, clip_emb_dim)).astype(np.float32) # [1, 768]
+    text_states_2 = np.random.normal(size=(bs, clip_emb_dim)).astype(np.float32)  # [1, 768]
     freqs_cos = np.random.normal(size=freqs_cos_shape).astype(np.float32)
     freqs_sin = np.random.normal(size=freqs_cos_shape).astype(np.float32)
-    guidance = np.array([7.0*1000 for _ in range(bs)], dtype=np.float32)
+    guidance = np.array([7.0 * 1000 for _ in range(bs)], dtype=np.float32)
     text_mask[0, :4] = 1
 
     # tensor
@@ -258,15 +267,15 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     guidance = ms.Tensor(guidance)
 
     # model
-    factor_kwargs = {'dtype': dtype}
+    factor_kwargs = {"dtype": dtype}
     net = HYVideoDiffusionTransformer(
-            args,
-            in_channels=C,
-            use_conv2d_patchify=True,
-            attn_mode='vanilla',
-            **model_cfg[args.model],
-            **factor_kwargs,
-        )
+        args,
+        in_channels=C,
+        use_conv2d_patchify=True,
+        attn_mode="vanilla",
+        **model_cfg[args.model],
+        **factor_kwargs,
+    )
     if dtype != ms.float32:
         set_model_param_dtype(net, dtype=dtype)
 
@@ -274,12 +283,12 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
         net.load_from_checkpoint(pt_ckpt)
 
     if dtype != ms.float32:
-        amp.auto_mixed_precision(net, amp_level='O2', dtype=dtype)
+        amp.auto_mixed_precision(net, amp_level="O2", dtype=dtype)
 
     # run
     start = time.time()
     out = net(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
-    print('time cost: ', time.time() - start)
+    print("time cost: ", time.time() - start)
 
     print(out.shape)
     print(out.mean(), out.std())
@@ -293,21 +302,20 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
 def test_nd_rope():
     latents_size = [16, 32, 32]
     patch_size = [1, 2, 2]
-    rope_sizes = [
-                s // patch_size[idx] for idx, s in enumerate(latents_size)
-            ]
+    rope_sizes = [s // patch_size[idx] for idx, s in enumerate(latents_size)]
     target_ndim = 3
     rope_dim_list = [16, 56, 56]
     freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
-            rope_dim_list,
-            rope_sizes,
-            theta=256,
-            use_real=True,
-            theta_rescale_factor=1,
-        )
+        rope_dim_list,
+        rope_sizes,
+        theta=256,
+        use_real=True,
+        theta_rescale_factor=1,
+    )
 
     print(freqs_cos.sum(), freqs_cos.std())
     print(freqs_sin.sum(), freqs_sin.std())
+
 
 if __name__ == "__main__":
     ms.set_context(mode=1)
@@ -320,7 +328,9 @@ if __name__ == "__main__":
     # test_hyvtransformer('tests/dit_tiny.pt', 'tests/pt_hyvtransformer.npy')
 
     # test_hyvtransformer()
-    test_hyvtransformer(pt_ckpt='ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt', dtype=ms.bfloat16, debug=False)
+    test_hyvtransformer(
+        pt_ckpt="ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt", dtype=ms.bfloat16, debug=False
+    )
     # test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 
     # test_nd_rope()

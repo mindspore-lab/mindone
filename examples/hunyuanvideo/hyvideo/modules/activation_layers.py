@@ -1,5 +1,6 @@
 from mindspore import nn
 
+
 class SiLU(nn.SiLU):
     # compute in FP32
     def construct(self, x):
@@ -7,7 +8,9 @@ class SiLU(nn.SiLU):
         out = super().construct(x.float())
         return out.to(input_dtype)
 
-# class MySiLU 
+
+# class MySiLU
+
 
 def get_activation_layer(act_type):
     if act_type == "gelu":

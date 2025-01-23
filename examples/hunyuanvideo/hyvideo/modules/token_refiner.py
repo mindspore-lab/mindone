@@ -1,13 +1,16 @@
 from typing import Optional
+
 import mindspore as ms
-from mindspore import nn, ops, mint
-from .embed_layers import TimestepEmbedder, TextProjection
-from .norm_layers import LayerNorm, FP32LayerNorm
-from .mlp_layers import MLP
-from .attention import VanillaAttention, FlashAttention
-from .norm_layers import get_norm_layer
+from mindspore import mint, nn, ops
+
 from .activation_layers import get_activation_layer
+from .attention import FlashAttention, VanillaAttention
+from .embed_layers import TextProjection, TimestepEmbedder
+from .mlp_layers import MLP
 from .modulate_layers import apply_gate
+from .norm_layers import LayerNorm, get_norm_layer
+
+# from .norm_layers import FP32LayerNorm
 
 
 def rearrange_qkv(qkv, heads_num):
@@ -38,8 +41,8 @@ class IndividualTokenRefinerBlock(nn.Cell):
         qk_norm: bool = False,
         qk_norm_type: str = "layer",
         qkv_bias: bool = True,
-        attn_mode: str = 'flash',
-        dtype = None,
+        attn_mode: str = "flash",
+        dtype=None,
     ):
         factory_kwargs = {"dtype": dtype}
         super().__init__()
@@ -47,30 +50,26 @@ class IndividualTokenRefinerBlock(nn.Cell):
         head_dim = hidden_size // heads_num
         mlp_hidden_dim = int(hidden_size * mlp_width_ratio)
 
-        self.norm1 = LayerNorm(
-            hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
-        )
+        self.norm1 = LayerNorm(hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs)
         self.self_attn_qkv = mint.nn.Linear(
-            hidden_size, hidden_size * 3, bias=qkv_bias,
+            hidden_size,
+            hidden_size * 3,
+            bias=qkv_bias,
         )
         qk_norm_layer = get_norm_layer(qk_norm_type)
         self.self_attn_q_norm = (
-            qk_norm_layer(head_dim, elementwise_affine=True, eps=1e-6, **factory_kwargs)
-            if qk_norm
-            else nn.Identity()
+            qk_norm_layer(head_dim, elementwise_affine=True, eps=1e-6, **factory_kwargs) if qk_norm else nn.Identity()
         )
         self.self_attn_k_norm = (
-            qk_norm_layer(head_dim, elementwise_affine=True, eps=1e-6, **factory_kwargs)
-            if qk_norm
-            else nn.Identity()
+            qk_norm_layer(head_dim, elementwise_affine=True, eps=1e-6, **factory_kwargs) if qk_norm else nn.Identity()
         )
         self.self_attn_proj = mint.nn.Linear(
-            hidden_size, hidden_size, bias=qkv_bias,
+            hidden_size,
+            hidden_size,
+            bias=qkv_bias,
         )
 
-        self.norm2 = LayerNorm(
-            hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs
-        )
+        self.norm2 = LayerNorm(hidden_size, elementwise_affine=True, eps=1e-6, **factory_kwargs)
         act_layer = get_activation_layer(act_type)
         self.mlp = MLP(
             in_channels=hidden_size,
@@ -82,12 +81,12 @@ class IndividualTokenRefinerBlock(nn.Cell):
 
         self.adaLN_modulation = nn.SequentialCell(
             act_layer(),
-            mint.nn.Linear(hidden_size, 2 * hidden_size, bias=True, weight_init='zeros', bias_init='zeros'),
+            mint.nn.Linear(hidden_size, 2 * hidden_size, bias=True, weight_init="zeros", bias_init="zeros"),
         )
 
-        if attn_mode == 'vanilla':
+        if attn_mode == "vanilla":
             self.compute_attention = VanillaAttention(head_dim)
-        elif attn_mode == 'flash':
+        elif attn_mode == "flash":
             self.compute_attention = FlashAttention(heads_num, head_dim)
         else:
             raise NotImplementedError
@@ -107,8 +106,8 @@ class IndividualTokenRefinerBlock(nn.Cell):
         q, k, v = rearrange_qkv(qkv, self.heads_num)
 
         # Apply QK-Norm if needed
-        q = self.self_attn_q_norm(q) # .to(v)
-        k = self.self_attn_k_norm(k) # .to(v)
+        q = self.self_attn_q_norm(q)  # .to(v)
+        k = self.self_attn_k_norm(k)  # .to(v)
 
         # Self-Attention
         attn = self.compute_attention(q, k, v, mask=attn_mask)
@@ -133,8 +132,8 @@ class IndividualTokenRefiner(nn.Cell):
         qk_norm: bool = False,
         qk_norm_type: str = "layer",
         qkv_bias: bool = True,
-        attn_mode: str = 'flash',
-        dtype = None,
+        attn_mode: str = "flash",
+        dtype=None,
     ):
         factory_kwargs = {"dtype": dtype}
         super().__init__()
@@ -191,6 +190,7 @@ class SingleTokenRefiner(nn.Cell):
     """
     A single token refiner block for llm text embedding refine.
     """
+
     def __init__(
         self,
         in_channels,
@@ -204,23 +204,23 @@ class SingleTokenRefiner(nn.Cell):
         qk_norm_type: str = "layer",
         qkv_bias: bool = True,
         attn_mode: str = "flash",
-        dtype = None,
+        dtype=None,
     ):
         factory_kwargs = {"dtype": dtype}
         super().__init__()
         self.attn_mode = attn_mode
 
         self.input_embedder = mint.nn.Linear(
-            in_channels, hidden_size, bias=True,
+            in_channels,
+            hidden_size,
+            bias=True,
         )
 
         act_layer = get_activation_layer(act_type)
         # Build timestep embedding layer
         self.t_embedder = TimestepEmbedder(hidden_size, act_layer, **factory_kwargs)
         # Build context embedding layer
-        self.c_embedder = TextProjection(
-            in_channels, hidden_size, act_layer, **factory_kwargs
-        )
+        self.c_embedder = TextProjection(in_channels, hidden_size, act_layer, **factory_kwargs)
 
         self.individual_token_refiner = IndividualTokenRefiner(
             hidden_size=hidden_size,
@@ -244,14 +244,14 @@ class SingleTokenRefiner(nn.Cell):
         t: ms.Tensor,
         mask: Optional[ms.Tensor] = None,
     ):
-        '''
+        """
         Inputs:
             x: float16, (B, S_token_padded, emb_dim), text embedding (from llama)
             t: float32, (1,), e.g. [1000.]
             mask: int, (B, S_token_padded)
         Output:
             (B, S_token_padded, out_emb_dim)
-        '''
+        """
         # AMP: t (fp32) -> TimestepEmbed (sinusoidal, mlp) -> bf16
         # (B, hidden_dim)
         timestep_aware_representations = self.t_embedder(t)
@@ -261,16 +261,14 @@ class SingleTokenRefiner(nn.Cell):
         else:
             mask_float = mask.float().unsqueeze(-1)  # [b, s1, 1]
             # TODO: AMP: x fp16, mask_float fp32, should we upcast x to fp32 manully?
-            context_aware_representations = (x * mask_float).sum(
-                axis=1
-            ) / mask_float.sum(axis=1)
+            context_aware_representations = (x * mask_float).sum(axis=1) / mask_float.sum(axis=1)
         # AMP: car -> c_embedder mlp (bf16) -> bf16
         context_aware_representations = self.c_embedder(context_aware_representations.to(self.dtype))
         c = timestep_aware_representations + context_aware_representations
-        
+
         # AMP: linear bf16, out x bf16
         x = self.input_embedder(x.to(self.dtype))
-        
+
         # AMP: x bf16, c float32; c -> adaLN_modulation (silu, linear)
         x = self.individual_token_refiner(x, c.to(self.dtype), mask)
 
