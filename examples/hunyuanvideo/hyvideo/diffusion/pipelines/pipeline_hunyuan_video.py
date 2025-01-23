@@ -506,7 +506,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     raise ValueError(
                         f"`video_length` has to be 1 or a multiple of 8 but is {video_length}."
                     )
-
+        '''
         if callback_steps is not None and (
             not isinstance(callback_steps, int) or callback_steps <= 0
         ):
@@ -551,6 +551,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     f" got: `prompt_embeds` {prompt_embeds.shape} != `negative_prompt_embeds`"
                     f" {negative_prompt_embeds.shape}."
                 )
+        '''
 
 
     def prepare_latents(
@@ -813,7 +814,6 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
         # 1. Check inputs. Raise error if not correct
         # TODO: uncomment after debug
-        '''
         self.check_inputs(
             prompt,
             height,
@@ -826,7 +826,6 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             callback_on_step_end_tensor_inputs,
             vae_ver=vae_ver,
         )
-        '''
 
         self._guidance_scale = guidance_scale
         self._guidance_rescale = guidance_rescale

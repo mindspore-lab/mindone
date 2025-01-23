@@ -13,7 +13,7 @@ from .activation_layers import get_activation_layer
 from .modulate_layers import ModulateDiT, modulate, apply_gate
 from .mlp_layers import MLP, MLPEmbedder, FinalLayer
 from .posemb_layers import apply_rotary_emb
-from .attention import VanillaAttention, FlashAttention #, parallel_attention, get_cu_seqlens
+from .attention import VanillaAttention, FlashAttentionVarLen #, parallel_attention, get_cu_seqlens
 from .embed_layers import TimestepEmbedder, PatchEmbed, TextProjection
 from .token_refiner import SingleTokenRefiner, rearrange_qkv
 
@@ -125,7 +125,7 @@ class MMDoubleStreamBlock(nn.Cell):
         if attn_mode == 'vanilla':
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == 'flash':
-            self.compute_attention = FlashAttention(heads_num, head_dim)
+            self.compute_attention = FlashAttentionVarLen(heads_num, head_dim)
         else:
             raise NotImplementedError
 
@@ -140,10 +140,8 @@ class MMDoubleStreamBlock(nn.Cell):
         img: ms.Tensor,
         txt: ms.Tensor,
         vec: ms.Tensor,
-        cu_seqlens_q: Optional[ms.Tensor] = None,
-        cu_seqlens_kv: Optional[ms.Tensor] = None,
-        max_seqlen_q: Optional[int] = None,
-        max_seqlen_kv: Optional[int] = None,
+        actual_seq_qlen: ms.Tensor = None,
+        actual_seq_kvlen: ms.Tensor  = None,
         freqs_cis: tuple = None,
         attn_mask: ms.Tensor=None,
     ):
@@ -151,6 +149,7 @@ class MMDoubleStreamBlock(nn.Cell):
         img: (B S_v HD), HD - hidden_size = (num_heads * head_dim)
         txt: (B S_t HD)
         vec: (B HD), projected representation of timestep and global text embed (from CLIP)
+        actual_seq_qlen: []
         attn_mask: (B 1 S_v+S_t S_v+S_t)
         '''
         # DOING: img -> M
@@ -229,7 +228,11 @@ class MMDoubleStreamBlock(nn.Cell):
 
         # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
         # import pdb; pdb.set_trace()
-        attn = self.compute_attention(q, k, v, mask=attn_mask)
+        # attn = self.compute_attention(q, k, v, mask=attn_mask)
+        attn = self.compute_attention(q, k, v, 
+            actual_seq_qlen=actual_seq_qlen,
+            actual_seq_kvlen=actual_seq_kvlen,
+            )
 
         # attention computation end
 
@@ -329,7 +332,7 @@ class MMSingleStreamBlock(nn.Cell):
         if attn_mode == 'vanilla':
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == 'flash':
-            self.compute_attention = FlashAttention(heads_num, head_dim)
+            self.compute_attention = FlashAttentionVarLen(heads_num, head_dim)
         else:
             raise NotImplementedError
 
@@ -344,10 +347,8 @@ class MMSingleStreamBlock(nn.Cell):
         x: ms.Tensor,
         vec: ms.Tensor,
         txt_len: int,
-        cu_seqlens_q: Optional[ms.Tensor] = None,
-        cu_seqlens_kv: Optional[ms.Tensor] = None,
-        max_seqlen_q: Optional[int] = None,
-        max_seqlen_kv: Optional[int] = None,
+        actual_seq_qlen: ms.Tensor = None,
+        actual_seq_kvlen: ms.Tensor  = None,
         freqs_cis: Tuple[ms.Tensor, ms.Tensor] = None,
         attn_mask: ms.Tensor = None,
     ) -> ms.Tensor:
@@ -386,12 +387,11 @@ class MMSingleStreamBlock(nn.Cell):
         # attention computation start
         # import pdb; pdb.set_trace()
         # TODO: FIXME: equivalent impl to flash_attn_varlen_func in torch
-        attn = self.compute_attention(
-            q,
-            k,
-            v,
-            mask=attn_mask,
-        )
+        # attn = self.compute_attention(q, k, v, mask=attn_mask)
+        attn = self.compute_attention(q, k, v,
+            actual_seq_qlen=actual_seq_qlen,
+            actual_seq_kvlen=actual_seq_kvlen,
+            )
         # attention computation end
 
         # Compute activation in mlp stream, cat again and run second linear layer.
@@ -617,6 +617,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         freqs_cos: Optional[ms.Tensor] = None,
         freqs_sin: Optional[ms.Tensor] = None,
         guidance: ms.Tensor = None,  # Guidance for modulation, should be cfg_scale x 1000.
+        # actual_seq_len = None,
     ) -> ms.Tensor:
         '''
         x: (B C T H W), video latent. dtype same as vae-precision, which is fp16 by default
@@ -673,7 +674,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
 
         txt_seq_len = txt.shape[1]
         img_seq_len = img.shape[1]
-        
+        bs  = img.shape[0] 
+        ''' 
         # import pdb; pdb.set_trace()
         # TODO: support setting max_seqlen
         # Compute cu_squlens and max_seqlen for flash attention
@@ -683,7 +685,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         max_seq_len = img_seq_len + txt_seq_len
         # TODO: FIXME: pre-compute these masks in dataloader to save time 
         # TODO: these mask is large, bsx1x14536x14536. use bool or int8 save memory
-        bs  = img.shape[0] 
         mask = ops.ones((bs, 1, 1, max_seq_len), dtype=text_mask.dtype)
         # TODO: this slicing operation can be slow in ms
         mask[:, 0, 0, img_seq_len:] =  text_mask
@@ -694,8 +695,18 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
         mask = ops.logical_and(mask, mask.transpose((0, 1, 3, 2)))
         # TODO: need to add? 
         # mask[:, :, :, 0] = True
-
         print("D--: attn mask shape: ", mask.shape)
+        '''
+        
+        # TODO: for stable training in graph mode, better prepare actual_seq_qlen in data prepartion
+        # import pdb; pdb.set_trace()
+        max_seq_len = img_seq_len + txt_seq_len
+        valid_text_len = text_mask.sum(axis=1)
+        actual_seq_len = ops.zeros(bs * 2, dtype=ms.int32)
+        for i in range(bs):
+            valid_seq_len = valid_text_len[i] + img_seq_len
+            actual_seq_len[2 * i] =  i * max_seq_len + valid_seq_len
+            actual_seq_len[2 * i + 1] = (i + 1) * max_seq_len
 
         freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
@@ -706,7 +717,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                 txt,
                 vec,
                 freqs_cis=freqs_cis,
-                attn_mask=mask,
+                actual_seq_qlen=actual_seq_len,
+                actual_seq_kvlen=actual_seq_len,
+                # attn_mask=mask,
                 )
 
         # Merge txt and img to pass through single stream blocks.
@@ -718,7 +731,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin): #nn.Cell):
                     vec,
                     txt_seq_len,
                     freqs_cis=freqs_cis,
-                    attn_mask=mask,
+                    actual_seq_qlen=actual_seq_len,
+                    actual_seq_kvlen=actual_seq_len,
+                    # attn_mask=mask,
                     )
 
         # TODO: slicing replaced with

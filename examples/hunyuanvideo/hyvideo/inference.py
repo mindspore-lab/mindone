@@ -89,26 +89,27 @@ class Inference(object):
         )
         if args.use_fp8:
             raise NotImplementedError("fp8 is not supported yet.")
-        '''
         use_ms_amp = False
         if  use_ms_amp and dtype!= ms.float32:
             amp_level = 'O2'
             from hyvideo.modules.norm_layers import LayerNorm, RMSNorm, FP32LayerNorm 
             from hyvideo.modules.embed_layers import SinusoidalEmbedding 
             from mindspore.nn import SiLU, GELU
-            whitelist_ops = [LayerNorm, RMSNorm, FP32LayerNorm, nn.GroupNorm,
+            '''
+            whitelist_ops = [LayerNorm, RMSNorm, FP32LayerNorm,
                             # SiLU, GELU,  
                             SinusoidalEmbedding,
                             ]
+            '''
+            whitelist_ops = []
             print('D--: custom fp32 cell for dit: ', whitelist_ops)
-            model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
-            # lead to very blurry video
-            # amp.auto_mixed_precision(model, amp_level='auto', dtype=dtype)
+            if amp_level == 'auto':
+                # lead to very blurry video
+                amp.auto_mixed_precision(model, amp_level=amp_level, dtype=dtype)
+            else:
+                model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
             
-            # amp.get_white_list()
-            # amp.custom_mixed_precision(model, white_list=[FlashAttention, nn.Dense], dtype=dtype)
-            logger.info(f"Use MS auto mixed precision, amp_level: {amp_level}")
-        '''
+            logger.warning(f"Use MS auto mixed precision, amp_level: {amp_level}")
 
         model = Inference.load_state_dict(args, model, pretrained_model_path)
         model.set_train(False)
