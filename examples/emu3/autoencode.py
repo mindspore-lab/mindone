@@ -14,7 +14,7 @@ from PIL import Image
 # from transformers import AutoModel, AutoImageProcessor
 from emu3.tokenizer import Emu3VisionVQModel, Emu3VisionVQImageProcessor
 import mindspore as ms
-from mindspore import Tensor, _no_grad
+from mindspore import Tensor, _no_grad, jit_class
 
 @jit_class
 class no_grad(_no_grad):

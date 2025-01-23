@@ -21,7 +21,7 @@ from functools import partial
 
 from PIL import Image
 import mindspore as ms
-from mindspore import nn, ops, _no_grad, Tensor
+from mindspore import nn, ops, _no_grad, Tensor, jit_class
 from transformers.feature_extraction_utils import BatchFeature
 from transformers.image_utils import ImageInput, get_image_size, to_numpy_array
 from transformers.processing_utils import ProcessingKwargs, ProcessorMixin

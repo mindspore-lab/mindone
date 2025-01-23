@@ -5,7 +5,8 @@ import json
 import os
 
 from PIL import Image
-import mindspore as ms, _no_grad
+import mindspore as ms
+from mindspore import _no_grad, jit_class
 
 from emu3.tokenizer import Emu3VisionVQModel, Emu3VisionVQImageProcessor
 
