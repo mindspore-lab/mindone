@@ -1,46 +1,54 @@
+import os
+import time
 import argparse
-from typing import List, Union
+import logging
 from pathlib import Path
-import csv
+from tqdm import tqdm
 
 import numpy as np
-import mindspore as ms
 
 from constants import PROMPT_TEMPLATE, PRECISIONS
 from text_encoder import TextEncoder
+from dataset.text_dataset import create_dataloader
+from dataset.transform import text_preprocessing
+from utils.message_utils import print_banner
+from utils.ms_utils import init_env
+from mindone.utils.config import str2bool
+from mindone.utils.logger import set_logger
 
+
+logger = logging.getLogger(__name__)
 
 # prompt_template
-prompt_template_name = "dit-llm-encode"
-prompt_template_video_name = "dit-llm-encode-video"
+# prompt_template_name = "dit-llm-encode"
+# prompt_template_video_name = "dit-llm-encode-video"
 
-prompt_template = PROMPT_TEMPLATE[prompt_template_name] if prompt_template_name is not None else None
+# prompt_template = PROMPT_TEMPLATE[prompt_template_name] if prompt_template_name is not None else None
 
-# prompt_template_video
-prompt_template_video = PROMPT_TEMPLATE[prompt_template_video_name] if prompt_template_video_name is not None else None
+# # prompt_template_video
+# prompt_template_video = PROMPT_TEMPLATE[prompt_template_video_name] if prompt_template_video_name is not None else None
 
-# max_length
-if prompt_template_video_name is not None:
-    crop_start = PROMPT_TEMPLATE[prompt_template_video_name].get("crop_start", 0)
-elif prompt_template_name is not None:
-    crop_start = PROMPT_TEMPLATE[prompt_template_name].get("crop_start", 0)
-else:
-    crop_start = 0
-text_len = 256
-max_length = text_len + crop_start
+# # max_length
+# if prompt_template_video_name is not None:
+#     crop_start = PROMPT_TEMPLATE[prompt_template_video_name].get("crop_start", 0)
+# elif prompt_template_name is not None:
+#     crop_start = PROMPT_TEMPLATE[prompt_template_name].get("crop_start", 0)
+# else:
+#     crop_start = 0
+# text_len = 256
+# max_length = text_len + crop_start
 
 
 # args
-text_encoder_name = "llm"
-tokenizer = "llm"
+# text_encoder_name = "llm"
+# tokenizer = "llm"
 
-text_encoder_2_name = "clipL"
-tokenizer_2 = "clipL"
-text_len_2 = 77
+# text_encoder_name_2 = "clipL"
+# tokenizer_2 = "clipL"
+# text_len_2 = 77
 
-hidden_state_skip_layer = 2
-apply_final_norm = False
-reproduce = False
+# hidden_state_skip_layer = 2
+# apply_final_norm = False
 
 
 def parse_args():
@@ -53,10 +61,18 @@ def parse_args():
         choices=["llm", "clipL"],
         help="Specify the text encode type.",
     )
+
+    # text encoder llm
+    parser.add_argument(
+        "--text_encoder_name",
+        type=str,
+        default="llm",
+        help="Name of the text encoder model.",
+    )
     parser.add_argument(
         "--text_encoder_precision",
         type=str,
-        default="fp16",
+        default="bf16",
         choices=PRECISIONS,
         help="Precision mode for the text encoder model.",
     )
@@ -64,13 +80,59 @@ def parse_args():
         "--text_encoder_path",
         type=str,
         default=None,
+        required=True,
         help="File path of the ckpt of the text encoder.",
+    )
+    parser.add_argument(
+        "--tokenizer",
+        type=str,
+        default="llm",
+        help="Name of the tokenizer model.",
     )
     parser.add_argument(
         "--tokenizer_path",
         type=str,
         default=None,
         help="File path of the ckpt of the tokenizer.",
+    )
+    parser.add_argument(
+        "--text_len",
+        type=int,
+        default=256,
+        help="Maximum length of the text input.",
+    )
+    parser.add_argument(
+        "--prompt_template",
+        type=str,
+        default="dit-llm-encode",
+        choices=PROMPT_TEMPLATE,
+        help="Image prompt template for the decoder-only text encoder model.",
+    )
+    parser.add_argument(
+        "--prompt_template_video",
+        type=str,
+        default="dit-llm-encode-video",
+        choices=PROMPT_TEMPLATE,
+        help="Video prompt template for the decoder-only text encoder model.",
+    )
+    parser.add_argument(
+        "--hidden_state_skip_layer",
+        type=int,
+        default=2,
+        help="Skip layer for hidden states.",
+    )
+    parser.add_argument(
+        "--apply_final_norm",
+        action="store_true",
+        help="Apply final normalization to the used text encoder hidden states.",
+    )
+
+    # text encoder clipL
+    parser.add_argument(
+        "--text_encoder_name_2",
+        type=str,
+        default="clipL",
+        help="Name of the second text encoder model.",
     )
     parser.add_argument(
         "--text_encoder_precision_2",
@@ -80,24 +142,38 @@ def parse_args():
         help="Precision mode for the second text encoder model.",
     )
     parser.add_argument(
-        "--text_encoder_2_path",
+        "--text_encoder_path_2",
         type=str,
         default=None,
+        required=True,
         help="File path of the ckpt of the second text encoder.",
     )
     parser.add_argument(
-        "--tokenizer_2_path",
+        "--tokenizer_2",
+        type=str,
+        default="clipL",
+        help="Name of the second tokenizer model.",
+    )
+    parser.add_argument(
+        "--tokenizer_path_2",
         type=str,
         default=None,
         help="File path of the ckpt of the second tokenizer.",
     )
     parser.add_argument(
-        "--prompt_path",
-        type=str,
-        default=None,
-        help="File path of prompts, must be a txt or csv file.",
+        "--text_len_2",
+        type=int,
+        default=77,
+        help="Maximum length of the second text input.",
     )
-    parser.add_argument("--mode", default=1, type=int, help="Specify the MindSpore mode: 0 for graph mode, 1 for pynative mode")
+
+    # mindspore settings
+    parser.add_argument(
+        "--mode",
+        default=1,
+        type=int,
+        help="Specify the MindSpore mode: 0 for graph mode, 1 for pynative mode",
+    )
     parser.add_argument(
         "--jit_level",
         default="O0",
@@ -109,118 +185,244 @@ def parse_args():
         "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument(
-        "--save_dir",
+        "--use_parallel",
+        default=False,
+        type=str2bool,
+        help="use parallel",
+    )
+    parser.add_argument(
+        "--device_target",
         type=str,
-        default="./",
-        help="Directory for saving the text encoders' outputs.",
+        default="Ascend",
+        help="Ascend or GPU",
+    )
+    parser.add_argument(
+        "--jit_syntax_level",
+        default="strict",
+        choices=["strict", "lax"],
+        help="Set jit syntax level: strict or lax",
+    )
+    parser.add_argument(
+        "--batch_size",
+        default=1,
+        type=int,
+        help="batch size",
     )
 
+    # others
+    parser.add_argument(
+        "--data_file_path",
+        type=str,
+        default=None,
+        required=True,
+        help="File path of prompts, must be a txt or csv file.",
+    )
+    parser.add_argument(
+        "--output_path",
+        type=str,
+        default=None,
+        help="Output dir to save the embeddings, if None, will treat the parent dir of data_file_path as output dir.",
+    )
+    parser.add_argument(
+        "--file_column",
+        default="path",
+        help="The column of file path in `data_file_path`. Defaults to `path`.",
+    )
+    parser.add_argument(
+        "--caption_column",
+        default="cap",
+        help="The column of caption file path in `data_file_path`. Defaults to `cap`.",
+    )
     args = parser.parse_args()
 
     return args
 
 
-def build_model(args):
+def save_emb(output, output_2, output_dir, file_paths):
+    num = output.hidden_state.shape[0] if output is not None else output_2.hidden_state.shape[0]
+    for i in range(num):
+        fn = Path(str(file_paths[i])).with_suffix(".npz")
+        npz_fp = Path(output_dir) / fn
+        if not os.path.exists(npz_fp.parent):
+            os.makedirs(npz_fp.parent)
+
+        np.savez(
+            npz_fp,
+            prompt_embeds=output.hidden_state[i].float().asnumpy().astype(np.float32) if output is not None else None,
+            prompt_mask=output.attention_mask[i].float().asnumpy().astype(np.uint8) if output is not None else None,
+            prompt_embeds_2=output_2.hidden_state[i].float().asnumpy().astype(np.float32) if output_2 is not None else None,
+        )
+
+
+def build_model(args, logger):
+    prompt_template = PROMPT_TEMPLATE[args.prompt_template] if args.prompt_template is not None else None
+    prompt_template_video = PROMPT_TEMPLATE[args.prompt_template_video] if args.prompt_template_video is not None else None
+    if args.prompt_template_video is not None:
+        crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get("crop_start", 0)
+    elif args.prompt_template is not None:
+        crop_start = PROMPT_TEMPLATE[args.prompt_template].get("crop_start", 0)
+    else:
+        crop_start = 0
+    max_length = args.text_len + crop_start
+
     text_encoder, text_encoder_2 = None, None
 
     # llm
-    if text_encoder_name in args.text_encoder_choices:
+    if args.text_encoder_name in args.text_encoder_choices:
         text_encoder = TextEncoder(
-            text_encoder_type=text_encoder_name,
+            text_encoder_type=args.text_encoder_name,
             max_length=max_length,
             text_encoder_precision=args.text_encoder_precision,
             text_encoder_path=args.text_encoder_path,
-            tokenizer_type=tokenizer,
+            tokenizer_type=args.tokenizer,
             tokenizer_path=args.tokenizer_path if args.tokenizer_path is not None else args.text_encoder_path,
             prompt_template=prompt_template,
             prompt_template_video=prompt_template_video,
-            hidden_state_skip_layer=hidden_state_skip_layer,
-            apply_final_norm=apply_final_norm,
-            reproduce=reproduce,
+            hidden_state_skip_layer=args.hidden_state_skip_layer,
+            apply_final_norm=args.apply_final_norm,
+            logger=logger,
         )
 
     # clipL
-    if text_encoder_2_name in args.text_encoder_choices:
+    if args.text_encoder_name_2 in args.text_encoder_choices:
         text_encoder_2 = TextEncoder(
-            text_encoder_type=text_encoder_2_name,
-            max_length=text_len_2,
+            text_encoder_type=args.text_encoder_name_2,
+            max_length=args.text_len_2,
             text_encoder_precision=args.text_encoder_precision_2,
-            text_encoder_path=args.text_encoder_2_path,
-            tokenizer_type=tokenizer_2,
-            tokenizer_path=args.tokenizer_2_path if args.tokenizer_2_path is not None else args.text_encoder_2_path,
-            reproduce=reproduce,
+            text_encoder_path=args.text_encoder_path_2,
+            tokenizer_type=args.tokenizer_2,
+            tokenizer_path=args.tokenizer_path_2 if args.tokenizer_path_2 is not None else args.text_encoder_path_2,
+            logger=logger,
         )
 
     return text_encoder, text_encoder_2
 
 
-def encode(prompt: Union[List[str], str], args):
-    text_encoder, text_encoder_2 = build_model(args)
-    output, output_2 = None, None
+def main(args):
+    set_logger(name="", output_dir="logs/text_embed")
+    rank_id, device_num = init_env(
+        mode=args.mode,
+        distributed=args.use_parallel,
+        device_target=args.device_target,
+        jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
+    )
+    print(f"rank_id {rank_id}, device_num {device_num}")
 
-    # llm
-    if text_encoder is not None:
-        output = text_encoder(
-            prompt,
-            use_attention_mask=None,
-            output_hidden_states=False,
-            do_sample=False,
-            hidden_state_skip_layer=None,
-            return_texts=False,
-            data_type="video",
+    # build dataloader for large amount of captions
+    if args.data_file_path is not None:
+        ds_config = dict(
+            data_file_path=args.data_file_path,
+            file_column=args.file_column,
+            caption_column=args.caption_column,
+            tokenizer=None,  # tokenizer,
         )
-
-    # clipL
-    if text_encoder_2 is not None:
-        output_2 = text_encoder_2(
-            prompt,
-            use_attention_mask=None,
-            output_hidden_states=False,
-            do_sample=False,
-            hidden_state_skip_layer=None,
-            return_texts=False,
-            data_type="video",
+        dataset = create_dataloader(
+            ds_config,
+            args.batch_size,
+            ds_name="text",
+            num_parallel_workers=12,
+            max_rowsize=32,
+            shuffle=False,  # be in order
+            device_num=device_num,
+            rank_id=rank_id,
+            drop_remainder=False,
         )
+        dataset_size = dataset.get_dataset_size()
+        logger.info(f"Num batches: {dataset_size}")
 
-    return output, output_2
+    print_banner("text encoder init")
+    text_encoder, text_encoder_2 = build_model(args, logger)
+
+    # infer
+    print_banner("Text prompts loading")
+    # if args.data_file_path is not None:
+    if args.output_path is None:
+        output_dir = Path(args.data_file_path).parent
+    else:
+        output_dir = Path(args.output_path)
+    os.makedirs(output_dir, exist_ok=True)
+    logger.info(f"Output embeddings will be saved: {output_dir}")
+    logger.info("Start embedding...")
+    ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
+    for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
+        # start_time = time.time()
+        file_paths = data["file_path"]
+        captions = data["caption"]
+        captions = [str(captions[i]) for i in range(len(captions))]
+        captions = [text_preprocessing(prompt) for prompt in captions]
+
+        output, output_2 = None, None
+        # llm
+        if text_encoder is not None:
+            output = text_encoder(captions, data_type="video")
+        # clipL
+        if text_encoder_2 is not None:
+            output_2 = text_encoder_2(captions, data_type="video")
+        
+        save_emb(output, output_2, output_dir, file_paths)
+
+
+        # text_emb = text_encoder(text_tokens, attention_mask=mask)
+        # text_emb = text_emb[0] if isinstance(text_emb, (list, tuple)) else text_emb
+
+        # end_time = time.time()
+        # time_cost = end_time - start_time
+
+        # save the embeddings aligning to video frames
+        # for i in range(output.hidden_state.shape[0]):
+        #     fn = Path(str(file_paths[i])).with_suffix(".npz")
+        #     npz_fp = os.path.join(output_dir, fn)
+        #     if not os.path.exists(os.path.dirname(npz_fp)):
+        #         os.makedirs(os.path.dirname(npz_fp))
+
+        #     np.savez(
+        #         npz_fp,
+        #         mask=mask[i].float().asnumpy().astype(np.uint8),
+        #         text_emb=text_emb[i].float().asnumpy().astype(np.float32),
+        #         # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
+        #     )
+    # logger.info(f"Current step time cost: {time_cost:0.3f}s")
+    logger.info(f"Done. Embeddings saved in {output_dir}")
 
 
 if __name__ == "__main__":
     args = parse_args()
-    ms.set_context(mode=args.mode)
-    if args.mode == 0:
-        ms.set_context(jit_config={"jit_level": args.jit_level})
+    main(args)
+    # ms.set_context(mode=args.mode)
+    # if args.mode == 0:
+    #     ms.set_context(jit_config={"jit_level": args.jit_level})
 
-    if args.prompt_path is None:
-        prompt = "hello world"
-    else: 
-        p = Path(args.prompt_path)
-        if not p.exists():
-            raise FileNotFoundError(f"The file at path '{args.prompt_path}' does not exist.")
-        if p.suffix not in ['.txt', '.csv']:
-            raise ValueError(f"The file at path '{args.prompt_path}' is not a.txt or.csv file.")
-        if p.suffix == '.txt':
-            with p.open('r') as file:
-                prompt = file.readlines()
-                prompt = [line.rstrip('\n') for line in prompt]
-        elif p.suffix == '.csv':
-            prompt = []
-            with p.open('r') as file:
-                reader = csv.reader(file, quotechar='"', quoting=csv.QUOTE_ALL)
-                next(reader)    # skip header
-                for row in reader:
-                    assert len(row) == 2, "The number of columns of csv file should be two."
-                    prompt.append(row[1])
-        
-    output, output_2 = encode(prompt, args)
-    if args.save_dir is not None:
-        if output is not None:
-            np.savez(Path(args.save_dir)/ "llm_output.npz",
-                     hidden_state=output.hidden_state.asnumpy(),
-                     attention_mask=output.attention_mask.asnumpy())
-            print(f"text encoder llm output saved in {args.save_dir}.")
-        if output_2 is not None:
-            np.savez(Path(args.save_dir)/ "clipL_output.npz",
-                     hidden_state=output_2.hidden_state.asnumpy(),
-                     attention_mask=output_2.attention_mask.asnumpy())
-            print(f"text encoder clipL output saved in {args.save_dir}.")
+    # if args.data_file_path is None:
+    #     prompt = "hello world"
+    # else: 
+    #     p = Path(args.data_file_path)
+    #     if not p.exists():
+    #         raise FileNotFoundError(f"The file at path '{args.data_file_path}' does not exist.")
+    #     if p.suffix not in ['.txt', '.csv']:
+    #         raise ValueError(f"The file at path '{args.data_file_path}' is not a.txt or.csv file.")
+    #     if p.suffix == '.txt':
+    #         with p.open('r') as file:
+    #             prompt = file.readlines()
+    #             prompt = [line.rstrip('\n') for line in prompt]
+    #     elif p.suffix == '.csv':
+    #         prompt = []
+    #         with p.open('r') as file:
+    #             reader = csv.reader(file, quotechar='"', quoting=csv.QUOTE_ALL)
+    #             next(reader)    # skip header
+    #             for row in reader:
+    #                 assert len(row) == 2, "The number of columns of csv file should be two."
+    #                 prompt.append(row[1])
+
+    # output, output_2 = encode(prompt, args)
+    # if args.save_dir is not None:
+    #     if output is not None:
+    #         np.savez(Path(args.save_dir)/ "llm_output.npz",
+    #                  hidden_state=output.hidden_state.asnumpy(),
+    #                  attention_mask=output.attention_mask.asnumpy())
+    #         print(f"text encoder llm output saved in {args.save_dir}.")
+    #     if output_2 is not None:
+    #         np.savez(Path(args.save_dir)/ "clipL_output.npz",
+    #                  hidden_state=output_2.hidden_state.asnumpy(),
+    #                  attention_mask=output_2.attention_mask.asnumpy())
+    #         print(f"text encoder clipL output saved in {args.save_dir}.")

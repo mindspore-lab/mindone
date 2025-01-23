@@ -149,7 +149,7 @@ bad_punct_regex = re.compile(
 )  # noqa
 
 
-def t5_text_preprocessing(text):
+def text_preprocessing(text):
     # The exact text cleaning as was in the training stage:
     text = clean_caption(text)
     text = clean_caption(text)

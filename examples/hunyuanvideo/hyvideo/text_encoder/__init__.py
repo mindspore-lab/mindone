@@ -119,7 +119,6 @@ class TextEncoder(nn.Cell):
         prompt_template_video: Optional[dict] = None,
         hidden_state_skip_layer: Optional[int] = None,
         apply_final_norm: bool = False,
-        reproduce: bool = False,
         logger=None,
     ):
         super().__init__()
@@ -145,7 +144,6 @@ class TextEncoder(nn.Cell):
         self.prompt_template_video = prompt_template_video
         self.hidden_state_skip_layer = hidden_state_skip_layer
         self.apply_final_norm = apply_final_norm
-        self.reproduce = reproduce
         self.logger = logger
 
         self.use_template = self.prompt_template is not None
@@ -274,7 +272,6 @@ class TextEncoder(nn.Cell):
         batch_encoding,
         use_attention_mask=None,
         output_hidden_states=False,
-        do_sample=None,
         hidden_state_skip_layer=None,
         return_texts=False,
         data_type="image",
@@ -287,8 +284,6 @@ class TextEncoder(nn.Cell):
             output_hidden_states (bool): Whether to output hidden states. If False, return the value of
                 self.output_key. If True, return the entire output. If set self.hidden_state_skip_layer,
                 output_hidden_states will be set True. Defaults to False.
-            do_sample (bool): Whether to sample from the model. Used for Decoder-Only LLMs. Defaults to None.
-                When self.produce is False, do_sample is set to True by default.
             hidden_state_skip_layer (int): Number of hidden states to hidden_state_skip_layer. 0 means the last layer.
                 If None, self.output_key will be used. Defaults to None.
             return_texts (bool): Whether to return the decoded texts. Defaults to False.
@@ -297,7 +292,6 @@ class TextEncoder(nn.Cell):
         hidden_state_skip_layer = use_default(
             hidden_state_skip_layer, self.hidden_state_skip_layer
         )
-        do_sample = use_default(do_sample, not self.reproduce)
         attention_mask = (
             Tensor(batch_encoding["attention_mask"]) if use_attention_mask else None
         )
@@ -342,7 +336,6 @@ class TextEncoder(nn.Cell):
         text,
         use_attention_mask=None,
         output_hidden_states=False,
-        do_sample=False,
         hidden_state_skip_layer=None,
         return_texts=False,
         data_type="image",
@@ -352,7 +345,6 @@ class TextEncoder(nn.Cell):
             batch_encoding,
             use_attention_mask=use_attention_mask,
             output_hidden_states=output_hidden_states,
-            # do_sample=do_sample,
             hidden_state_skip_layer=hidden_state_skip_layer,
             return_texts=return_texts,
             data_type=data_type,
