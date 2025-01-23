@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, List, Union
+from typing import Callable, List, Union, Optional
 
 import numpy as np
 from transformers.utils import add_start_docstrings
@@ -502,7 +502,7 @@ class UnbatchedClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
         guidance_scale: float,
         model,
         unconditional_ids: Optional[ms.Tensor] = None,
-        unconditional_attention_mask: Optional[ms.LongTensor] = None,
+        unconditional_attention_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = True,
     ):
         self.guidance_scale = guidance_scale
