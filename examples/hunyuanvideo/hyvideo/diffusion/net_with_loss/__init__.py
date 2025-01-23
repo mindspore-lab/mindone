@@ -303,7 +303,6 @@ class DiffusionWithLoss(nn.Cell):
             text_states=text_embed,
             text_mask=encoder_attention_mask,
             text_states_2=text_embed_2,
-            text_mask_2=encoder_attention_mask_2,
             # attention_mask=attention_mask,
             # use_image_num=use_image_num,
         )
@@ -507,7 +506,6 @@ class DiffusionWithLossEval(DiffusionWithLoss):
             text_states=text_embed,
             text_mask=encoder_attention_mask,
             text_states_2=text_embed_2,
-            text_mask_2=encoder_attention_mask_2,
             # attention_mask=attention_mask,
             # use_image_num=use_image_num,
         )
