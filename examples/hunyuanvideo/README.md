@@ -28,7 +28,23 @@ python hyvideo/rec_video.py \
   --width 640 \
   --num_frames 33 \
 ```
-The reconstructed video is saved under `./samples/`.
+The reconstructed video is saved under `./samples/`. To run video reconstruction on a given folder of input videos, please see `hyvideo/rec_video_folder.py` for more information.
+
+
+## 🔑 Training
+
+### Dataset Preparation
+
+To prepare the dataset for training HuyuanVideo, please refer to the [dataset format](./hyvideo/dataset/README.md).
+
+
+### Training
+
+To train HunyuanVideo, we use ZeRO3 and data parallelism to enable parallel training on 8 devices. Please run the following command:
+
+```bash
+bash scripts/train_t2v_zero3.sh
+```
 
 
 ### Run Text-to-Video Inference
@@ -64,3 +80,19 @@ Afterwards, you can evaluate the PSNR via:
 ```bash
 bash hyvideo/eval/scripts/cal_psnr.sh
 ```
+
+## Embedding Cache
+
+### Text embedding cache
+
+```bash
+cd hyvideo
+python run_text_encoder.py
+```
+
+### Video embedding cache
+
+
+## Acknowledgements
+
+We would like to thank the contributors to the [HunyuanVideo](https://arxiv.org/abs/2412.03603), [SD3](https://huggingface.co/stabilityai/stable-diffusion-3-medium), [FLUX](https://github.com/black-forest-labs/flux), [Llama](https://github.com/meta-llama/llama), [LLaVA](https://github.com/haotian-liu/LLaVA), [diffusers](https://github.com/huggingface/diffusers) and [HuggingFace](https://huggingface.co) repositories, for their open research and exploration.

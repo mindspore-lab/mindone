@@ -939,7 +939,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     freqs_sin=freqs_cis[1],  # [seqlen, head_dim]
                     guidance=guidance_expand,
                 )
-                print("D--: noise pred step done", i, t, noise_pred.shape)
+                # print("D--: noise pred step done", i, t, noise_pred.shape)
                 # perform guidance
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
