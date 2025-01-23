@@ -97,8 +97,8 @@ class VideoDiffusionEngine(DiffusionEngine):
         tokens = (cond_frames_without_noise, fps_id, motion_bucket_id, cond_frames, cond_aug)
 
         vector, crossattn, concat = self.conditioner(*tokens)
-        crossattn = crossattn.repeat(num_frames, axis=0)
-        concat = concat.repeat(num_frames, axis=0)
+        crossattn = crossattn.repeat_interleave(num_frames, dim=0)
+        concat = concat.repeat_interleave(num_frames, dim=0)
 
         c_skip, c_out, c_in, c_noise = self.denoiser(sigmas, noised_input.ndim)
         model_output = self.model(

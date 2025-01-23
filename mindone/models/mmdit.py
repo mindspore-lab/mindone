@@ -184,7 +184,7 @@ class JointAttention(nn.Cell):
             k = ops.reshape(k, (B * h, T + L, hd))
             v = ops.reshape(v, (B * h, T + L, hd))
             if mask is not None and mask.shape[0] != q.shape[0]:
-                mask = mask.repeat(h, axis=0)
+                mask = mask.repeat_interleave(h, dim=0)
             out = self.attention(q, k, v, mask)
             out = out.swapaxes(1, 2).view(B, T + L, C)  # b, nh, T+L, hd -> b, T+L, nh*hd=C
 

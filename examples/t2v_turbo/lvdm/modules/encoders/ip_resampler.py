@@ -132,7 +132,7 @@ class Resampler(nn.Cell):
             )
 
     def construct(self, x):
-        latents = self.latents.repeat(x.shape[0], 1, 1)
+        latents = self.latents.tile((x.shape[0], 1, 1))
 
         x = self.proj_in(x)
 
