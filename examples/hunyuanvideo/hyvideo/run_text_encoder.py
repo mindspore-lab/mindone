@@ -303,7 +303,6 @@ def main(args):
 
     # infer
     print_banner("Text prompts loading")
-    # if args.data_file_path is not None:
     if args.output_path is None:
         output_dir = Path(args.data_file_path).parent
     else:
@@ -313,7 +312,6 @@ def main(args):
     logger.info("Start embedding...")
     ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
-        # start_time = time.time()
         file_paths = data["file_path"]
         captions = data["caption"]
         captions = [str(captions[i]) for i in range(len(captions))]

@@ -86,9 +86,14 @@ bash hyvideo/eval/scripts/cal_psnr.sh
 ### Text embedding cache
 
 ```bash
-cd hyvideo
-python run_text_encoder.py
+python hyvideo/run_text_encoder.py \
+  --text_encoder_path /path/to/ckpt \
+  --text_encoder_path_2 /path/to/ckpt \
+  --data_file_path /path/to/caption.json \
+  --output_path /path/to/text_embed_folder \
 ```
+
+A shell script `scripts/run_text_encoder.sh` is provided as well.
 
 ### Video embedding cache
 
