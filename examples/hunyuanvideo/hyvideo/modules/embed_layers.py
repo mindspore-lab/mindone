@@ -174,6 +174,6 @@ class TimestepEmbedder(nn.Cell):
         self.dtype = dtype
 
     def construct(self, t):
-        t_freq = self.timestep_embedding(t).to(self.mlp[0].weight.dtype)
+        t_freq = self.timestep_embedding(t).to(self.dtype)  # (self.mlp[0].weight.dtype)
         t_emb = self.mlp(t_freq)
         return t_emb
