@@ -1,0 +1,86 @@
+experiment:
+    type: lrm
+    # seed: 42 # args.seed
+    parent: lrm-objaverse
+    child: base
+
+model:
+    camera_embed_dim: 1024
+    rendering_samples_per_ray: 96
+    transformer_dim: 768
+    transformer_layers: 12
+    transformer_heads: 12
+    triplane_low_res: 32
+    triplane_high_res: 64
+    triplane_dim: 48
+    encoder_type: dinov2
+    encoder_model_name: dinov2_vitb14_reg
+    encoder_feat_dim: 768
+    encoder_freeze: true
+
+dataset:
+    subsets:
+        -   name: objaverse
+            root_dirs:
+                - <REPLACE_WITH_RENDERING_ROOT e.g. datasets/openlrm_336x336>
+            meta_path:
+                train: <TRAIN_UIDS_IN_JSON e.g. datasets/openlrm_336x336/meta_train.json>
+                val: <VAL_UIDS_IN_JSON e.g. datasets/openlrm_336x336/meta_val.json>
+            sample_rate: 1.0
+    sample_side_views: 3
+    source_image_res: 336
+    render_image:
+        low: 96
+        high: 288
+        region: 96
+    normalize_camera: true
+    normed_dist_to_center: auto
+    num_train_workers: 8
+    num_val_workers: 2
+    pin_mem: true
+
+train:
+    # mixed_precision: bf16  # REPLACE THIS BASED ON GPU TYPE
+    find_unused_parameters: false
+    loss:
+        pixel_weight: 1.0
+        perceptual_weight: 1.0
+        tv_weight: 5e-4
+    optim:
+        # lr: 4e-4 # args.start_learning_rate
+        # weight_decay: 0.05  #args.weight_decay
+        # beta1: 0.9 #args.betas
+        # beta2: 0.95 #args.betas
+        # clip_grad_norm: 1.0 # args.max_grad_norm
+    scheduler:
+        # type: cosine_annealing_warm_restarts_lr # args.scheduler
+        # warmup_real_iters: 300  # args.warmup_steps
+    batch_size: 1 # REPLACE THIS
+    accum_steps: 1  # REPLACE THIS
+    epochs: 10000 # 60  # REPLACE THIS
+    debug_global_steps: null
+
+val:
+    batch_size: 1 #4
+    global_step_period: 100 #1000
+    debug_batches: null
+
+saver:
+    auto_resume: true
+    load_model: null
+    # checkpoint_root: ./exps/checkpoints # args.output_path
+    # checkpoint_global_steps: 100 #1000 # args.ckpt_save_steps(unit:step) / args.ckpt_save_interval (unit: epoch)
+    checkpoint_keep_level: 5
+
+# Not to use
+logger:
+    stream_level: WARNING
+    log_level: INFO
+    log_root: ./exps/logs
+    tracker_root: ./exps/trackers
+    enable_profiler: false
+    trackers:
+        - tensorboard
+    image_monitor:
+        train_global_steps: 100
+        samples_per_log: 4
