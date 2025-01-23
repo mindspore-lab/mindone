@@ -41,8 +41,8 @@ python launch.py \
 # train high res 256x256 with batch_size 4 for another 5k steps
 python launch.py \
         --train \
-        --resume_ckpt PATH_CKPT_OUTPUT/step_4999.ckpt \
         --train_highres \
+        resume="PATH_CKPT_OUTPUT/step_4999.ckpt" \
         system.use_recompute=true \
 ```
 Notice that you need to resume the high-resolution training from the output checkpoint of the low-resolution training. The training happens in a self-supervision manner where the rendered RGB from the renderer is encoded by the guidance pretrained multiview sd-v2.1 model (regarded as "sd2" in the following)'s encoder as a raw latent, and such raw latent is supervised against its own sd2-forward then text-guided-denoised, reconstructed latents.
@@ -52,9 +52,9 @@ To generate the output 120 frames rendered from the trained mvdream ckpt, do thi
 ```bash
 python launch.py \
         --test \
-        resume="PATH_ABOVE/step10000.ckpt" \
+        resume="PATH_ABOVE/step9999.ckpt" \
 ```
-The video [here](#visualization) will be generated. Mesh extraction will also be supported.
+The video [here](#training-1) will be generated. Mesh extraction will also be supported.
 
 
 ## Visualization
@@ -70,7 +70,7 @@ The video [here](#visualization) will be generated. Mesh extraction will also be
 | --- | :---:     |
 | `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> |
 
-This video is a rendered frame sequence of the generated 3D implcit field by MVDream.
+This video is a rendered frame sequence of the generated 3D implicit field by MVDream.
 
 ## Performance
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.

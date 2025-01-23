@@ -27,10 +27,6 @@ from mindone.utils.seed import set_random_seed
 
 def launch(args, extras) -> None:
     # step 1: init env & model, setup log dir by whether you resume or not
-
-    # # debug, tbr
-    # ms.set_context(pynative_synchronize=True)
-
     set_random_seed(args.seed)
     cfg = OmegaConf.load(args.config)
     cli_cfg = OmegaConf.from_cli(extras)
@@ -80,7 +76,7 @@ def launch(args, extras) -> None:
         cfg.data.update({"height": 256})
         global_step = 5000
     else:
-        cfg.train_cfg.params.update({"max_steps": 5000})  # for lowres only train to 5k
+        train_cfg.params.update({"max_steps": 5000})  # for lowres only train to s5k
 
     dataset = threestudio.find(cfg.data_type)(cfg.data)
 
@@ -149,7 +145,7 @@ def launch(args, extras) -> None:
             system,
             optimizer=optimizer,
             scale_sense=loss_scaler,
-            # **train_cfg.settings  # alignment: no clip grap & overflow handling related for now, but if amp not ok then needs to clip it and loss-scale it
+            # **cfg.train_cfg.settings  # alignment: no clip grap & overflow handling related for now, but if amp not ok then needs to clip it and loss-scale it
         )
 
         if rank_id == 0:
@@ -215,9 +211,6 @@ def launch(args, extras) -> None:
 
             # save train state and ckpts when reaches the global step milestone
             if (global_step + 1) % train_cfg.params.save_interval == 0 or global_step == train_cfg.params.max_steps - 1:
-                # comment for now, make val no grad # avoid saving graphs to leak mem
-                # net_with_grads.set_train(False)
-
                 # validate during training
                 for view_idx, batch in enumerate(val_loader):
                     net_with_grads.network.validation_step(batch, view_idx)
@@ -231,7 +224,6 @@ def launch(args, extras) -> None:
                             [
                                 system.geometry.trainable_params(),
                                 system.background.trainable_params(),
-                                # system.renderer.trainable_params()
                             ]
                         )
                     ),

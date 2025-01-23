@@ -191,17 +191,8 @@ class RandomCameraDataset:
 
     def __getitem__(self, index):
         b = {
-            "index": index,
             "rays_o": self.rays_o[index],
             "rays_d": self.rays_d[index],
-            "mvp_mtx": self.mvp_mtx[index],
-            "c2w": self.c2w[index],
-            "camera_positions": self.camera_positions[index],
-            "light_positions": self.light_positions[index],
-            "elevation_deg": self.elevation_deg[index],
-            "azimuth_deg": self.azimuth_deg[index],
-            "camera_distances": self.camera_distances[index],
-            "fovy_deg": self.fovy_deg[index],
         }
         # create batch dim
         for key in b:

@@ -1,73 +1,34 @@
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from threestudio.models.background.base import BaseBackground
-from threestudio.models.geometry.base import BaseImplicitGeometry
-from threestudio.models.materials.base import BaseMaterial
-from threestudio.utils.base import BaseModule
-
 import mindspore as ms
-from mindspore import Tensor
+from mindspore import Tensor, nn
 
 
-class Renderer(BaseModule):
+class Renderer(nn.Cell):
     @dataclass
-    class Config(BaseModule.Config):
+    class Config:
         radius: float = 1.0
 
     cfg: Config
 
-    def configure(
+    def __init__(
         self,
-        geometry: BaseImplicitGeometry,
-        material: BaseMaterial,
-        background: BaseBackground,
+        radius: float,
     ) -> None:
-        # keep references to submodules using namedtuple, avoid being registered as modules
-        @dataclass
-        class SubModules:
-            geometry: BaseImplicitGeometry
-            material: BaseMaterial
-            background: BaseBackground
-
-        self.sub_modules = SubModules(geometry, material, background)
+        # original renderer base cannot get recompute correct, nram leakage, replace the parent class with Cell
 
         # set up bounding box
-        self.bbox: Tensor
-        self.register_buffer_ms(
-            "bbox",
-            Tensor(
-                [
-                    [-self.cfg.radius, -self.cfg.radius, -self.cfg.radius],
-                    [self.cfg.radius, self.cfg.radius, self.cfg.radius],
-                ],
-                dtype=ms.float32,
-            ),
+        self.bbox = Tensor(
+            [
+                [-self.cfg.radius, -self.cfg.radius, -self.cfg.radius],
+                [self.cfg.radius, self.cfg.radius, self.cfg.radius],
+            ],
+            dtype=ms.float32,
         )
 
     def construct(self, *args, **kwargs) -> Dict[str, Any]:
         raise NotImplementedError
-
-    @property
-    def geometry(self) -> BaseImplicitGeometry:
-        return self.sub_modules.geometry
-
-    @property
-    def material(self) -> BaseMaterial:
-        return self.sub_modules.material
-
-    @property
-    def background(self) -> BaseBackground:
-        return self.sub_modules.background
-
-    def set_geometry(self, geometry: BaseImplicitGeometry) -> None:
-        self.sub_modules.geometry = geometry
-
-    def set_material(self, material: BaseMaterial) -> None:
-        self.sub_modules.material = material
-
-    def set_background(self, background: BaseBackground) -> None:
-        self.sub_modules.background = background
 
 
 class VolumeRenderer(Renderer):

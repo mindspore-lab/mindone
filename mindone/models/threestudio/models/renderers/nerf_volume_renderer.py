@@ -1,10 +1,7 @@
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import threestudio
-from threestudio.models.background.base import BaseBackground
-from threestudio.models.geometry.base import BaseImplicitGeometry
-from threestudio.models.materials.base import BaseMaterial
 from threestudio.models.renderers.base import Renderer
 
 import mindspore as ms
@@ -29,13 +26,12 @@ class NeRFVolumeRenderer(Renderer):
 
     cfg: Config
 
-    def configure(
-        self,
-        geometry: BaseImplicitGeometry,
-        material: BaseMaterial,
-        background: BaseBackground,
-    ) -> None:
-        super().configure(geometry, material, background)
+    def __init__(self, cfg: Dict, cfg_for_highres: Dict) -> None:
+        super().configure(cfg.renderer.radius)
+        self.material = threestudio.find(cfg.material_type)(cfg.material)
+        self.background = threestudio.find(cfg.background_type)(cfg.background)
+        self.geometry = threestudio.find(cfg.geometry_type)(cfg.geometry)
+        self.cfg = self.Config(**cfg.renderer)
         self.cfg.depth_resolution = int(
             self.cfg.num_samples_per_ray / 2
         )  # needs to be cal according to cfg #spr, thus cannot put in the class def

@@ -25,15 +25,13 @@ class RandomMultiviewCameraIterableDataset(RandomCameraIterableDataset):
         self.output_columns = [
             "rays_o",
             "rays_d",
-            "mvp_mtx",
-            "camera_positions",
             "c2w",
-            "light_positions",
             "elevation",
             "azimuth",
             "camera_distances",
             "fovy",
         ]
+        self._export_light = False
 
     def __len__(self):
         return self.cfg.n_view
@@ -225,13 +223,13 @@ class RandomMultiviewCameraIterableDataset(RandomCameraIterableDataset):
         )  # FIXME: hard-coded near and far
         mvp_mtx: np.array = get_mvp_matrix(c2w, proj_mtx)
 
+        if self._export_light:
+            return (light_positions.astype(np.float32), mvp_mtx.astype(np.float32))
+
         return (
             rays_o.astype(np.float32),
             rays_d.astype(np.float32),
-            mvp_mtx.astype(np.float32),
-            camera_positions.astype(np.float32),
             c2w.astype(np.float32),
-            light_positions.astype(np.float32),
             elevation_deg.astype(np.float32),
             azimuth_deg.astype(np.float32),
             camera_distances.astype(np.float32),

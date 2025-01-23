@@ -61,8 +61,7 @@ class ExperimentConfig:
 
     system_type: str = ""
     system: dict = field(default_factory=dict)
-    trainer: dict = field(default_factory=dict)
-    checkpoint: dict = field(default_factory=dict)
+    train_cfg: dict = field(default_factory=dict)
 
     def __post_init__(self):
         if not self.tag and not self.use_timestamp:

@@ -24,8 +24,7 @@ class Encoding(FieldComponent):
 
     @classmethod
     def get_tcnn_encoding_config(cls) -> dict:
-        """Get the encoding configuration for tcnn if implemented"""
-        raise NotImplementedError("Encoding does not have a TCNN implementation")
+        raise NotImplementedError("Ascend does not support TCNN Encoding so far")
 
     @abstractmethod
     def construct(self, in_tensor: Tensor) -> Tensor:

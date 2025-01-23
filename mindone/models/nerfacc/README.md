@@ -5,4 +5,4 @@ This folder contains the naive (directly functionally translated) MindSpore impl
 
 the implementation here can be plugged into our current MVDream-threestudio pipeline for the exactly same rendering behavior as the original repo. However, the caveat is that it will be pretty slow as such an operator based implementation is not as optimized as the c extention based implementation, from the cuda/cann api perspectives.
 
-You may check the functionality correctness by running the unit tests under [tests](./tests).
+You may check the functionality correctness by running the unit tests under [threestudio_tests/nerfacc](../../../tests/threestudio_tests/nerfacc).

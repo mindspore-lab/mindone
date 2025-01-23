@@ -44,7 +44,7 @@ class MVDreamSystem(BaseLift3DSystem):
 
         # grad ckpting to save ram
         if self.cfg.use_recompute:
-            self.safe_recompute(self.renderer)  # the grad of the geo/bg inside will get recompute
+            self.safe_recompute(self.renderer)  # the grad of the geo/bg inside will get recomputed
             threestudio.info("initing recompute, if you see this multiple times then it may coz NMEM LEAKAGE...")
         else:
             threestudio.info("NOT using recompute")
@@ -53,10 +53,7 @@ class MVDreamSystem(BaseLift3DSystem):
         self,
         rays_o: Tensor,
         rays_d: Tensor,
-        mvp_mtx: Tensor,
-        camera_positions: Tensor,
         c2w: Tensor,
-        light_positions: Tensor,
         elevation_deg: Tensor,
         azimuth_deg: Tensor,
         camera_distances: Tensor,
@@ -65,7 +62,6 @@ class MVDreamSystem(BaseLift3DSystem):
         batch = {
             "rays_o": rays_o,
             "rays_d": rays_d,
-            "mvp_mtx": mvp_mtx,
             "c2w": c2w,
             "elevation": elevation_deg,
             "azimuth": azimuth_deg,
