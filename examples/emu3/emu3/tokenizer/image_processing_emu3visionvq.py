@@ -23,7 +23,7 @@ import PIL, mindspore
 
 from transformers.image_processing_utils import BaseImageProcessor, BatchFeature
 from transformers.image_transforms import (
-    convert_to_rgb,
+    # convert_to_rgb,
     resize,
     to_channel_dimension_format,
 )
@@ -36,25 +36,140 @@ from transformers.image_utils import (
     get_image_size,
     infer_channel_dimension_format,
     is_scaled_image,
-    make_list_of_images,
-    to_numpy_array,
+    # make_list_of_images,
+    # to_numpy_array,
     # valid_images,
     validate_preprocess_arguments,
 )
-from transformers.utils import TensorType, is_vision_available, logging
+from transformers.utils import is_vision_available, logging, ExplicitEnum #TensorType
 
 
 logger = logging.get_logger(__name__)
 
+
+#################### TODO: add the followings to transformers ###############
+
+def is_valid_image(img):
+    return (
+        (is_vision_available() and isinstance(img, PIL.Image.Image))
+        or isinstance(img, np.ndarray)
+        or isinstance(img, mindspore.Tensor)
+    )
+def valid_images(imgs):
+    # If we have an list of images, make sure every image is valid
+    if isinstance(imgs, (list, tuple)):
+        for img in imgs:
+            if not valid_images(img):
+                return False
+    # If not a list of tuple, we have been given a single image or batched tensor of images
+    elif not is_valid_image(imgs):
+        return False
+    return True
+
 ImageInput = Union[
     PIL.Image.Image, np.ndarray, mindspore.Tensor, List[PIL.Image.Image], List[np.ndarray], List[mindspore.Tensor]
 ]  
+class TensorType(ExplicitEnum):
+    """
+    Possible values for the `return_tensors` argument in [`PreTrainedTokenizerBase.__call__`]. Useful for
+    tab-completion in an IDE.
+    """
+    MINDSPORE = "ms"
+    NUMPY = "np"
 
-if is_vision_available():
-    from PIL import Image
+def convert_to_rgb(image: ImageInput) -> ImageInput:
+    """
+    Converts an image to RGB format. Only converts if the image is of type PIL.Image.Image, otherwise returns the image
+    as is.
+    Args:
+        image (Image):
+            The image to convert.
+    """
+    if not isinstance(image, PIL.Image.Image):
+        return image
 
-def valid_images(img):
-    return (is_vision_available() and isinstance(img, PIL.Image.Image)) or isinstance(img, np.ndarray)
+    if image.mode == "RGB":
+        return image
+
+    image = image.convert("RGB")
+    return image
+
+
+def make_list_of_images(images, expected_ndims: int = 3) -> List[ImageInput]:
+    """
+    Ensure that the input is a list of images. If the input is a single image, it is converted to a list of length 1.
+    If the input is a batch of images, it is converted to a list of images.
+
+    Args:
+        images (`ImageInput`):
+            Image of images to turn into a list of images.
+        expected_ndims (`int`, *optional*, defaults to 3):
+            Expected number of dimensions for a single input image. If the input image has a different number of
+            dimensions, an error is raised.
+    """
+    if is_batched(images):
+        return images
+
+    # Either the input is a single image, in which case we create a list of length 1
+    if isinstance(images, PIL.Image.Image):
+        # PIL images are never batched
+        return [images]
+
+    if is_valid_image(images):
+        if images.ndim == expected_ndims + 1:
+            # Batch of images
+            images = list(images)
+        elif images.ndim == expected_ndims:
+            # Single image
+            images = [images]
+        else:
+            raise ValueError(
+                f"Invalid image shape. Expected either {expected_ndims + 1} or {expected_ndims} dimensions, but got"
+                f" {images.ndim} dimensions."
+            )
+        return images
+    raise ValueError(
+        "Invalid image type. Expected either PIL.Image.Image, numpy.ndarray, or mindspore.Tensor,"
+        f"but got {type(images)}."
+    )
+
+# from mindone.transformers.utils import to_numpy
+
+def to_numpy(obj):
+    """
+    Convert a tensor, Numpy array or python list to a Numpy array.
+    """
+
+    framework_to_numpy = {
+        "ms": lambda obj: obj.asnumpy(),
+        "np": lambda obj: obj,
+    }
+
+    if isinstance(obj, (dict, UserDict)):
+        return {k: to_numpy(v) for k, v in obj.items()}
+    elif isinstance(obj, (list, tuple)):
+        return np.array(obj)
+
+    # This gives us a smart order to test the frameworks with the corresponding tests.
+    if isinstance(obj, np.ndarray):
+        return framework_to_numpy['np'](obj)
+    elif isinstance(img, mindspore.Tensor):
+        return framework_to_numpy['ms'](obj)
+    else:
+        raise ValueError("Invalid obj type. Expected either numpy.ndarray, or mindspore.Tensor,"
+        f"but got {type(obj)}.")
+
+    return obj
+
+def to_numpy_array(img) -> np.ndarray:
+    if not is_valid_image(img):
+        raise ValueError(f"Invalid image type: {type(img)}")
+
+    if is_vision_available() and isinstance(img, PIL.Image.Image):
+        return np.array(img)
+    return to_numpy(img)
+
+#######################################################################################################
 
 def smart_resize(
     height: int, width: int, factor: int = 8, min_pixels: int = 512 * 512, max_pixels: int = 1024 * 1024
