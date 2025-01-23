@@ -6,7 +6,7 @@ The `train_controlnet_flux.py` script shows how to implement the ControlNet trai
 > [!NOTE]
 > **Memory consumption**
 >
-> Flux can be quite expensive to run on consumer hardware devices and as a result, ControlNet training of it comes with higher memory requirements than usual. 
+> Flux can be quite expensive to run on consumer hardware devices and as a result, ControlNet training of it comes with higher memory requirements than usual.
 
 > **Gated access**
 >
@@ -67,7 +67,7 @@ python train_controlnet_flux.py \
     --gradient_accumulation_steps=4 \
     --num_double_layers=4 \
     --num_single_layers=10 \
-    --seed=42 
+    --seed=42
 ```
 
 To better track our training experiments, you can use the following flags in the command above:
@@ -89,8 +89,8 @@ base_model = 'black-forest-labs/FLUX.1-dev'
 controlnet_model = 'promeai/FLUX.1-controlnet-lineart-promeai'
 controlnet = FluxControlNetModel.from_pretrained(controlnet_model, mindspore_dtype=mindspore.bfloat16)
 pipe = FluxControlNetPipeline.from_pretrained(
-    base_model, 
-    controlnet=controlnet, 
+    base_model,
+    controlnet=controlnet,
     mindspore_dtype=mindspore.bfloat16
 )
 
@@ -98,10 +98,10 @@ control_image = load_image("https://huggingface.co/promeai/FLUX.1-controlnet-lin
 prompt = "cute anime girl with massive fluffy fennec ears and a big fluffy tail blonde messy long hair blue eyes wearing a maid outfit with a long black gold leaf pattern dress and a white apron mouth open holding a fancy black forest cake with candles on top in the kitchen of an old dark Victorian mansion lit by candlelight with a bright window to the foggy forest and very expensive stuff everywhere"
 
 image = pipe(
-    prompt, 
+    prompt,
     control_image=control_image,
     controlnet_conditioning_scale=0.6,
-    num_inference_steps=28, 
+    num_inference_steps=28,
     guidance_scale=3.5,
 )[0][0]
 image.save("./output.png")
