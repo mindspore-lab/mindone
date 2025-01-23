@@ -1,5 +1,4 @@
 import os
-import time
 import argparse
 import logging
 from pathlib import Path
@@ -16,39 +15,7 @@ from utils.ms_utils import init_env
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 
-
 logger = logging.getLogger(__name__)
-
-# prompt_template
-# prompt_template_name = "dit-llm-encode"
-# prompt_template_video_name = "dit-llm-encode-video"
-
-# prompt_template = PROMPT_TEMPLATE[prompt_template_name] if prompt_template_name is not None else None
-
-# # prompt_template_video
-# prompt_template_video = PROMPT_TEMPLATE[prompt_template_video_name] if prompt_template_video_name is not None else None
-
-# # max_length
-# if prompt_template_video_name is not None:
-#     crop_start = PROMPT_TEMPLATE[prompt_template_video_name].get("crop_start", 0)
-# elif prompt_template_name is not None:
-#     crop_start = PROMPT_TEMPLATE[prompt_template_name].get("crop_start", 0)
-# else:
-#     crop_start = 0
-# text_len = 256
-# max_length = text_len + crop_start
-
-
-# args
-# text_encoder_name = "llm"
-# tokenizer = "llm"
-
-# text_encoder_name_2 = "clipL"
-# tokenizer_2 = "clipL"
-# text_len_2 = 77
-
-# hidden_state_skip_layer = 2
-# apply_final_norm = False
 
 
 def parse_args():
@@ -359,70 +326,12 @@ def main(args):
         # clipL
         if text_encoder_2 is not None:
             output_2 = text_encoder_2(captions, data_type="video")
-        
+
         save_emb(output, output_2, output_dir, file_paths)
 
-
-        # text_emb = text_encoder(text_tokens, attention_mask=mask)
-        # text_emb = text_emb[0] if isinstance(text_emb, (list, tuple)) else text_emb
-
-        # end_time = time.time()
-        # time_cost = end_time - start_time
-
-        # save the embeddings aligning to video frames
-        # for i in range(output.hidden_state.shape[0]):
-        #     fn = Path(str(file_paths[i])).with_suffix(".npz")
-        #     npz_fp = os.path.join(output_dir, fn)
-        #     if not os.path.exists(os.path.dirname(npz_fp)):
-        #         os.makedirs(os.path.dirname(npz_fp))
-
-        #     np.savez(
-        #         npz_fp,
-        #         mask=mask[i].float().asnumpy().astype(np.uint8),
-        #         text_emb=text_emb[i].float().asnumpy().astype(np.float32),
-        #         # tokens=text_tokens[i].asnumpy(), #.astype(np.int32),
-        #     )
-    # logger.info(f"Current step time cost: {time_cost:0.3f}s")
     logger.info(f"Done. Embeddings saved in {output_dir}")
 
 
 if __name__ == "__main__":
     args = parse_args()
     main(args)
-    # ms.set_context(mode=args.mode)
-    # if args.mode == 0:
-    #     ms.set_context(jit_config={"jit_level": args.jit_level})
-
-    # if args.data_file_path is None:
-    #     prompt = "hello world"
-    # else: 
-    #     p = Path(args.data_file_path)
-    #     if not p.exists():
-    #         raise FileNotFoundError(f"The file at path '{args.data_file_path}' does not exist.")
-    #     if p.suffix not in ['.txt', '.csv']:
-    #         raise ValueError(f"The file at path '{args.data_file_path}' is not a.txt or.csv file.")
-    #     if p.suffix == '.txt':
-    #         with p.open('r') as file:
-    #             prompt = file.readlines()
-    #             prompt = [line.rstrip('\n') for line in prompt]
-    #     elif p.suffix == '.csv':
-    #         prompt = []
-    #         with p.open('r') as file:
-    #             reader = csv.reader(file, quotechar='"', quoting=csv.QUOTE_ALL)
-    #             next(reader)    # skip header
-    #             for row in reader:
-    #                 assert len(row) == 2, "The number of columns of csv file should be two."
-    #                 prompt.append(row[1])
-
-    # output, output_2 = encode(prompt, args)
-    # if args.save_dir is not None:
-    #     if output is not None:
-    #         np.savez(Path(args.save_dir)/ "llm_output.npz",
-    #                  hidden_state=output.hidden_state.asnumpy(),
-    #                  attention_mask=output.attention_mask.asnumpy())
-    #         print(f"text encoder llm output saved in {args.save_dir}.")
-    #     if output_2 is not None:
-    #         np.savez(Path(args.save_dir)/ "clipL_output.npz",
-    #                  hidden_state=output_2.hidden_state.asnumpy(),
-    #                  attention_mask=output_2.attention_mask.asnumpy())
-    #         print(f"text encoder clipL output saved in {args.save_dir}.")
