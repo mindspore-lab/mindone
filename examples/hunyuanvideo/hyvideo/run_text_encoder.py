@@ -288,7 +288,7 @@ def main(args):
             ds_config,
             args.batch_size,
             ds_name="text",
-            num_parallel_workers=12,
+            num_parallel_workers=1,
             max_rowsize=32,
             shuffle=False,  # be in order
             device_num=device_num,
