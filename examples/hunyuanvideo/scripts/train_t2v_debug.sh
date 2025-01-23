@@ -5,7 +5,7 @@ python hyvideo/train/train_t2v.py \
     --dataset t2v \
     --data "train_data/mixkit.txt" \
     --sample_rate 1 \
-    --num_frames ${NUM_FRAME} \
+    --num_frames 29 \
     --max_height 256 \
     --max_width 256 \
     --train_batch_size=1 \
@@ -18,7 +18,7 @@ python hyvideo/train/train_t2v.py \
     --lr_warmup_steps=500 \
     --precision="bf16" \
     --checkpointing_steps=1000 \
-    --output_dir="t2v-video3d-${NUM_FRAME}x256p/" \
+    --output_dir="t2v-video3d-29x256p/" \
     --cfg 0.1 \
     --snr_gamma 5.0 \
     --use_ema False \
@@ -33,7 +33,7 @@ python hyvideo/train/train_t2v.py \
     --parallel_mode "zero" \
     --zero_stage 3 \
     --max_device_memory "59GB" \
-    --jit_syntax_level "strict" \
+    --jit_syntax_level "lax" \
     --rf_scheduler \
     --force_resolution \
-    --mode 1 \
+    --mode 0 \

@@ -112,7 +112,7 @@ class Attention(nn.Cell):
         super().__init__()
 
         # To prevent circular import.
-        from .normalization import FP32LayerNorm, GroupNorm, LayerNorm, RMSNorm
+        from mindone.diffusers.models.normalization import FP32LayerNorm, GroupNorm, LayerNorm, RMSNorm
 
         self.inner_dim = out_dim if out_dim is not None else dim_head * heads
         self.inner_kv_dim = self.inner_dim if kv_heads is None else dim_head * kv_heads
@@ -720,9 +720,9 @@ class Attention(nn.Cell):
         return hidden_states
 
     def create_causal_mask(self, query: ms.Tensor, key: ms.Tensor, return_fa_mask=False):
-        L, S = query.shape[-1], key.shape[-1]
+        L, S = query.shape[-2], key.shape[-2]
         BS = query.shape[0]
-        mask = ops.tril(ops.ones((L, S), dtype=ms.bool_), diagonal=0)
+        mask = ops.tril(ops.ones((L, S), dtype=ms.float16), diagonal=0)
         if return_fa_mask:
             # flip mask, since FA treats 1 as discard, 0 as retain.
             mask = ~mask if mask.dtype == ms.bool_ else 1 - mask
