@@ -362,9 +362,9 @@ def add_inference_args(parser: argparse.ArgumentParser):
 
     # mindspore args
     group.add_argument("--ms-mode", type=int, default=1, help="0 graph, 1 pynative")
-    group.add_argument("--jit-level", type=int, default="O0", choices=["O0", "O1", "O2"], help="determine graph/operations fusion level. only effective when in graph mode")
+    group.add_argument("--jit-level", type=str, default="O0", choices=["O0", "O1", "O2"], help="determine graph optimizatio/fusion level. only effective when in graph mode")
     group.add_argument("--enable-ms-amp", type=str2bool, default=False, help="enable mindspore auto mixed precision. if False, use mixed precision set in the network definition")
-    group.add_argument("--amp-level", type=str, default="O2", help="only effective when enable_ms_amp is True")
+    group.add_argument("--amp-level", type=str, choices=["O0", "O1", "O2"], default="O2", help="determine auto mixed precision level. only effective when enable_ms_amp is True")
 
     return parser
 
