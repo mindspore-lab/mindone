@@ -57,6 +57,6 @@ msrun --bind_core=True --node_rank=$NODE_RANK --worker_num=$MS_WORKER_NUM --loca
     --zero_stage 2 \
     --max_device_memory "59GB" \
     --jit_syntax_level "lax" \
-    --dataset_sink_mode True \
+    --dataset_sink_mode False \
     --num_no_recompute 18 \
     # --group_frame \

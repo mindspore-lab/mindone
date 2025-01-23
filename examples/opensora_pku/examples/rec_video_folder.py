@@ -1,29 +1,28 @@
 import argparse
 import logging
 import os
+import re
 import sys
 
 import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import nn
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
-from mindone.visualize.videos import save_videos
 
 sys.path.append(".")
 from opensora.acceleration.parallel_states import get_sequence_parallel_state, hccl_info
-from opensora.models import CausalVAEModelWrapper
+from opensora.models.causalvideovae import ae_wrapper
 from opensora.models.causalvideovae.model.dataset_videobase import VideoDataset, create_dataloader
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
-from opensora.utils.ms_utils import init_env
+from opensora.models.causalvideovae.model.registry import ModelRegistry
+from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
+from opensora.utils.video_utils import save_videos
 
 logger = logging.getLogger(__name__)
 
@@ -46,18 +45,9 @@ def main(args):
     batch_size = args.batch_size
     num_workers = args.num_workers
     assert args.dataset_name == "video", "Only support video reconstruction!"
-    rank_id, device_num = init_env(
-        args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device,
-        max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
-        precision_mode=args.precision_mode,
-        sp_size=args.sp_size,
-        jit_level=args.jit_level,
-        jit_syntax_level=args.jit_syntax_level,
-    )
+    rank_id, device_num = npu_config.set_npu_env(args)
+    npu_config.print_ops_dtype_info()
+    dtype = get_precision(args.precision)
 
     if not os.path.exists(args.generated_video_dir):
         os.makedirs(args.generated_video_dir, exist_ok=True)
@@ -66,48 +56,51 @@ def main(args):
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
-        # rm 'network.' prefix
+
         state_dict = dict(
             [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
         )
+        state_dict = dict([k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in state_dict.items())
     else:
         state_dict = None
-    kwarg = {"state_dict": state_dict, "use_safetensors": True}
-    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
+
+    vae = None
+    if args.model_config is not None:
+        assert os.path.exists(args.model_config), f"`model_config` does not exist! {args.model_config}"
+        pattern = r"^([A-Za-z]+)Model"
+        if re.match(pattern, args.ae):
+            model_name = re.match(pattern, args.ae).group(1)
+            model_cls = ModelRegistry.get_model(model_name)
+            vae = model_cls.from_config(args.model_config, dtype=dtype)
+            if args.ms_checkpoint is None or not os.path.exists(args.ms_checkpoint):
+                logger.warning(
+                    "VAE is randomly initialized. The inference results may be incorrect! Check `ms_checkpoint`!"
+                )
+
+        else:
+            logger.warning(f"Incorrect ae name, must be one of {ae_wrapper.keys()}")
+
+    kwarg = {
+        "state_dict": state_dict,
+        "use_safetensors": True,
+        "dtype": dtype,
+        "vae": vae,
+    }
+    vae = ae_wrapper[args.ae](args.ae_path, **kwarg)
 
     if args.enable_tiling:
         vae.vae.enable_tiling()
         vae.vae.tile_overlap_factor = args.tile_overlap_factor
-        if args.save_memory:
-            vae.vae.tile_sample_min_size = args.tile_sample_min_size
-            vae.vae.tile_latent_min_size = 32
-            vae.vae.tile_sample_min_size_t = 29
-            vae.vae.tile_latent_min_size_t = 8
 
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        dtype = get_precision(args.precision)
-        if dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
-        else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
-        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(
-            f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
-        )
-    elif args.precision == "fp32":
-        dtype = get_precision(args.precision)
-    else:
-        raise ValueError(f"Unsupported precision {args.precision}")
 
     ds_config = dict(
         data_file_path=args.data_file_path,
         video_column=args.video_column,
         data_folder=real_video_dir,
-        size=(height, width),
+        size=max(height, width),  # SmallestMaxSize
         crop_size=(height, width),
         disable_flip=True,
         random_crop=False,
@@ -140,7 +133,7 @@ def main(args):
     )
     num_batches = dataloader.get_dataset_size()
     logger.info("Number of batches: %d", num_batches)
-    ds_iter = dataloader.create_dict_iterator(1)
+    ds_iter = dataloader.create_dict_iterator(1, output_numpy=True)
     # ---- Prepare Dataset
 
     # ---- Inference ----
@@ -150,12 +143,11 @@ def main(args):
         else:
             x = batch["video"]
         file_paths = batch["path"]
-        x = x.to(dtype=dtype)  # b c t h w
+        x = ms.Tensor(x, dtype=dtype)  # b c t h w
         latents = vae.encode(x)
         video_recon = vae.decode(latents)
         for idx, video in enumerate(video_recon):
-            file_paths = eval(str(file_paths).replace("/n", ","))
-            file_name = os.path.basename(file_paths[idx])
+            file_name = os.path.basename(str(file_paths[idx]))
             if ".avi" in os.path.basename(file_name):
                 file_name = file_name.replace(".avi", ".mp4")
             output_path = os.path.join(generated_video_dir, file_name)
@@ -193,6 +185,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--real_video_dir", type=str, default="")
     parser.add_argument("--generated_video_dir", type=str, default="")
+    parser.add_argument("--ae", type=str, default="")
     parser.add_argument("--ae_path", type=str, default="results/pretrained")
     parser.add_argument("--ms_checkpoint", type=str, default=None)
     parser.add_argument("--sample_fps", type=int, default=30)
@@ -209,11 +202,9 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--tile_overlap_factor", type=float, default=0.25)
-    parser.add_argument("--tile_sample_min_size", type=int, default=256)
     parser.add_argument("--enable_tiling", action="store_true")
-    parser.add_argument("--save_memory", action="store_true")
     parser.add_argument("--output_origin", action="store_true")
-    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--precision",
         default="bf16",
@@ -264,6 +255,9 @@ if __name__ == "__main__":
         "--video_column",
         default="video",
         help="The column of video file path in `data_file_path`. Defaults to `video`.",
+    )
+    parser.add_argument(
+        "--model_config", type=str, default=None, help="The model config file for initiating vae model."
     )
     args = parser.parse_args()
     main(args)

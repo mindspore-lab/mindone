@@ -9,14 +9,14 @@ imagesize
 toolz
 tqdm
 mindcv
-decord
+mindnlp
 safetensors
 omegaconf
 pyyaml
 sentencepiece
-av
 beautifulsoup4
 huggingface_hub>=0.22.2,<0.26
 transformers
 tokenizers
 pillow
+decord

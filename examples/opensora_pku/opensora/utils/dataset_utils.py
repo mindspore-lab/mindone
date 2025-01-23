@@ -1,10 +1,13 @@
+import logging
 import math
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from typing import List, Optional
 
 import decord
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 def create_video_transforms(
@@ -128,61 +131,77 @@ def pad_to_multiple(number, ds_stride):
 
 
 class Collate:
-    def __init__(
-        self,
-        batch_size,
-        group_frame,
-        group_resolution,
-        max_height,
-        max_width,
-        ae_stride,
-        ae_stride_t,
-        patch_size,
-        patch_size_t,
-        num_frames,
-        use_image_num,
-    ):
+    def __init__(self, batch_size, args):
         self.batch_size = batch_size
-        self.group_frame = group_frame
-        self.group_resolution = group_resolution
+        self.group_data = args.group_data
+        self.force_resolution = args.force_resolution
 
-        self.max_height = max_height
-        self.max_width = max_width
-        self.ae_stride = ae_stride
+        self.max_height = args.max_height
+        self.max_width = args.max_width
+        self.ae_stride = args.ae_stride
 
-        self.ae_stride_t = ae_stride_t
+        self.ae_stride_t = args.ae_stride_t
         self.ae_stride_thw = (self.ae_stride_t, self.ae_stride, self.ae_stride)
 
-        self.patch_size = patch_size
-        self.patch_size_t = patch_size_t
+        self.patch_size = args.patch_size
+        self.patch_size_t = args.patch_size_t
 
-        self.num_frames = num_frames
-        self.use_image_num = use_image_num
+        self.num_frames = args.num_frames
         self.max_thw = (self.num_frames, self.max_height, self.max_width)
 
     def package(self, batch):
         batch_tubes = [i["pixel_values"] for i in batch]  # b [c t h w]
-        input_ids = [i["input_ids"] for i in batch]  # b [1 l]
-        cond_mask = [i["cond_mask"] for i in batch]  # b [1 l]
-        return batch_tubes, input_ids, cond_mask
+        input_ids_1 = [i["input_ids_1"] for i in batch]  # b [1 l]
+        cond_mask_1 = [i["cond_mask_1"] for i in batch]  # b [1 l]
+        input_ids_2 = [i["input_ids_2"] for i in batch]  # b [1 l]
+        cond_mask_2 = [i["cond_mask_2"] for i in batch]  # b [1 l]
+        assert all([i is None for i in input_ids_2]) or all([i is not None for i in input_ids_2])
+        assert all([i is None for i in cond_mask_2]) or all([i is not None for i in cond_mask_2])
+        if all([i is None for i in input_ids_2]):
+            input_ids_2 = None
+        if all([i is None for i in cond_mask_2]):
+            cond_mask_2 = None
+        return batch_tubes, input_ids_1, cond_mask_1, input_ids_2, cond_mask_2
 
     def __call__(self, batch):
-        batch_tubes, input_ids, cond_mask = self.package(batch)
+        batch_tubes, input_ids_1, cond_mask_1, input_ids_2, cond_mask_2 = self.package(batch)
 
         ds_stride = self.ae_stride * self.patch_size
         t_ds_stride = self.ae_stride_t * self.patch_size_t
 
-        pad_batch_tubes, attention_mask, input_ids, cond_mask = self.process(
-            batch_tubes, input_ids, cond_mask, t_ds_stride, ds_stride, self.max_thw, self.ae_stride_thw
+        pad_batch_tubes, attention_mask, input_ids_1, cond_mask_1, input_ids_2, cond_mask_2 = self.process(
+            batch_tubes,
+            input_ids_1,
+            cond_mask_1,
+            input_ids_2,
+            cond_mask_2,
+            t_ds_stride,
+            ds_stride,
+            self.max_thw,
+            self.ae_stride_thw,
         )
-        # assert not np.any(np.isnan(pad_batch_tubes)), 'after pad_batch_tubes'
-        return pad_batch_tubes, attention_mask, input_ids, cond_mask
+        assert not np.any(np.isnan(pad_batch_tubes)), "after pad_batch_tubes"
+        if input_ids_2 is not None and cond_mask_2 is not None:
+            return pad_batch_tubes, attention_mask, input_ids_1, cond_mask_1, input_ids_2, cond_mask_2
+        else:
+            return pad_batch_tubes, attention_mask, input_ids_1, cond_mask_1
 
-    def process(self, batch_tubes, input_ids, cond_mask, t_ds_stride, ds_stride, max_thw, ae_stride_thw):
+    def process(
+        self,
+        batch_tubes,
+        input_ids_1,
+        cond_mask_1,
+        input_ids_2,
+        cond_mask_2,
+        t_ds_stride,
+        ds_stride,
+        max_thw,
+        ae_stride_thw,
+    ):
         # pad to max multiple of ds_stride
         batch_input_size = [i.shape for i in batch_tubes]  # [(c t h w), (c t h w)]
         assert len(batch_input_size) == self.batch_size
-        if self.group_frame or self.group_resolution or self.batch_size == 1:  #
+        if self.group_data or self.batch_size == 1:  #
             len_each_batch = batch_input_size
             idx_length_dict = dict([*zip(list(range(self.batch_size)), len_each_batch)])
             count_dict = Counter(len_each_batch)
@@ -195,13 +214,25 @@ class Collate:
                 random_select_batch = [
                     random.choice(candidate_batch) for _ in range(len(len_each_batch) - len(candidate_batch))
                 ]
-                # print(batch_input_size, idx_length_dict, count_dict, sorted_by_value, pick_length, candidate_batch, random_select_batch)
+                print(
+                    batch_input_size,
+                    idx_length_dict,
+                    count_dict,
+                    sorted_by_value,
+                    pick_length,
+                    candidate_batch,
+                    random_select_batch,
+                )
                 pick_idx = candidate_batch + random_select_batch
 
                 batch_tubes = [batch_tubes[i] for i in pick_idx]
                 batch_input_size = [i.shape for i in batch_tubes]  # [(c t h w), (c t h w)]
-                input_ids = [input_ids[i] for i in pick_idx]  # b [1, l]
-                cond_mask = [cond_mask[i] for i in pick_idx]  # b [1, l]
+                input_ids_1 = [input_ids_1[i] for i in pick_idx]  # b [1, l]
+                cond_mask_1 = [cond_mask_1[i] for i in pick_idx]  # b [1, l]
+                if input_ids_2 is not None:
+                    input_ids_2 = [input_ids_2[i] for i in pick_idx]  # b [1, l]
+                if cond_mask_2 is not None:
+                    cond_mask_2 = [cond_mask_2[i] for i in pick_idx]  # b [1, l]
 
             for i in range(1, self.batch_size):
                 assert batch_input_size[0] == batch_input_size[i]
@@ -217,7 +248,6 @@ class Collate:
         )
         pad_max_t = pad_max_t + 1 - self.ae_stride_t
         each_pad_t_h_w = [[pad_max_t - i.shape[1], pad_max_h - i.shape[2], pad_max_w - i.shape[3]] for i in batch_tubes]
-
         pad_batch_tubes = [
             np.pad(im, [[0, 0]] * (len(im.shape) - 3) + [[0, pad_t], [0, pad_h], [0, pad_w]], constant_values=0)
             for (pad_t, pad_h, pad_w), im in zip(each_pad_t_h_w, batch_tubes)
@@ -248,81 +278,61 @@ class Collate:
             for i in valid_latent_size
         ]
         attention_mask = np.stack(attention_mask, axis=0)  # b t h w
-        if self.batch_size == 1 or self.group_frame or self.group_resolution:
+        if self.batch_size == 1 or self.group_data:
+            if not np.all(attention_mask.astype(np.bool_)):
+                print(
+                    batch_input_size,
+                    (max_t, max_h, max_w),
+                    (pad_max_t, pad_max_h, pad_max_w),
+                    each_pad_t_h_w,
+                    max_latent_size,
+                    valid_latent_size,
+                )
             assert np.all(attention_mask.astype(np.bool_))
 
-        input_ids = np.stack(input_ids, axis=0)  # b 1 l
-        cond_mask = np.stack(cond_mask, axis=0)  # b 1 l
-        if input_ids.dtype == np.int64:
-            input_ids = input_ids.astype(np.int32)
-        if attention_mask.dtype == np.int64:
-            attention_mask = attention_mask.astype(np.int32)
-        if cond_mask.dtype == np.int64:
-            cond_mask = cond_mask.astype(np.int32)
-        return pad_batch_tubes, attention_mask, input_ids, cond_mask
+        input_ids_1 = np.stack(input_ids_1)  # b 1 l
+        cond_mask_1 = np.stack(cond_mask_1)  # b 1 l
+        input_ids_2 = np.stack(input_ids_2) if input_ids_2 is not None else input_ids_2  # b 1 l
+        cond_mask_2 = np.stack(cond_mask_2) if cond_mask_2 is not None else cond_mask_2  # b 1 l
+
+        return pad_batch_tubes, attention_mask, input_ids_1, cond_mask_1, input_ids_2, cond_mask_2
 
 
-def split_to_even_chunks(indices, lengths, num_chunks, batch_size):
-    """
-    Split a list of indices into `chunks` chunks of roughly equal lengths.
-    """
+def group_data_fun(lengths, generator=None):
+    # counter is decrease order
+    counter = Counter(lengths)  # counter {'1x256x256': 3, ''}   lengths ['1x256x256', '1x256x256', '1x256x256', ...]
+    grouped_indices = defaultdict(list)
+    for idx, item in enumerate(lengths):  # group idx to a list
+        grouped_indices[item].append(idx)
 
-    if len(indices) % num_chunks != 0:
-        chunks = [indices[i::num_chunks] for i in range(num_chunks)]
-    else:
-        num_indices_per_chunk = len(indices) // num_chunks
+    grouped_indices = dict(grouped_indices)  # {'1x256x256': [0, 1, 2], ...}
+    sorted_indices = [grouped_indices[item] for (item, _) in sorted(counter.items(), key=lambda x: x[1], reverse=True)]
 
-        chunks = [[] for _ in range(num_chunks)]
-        chunks_lengths = [0 for _ in range(num_chunks)]
-        for index in indices:
-            shortest_chunk = chunks_lengths.index(min(chunks_lengths))
-            chunks[shortest_chunk].append(index)
-            chunks_lengths[shortest_chunk] += lengths[index]
-            if len(chunks[shortest_chunk]) == num_indices_per_chunk:
-                chunks_lengths[shortest_chunk] = float("inf")
-    # return chunks
-
-    pad_chunks = []
-    for idx, chunk in enumerate(chunks):
-        if batch_size != len(chunk):
-            assert batch_size > len(chunk)
-            if len(chunk) != 0:
-                chunk = chunk + [random.choice(chunk) for _ in range(batch_size - len(chunk))]
-            else:
-                chunk = random.choice(pad_chunks)
-                print(chunks[idx], "->", chunk)
-        pad_chunks.append(chunk)
-    return pad_chunks
+    # shuffle in each group
+    shuffle_sorted_indices = []
+    for indice in sorted_indices:
+        shuffle_idx = generator.permutation(len(indice)).tolist()
+        shuffle_sorted_indices.extend([indice[idx] for idx in shuffle_idx])
+    return shuffle_sorted_indices
 
 
-def group_frame_fun(indices, lengths):
-    # sort by num_frames
-    indices.sort(key=lambda i: lengths[i], reverse=True)
-    return indices
-
-
-def group_resolution_fun(indices):
-    raise NotImplementedError
-    return indices
-
-
-def group_frame_and_resolution_fun(indices):
-    raise NotImplementedError
-    return indices
-
-
-def last_group_frame_fun(shuffled_megabatches, lengths):
+def last_group_data_fun(shuffled_megabatches, lengths):
+    # lengths ['1x256x256', '1x256x256', '1x256x256' ...]
     re_shuffled_megabatches = []
     # print('shuffled_megabatches', len(shuffled_megabatches))
     for i_megabatch, megabatch in enumerate(shuffled_megabatches):
         re_megabatch = []
         for i_batch, batch in enumerate(megabatch):
             assert len(batch) != 0
-            len_each_batch = [lengths[i] for i in batch]
-            idx_length_dict = dict([*zip(batch, len_each_batch)])
-            count_dict = Counter(len_each_batch)
+
+            len_each_batch = [lengths[i] for i in batch]  # ['1x256x256', '1x256x256']
+            idx_length_dict = dict([*zip(batch, len_each_batch)])  # {0: '1x256x256', 100: '1x256x256'}
+            count_dict = Counter(len_each_batch)  # {'1x256x256': 2} or {'1x256x256': 1, '1x768x256': 1}
             if len(count_dict) != 1:
-                sorted_by_value = sorted(count_dict.items(), key=lambda item: item[1])
+                sorted_by_value = sorted(
+                    count_dict.items(), key=lambda item: item[1]
+                )  # {'1x256x256': 1, '1x768x256': 1}
+                # import ipdb;ipdb.set_trace()
                 # print(batch, idx_length_dict, count_dict, sorted_by_value)
                 pick_length = sorted_by_value[-1][0]  # the highest frequency
                 candidate_batch = [idx for idx, length in idx_length_dict.items() if length == pick_length]
@@ -332,6 +342,12 @@ def last_group_frame_fun(shuffled_megabatches, lengths):
                 # print(batch, idx_length_dict, count_dict, sorted_by_value, pick_length, candidate_batch, random_select_batch)
                 batch = candidate_batch + random_select_batch
                 # print(batch)
+
+            for i in range(1, len(batch) - 1):
+                # if not lengths[batch[0]] == lengths[batch[i]]:
+                #     print(batch, [lengths[i] for i in batch])
+                #     import ipdb;ipdb.set_trace()
+                assert lengths[batch[0]] == lengths[batch[i]]
             re_megabatch.append(batch)
         re_shuffled_megabatches.append(re_megabatch)
 
@@ -343,51 +359,115 @@ def last_group_frame_fun(shuffled_megabatches, lengths):
     return re_shuffled_megabatches
 
 
-def last_group_resolution_fun(indices):
-    raise NotImplementedError
-    return indices
+def split_to_even_chunks(megabatch, lengths, world_size, batch_size):
+    """
+    Split a list of indices into `chunks` chunks of roughly equal lengths.
+    """
+    # batch_size=2, world_size=2
+    # [1, 2, 3, 4] -> [[1, 2], [3, 4]]
+    # [1, 2, 3] -> [[1, 2], [3]]
+    # [1, 2] -> [[1], [2]]
+    # [1] -> [[1], []]
+    chunks = [megabatch[i::world_size] for i in range(world_size)]
 
-
-def last_group_frame_and_resolution_fun(indices):
-    raise NotImplementedError
-    return indices
+    pad_chunks = []
+    for idx, chunk in enumerate(chunks):
+        if batch_size != len(chunk):
+            assert batch_size > len(chunk)
+            if len(chunk) != 0:  # [[1, 2], [3]] -> [[1, 2], [3, 3]]
+                chunk = chunk + [random.choice(chunk) for _ in range(batch_size - len(chunk))]
+            else:
+                chunk = random.choice(pad_chunks)  # [[1], []] -> [[1], [1]]
+                # print(chunks[idx], "->", chunk)
+        pad_chunks.append(chunk)
+    return pad_chunks
 
 
 def get_length_grouped_indices(
-    lengths, batch_size, world_size, generator=None, group_frame=False, group_resolution=False, seed=42
+    lengths,
+    batch_size,
+    world_size,
+    gradient_accumulation_size,
+    initial_global_step,
+    generator=None,
+    group_data=False,
+    seed=42,
 ):
-    # We need to use numpy for the random part as a distributed sampler will set the random seed
     if generator is None:
         generator = np.random.default_rng(seed)  # every rank will generate a fixed order but random index
+    # print('lengths', lengths)
 
-    indices = generator.permutation(len(lengths)).tolist()
-    if group_frame and not group_resolution:
-        indices = group_frame_fun(indices, lengths)
-    elif not group_frame and group_resolution:
-        indices = group_resolution_fun(indices)
-    elif group_frame and group_resolution:
-        indices = group_frame_and_resolution_fun(indices)
+    if group_data:
+        indices = group_data_fun(lengths, generator)
+    else:
+        indices = generator.permutation(len(lengths)).tolist()
+    # print('indices', len(indices))
+
+    # print('sort indices', len(indices))
+    # print('sort indices', indices)
+    # print('sort lengths', [lengths[i] for i in indices])
+
     megabatch_size = world_size * batch_size
     megabatches = [indices[i : i + megabatch_size] for i in range(0, len(lengths), megabatch_size)]
-
-    megabatches = [sorted(megabatch, key=lambda i: lengths[i], reverse=True) for megabatch in megabatches]
-
+    # import ipdb;ipdb.set_trace()
+    # print('megabatches', len(megabatches))
+    # print('\nmegabatches', megabatches)
+    # megabatches = [sorted(megabatch, key=lambda i: lengths[i], reverse=True) for megabatch in megabatches]
+    # import ipdb;ipdb.set_trace()
+    # print('sort megabatches', len(megabatches))
+    # megabatches_len = [[lengths[i] for i in megabatch] for megabatch in megabatches]
+    # print(f'\nrank {accelerator.process_index} sorted megabatches_len', megabatches_len[0], megabatches_len[1], megabatches_len[-2], megabatches_len[-1])
+    # import ipdb;ipdb.set_trace()
     megabatches = [split_to_even_chunks(megabatch, lengths, world_size, batch_size) for megabatch in megabatches]
+    # import ipdb;ipdb.set_trace()
+    # print('nsplit_to_even_chunks megabatches', len(megabatches))
+    # print('\nsplit_to_even_chunks megabatches', megabatches)
+    # split_to_even_chunks_len = [[[lengths[i] for i in batch] for batch in megabatch] for megabatch in megabatches]
+    # print(f'\nrank {accelerator.process_index} split_to_even_chunks_len', split_to_even_chunks_len[0],
+    #  split_to_even_chunks_len[1], split_to_even_chunks_len[-2], split_to_even_chunks_len[-1])
+    # print('\nsplit_to_even_chunks len', split_to_even_chunks_len)
+    # return [i for megabatch in megabatches for batch in megabatch for i in batch]
 
-    indices = generator.permutation(len(megabatches)).tolist()
-    shuffled_megabatches = [megabatches[i] for i in indices]
-    if group_frame and not group_resolution:
-        shuffled_megabatches = last_group_frame_fun(shuffled_megabatches, lengths)
-    elif not group_frame and group_resolution:
-        shuffled_megabatches = last_group_resolution_fun(shuffled_megabatches, indices)
-    elif group_frame and group_resolution:
-        shuffled_megabatches = last_group_frame_and_resolution_fun(shuffled_megabatches, indices)
+    indices_mega = generator.permutation(len(megabatches)).tolist()
+    # print(f'rank {accelerator.process_index} seed {seed}, len(megabatches) {len(megabatches)}, indices_mega, {indices_mega[:50]}')
+    shuffled_megabatches = [megabatches[i] for i in indices_mega]
+    # shuffled_megabatches_len = [
+    #    [[lengths[i] for i in batch] for batch in megabatch] for megabatch in shuffled_megabatches
+    # ]
+    # print(f'\nrank {accelerator.process_index} sorted shuffled_megabatches_len', shuffled_megabatches_len[0],
+    # shuffled_megabatches_len[1], shuffled_megabatches_len[-2], shuffled_megabatches_len[-1])
 
-    # return [i for megabatch in shuffled_megabatches for batch in megabatch for i in batch]
-    return [batch for megabatch in shuffled_megabatches for batch in megabatch]  # return batch indices
+    # import ipdb;ipdb.set_trace()
+    # print('shuffled_megabatches', len(shuffled_megabatches))
+    if group_data:
+        shuffled_megabatches = last_group_data_fun(shuffled_megabatches, lengths)
+        # group_shuffled_megabatches_len = [
+        #    [[lengths[i] for i in batch] for batch in megabatch] for megabatch in shuffled_megabatches
+        # ]
+        # print(f'\nrank {accelerator.process_index} group_shuffled_megabatches_len', group_shuffled_megabatches_len[0],
+        # group_shuffled_megabatches_len[1], group_shuffled_megabatches_len[-2], group_shuffled_megabatches_len[-1])
+
+    # import ipdb;ipdb.set_trace()
+    initial_global_step = initial_global_step * gradient_accumulation_size
+    # print('shuffled_megabatches', len(shuffled_megabatches))
+    # print('have been trained idx:', len(shuffled_megabatches[:initial_global_step]))
+    # print('shuffled_megabatches[:10]', shuffled_megabatches[:10])
+    # print('have been trained idx:', shuffled_megabatches[:initial_global_step])
+    shuffled_megabatches = shuffled_megabatches[initial_global_step:]
+    if initial_global_step != 0:
+        print(f"Skip the data of {initial_global_step} step!")
+    # print('after shuffled_megabatches', len(shuffled_megabatches))
+    # print('after shuffled_megabatches[:10]', shuffled_megabatches[:10])
+
+    # print('\nshuffled_megabatches', shuffled_megabatches)
+    # import ipdb;ipdb.set_trace()
+    # print('\nshuffled_megabatches len', [[i, lengths[i]] for megabatch in shuffled_megabatches for batch in megabatch for i in batch])
+    return [
+        i for megabatch in shuffled_megabatches for batch in megabatch for i in batch
+    ]  # return epoch indices in a single list
 
 
-class LengthGroupedBatchSampler:
+class LengthGroupedSampler:
     r"""
     Sampler that samples indices in a way that groups together features of the dataset of roughly the same length while
     keeping a bit of randomness.
@@ -397,9 +477,10 @@ class LengthGroupedBatchSampler:
         self,
         batch_size: int,
         world_size: int,
+        gradient_accumulation_size: int,
+        initial_global_step: int,
         lengths: Optional[List[int]] = None,
-        group_frame=False,
-        group_resolution=False,
+        group_data=False,
         generator=None,
     ):
         if lengths is None:
@@ -407,23 +488,43 @@ class LengthGroupedBatchSampler:
 
         self.batch_size = batch_size
         self.world_size = world_size
-        self.megabatch_size = self.world_size * self.batch_size
+        self.initial_global_step = initial_global_step
+        self.gradient_accumulation_size = gradient_accumulation_size
         self.lengths = lengths
-        self.group_frame = group_frame
-        self.group_resolution = group_resolution
+        self.group_data = group_data
         self.generator = generator
-        self.remainder = len(self) * self.megabatch_size != len(self.lengths)
+        # print('self.lengths, self.initial_global_step, self.batch_size, self.world_size, self.gradient_accumulation_size',
+        #       len(self.lengths), self.initial_global_step, self.batch_size, self.world_size, self.gradient_accumulation_size)
+        self.example_indices = get_length_grouped_indices(
+            self.lengths,
+            self.batch_size,
+            self.world_size,
+            self.gradient_accumulation_size,
+            self.initial_global_step,
+            group_data=self.group_data,
+            generator=self.generator,
+        )
+        if len(self.example_indices) != len(self.lengths):
+            logger.info(
+                "Due to the video length grouped sampler, some samples will be repeated, "
+                + f"causing the number of samples to be {len(self.example_indices)} instead of {len(self.lengths)}."
+            )
 
     def __len__(self):
-        return len(list(range(0, len(self.lengths), self.megabatch_size)))
+        return (
+            len(self.example_indices)
+            - self.initial_global_step * self.batch_size * self.world_size * self.gradient_accumulation_size
+        )
 
     def __iter__(self):
         indices = get_length_grouped_indices(
             self.lengths,
             self.batch_size,
             self.world_size,
-            group_frame=self.group_frame,
-            group_resolution=self.group_resolution,
+            self.gradient_accumulation_size,
+            self.initial_global_step,
+            group_data=self.group_data,
             generator=self.generator,
         )
+
         return iter(indices)
