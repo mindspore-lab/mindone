@@ -77,9 +77,10 @@ def explicit_uniform_sampling(T, n, rank, bsz):
 def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
     sigmas = noise_scheduler.sigmas.to(dtype=dtype)
     schedule_timesteps = noise_scheduler.timesteps
-
+    assert all(t in schedule_timesteps for t in timesteps), "timesteps must be scheduler's timesteps range."
     step_indices = [(schedule_timesteps == t).nonzero() for t in timesteps]
-
+    if len(step_indices) == 0:
+        step_indices = [0] * len(timesteps)  # a dummy placeholder for graph mode
     sigma = sigmas[step_indices].flatten()
     while len(sigma.shape) < n_dim:
         sigma = sigma.unsqueeze(-1)
