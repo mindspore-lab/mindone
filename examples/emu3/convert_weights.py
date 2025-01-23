@@ -14,10 +14,13 @@ The converted model `model.savetensors` will be saved in the same directory as t
 import os, argparse
 import torch
 from safetensors.torch import load_file, save_file
+from safetensors import safe_open
 
 def convert_safetensors(args):
+    with safe_open(args.safetensor_path, framework="np") as f:
+        metadata = f.metadata()
+
     weights_safetensors = load_file(args.safetensor_path)
-    weights = []
     weights_ms_safetensors = {}
 
     # For BatchNorm3d:
@@ -27,18 +30,19 @@ def convert_safetensors(args):
 
         if (".time_res_stack" in key) and (".norm" in key):
             if key.endswith("norm1.weight") or key.endswith("norm2.weight"):
-                key.replace("weight", "bn2d.gamma")
+                key = key.replace("weight", "bn2d.gamma")
             elif key.endswith("norm1.bias") or key.endswith("norm2.bias"):
-                key.replace("bias", "bn2d.beta")
+                key = key.replace("bias", "bn2d.beta")
             elif key.endswith("norm1.running_mean") or key.endswith("norm2.running_mean"):
-                key.replace("running_mean", "bn2d.moving_mean")
+                key = key.replace("running_mean", "bn2d.moving_mean")
             elif key.endswith("norm1.running_var") or key.endswith("norm2.running_var"):
-                key.replace("running_var", "bn2d.moving_variance")
+                key = key.replace("running_var", "bn2d.moving_variance")
             
         weights_ms_safetensors[key] = torch.from_numpy(value.numpy())
     
-    save_file(weights_ms_safetensors, args.ms_safetensor_path)
-    print(f"Safetensors is converted and saved as {args.ms_safetensor_path}")
+    save_file_dir = os.path.join(os.path.dirname(args.safetensor_path), args.ms_safetensor_path)
+    save_file(weights_ms_safetensors, save_file_dir, metadata=metadata)
+    print(f"Safetensors is converted and saved as {save_file_dir}")
 
 
 if __name__ == "__main__":
