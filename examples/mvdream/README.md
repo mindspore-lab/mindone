@@ -42,7 +42,7 @@ python launch.py \
 python launch.py \
         --train \
         --train_highres \
-        resume="PATH_CKPT_OUTPUT/step_4999.ckpt" \
+        resume="PATH_CKPT_OUTPUT/step_5000.ckpt" \
         system.use_recompute=true \
 ```
 Notice that you need to resume the high-resolution training from the output checkpoint of the low-resolution training. The training happens in a self-supervision manner where the rendered RGB from the renderer is encoded by the guidance pretrained multiview sd-v2.1 model (regarded as "sd2" in the following)'s encoder as a raw latent, and such raw latent is supervised against its own sd2-forward then text-guided-denoised, reconstructed latents.
@@ -52,7 +52,7 @@ To generate the output 120 frames rendered from the trained mvdream ckpt, do thi
 ```bash
 python launch.py \
         --test \
-        resume="PATH_ABOVE/step9999.ckpt" \
+        resume="PATH_ABOVE/step10000.ckpt" \
 ```
 The video [here](#training-1) will be generated. Mesh extraction will also be supported.
 
@@ -76,7 +76,7 @@ This video is a rendered frame sequence of the generated 3D implicit field by MV
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 
 ### Training
-| # samples per ray  | renderer resolution | guidance batch size | speed (frame/second) |
+| # samples per ray  | renderer resolution | guidance batch size | speed (step/second) |
 |:---:|:---:|:---:|:---:|
 | 64 |64x64 | 8 | 0.857 |
 | 64 |256x256 | 4 | 0.465 |

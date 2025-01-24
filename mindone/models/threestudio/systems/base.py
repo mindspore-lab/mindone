@@ -1,4 +1,3 @@
-import os
 import time
 from dataclasses import dataclass, field
 from typing import Any, List, Optional
@@ -29,7 +28,7 @@ class BaseSystem(nn.Cell, Updateable, SaverMixin):
 
     cfg: Config
 
-    def __init__(self, cfg, resumed=False) -> None:
+    def __init__(self, cfg, resumed=False, train_highres=False) -> None:
         super().__init__()
         self.cfg = parse_structured(self.Config, cfg)
         self._save_dir: Optional[str] = None
@@ -38,6 +37,8 @@ class BaseSystem(nn.Cell, Updateable, SaverMixin):
         self._resumed_eval_status: dict = {"global_step": 0, "current_epoch": 0}
         # if "loggers" in cfg:
         #     self.create_loggers(cfg.loggers)
+
+        self.cfg_for_highres = {"resumed": resumed, "train_highres": train_highres}
 
         self.configure()
         if self.cfg.weights is not None:
@@ -184,51 +185,7 @@ class BaseLift3DSystem(BaseSystem):
 
     def configure(self) -> None:
         super().configure()
-        if (
-            self.cfg.geometry_convert_from  # from_coarse must be specified
-            and not self.cfg.weights  # not initialized from coarse when weights are specified
-            and not self.resumed  # not initialized from coarse when resumed from checkpoints
-        ):
-            threestudio.info("Initializing geometry from a given checkpoint ...")
-            from threestudio.utils.config import load_config, parse_structured
-
-            prev_cfg = load_config(
-                os.path.join(
-                    os.path.dirname(self.cfg.geometry_convert_from),
-                    "../configs/parsed.yaml",
-                )
-            )  # TODO: hard-coded relative path
-            prev_system_cfg: BaseLift3DSystem.Config = parse_structured(self.Config, prev_cfg.system)
-            prev_geometry_cfg = prev_system_cfg.geometry
-            prev_geometry_cfg.update(self.cfg.geometry_convert_override)
-            prev_geometry = threestudio.find(prev_system_cfg.geometry_type)(prev_geometry_cfg)
-            state_dict, epoch, global_step = load_module_weights(
-                self.cfg.geometry_convert_from,
-                module_name="geometry",
-                map_location="cpu",
-            )
-
-            # prev_geometry.load_state_dict(state_dict, strict=False)
-            m, u = ms.load_param_into_net(prev_geometry, state_dict, strict_load=False)
-
-            # convert from coarse stage geometry
-            self.geometry = threestudio.find(self.cfg.geometry_type).create_from(
-                prev_geometry,
-                self.cfg.geometry,
-                copy_net=self.cfg.geometry_convert_inherit_texture,
-            )
-            del prev_geometry
-        else:
-            self.geometry = threestudio.find(self.cfg.geometry_type)(self.cfg.geometry)
-
-        self.material = threestudio.find(self.cfg.material_type)(self.cfg.material)
-        self.background = threestudio.find(self.cfg.background_type)(self.cfg.background)
-        self.renderer = threestudio.find(self.cfg.renderer_type)(
-            self.cfg.renderer,
-            geometry=self.geometry,
-            material=self.material,
-            background=self.background,
-        )
+        self.renderer = threestudio.find(self.cfg.renderer_type)(self.cfg.renderer, self.cfg_for_highres)
 
     def guidance_evaluation_save(self, comp_rgb, guidance_eval_out):
         """MView Diffusion Guidance"""

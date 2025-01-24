@@ -27,11 +27,9 @@ class NeRFVolumeRenderer(Renderer):
     cfg: Config
 
     def __init__(self, cfg: Dict, cfg_for_highres: Dict) -> None:
-        super().configure(cfg.renderer.radius)
-        self.material = threestudio.find(cfg.material_type)(cfg.material)
-        self.background = threestudio.find(cfg.background_type)(cfg.background)
-        self.geometry = threestudio.find(cfg.geometry_type)(cfg.geometry)
-        self.cfg = self.Config(**cfg.renderer)
+        super().__init__(cfg, cfg_for_highres)
+        cfg = cfg.renderer
+        self.cfg = self.Config(**cfg)
         self.cfg.depth_resolution = int(
             self.cfg.num_samples_per_ray / 2
         )  # needs to be cal according to cfg #spr, thus cannot put in the class def

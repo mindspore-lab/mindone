@@ -31,7 +31,7 @@ class MVDreamSystem(BaseLift3DSystem):
             self.safe_recompute(b[-1])
 
     def configure(self) -> None:
-        # set up geometry, material, background, renderer
+        # set up renderer by configuring the baselift3Dsystem
         super().configure()
         self.guidance = threestudio.find(self.cfg.guidance_type)(self.cfg.guidance)
         self.guidance.requires_grad = False

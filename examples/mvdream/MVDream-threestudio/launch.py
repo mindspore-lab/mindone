@@ -46,9 +46,19 @@ def launch(args, extras) -> None:
     else:
         output_dir = cfg.exp_root_dir
 
+    if args.train_highres:
+        cfg.data.update({"batch_size": 4})
+        cfg.data.update({"width": 256})
+        cfg.data.update({"height": 256})
+        global_step = 5000
+    else:
+        train_cfg.params.update({"max_steps": 5000})  # for lowres only train to s5k
+
     # put name as ""
     logger = set_logger(name="", output_dir=str(output_dir) if not args.debug else None, rank=rank_id)
-    system: BaseSystem = threestudio.find(cfg.system_type)(cfg.system, resumed=cfg.resume is not None)
+    system: BaseSystem = threestudio.find(cfg.system_type)(
+        cfg.system, resumed=cfg.resume is not None, train_highres=args.train_highres
+    )
     system.set_save_dir(os.path.join(output_dir, cfg.trial_dir, "save"))
     if train_cfg.params.precision == "16-mixed":
         system = auto_mixed_precision(system, amp_level=train_cfg.params.amp_level)
@@ -70,14 +80,6 @@ def launch(args, extras) -> None:
         global_epoch = 0
 
     # step 2: prepare dataloader opt/sche/trainer
-    if args.train_highres:
-        cfg.data.update({"batch_size": 4})
-        cfg.data.update({"width": 256})
-        cfg.data.update({"height": 256})
-        global_step = 5000
-    else:
-        train_cfg.params.update({"max_steps": 5000})  # for lowres only train to s5k
-
     dataset = threestudio.find(cfg.data_type)(cfg.data)
 
     # step 3.a: launch training
@@ -87,7 +89,6 @@ def launch(args, extras) -> None:
         train_loader = ms.dataset.GeneratorDataset(
             dataset.train_dataset,
             column_names=dataset.train_dataset.output_columns,
-            # column_names=["batch"],
             shuffle=False,
         )
         val_loader = ms.dataset.GeneratorDataset(
@@ -99,22 +100,22 @@ def launch(args, extras) -> None:
         _lr_params = cfg.system.optimizer.lr_params
         group_params = [
             {
-                "params": system.geometry.encoding.trainable_params(),
+                "params": system.renderer.geometry.encoding.trainable_params(),
                 "weight_decay": _weight_decay,
                 "lr": _lr_params.geometry_encoding,
             },
             {
-                "params": system.geometry.density_network.trainable_params(),
+                "params": system.renderer.geometry.density_network.trainable_params(),
                 "weight_decay": _weight_decay,
                 "lr": _lr_params.geometry_density_network,
             },
             {
-                "params": system.geometry.feature_network.trainable_params(),
+                "params": system.renderer.geometry.feature_network.trainable_params(),
                 "weight_decay": _weight_decay,
                 "lr": _lr_params.geometry_feature_network,
             },
             {
-                "params": system.background.trainable_params(),
+                "params": system.renderer.background.trainable_params(),
                 "weight_decay": _weight_decay,
                 "lr": _lr_params.background,
             },
@@ -129,12 +130,12 @@ def launch(args, extras) -> None:
 
         if args.loss_scaler_type == "dynamic":  # for the case when there is an overflow during training
             loss_scaler = nn.DynamicLossScaleUpdateCell(
-                loss_scale_value=args.init_loss_scale,
-                scale_factor=args.loss_scale_factor,
-                scale_window=args.scale_window,
+                loss_scale_value=cfg.train_cfg.loss_scale.loss_scale_value,
+                scale_factor=cfg.train_cfg.loss_scale.loss_scale_factor,
+                scale_window=cfg.train_cfg.loss_scale.scale_window,
             )
         elif args.loss_scaler_type == "static":
-            loss_scaler = nn.FixedLossScaleUpdateCell(args.init_loss_scale)
+            loss_scaler = nn.FixedLossScaleUpdateCell(cfg.train_cfg.loss_scale.loss_scale_value)
         else:
             loss_scaler = ms.Tensor([1.0], dtype=ms.float32)
         if cfg.resume:
@@ -145,7 +146,7 @@ def launch(args, extras) -> None:
             system,
             optimizer=optimizer,
             scale_sense=loss_scaler,
-            # **cfg.train_cfg.settings  # alignment: no clip grap & overflow handling related for now, but if amp not ok then needs to clip it and loss-scale it
+            **cfg.train_cfg.settings,  # alignment: no clip grap & overflow handling related for now, but if amp not ok then needs to clip it and loss-scale it
         )
 
         if rank_id == 0:
@@ -210,7 +211,7 @@ def launch(args, extras) -> None:
                 logger.warning("overflow detected")
 
             # save train state and ckpts when reaches the global step milestone
-            if (global_step + 1) % train_cfg.params.save_interval == 0 or global_step == train_cfg.params.max_steps - 1:
+            if global_step % train_cfg.params.save_interval == 0 or global_step == train_cfg.params.max_steps:
                 # validate during training
                 for view_idx, batch in enumerate(val_loader):
                     net_with_grads.network.validation_step(batch, view_idx)
