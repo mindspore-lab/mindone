@@ -9,6 +9,7 @@ from omegaconf import OmegaConf
 sys.path.append("../..")  # FIXME: loading mindone, remove in future when mindone is ready for install
 
 from sgm.helpers import create_model_sv3d
+from sgm.modules.train.callback import LossMonitor
 from sgm.util import get_obj_from_str
 from utils import mixed_precision
 
@@ -57,6 +58,7 @@ def main(args):
         checkpoints=train_cfg.pretrained,
         freeze=False,
         amp_level="O0",  # the network should be init as O0, otherwise loss becomes fp16 just in the current code base and raise loss nan
+        config_arch_toload_vanilla_sv3d_ckpt=False,  # for training never load vanilla ckpt
     )
 
     temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_param_names(prefix="model.diffusion_model.")
@@ -98,6 +100,7 @@ def main(args):
     if rank_id == 0:
         callbacks.extend(
             [
+                LossMonitor(),
                 EvalSaveCallback(
                     network=ldm_with_loss,
                     model_name="sv3d",

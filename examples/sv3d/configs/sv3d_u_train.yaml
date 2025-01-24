@@ -24,8 +24,6 @@ train:
         p_mean: 1.0
         p_std: 1.6
 
-    config_arch_toload_vanilla_sv3d_ckpt: False
-
   dataset:
     class_path: data.mulvideo_dataset.MulviewVideoDataset
     init_args:

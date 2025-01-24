@@ -4,6 +4,7 @@ model:
     scale_factor: 0.18215
     disable_first_stage_amp: True
     en_and_decode_n_samples_a_time: 7
+    config_arch_toload_vanilla_sv3d_ckpt: True
 
     denoiser_config:
       target: sgm.modules.diffusionmodules.denoiser.Denoiser

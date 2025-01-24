@@ -53,11 +53,16 @@ class SV3DInferPipeline:
     ):
         super().__init__()
         model_config = OmegaConf.load(model_config)
-        model_config.model.params.config_arch_toload_vanilla_sv3d_ckpt = True if version == "sv3d_u" else False
         model_config.model.params.sampler_config.params.verbose = verbose
         model_config.model.params.sampler_config.params.num_steps = num_steps
         model_config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
-        self.model, _ = create_model_sv3d(model_config, checkpoints=ckpt_path, freeze=True, amp_level=amp_level)
+        self.model, _ = create_model_sv3d(
+            model_config,
+            checkpoints=ckpt_path,
+            freeze=True,
+            amp_level=amp_level,
+            config_arch_toload_vanilla_sv3d_ckpt=model_config.model.params.config_arch_toload_vanilla_sv3d_ckpt,
+        )
         self.model.en_and_decode_n_samples_a_time = decoding_t
 
         # for the new sampler only
