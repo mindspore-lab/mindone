@@ -12,11 +12,12 @@ import mindspore as ms
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
+from mindone.visualize.videos import save_videos
+
 # from hyvideo.utils.file_utils import save_videos_grid
+sys.path.append(".")
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
-
-from mindone.visualize.videos import save_videos
 
 
 def init_env(args):
