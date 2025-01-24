@@ -36,6 +36,9 @@ _import_structure = {
         "StableDiffusionXLControlNetImg2ImgPipeline",
         "StableDiffusionXLControlNetInpaintPipeline",
         "StableDiffusionXLControlNetPipeline",
+        "StableDiffusionXLControlNetUnionPipeline",
+        "StableDiffusionXLControlNetUnionInpaintPipeline",
+        "StableDiffusionXLControlNetUnionImg2ImgPipeline",
     ],
     "controlnet_hunyuandit": ["HunyuanDiTControlNetPipeline"],
     "controlnet_xs": [
@@ -67,6 +70,7 @@ _import_structure = {
         "FluxPipeline",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
+    "hunyuan_video": ["HunyuanVideoPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
     "kandinsky": [
@@ -103,6 +107,7 @@ _import_structure = {
         "LatentConsistencyModelPipeline",
     ],
     "latte": ["LattePipeline"],
+    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline"],
     "lumina": ["LuminaText2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
@@ -115,8 +120,10 @@ _import_structure = {
         "HunyuanDiTPAGPipeline",
         "SanaPAGPipeline",
         "StableDiffusion3PAGPipeline",
+        "StableDiffusion3PAGImg2ImgPipeline",
         "StableDiffusionPAGPipeline",
         "StableDiffusionPAGImg2ImgPipeline",
+        "StableDiffusionPAGInpaintPipeline",
         "StableDiffusionControlNetPAGPipeline",
         "StableDiffusionXLPAGPipeline",
         "StableDiffusionXLPAGInpaintPipeline",
@@ -210,6 +217,9 @@ if TYPE_CHECKING:
         StableDiffusionXLControlNetImg2ImgPipeline,
         StableDiffusionXLControlNetInpaintPipeline,
         StableDiffusionXLControlNetPipeline,
+        StableDiffusionXLControlNetUnionImg2ImgPipeline,
+        StableDiffusionXLControlNetUnionInpaintPipeline,
+        StableDiffusionXLControlNetUnionPipeline,
     )
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
     from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
@@ -234,6 +244,7 @@ if TYPE_CHECKING:
         FluxPipeline,
     )
     from .hunyuandit import HunyuanDiTPipeline
+    from .hunyuan_video import HunyuanVideoPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
         KandinskyCombinedPipeline,
@@ -261,6 +272,7 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .latte import LattePipeline
+    from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
     from .pag import (
@@ -269,10 +281,12 @@ if TYPE_CHECKING:
         KolorsPAGPipeline,
         PixArtSigmaPAGPipeline,
         SanaPAGPipeline,
+        StableDiffusion3PAGImg2ImgPipeline,
         StableDiffusion3PAGPipeline,
         StableDiffusionControlNetPAGInpaintPipeline,
         StableDiffusionControlNetPAGPipeline,
         StableDiffusionPAGImg2ImgPipeline,
+        StableDiffusionPAGInpaintPipeline,
         StableDiffusionPAGPipeline,
         StableDiffusionXLControlNetPAGImg2ImgPipeline,
         StableDiffusionXLControlNetPAGPipeline,

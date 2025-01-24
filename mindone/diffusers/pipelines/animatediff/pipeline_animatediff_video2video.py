@@ -37,6 +37,7 @@ from ...schedulers import (
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
+from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import AnimateDiffPipelineOutput
 
@@ -174,6 +175,7 @@ class AnimateDiffVideoToVideoPipeline(
     TextualInversionLoaderMixin,
     IPAdapterMixin,
     StableDiffusionLoraLoaderMixin,
+    AnimateDiffFreeNoiseMixin,
 ):
     r"""
     Pipeline for video-to-video generation.
@@ -912,24 +914,37 @@ class AnimateDiffVideoToVideoPipeline(
             self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
         )
         num_frames = latents.shape[2]
-        prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-            prompt,
-            num_videos_per_prompt,
-            self.do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-            lora_scale=text_encoder_lora_scale,
-            clip_skip=self.clip_skip,
-        )
+        if self.free_noise_enabled:
+            prompt_embeds, negative_prompt_embeds = self._encode_prompt_free_noise(
+                prompt=prompt,
+                num_frames=num_frames,
+                num_videos_per_prompt=num_videos_per_prompt,
+                do_classifier_free_guidance=self.do_classifier_free_guidance,
+                negative_prompt=negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=text_encoder_lora_scale,
+                clip_skip=self.clip_skip,
+            )
+        else:
+            prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+                prompt,
+                num_videos_per_prompt,
+                self.do_classifier_free_guidance,
+                negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=text_encoder_lora_scale,
+                clip_skip=self.clip_skip,
+            )
 
-        # For classifier free guidance, we need to do two forward passes.
-        # Here we concatenate the unconditional and text embeddings into a single batch
-        # to avoid doing two forward passes
-        if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            # For classifier free guidance, we need to do two forward passes.
+            # Here we concatenate the unconditional and text embeddings into a single batch
+            # to avoid doing two forward passes
+            if self.do_classifier_free_guidance:
+                prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
 
-        prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
+            prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
         # 6. Prepare IP-Adapter embeddings
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
