@@ -693,6 +693,11 @@ def get_1d_rotary_pos_embed(
         freqs_cos = ops.cat([freqs.cos(), freqs.cos()], axis=-1).float()  # [S, D]
         freqs_sin = ops.cat([freqs.sin(), freqs.sin()], axis=-1).float()  # [S, D]
         return freqs_cos, freqs_sin
+    elif use_real:
+        # stable audio, allegro
+        freqs_cos = ops.cat([freqs.cos(), freqs.cos()], axis=-1).float()  # [S, D]
+        freqs_sin = ops.cat([freqs.sin(), freqs.sin()], axis=-1).float()  # [S, D]
+        return freqs_cos, freqs_sin
     else:
         # lumina
         freqs_cis = ops.polar(ops.ones_like(freqs), freqs)  # complex64     # [S, D/2]
