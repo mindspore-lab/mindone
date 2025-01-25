@@ -1,8 +1,8 @@
 # plot memory usage and compile info
 # export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 
-python hyvideo/sample_video.py \
-    --ms-mode 1 \
+python sample_video.py \
+    --ms-mode 0 \
     --video-size 544 960 \
     --video-length 129 \
     --infer-steps 50 \
