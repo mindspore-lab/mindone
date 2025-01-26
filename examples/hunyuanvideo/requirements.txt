@@ -1,5 +1,6 @@
 opencv-python==4.9.0.80
 tokenizers==0.20.3
+transformers==4.46.3
 pandas==2.0.3
 numpy==1.24.4
 tqdm==4.66.2

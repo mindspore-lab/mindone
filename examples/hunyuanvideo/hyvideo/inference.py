@@ -423,6 +423,13 @@ class HunyuanVideoSampler(Inference):
             prompt_embeds = data["prompt_embeds"]
             prompt_mask = data["prompt_mask"]
             prompt_embeds_2 = data["prompt_embeds_2"]
+
+            if len(prompt_embeds.shape) == 2:
+                # (seq_len, embed_dim) -> (1, seq_len, embed_dim)
+                prompt_embeds = np.expand_dims(prompt_embeds, axis=0)
+                prompt_mask = np.expand_dims(prompt_mask, axis=0)
+                prompt_embeds_2 = np.expand_dims(prompt_embeds_2, axis=0)
+             
             prompt_embeds = ms.Tensor(prompt_embeds)
             prompt_mask = ms.Tensor(prompt_mask, dtype=ms.bool_)
             prompt_embeds_2 = ms.Tensor(prompt_embeds_2)

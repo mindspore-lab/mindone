@@ -18,12 +18,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Optional, Tuple, Union
+import math
 
 import numpy as np
 from transformers import LlamaConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
+from mindspore.ops.operations.nn_ops import FlashAttentionScore
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 
@@ -203,7 +205,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
 class LlamaAttention(nn.Cell):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
-    def __init__(self, config: LlamaConfig, layer_idx: Optional[int] = None):
+    def __init__(self, config: LlamaConfig, layer_idx: Optional[int] = None, use_fa=True):
         super().__init__()
         self.config = config
         self.layer_idx = layer_idx
@@ -245,6 +247,15 @@ class LlamaAttention(nn.Cell):
         ]
         for name in _name_list:
             setattr(self, name, getattr(config, name))
+
+        self.use_fa = use_fa
+        if use_fa:
+            # print('llama FA enabled')
+            scale_factor = 1 / math.sqrt(self.head_dim)
+            self.flash_attention = FlashAttentionScore(
+                self.num_heads, keep_prob=1 - config.attention_dropout, scale_value=scale_factor, input_layout="BNSD"
+            )
+
 
     def _init_rope(self):
         if self.config.rope_scaling is None:
@@ -316,27 +327,40 @@ class LlamaAttention(nn.Cell):
         if past_key_value is not None:
             key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
             past_key_value = (key_states, value_states)
+        
+        # ---- attn compute start
+        # q/k/v: (B N S D), mask: retain 0,  padded -INF
+        if self.use_fa: 
+            # mask convert: -INF to true
+            if attention_mask is not None:  # no matter the length, we just slice it
+                # TODO: is it necessary? can be slow
+                attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+                attention_mask = (- attention_mask).to(ms.bool_)
+            _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, attention_mask)
 
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
+        else:
+            key_states = repeat_kv(key_states, self.num_key_value_groups)
+            value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        attn_weights = ops.matmul(query_states, key_states.swapdims(2, 3)) / (self.head_dim**0.5)
+            attn_weights = ops.matmul(query_states, key_states.swapdims(2, 3)) / (self.head_dim**0.5)
 
-        attn_weights = ops.cast(attn_weights, ms.float32)
-        if attention_mask is not None:  # no matter the length, we just slice it
-            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-            attn_weights = attn_weights + ops.cast(causal_mask, attn_weights.dtype)
+            attn_weights = ops.cast(attn_weights, ms.float32)
+            if attention_mask is not None:  # no matter the length, we just slice it
+                causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
+                attn_weights = attn_weights + ops.cast(causal_mask, attn_weights.dtype)
 
-        # upcast attention to fp32
-        attn_weights = ops.softmax(attn_weights, axis=-1, dtype=ms.float32).to(query_states.dtype)
-        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = ops.matmul(attn_weights, value_states)
+            # upcast attention to fp32
+            attn_weights = ops.softmax(attn_weights, axis=-1, dtype=ms.float32).to(query_states.dtype)
+            attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
+            attn_output = ops.matmul(attn_weights, value_states)
 
         # assert attn_output.shape == (bsz, self.num_heads, q_len, self.head_dim)
+        # ---- attn compute end
 
         attn_output = attn_output.swapdims(1, 2)
 
         attn_output = attn_output.reshape(bsz, q_len, -1)
+
 
         if self.pretraining_tp > 1:
             attn_output = attn_output.split(self.hidden_size // self.pretraining_tp, axis=2)
@@ -686,7 +710,9 @@ class LlamaModel(LlamaPreTrainedModel):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
-
+        
+        # print("D--: debugging, reduce llama depth to 1 !!!!!")
+        # config.num_hidden_layers = 1
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
         self.layers = nn.CellList(
             [LlamaDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]

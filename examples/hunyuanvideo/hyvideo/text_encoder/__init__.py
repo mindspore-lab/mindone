@@ -1,20 +1,21 @@
 import os
 import sys
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
-sys.path.insert(0, mindone_lib_path)
 
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from transformers import CLIPTokenizer, AutoTokenizer
 from transformers.utils import ModelOutput
+import mindspore as ms
 from mindspore import nn, Tensor
 
 from constants import TEXT_ENCODER_PATH, TOKENIZER_PATH
 from constants import PRECISION_TO_TYPE
 from mindone.transformers import CLIPTextModel
+from mindone.utils.amp import auto_mixed_precision
 from .transformers import LlamaModel
+from .transformers.models.llama.modeling_llama import ALL_LAYERNORM_LAYERS 
+from hyvideo.utils.helpers import set_model_param_dtype
 
 
 def use_default(value, default):
@@ -33,7 +34,6 @@ def load_text_encoder(
         logger.info(
             f"Loading text encoder model ({text_encoder_type}) from: {text_encoder_path}"
         )
-
     if text_encoder_type == "clipL":
         text_encoder = CLIPTextModel.from_pretrained(text_encoder_path)
         text_encoder.final_layer_norm = text_encoder.text_model.final_layer_norm
@@ -45,7 +45,18 @@ def load_text_encoder(
     # from_pretrained will ensure that the model is in eval mode.
 
     if text_encoder_precision is not None:
-        text_encoder = text_encoder.to_float(PRECISION_TO_TYPE[text_encoder_precision])
+        # text_encoder = text_encoder.to_float(PRECISION_TO_TYPE[text_encoder_precision]) 
+        # text encoder param: half
+        dtype = PRECISION_TO_TYPE[text_encoder_precision]
+        if dtype != ms.float32:
+            set_model_param_dtype(text_encoder, dtype=dtype)
+        
+        amp_level = "O2"
+        custom_fp32_cells = ALL_LAYERNORM_LAYERS
+        text_encoder = auto_mixed_precision(text_encoder, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
+        logger.info(
+            f"Set text encoder mixed precision to {amp_level} with dtype={dtype}, custom fp32_cells {custom_fp32_cells}"
+        )
 
     # text_encoder.requires_grad_(False)
     text_encoder.set_train(False)
@@ -321,7 +332,6 @@ class TextEncoder(nn.Cell):
                 attention_mask = (
                     attention_mask[:, crop_start:] if use_attention_mask else None
                 )
-
         if output_hidden_states:
             return TextEncoderModelOutput(
                 last_hidden_state, attention_mask, outputs.hidden_states

@@ -104,7 +104,7 @@ python hyvideo/run_text_encoder.py \
   --output_path /path/to/text_embed_folder \
 ```
 
-Please refer to [dataset formet](hyvideo/dataset/README.md) to write the json file.  A shell script `scripts/run_text_encoder.sh` is provided as well.
+Please refer to [dataset format](hyvideo/dataset/README.md) to write the json file.  A shell script `scripts/run_text_encoder.sh` is provided as well.
 
 ### Video embedding cache
 

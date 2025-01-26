@@ -72,7 +72,7 @@ def load_vae(
             amp_level = "O2"
             vae = auto_mixed_precision(vae, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells)
             logger.info(
-                f"Set mixed precision to {amp_level} with dtype={vae_precision}, custom fp32_cells {custom_fp32_cells}"
+                f"Set vae mixed precision to {amp_level} with dtype={dtype}, custom fp32_cells {custom_fp32_cells}"
             )
 
     vae.set_train(False)
