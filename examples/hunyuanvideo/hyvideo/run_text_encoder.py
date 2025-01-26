@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import logging
 from pathlib import Path
@@ -6,14 +7,22 @@ from tqdm import tqdm
 
 import numpy as np
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+
+from dataset.text_dataset import create_dataloader
+
 from constants import PROMPT_TEMPLATE, PRECISIONS
 from text_encoder import TextEncoder
-from dataset.text_dataset import create_dataloader
 from dataset.transform import text_preprocessing
 from utils.message_utils import print_banner
 from utils.ms_utils import init_env
+
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,8 +55,7 @@ def parse_args():
     parser.add_argument(
         "--text_encoder_path",
         type=str,
-        default=None,
-        required=True,
+        default="ckpts/text_encoder",
         help="File path of the ckpt of the text encoder.",
     )
     parser.add_argument(
@@ -111,8 +119,7 @@ def parse_args():
     parser.add_argument(
         "--text_encoder_path_2",
         type=str,
-        default=None,
-        required=True,
+        default="ckpts/text_encoder_2",
         help="File path of the ckpt of the second text encoder.",
     )
     parser.add_argument(
@@ -181,8 +188,13 @@ def parse_args():
         "--data_file_path",
         type=str,
         default=None,
-        required=True,
         help="File path of prompts, must be a txt or csv file.",
+    )
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="text prompt",
     )
     parser.add_argument(
         "--output_path",
@@ -212,7 +224,6 @@ def save_emb(output, output_2, output_dir, file_paths):
         npz_fp = Path(output_dir) / fn
         if not os.path.exists(npz_fp.parent):
             os.makedirs(npz_fp.parent)
-
         np.savez(
             npz_fp,
             prompt_embeds=output.hidden_state[i].float().asnumpy().astype(np.float32) if output is not None else None,
@@ -297,20 +308,33 @@ def main(args):
         )
         dataset_size = dataset.get_dataset_size()
         logger.info(f"Num batches: {dataset_size}")
+    elif args.prompt is not None:
+        data = {}
+        prompt_fn = "-".join((args.prompt.replace("/", "").split(" ")[:16]))
+        data["file_path"] = ["./{}.npz".format(prompt_fn)]
+        data["caption"] = [args.prompt]
+        dataset = None
+        dataset_size = 1
+        prompt_iter = iter([data])
+    else:
+        raise ValueError("Either data_file_path or prompt has to be provided")
 
     print_banner("text encoder init")
     text_encoder, text_encoder_2 = build_model(args, logger)
 
+
     # infer
     print_banner("Text prompts loading")
-    if args.output_path is None:
-        output_dir = Path(args.data_file_path).parent
+    if args.output_path is None: output_dir = Path(args.data_file_path).parent if args.data_file_path is not None else "./"
     else:
         output_dir = Path(args.output_path)
     os.makedirs(output_dir, exist_ok=True)
     logger.info(f"Output embeddings will be saved: {output_dir}")
     logger.info("Start embedding...")
-    ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
+    if dataset is not None: 
+        ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
+    else:
+        ds_iter = prompt_iter 
     for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
         file_paths = data["file_path"]
         captions = data["caption"]
@@ -321,10 +345,10 @@ def main(args):
         # llm
         if text_encoder is not None:
             output = text_encoder(captions, data_type="video")
+            print('D--: ', output.hidden_state)
         # clipL
         if text_encoder_2 is not None:
             output_2 = text_encoder_2(captions, data_type="video")
-
         save_emb(output, output_2, output_dir, file_paths)
 
     logger.info(f"Done. Embeddings saved in {output_dir}")
