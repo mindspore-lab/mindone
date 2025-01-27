@@ -46,22 +46,22 @@ class SV3DInferPipeline:
         version: str,
         cond_aug: float,
         decoding_t: int = 14,
-        elevations_deg: float = None,  # TODO: for sv3d_p
+        elevations_deg: float = None,  # for sv3d_p
         azimuths_deg: float = None,
         verbose=False,
         amp_level: Literal["O0", "O2"] = "O0",
     ):
-        super().__init__()
         model_config = OmegaConf.load(model_config)
         model_config.model.params.sampler_config.params.verbose = verbose
         model_config.model.params.sampler_config.params.num_steps = num_steps
         model_config.model.params.sampler_config.params.guider_config.params.num_frames = num_frames
+        _config_arch_toload_vanilla_sv3d_ckpt = True if version == "sv3d_u" else False
         self.model, _ = create_model_sv3d(
             model_config,
             checkpoints=ckpt_path,
             freeze=True,
             amp_level=amp_level,
-            config_arch_toload_vanilla_sv3d_ckpt=model_config.model.params.config_arch_toload_vanilla_sv3d_ckpt,
+            config_arch_toload_vanilla_sv3d_ckpt=_config_arch_toload_vanilla_sv3d_ckpt,
         )
         self.model.en_and_decode_n_samples_a_time = decoding_t
 
@@ -74,7 +74,7 @@ class SV3DInferPipeline:
         # for alignment of randomness with th
         img_shape = (576, 576)
         self.cond_c = np.random.randn(*img_shape).astype(np.float32)
-        self.randn_n = np.random.randn(21, 4, img_shape[0] // 8, img_shape[1] // 8).astype(np.float32)
+        self.randn_n = np.random.randn(num_frames, 4, img_shape[0] // 8, img_shape[1] // 8).astype(np.float32)
 
         self.cond_aug = cond_aug
         self.num_frames = num_frames
@@ -165,7 +165,7 @@ def sample(
 
     if version == "sv3d_u":
         num_frames = 21
-    elif version == "sv3d_u_overffitted_ckpt":
+    elif version == "sv3d_u_overfitted_ckpt":
         num_frames = 6  # overfitted under this number, larger leads to oom during overfitting
     else:
         raise ValueError(f"Version {version} is not supported for this example yet.")

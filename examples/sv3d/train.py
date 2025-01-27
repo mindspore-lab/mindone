@@ -57,8 +57,8 @@ def main(args):
         train_cfg,
         checkpoints=train_cfg.pretrained,
         freeze=False,
-        amp_level="O0",  # the network should be init as O0, otherwise loss becomes fp16 just in the current code base and raise loss nan
-        config_arch_toload_vanilla_sv3d_ckpt=False,  # for training never load vanilla ckpt
+        amp_level=train_cfg.amp_level,
+        config_arch_toload_vanilla_sv3d_ckpt=model_cfg.model.params.config_arch_toload_vanilla_sv3d_ckpt,  # for training never load vanilla ckpt
     )
 
     temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_param_names(prefix="model.diffusion_model.")

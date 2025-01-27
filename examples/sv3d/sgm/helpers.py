@@ -42,7 +42,7 @@ def create_model_sv3d(
     num_vectors: int = None,
     load_first_stage_model: bool = True,
     load_conditioner: bool = True,
-    config_arch_toload_vanilla_sv3d_ckpt: bool = True,
+    config_arch_toload_vanilla_sv3d_ckpt: bool = False,
 ):
     if train_config:
         config.model.params = OmegaConf.merge(config.model.params, train_config.model)
@@ -116,6 +116,7 @@ def load_model_from_config(
 ):
     model_config["params"]["load_first_stage_model"] = load_first_stage_model
     model_config["params"]["load_conditioner"] = load_conditioner
+    model_config["params"]["config_arch_toload_vanilla_sv3d_ckpt"] = config_arch_toload_vanilla_sv3d_ckpt
     model = instantiate_from_config(model_config)
 
     # from sgm.models.diffusion import DiffusionEngineMultiGraph
@@ -123,7 +124,6 @@ def load_model_from_config(
     if ckpts:
         _logger.info(f"Loading model from {ckpts} with the cfg file")
         # if not isinstance(model, DiffusionEngineMultiGraph):
-        # print(f'fred load diffusion multigraph {isinstance(model, DiffusionEngineMultiGraph)}, not multigraph')
         if isinstance(ckpts, str):
             ckpts = [ckpts]
 
