@@ -143,6 +143,7 @@ class AutoencoderKL(AutoencodingEngine):
         return dec
 
 
+# mvdream's ldm vae
 class AutoencoderKLInferenceWrapper(AutoencoderKL):
     @ms.jit
     def encode(self, x, **kwargs):
@@ -152,6 +153,7 @@ class AutoencoderKLInferenceWrapper(AutoencoderKL):
 
 
 class AutoencoderKLModeOnly(AutoencoderKL):
+    @ms.jit
     def encode(self, x, **kwargs):
         # super().encode(x) doesn't work correctly when wrapped with jit
         h = self.encoder(x)
