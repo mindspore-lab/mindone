@@ -58,7 +58,6 @@ def main(args):
         checkpoints=train_cfg.pretrained,
         freeze=False,
         amp_level=train_cfg.amp_level,
-        config_arch_toload_vanilla_sv3d_ckpt=model_cfg.model.params.config_arch_toload_vanilla_sv3d_ckpt,  # for training never load vanilla ckpt
     )
 
     temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_param_names(prefix="model.diffusion_model.")
