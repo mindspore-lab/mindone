@@ -110,15 +110,7 @@ More demos can be found below. Input images are from [the Unique 3D repo](https:
 +     video_kernel_size: [ 3, 1, 1 ]
 ```
 
-Following the paper, we conduct training from SVD checkpoints, thus `sv3d_u.yaml` is also needed to be patched as follows.
-```diff
-model:
-    params:
--       config_arch_toload_vanilla_sv3d_ckpt: True
-+       config_arch_toload_vanilla_sv3d_ckpt: False
-```
-
-4. Launch training by running the following script:
+1. Launch training by running the following script:
 ```shell
 python train.py \
     --model_cfg configs/sampling/sv3d_u.yaml \
