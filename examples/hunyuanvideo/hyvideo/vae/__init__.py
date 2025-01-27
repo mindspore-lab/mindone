@@ -5,6 +5,7 @@ import mindspore as ms
 from mindone.safetensors.mindspore import load_file
 from mindone.utils.amp import auto_mixed_precision
 
+from ..utils.helpers import set_model_param_dtype
 from ..constants import PRECISION_TO_TYPE, VAE_PATH
 from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
 from .unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
@@ -67,6 +68,10 @@ def load_vae(
                 custom_fp32_cells = [MSPad, MSInterpolate]
             else:
                 raise ValueError
+
+            # half param to save memory
+            if dtype != ms.float32:
+                set_model_param_dtype(vae, dtype=dtype)
 
             # TODO: try 'auto' in ms.amp.auto_mixed_precision
             amp_level = "O2"

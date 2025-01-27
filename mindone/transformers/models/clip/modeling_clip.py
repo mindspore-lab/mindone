@@ -671,7 +671,6 @@ class CLIPVisionTransformer(nn.Cell):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-
         last_hidden_state = encoder_outputs[0]
         pooled_output = last_hidden_state[:, 0, :]
         pooled_output = self.post_layernorm(pooled_output)

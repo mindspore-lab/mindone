@@ -111,6 +111,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.exp = ops.Exp()
         self.stdnormal = ops.StandardNormal()
 
+        print("D--: tile_latent_min size  ", self.tile_latent_min_tsize , self.tile_latent_min_size)
+
     def _set_gradient_checkpointing(self, module, value=False):
         raise NotImplementedError
 

@@ -70,13 +70,6 @@ def add_extra_models_args(parser: argparse.ArgumentParser):
         choices=PRECISIONS,
         help="Precision mode for the VAE model.",
     )
-    # group.add_argument(
-    #    "--vae-tiling",
-    #    action="store_true",
-    #    help="Enable tiling for the VAE model to save GPU memory.",
-    # )
-    # group.set_defaults(vae_tiling=True)
-
     group.add_argument(
         "--vae-tiling",
         default=True,

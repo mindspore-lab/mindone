@@ -3,13 +3,13 @@ import time
 from pathlib import Path
 
 import numpy as np
-from hyvideo.constants import NEGATIVE_PROMPT, PRECISION_TO_TYPE  # , PROMPT_TEMPLATE
+from hyvideo.constants import NEGATIVE_PROMPT, PRECISION_TO_TYPE, PROMPT_TEMPLATE
 from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
 from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
 from hyvideo.modules import load_model
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
 
-# from hyvideo.text_encoder import TextEncoder
+from hyvideo.text_encoder import TextEncoder
 from hyvideo.utils.data_utils import align_to
 from hyvideo.vae import load_vae
 from loguru import logger
@@ -117,9 +117,54 @@ class Inference(object):
         vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
 
         # Text encoder
-        # TODO: add text encoders and set amp
-        text_encoder = None
-        text_encoder_2 = None
+        if args.prompt_template_video is not None:
+            crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get(
+                "crop_start", 0
+            )
+        elif args.prompt_template is not None:
+            crop_start = PROMPT_TEMPLATE[args.prompt_template].get("crop_start", 0)
+        else:
+            crop_start = 0
+        max_length = args.text_len + crop_start
+
+        # prompt_template
+        prompt_template = (
+            PROMPT_TEMPLATE[args.prompt_template]
+            if args.prompt_template is not None
+            else None
+        )
+
+        # prompt_template_video
+        prompt_template_video = (
+            PROMPT_TEMPLATE[args.prompt_template_video]
+            if args.prompt_template_video is not None
+            else None
+        )
+
+
+        if args.text_embed_path is not None:
+            text_encoder = None
+            text_encoder_2 = None
+        else:
+            text_encoder = TextEncoder(
+                text_encoder_type=args.text_encoder,
+                max_length=max_length,
+                text_encoder_precision=args.text_encoder_precision,
+                tokenizer_type=args.tokenizer,
+                prompt_template=prompt_template,
+                prompt_template_video=prompt_template_video,
+                hidden_state_skip_layer=args.hidden_state_skip_layer,
+                apply_final_norm=args.apply_final_norm,
+                logger=logger,
+            )
+            if args.text_encoder_2 is not None:
+                text_encoder_2 = TextEncoder(
+                    text_encoder_type=args.text_encoder_2,
+                    max_length=args.text_len_2,
+                    text_encoder_precision=args.text_encoder_precision_2,
+                    tokenizer_type=args.tokenizer_2,
+                    logger=logger,
+                )
 
         return cls(
             args=args,

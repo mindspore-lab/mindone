@@ -284,9 +284,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             batch_size = len(prompt)
         else:
             batch_size = prompt_embeds.shape[0]
-
         if prompt_embeds is None:
-            raise NotImplementedError
             # textual inversion: process multi-vector tokens if necessary
             if isinstance(self, TextualInversionLoaderMixin):
                 prompt = self.maybe_convert_prompt(prompt, text_encoder.tokenizer)
@@ -310,13 +308,15 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                 # representations. The `last_hidden_states` that we typically use for
                 # obtaining the final prompt representations passes through the LayerNorm
                 # layer.
+                # NOTE: here is a Cell inference
                 prompt_embeds = text_encoder.model.text_model.final_layer_norm(prompt_embeds)
 
             attention_mask = prompt_outputs.attention_mask
             if attention_mask is not None:
                 attention_mask = attention_mask
                 bs_embed, seq_len = attention_mask.shape
-                attention_mask = attention_mask.repeat(1, num_videos_per_prompt)
+                # import pdb; pdb.set_trace()
+                attention_mask = attention_mask.tile((1, num_videos_per_prompt))
                 attention_mask = attention_mask.view(bs_embed * num_videos_per_prompt, seq_len)
 
         if text_encoder is not None:
@@ -373,7 +373,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             negative_attention_mask = negative_prompt_outputs.attention_mask
             if negative_attention_mask is not None:
                 _, seq_len = negative_attention_mask.shape
-                negative_attention_mask = negative_attention_mask.repeat(1, num_videos_per_prompt)
+                negative_attention_mask = negative_attention_mask.tile((1, num_videos_per_prompt))
                 negative_attention_mask = negative_attention_mask.view(batch_size * num_videos_per_prompt, seq_len)
 
         if do_classifier_free_guidance:
@@ -385,10 +385,10 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             )
 
             if negative_prompt_embeds.ndim == 2:
-                negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_videos_per_prompt)
+                negative_prompt_embeds = negative_prompt_embeds.tile((1, num_videos_per_prompt))
                 negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, -1)
             else:
-                negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_videos_per_prompt, 1)
+                negative_prompt_embeds = negative_prompt_embeds.tile((1, num_videos_per_prompt, 1))
                 negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         if text_encoder is not None:

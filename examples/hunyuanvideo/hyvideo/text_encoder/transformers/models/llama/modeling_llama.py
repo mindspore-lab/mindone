@@ -336,7 +336,7 @@ class LlamaAttention(nn.Cell):
                 # TODO: is it necessary? can be slow
                 attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
                 attention_mask = (- attention_mask).to(ms.bool_)
-            _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, attention_mask)
+            _, _, attn_weights, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, attention_mask)
 
         else:
             key_states = repeat_kv(key_states, self.num_key_value_groups)

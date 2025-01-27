@@ -9,8 +9,8 @@ from transformers.utils import ModelOutput
 import mindspore as ms
 from mindspore import nn, Tensor
 
-from constants import TEXT_ENCODER_PATH, TOKENIZER_PATH
-from constants import PRECISION_TO_TYPE
+from ..constants import TEXT_ENCODER_PATH, TOKENIZER_PATH
+from ..constants import PRECISION_TO_TYPE
 from mindone.transformers import CLIPTextModel
 from mindone.utils.amp import auto_mixed_precision
 from .transformers import LlamaModel
@@ -192,7 +192,8 @@ class TextEncoder(nn.Cell):
             text_encoder_path=self.model_path,
             logger=self.logger,
         )
-        # self.dtype = self.model.dtype
+        # import pdb; pdb.set_trace()
+        self.dtype = self.model.dtype
 
         self.tokenizer, self.tokenizer_path = load_tokenizer(
             tokenizer_type=self.tokenizer_type,
@@ -282,6 +283,7 @@ class TextEncoder(nn.Cell):
         output_hidden_states=False,
         hidden_state_skip_layer=None,
         return_texts=False,
+        model_return_dict=True,
         data_type="image",
     ):
         """
@@ -308,16 +310,19 @@ class TextEncoder(nn.Cell):
             attention_mask=attention_mask,
             output_hidden_states=output_hidden_states
             or hidden_state_skip_layer is not None,
-            return_dict=True,  # TODO: align with PT, but may not work in graph mode in MS
+            return_dict=model_return_dict,  # TODO: align with PT, but may not work in graph mode in MS
         )
+
+        # import pdb; pdb.set_trace()
         if hidden_state_skip_layer is not None:
             last_hidden_state = outputs.hidden_states[-(hidden_state_skip_layer + 1)]
+            # last_hidden_state = outputs[0][-(hidden_state_skip_layer + 1)]
             # Real last hidden state already has layer norm applied. So here we only apply it
             # for intermediate layers.
             if hidden_state_skip_layer > 0 and self.apply_final_norm:
                 last_hidden_state = self.model.final_layer_norm(last_hidden_state)
         else:
-            last_hidden_state = outputs[self.output_key]
+            last_hidden_state = outputs[self.output_key]  # pooler_output for clip
 
         # Remove hidden states of instruction tokens, only keep prompt tokens.
         if self.use_template:
