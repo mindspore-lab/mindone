@@ -18,34 +18,27 @@ import math
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
+from mindspore.common.initializer import Constant, HeNormal, Uniform, initializer
+
 from mindone.transformers.modeling_utils import MSPreTrainedModel
-from mindspore.common.initializer import initializer, Uniform, HeNormal, Constant
 
 from .configuration_emu3visionvq import Emu3VisionVQConfig
 
 
 class Emu3VisionVQActivation(nn.Cell):
-
     def __init__(self):
         super().__init__()
 
-    def __call__(self, x: ms.Tensor):
+    def construct(self, x: ms.Tensor):
         return x * ops.sigmoid(x)
 
 
 class Emu3VisionVQUpsample(nn.Cell):
-
     def __init__(self, in_channels: int):
         super().__init__()
         self.conv = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            in_channels, in_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
 
     def construct(self, x: ms.Tensor):
@@ -55,34 +48,30 @@ class Emu3VisionVQUpsample(nn.Cell):
 
 
 class Emu3VisionVQDownsample(nn.Cell):
-
     def __init__(self, in_channels: int):
         super().__init__()
         self.conv = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=3,
-            stride=2,
-            pad_mode='pad',
-            padding=0,
-            has_bias=True
+            in_channels, in_channels, kernel_size=3, stride=2, pad_mode="pad", padding=0, has_bias=True
         )
+        padding = ((0, 0), (0, 0), (0, 1), (0, 1))
+        self.pad_op = ops.Pad(padding)
 
     def construct(self, x: ms.Tensor):
-        pad = (0, 1, 0, 1)
-        x = ops.pad(x, pad, mode="constant", value=0)
+        # pad = (0, 1, 0, 1)
+        # x = ops.pad(x, pad, mode="constant", value=0) # Graph mode not support bfloat16
+        x = self.pad_op(x)
         x = self.conv(x)
         return x
 
 
 class Emu3VisionVQCausalConv3d(nn.Cell):
-
     def __init__(
         self,
         in_channel: int,
         out_channel: int,
         kernel_size: Union[int, Tuple[int, ...]] = (3, 1, 1),
         stride: Union[int, Tuple[int, ...]] = (1, 1, 1),
+        conv3d_dtype=ms.float16,
     ):
         super().__init__()
 
@@ -90,12 +79,16 @@ class Emu3VisionVQCausalConv3d(nn.Cell):
             kernel_size = (kernel_size,) * 3
         if isinstance(stride, int):
             stride = (stride,) * 3
-        
+
         hw_pad = [k - s for k, s in zip(kernel_size[1:], stride[1:])]
         self.padding = tuple()
-        for p in hw_pad[::-1]:
-            self.padding += (p // 2 + p % 2, p // 2)
-        self.padding += (2, 0)
+        padding = ((0, 0), (0, 0), (2, 0))
+        for p in hw_pad:
+            padding += ((p // 2 + p % 2, p // 2),)  # NOTE: add in ((a,b),) format, make sure padding in (N,2) shape
+        self.pad_op = ops.Pad(padding)
+        # for p in hw_pad[::-1]:
+        #     self.padding += (p // 2 + p % 2, p // 2),
+        # self.padding += (2, 0)
 
         self.conv = nn.Conv3d(
             in_channel,
@@ -104,22 +97,25 @@ class Emu3VisionVQCausalConv3d(nn.Cell):
             stride=stride,
             pad_mode="valid",
             has_bias=True,
-        )
+        ).to_float(conv3d_dtype)
 
     def construct(self, x: ms.Tensor):
-        x = ops.pad(x, self.padding, mode="constant", value=0)
+        origin_dtype = x.dtype
+        # x = ops.pad(x, self.padding, mode="constant", value=0)
+        x = self.pad_op(x)
         x = self.conv(x)
+        x = x.to(origin_dtype)
         return x
 
 
 class Emu3VisionVQResnetTemporalBlock(nn.Cell):
-
     def __init__(
-        self, 
+        self,
         in_channels: int,
         out_channels: Optional[int] = None,
         conv_shortcut: bool = False,
         dropout: float = 0.0,
+        conv3d_dtype=ms.float16,
     ):
         super().__init__()
         self.in_channels = in_channels
@@ -157,16 +153,11 @@ class Emu3VisionVQResnetTemporalBlock(nn.Cell):
                 )
             else:
                 self.nin_shortcut = nn.Conv3d(
-                    in_channels,
-                    out_channels,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    pad_mode="pad",
-                    has_bias=True
-                )
+                    in_channels, out_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
+                ).to_float(conv3d_dtype)
 
     def construct(self, x: ms.Tensor):
+        origin_dtype = x.dtype
         h = self.norm1(x)
         h = self.act(h)
         h = self.conv1(h)
@@ -181,12 +172,12 @@ class Emu3VisionVQResnetTemporalBlock(nn.Cell):
                 x = self.conv_shortcut(x)
             else:
                 x = self.nin_shortcut(x)
+            x = x.to(origin_dtype)
 
         return x + h
 
 
 class Emu3VisionVQSpatialNorm(nn.Cell):
-
     def __init__(
         self,
         f_channels: int,
@@ -208,32 +199,14 @@ class Emu3VisionVQSpatialNorm(nn.Cell):
         self.add_conv = add_conv
         if self.add_conv:
             self.conv = nn.Conv2d(
-                zq_channels,
-                zq_channels,
-                kernel_size=3,
-                stride=1,
-                padding=1,
-                pad_mode="pad",
-                has_bias=True
+                zq_channels, zq_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
             )
 
         self.conv_y = nn.Conv2d(
-            zq_channels,
-            f_channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            pad_mode="pad",
-            has_bias=True
+            zq_channels, f_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
         )
         self.conv_b = nn.Conv2d(
-            zq_channels,
-            f_channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            pad_mode="pad",
-            has_bias=True
+            zq_channels, f_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
         )
 
     def construct(self, x: ms.Tensor, zq: ms.Tensor):
@@ -248,7 +221,6 @@ class Emu3VisionVQSpatialNorm(nn.Cell):
 
 
 class Emu3VisionVQResnetBlock(nn.Cell):
-
     def __init__(
         self,
         in_channels: int,
@@ -274,24 +246,12 @@ class Emu3VisionVQResnetBlock(nn.Cell):
             self.norm2 = Emu3VisionVQSpatialNorm(out_channels, zq_ch, add_conv=add_conv)
 
         self.conv1 = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            in_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
 
         self.dropout = nn.Dropout(p=dropout)
         self.conv2 = nn.Conv2d(
-            out_channels,
-            out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            out_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
 
         self.act = Emu3VisionVQActivation()
@@ -299,27 +259,15 @@ class Emu3VisionVQResnetBlock(nn.Cell):
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
                 self.conv_shortcut = nn.Conv2d(
-                    in_channels,
-                    out_channels,
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                    pad_mode="pad",
-                    has_bias=True
+                    in_channels, out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
                 )
             else:
                 self.nin_shortcut = nn.Conv2d(
-                    in_channels,
-                    out_channels,
-                    kernel_size=1,
-                    stride=1,
-                    padding=0,
-                    pad_mode="pad",
-                    has_bias=True
+                    in_channels, out_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
                 )
 
     def construct(self, x: ms.Tensor, zq: Optional[ms.Tensor] = None):
-        norm_args = tuple() if self.zq_ch is None else (zq, )
+        norm_args = tuple() if self.zq_ch is None else (zq,)
 
         h = self.norm1(x, *norm_args)
         h = self.act(h)
@@ -340,13 +288,7 @@ class Emu3VisionVQResnetBlock(nn.Cell):
 
 
 class Emu3VisionVQAttnBlock(nn.Cell):
-
-    def __init__(
-        self,
-        in_channels: int,
-        zq_ch: Optional[int] = None,
-        add_conv: bool = False
-    ):
+    def __init__(self, in_channels: int, zq_ch: Optional[int] = None, add_conv: bool = False):
         super().__init__()
         self.in_channels = in_channels
         self.zq_ch = zq_ch
@@ -357,45 +299,15 @@ class Emu3VisionVQAttnBlock(nn.Cell):
         else:
             self.norm = Emu3VisionVQSpatialNorm(in_channels, zq_ch, add_conv=add_conv)
 
-        self.q = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            pad_mode="pad",
-            has_bias=True
-        )
-        self.k = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            pad_mode="pad",
-            has_bias=True
-        )
-        self.v = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            pad_mode="pad",
-            has_bias=True
-        )
+        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True)
+        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True)
+        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True)
         self.proj_out = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=1,
-            stride=1,
-            padding=0,
-            pad_mode="pad",
-            has_bias=True
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
         )
 
     def construct(self, x: ms.Tensor, zq: Optional[ms.Tensor] = None):
-        norm_args = tuple() if self.zq_ch is None else (zq, )
+        norm_args = tuple() if self.zq_ch is None else (zq,)
 
         nx = self.norm(x, *norm_args)
         q = self.q(nx)
@@ -407,7 +319,7 @@ class Emu3VisionVQAttnBlock(nn.Cell):
         q = q.reshape(b, c, h * w)
         k = k.reshape(b, c, h * w)
         score = ops.bmm(q.permute(0, 2, 1), k)
-        score = score / (c ** 0.5)
+        score = score / (c**0.5)
         score = ops.softmax(score, axis=2)
 
         # attend to values
@@ -421,13 +333,12 @@ class Emu3VisionVQAttnBlock(nn.Cell):
 
 
 class Emu3VisionVQTemporalUpsample(nn.Cell):
-
     def __init__(
         self,
         in_channel: int,
         out_channel: int,
         kernel_size: Tuple[int, ...] = (3, 3, 3),
-        stride: Tuple[int, ...] = (1, 1, 1)
+        stride: Tuple[int, ...] = (1, 1, 1),
     ):
         super().__init__()
         self.in_channel = in_channel
@@ -438,18 +349,17 @@ class Emu3VisionVQTemporalUpsample(nn.Cell):
             kernel_size,
             stride=stride,
         )
-        
+
     def construct(self, x: ms.Tensor):
         b, c, t, h, w = x.shape
-        x = x.permute(0, 1, 3, 4, 2).contiguous().view(b, -1, t)
+        x = x.permute(0, 1, 3, 4, 2).contiguous().view(b, c * h * w, t)  # (b, c, h, w, t) => (b, c*h*w, t)
         x = ops.interpolate(x, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
-        x = x.view(b, c, h, w, -1).permute(0, 1, 4, 2, 3).contiguous()
+        x = x.view(b, c, h, w, x.shape[-1]).permute(0, 1, 4, 2, 3).contiguous()
         x = self.conv(x)
         return x
 
 
 class Emu3VisionVQTemporalDownsample(nn.Cell):
-
     def __init__(
         self,
         in_channel: int,
@@ -468,34 +378,35 @@ class Emu3VisionVQTemporalDownsample(nn.Cell):
             kernel_size=kernel_size,
             stride=stride,
         )
-        
+
     def construct(self, x: ms.Tensor):
         x = self.conv(x)
         return x
 
 
 class Emu3VisionVQVectorQuantizer(nn.Cell):
-
     def __init__(self, config: Emu3VisionVQConfig):
         super().__init__()
         self.embedding = nn.Embedding(config.codebook_size, config.embed_dim)
         self.embedding.embedding_table.set_data(
-                initializer(Uniform(scale=1.0 / config.codebook_size), 
-                self.embedding.embedding_table.shape, 
-                self.embedding.embedding_table.dtype)
+            initializer(
+                Uniform(scale=1.0 / config.codebook_size),
+                self.embedding.embedding_table.shape,
+                self.embedding.embedding_table.dtype,
             )
+        )
 
     def construct(self, x: ms.Tensor):
         # b t c h w -> b t h w c
         b, t, c, h, w = x.shape
-        x = x.permute(0, 1, 3, 4, 2).contiguous()
-        x_flattened = x.view(-1, c)
+        x = x.permute(0, 1, 3, 4, 2).contiguous()  # (b, t, h, w, c)
+        x_flattened = x.view(b * t * h * w, c)
 
         codebook = self.embedding.embedding_table
 
-        d = ops.sum(x_flattened ** 2, dim=1, keepdim=True) + \
-            ops.sum(codebook ** 2, dim=1) - 2 * \
-            ops.einsum('bd,dn->bn', x_flattened, codebook.permute(1, 0))
+        # ops.einsum('bd,dn->bn', x_flattened, codebook.permute(1, 0))
+        einsum_res = ops.matmul(x_flattened, codebook.permute(1, 0))
+        d = ops.sum(x_flattened**2, dim=1, keepdim=True) + ops.sum(codebook**2, dim=1) - 2 * einsum_res
 
         indices = ops.argmin(d, axis=1)
         indices = indices.view(b, t, h, w)
@@ -503,7 +414,6 @@ class Emu3VisionVQVectorQuantizer(nn.Cell):
 
 
 class Emu3VisionVQEncoder(nn.Cell):
-
     def __init__(self, config: Emu3VisionVQConfig):
         super().__init__()
         self.ch = config.ch
@@ -513,13 +423,7 @@ class Emu3VisionVQEncoder(nn.Cell):
 
         # downsampling
         self.conv_in = nn.Conv2d(
-            self.in_channels,
-            self.ch,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            self.in_channels, self.ch, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
 
         in_ch_mult = (1,) + tuple(config.ch_mult)
@@ -568,15 +472,9 @@ class Emu3VisionVQEncoder(nn.Cell):
 
         out_z_channels = 2 * config.z_channels if config.double_z else config.z_channels
         self.conv_out = nn.Conv2d(
-            block_in,
-            out_z_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            block_in, out_z_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
-        
+
         temporal_down_blocks = int(math.log2(config.temporal_downsample_factor))
         self.time_conv = nn.CellList()
 
@@ -584,19 +482,22 @@ class Emu3VisionVQEncoder(nn.Cell):
             conv = Emu3VisionVQTemporalDownsample(out_z_channels, out_z_channels)
             self.time_conv.append(conv)
 
-        self.time_res_stack = nn.SequentialCell(*[
-            Emu3VisionVQResnetTemporalBlock(
-                in_channels=out_z_channels,
-                out_channels=out_z_channels,
-                dropout=config.dropout,
-            ) for _ in range(self.num_res_blocks)
-        ])
+        self.time_res_stack = nn.SequentialCell(
+            *[
+                Emu3VisionVQResnetTemporalBlock(
+                    in_channels=out_z_channels,
+                    out_channels=out_z_channels,
+                    dropout=config.dropout,
+                )
+                for _ in range(self.num_res_blocks)
+            ]
+        )
 
         self.act = Emu3VisionVQActivation()
 
     def construct(self, x: ms.Tensor):
         t = x.shape[1]
-        x = x.reshape(-1, *x.shape[2:])
+        x = x.reshape(x.shape[0] * x.shape[1], *x.shape[2:])
 
         # downsampling
         h = self.conv_in(x)
@@ -612,14 +513,15 @@ class Emu3VisionVQEncoder(nn.Cell):
         h = self.mid.block_1(h)
         h = self.mid.attn_1(h)
         h = self.mid.block_2(h)
-        
+
         # end
         h = self.norm_out(h)
         h = self.act(h)
 
         h = self.conv_out(h)
 
-        h = h.reshape(-1, t, *h.shape[1:])
+        h_n = h.shape[0] // t
+        h = h.reshape(h_n, t, *h.shape[1:])
         h = h.permute(0, 2, 1, 3, 4)
 
         for conv in self.time_conv:
@@ -632,39 +534,35 @@ class Emu3VisionVQEncoder(nn.Cell):
 
 
 class Emu3VisionVQDecoder(nn.Cell):
-
     def __init__(self, config: Emu3VisionVQConfig):
         super().__init__()
         self.ch = config.ch
         self.num_resolutions = len(config.ch_mult)
         self.num_res_blocks = config.num_res_blocks
 
-        in_ch_mult = (1,) + tuple(config.ch_mult)
+        # in_ch_mult = (1,) + tuple(config.ch_mult)
         zq_ch = config.embed_dim
 
         block_in = config.ch * config.ch_mult[-1]
-        self.time_res_stack = nn.SequentialCell(*[
-            Emu3VisionVQResnetTemporalBlock(
-                in_channels=config.z_channels,
-                out_channels=config.z_channels,
-                dropout=config.dropout,
-            ) for _ in range(config.num_res_blocks)
-        ])
+        self.time_res_stack = nn.SequentialCell(
+            *[
+                Emu3VisionVQResnetTemporalBlock(
+                    in_channels=config.z_channels,
+                    out_channels=config.z_channels,
+                    dropout=config.dropout,
+                )
+                for _ in range(config.num_res_blocks)
+            ]
+        )
 
         tempo_upsample_block_num = int(math.log2(config.temporal_downsample_factor))
         self.time_conv = nn.CellList()
         for i in range(tempo_upsample_block_num):
             conv = Emu3VisionVQTemporalUpsample(config.z_channels, config.z_channels)
             self.time_conv.append(conv)
-            
+
         self.conv_in = nn.Conv2d(
-            config.z_channels,
-            block_in,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            config.z_channels, block_in, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
 
         # middle
@@ -714,13 +612,7 @@ class Emu3VisionVQDecoder(nn.Cell):
 
         self.norm_out = Emu3VisionVQSpatialNorm(block_in, zq_ch)
         self.conv_out = nn.Conv2d(
-            block_in,
-            config.out_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1,
-            pad_mode="pad",
-            has_bias=True
+            block_in, config.out_channels, kernel_size=3, stride=1, padding=1, pad_mode="pad", has_bias=True
         )
 
     def construct(self, z: ms.Tensor, zq: ms.Tensor):
@@ -735,11 +627,11 @@ class Emu3VisionVQDecoder(nn.Cell):
 
         h, zq = mint.chunk(z_zq, 2, dim=0)
 
-        h = h.reshape(-1, *h.shape[2:])
-        zq = zq.reshape(-1, *zq.shape[2:])
-        
+        h = h.reshape(h.shape[0] * h.shape[1], *h.shape[2:])
+        zq = zq.reshape(zq.shape[0] * zq.shape[1], *zq.shape[2:])
+
         h = self.conv_in(h)
-        
+
         # middle
         h = self.mid.block_1(h, zq)
         h = self.mid.attn_1(h, zq)
@@ -747,7 +639,7 @@ class Emu3VisionVQDecoder(nn.Cell):
 
         # upsampling
         for i_level in reversed(range(self.num_resolutions)):
-            for i_block in range(self.num_res_blocks+1):
+            for i_block in range(self.num_res_blocks + 1):
                 h = self.up[i_level].block[i_block](h, zq)
                 if len(self.up[i_level].attn) > 0:
                     h = self.up[i_level].attn[i_block](h, zq)
@@ -776,9 +668,7 @@ class Emu3VisionVQPretrainedModel(MSPreTrainedModel):
     def _init_weights(self, module):
         if isinstance(module, (nn.Conv2d, nn.Conv3d)):
             module.weight.set_data(
-                initializer(HeNormal(mode='fan_out', nonlinearity='relu'), 
-                module.weight.shape, 
-                module.weight.dtype)
+                initializer(HeNormal(mode="fan_out", nonlinearity="relu"), module.weight.shape, module.weight.dtype)
             )
         elif isinstance(module, nn.Linear):
             weight = initializer(HeNormal(negative_slope=math.sqrt(5)), module.weight.shape, module.weight.dtype)
@@ -786,7 +676,9 @@ class Emu3VisionVQPretrainedModel(MSPreTrainedModel):
             if module.bias is not None:
                 fan_in, _ = initializer._calculate_fan_in_and_fan_out(module.weight.shape)
                 bound = 1 / math.sqrt(fan_in) if fan_in > 0 else 0
-                bias_weight = initializer(Uniform(scale=bound), module.embedding_table.shape, module.embedding_table.dtype)
+                bias_weight = initializer(
+                    Uniform(scale=bound), module.embedding_table.shape, module.embedding_table.dtype
+                )
                 module.bias.set_data(bias_weight)
         elif isinstance(module, (nn.BatchNorm2d, nn.GroupNorm)):
             module.gamma.set_data(initializer(Constant(1), module.gamma.shape, module.gamma.dtype))
@@ -797,7 +689,6 @@ class Emu3VisionVQPretrainedModel(MSPreTrainedModel):
 
 
 class Emu3VisionVQModel(Emu3VisionVQPretrainedModel):
-
     def __init__(self, config):
         super().__init__(config)
         self.config = config

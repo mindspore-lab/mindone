@@ -16,38 +16,34 @@
 
 
 import math
-from typing import Dict, List, Optional, Union
+from collections import UserDict
+from typing import List, Optional, Union
 
 import numpy as np
-import PIL, mindspore
-
+import PIL
+from PIL import Image
 from transformers.image_processing_utils import BaseImageProcessor, BatchFeature
-from transformers.image_transforms import (
-    # convert_to_rgb,
-    resize,
-    to_channel_dimension_format,
-)
-from transformers.image_utils import (
+from transformers.image_transforms import resize, to_channel_dimension_format  # convert_to_rgb,
+from transformers.image_utils import (  # ImageInput,; make_list_of_images,; to_numpy_array,; valid_images,
     IMAGENET_STANDARD_MEAN,
     IMAGENET_STANDARD_STD,
     ChannelDimension,
-    # ImageInput,
     PILImageResampling,
     get_image_size,
     infer_channel_dimension_format,
+    is_batched,
     is_scaled_image,
-    # make_list_of_images,
-    # to_numpy_array,
-    # valid_images,
     validate_preprocess_arguments,
 )
-from transformers.utils import is_vision_available, logging, ExplicitEnum #TensorType
+from transformers.utils import ExplicitEnum, is_vision_available, logging  # TensorType
 
+import mindspore
 
 logger = logging.get_logger(__name__)
 
 
-#################### TODO: add the followings to transformers ###############
+# TODO: add the followings to transformers #
+
 
 def is_valid_image(img):
     return (
@@ -55,6 +51,8 @@ def is_valid_image(img):
         or isinstance(img, np.ndarray)
         or isinstance(img, mindspore.Tensor)
     )
+
+
 def valid_images(imgs):
     # If we have an list of images, make sure every image is valid
     if isinstance(imgs, (list, tuple)):
@@ -66,16 +64,21 @@ def valid_images(imgs):
         return False
     return True
 
+
 ImageInput = Union[
     PIL.Image.Image, np.ndarray, mindspore.Tensor, List[PIL.Image.Image], List[np.ndarray], List[mindspore.Tensor]
-]  
+]
+
+
 class TensorType(ExplicitEnum):
     """
     Possible values for the `return_tensors` argument in [`PreTrainedTokenizerBase.__call__`]. Useful for
     tab-completion in an IDE.
     """
+
     MINDSPORE = "ms"
     NUMPY = "np"
+
 
 def convert_to_rgb(image: ImageInput) -> ImageInput:
     """
@@ -133,7 +136,9 @@ def make_list_of_images(images, expected_ndims: int = 3) -> List[ImageInput]:
         f"but got {type(images)}."
     )
 
+
 # from mindone.transformers.utils import to_numpy
+
 
 def to_numpy(obj):
     """
@@ -152,14 +157,16 @@ def to_numpy(obj):
 
     # This gives us a smart order to test the frameworks with the corresponding tests.
     if isinstance(obj, np.ndarray):
-        return framework_to_numpy['np'](obj)
-    elif isinstance(img, mindspore.Tensor):
-        return framework_to_numpy['ms'](obj)
+        return framework_to_numpy["np"](obj)
+    elif isinstance(obj, mindspore.Tensor):
+        return framework_to_numpy["ms"](obj)
     else:
-        raise ValueError("Invalid obj type. Expected either numpy.ndarray, or mindspore.Tensor,"
-        f"but got {type(obj)}.")
+        raise ValueError(
+            "Invalid obj type. Expected either numpy.ndarray, or mindspore.Tensor," f"but got {type(obj)}."
+        )
 
     return obj
+
 
 def to_numpy_array(img) -> np.ndarray:
     if not is_valid_image(img):
@@ -169,11 +176,11 @@ def to_numpy_array(img) -> np.ndarray:
         return np.array(img)
     return to_numpy(img)
 
+
 #######################################################################################################
 
-def smart_resize(
-    height: int, width: int, factor: int = 8, min_pixels: int = 512 * 512, max_pixels: int = 1024 * 1024
-):
+
+def smart_resize(height: int, width: int, factor: int = 8, min_pixels: int = 512 * 512, max_pixels: int = 1024 * 1024):
     """Rescales the image so that the following conditions are met:
 
     1. Both dimensions (height and width) are divisible by 'factor'.
@@ -186,9 +193,7 @@ def smart_resize(
     if height < factor or width < factor:
         raise ValueError(f"height:{height} or width:{width} must be larger than factor:{factor}")
     elif max(height, width) / min(height, width) > 5:
-        raise ValueError(
-            f"absolute aspect ratio must be smaller than 5, got {max(height, width) / min(height, width)}"
-        )
+        raise ValueError(f"absolute aspect ratio must be smaller than 5, got {max(height, width) / min(height, width)}")
 
     h_bar = round(height / factor) * factor
     w_bar = round(width / factor) * factor
@@ -307,7 +312,7 @@ class Emu3VisionVQImageProcessor(BaseImageProcessor):
                 The channel dimension format for the input image. Can be one of:
                 - `"channels_first"` or `ChannelDimension.FIRST`: image in (num_channels, height, width) format.
                 - `"channels_last"` or `ChannelDimension.LAST`: image in (height, width, num_channels) format.
-                - `"none"` or `ChannelDimension.NONE`: image in (height, width) format.   - `"none"` or `ChannelDimension.NONE`: image in (height, width) format.
+                - `"none"` or `ChannelDimension.NONE`: image in (height, width) format.
             output_data_format (`ChannelDimension`, *optional*, defaults to `ChannelDimension.FIRST`):
                 The channel dimension format for the output image. Can be one of:
                 - `"channels_first"` or `ChannelDimension.FIRST`: image in (num_channels, height, width) format.
@@ -353,9 +358,7 @@ class Emu3VisionVQImageProcessor(BaseImageProcessor):
                 image = self.rescale(image, scale=rescale_factor, input_data_format=input_data_format)
 
             if do_normalize:
-                image = self.normalize(
-                    image=image, mean=image_mean, std=image_std, input_data_format=input_data_format
-                )
+                image = self.normalize(image=image, mean=image_mean, std=image_std, input_data_format=input_data_format)
 
             image = to_channel_dimension_format(image, output_data_format, input_channel_dim=input_data_format)
             processed_images.append(image)
@@ -431,9 +434,7 @@ class Emu3VisionVQImageProcessor(BaseImageProcessor):
 
         images = make_list_of_images(images)
         if images is None or not valid_images(images):
-            raise ValueError(
-                "Invalid image type. Must be of type PIL.Image.Image, numpy.ndarray"
-            )
+            raise ValueError("Invalid image type. Must be of type PIL.Image.Image, numpy.ndarray")
 
         validate_preprocess_arguments(
             rescale_factor=rescale_factor,
