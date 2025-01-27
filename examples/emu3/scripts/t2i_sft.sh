@@ -38,7 +38,7 @@ python emu3/train/train.py \
     --warmup_steps 30 \
     --lr_scheduler_type "cosine_with_min_lr" \
     --logging_steps 1 \
-    # --run_name ${EXP_NAME} 
+    # --run_name ${EXP_NAME}
     # --report_to wandb tensorboard \
     # --deepspeed scripts/zero3.json \
     # --tf32 True \

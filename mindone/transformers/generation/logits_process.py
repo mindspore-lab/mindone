@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, List, Union, Optional
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 from transformers.utils import add_start_docstrings
@@ -7,7 +7,7 @@ from transformers.utils.logging import get_logger
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import ops, mint
+from mindspore import mint, ops
 
 from mindone.transformers.mindspore_adapter.utils import dtype_to_min
 
@@ -444,6 +444,8 @@ class LogitNormalization(LogitsProcessor):
             raise NotImplementedError
 
         return scores_processed
+
+
 class UnbatchedClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
     r"""
     Logits processor for Classifier-Free Guidance (CFG). The processors computes a weighted average across scores

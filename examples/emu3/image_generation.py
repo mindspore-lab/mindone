@@ -1,28 +1,33 @@
 # -*- coding: utf-8 -*-
-from PIL import Image
 # from transformers import AutoModel, AutoTokenizer, AutoImageProcessor, AutoModelForCausalLM
-from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer, Emu3Processor
+from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
-#TODO: from mindone.transformers import Emu3ForCausalLM 
+from PIL import Image
+
+# TODO: from mindone.transformers import Emu3ForCausalLM
 from transformers.generation.configuration_utils import GenerationConfig
-from mindone.transformers.generation.logits_process import LogitsProcessorList, PrefixConstrainedLogitsProcessor, UnbatchedClassifierFreeGuidanceLogitsProcessor
 
 import mindspore as ms
 from mindspore import Tensor
 
+from mindone.transformers.generation.logits_process import (
+    LogitsProcessorList,
+    PrefixConstrainedLogitsProcessor,
+    UnbatchedClassifierFreeGuidanceLogitsProcessor,
+)
 
 # model path
 EMU_HUB = "BAAI/Emu3-Gen"
 VQ_HUB = "BAAI/Emu3-VisionTokenizer"
 
 # prepare model and processor
-PATH_TO_CONVERTED_EMU3_WEIGHTS="BAAI/Emu3-Gen"
+PATH_TO_CONVERTED_EMU3_WEIGHTS = "BAAI/Emu3-Gen"
 model = Emu3ForCausalLM.from_pretrained(
     PATH_TO_CONVERTED_EMU3_WEIGHTS,
     mindspore_dtype=ms.bfloat16,
     use_safetensors=True,
     attn_implementation="flash_attention_2",
-    trust_remote_code=True
+    trust_remote_code=True,
 )
 # model = AutoModelForCausalLM.from_pretrained(
 #     EMU_HUB,
@@ -33,21 +38,22 @@ model = Emu3ForCausalLM.from_pretrained(
 # )
 model.set_train(False)
 
-tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left") # TODO
-image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)    # TODO
-image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB).set_train(False) # TODO
+tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")  # TODO
+image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)  # TODO
+image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB).set_train(False)  # TODO
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
 # prepare input
 POSITIVE_PROMPT = "masterpiece, film grained, best quality."
-NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry."
+NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, \
+     fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry."
 
 classifier_free_guidance = 3.0
 prompt = ["a portrait of young girl.", "a shiba inu"]
 prompt = [p + POSITIVE_PROMPT for p in prompt]
 
 kwargs = dict(
-    mode='G',
+    mode="G",
     ratio=["1:1", "16:9"],
     image_area=model.config.image_area,
     return_tensors="np",
@@ -69,17 +75,19 @@ GENERATION_CONFIG = GenerationConfig(
 h = pos_inputs.image_size[:, 0]
 w = pos_inputs.image_size[:, 1]
 constrained_fn = processor.build_prefix_constrained_fn(h, w)
-logits_processor = LogitsProcessorList([
-    UnbatchedClassifierFreeGuidanceLogitsProcessor(
-        classifier_free_guidance,
-        model,
-        unconditional_ids=Tensor(neg_inputs.input_ids),
-    ),
-    PrefixConstrainedLogitsProcessor(
-        constrained_fn ,
-        num_beams=1,
-    ),
-])
+logits_processor = LogitsProcessorList(
+    [
+        UnbatchedClassifierFreeGuidanceLogitsProcessor(
+            classifier_free_guidance,
+            model,
+            unconditional_ids=Tensor(neg_inputs.input_ids),
+        ),
+        PrefixConstrainedLogitsProcessor(
+            constrained_fn,
+            num_beams=1,
+        ),
+    ]
+)
 
 # generate
 outputs = model.generate(

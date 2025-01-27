@@ -13,10 +13,7 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from transformers.utils import (
-    _LazyModule,
-)
-
+from transformers.utils import _LazyModule
 
 _import_structure = {
     "configuration_emu3": ["Emu3Config"],
@@ -32,13 +29,9 @@ _import_structure["modeling_emu3"] = [
 
 if TYPE_CHECKING:
     from .configuration_emu3 import Emu3Config
-    from .tokenization_emu3 import Emu3Tokenizer
+    from .modeling_emu3 import Emu3ForCausalLM, Emu3Model, Emu3PretrainedModel
     from .processing_emu3 import Emu3Processor
-    from .modeling_emu3 import (
-        Emu3Model,
-        Emu3PretrainedModel,
-        Emu3ForCausalLM,
-    )
+    from .tokenization_emu3 import Emu3Tokenizer
 
 else:
     import sys

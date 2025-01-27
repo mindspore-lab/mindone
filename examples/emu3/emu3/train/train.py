@@ -1,15 +1,14 @@
 # -*- coding: utf-8 -*-
 
-from dataclasses import dataclass, field
 import os
 import os.path as osp
 import pathlib
-from typing import Optional, List
+from dataclasses import dataclass, field
+from typing import List, Optional
 
-import transformers as tf
 import torch
-
-from emu3.mllm import Emu3Config, Emu3Tokenizer, Emu3ForCausalLM
+import transformers as tf
+from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.train.datasets import Emu3FeatureDataset
 
 
@@ -42,8 +41,8 @@ class TrainingArguments(tf.TrainingArguments):
 def update_configs(model_config, args, fields):
     cross_update = lambda a, b, field_name: (
         setattr(b, field_name, getattr(a, field_name))
-        if getattr(b, field_name, None) is None else
-        setattr(a, field_name, getattr(b, field_name))
+        if getattr(b, field_name, None) is None
+        else setattr(a, field_name, getattr(b, field_name))
     )
 
     for f in fields:
@@ -82,7 +81,7 @@ def train():
         args=training_args,
         train_dataset=train_dataset,
     )
-    
+
     if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
         trainer.train(resume_from_checkpoint=True)
     else:

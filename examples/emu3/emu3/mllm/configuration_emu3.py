@@ -24,7 +24,6 @@ from typing import Optional
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 EMU3_PRETRAINED_CONFIG_ARCHIVE_MAP = {}
@@ -146,7 +145,7 @@ class Emu3Config(PretrainedConfig):
         eoi_token_id: int = 151853,
         eol_token_id: int = 151846,
         eof_token_id: int = 151847,
-        image_area: int = 720 * 720, 
+        image_area: int = 720 * 720,
         pretraining_tp: int = 1,
         tie_word_embeddings: bool = False,
         rope_theta: float = 1000000.0,

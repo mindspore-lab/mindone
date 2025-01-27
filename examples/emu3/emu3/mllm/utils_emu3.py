@@ -16,8 +16,8 @@
 
 from mindspore import ops
 
-class Emu3PrefixConstrainedLogitsHelper:
 
+class Emu3PrefixConstrainedLogitsHelper:
     def __init__(
         self,
         height,
@@ -53,14 +53,14 @@ class Emu3PrefixConstrainedLogitsHelper:
         offset = input_ids.shape[0] - self.offset_cache[batch_id]
 
         if offset % (width + 1) == 0:
-            return (self.eol_token, )
+            return (self.eol_token,)
         elif offset == (width + 1) * height + 1:
-            return (self.eof_token, )
+            return (self.eof_token,)
         elif offset == (width + 1) * height + 2:
-            return (self.eoi_token, )
+            return (self.eoi_token,)
         elif offset == (width + 1) * height + 3:
-            return (self.eos_token, )
+            return (self.eos_token,)
         elif offset > (width + 1) * height + 3:
-            return (self.pad_token, )
+            return (self.pad_token,)
         else:
             return self.visual_tokens

@@ -129,7 +129,7 @@ class AttentionMaskConverter:
         Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
         """
         return _expand_mask(mask, dtype, tgt_len)
-    
+
     @staticmethod
     def _ignore_causal_mask_sdpa(
         attention_mask: Optional[ms.Tensor],
@@ -139,7 +139,8 @@ class AttentionMaskConverter:
         is_training: bool = False,
     ) -> bool:
         """
-        Detects whether the optional user-specified attention_mask & the automatically created causal mask can be ignored in case PyTorch's SDPA is used, rather relying on SDPA's `is_causal` argument.
+        Detects whether the optional user-specified attention_mask & the automatically created causal mask can be ignored in case PyTorch's SDPA is used,
+        rather relying on SDPA's `is_causal` argument.
 
         In case no token is masked in the `attention_mask` argument, if `query_length == 1` or
         `key_value_length == query_length`, we rather rely on SDPA `is_causal` argument to use causal/non-causal masks,
@@ -161,7 +162,7 @@ class AttentionMaskConverter:
         elif sliding_window is None or key_value_length < sliding_window:
             if len(attention_mask.shape) == 4:
                 return False
-            elif is_training and torch.all(attention_mask == 1):
+            elif is_training and ops.all(attention_mask == 1):
                 if query_length == 1 or key_value_length == query_length:
                     # For query_length == 1, causal attention and bi-directional attention are the same.
                     ignore_causal_mask = True
@@ -339,6 +340,7 @@ def _prepare_4d_causal_attention_mask(
 
     return attention_mask
 
+
 # Adapted from _prepare_4d_causal_attention_mask
 def _prepare_4d_causal_attention_mask_for_sdpa(
     attention_mask: Optional[ms.Tensor],
@@ -386,6 +388,7 @@ def _prepare_4d_causal_attention_mask_for_sdpa(
             )
 
     return expanded_4d_mask
+
 
 def _prepare_4d_attention_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):
     """

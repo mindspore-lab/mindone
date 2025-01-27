@@ -13,8 +13,8 @@
 # limitations under the License.
 
 from typing import TYPE_CHECKING
-from transformers.utils import _LazyModule
 
+from transformers.utils import _LazyModule
 
 _import_structure = {"configuration_emu3visionvq": ["Emu3VisionVQConfig"]}
 _import_structure["modeling_emu3visionvq"] = [
@@ -25,11 +25,9 @@ _import_structure["image_processing_emu3visionvq"] = ["Emu3VisionVQImageProcesso
 
 if TYPE_CHECKING:
     from .configuration_emu3visionvq import Emu3VisionVQConfig
-    from .modeling_emu3visionvq import (
-        Emu3VisionVQModel,
-        Emu3VisionVQPretrainedModel,
-    )
     from .image_processing_emu3visionvq import Emu3VisionVQImageProcessor
+    from .modeling_emu3visionvq import Emu3VisionVQModel, Emu3VisionVQPretrainedModel
 else:
     import sys
+
     sys.modules[__name__] = _LazyModule(__name__, globals()["__file__"], _import_structure)

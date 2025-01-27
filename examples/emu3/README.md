@@ -4,7 +4,7 @@
 
 <!-- [Emu3 Team, BAAI](https://www.baai.ac.cn/english.html) -->
 
-| [Project Page](https://emu.baai.ac.cn) | [Paper](https://arxiv.org/pdf/2409.18869) | [🤗HF Models](https://huggingface.co/collections/BAAI/emu3-66f4e64f70850ff358a2e60f) | [Modelscope](https://modelscope.cn/collections/Emu3-9eacc8668b1043) | 
+| [Project Page](https://emu.baai.ac.cn) | [Paper](https://arxiv.org/pdf/2409.18869) | [🤗HF Models](https://huggingface.co/collections/BAAI/emu3-66f4e64f70850ff358a2e60f) | [Modelscope](https://modelscope.cn/collections/Emu3-9eacc8668b1043) |
 <!-- [Demo](https://huggingface.co/spaces/BAAI/Emu3) | -->
 
 
@@ -28,7 +28,7 @@
 
 - **Emu3** is capable of generating high-quality images following the text input, by simply predicting the next vision token. The model naturally supports flexible resolutions and styles.
 - **Emu3** shows strong vision-language understanding capabilities to see the physical world and provides coherent text responses. Notably, this capability is achieved without depending on a CLIP and a pretrained LLM.
-- **Emu3** simply generates a video causally by predicting the next token in a video sequence, unlike the video diffusion model as in Sora. With a video in context, Emu3 can also naturally extend the video and predict what will happen next. 
+- **Emu3** simply generates a video causally by predicting the next token in a video sequence, unlike the video diffusion model as in Sora. With a video in context, Emu3 can also naturally extend the video and predict what will happen next.
 
 ### Features
 
@@ -297,5 +297,3 @@ If you find Emu3 useful for your research and applications, please consider star
   year={2024}
 }
 ```
-
-

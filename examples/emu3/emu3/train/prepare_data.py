@@ -4,11 +4,12 @@ import argparse
 import json
 import os
 
+from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
+
 import mindspore as ms
 from mindspore import _no_grad, jit_class
 
-from emu3.tokenizer import Emu3VisionVQModel, Emu3VisionVQImageProcessor
 
 @jit_class
 class no_grad(_no_grad):
@@ -28,12 +29,13 @@ class no_grad(_no_grad):
         if self._pynative:
             super().__exit__(*args)
 
+
 def prepare_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model-path', type=str, help='vision tokenizer path')
-    parser.add_argument('--data-path', type=str, help='data path')
-    parser.add_argument('--output-path', type=str, help='tokenized data save path')
-    parser.add_argument('--image-area', type=int, default=720 * 720)
+    parser.add_argument("--model-path", type=str, help="vision tokenizer path")
+    parser.add_argument("--data-path", type=str, help="data path")
+    parser.add_argument("--output-path", type=str, help="tokenized data save path")
+    parser.add_argument("--image-area", type=int, default=720 * 720)
 
     args = parser.parse_args()
     return args
@@ -61,10 +63,7 @@ def main():
     os.makedirs(f"{args.output_path}/feature", exist_ok=True)
     os.makedirs(f"{args.output_path}/list", exist_ok=True)
 
-    datalist = {
-        "prefix": f"{args.output_path}/feature",
-        "path_list": []
-    }
+    datalist = {"prefix": f"{args.output_path}/feature", "path_list": []}
 
     with open(args.data_path) as f:
         input_data = json.load(f)
@@ -82,16 +81,12 @@ def main():
             token_ids = image_tokenizer.encode(image)
 
         token_ids = token_ids.squeeze(0).asnumpy()
-        data = {
-            "name": name,
-            "images": token_ids,
-            "texts": prompt
-        }
+        data = {"name": name, "images": token_ids, "texts": prompt}
 
         ms.save_checkpoint(data, f"{args.output_path}/feature/{name}.ckpt")
         datalist["path_list"].append(f"{name}.ckpt")
 
-    with open(f"{args.output_path}/list/train.json", 'w') as f:
+    with open(f"{args.output_path}/list/train.json", "w") as f:
         json.dump(datalist, f)
 
 
