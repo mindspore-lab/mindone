@@ -1,4 +1,5 @@
 from .modeling_utils import MSPreTrainedModel
+from .models.auto import AutoModel
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -37,6 +38,7 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
+from .models.gpt2 import GPT2LMHeadModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
