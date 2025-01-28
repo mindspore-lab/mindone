@@ -1,0 +1,44 @@
+NUM_FRAME=29
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=8000 --log_dir="t2v-video3d-${NUM_FRAME}x256p_zero3/parallel_logs" \
+ hyvideo/train/train_t2v.py \
+    --model "HYVideo-T/2" \
+    --text_encoder_name_1 google/mt5-xxl \
+    --cache_dir "./ckpts" \
+    --dataset t2v \
+    --data "train_data/mixkit.txt" \
+    --sample_rate 1 \
+    --num_frames ${NUM_FRAME} \
+    --max_height 256 \
+    --max_width 256 \
+    --train_batch_size=1 \
+    --dataloader_num_workers 1 \
+    --gradient_accumulation_steps=1 \
+    --max_train_steps=10000 \
+    --start_learning_rate=2e-5 \
+    --lr_scheduler="constant" \
+    --seed=10 \
+    --lr_warmup_steps=500 \
+    --precision="bf16" \
+    --checkpointing_steps=1000 \
+    --output_dir="t2v-video3d-${NUM_FRAME}x256p_zero3/" \
+    --cfg 0.1 \
+    --snr_gamma 5.0 \
+    --use_ema False \
+    --ema_start_step 0 \
+    --clip_grad True \
+    --max_grad_norm 1.0 \
+    --gradient_checkpointing \
+    --noise_offset 0.02 \
+    --ema_decay 0.999 \
+    --speed_factor 1.0 \
+    --drop_short_ratio 1.0 \
+    --parallel_mode "zero" \
+    --zero_stage 3 \
+    --max_device_memory "59GB" \
+    --jit_syntax_level "strict" \
+    --pretrained "ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt" \
+    --rf_scheduler \
+    --force_resolution \
+    --mode 1 \
+    --use_parallel True \
