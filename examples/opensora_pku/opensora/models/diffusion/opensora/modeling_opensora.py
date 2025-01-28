@@ -906,14 +906,14 @@ def OpenSoraT2V_L_122(**kwargs):
 
 def OpenSoraT2V_ROPE_L_122(**kwargs):
     return OpenSoraT2V(
-        num_layers=32,
+        num_layers=28,
         attention_head_dim=96,
-        num_attention_heads=24,
+        num_attention_heads=32,
         patch_size_t=1,
         patch_size=2,
         norm_type="ada_norm_single",
         caption_channels=4096,
-        cross_attention_dim=2304,
+        cross_attention_dim=3072,
         **kwargs,
     )
 

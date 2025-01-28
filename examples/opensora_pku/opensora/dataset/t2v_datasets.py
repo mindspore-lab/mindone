@@ -346,9 +346,9 @@ class T2V_dataset:
                 frame_indices = frame_indices[frame_indices < i["num_frames"]]
 
                 # comment out it to enable dynamic frames training
-                if len(frame_indices) < self.num_frames and random.random() < self.drop_short_ratio:
-                    cnt_too_short += 1
-                    continue
+                # if len(frame_indices) < self.num_frames and random.random() < self.drop_short_ratio:
+                #     cnt_too_short += 1
+                #     continue
 
                 #  too long video will be temporal-crop randomly
                 if len(frame_indices) > self.num_frames:
@@ -364,7 +364,11 @@ class T2V_dataset:
                         )
                     cnt_too_short += 1
                     continue
-                frame_indices = frame_indices[:end_frame_idx]
+                # frame_indices = frame_indices[:end_frame_idx]
+                if len(frame_indices) < end_frame_idx:
+                    frame_indices += [frame_indices[-1]] * (end_frame_idx - len(frame_indices))
+                else:
+                    frame_indices = frame_indices[:end_frame_idx]
 
                 i["sample_frame_index"] = frame_indices.tolist()
                 new_cap_list.append(i)
@@ -425,10 +429,10 @@ class T2V_dataset:
             raise ValueError(
                 f"predefine_num_frames ({predefine_num_frames}) is not equal with frame_indices ({len(frame_indices)})"
             )
-        if len(frame_indices) < self.num_frames and self.drop_short_ratio >= 1:
-            raise IndexError(
-                f"video ({path}) has {total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
-            )
+        # if len(frame_indices) < self.num_frames and self.drop_short_ratio >= 1:
+        #     raise IndexError(
+        #         f"video ({path}) has {total_frames} frames, but need to sample {len(frame_indices)} frames ({frame_indices})"
+        #     )
         video_data = decord_vr.get_batch(frame_indices).asnumpy()  # (T, H, W, C)
         return video_data
 
