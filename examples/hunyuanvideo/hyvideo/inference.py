@@ -8,7 +8,6 @@ from hyvideo.diffusion.pipelines import HunyuanVideoPipeline
 from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
 from hyvideo.modules import load_model
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
-
 from hyvideo.text_encoder import TextEncoder
 from hyvideo.utils.data_utils import align_to
 from hyvideo.vae import load_vae
@@ -118,9 +117,7 @@ class Inference(object):
 
         # Text encoder
         if args.prompt_template_video is not None:
-            crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get(
-                "crop_start", 0
-            )
+            crop_start = PROMPT_TEMPLATE[args.prompt_template_video].get("crop_start", 0)
         elif args.prompt_template is not None:
             crop_start = PROMPT_TEMPLATE[args.prompt_template].get("crop_start", 0)
         else:
@@ -128,19 +125,12 @@ class Inference(object):
         max_length = args.text_len + crop_start
 
         # prompt_template
-        prompt_template = (
-            PROMPT_TEMPLATE[args.prompt_template]
-            if args.prompt_template is not None
-            else None
-        )
+        prompt_template = PROMPT_TEMPLATE[args.prompt_template] if args.prompt_template is not None else None
 
         # prompt_template_video
         prompt_template_video = (
-            PROMPT_TEMPLATE[args.prompt_template_video]
-            if args.prompt_template_video is not None
-            else None
+            PROMPT_TEMPLATE[args.prompt_template_video] if args.prompt_template_video is not None else None
         )
-
 
         if args.text_embed_path is not None:
             text_encoder = None
@@ -474,7 +464,7 @@ class HunyuanVideoSampler(Inference):
                 prompt_embeds = np.expand_dims(prompt_embeds, axis=0)
                 prompt_mask = np.expand_dims(prompt_mask, axis=0)
                 prompt_embeds_2 = np.expand_dims(prompt_embeds_2, axis=0)
-             
+
             prompt_embeds = ms.Tensor(prompt_embeds)
             prompt_mask = ms.Tensor(prompt_mask, dtype=ms.bool_)
             prompt_embeds_2 = ms.Tensor(prompt_embeds_2)

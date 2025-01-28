@@ -292,13 +292,14 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             text_inputs = text_encoder.text2tokens(prompt, data_type=data_type)
 
             if clip_skip is None:
-                prompt_outputs = text_encoder.encode(text_inputs, data_type=data_type)
+                prompt_outputs = text_encoder.encode(text_inputs, data_type=data_type, model_return_dict=False)
                 prompt_embeds = prompt_outputs.hidden_state
             else:
                 prompt_outputs = text_encoder.encode(
                     text_inputs,
                     output_hidden_states=True,
                     data_type=data_type,
+                    model_return_dict=False,
                 )
                 # Access the `hidden_states` first, that contains a tuple of
                 # all the hidden states from the encoder layers. Then index into
@@ -367,7 +368,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
             # max_length = prompt_embeds.shape[1]
             uncond_input = text_encoder.text2tokens(uncond_tokens, data_type=data_type)
 
-            negative_prompt_outputs = text_encoder.encode(uncond_input, data_type=data_type)
+            negative_prompt_outputs = text_encoder.encode(uncond_input, data_type=data_type, model_return_dict=False)
             negative_prompt_embeds = negative_prompt_outputs.hidden_state
 
             negative_attention_mask = negative_prompt_outputs.attention_mask
@@ -570,7 +571,6 @@ class HunyuanVideoPipeline(DiffusionPipeline):
         assert len(w.shape) == 1
         w = w * 1000.0
 
-        print("D--: pre-compute emb in numpy")
         half_dim = embedding_dim // 2
         emb = ops.log(ms.tensor(10000.0)) / (half_dim - 1)
         emb = ops.exp(ops.arange(half_dim, dtype=dtype) * -emb)
@@ -904,6 +904,8 @@ class HunyuanVideoPipeline(DiffusionPipeline):
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         self._num_timesteps = len(timesteps)
+
+        print("D--: prompt embed:", prompt_embeds.shape)
 
         # if is_progress_bar:
         with self.progress_bar(total=num_inference_steps) as progress_bar:

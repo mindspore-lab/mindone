@@ -5,8 +5,8 @@ import mindspore as ms
 from mindone.safetensors.mindspore import load_file
 from mindone.utils.amp import auto_mixed_precision
 
-from ..utils.helpers import set_model_param_dtype
 from ..constants import PRECISION_TO_TYPE, VAE_PATH
+from ..utils.helpers import set_model_param_dtype
 from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
 from .unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 

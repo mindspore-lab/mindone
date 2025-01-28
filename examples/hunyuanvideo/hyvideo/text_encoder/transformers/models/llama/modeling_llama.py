@@ -17,25 +17,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Optional, Tuple, Union
 import math
+from typing import Optional, Tuple, Union
 
 import numpy as np
 from transformers import LlamaConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
-from mindspore.ops.operations.nn_ops import FlashAttentionScore
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
+from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from mindone.transformers.activations import ACT2FN
-from ...cache_utils import get_max_length, get_seq_length, update
-from ...mindspore_adapter import recompute_except_output, FlashAttention2
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16
-from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
+from mindone.transformers.modeling_outputs import (
+    BaseModelOutputWithPast,
+    CausalLMOutputWithPast,
+    SequenceClassifierOutputWithPast,
+)
 from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
+
+from ...cache_utils import get_max_length, get_seq_length, update
+from ...mindspore_adapter import FlashAttention2, recompute_except_output
 
 logger = logging.get_logger(__name__)
 
@@ -256,7 +261,6 @@ class LlamaAttention(nn.Cell):
                 self.num_heads, keep_prob=1 - config.attention_dropout, scale_value=scale_factor, input_layout="BNSD"
             )
 
-
     def _init_rope(self):
         if self.config.rope_scaling is None:
             self.rotary_emb = LlamaRotaryEmbedding(
@@ -327,16 +331,18 @@ class LlamaAttention(nn.Cell):
         if past_key_value is not None:
             key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
             past_key_value = (key_states, value_states)
-        
+
         # ---- attn compute start
         # q/k/v: (B N S D), mask: retain 0,  padded -INF
-        if self.use_fa: 
+        if self.use_fa:
             # mask convert: -INF to true
             if attention_mask is not None:  # no matter the length, we just slice it
                 # TODO: is it necessary? can be slow
                 attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-                attention_mask = (- attention_mask).to(ms.bool_)
-            _, _, attn_weights, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, attention_mask)
+                attention_mask = (-attention_mask).to(ms.bool_)
+            _, _, attn_weights, attn_output = self.flash_attention(
+                query_states, key_states, value_states, None, None, None, attention_mask
+            )
 
         else:
             key_states = repeat_kv(key_states, self.num_key_value_groups)
@@ -360,7 +366,6 @@ class LlamaAttention(nn.Cell):
         attn_output = attn_output.swapdims(1, 2)
 
         attn_output = attn_output.reshape(bsz, q_len, -1)
-
 
         if self.pretraining_tp > 1:
             attn_output = attn_output.split(self.hidden_size // self.pretraining_tp, axis=2)
@@ -710,7 +715,7 @@ class LlamaModel(LlamaPreTrainedModel):
         super().__init__(config)
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
-        
+
         # print("D--: debugging, reduce llama depth to 1 !!!!!")
         # config.num_hidden_layers = 1
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)

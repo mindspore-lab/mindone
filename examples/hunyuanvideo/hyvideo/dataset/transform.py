@@ -8,7 +8,7 @@ import ftfy
 import numpy as np
 from bs4 import BeautifulSoup
 
-__all__ = ["create_video_transforms", "t5_text_preprocessing"]
+__all__ = ["create_video_transforms"]
 
 # video (pixel) transform
 

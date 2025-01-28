@@ -19,6 +19,7 @@
 
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
+
 import numpy as np
 
 import mindspore as ms

@@ -12,19 +12,18 @@ python sample_video.py \
     --seed 1 \
     --save-path ./results \
     --precision 'bf16' \
-    --attn-mode 'flash' \
     --use-conv2d-patchify=True \
     --model  "HYVideo-T/2-cfgdistill" \
-    --dit-weight "ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt" \
-    --vae-tiling=True \
-    --text-embed-path 'pt_io/text_embed_with_neg-A-cat-wa.npz' \
 
+    # uncoment to use cached text embed
+    # --text-embed-path 'pt_io/text_embed_with_neg-A-cat-wa.npz' \
+
+    # uncoment to apply fixed noise
     # --latent-noise-path 'pt_io/latent_noise_544x960x25.npy' \
+
     # --video-size 720 1280 \
-    # --video-length 129 \
     # --output-type 'latent' \
-    # --video-size 240 320 \
-    # --video-length 17 \
+    # --vae-tiling=True \
     # --model  "HYVideo-T/2-depth1" \
     # --dit-weight 'ckpts/transformer_depth1.pt' \
-    # --output-type 'latent' \
+    # --dit-weight "ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt" \

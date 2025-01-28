@@ -556,42 +556,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             get_activation_layer("silu"),
             **factory_kwargs,
         )
-        if self.use_recompute:
-            num_no_recompute = self.num_no_recompute
-            if isinstance(num_no_recompute, int):
-                num_no_recompute = (num_no_recompute, num_no_recompute)
-            elif isinstance(num_no_recompute, (list, tuple)):
-                assert (
-                    len(num_no_recompute) == 2
-                    and isinstance(num_no_recompute[0], int)
-                    and isinstance(num_no_recompute[1], int)
-                ), "Expect to have num_no_recompute as a list or tuple of two integers."
-
-            num_blocks = len(self.single_blocks)
-            assert (
-                num_no_recompute[0] <= num_no_recompute[1] <= num_blocks
-            ), f"num_no_recompute should be in [0, {num_blocks}], but got {num_no_recompute}"
-            logger.info(f"Excluding {num_no_recompute[0]} single_blocks from the recomputation list.")
-            for bidx, block in enumerate(self.single_blocks):
-                if bidx < num_blocks - num_no_recompute[0]:
-                    self.recompute(block)
-
-            num_blocks = len(self.double_blocks)
-            assert (
-                num_no_recompute[1] <= num_blocks
-            ), f"num_no_recompute should be in [0, {num_blocks}], but got {num_no_recompute}"
-            logger.info(f"Excluding {num_no_recompute[1]} double_blocks from the recomputation list.")
-            for bidx, block in enumerate(self.double_blocks):
-                if bidx < num_blocks - num_no_recompute[1]:
-                    self.recompute(block)
-
-    def recompute(self, b):
-        if not b._has_config_recompute:
-            b.recompute(parallel_optimizer_comm_recompute=True)
-        if isinstance(b, nn.CellList):
-            self.recompute(b[-1])
-        elif ms.get_context("mode") == ms.GRAPH_MODE:
-            b.add_flags(output_no_recompute=True)
 
         if self.use_recompute:
             num_no_recompute = self.num_no_recompute

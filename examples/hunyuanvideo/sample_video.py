@@ -24,24 +24,27 @@ def init_env(args):
     ms.set_context(mode=args.ms_mode)
 
     ms.set_context(max_device_memory="59GB")
-    
+
     if args.ms_mode == 0:
         ms.set_context(jit_config={"jit_level": args.jit_level})
-    
+
     # FIXME: debugging after text encoder graph-mode infer supported
     memory_offload = False
     if memory_offload:
-        assert args.ms_mode==0, 'offloading only works in graph mode currently'
-        offload_config = {"offload_param": "cpu",
-                          "auto_offload": False,
-                          "offload_cpu_size": "512GB",
-                          "offload_disk_size": "1024GB",
-                          "offload_path": "./offload/",
-                          "host_mem_block_size":"1GB",
-                          "enable_aio": True,
-                          "enable_pinned_mem": True}
-        ms.set_context(memory_offload='ON')
+        assert args.ms_mode == 0, "offloading only works in graph mode currently"
+        offload_config = {
+            "offload_param": "cpu",
+            "auto_offload": False,
+            "offload_cpu_size": "512GB",
+            "offload_disk_size": "1024GB",
+            "offload_path": "./offload/",
+            "host_mem_block_size": "1GB",
+            "enable_aio": True,
+            "enable_pinned_mem": True,
+        }
+        ms.set_context(memory_offload="ON")
         ms.set_offload_context(offload_config=offload_config)
+
 
 def main():
     args = parse_args()
