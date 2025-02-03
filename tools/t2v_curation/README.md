@@ -29,13 +29,13 @@ high aesthetic quality, significant video motion, and strong
 semantic consistency. You may refer to the 
 [Further Reading](#further-reading) section for more details.
 
-## Requirement:
+## Requirement
 Run the following command to install the required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-## Example Workflow:
+## Example Workflow
 
 ### Configuration
 
@@ -96,14 +96,14 @@ You may also run the pipeline step by step or run certain steps
 based on your needs. Refer to [Command Line Workflow](./cmd_guide.md)
 for more details.
 
-## Further Reading:
+## Further Reading
 For more information, please refer to:
 - [Dataset Management](./pipeline/datasets/README.md)
 - [Scene Detection and Video Splitting](./pipeline/splitting/README.md)
 - [Scoring and Filtering](./pipeline/scoring/README.md)
 - [Captioning](./pipeline/captioning/README.md)
 
-## TODOs:
+## TODOsz
 - [ ] Fix: UniMatch Precision
 - [ ] Add: UniMatch description in scoring
 - [ ] Feature: better video splitting techniques
