@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -10,11 +11,16 @@ import mindspore.dataset as ds
 from mindspore.communication import get_rank, get_group_size, init
 from mindspore import Tensor, load_checkpoint, save_checkpoint, load_param_into_net
 from tqdm import tqdm
+from transformers import AutoProcessor
 
 from pipeline.datasets.utils import extract_frames, pil_loader, is_video
-from pipeline.scoring.clip import CLIPImageProcessor, CLIPModel, parse
 from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
+sys.path.insert(0, mindone_lib_path)
+
+from mindone.transformers import CLIPModel
 
 class VideoTextDataset:
     def __init__(self, meta_path, transform = None, num_frames = 3):
@@ -36,8 +42,8 @@ class VideoTextDataset:
 
         # transform & stack
         if self.transform is not None:
-            images = [self.transform(img) for img in images]
-        images = np.stack([img.asnumpy() for img in images])
+            images = [self.transform(images=img, return_tensors="np").pixel_values for img in images]
+        images = np.stack(images)
 
         return index, images
 
@@ -63,12 +69,11 @@ class MLP(nn.Cell):
         return self.layers(x)
 
 class AestheticScorer(nn.Cell):
-    def __init__(self, input_size = 768, config = 'pipeline/scoring/clip/configs/clip_vit_l_14.yaml', ckpt_path = None):
+    def __init__(self, input_size = 768):
         super().__init__()
         self.mlp = MLP(input_size)
-        config = parse(config, ckpt_path)
-        self.clip = CLIPModel(config)
-        self.processor = CLIPImageProcessor()
+        self.clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+        self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
     def construct(self, x):
         image_features = self.clip.get_image_features(x)
@@ -86,8 +91,6 @@ def parse_args():
 
     parser.add_argument("--skip_if_existing", action="store_true")
 
-    parser.add_argument("--config", type=str, default="pipeline/scoring/clip/configs/clip_vit_l_14.yaml", help="YAML config files for ms backend.")
-    parser.add_argument("--ckpt_path_clip", type=str, default="pretrained_models/clip_vit_l_14.ckpt", help = "load clip model checkpoint.")
     parser.add_argument("--ckpt_path_aes", type=str, default="pretrained_models/aesthetic.ckpt",
                         help="load aesthetic model checkpoint.")
 
@@ -115,8 +118,8 @@ def main():
         ms.set_auto_parallel_context(parallel_mode = ms.ParallelMode.DATA_PARALLEL)
         init()
 
-    model = AestheticScorer(config = args.config, ckpt_path = args.ckpt_path_clip)
-    preprocess = model.processor.preprocess
+    model = AestheticScorer()
+    preprocess = model.processor
     param_dict = load_checkpoint(args.ckpt_path_aes)
     load_param_into_net(model.mlp, param_dict)
 
