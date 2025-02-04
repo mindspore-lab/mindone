@@ -46,8 +46,7 @@ def get_opts():
         "--occ_threshold",
         type=float,
         default=0.2,
-        help="""threshold to consider a vertex is occluded.
-                                larger=fewer occluded pixels""",
+        help="threshold to consider a vertex is occluded larger=fewer occluded pixels",
     )
     parser.add_argument("--use_vertex_normal", action="store_true", help="use vertex normals to compute color")
     # cfg file
@@ -213,7 +212,6 @@ if __name__ == "__main__":
 
     # Step 2. project the vertices onto each image to infer the color
     print(f"Fusing colors with {args.nviews}...")
-    # rendered_img_dir = '/mnt/disk2/fredhong/jan9-mvdreamdev/2025-01-08_11-54-41/outputs_trial_leaksolved_128x128/save/test-it9999'
 
     rendered_img_dir = os.path.join(output_meta_dir, "outputs/save/test-it10000")
 
@@ -273,6 +271,7 @@ if __name__ == "__main__":
 
         # each vertex's ray's origin in the raw_mesh, calculated again
         rays_o = ms.Tensor(batch[2][0][:3, -1]).expand((N_vertices, 3))
+
         # ray's direction is the vector pointing from camera origin to the vertices
         rays_d = ms.Tensor(vertices_) - rays_o  # (N_vertices, 3)
         rays_d = rays_d / rays_d.norm(dim=-1, keepdim=True)
