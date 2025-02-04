@@ -65,10 +65,24 @@ The videos [here](#training-1) will be generated. Color mesh extractions are als
 | `Michelangelo style statue of dog reading news on a cellphone, 3d asset` | ![ms3](https://github.com/user-attachments/assets/77e92964-d9d7-4f76-a63a-8558366bb6e4)   |
 
 ### Training
-| Input Prompt | Rendererd MView Video | 3D Generation |
-| --- | :---:  | :---:  |
-| `an astronaut riding a horse` | <video width="256" src="https://github.com/user-attachments/assets/fb424c82-7262-4591-b182-8e9f4789f6f8" /> | <div class="sketchfab-embed-wrapper"> <iframe title="an astronaut riding a horse_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/2191db5b61834839aac5238f60d70e59/embed"> </iframe> </div> |
-| `Michelangelo style statue of dog reading news on a cellphone` | <video width="256" src="https://github.com/user-attachments/assets/80d11282-4a5d-4b5a-9c68-3dc5dd16fb00" /> | <div class="sketchfab-embed-wrapper"> <iframe title="Michelangelo style statue of dog reading news_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c21773f276884a5db7d47e41926645e4/embed"> </iframe> </div>|
+
+<table class="center" border="0" style="width: 100%; text-align: left;">
+<tr>
+  <th>Input Prompt</th>
+  <th>Rendererd MView Video</th>
+  <th>3D Mesh Generation in Color</th>
+</tr>
+<tr>
+        <td> <code> an astronaut riding a horse </code> </td>
+        <td><video src="https://github.com/user-attachments/assets/fb424c82-7262-4591-b182-8e9f4789f6f8" autoplay muted loop playsinline></video></td>
+        <td><div class="sketchfab-embed-wrapper"> <iframe title="an astronaut riding a horse_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/2191db5b61834839aac5238f60d70e59/embed"> </iframe> </div></td>
+</tr>
+        <td> <code> Michelangelo style statue of dog reading news on a cellphone </code> </td>
+        <td><video src="https://github.com/user-attachments/assets/80d11282-4a5d-4b5a-9c68-3dc5dd16fb00" autoplay muted loop playsinline></video></td>
+        <td><div class="sketchfab-embed-wrapper"> <iframe title="Michelangelo style statue of dog reading news_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c21773f276884a5db7d47e41926645e4/embed"> </iframe> </div></td>
+</table>
+
+
 
 These videos are rendered from the trained 3D implicit field in our MVDream model. Color meshes are extracted with the script [`MVDream-threestudio/extract_color_mesh.py`](MVDream-threestudio/extract_color_mesh.py).
 
