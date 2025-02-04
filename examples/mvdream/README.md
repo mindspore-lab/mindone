@@ -66,7 +66,7 @@ The videos [here](#training-1) will be generated. Color mesh extractions are als
 
 ### Training
 
-<table class="center" border="0" >style="width: 100%; text-align: left;">
+<table class="center" border="0" style="width: 100%; text-align: left;">
 <tr>
   <th>Input Prompt</th>
   <th style="text-align: center;">Rendererd MView Video</th>
