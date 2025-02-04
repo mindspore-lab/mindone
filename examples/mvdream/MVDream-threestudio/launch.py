@@ -40,7 +40,7 @@ def launch(args, extras) -> None:
             # assume that the ckpt under xx/ckpt/xx.ckpt
             output_dir = Path("/".join(cfg.resume.split("/")[:-2]))
         else:
-            output_dir = Path(cfg.exp_root_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            output_dir = Path(cfg.exp_root_dir) / (datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + cfg.run_suffix)
             # only new training mkdir
             output_dir.mkdir(parents=True, exist_ok=True)
     else:
@@ -68,8 +68,9 @@ def launch(args, extras) -> None:
         _mode = "train" if args.train else "test"
         global_step, global_epoch, loss_scale, state_dict = get_resume_states(cfg.resume)
         logger.info(f"Resumed loss_scaler, prev epoch: {global_epoch}, global step {global_step}")
-        m1, u1 = load_param_into_net_with_filter(system.geometry, state_dict)  # missing and unexpected keys
-        m2, u2 = load_param_into_net_with_filter(system.background, state_dict)
+        m1, u1 = load_param_into_net_with_filter(system.renderer.geometry, state_dict)  # missing and unexpected keys
+        m2, u2 = load_param_into_net_with_filter(system.renderer.background, state_dict)
+        del state_dict
         m = set(m1).union(set(m2))
         u = set(u1).intersection(set(u2))
         logger.info(f"Resumed ckpt {cfg.resume} in {_mode} mode")
@@ -223,8 +224,8 @@ def launch(args, extras) -> None:
                     list(
                         itertools.chain.from_iterable(
                             [
-                                system.geometry.trainable_params(),
-                                system.background.trainable_params(),
+                                system.renderer.geometry.trainable_params(),
+                                system.renderer.background.trainable_params(),
                             ]
                         )
                     ),
@@ -258,7 +259,7 @@ def launch(args, extras) -> None:
             logger.info(f"Testing idx {view_idx} done. Step time {step_time*1000:.2f}ms")
             system.on_test_batch_start(batch, global_step, test_loader)
 
-        # save gif
+        # save gif/mp4
         system.on_test_epoch_end()
     else:
         raise ValueError("mode not supported")
@@ -280,9 +281,9 @@ def save_train_net_states(train_net, ckpt_dir, epoch, global_step):
 
 def get_resume_states(resume_ckpt):
     state_dict = ms.load_checkpoint(resume_ckpt)
-    global_step = int(state_dict.get("cur_step", ms.Tensor(0, ms.int32)).asnumpy().item())
-    start_epoch = int(state_dict.get("epoch_num", ms.Tensor(0, ms.int32)).asnumpy().item())
-    loss_scale = float(state_dict.get("loss_scale", ms.Tensor(0, ms.float32)).asnumpy().item())
+    global_step = int(state_dict.pop("cur_step", ms.Tensor(0, ms.int32)).asnumpy().item())
+    start_epoch = int(state_dict.pop("epoch_num", ms.Tensor(0, ms.int32)).asnumpy().item())
+    loss_scale = float(state_dict.pop("loss_scale", ms.Tensor(0, ms.float32)).asnumpy().item())
 
     return global_step, start_epoch, loss_scale, state_dict
 

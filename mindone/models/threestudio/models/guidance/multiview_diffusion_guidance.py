@@ -9,7 +9,7 @@ from threestudio.utils.misc import C
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, mint, ops
 
 sys.path.insert(0, "../MVDream/")  # relative to the run path of `launch.py`
 from mvdream.camera_utils import normalize_camera
@@ -54,7 +54,7 @@ class MultiviewDiffusionGuidance(BaseModule):
         self.grad_clip_val: Optional[float] = None
 
         threestudio.info("Loaded Multiview Diffusion!")
-        self.mse_loss = nn.MSELoss(reduction="sum")
+        # self.mse_loss = nn.MSELoss(reduction="sum")
 
     def get_camera_cond(
         self,

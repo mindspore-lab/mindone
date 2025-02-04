@@ -6,5 +6,4 @@ python launch.py \
 python launch.py \
         --train \
         --train_highres \
-        resume="CKPT_OUTPUT_ABOVE" \
-        system.use_recompute=true \
+        resume="PATH/OUTPUTS/CKPT" system.use_recompute=true

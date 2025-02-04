@@ -1,5 +1,5 @@
 # MVDream
-We support the training/inference pipeline of an diffusion-prior based, neural implicit field rendered, 3D mesh generation work called MVDream here.
+We support the training/inference pipeline of a diffusion-prior based, neural implicit field rendered, 3D mesh generation work called MVDream here.
 
 ## Introduction
 ![intro](https://github.com/user-attachments/assets/2f32333b-f481-4b25-8e43-b4bde1901031)
@@ -36,14 +36,13 @@ cd MVDream-threestudio
 
 # train low res 64x64 with batch_size 8 for 5k steps
 python launch.py \
-        --train \
+        --train
 
 # train high res 256x256 with batch_size 4 for another 5k steps
 python launch.py \
         --train \
         --train_highres \
-        resume="PATH_CKPT_OUTPUT/step_5000.ckpt" \
-        system.use_recompute=true \
+        resume="PATH/TO/OUTPUTS/ckpt/step_5000.ckpt" system.use_recompute=true
 ```
 Notice that you need to resume the high-resolution training from the output checkpoint of the low-resolution training. The training happens in a self-supervision manner where the rendered RGB from the renderer is encoded by the guidance pretrained multiview sd-v2.1 model (regarded as "sd2" in the following)'s encoder as a raw latent, and such raw latent is supervised against its own sd2-forward then text-guided-denoised, reconstructed latents.
 
@@ -52,9 +51,9 @@ To generate the output 120 frames rendered from the trained mvdream ckpt, do thi
 ```bash
 python launch.py \
         --test \
-        resume="PATH_ABOVE/step10000.ckpt" \
+        resume="PATH/TO/OUTPUTS/ckpt/step10000.ckpt"
 ```
-The video [here](#training-1) will be generated. Mesh extraction will also be supported.
+The videos [here](#training-1) will be generated. Color mesh extractions are also supported.
 
 
 ## Visualization
@@ -66,14 +65,15 @@ The video [here](#training-1) will be generated. Mesh extraction will also be su
 | `Michelangelo style statue of dog reading news on a cellphone, 3d asset` | ![ms3](https://github.com/user-attachments/assets/77e92964-d9d7-4f76-a63a-8558366bb6e4)   |
 
 ### Training
-| Input Prompt | 3D Generation |
-| --- | :---:     |
-| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> |
+| Input Prompt | Rendererd MView Video | 3D Generation |
+| --- | :---:  | :---:  |
+| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> | <div class="sketchfab-embed-wrapper"> <iframe title="an astronaut riding a horse_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/2191db5b61834839aac5238f60d70e59/embed"> </iframe> </div> |
+| `Michelangelo style statue of dog reading news on a cellphone` | <video src=" https://github.com/user-attachments/assets/e5f71908-7308-4aeb-a08a-cb6a714721a2" /> | <div class="sketchfab-embed-wrapper"> <iframe title="Michelangelo style statue of dog reading news_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c21773f276884a5db7d47e41926645e4/embed"> </iframe> </div>|
 
-This video is a rendered frame sequence of the generated 3D implicit field by MVDream.
+These videos are rendered from the trained 3D implicit field in our MVDream model. Color meshes are extracted with the script [`MVDream-threestudio/extract_color_mesh.py`](MVDream-threestudio/extract_color_mesh.py).
 
 ## Performance
-Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
+Experiments are tested on Ascend 910* with mindspore 2.4.1 pynative mode.
 
 ### Training
 | # samples per ray  | renderer resolution | guidance batch size | speed (step/second) |
@@ -88,7 +88,7 @@ Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 | 256x256 | 0.439 |
 
 ## Tips
-- **Preview**. Generating 3D content with SDS would a take a lot of time. So The authors suggest to use the 2D multi-view image generation [MVDream](MVDream/README.md) to test if the model can really understand the text before using it for 3D generation.
+- **Preview**. Generating 3D content with SDS would a take a lot of time. So The authors suggest to use the 2D multi-view image generation [MVDream](MVDream) to test if the model can really understand the text before using it for 3D generation.
 - **Rescale Factor**. The authors introduce rescale adjustment from [Shanchuan et al.](https://arxiv.org/abs/2305.08891) to alleviate the texture over-saturation from large CFG guidance. However, in some cases, the authors find it to cause floating noises in the generated scene and consequently OOM issue. Therefore the authors reduce the rescale factor from 0.7 in original paper to 0.5. However, if you still encounter such a problem, please try to further reduce `system.guidance.recon_std_rescale=0.3`.
 
 ## Acknowledgements

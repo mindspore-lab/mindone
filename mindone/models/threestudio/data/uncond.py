@@ -182,20 +182,25 @@ class RandomCameraDataset:
         self.elevation_deg, self.azimuth_deg = elevation_deg, azimuth_deg
         self.camera_distances = camera_distances
         self.fovy_deg = fovy_deg
-        self.output_columns = ["rays_o", "rays_d"]
+        self.focal_length = focal_length[0]
+        if split == "mesh":
+            self.output_columns = ["rays_o", "rays_d", "c2w"]
+        else:
+            self.output_columns = ["rays_o", "rays_d"]
 
     def __len__(self):
         return self.n_views
 
     def __getitem__(self, index):
-        b = {
-            "rays_o": self.rays_o[index],
-            "rays_d": self.rays_d[index],
-        }
+        b = {"rays_o": self.rays_o[index], "rays_d": self.rays_d[index], "c2w": self.c2w[index]}
         # create batch dim
         for key in b:
             b.update({key: np.expand_dims(b[key], axis=0)})
-        return b["rays_o"].astype(np.float32), b["rays_d"].astype(np.float32)
+
+        if "c2w" not in self.output_columns:
+            return b["rays_o"].astype(np.float32), b["rays_d"].astype(np.float32)
+        else:
+            return b["rays_o"].astype(np.float32), b["rays_d"].astype(np.float32), b["c2w"].astype(np.float32)
 
     def collate(self, batch):
         return batch

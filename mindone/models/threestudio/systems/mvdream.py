@@ -33,10 +33,13 @@ class MVDreamSystem(BaseLift3DSystem):
     def configure(self) -> None:
         # set up renderer by configuring the baselift3Dsystem
         super().configure()
-        self.guidance = threestudio.find(self.cfg.guidance_type)(self.cfg.guidance)
-        self.guidance.requires_grad = False
-        self.prompt_processor = threestudio.find(self.cfg.prompt_processor_type)(self.cfg.prompt_processor)
-        self.prompt_utils = self.prompt_processor()
+        try:
+            self.guidance = threestudio.find(self.cfg.guidance_type)(self.cfg.guidance)
+            self.guidance.requires_grad = False
+            self.prompt_processor = threestudio.find(self.cfg.prompt_processor_type)(self.cfg.prompt_processor)
+            self.prompt_utils = self.prompt_processor()
+        except Exception:  # this happens in extracting mesh, NOT initing these to save mem ftpt
+            threestudio.info("not init guidance/prompt_proc, only accepted in extracting mesh")
 
         # below inputs int not tensor, assign during config of the system obj
         self.width = 64
@@ -179,7 +182,7 @@ class MVDreamSystem(BaseLift3DSystem):
             f"test-it{self.true_global_step}",
             f"test-it{self.true_global_step}",
             r"(\d+)\.png",
-            # save_format="mp4",
+            # save_format="mp4",  # uncomment here to save video
             save_format="gif",
             fps=30,
             name="test",
