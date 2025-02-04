@@ -53,6 +53,7 @@ class ExperimentConfig:
     trial_name: str = "exp"
     trial_dir: str = "outputs/default/exp"
     n_npus: int = 1
+    run_suffix: str = ""
 
     resume: Optional[str] = None
 

@@ -1,5 +1,5 @@
 # MVDream
-We support the training/inference pipeline of an diffusion-prior based, neural implicit field rendered, 3D mesh generation work called MVDream here.
+We support the training/inference pipeline of a diffusion-prior based, neural implicit field rendered, 3D mesh generation work called MVDream here.
 
 ## Introduction
 ![intro](https://github.com/user-attachments/assets/2f32333b-f481-4b25-8e43-b4bde1901031)
@@ -42,8 +42,7 @@ python launch.py \
 python launch.py \
         --train \
         --train_highres \
-        resume="PATH_CKPT_OUTPUT/step_5000.ckpt" \
-        system.use_recompute=true \
+        resume="PATH_CKPT_OUTPUT/step_5000.ckpt" system.use_recompute=true
 ```
 Notice that you need to resume the high-resolution training from the output checkpoint of the low-resolution training. The training happens in a self-supervision manner where the rendered RGB from the renderer is encoded by the guidance pretrained multiview sd-v2.1 model (regarded as "sd2" in the following)'s encoder as a raw latent, and such raw latent is supervised against its own sd2-forward then text-guided-denoised, reconstructed latents.
 
@@ -66,11 +65,12 @@ The video [here](#training-1) will be generated. Mesh extraction will also be su
 | `Michelangelo style statue of dog reading news on a cellphone, 3d asset` | ![ms3](https://github.com/user-attachments/assets/77e92964-d9d7-4f76-a63a-8558366bb6e4)   |
 
 ### Training
-| Input Prompt | 3D Generation |
-| --- | :---:     |
-| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> |
+| Input Prompt | Rendered Video | 3D Generation |
+| --- | :---: | :---:  |
+| `an astronaut riding a horse` | <video src="https://github.com/user-attachments/assets/f8d00417-96e4-4ddd-aa58-d2c2b7379c8e" /> |  <div class="sketchfab-embed-wrapper"> <iframe title="an astronaut riding a horse_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/2191db5b61834839aac5238f60d70e59/embed"> </iframe> </div> |
+| `Michelangelo style statue of dog reading news on a cellphone` | <video src=" https://github.com/user-attachments/assets/e5f71908-7308-4aeb-a08a-cb6a714721a2" /> |  <div class="sketchfab-embed-wrapper"> <iframe title="Michelangelo style statue of dog reading news_ms" frameborder="0" allowfullscreen mozallowfullscreen="true" webkitallowfullscreen="true" allow="autoplay; fullscreen; xr-spatial-tracking" xr-spatial-tracking execution-while-out-of-viewport execution-while-not-rendered web-share src="https://sketchfab.com/models/c21773f276884a5db7d47e41926645e4/embed"> </iframe> </div> |
 
-This video is a rendered frame sequence of the generated 3D implicit field by MVDream.
+This video is a rendered frame sequence of the generated 3D implicit field by MVDream. The meshes can be extracted with `extract_color_mesh.py` that we provide.
 
 ## Performance
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
