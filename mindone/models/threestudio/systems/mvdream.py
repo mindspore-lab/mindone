@@ -33,13 +33,10 @@ class MVDreamSystem(BaseLift3DSystem):
     def configure(self) -> None:
         # set up renderer by configuring the baselift3Dsystem
         super().configure()
-        try:
-            self.guidance = threestudio.find(self.cfg.guidance_type)(self.cfg.guidance)
-            self.guidance.requires_grad = False
-            self.prompt_processor = threestudio.find(self.cfg.prompt_processor_type)(self.cfg.prompt_processor)
-            self.prompt_utils = self.prompt_processor()
-        except Exception:
-            threestudio.info("guidance/prompt_proc not configured, only acceptable when you finish training while extracting mesh")
+        self.guidance = threestudio.find(self.cfg.guidance_type)(self.cfg.guidance)
+        self.guidance.requires_grad = False
+        self.prompt_processor = threestudio.find(self.cfg.prompt_processor_type)(self.cfg.prompt_processor)
+        self.prompt_utils = self.prompt_processor()
 
         # below inputs int not tensor, assign during config of the system obj
         self.width = 64

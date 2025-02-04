@@ -23,7 +23,6 @@ class NeRFVolumeRenderer(Renderer):
         sampler_bbox_max: int = 1
         depth_resolution: int = 256
         depth_resolution_importance: int = 256
-        render_to_mesh: bool = False
 
     cfg: Config
 
@@ -247,10 +246,7 @@ class NeRFVolumeRenderer(Renderer):
         composite_rgb = comp_rgb_fg + bg_color * (1.0 - opacity)
         # composite_rgb = comp_rgb_fg + bg_color * opacity
 
-        if not self.cfg.render_to_mesh:
-            out = {"comp_rgb": composite_rgb.view(bs, height, width, -1), "opacity": opacity.view(bs, height, width, 1)}
-        else:
-            out = {"comp_rgb": composite_rgb, "opacity": opacity}
+        out = {"comp_rgb": composite_rgb.view(bs, height, width, -1), "opacity": opacity.view(bs, height, width, 1)}
 
         return out
 

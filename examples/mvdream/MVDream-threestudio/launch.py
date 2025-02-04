@@ -40,7 +40,7 @@ def launch(args, extras) -> None:
             # assume that the ckpt under xx/ckpt/xx.ckpt
             output_dir = Path("/".join(cfg.resume.split("/")[:-2]))
         else:
-            output_dir = Path(cfg.exp_root_dir) / (datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + cfg.run_suffix)
+            output_dir = Path(cfg.exp_root_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             # only new training mkdir
             output_dir.mkdir(parents=True, exist_ok=True)
     else:
@@ -48,8 +48,8 @@ def launch(args, extras) -> None:
 
     if args.train_highres:
         cfg.data.update({"batch_size": 4})
-        cfg.data.update({"width": 128})
-        cfg.data.update({"height": 128})
+        cfg.data.update({"width": 256})
+        cfg.data.update({"height": 256})
         global_step = 5000
     else:
         train_cfg.params.update({"max_steps": 5000})  # for lowres only train to s5k
@@ -68,8 +68,8 @@ def launch(args, extras) -> None:
         _mode = "train" if args.train else "test"
         global_step, global_epoch, loss_scale, state_dict = get_resume_states(cfg.resume)
         logger.info(f"Resumed loss_scaler, prev epoch: {global_epoch}, global step {global_step}")
-        m1, u1 = load_param_into_net_with_filter(system.renderer.geometry, state_dict)  # missing and unexpected keys
-        m2, u2 = load_param_into_net_with_filter(system.renderer.background, state_dict)
+        m1, u1 = load_param_into_net_with_filter(system.geometry, state_dict)  # missing and unexpected keys
+        m2, u2 = load_param_into_net_with_filter(system.background, state_dict)
         m = set(m1).union(set(m2))
         u = set(u1).intersection(set(u2))
         logger.info(f"Resumed ckpt {cfg.resume} in {_mode} mode")
@@ -258,7 +258,7 @@ def launch(args, extras) -> None:
             logger.info(f"Testing idx {view_idx} done. Step time {step_time*1000:.2f}ms")
             system.on_test_batch_start(batch, global_step, test_loader)
 
-        # save gif/mp4
+        # save gif
         system.on_test_epoch_end()
     else:
         raise ValueError("mode not supported")

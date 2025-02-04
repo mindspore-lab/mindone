@@ -269,10 +269,10 @@ class RandomMultiviewCameraDataModule:
     def setup(self, stage=None) -> None:
         if stage in [None, "train"]:
             self.train_dataset = RandomMultiviewCameraIterableDataset(self.cfg)
-        if stage in [None, "train", "validate"]:
+        if stage in [None, "train", "validate"]:  # TODO to enable this, needs to make the valset operation in np
             self.val_dataset = RandomCameraDataset(self.cfg, "val")
-        if stage in [None, "test", "predict", "mesh"]:
-            self.test_dataset = RandomCameraDataset(self.cfg, stage)
+        if stage in [None, "test", "predict"]:
+            self.test_dataset = RandomCameraDataset(self.cfg, "test")
 
     def prepare_data(self):
         pass
