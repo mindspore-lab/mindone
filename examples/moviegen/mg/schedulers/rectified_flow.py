@@ -61,14 +61,14 @@ class RFLOW:
             timesteps = np.concatenate([linear, quadratic])
 
         timesteps = np.tile(timesteps[..., None], (1, x.shape[0]))
-        timesteps = Tensor(timesteps, dtype=model.dtype)  # FIXME: avoid calculations on tensors outside `construct`
+        timesteps = Tensor(timesteps, dtype=mstype.float32)  # FIXME: avoid calculations on tensors outside `construct`
 
         for i, timestep in tqdm(enumerate(timesteps), total=self.num_sampling_steps):
             pred = model(x, timestep, ul2_emb, metaclip_emb, byt5_emb)
 
             # update z
             dt = timesteps[i] - timesteps[i + 1] if i < len(timesteps) - 1 else timesteps[i]
-            dt = dt / self.num_timesteps
+            dt = (dt / self.num_timesteps).to(model.dtype)
             x = x + pred * dt[:, None, None, None, None]
 
         return x

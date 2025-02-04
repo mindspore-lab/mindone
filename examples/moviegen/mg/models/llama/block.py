@@ -16,15 +16,18 @@ from .activation import ACT2FN
 
 
 class LlamaRMSNorm(nn.Cell):
-    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6):
+    def __init__(self, hidden_size: Union[int, Sequence[int]], eps: float = 1e-6, dtype: ms.Type = ms.float32):
         super().__init__()
-        self.weight = Parameter(np.ones(hidden_size).astype(np.float32))  # keep normalization at FP32
+        self.weight = Parameter(Tensor(np.ones(hidden_size), dtype=dtype))  # noqa
         self.variance_epsilon = eps
+        self._dtype = dtype
 
     def construct(self, hidden_states: Tensor) -> Tensor:
-        input_dtype = hidden_states.dtype
-        hidden_states, _ = ops.rms_norm(hidden_states.to(ms.float32), self.weight, epsilon=self.variance_epsilon)
-        return hidden_states.to(input_dtype)
+        if self._dtype == ms.float16:  # for faster graph building
+            return ops.rms_norm(
+                hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
+            )[0].to(ms.float16)
+        return ops.rms_norm(hidden_states, self.weight, epsilon=self.variance_epsilon)[0]
 
 
 class LlamaMLP(nn.Cell):
@@ -279,10 +282,6 @@ class TimestepEmbedder(nn.Cell):
         self._freqs = Tensor(np.exp(-np.log(max_period) * np.arange(start=0, stop=half, dtype=np.float32) / half)[None])
         self._dtype = dtype
 
-    @property
-    def dtype(self):
-        return self._dtype
-
     def timestep_embedding(self, t: Tensor) -> Tensor:
         args = ops.unsqueeze(t, 1).to(ms.float32) * self._freqs
         embedding = mint.cat([mint.cos(args), mint.sin(args)], dim=-1)
@@ -292,5 +291,5 @@ class TimestepEmbedder(nn.Cell):
 
     def construct(self, t: Tensor) -> Tensor:
         t_freq = self.timestep_embedding(t)
-        t_emb = self.mlp(t_freq.to(self.dtype))
+        t_emb = self.mlp(t_freq.to(self._dtype))
         return t_emb

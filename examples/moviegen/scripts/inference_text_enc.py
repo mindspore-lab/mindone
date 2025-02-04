@@ -105,7 +105,7 @@ def main(args):
         tokens = inputs.input_ids
         masks = inputs.attention_mask
         output = model(ms.Tensor(inputs.input_ids, dtype=ms.int32), ms.Tensor(inputs.attention_mask, dtype=ms.uint8))[0]
-        output = to_numpy(output).astype(np.float32)
+        output = to_numpy(output)
 
         for j in range(len(output)):
             paths[i + j].parent.mkdir(parents=True, exist_ok=True)

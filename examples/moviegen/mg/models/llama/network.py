@@ -82,8 +82,8 @@ class LlamaDecoderLayer(nn.Cell):
         )
 
         self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 6, hidden_size) / hidden_size**0.5, dtype=dtype))
-        self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps)
-        self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps)
+        self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
+        self.post_attention_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
 
     def construct(
         self,
@@ -98,9 +98,7 @@ class LlamaDecoderLayer(nn.Cell):
         hidden_states = hidden_states + position_embedding
 
         # 3.1.3 Adaptive Layer Norm
-        modulation_parameters = self.scale_shift_table.to(hidden_states.dtype) + ops.reshape(
-            modulation_parameters, (B, 6, -1)
-        )
+        modulation_parameters = self.scale_shift_table + ops.reshape(modulation_parameters, (B, 6, -1))
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(modulation_parameters, 6, dim=1)
 
         # Self-Attention (Bi-Directional Attention)
@@ -137,16 +135,14 @@ class LlamaFinalLayer(nn.Cell):
         dtype: mstype = mstype.float32,
     ) -> None:
         super().__init__()
-        self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps)
+        self.input_layernorm = LlamaRMSNorm(hidden_size, eps=rms_norm_eps, dtype=dtype)
         self.proj = nn.Dense(
             hidden_size, patch_size[0] * patch_size[1] * patch_size[2] * out_channels, has_bias=False, dtype=dtype
         )
-        self.scale_shift_table = Parameter(Tensor(np.random.randn(2, hidden_size) / hidden_size**0.5, dtype=dtype))
+        self.scale_shift_table = Parameter(Tensor(np.random.randn(1, 2, hidden_size) / hidden_size**0.5, dtype=dtype))
 
     def construct(self, hidden_states: Tensor, timestep_embedding: Tensor):
-        shift, scale = mint.chunk(
-            ops.unsqueeze(self.scale_shift_table, 0) + ops.unsqueeze(timestep_embedding, 1), 2, dim=1
-        )
+        shift, scale = mint.chunk(self.scale_shift_table + ops.unsqueeze(timestep_embedding, 1), 2, dim=1)
         hidden_states = t2i_modulate(self.input_layernorm(hidden_states), shift, scale)
         hidden_states = self.proj(hidden_states)
         return hidden_states
@@ -217,6 +213,10 @@ class LlamaModel(nn.Cell):
         self.pos_embedding_table_t = nn.Embedding(max_length[0], self.hidden_size, dtype=dtype)
         self.pos_embedding_table_h = nn.Embedding(max_length[1], self.hidden_size, dtype=dtype)
         self.pos_embedding_table_w = nn.Embedding(max_length[2], self.hidden_size, dtype=dtype)
+        # Warning: MS always sets `embedding_table` to `FP32` regardless of the specified precision
+        self.pos_embedding_table_t.embedding_table.set_dtype(dtype)
+        self.pos_embedding_table_h.embedding_table.set_dtype(dtype)
+        self.pos_embedding_table_w.embedding_table.set_dtype(dtype)
 
         if use_linear_patch_embedder:
             self.latent_embedder = LinearPatchEmbed3D(self.patch_size, self.in_channels, self.hidden_size, dtype=dtype)
@@ -299,10 +299,8 @@ class LlamaModel(nn.Cell):
         w_inds = mint.arange(nw, dtype=mstype.int64)
 
         position_ids = ops.meshgrid(t_inds, h_inds, w_inds, indexing="ij")
-        position_ids = ops.stack(position_ids, axis=-1)
-        position_ids = ops.reshape(position_ids, (-1, 3))
+        t_inds, h_inds, w_inds = tuple(pi.reshape(-1) for pi in position_ids)
 
-        t_inds, h_inds, w_inds = ops.unbind(position_ids, dim=-1)
         pos_embed_t = self.pos_embedding_table_t(t_inds)
         pos_embed_h = self.pos_embedding_table_h(h_inds)
         pos_embed_w = self.pos_embedding_table_w(w_inds)
@@ -339,7 +337,6 @@ class LlamaModel(nn.Cell):
 
         # create position embedding to be shared across the decoder layers
         position_embedding = self.learnable_position_embedding(latent_embedding)
-        position_embedding = position_embedding.to(latent_embedding.dtype)
 
         # patchify and embed latent in transformer hidden dim.
         latent_embedding = self.latent_embedder(latent_embedding)

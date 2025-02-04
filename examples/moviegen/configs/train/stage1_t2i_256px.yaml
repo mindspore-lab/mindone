@@ -61,7 +61,7 @@ train:
     min_lr: 1.0e-6
 
   optimizer:
-    name: adamw_re
+    name: adamw_bf16
     eps: 1e-15
     betas: [ 0.9, 0.999 ]
     weight_decay: 0.1
