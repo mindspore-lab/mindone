@@ -59,11 +59,6 @@ def parse_train_args(parser):
         help="what computation data type to use. Default is `fp32`, which corresponds to ms.float32",
     )
     parser.add_argument(
-        "--global_bf16",
-        default=False,
-        help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN",
-    )
-    parser.add_argument(
         "--amp_level",
         default="O0",
         type=str,

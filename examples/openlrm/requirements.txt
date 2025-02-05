@@ -9,3 +9,4 @@ opencv-python
 rembg
 httpx[socks]
 mindcv
+torch

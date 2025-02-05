@@ -74,7 +74,7 @@ def parse_configs():
         cfg.merge_with(cfg_infer)
         if os.path.isdir(cli_cfg.model_name):
             model_path_name = cli_cfg.model_name.replace(os.path.dirname(cli_cfg.model_name), "").replace("/", "")
-            if cli_cfg.epoch is not None:
+            if "epoch" in cli_cfg:
                 model_path_name = model_path_name + "-e" + str(cli_cfg.epoch)
             cfg.setdefault("video_dump", os.path.join("dumps", model_path_name, "videos"))
             cfg.setdefault("mesh_dump", os.path.join("dumps", model_path_name, "meshes"))
@@ -140,7 +140,7 @@ class LRMInferrer(Inferrer):
 
         hf_model_cls = wrap_model_hub(model_dict[self.EXP_TYPE])
         ckpt_name = None
-        if cfg.model_ckpt is not None:
+        if "model_ckpt" in cfg:
             ckpt_name = cfg.model_ckpt
         model = hf_model_cls.from_pretrained(cfg.model_name, use_safetensors=True, ckpt_name=ckpt_name)
         return model
@@ -210,20 +210,18 @@ class LRMInferrer(Inferrer):
                     resolutions=render_resolutions[:, i : i + frame_size],
                     bg_colors=render_bg_colors[:, i : i + frame_size],
                     region_size=render_size,
-                )
+                )["images_rgb"] # only render rgb images, change key name to render depth or weight.
             )
         # merge frames
-        frames = {k: mint.cat([r[k] for r in frames], dim=1) for k in frames[0].keys()}
+        frames = mint.cat(frames, dim=1)
         # dump
         os.makedirs(os.path.dirname(dump_video_path), exist_ok=True)
-        for k, v in frames.items():
-            if k == "images_rgb":
-                images_to_video(
-                    images=v[0],
-                    output_path=dump_video_path,
-                    fps=render_fps,
-                    gradio_codec=self.cfg.app_enabled,
-                )
+        images_to_video(
+            images=frames[0], # batch = 1
+            output_path=dump_video_path,
+            fps=render_fps,
+            gradio_codec=self.cfg.app_enabled,
+        )
 
     def infer_mesh(self, planes: ms.Tensor, mesh_size: int, mesh_thres: float, dump_mesh_path: str):
         grid_out = self.model.synthesizer.forward_grid(

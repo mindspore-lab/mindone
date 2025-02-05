@@ -40,7 +40,7 @@ def generate_planes():
     )
 
 
-def project_onto_planes(planes, coordinates):
+def project_onto_planes(planes, coordinates, matrix_inverse_func):
     """
     Does a projection of a 3D point onto a batch of 2D planes,
     returning 2D plane coordinates.
@@ -54,12 +54,12 @@ def project_onto_planes(planes, coordinates):
     N, M, C = coordinates.shape
     n_planes, _, _ = planes.shape
     coordinates = coordinates.unsqueeze(1).broadcast_to((-1, n_planes, -1, -1)).reshape(N * n_planes, M, 3)
-    inv_planes = MatrixInv()(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N * n_planes, 3, 3)
+    inv_planes = matrix_inverse_func(planes).unsqueeze(0).broadcast_to((N, -1, -1, -1)).reshape(N * n_planes, 3, 3)
     projections = mint.bmm(coordinates.to(planes.dtype), inv_planes)
     return projections[..., :2].to(coordinates.dtype)
 
 
-def sample_from_planes(plane_axes, plane_features, coordinates, mode="bilinear", padding_mode="zeros", box_warp=None):
+def sample_from_planes(plane_axes, plane_features, coordinates, matrix_inverse_func, grid_sample2d_func, mode="bilinear", padding_mode="zeros", box_warp=None):
     assert padding_mode == "zeros"
     N, n_planes, C, H, W = plane_features.shape
     _, M, _ = coordinates.shape
@@ -67,9 +67,9 @@ def sample_from_planes(plane_axes, plane_features, coordinates, mode="bilinear",
 
     coordinates = (2 / box_warp) * coordinates  # add specific box bounds
 
-    projected_coordinates = project_onto_planes(plane_axes, coordinates).unsqueeze(1)
+    projected_coordinates = project_onto_planes(plane_axes, coordinates, matrix_inverse_func).unsqueeze(1)
     output_features = (
-        GridSample()(
+        grid_sample2d_func(
             plane_features.float(),
             projected_coordinates.float(),
             mode=mode,
@@ -119,6 +119,8 @@ class ImportanceRenderer(nn.Cell):
         self.avg_pool1d = nn.AvgPool1d(kernel_size=2, stride=1)
         self.nan_to_num = NanToNum()
         self.search_sorted = SearchSorted()
+        self.matrix_inverse = MatrixInv()
+        self.grid_sample2d = GridSample() 
 
     def _build_activation_factory(self):
         def activation_factory(options: dict):
@@ -251,10 +253,22 @@ class ImportanceRenderer(nn.Cell):
 
         return rgb_final, depth_final, weights.sum(2)
 
+    def sample_from_planes(self, plane_axes, plane_features, coordinates, matrix_inverse_func, grid_sample2d_func, mode="bilinear", padding_mode="zeros", box_warp=None):
+        return sample_from_planes(
+            plane_axes, 
+            plane_features, 
+            coordinates, 
+            matrix_inverse_func, 
+            grid_sample2d_func, 
+            mode=mode, 
+            padding_mode=padding_mode, 
+            box_warp=box_warp
+        )
+
     def run_model(self, planes, decoder, sample_coordinates, sample_directions, options):
         plane_axes = self.plane_axes
-        sampled_features = sample_from_planes(
-            plane_axes, planes, sample_coordinates, padding_mode="zeros", box_warp=options["box_warp"]
+        sampled_features = self.sample_from_planes(
+            plane_axes, planes, sample_coordinates, self.matrix_inverse, self.grid_sample2d, padding_mode="zeros", box_warp=options["box_warp"]
         )
 
         out = decoder(sampled_features, sample_directions)

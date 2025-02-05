@@ -125,10 +125,6 @@ def evaluate(args):
 
     model = ModelLRMWithLossEval(cfg)
     model.set_train(False)
-    # if not self.args.global_bf16:
-    #     model = auto_mixed_precision(
-    #         lrm_model_with_loss, amp_level=self.args.amp_level, custom_fp32_cells=[MatrixInv]
-    #     )
 
     # load pretrained checkpoint
     logger.info(f"Loading ckpt in {args.model_path}.")
@@ -284,7 +280,7 @@ def parse_args():
         default="fp32",  # if amp level O0/1, must pass fp32
         type=str,
         choices=["bf16", "fp16", "fp32"],
-        help="what computation data type to use for latte. Default is `fp16`, which corresponds to ms.float16",
+        help="what computation data type to use. Default is `fp16`, which corresponds to ms.float16",
     )
     parser.add_argument(
         "--log_level",

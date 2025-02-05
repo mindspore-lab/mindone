@@ -6,5 +6,4 @@ export TRAIN_CONFIG="./configs/train-sample-large.yaml"
 export DEVICE_ID=0
 EPOCH=100000
 OUTPUT_PATH=./outputs/train_3sample_1card_e$EPOCH
-python -m openlrm.launch train.lrm --config $TRAIN_CONFIG --mode 1 --amp_level O2 --use_recompute True --dtype bf16 --loss_scaler_type static --init_loss_scale 16 --num_parallel_workers 1 --epochs $EPOCH &> train_${DEVICE_ID}_3sample_1card_e${EPOCH}.log &
-echo "Log at train_${DEVICE_ID}_3sample_1card_e${EPOCH}.log"
+python -m openlrm.launch train.lrm --config $TRAIN_CONFIG --mode 1 --use_ema True --amp_level auto --use_recompute True --dtype bf16 --num_parallel_workers 1 --epochs $EPOCH
