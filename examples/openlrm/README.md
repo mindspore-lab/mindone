@@ -1,7 +1,7 @@
 # OpenLRM: Open-Source Large Reconstruction Models
 This is the mindspore re-implementation of the work [LRM: Large Reconstruction Model for Single Image to 3D](https://arxiv.org/abs/2311.04400) based on open source repo [OpenLRM v1.1.1](https://github.com/3DTopia/OpenLRM).
 
-## **Introduction**
+## Introduction
 <p align="center">
   <img src="https://github.com/user-attachments/assets/4f5d4325-1fd5-4421-a958-9a11ecee0192"  width="70%" height="auto">
 </p>
@@ -11,7 +11,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 ### Requirements
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.3.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC2.beta1|
+|2.4.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Dependencies
 - Install requirements for OpenLRM.
@@ -26,7 +26,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 
 ### Pretrained Models
 
-- Model weights are released on [Hugging Face](https://huggingface.co/zxhezexin).
+- Model weights are released on [Hugging Face](https://huggingface.co/zxhezexin) with different [configurations]().
 - We suggest to download checkpoints and configs locally, though weights will be downloaded automatically when you run the inference script for the first time.
   ```
   weight_dir
@@ -65,8 +65,9 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   | :--- | :--- | :--- | :--- | :--- | :--- |
   | small | Objaverse | 12 | 512 | 32 | 224 |
   | base | Objaverse | 12 | 768 | 48 | 336 |
-  | large | Objaverse | 16 | 1024 | 80 | 448 |
+  | large | Objaverse | 12* | 768* | 80 | 448 |
 
+  *`large` config using a different transformer architecture from original OpenLRM to support training with 1 card with 65GB.
 
 ### Data Preparation
 - We provide the core [Blender script](scripts/data/objaverse/blender_script.py) used to render Objaverse images.
@@ -158,15 +159,18 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   ```
 
 ## Performace
-Experiments are tested on 1 ascend 910* with mindSpore 2.3.1 pynative mode.
+Experiments are tested on 1 ascend 910* with mindSpore 2.4.1 pynative mode.
 
 
 ### Inference Performance
 - Input a single image, here reports speed of image-to-3D and image rendering.
 
-| model name|  cards| batch size | resolution | precision | jit level| flash attn| (image to 3D) s/step | (render) img/s|  recipe| weight|
-|---|---|---|---|---|---|---|---|---|---|---|
-|openlrm-mix-base-1.1 |  1 | 1 | 336x336 |fp32| O0| OFF |   0.61 | 0.91 |[yaml](./configs/infer-b.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-mix-base-1.1)|
+| model name|  cards| batch size | resolution | precision | flash attn| (image to 3D) s/step | (render) img/s|  recipe| weight|
+|---|---|---|---|---|---|---|---|---|---|
+|openlrm-mix-base-1.1 |  1 | 1 | 336x336 |fp32| OFF |   0.83 | 0.98 |[yaml](./configs/infer-b.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-mix-base-1.1)|
+|openlrm-obj-small-1.1 |  1 | 1 | 224x224 |fp32| OFF |  0.72  | 2.19 |[yaml](./configs/infer-s.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-small-1.1)|
+|openlrm-obj-base-1.1 |  1 | 1 | 336x336 |fp32| OFF | 0.76   | 0.98 |[yaml](./configs/infer-b.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-base-1.1)|
+|openlrm-obj-large-1.1 |  1 | 1 | 448x448 |fp32| OFF | 0.92  | 0.37|[yaml](./configs/infer-l.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-large-1.1)|
 
 |Input| Output |
 |:---|:---|
@@ -179,19 +183,20 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.3.1 pynative mode.
 ### Training Performance
 - Train with objaverse data only:
 
-|model name	| cards	| batch size	| resolution	| precision| recompute	| loss scaler	| jit level	| s/step	| batch/s|
-|---|---|---|---|---|---|---|---|---|---|
-|small | 1 | 1 | (4x)224x224 | fp32 | OFF | NONE | O0 | 2.00 | 0.50 |
-|base | 1 | 1 | (4x)336x336 | fp32 | OFF | NONE | O0 | 2.63 | 0.38 |
-|large | 1 | 1 | (4x)448x448 | bf16 | ON | static | O0 | 4.22 | 0.24 |  
+|model name	| cards	| batch size	| resolution	| precision| recompute	|  s/step	| batch/s|
+|---|---|---|---|---|---|---|---|
+|small | 1 | 1 | (4x)224x224 | fp32 | OFF |  2.00 | 0.50 |
+|base | 1 | 1 | (4x)336x336 | fp32 | OFF |  2.63 | 0.38 |
+|large | 1 | 1 | (4x)448x448 | bf16 | ON |  3.12 | 0.32|  
 
 
 - Evaluation on trained models:
 
-|model name	| epoch| cards	| batch size	| resolution	| precision| jit level	| (infer+render) s/step	| PSNR | SSIM |
-|---|---|---|---|---|---|---|---|---|---|
-|small | 70k |1 | 1 | 224x224 | fp32  | O0 | 0.99 | 23.75 | 0.88  
-|base | 40k |1 | 1 | 336x336 | fp32  | O0 | 1.90 | 20.79 | 0.86  
+|model name	| epoch| cards	| batch size	| resolution	| precision|  (infer+render) s/step	| PSNR | SSIM |
+|---|---|---|---|---|---|---|---|---|
+|small | 100k |1 | 1 | 224x224 | fp32  | 0.99 | 26.38 | 0.91  
+|base | 100k |1 | 1 | 336x336 | fp32  | 1.64 | 27.44 | 0.92  
+|large | 50k |1 | 1 | 448x448 | bf16  | 2.87 | 22.98 | 0.89   
 
 |Input| Output (small-ep50k)| Output (base-ep40k) |
 |:---|:---|:---|
