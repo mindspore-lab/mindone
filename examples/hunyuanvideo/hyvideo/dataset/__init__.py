@@ -1,11 +1,14 @@
+import logging
 from functools import partial
 
 import cv2
 from albumentations import Compose, Lambda, Resize, ToFloat
-from transformers import AutoTokenizer
+from hyvideo.text_encoder import load_tokenizer
 
 from .t2v_datasets import T2V_dataset
 from .transform import TemporalRandomCrop, center_crop_th_tw, maxhxw_resize, spatial_stride_crop_video
+
+logger = logging.getLogger(__name__)
 
 
 def getdataset(args, dataset_file):
@@ -50,11 +53,18 @@ def getdataset(args, dataset_file):
         additional_targets=targets,
     )
 
-    tokenizer_1 = AutoTokenizer.from_pretrained(args.text_encoder_name_1, cache_dir=args.cache_dir)
-    tokenizer_2 = None
-    if args.text_encoder_name_2 is not None:
-        tokenizer_2 = AutoTokenizer.from_pretrained(args.text_encoder_name_2, cache_dir=args.cache_dir)
-
+    tokenizer_1, _ = load_tokenizer(
+        tokenizer_type=args.tokenizer,
+        tokenizer_path=args.tokenizer_path if args.tokenizer_path is not None else args.text_encoder_path,
+        padding_side="right",
+        logger=logger,
+    )
+    tokenizer_2, _ = load_tokenizer(
+        tokenizer_type=args.tokenizer_2,
+        tokenizer_path=args.tokenizer_path_2 if args.tokenizer_path_2 is not None else args.text_encoder_path_2,
+        padding_side="right",
+        logger=logger,
+    )
     if args.dataset == "t2v":
         return T2V_dataset(
             args,

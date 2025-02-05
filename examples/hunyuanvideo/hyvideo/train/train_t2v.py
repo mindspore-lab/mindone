@@ -14,7 +14,7 @@ from mindspore.train.callback import TimeMonitor
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append("./")
-from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
+from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, PROMPT_TEMPLATE, VAE_PATH
 from hyvideo.dataset import getdataset
 from hyvideo.dataset.loader import create_dataloader
 from hyvideo.diffusion.net_with_loss import DiffusionWithLoss, DiffusionWithLossEval
@@ -41,7 +41,6 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.trainers.zero import prepare_train_network
-from mindone.transformers import CLIPTextModelWithProjection, MT5EncoderModel, T5EncoderModel
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
@@ -213,39 +212,13 @@ def main(args):
     # Load text encoder
     if not args.text_embed_cache:
         print_banner("text encoder init")
-        text_encoder_dtype = get_precision(args.text_encoder_precision)
-        if "mt5" in args.text_encoder_name_1:
-            text_encoder_1, loading_info = MT5EncoderModel.from_pretrained(
-                args.text_encoder_name_1,
-                cache_dir=args.cache_dir,
-                output_loading_info=True,
-                mindspore_dtype=text_encoder_dtype,
-                use_safetensors=True,
-            )
-            loading_info.pop("unexpected_keys")  # decoder weights are ignored
-            logger.info(f"Loaded MT5 Encoder: {loading_info}")
-            text_encoder_1 = text_encoder_1.set_train(False)
-        else:
-            text_encoder_1 = T5EncoderModel.from_pretrained(
-                args.text_encoder_name_1, cache_dir=args.cache_dir, mindspore_dtype=text_encoder_dtype
-            ).set_train(False)
-        text_encoder_2 = None
-        if args.text_encoder_name_2 is not None:
-            text_encoder_2, loading_info = CLIPTextModelWithProjection.from_pretrained(
-                args.text_encoder_name_2,
-                cache_dir=args.cache_dir,
-                mindspore_dtype=text_encoder_dtype,
-                output_loading_info=True,
-                use_safetensors=True,
-            )
-            loading_info.pop("unexpected_keys")  # only load text model, ignore vision model
-            # loading_info.pop("mising_keys") # Note: missed keys when loading open-clip models
-            logger.info(f"Loaded CLIP Encoder: {loading_info}")
-            text_encoder_2 = text_encoder_2.set_train(False)
+        from hyvideo.run_text_encoder import build_model
+
+        text_encoder_1, text_encoder_2 = build_model(args, logger)
+        text_encoder_1_dtype, text_encoder_2_dtype = args.text_encoder_precision, args.text_encoder_precision_2
     else:
-        text_encoder_1 = None
-        text_encoder_2 = None
-        text_encoder_dtype = None
+        text_encoder_1, text_encoder_2 = None, None
+        text_encoder_1_dtype, text_encoder_2_dtype = None, None
 
     kwargs = dict(prediction_type=args.prediction_type, rescale_betas_zero_snr=args.rescale_betas_zero_snr)
     if args.cogvideox_scheduler:
@@ -276,6 +249,7 @@ def main(args):
         noise_scheduler,
         vae=vae,
         text_encoder=text_encoder_1,
+        text_encoder_2=text_encoder_2,
         text_emb_cached=args.text_embed_cache,
         video_emb_cached=False,
         use_image_num=args.use_image_num,
@@ -388,6 +362,7 @@ def main(args):
             noise_scheduler,
             vae=vae,
             text_encoder=text_encoder_1,
+            text_encoder_2=text_encoder_2,
             text_emb_cached=args.text_embed_cache,
             video_emb_cached=False,
             use_image_num=args.use_image_num,
@@ -699,7 +674,11 @@ def main(args):
                 f"Transformer model dtype: {model_dtype}",
                 f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
                 f"VAE dtype: {vae_dtype}"
-                + (f"\nText encoder dtype: {text_encoder_dtype}" if text_encoder_dtype is not None else ""),
+                + (
+                    f"\nText encoder dtype: text encoder 1 {text_encoder_1_dtype} and text encoder 2 {text_encoder_2_dtype}"
+                    if text_encoder_1_dtype is not None or text_encoder_2_dtype is not None
+                    else ""
+                ),
                 f"Attention mode: {args.attention_mode}",
                 f"Learning rate: {learning_rate}",
                 f"Instantaneous batch size per device: {args.train_batch_size}",
@@ -775,8 +754,117 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--text_states_dim_2", type=int, default=768, help="Second dimension of text embeddings")
     parser.add_argument("--vae_fp32", action="store_true")
 
-    parser.add_argument("--text_encoder_name_1", type=str, default="DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--text_encoder_name_2", type=str, default=None)
+    parser.add_argument(
+        "--text_encoder_choices",
+        type=str,
+        nargs="+",
+        default=["llm", "clipL"],
+        choices=["llm", "clipL"],
+        help="Specify the text encode type.",
+    )
+
+    # text encoder llm
+    parser.add_argument(
+        "--text_encoder_name",
+        type=str,
+        default="llm",
+        help="Name of the text encoder model.",
+    )
+    parser.add_argument(
+        "--text_encoder_precision",
+        type=str,
+        default="bf16",
+        choices=PRECISIONS,
+        help="Precision mode for the text encoder model.",
+    )
+    parser.add_argument(
+        "--text_encoder_path",
+        type=str,
+        default="ckpts/text_encoder",
+        help="File path of the ckpt of the text encoder.",
+    )
+    parser.add_argument(
+        "--tokenizer",
+        type=str,
+        default="llm",
+        help="Name of the tokenizer model.",
+    )
+    parser.add_argument(
+        "--tokenizer_path",
+        type=str,
+        default=None,
+        help="File path of the ckpt of the tokenizer.",
+    )
+    parser.add_argument(
+        "--text_len",
+        type=int,
+        default=256,
+        help="Maximum length of the text input.",
+    )
+    parser.add_argument(
+        "--prompt_template",
+        type=str,
+        default="dit-llm-encode",
+        choices=PROMPT_TEMPLATE,
+        help="Image prompt template for the decoder-only text encoder model.",
+    )
+    parser.add_argument(
+        "--prompt_template_video",
+        type=str,
+        default="dit-llm-encode-video",
+        choices=PROMPT_TEMPLATE,
+        help="Video prompt template for the decoder-only text encoder model.",
+    )
+    parser.add_argument(
+        "--hidden_state_skip_layer",
+        type=int,
+        default=2,
+        help="Skip layer for hidden states.",
+    )
+    parser.add_argument(
+        "--apply_final_norm",
+        action="store_true",
+        help="Apply final normalization to the used text encoder hidden states.",
+    )
+
+    # text encoder clipL
+    parser.add_argument(
+        "--text_encoder_name_2",
+        type=str,
+        default="clipL",
+        help="Name of the second text encoder model.",
+    )
+    parser.add_argument(
+        "--text_encoder_precision_2",
+        type=str,
+        default="fp16",
+        choices=PRECISIONS,
+        help="Precision mode for the second text encoder model.",
+    )
+    parser.add_argument(
+        "--text_encoder_path_2",
+        type=str,
+        default="ckpts/text_encoder_2",
+        help="File path of the ckpt of the second text encoder.",
+    )
+    parser.add_argument(
+        "--tokenizer_2",
+        type=str,
+        default="clipL",
+        help="Name of the second tokenizer model.",
+    )
+    parser.add_argument(
+        "--tokenizer_path_2",
+        type=str,
+        default=None,
+        help="File path of the ckpt of the second tokenizer.",
+    )
+    parser.add_argument(
+        "--text_len_2",
+        type=int,
+        default=77,
+        help="Maximum length of the second text input.",
+    )
 
     parser.add_argument("--cogvideox_scheduler", action="store_true")
     parser.add_argument("--v1_5_scheduler", action="store_true")
@@ -913,13 +1001,6 @@ def parse_t2v_train_args(parser):
         default="fp16",
         choices=PRECISIONS,
         help="Precision mode for the VAE model.",
-    )
-    parser.add_argument(
-        "--text_encoder_precision",
-        default="bf16",
-        type=str,
-        choices=["bf16", "fp16"],
-        help="what data type to use for T5 text encoder. Default is `bf16`, which corresponds to ms.bfloat16",
     )
     parser.add_argument(
         "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"

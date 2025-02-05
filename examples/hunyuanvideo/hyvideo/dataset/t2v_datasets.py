@@ -186,7 +186,7 @@ class T2V_dataset:
         self.duration_threshold = 100.0
 
         self.support_Chinese = False
-        if "mt5" in args.text_encoder_name_1:
+        if "mt5" in args.text_encoder_name:
             self.support_Chinese = True
         if args.text_encoder_name_2 is not None and "mt5" in args.text_encoder_name_2:
             self.support_Chinese = True

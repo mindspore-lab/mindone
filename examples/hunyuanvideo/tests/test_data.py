@@ -248,7 +248,7 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--group_resolution", action="store_true")
     parser.add_argument("--cache_dir", type=str, default="./ckpts")
     parser.add_argument("--model_max_length_1", type=int, default=315)  # llava llama text encoder
-    parser.add_argument("--text_encoder_name_1", type=str, default="DeepFloyd/t5-v1_1-xxl")
+    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
     parser.add_argument("--text_encoder_name_2", type=str, default=None)
     parser.add_argument(
         "--model_max_length_2", type=int, default=77

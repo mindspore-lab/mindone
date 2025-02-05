@@ -1,6 +1,5 @@
 python hyvideo/train/train_t2v.py \
     --model "HYVideo-T/2-depth1" \
-    --text_encoder_name_1 google/mt5-xxl \
     --cache_dir "./ckpts" \
     --dataset t2v \
     --data "train_data/mixkit.txt" \
