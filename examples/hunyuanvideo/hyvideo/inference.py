@@ -220,7 +220,7 @@ class Inference(object):
 
         if not model_path.exists():
             raise ValueError(f"model_path not exists: {model_path}")
-        logger.info(f"Loading torch model {model_path}...")
+        logger.info(f"Loading checkpoint {model_path}...")
 
         model.load_from_checkpoint(str(model_path))
 

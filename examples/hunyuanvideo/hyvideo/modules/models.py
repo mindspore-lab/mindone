@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any, List, Optional, Tuple
 
 import mindspore as ms
@@ -765,8 +766,38 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 parameter_dict[key_3d] = ms.Parameter(conv3d_weight.value().squeeze(axis=-3), name=key_3d)
 
             param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
-            print("param not load: ", param_not_load)
-            print("ckpt not load: ", ckpt_not_load)
+            logger.info(
+                "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+            )
+            logger.info(
+                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+            )
+
+        elif ckpt_path.endswith(".ckpt"):
+            parameter_dict = ms.load_checkpoint(ckpt_path)
+            parameter_dict = dict(
+                [k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in state_dict.items()
+            )
+            if self.use_conv2d_patchify:
+                key_3d = "img_in.proj.weight"
+                assert (
+                    len(parameter_dict[key_3d].shape) == 5 and parameter_dict[key_3d].shape[-3] == 1
+                )  # c_out, c_in, 1, 2, 2
+                conv3d_weight = parameter_dict.pop(key_3d)
+                parameter_dict[key_3d] = ms.Parameter(conv3d_weight.value().squeeze(axis=-3), name=key_3d)
+
+            param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
+            logger.info(
+                "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+            )
+            logger.info(
+                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+            )
+        else:
+            _, file_extension = os.path.splitext(ckpt_path)
+            logger.info(
+                f"Only support .pt or .ckpt file, but got {file_extension} file. The checkpoint loading will be skipped!!!"
+            )
 
     def params_count(self):
         counts = {
