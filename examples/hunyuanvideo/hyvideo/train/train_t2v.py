@@ -189,6 +189,10 @@ def main(args):
         **HUNYUAN_VIDEO_CONFIG[args.model],
         **factor_kwargs,
     )
+    if model.guidance_embed:
+        embed_cfg_scale = args.embedded_cfg_scale
+    else:
+        embed_cfg_scale = None
 
     # mixed precision
     if model_dtype != ms.float32:
@@ -281,6 +285,7 @@ def main(args):
         rf_scheduler=args.rf_scheduler,
         rank_id=rank_id,
         device_num=device_num,
+        embedded_guidance_scale=embed_cfg_scale,
     )
     latent_diffusion_eval, metrics, eval_indexes = None, None, None
 
@@ -389,6 +394,7 @@ def main(args):
             dtype=model_dtype,
             noise_offset=args.noise_offset,
             snr_gamma=args.snr_gamma,
+            embedded_guidance_scale=embed_cfg_scale,
         )
         metrics = {"val loss": get_metric_fn("loss")}
         eval_indexes = [0, 1, 2]  # the indexes of the output of eval network: loss. pred and label
@@ -717,6 +723,7 @@ def main(args):
                 f"FA dtype: {FA_dtype}",
                 f"Use recompute(gradient checkpoint): {args.gradient_checkpointing}",
                 f"Dataset sink: {args.dataset_sink_mode}",
+                f"Embedding guidance scale: {embed_cfg_scale}",
             ]
         )
         key_info += "\n" + "=" * 50
@@ -798,8 +805,12 @@ def parse_t2v_train_args(parser):
     # validation & logs
     parser.add_argument("--enable_profiling", action="store_true")
     parser.add_argument("--num_sampling_steps", type=int, default=20)
-    parser.add_argument("--guidance_scale", type=float, default=4.5)
-
+    parser.add_argument(
+        "--embedded_cfg_scale",
+        type=float,
+        default=6.0,
+        help="Embeded classifier free guidance scale.",
+    )
     parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
     parser.add_argument("--dataset", type=str, default="t2v")
     parser.add_argument(

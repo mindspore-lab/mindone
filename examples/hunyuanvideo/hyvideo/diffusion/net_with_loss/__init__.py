@@ -89,6 +89,7 @@ class DiffusionWithLoss(nn.Cell):
         logit_std: float = 1.0,
         weighting_scheme: str = "logit_normal",
         mode_scale: float = 1.29,
+        embedded_guidance_scale: float = 6.0,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -106,6 +107,11 @@ class DiffusionWithLoss(nn.Cell):
         self.logit_std = logit_std
         self.weighting_scheme = weighting_scheme
         self.mode_scale = mode_scale
+        self.embedded_guidance_scale = embedded_guidance_scale
+        if self.network.guidance_embed:
+            assert (
+                self.embedded_guidance_scale is not None
+            ), "embedded_guidance_scale should be set when using guidance embed"
 
         self.text_encoder = text_encoder
         self.text_encoder_2 = text_encoder_2
@@ -297,12 +303,22 @@ class DiffusionWithLoss(nn.Cell):
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         # text_embed = ops.expand_dims(text_embed, axis=1)
+        guidance_expand = (
+            ms.Tensor(
+                [self.embedded_guidance_scale] * bsz,
+                dtype=ms.float32,
+            ).to(x_t.dtype)
+            * 1000.0
+            if self.embedded_guidance_scale is not None
+            else None
+        )
         model_pred = self.apply_model(
             x_t,
             t,
             text_states=text_embed,
             text_mask=encoder_attention_mask,
             text_states_2=text_embed_2,
+            guidance=guidance_expand,
             # attention_mask=attention_mask,
             # use_image_num=use_image_num,
         )
@@ -500,12 +516,22 @@ class DiffusionWithLossEval(DiffusionWithLoss):
         # latte forward input match
         # text embed: (b n_tokens  d) -> (b  1 n_tokens d)
         # text_embed = ops.expand_dims(text_embed, axis=1)
+        guidance_expand = (
+            ms.Tensor(
+                [self.embedded_guidance_scale] * bsz,
+                dtype=ms.float32,
+            ).to(x_t.dtype)
+            * 1000.0
+            if self.embedded_guidance_scale is not None
+            else None
+        )
         model_pred = self.apply_model(
             x_t,
             t,
             text_states=text_embed,
             text_mask=encoder_attention_mask,
             text_states_2=text_embed_2,
+            guidance=guidance_expand,
             # attention_mask=attention_mask,
             # use_image_num=use_image_num,
         )
