@@ -75,6 +75,7 @@ class Inference(object):
         in_channels = args.latent_channels
         out_channels = args.latent_channels
         dtype = factor_kwargs["dtype"]
+        rank_id = kwargs.get("rank_id", 0)
         model = load_model(
             args,
             in_channels=in_channels,
@@ -103,7 +104,7 @@ class Inference(object):
                     model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops
                 )
 
-        model = Inference.load_state_dict(args, model, pretrained_model_path)
+        model = Inference.load_state_dict(args, model, pretrained_model_path, rank_id=rank_id)
         model.set_train(False)
 
         # ============================= Build extra models ========================
@@ -169,7 +170,7 @@ class Inference(object):
         )
 
     @staticmethod
-    def load_state_dict(args, model, pretrained_model_path):
+    def load_state_dict(args, model, pretrained_model_path, rank_id=0):
         load_key = args.load_key
         dit_weight = Path(args.dit_weight)
 
@@ -195,24 +196,44 @@ class Inference(object):
                 )
         else:
             if dit_weight.is_dir():
-                files = list(dit_weight.glob("*.pt"))
-                if len(files) == 0:
-                    raise ValueError(f"No model weights found in {dit_weight}")
-                if str(files[0]).startswith("pytorch_model_"):
-                    model_path = dit_weight / f"pytorch_model_{load_key}.pt"
-                elif any(str(f).endswith("_model_states.pt") for f in files):
-                    files = [f for f in files if str(f).endswith("_model_states.pt")]
-                    model_path = files[0]
-                    if len(files) > 1:
-                        logger.warning(f"Multiple model weights found in {dit_weight}, using {model_path}")
+                if args.zero_stage is None:
+                    files = list(dit_weight.glob("*.pt"))
+                    if len(files) == 0:
+                        raise ValueError(f"No model weights found in {dit_weight}")
+                    if str(files[0]).startswith("pytorch_model_"):
+                        model_path = dit_weight / f"pytorch_model_{load_key}.pt"
+                    elif any(str(f).endswith("_model_states.pt") for f in files):
+                        files = [f for f in files if str(f).endswith("_model_states.pt")]
+                        model_path = files[0]
+                        if len(files) > 1:
+                            logger.warning(f"Multiple model weights found in {dit_weight}, using {model_path}")
+                    else:
+                        raise ValueError(
+                            f"Invalid model path: {dit_weight} with unrecognized weight format: "
+                            f"{list(map(str, files))}. When given a directory as --dit-weight, only "
+                            f"`pytorch_model_*.pt`(provided by HunyuanDiT official) and "
+                            f"`*_model_states.pt`(saved by deepspeed) can be parsed. If you want to load a "
+                            f"specific weight file, please provide the full path to the file."
+                        )
                 else:
-                    raise ValueError(
-                        f"Invalid model path: {dit_weight} with unrecognized weight format: "
-                        f"{list(map(str, files))}. When given a directory as --dit-weight, only "
-                        f"`pytorch_model_*.pt`(provided by HunyuanDiT official) and "
-                        f"`*_model_states.pt`(saved by deepspeed) can be parsed. If you want to load a "
-                        f"specific weight file, please provide the full path to the file."
-                    )
+                    if args.zero_stage != 3:
+                        raise ValueError(
+                            f"The {dit_weight} should a file path instead of a directory for zero-stage {args.zero_stage}"
+                            f"Please check the weightfile and try again."
+                        )
+                    else:
+                        subfolders = list(dit_weight.glob("rank_*"))
+                        if len(subfolders) == 0:
+                            raise ValueError(f"No sharded weights found in {dit_weight}")
+                        subfolder = dit_weight / f"rank_{rank_id}"
+                        assert subfolder.exists(), f"Subfolder {subfolder} not found"
+                        files = list(subfolder.glob("*.ckpt"))
+                        if len(files) == 0:
+                            raise ValueError(f"No model weights found in {subfolder}")
+                        model_path = files[0]
+                        if len(files) > 1:
+                            logger.warning(f"Multiple model weights found in {subfolder}, using {model_path}")
+
             elif dit_weight.is_file():
                 model_path = dit_weight
             else:

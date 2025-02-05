@@ -7,8 +7,6 @@ from pathlib import Path
 import numpy as np
 from loguru import logger
 
-import mindspore as ms
-
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
@@ -18,32 +16,7 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
-
-
-def init_env(args):
-    ms.set_context(mode=args.ms_mode)
-
-    ms.set_context(max_device_memory="59GB")
-
-    if args.ms_mode == 0:
-        ms.set_context(jit_config={"jit_level": args.jit_level})
-
-    # FIXME: debugging after text encoder graph-mode infer supported
-    memory_offload = False
-    if memory_offload:
-        assert args.ms_mode == 0, "offloading only works in graph mode currently"
-        offload_config = {
-            "offload_param": "cpu",
-            "auto_offload": False,
-            "offload_cpu_size": "512GB",
-            "offload_disk_size": "1024GB",
-            "offload_path": "./offload/",
-            "host_mem_block_size": "1GB",
-            "enable_aio": True,
-            "enable_pinned_mem": True,
-        }
-        ms.set_context(memory_offload="ON")
-        ms.set_offload_context(offload_config=offload_config)
+from hyvideo.utils.ms_utils import init_env
 
 
 def main():
@@ -59,10 +32,20 @@ def main():
         os.makedirs(save_path, exist_ok=True)
 
     # ms env init
-    init_env(args)
+    rank_id, _ = init_env(
+        args.mode,
+        seed=42 if args.seed is None else args.seed,
+        distributed=args.use_parallel,
+        device_target="Ascend",
+        max_device_memory=args.max_device_memory,
+        parallel_mode=args.parallel_mode,
+        sp_size=args.sp_size,
+        jit_level=args.jit_level,
+        jit_syntax_level=args.jit_syntax_level,
+    )
 
     # Load models
-    hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args)
+    hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args, rank_id=rank_id)
 
     # Get the updated args
     args = hunyuan_video_sampler.args

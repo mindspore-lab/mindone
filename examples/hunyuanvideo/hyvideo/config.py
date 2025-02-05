@@ -228,10 +228,18 @@ def add_inference_args(parser: argparse.ArgumentParser):
         type=str,
         default="ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
         help="Path to the HunyuanVideo model. If None, search the model in the args.model_root."
-        "1. If it is a file, load the model directly."
+        "1. If it is a file, load the model directly. It supports torch checkpoint (.pt) and mindspore checkpoint (.ckpt)."
         "2. If it is a directory, search the model in the directory. Support two types of models: "
         "1) named `pytorch_model_*.pt`"
         "2) named `*_model_states.pt`, where * can be `mp_rank_00`.",
+    )
+    group.add_argument(
+        "--zero-stage",
+        type=int,
+        default=None,
+        help="If specified and zero-stage is 3, will load each checkpoint separately in each rank."
+        "If specified and zero-stage is 3, expect dit-weight is a directory containing sub-folders like rank_x, "
+        "In each sub-folder, there is a checkpoint file.",
     )
     group.add_argument(
         "--model-resolution",
@@ -384,13 +392,30 @@ def add_inference_args(parser: argparse.ArgumentParser):
         default="O2",
         help="determine auto mixed precision level. only effective when enable_ms_amp is True",
     )
-
+    group.add_argument(
+        "--jit-syntax-level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
+    )
+    group.add_argument("--max-device-memory", type=str, default="59GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
     return parser
 
 
 def add_parallel_args(parser: argparse.ArgumentParser):
     group = parser.add_argument_group(title="Parallel args")
 
+    group.add_argument(
+        "--use-parallel",
+        type=str2bool,
+        default=False,
+        help="enable mindspore parallel training.",
+    )
+    group.add_argument(
+        "--parallel-mode",
+        type=str,
+        default="data",
+        cchoices=["data", "optim", "semi", "zero"],
+        help="parallel mode: data, optim, zero",
+    )
+    group.add_argument("--sp-size", type=int, default=1, help="For sequence parallel")
     # ======================== Model loads ========================
     group.add_argument(
         "--ulysses-degree",
