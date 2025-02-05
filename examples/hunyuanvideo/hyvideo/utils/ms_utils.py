@@ -34,7 +34,8 @@ def init_env(
     enable_parallel_fusion: bool = False,
     precision_mode: str = None,
     jit_syntax_level: str = "strict",
-    comm_fusion=False,
+    comm_fusion: bool = False,
+    memory_offload: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -61,6 +62,7 @@ def init_env(
             "O1" means KernelByKernel (KBK) mode, "O2" means DVM mode, and "O3" means GE mode.
         enable_parallel_fusion (bool, default None): If True, will enable optimizer parallel fusion for AdamW.
         precision_mode (str, default None): If provided, will set precision_mode to overwrite the default option "allow_fp32_to_fp16".
+        memory_offload (bool, default None): If True, will enable memory offload.
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
     """
@@ -174,6 +176,22 @@ def init_env(
         f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
     )
     initialize_sequence_parallel_state(sp_size)
+
+    if memory_offload:
+        assert mode == 0, "offloading only works in graph mode currently"
+        offload_config = {
+            "offload_param": "cpu",
+            "auto_offload": False,
+            "offload_cpu_size": "512GB",
+            "offload_disk_size": "1024GB",
+            "offload_path": "./offload/",
+            "host_mem_block_size": "1GB",
+            "enable_aio": True,
+            "enable_pinned_mem": True,
+        }
+        ms.set_context(memory_offload="ON")
+        ms.set_offload_context(offload_config=offload_config)
+
     return rank_id, device_num
 
 
