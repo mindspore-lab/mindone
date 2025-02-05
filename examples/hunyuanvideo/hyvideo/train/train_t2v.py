@@ -76,7 +76,7 @@ def main(args):
     # 1. init
     if args.num_frames == 1 or args.use_image_num != 0:
         args.sp_size = 1
-    save_src_strategy = args.use_parallel and args.parallel_mode != "data"
+    save_src_strategy = args.use_parallel and args.parallel_mode == "optim"
     rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
@@ -613,13 +613,13 @@ def main(args):
     callback.append(ofm_cb)
     if args.max_train_steps is not None and args.max_train_steps > 0:
         callback.append(StopAtStepCallback(args.max_train_steps, global_step=cur_iter))
-
-    if args.parallel_mode == "optim":
+    use_parameter_shard_mode = args.parallel_mode == "optim" or (args.parallel_mode == "zero" and args.zero_stage == 3)
+    if use_parameter_shard_mode:
         cb_rank_id = None
         ckpt_save_dir = os.path.join(ckpt_dir, f"rank_{rank_id}")
         output_dir = os.path.join(args.output_dir, "log", f"rank_{rank_id}")
         if args.ckpt_max_keep != 1:
-            logger.warning("For semi-auto parallel training, the `ckpt_max_keep` is force to be 1.")
+            logger.warning(f"For {args.parallel_mode} parallel training, the `ckpt_max_keep` is force to be 1.")
         ckpt_max_keep = 1
         integrated_save = False
         save_training_resume = False  # TODO: support training resume
@@ -631,7 +631,7 @@ def main(args):
         integrated_save = True
         save_training_resume = True
 
-    if rank_id == 0 or args.parallel_mode == "optim":
+    if rank_id == 0 or use_parameter_shard_mode:
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss.network,
             rank_id=cb_rank_id,
