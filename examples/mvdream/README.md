@@ -105,5 +105,9 @@ Experiments are tested on Ascend 910* with mindspore 2.4.1 pynative mode.
 - **Preview**. Generating 3D content with SDS would a take a lot of time. So The authors suggest to use the 2D multi-view image generation [MVDream](MVDream) to test if the model can really understand the text before using it for 3D generation.
 - **Rescale Factor**. The authors introduce rescale adjustment from [Shanchuan et al.](https://arxiv.org/abs/2305.08891) to alleviate the texture over-saturation from large CFG guidance. However, in some cases, the authors find it to cause floating noises in the generated scene and consequently OOM issue. Therefore the authors reduce the rescale factor from 0.7 in original paper to 0.5. However, if you still encounter such a problem, please try to further reduce `system.guidance.recon_std_rescale=0.3`.
 
+## Future Works
+1. Following the original repo, the nerf decoder implemented under [mindone/models/threestudio/models/geometry/implicit_volume.py](../../mindone/models/threestudio/models/geometry/implicit_volume.py) does not take directional encoding but only xyz encoding. Putting on directional encoding as input to `decoder.feature_network` is potentially better for fitting a more photorealistic `decoder` rgb output. We leave it as a future work.
+2. May compare with enabling the threestudio material constructor with `neural_radiance_material` to include directional encoding. This can be configured under [MVDream-threestudio/configs/mvdream-sd21.yaml`.systems.material_type`](MVDream-threestudio/configs/mvdream-sd21.yaml).
+
 ## Acknowledgements
 1. Shi, Yichun, et al. "MVDream: Multi-view Diffusion for 3D Generation." The Twelfth International Conference on Learning Representations.
