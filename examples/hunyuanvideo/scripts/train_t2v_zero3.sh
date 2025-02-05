@@ -2,7 +2,7 @@ NUM_FRAME=29
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=8000 --log_dir="t2v-video3d-${NUM_FRAME}x256p_zero3/parallel_logs" \
  hyvideo/train/train_t2v.py \
-    --model "HYVideo-T/2" \
+    --model "HYVideo-T/2-cfgdistill" \
     --text_encoder_name_1 google/mt5-xxl \
     --cache_dir "./ckpts" \
     --dataset t2v \
@@ -38,6 +38,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=8000 --
     --max_device_memory "59GB" \
     --jit_syntax_level "strict" \
     --pretrained "ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt" \
+    --embedded_cfg_scale 6.0 \
     --rf_scheduler \
     --force_resolution \
     --mode 1 \
