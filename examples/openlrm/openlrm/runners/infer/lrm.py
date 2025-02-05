@@ -210,14 +210,16 @@ class LRMInferrer(Inferrer):
                     resolutions=render_resolutions[:, i : i + frame_size],
                     bg_colors=render_bg_colors[:, i : i + frame_size],
                     region_size=render_size,
-                )["images_rgb"] # only render rgb images, change key name to render depth or weight.
+                )[
+                    "images_rgb"
+                ]  # only render rgb images, change key name to render depth or weight.
             )
         # merge frames
         frames = mint.cat(frames, dim=1)
         # dump
         os.makedirs(os.path.dirname(dump_video_path), exist_ok=True)
         images_to_video(
-            images=frames[0], # batch = 1
+            images=frames[0],  # batch = 1
             output_path=dump_video_path,
             fps=render_fps,
             gradio_codec=self.cfg.app_enabled,

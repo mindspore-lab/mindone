@@ -14,10 +14,12 @@ from mindspore.train.callback import TimeMonitor
 logger = logging.getLogger(__name__)
 
 from omegaconf import OmegaConf
-from openlrm.losses import TVLoss, LPIPSLoss, PixelLoss
+from openlrm.losses import LPIPSLoss, TVLoss
 from openlrm.models.rendering.utils import CumProd, GridSample, MatrixInv, MeshGrid, NanToNum, SearchSorted
 from openlrm.runners import REGISTRY_RUNNERS
 from openlrm.utils import seed_everything
+
+from mindspore import amp
 
 from mindone.data import create_dataloader
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch
@@ -28,7 +30,6 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils import count_params, init_train_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
-from mindspore import amp
 
 from .base_trainer import Trainer
 
@@ -92,18 +93,22 @@ class LRMTrainer(Trainer):
         elif self.args.dtype == "bf16":
             weight_dtype = ms.bfloat16
 
-        if self.args.amp_level == "auto": # MS_VERSION >= "2.4"
-            if weight_dtype != ms.bfloat16: # fp16
+        if self.args.amp_level == "auto":  # MS_VERSION >= "2.4"
+            if weight_dtype != ms.bfloat16:  # fp16
                 lrm_model_with_loss = amp.auto_mixed_precision(
-                    lrm_model_with_loss,
-                    amp_level=self.args.amp_level,
-                    dtype=weight_dtype
+                    lrm_model_with_loss, amp_level=self.args.amp_level, dtype=weight_dtype
                 )
-            else: # bf16 (fp32 not supported)
-                from mindspore.train.amp import AMP_PRIM_ARG_TABLE, AMP_AUTO_WHITE_LIST, AMP_AUTO_BLACK_LIST, _set_amp_decorator
-                from mindspore._c_expression.amp import create_amp_strategy, AmpLevel
+            else:  # bf16 (fp32 not supported)
+                from mindspore._c_expression.amp import AmpLevel, create_amp_strategy
                 from mindspore.ops import operations as P
-                custom_fp32_list=[P.MaxPool] # VGG's MaxPool does not support bf16
+                from mindspore.train.amp import (
+                    AMP_AUTO_BLACK_LIST,
+                    AMP_AUTO_WHITE_LIST,
+                    AMP_PRIM_ARG_TABLE,
+                    _set_amp_decorator,
+                )
+
+                custom_fp32_list = [P.MaxPool]  # VGG's MaxPool does not support bf16
                 custom_fp32_cells = [(prim.__name__, AMP_PRIM_ARG_TABLE[prim]) for prim in custom_fp32_list]
                 white_list = [(prim.__name__, AMP_PRIM_ARG_TABLE[prim]) for prim in AMP_AUTO_WHITE_LIST]
                 black_list = [(prim.__name__, AMP_PRIM_ARG_TABLE[prim]) for prim in AMP_AUTO_BLACK_LIST]
@@ -112,7 +117,9 @@ class LRMTrainer(Trainer):
                 amp_strategy = create_amp_strategy(AmpLevel.AmpAuto, weight_dtype, white_list, black_list)
                 setattr(lrm_model_with_loss, "amp_strategy", amp_strategy)
                 # set amp_strategy context decorator for the object
-                lrm_model_with_loss = _set_amp_decorator(lrm_model_with_loss, AmpLevel.AmpAuto, weight_dtype, white_list, black_list)
+                lrm_model_with_loss = _set_amp_decorator(
+                    lrm_model_with_loss, AmpLevel.AmpAuto, weight_dtype, white_list, black_list
+                )
                 setattr(lrm_model_with_loss, "_amp_level", self.args.amp_level)
         else:
             if weight_dtype == ms.bfloat16:
@@ -130,10 +137,10 @@ class LRMTrainer(Trainer):
                         nn.MaxPool1d,
                         nn.AvgPool1d,
                         TVLoss,
-                        LPIPSLoss # ms2.4.1 not support bf16 for MaxPool
+                        LPIPSLoss,  # ms2.4.1 not support bf16 for MaxPool
                     ],
                 )
-            else: # fp16 or fp32
+            else:  # fp16 or fp32
                 lrm_model_with_loss = auto_mixed_precision(
                     lrm_model_with_loss,
                     amp_level=self.args.amp_level,

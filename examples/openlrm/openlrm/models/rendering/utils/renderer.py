@@ -59,7 +59,16 @@ def project_onto_planes(planes, coordinates, matrix_inverse_func):
     return projections[..., :2].to(coordinates.dtype)
 
 
-def sample_from_planes(plane_axes, plane_features, coordinates, matrix_inverse_func, grid_sample2d_func, mode="bilinear", padding_mode="zeros", box_warp=None):
+def sample_from_planes(
+    plane_axes,
+    plane_features,
+    coordinates,
+    matrix_inverse_func,
+    grid_sample2d_func,
+    mode="bilinear",
+    padding_mode="zeros",
+    box_warp=None,
+):
     assert padding_mode == "zeros"
     N, n_planes, C, H, W = plane_features.shape
     _, M, _ = coordinates.shape
@@ -120,7 +129,7 @@ class ImportanceRenderer(nn.Cell):
         self.nan_to_num = NanToNum()
         self.search_sorted = SearchSorted()
         self.matrix_inverse = MatrixInv()
-        self.grid_sample2d = GridSample() 
+        self.grid_sample2d = GridSample()
 
     def _build_activation_factory(self):
         def activation_factory(options: dict):
@@ -253,22 +262,38 @@ class ImportanceRenderer(nn.Cell):
 
         return rgb_final, depth_final, weights.sum(2)
 
-    def sample_from_planes(self, plane_axes, plane_features, coordinates, matrix_inverse_func, grid_sample2d_func, mode="bilinear", padding_mode="zeros", box_warp=None):
+    def sample_from_planes(
+        self,
+        plane_axes,
+        plane_features,
+        coordinates,
+        matrix_inverse_func,
+        grid_sample2d_func,
+        mode="bilinear",
+        padding_mode="zeros",
+        box_warp=None,
+    ):
         return sample_from_planes(
-            plane_axes, 
-            plane_features, 
-            coordinates, 
-            matrix_inverse_func, 
-            grid_sample2d_func, 
-            mode=mode, 
-            padding_mode=padding_mode, 
-            box_warp=box_warp
+            plane_axes,
+            plane_features,
+            coordinates,
+            matrix_inverse_func,
+            grid_sample2d_func,
+            mode=mode,
+            padding_mode=padding_mode,
+            box_warp=box_warp,
         )
 
     def run_model(self, planes, decoder, sample_coordinates, sample_directions, options):
         plane_axes = self.plane_axes
         sampled_features = self.sample_from_planes(
-            plane_axes, planes, sample_coordinates, self.matrix_inverse, self.grid_sample2d, padding_mode="zeros", box_warp=options["box_warp"]
+            plane_axes,
+            planes,
+            sample_coordinates,
+            self.matrix_inverse,
+            self.grid_sample2d,
+            padding_mode="zeros",
+            box_warp=options["box_warp"],
         )
 
         out = decoder(sampled_features, sample_directions)

@@ -196,7 +196,7 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.4.1 pynative mode.
 |---|---|---|---|---|---|---|---|---|
 |small | 100k |1 | 1 | 224x224 | fp32  | 0.99 | 26.38 | 0.91  
 |base | 100k |1 | 1 | 336x336 | fp32  | 1.64 | 27.44 | 0.92  
-|large | 50k |1 | 1 | 448x448 | bf16  | 2.87 | 22.98 | 0.89   
+|large | 50k |1 | 1 | 448x448 | bf16  | 2.87 | 22.98 | 0.89  
 
 |Input| Output (small-ep50k)| Output (base-ep40k) |
 |:---|:---|:---|
