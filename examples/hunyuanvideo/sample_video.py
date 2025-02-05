@@ -71,25 +71,24 @@ def main():
     samples = outputs["samples"]
 
     # Save samples
-    # if 'LOCAL_RANK' not in os.environ or int(os.environ['LOCAL_RANK']) == 0:
-    # TODO: support seq para inference and only save using rank 0
-    for i, sample in enumerate(samples):
-        sample = samples[i].unsqueeze(0)
-        time_flag = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d-%H:%M:%S")
-        save_path = (
-            f"{save_path}/{time_flag}_seed{outputs['seeds'][i]}_{outputs['prompts'][i][:100].replace('/','')}.mp4"
-        )
+    if rank_id == 0:
+        for i, sample in enumerate(samples):
+            sample = samples[i].unsqueeze(0)
+            time_flag = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d-%H:%M:%S")
+            save_path = (
+                f"{save_path}/{time_flag}_seed{outputs['seeds'][i]}_{outputs['prompts'][i][:100].replace('/','')}.mp4"
+            )
 
-        if args.output_type != "latent":
-            # save_videos_grid(sample, save_path, fps=24)
-            # b c t h w -> b t h w c
-            sample = sample.permute(0, 2, 3, 4, 1).asnumpy()
-            save_videos(sample, save_path, fps=24)
-        else:
-            save_path = save_path[:-4] + ".npy"
-            np.save(save_path, sample)
+            if args.output_type != "latent":
+                # save_videos_grid(sample, save_path, fps=24)
+                # b c t h w -> b t h w c
+                sample = sample.permute(0, 2, 3, 4, 1).asnumpy()
+                save_videos(sample, save_path, fps=24)
+            else:
+                save_path = save_path[:-4] + ".npy"
+                np.save(save_path, sample)
 
-        logger.info(f"Sample save to: {save_path}")
+            logger.info(f"Sample save to: {save_path}")
 
 
 if __name__ == "__main__":
