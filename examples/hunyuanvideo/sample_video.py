@@ -33,7 +33,7 @@ def main():
 
     # ms env init
     rank_id, _ = init_env(
-        args.mode,
+        args.ms_mode,
         seed=42 if args.seed is None else args.seed,
         distributed=args.use_parallel,
         device_target="Ascend",

@@ -412,7 +412,7 @@ def add_parallel_args(parser: argparse.ArgumentParser):
         "--parallel-mode",
         type=str,
         default="data",
-        cchoices=["data", "optim", "semi", "zero"],
+        choices=["data", "optim", "semi", "zero"],
         help="parallel mode: data, optim, zero",
     )
     group.add_argument("--sp-size", type=int, default=1, help="For sequence parallel")
