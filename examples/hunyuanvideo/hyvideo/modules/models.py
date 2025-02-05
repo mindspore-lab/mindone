@@ -783,11 +783,11 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             )
             if self.use_conv2d_patchify and "img_in.proj.weight" in parameter_dict:
                 key_3d = "img_in.proj.weight"
-                assert (
+                if (
                     len(parameter_dict[key_3d].shape) == 5 and parameter_dict[key_3d].shape[-3] == 1
-                )  # c_out, c_in, 1, 2, 2
-                conv3d_weight = parameter_dict.pop(key_3d)
-                parameter_dict[key_3d] = ms.Parameter(conv3d_weight.value().squeeze(axis=-3), name=key_3d)
+                ):  # c_out, c_in, 1, 2, 2
+                    conv3d_weight = parameter_dict.pop(key_3d)
+                    parameter_dict[key_3d] = ms.Parameter(conv3d_weight.value().squeeze(axis=-3), name=key_3d)
 
             param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
             logger.info(
