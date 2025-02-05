@@ -74,7 +74,7 @@ def parse_configs():
         cfg.merge_with(cfg_infer)
         if os.path.isdir(cli_cfg.model_name):
             model_path_name = cli_cfg.model_name.replace(os.path.dirname(cli_cfg.model_name), "").replace("/", "")
-            if "epoch" in cli_cfg:
+            if "epoch" in cli_cfg and (cli_cfg.epoch != "None"):
                 model_path_name = model_path_name + "-e" + str(cli_cfg.epoch)
             cfg.setdefault("video_dump", os.path.join("dumps", model_path_name, "videos"))
             cfg.setdefault("mesh_dump", os.path.join("dumps", model_path_name, "meshes"))
@@ -140,7 +140,7 @@ class LRMInferrer(Inferrer):
 
         hf_model_cls = wrap_model_hub(model_dict[self.EXP_TYPE])
         ckpt_name = None
-        if "model_ckpt" in cfg:
+        if "model_ckpt" in cfg and (cfg.model_ckpt != "None"):
             ckpt_name = cfg.model_ckpt
         model = hf_model_cls.from_pretrained(cfg.model_name, use_safetensors=True, ckpt_name=ckpt_name)
         return model

@@ -50,7 +50,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   MODEL_NAME="zxhezexin/openlrm-mix-base-1.1"
   IMAGE_INPUT="./assets/sample_input/owl.png"
 
-  python -m openlrm.launch infer.lrm --infer $INFER_CONFIG model_name=$MODEL_NAME image_input=$IMAGE_INPUT export_video=$EXPORT_VIDEO export_mesh=$EXPORT_MESH model_ckpt=None
+  python -m openlrm.launch infer.lrm --infer $INFER_CONFIG model_name=$MODEL_NAME image_input=$IMAGE_INPUT export_video=$EXPORT_VIDEO export_mesh=$EXPORT_MESH
   ```
 
 
