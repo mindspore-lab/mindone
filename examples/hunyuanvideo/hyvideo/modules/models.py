@@ -776,9 +776,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         elif ckpt_path.endswith(".ckpt"):
             parameter_dict = ms.load_checkpoint(ckpt_path)
             parameter_dict = dict(
-                [k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in state_dict.items()
+                [k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in parameter_dict.items()
             )
-            if self.use_conv2d_patchify:
+            if self.use_conv2d_patchify and "img_in.proj.weight" in parameter_dict:
                 key_3d = "img_in.proj.weight"
                 assert (
                     len(parameter_dict[key_3d].shape) == 5 and parameter_dict[key_3d].shape[-3] == 1
