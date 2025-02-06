@@ -146,6 +146,7 @@ class LlamaFlashAttention(LlamaAttention):
         num_key_value_heads: int = 8,
         attention_dropout: float = 0.0,
         attention_bias: bool = False,
+        not_recompute_fa: bool = False,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__(
@@ -158,8 +159,10 @@ class LlamaFlashAttention(LlamaAttention):
         )
         num_heads = self.num_heads // self.sp_group_size if self.sp_group_size is not None else self.num_heads
         self.flash_attention = FlashAttentionScore(
-            num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BSND"
+            num_heads, keep_prob=1 - self.attention_dropout, scale_value=self.head_dim**-0.5, input_layout="BNSD"
         )
+        if not_recompute_fa:
+            self.flash_attention.recompute(False)
 
     def construct(self, hidden_states: Tensor, encoder_hidden_states: Optional[Tensor] = None) -> Tensor:
         bsz, q_len, _ = hidden_states.shape
@@ -185,12 +188,8 @@ class LlamaFlashAttention(LlamaAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        # Reshape to the expected shape and dtype for Flash Attention
-        query_states = mint.permute(query_states, (0, 2, 1, 3))
-        key_states = mint.permute(key_states, (0, 2, 1, 3))
-        value_states = mint.permute(value_states, (0, 2, 1, 3))
-
         _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
+        attn_output = mint.permute(attn_output, (0, 2, 1, 3))
         attn_output = self.alltoall(attn_output)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))
         attn_output = self.o_proj(attn_output)
@@ -266,6 +265,7 @@ class TimestepEmbedder(nn.Cell):
         hidden_size: int,
         frequency_embedding_size: int = 256,
         hidden_act: str = "silu",
+        max_period: int = 10000,
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
@@ -275,23 +275,22 @@ class TimestepEmbedder(nn.Cell):
             mint.nn.Linear(hidden_size, hidden_size, bias=False, dtype=dtype),
         )
         self.frequency_embedding_size = frequency_embedding_size
+        half = frequency_embedding_size // 2
+        self._freqs = Tensor(np.exp(-np.log(max_period) * np.arange(start=0, stop=half, dtype=np.float32) / half)[None])
         self._dtype = dtype
 
     @property
     def dtype(self):
         return self._dtype
 
-    @staticmethod
-    def timestep_embedding(t: Tensor, dim: int, max_period: int = 10000) -> Tensor:
-        half = dim // 2
-        freqs = mint.exp(-mint.log(Tensor(max_period)) * mint.arange(start=0, end=half, dtype=ms.float32) / half)
-        args = ops.unsqueeze(t, 1).to(ms.float32) * ops.unsqueeze(freqs, 0)
+    def timestep_embedding(self, t: Tensor) -> Tensor:
+        args = ops.unsqueeze(t, 1).to(ms.float32) * self._freqs
         embedding = mint.cat([mint.cos(args), mint.sin(args)], dim=-1)
-        if dim % 2:
+        if self.frequency_embedding_size % 2:
             embedding = mint.cat([embedding, mint.zeros_like(embedding[:, :1])], dim=-1)
         return embedding
 
     def construct(self, t: Tensor) -> Tensor:
-        t_freq = self.timestep_embedding(t, self.frequency_embedding_size)
+        t_freq = self.timestep_embedding(t)
         t_emb = self.mlp(t_freq.to(self.dtype))
         return t_emb

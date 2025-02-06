@@ -1,0 +1,10 @@
+opencv-python
+imageio-ffmpeg
+omegaconf
+einops
+transformers==4.27.1
+libigl
+xatlas
+trimesh[easy]
+networkx
+PyMCubes
