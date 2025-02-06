@@ -39,9 +39,9 @@ python pllavarun.py --video path_to_your_video
 
 The inference examples are shown below:
 
-| Video ID |  Caption |
-|----------|---------|
-| <video src="https://github.com/user-attachments/assets/e79c8b19-b5f6-4391-8bf4-4921e2fede15" /> | The image shows a collection of cake pans inside an oven. Each pan has a different color of frosting, indicating that they are being used to bake cakes with various flavors or colors. The oven appears to be a professional-grade model, suitable for baking large quantities of cakes at once. The pans are arranged on a rack, which is designed to allow for even heat distribution and to prevent the cakes from sticking to the bottom of the oven. |
+| Video ID | Caption                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <video src="https://github.com/user-attachments/assets/e79c8b19-b5f6-4391-8bf4-4921e2fede15" /> | The image shows a collection of cake pans inside an oven. The pans are arranged on a rack, and each pan contains a different color of cake batter. The colors range from purple to yellow, indicating that the cakes are being baked in a single oven, likely in a batch process. The oven appears to be preheating, as suggested by the lighting and the presence of the cake batter. This scene is typical of a bakery or home kitchen where cakes are being prepared for baking. |
 
 
 ## Benchmark
