@@ -856,14 +856,16 @@ def main():
 
     # Prepare everything with our `accelerator`.
     # TODO: How to set amp to adapter_layers?
-    for peft_model in models:
-        for _, module in peft_model.cells_and_names():
-            if isinstance(module, BaseTunerLayer):
-                for layer_name in module.adapter_layer_names:
-                    module_dict = getattr(module, layer_name)
-                    for key, layer in module_dict.items():
-                        if key in module.active_adapters and isinstance(layer, nn.Cell):
-                            layer.to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        for peft_model in models:
+            for _, module in peft_model.cells_and_names():
+                if isinstance(module, BaseTunerLayer):
+                    for layer_name in module.adapter_layer_names:
+                        module_dict = getattr(module, layer_name)
+                        for key, layer in module_dict.items():
+                            if key in module.active_adapters and isinstance(layer, nn.Cell):
+                                layer.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)

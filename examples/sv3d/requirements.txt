@@ -1,0 +1,17 @@
+pyyaml
+PyMCubes
+trimesh
+mindcv
+matplotlib
+pandas
+imageio[ffmpeg]
+einops
+loguru==0.7.2
+opencv-python
+omegaconf==2.3.00
+jsonargparse
+onnxruntime
+rembg
+transformers
+huggingface_hub
+ftfy

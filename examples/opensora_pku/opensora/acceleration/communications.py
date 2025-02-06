@@ -2,6 +2,7 @@ import logging
 
 from opensora.acceleration.parallel_states import hccl_info
 
+import mindspore as ms
 from mindspore import Tensor, mint, nn, ops
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,10 @@ class _SingleAll2ALL(nn.Cell):
         # self.alltoall = AlltoAll(split_count=self.sp_size, group=self.spg)
 
     def construct(self, input_: Tensor):
+        origin_dtype = input_.dtype
+        if input_.dtype == ms.bfloat16:
+            input_ = input_.to(ms.float32)
+
         scatter_dim, gather_dim, sp_size = self.scatter_dim, self.gather_dim, self.sp_size
         inp_shape = list(input_.shape)
         inp_shape[scatter_dim] = inp_shape[scatter_dim] // sp_size
@@ -44,7 +49,7 @@ class _SingleAll2ALL(nn.Cell):
             + inp_shape[gather_dim + 1 :]
         )
 
-        return output
+        return output.to(origin_dtype)
 
 
 class AllGather(nn.Cell):
@@ -68,7 +73,7 @@ def prepare_parallel_data(
     sp_size = hccl_info.world_size
     index = hccl_info.rank % sp_size
     frame = hidden_states.shape[2]
-    assert frame % sp_size == 0, "frame should be a multiple of sp_size"
+    assert frame % sp_size == 0, f"frame {frame} should be a multiple of sp_size {sp_size}"
     # b 1 (n x) h -> b n x h
     b, one_, nx, h = encoder_hidden_states.shape
     encoder_hidden_states = encoder_hidden_states.view((b, sp_size, nx // sp_size, h))
