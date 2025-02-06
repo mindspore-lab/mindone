@@ -1376,9 +1376,8 @@ class GenerationMixin:
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
 
-
     def _get_cache(
-            self, cache_implementation: str, max_batch_size: int, max_cache_len: int
+        self, cache_implementation: str, max_batch_size: int, max_cache_len: int
     ) -> Tuple[Tuple[ms.Tensor, ms.Tensor]]:
         """
         Sets a cache for `generate`, that will persist across calls. A new cache will only be initialized a
@@ -1390,11 +1389,11 @@ class GenerationMixin:
             max_cache_len = min(self.config.sliding_window, max_cache_len)
 
         need_new_cache = (
-                not hasattr(self, "_cache")
-                or (not isinstance(self._cache, tuple))
-                or (not isinstance(self._cache[0][0], ms.Tensor))
-                or self._cache[0][0].shape[0] != max_batch_size
-                or self._cache[0][0].shape[2] < max_cache_len
+            not hasattr(self, "_cache")
+            or (not isinstance(self._cache, tuple))
+            or (not isinstance(self._cache[0][0], ms.Tensor))
+            or self._cache[0][0].shape[0] != max_batch_size
+            or self._cache[0][0].shape[2] < max_cache_len
         )
 
         if need_new_cache:

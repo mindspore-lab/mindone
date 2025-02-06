@@ -21,15 +21,15 @@ import os
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import nn, ops
 
-import numpy as np
-
 logger = logging.get_logger(__name__)
+
 
 def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
     max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len
@@ -122,6 +122,7 @@ def reset(past_key_values):
         past_key_values[layer_idx][1] = ops.zeros_like(past_key_values[layer_idx][1])  # value
 
     return past_key_values
+
 
 class Cache(nn.Cell):
     """
@@ -658,9 +659,7 @@ class SinkCache(Cache):
         x1, x2 = ops.split(x, x.shape[-1] // 2, -1)
         return ops.cat((-x2, x1), axis=-1)
 
-    def _apply_key_rotary_pos_emb(
-        self, key_states: ms.Tensor, cos: ms.Tensor, sin: ms.Tensor
-    ) -> ms.Tensor:
+    def _apply_key_rotary_pos_emb(self, key_states: ms.Tensor, cos: ms.Tensor, sin: ms.Tensor) -> ms.Tensor:
         rotated_key_states = (key_states * cos) + (self._rotate_half(key_states) * sin)
         return rotated_key_states
 
@@ -1056,9 +1055,7 @@ class EncoderDecoderCache(Cache):
         return legacy_cache
 
     @classmethod
-    def from_legacy_cache(
-        cls, past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
-    ) -> "EncoderDecoderCache":
+    def from_legacy_cache(cls, past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None) -> "EncoderDecoderCache":
         """Converts a cache in the legacy cache format into an equivalent `EncoderDecoderCache`."""
         cache = cls(self_attention_cache=DynamicCache(), cross_attention_cache=DynamicCache())
         if past_key_values is not None:
@@ -1174,9 +1171,7 @@ class HybridCache(Cache):
         self.num_key_value_heads = (
             config.num_attention_heads if config.num_key_value_heads is None else config.num_key_value_heads
         )
-        self.is_sliding = ms.Tensor(
-            [not bool(i % 2) for i in range(config.num_hidden_layers)], dtype=ms.bool_
-        )
+        self.is_sliding = ms.Tensor([not bool(i % 2) for i in range(config.num_hidden_layers)], dtype=ms.bool_)
         self.key_cache: List[ms.Tensor] = []
         self.value_cache: List[ms.Tensor] = []
         global_cache_shape = (max_batch_size, self.num_key_value_heads, max_cache_len, self.head_dim)
@@ -1299,7 +1294,7 @@ class MambaCache:
         self,
         config: PretrainedConfig,
         max_batch_size: int,
-        dtype = ms.float16,
+        dtype=ms.float16,
         **kwargs,
     ):
         self.dtype = dtype
@@ -1326,9 +1321,7 @@ class MambaCache:
         # torch._dynamo.mark_static_address(self.conv_states)
         # torch._dynamo.mark_static_address(self.ssm_states)
 
-    def update_conv_state(
-        self, layer_idx: int, new_conv_state: ms.Tensor, cache_position: ms.Tensor
-    ) -> ms.Tensor:
+    def update_conv_state(self, layer_idx: int, new_conv_state: ms.Tensor, cache_position: ms.Tensor) -> ms.Tensor:
         conv_state = self.conv_states[layer_idx]
         cache_position = cache_position.clamp(0, self.conv_kernel_size - 1)
 
