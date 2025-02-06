@@ -75,7 +75,7 @@ class PatchEmbed(nn.Cell):
 
         x = self.proj(x)  # B C H W
         H, W = x.shape[2], x.shape[3]
-        x = x.flatten(start_dim=2).swapaxes(1, 2)  # B HW C
+        x = x.flatten(start_dim=2).swapaxes(1, 2)  # B H W C
         x = self.norm(x)
         if not self.flatten_embedding:
             x = x.reshape(-1, H, W, self.embed_dim)  # B H W C

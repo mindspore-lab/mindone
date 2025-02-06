@@ -80,6 +80,7 @@ def sample_point_on_sphere(radius: float) -> Tuple[float, float, float]:
     )
 
 
+# Optional
 # def sample_spherical(radius=3.0, maxz=3.0, minz=0.0):
 #     correct = False
 #     while not correct:

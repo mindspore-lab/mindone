@@ -30,8 +30,6 @@ class BaseDataset(ABC):
         super().__init__()
         self.root_dirs = root_dirs
         self.uids = self._load_uids(meta_path)
-        # self.uids = self.uids[:1] #TODO: debug use, delete later
-        print(f"uids: {self.uids}")
 
     def __len__(self):
         return len(self.uids)
@@ -66,9 +64,7 @@ class BaseDataset(ABC):
             rgba = vision.Resize([resize, resize], Inter.BICUBIC)(rgba)
         if (crop_pos is not None) and (crop_size is not None):  # rand crop
             assert (crop_pos[0] + crop_size <= rgba.shape[0]) and (crop_pos[1] + crop_size <= rgba.shape[1])
-            # print(f"crop rgba: {rgba.shape}")
             rgba = vision.Crop(crop_pos, crop_size)(rgba)
-            # print(f"crop_pos {crop_pos}, crop_size {crop_size} cropped rgba {rgba.shape}")
 
         # convert to Tensor, in shape [B, C, H, W]
         rgba = ms.Tensor(rgba).float() / 255.0

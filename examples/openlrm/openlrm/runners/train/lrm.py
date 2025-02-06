@@ -152,7 +152,7 @@ class LRMTrainer(Trainer):
 
     # Build training utils: lr, optim, callbacks, trainer
     def _build_utils(self, args, cfg, dataset_size):
-        total_train_steps = cfg.train.epochs
+        total_train_steps = args.epochs
         # build learning rate scheduler
         if not args.decay_steps:
             args.decay_steps = total_train_steps - args.warmup_steps  # fix lr scheduling

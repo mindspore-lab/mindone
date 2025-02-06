@@ -19,10 +19,6 @@ from mindspore import mint
 
 from mindone.utils.logger import set_logger
 
-# __dir__ = os.path.dirname(os.path.abspath(__file__))
-# sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for loading mindone
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -99,7 +95,6 @@ def load_data(root_dirs, uid, render_image_res, num_all_views=32, normalize_came
 def evaluate(args):
     save_dir = args.output_path
 
-    # device_num = 1
     rank_id = 0
     ms.set_context(
         mode=args.mode,
@@ -202,13 +197,12 @@ def evaluate(args):
         )[
             0
         ]  # only batch=1  [M, C, H, W]
-        # print(f"render_images {render_images.shape}")
+
         batch_time = time.time() - start_time
         batches_time.append(batch_time)
         logger.info("Batch time cost: %.3fs.", batch_time)
 
         target_images = data_batch["target_images"]  # [M, C, H, W]
-        # print(f"target_images {target_images.shape}")
 
         for view_id, (target, pred) in enumerate(zip(target_images, render_images)):
             target = target.asnumpy()
@@ -219,6 +213,8 @@ def evaluate(args):
             # save mviews outputs
             im = Image.fromarray(np.clip(pred.transpose(1, 2, 0) * 255, 0, 255).astype(np.uint8))
             im.save(os.path.join(image_path, f"{uids[index]}_{view_id:03d}.jpg"))
+
+            # if save target image:
             # im = Image.fromarray(np.clip(target.transpose(1, 2, 0) * 255, 0, 255).astype(np.uint8))
             # im.save(os.path.join(image_path, f"{uids[index]}_{view_id:03d}_target.jpg"))
 

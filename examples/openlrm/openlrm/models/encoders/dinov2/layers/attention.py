@@ -82,7 +82,7 @@ class MemEffAttention(Attention):
         v = v.swapaxes(1, 2)
         # 'b n h d' -> (b, h=num_head, n, d) == BNSD
 
-        if attn_bias is not None:  # TODO
+        if attn_bias is not None:  # TODO & FIXME: add this function
             raise AssertionError(f"Do not support MemEffAttention in Dinov2 with attn_bias {attn_bias} yet!")
             # q_bias, k_bias, v_bias = attn_bias.chunk(3)
             # q = q + q_bias

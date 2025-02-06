@@ -24,9 +24,6 @@ class DINOHead(nn.Cell):  # NOTE: no use
         nlayers = max(nlayers, 1)
         self.mlp = _build_mlp(nlayers, in_dim, bottleneck_dim, hidden_dim=hidden_dim, use_bn=use_bn, bias=mlp_bias)
         self.apply(self._init_weights)
-        # from torch.nn.utils import weight_norm # Deprecated
-        # self.last_layer = weight_norm(nn.Linear(bottleneck_dim, out_dim, has_bias=False))
-        # self.last_layer.weight_g.set_data(initializer("ones"))
         self.last_layer = nn.Dense(bottleneck_dim, out_dim, has_bias=False)
         self.last_layer.weight.set_data(initializer("ones"))
 

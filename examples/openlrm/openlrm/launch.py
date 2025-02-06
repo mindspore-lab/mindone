@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# import os, sys
-# sys.path.insert(0, os.path.abspath("../.."))  # for mindone
-
 import argparse
 
 from openlrm.runners import REGISTRY_RUNNERS

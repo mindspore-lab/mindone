@@ -47,7 +47,7 @@ class Block(nn.Cell):
         ffn_layer: Callable[..., nn.Cell] = Mlp,
     ) -> None:
         super().__init__()
-        # print(f"biases: qkv: {qkv_bias}, proj: {proj_bias}, ffn: {ffn_bias}")
+
         self.norm1 = norm_layer((dim,))
         self.attn = attn_class(
             dim,
@@ -95,7 +95,7 @@ class Block(nn.Cell):
             )
         elif self.training and self.sample_drop_ratio > 0.0:
             x = x + self.drop_path1(attn_residual_func(x))
-            x = x + self.drop_path1(ffn_residual_func(x))  # FIXME: drop_path2
+            x = x + self.drop_path1(ffn_residual_func(x))
         else:
             x = x + attn_residual_func(x)
             x = x + ffn_residual_func(x)

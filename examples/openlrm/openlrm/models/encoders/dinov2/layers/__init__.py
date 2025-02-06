@@ -16,7 +16,7 @@ from .attention import MemEffAttention
 # Avoid using nested tensor for now, deprecating usage of NestedTensorBlock
 from .block import Block, BlockWithModulation
 
-# from .dino_head import DINOHead #not use
+# from .dino_head import DINOHead # not use
 from .mlp import Mlp
 from .patch_embed import PatchEmbed
 from .swiglu_ffn import SwiGLUFFN, SwiGLUFFNFused

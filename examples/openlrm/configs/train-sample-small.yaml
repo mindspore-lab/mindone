@@ -1,6 +1,5 @@
 experiment:
     type: lrm
-    # seed: 42 # args.seed
     parent: lrm-objaverse
     child: small
 
@@ -40,47 +39,14 @@ dataset:
     pin_mem: true
 
 train:
-    # mixed_precision: bf16  # REPLACE THIS BASED ON GPU TYPE
     find_unused_parameters: false
     loss:
         pixel_weight: 1.0
         perceptual_weight: 1.0
         tv_weight: 5e-4
-    optim:
-        # lr: 4e-4 # args.start_learning_rate
-        # weight_decay: 0.05  #args.weight_decay
-        # beta1: 0.9 #args.betas
-        # beta2: 0.95 #args.betas
-        # clip_grad_norm: 1.0 # args.max_grad_norm
-    scheduler:
-        # type: cosine_annealing_warm_restarts_lr # args.scheduler
-        # warmup_real_iters: 300  # args.warmup_steps
-    batch_size: 1 # REPLACE THIS
-    accum_steps: 1  # REPLACE THIS
-    epochs: 10000 # 60  # REPLACE THIS
-    debug_global_steps: null
+    batch_size: 1
 
 val:
-    batch_size: 1 #4
-    global_step_period: 100 #1000
+    batch_size: 1
+    global_step_period: 1000
     debug_batches: null
-
-saver:
-    auto_resume: true
-    load_model: null
-    # checkpoint_root: ./exps/checkpoints # args.output_path
-    # checkpoint_global_steps: 100 #1000 # args.ckpt_save_steps(unit:step) / args.ckpt_save_interval (unit: epoch)
-    checkpoint_keep_level: 5
-
-# Not to use
-logger:
-    stream_level: WARNING
-    log_level: INFO
-    log_root: ./exps/logs
-    tracker_root: ./exps/trackers
-    enable_profiler: false
-    trackers:
-        - tensorboard
-    image_monitor:
-        train_global_steps: 100
-        samples_per_log: 4

@@ -24,8 +24,6 @@ from mindspore import nn
 
 from mindone.safetensors.mindspore import load_file
 
-# from huggingface_hub.utils import validate_hf_hub_args
-
 
 def wrap_model_hub(model_cls: nn.Cell):
     """
@@ -136,9 +134,6 @@ def wrap_model_hub(model_cls: nn.Cell):
             )
 
             print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}")  # float32
-            # print(f"model.dtype {model.dtype}")
-            # if state_dict[loaded_keys[0]].dtype != model.dtype:
-            #     model = model.to(state_dict[loaded_keys[0]].dtype)
 
             # Instantiate the model
             param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=strict)

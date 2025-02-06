@@ -423,21 +423,12 @@ class ViTPreTrainedModel(PreTrainedModel):
                     TruncatedNormal(sigma=self.config.initializer_range, mean=0.0), module.weight.data.shape, ms.float32
                 )
             )
-            # module.weight.data = nn.init.trunc_normal_(
-            #     module.weight.data.to(ms.float32), mean=0.0, std=self.config.initializer_range
-            # ).to(module.weight.dtype)
             if module.bias is not None:
                 module.bias.set_data(initializer("Zero", module.bias.shape, ms.float32))
-                # module.bias.data.zero_()
         elif isinstance(module, nn.LayerNorm):
             module.beta.data.set_data(initializer("Zero", module.beta.data.shape, ms.float32))
             module.gamma.data.set_data(initializer("One", module.gamma.data.shape, ms.float32))
         elif isinstance(module, ViTEmbeddings):
-            # module.position_embeddings.data = nn.init.trunc_normal_(
-            #     module.position_embeddings.data.to(ms.float32),
-            #     mean=0.0,
-            #     std=self.config.initializer_range,
-            # ).to(module.position_embeddings.dtype)
             module.position_embeddings.data.set_data(
                 initializer(
                     TruncatedNormal(sigma=self.config.initializer_range, mean=0.0),
@@ -445,12 +436,6 @@ class ViTPreTrainedModel(PreTrainedModel):
                     ms.float32,
                 )
             )
-
-            # module.cls_token.data = nn.init.trunc_normal_(
-            #     module.cls_token.data.to(ms.float32),
-            #     mean=0.0,
-            #     std=self.config.initializer_range,
-            # ).to(module.cls_token.dtype)
             module.cls_token.data.set_data(
                 initializer(
                     TruncatedNormal(sigma=self.config.initializer_range, mean=0.0),

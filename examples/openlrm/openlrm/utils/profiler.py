@@ -13,7 +13,6 @@
 # limitations under the License.
 
 
-# from torch.profiler import profile
 from mindspore import Profiler
 
 

@@ -49,11 +49,9 @@ class LPIPS(nn.Cell):
         else:
             in0_input, in1_input = input, target
         outs0, outs1 = self.net(in0_input), self.net(in1_input)
-        val = 0  # ms.Tensor(0, dtype=input.dtype)
+        val = 0
         for kk in range(len(self.chns)):
             diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk])) ** 2
-            # res += spatial_average(lins[kk](diff), keepdim=True)
-            # lin_layer = lins[kk]
             val += ops.mean(self.lins[kk](diff), axis=[2, 3], keep_dims=True)
         return val
 

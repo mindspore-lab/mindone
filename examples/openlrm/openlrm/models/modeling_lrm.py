@@ -245,4 +245,7 @@ class ModelLRM(nn.Cell):
             render_results["images_rgb"].shape[1] == M
         ), "Number of rendered views should be consistent with render_cameras"
 
-        return (planes, render_results["images_rgb"]) # keys also includes 'images_depth', 'images_weight' which are never used.
+        return (
+            planes,
+            render_results["images_rgb"],
+        )  # keys also include 'images_depth', 'images_weight' which are never used.
