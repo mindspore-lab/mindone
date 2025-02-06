@@ -16,6 +16,7 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
+from hyvideo.utils.file_utils import process_prompt_and_text_embed
 from hyvideo.utils.ms_utils import init_env
 
 
@@ -27,9 +28,9 @@ def main():
         raise ValueError(f"`models_root` not exists: {models_root_path}")
 
     # Create save folder to save the samples
-    save_path = args.save_path if args.save_path_suffix == "" else f"{args.save_path}_{args.save_path_suffix}"
+    save_dir = args.save_path if args.save_path_suffix == "" else f"{args.save_path}_{args.save_path_suffix}"
     if not os.path.exists(args.save_path):
-        os.makedirs(save_path, exist_ok=True)
+        os.makedirs(save_dir, exist_ok=True)
 
     # ms env init
     rank_id, _ = init_env(
@@ -51,44 +52,54 @@ def main():
     args = hunyuan_video_sampler.args
 
     # Start sampling
-    # TODO: batch inference check
-    outputs = hunyuan_video_sampler.predict(
-        prompt=args.prompt,
-        height=args.video_size[0],
-        width=args.video_size[1],
-        video_length=args.video_length,
-        seed=args.seed,
-        negative_prompt=args.neg_prompt,
-        infer_steps=args.infer_steps,
-        guidance_scale=args.cfg_scale,
-        num_videos_per_prompt=args.num_videos,
-        flow_shift=args.flow_shift,
-        batch_size=args.batch_size,
-        embedded_guidance_scale=args.embedded_cfg_scale,
-        output_type=args.output_type,
-        text_embed_path=args.text_embed_path,
-    )
-    samples = outputs["samples"]
+    if args.prompt is None and args.text_embed_path is None:
+        raise ValueError("Either `prompt` or `text_embed_path` must be provided.")
 
-    # Save samples
-    if rank_id == 0:
-        for i, sample in enumerate(samples):
-            sample = samples[i].unsqueeze(0)
-            time_flag = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d-%H:%M:%S")
-            save_path = (
-                f"{save_path}/{time_flag}_seed{outputs['seeds'][i]}_{outputs['prompts'][i][:100].replace('/','')}.mp4"
+    prompts, text_embed_paths = process_prompt_and_text_embed(args.prompt, args.text_embed_path)
+    for prompt, text_embed_path in zip(prompts, text_embed_paths):
+        if prompt is not None:
+            logger.info(f"Sampling with prompt: {prompt}")
+        if text_embed_path is not None:
+            logger.info(f"Sampling with text embed path: {text_embed_path}")
+        try:
+            outputs = hunyuan_video_sampler.predict(
+                prompt=prompt,
+                height=args.video_size[0],
+                width=args.video_size[1],
+                video_length=args.video_length,
+                seed=args.seed,
+                negative_prompt=args.neg_prompt,
+                infer_steps=args.infer_steps,
+                guidance_scale=args.cfg_scale,
+                num_videos_per_prompt=args.num_videos,
+                flow_shift=args.flow_shift,
+                batch_size=args.batch_size,
+                embedded_guidance_scale=args.embedded_cfg_scale,
+                output_type=args.output_type,
+                text_embed_path=text_embed_path,
             )
+            samples = outputs["samples"]
+        except Exception as e:
+            logger.error(f"Error during prediction: {e}")
+            continue
 
-            if args.output_type != "latent":
-                # save_videos_grid(sample, save_path, fps=24)
-                # b c t h w -> b t h w c
-                sample = sample.permute(0, 2, 3, 4, 1).asnumpy()
-                save_videos(sample, save_path, fps=24)
-            else:
-                save_path = save_path[:-4] + ".npy"
-                np.save(save_path, sample)
+        # Save samples
+        if rank_id == 0:
+            for i, sample in enumerate(samples):
+                sample = samples[i].unsqueeze(0)
+                time_flag = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d-%H:%M:%S")
+                save_path = f"{save_dir}/{time_flag}_seed{outputs['seeds'][i]}_{outputs['prompts'][i][:100].replace('/','')}.mp4"
 
-            logger.info(f"Sample save to: {save_path}")
+                if args.output_type != "latent":
+                    # save_videos_grid(sample, save_path, fps=24)
+                    # b c t h w -> b t h w c
+                    sample = sample.permute(0, 2, 3, 4, 1).asnumpy()
+                    save_videos(sample, save_path, fps=24)
+                else:
+                    save_path = save_path[:-4] + ".npy"
+                    np.save(save_path, sample)
+
+                logger.info(f"Sample save to: {save_path}")
 
 
 if __name__ == "__main__":

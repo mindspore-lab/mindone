@@ -323,7 +323,8 @@ def add_inference_args(parser: argparse.ArgumentParser):
         "--prompt",
         type=str,
         default=None,
-        help="Prompt for sampling during evaluation.",
+        help="A single prompt string or a path to a .txt file containing multiple prompts. "
+        "If a .txt file is provided, each line should contain one prompt.",
     )
     group.add_argument(
         "--seed-type",
@@ -365,11 +366,11 @@ def add_inference_args(parser: argparse.ArgumentParser):
     group.add_argument(
         "--text-embed-path",
         type=str,
-        help="path to npz containing text embeds, "
-        "including positive/negative prompt embed of text encoder 1 and 2"
-        ", and the mask for positive and negative prompt",
+        default=None,
+        help="A single .npz file path or a path to a .txt file containing multiple .npz file paths. "
+        "If a .txt file is provided, each line should contain one .npz file path. "
+        "This argument is required if `prompt` is a .txt file.",
     )
-
     # mindspore args
     group.add_argument("--ms-mode", type=int, default=0, help="0 graph, 1 pynative")
     group.add_argument(

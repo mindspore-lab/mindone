@@ -462,6 +462,11 @@ class HunyuanVideoSampler(Inference):
         # ========================================================================
         # Arguments: prompt, new_prompt, negative_prompt
         # ========================================================================
+        if prompt is None:
+            if text_embed_path is None:
+                raise ValueError("Either `prompt` or `text_embed_path` must be specified.")
+            prompt = ""
+
         if not isinstance(prompt, str):
             raise TypeError(f"`prompt` must be a string, but got {type(prompt)}")
         prompt = [prompt.strip()]
@@ -532,6 +537,7 @@ class HunyuanVideoSampler(Inference):
                          width: {target_width}
                   video_length: {target_video_length}
                         prompt: {prompt}
+               text_embed_path: {text_embed_path}
                     neg_prompt: {negative_prompt}
                           seed: {seed}
                    infer_steps: {infer_steps}
