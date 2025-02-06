@@ -292,9 +292,9 @@ To run training on a specific task, please refer to `scripts/run_train.sh`.
 After changing the `task_name` and `yaml_file` in the script for your task, run:
 
 ```shell
-bash scripts/run_train.sh $DEVICE_ID
+bash scripts/run_train.sh $DEVICE_ID $OUTPUT_DIR
 ```
-e.g. `bash scripts/run_train.sh 0` to launch the training task using NPU card 0.
+e.g. `bash scripts/run_train.sh 0 out_train` to launch the training task using NPU card 0 and output folder is out_train.
 
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
@@ -374,14 +374,14 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 
 
 ### Training
-The training performance for exp02-motion transfer with 1 910B card, with different  is as follows:
+The training performance for exp02-motion transfer with 1 910* card, with different  is as follows:
 
-| model name   | cards |  batch size | resolution   | recompute | mode | jit level  | s/step |  video/s                                                                  |
-|:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:---------:|:------------------------------------------------------------------------|
-| VideoComposer | 1     | 1           | 16 x 256 x 256    | ON | Pynative | X             | 18    | 0.06 |
-| VideoComposer | 1     | 1           | 16 x 256 x 256    | ON | Graph |  O2             | 0.7    | 1.42 |
-| VideoComposer | 1     | 1           | 16 x 256 x 256    | ON | Graph |  O1           | 10    | 0.1 |
-| VideoComposer | 1     | 1           | 16 x 256 x 256    | ON | Graph |  O0          | 16    | 0.06 |
+| model name   | cards |  batch size | resolution   | recompute | sink | graph compile | mode | jit level  | s/step |  video/s                                                                  |
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:------------------------------------------------------------------------|
+| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  20 ~ 30 mins | pynative | N/A             | 18    | 0.06 |
+| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  20 ~ 30 mins | graph |  O2             | 0.7    | 1.42 |
+| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  20 ~ 30 mins | graph |  O1           | 10    | 0.1 |
+| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  20 ~ 30 mins | graph |  O0          | 16    | 0.06 |
 
 
 ### Inference
@@ -390,7 +390,7 @@ The video generation speed is as follows.
 
 | model name   | cards |  batch size | resolution    | s/step | video/s                                                              |
 |:------------:|:-----:|:-----------:|:----------:|:---------:|:------------------------------------------------------------------------|
-| VideoComposer | 1     | 1           | 16 x 256 x 256         |  0.22 | 0.09  |
+| videocomposer | 1     | 1           | 16x256x256         |  0.22 | 0.09  |
 
 
 Note that with MindSpore-Lite, the graph compilation time is eliminated.
