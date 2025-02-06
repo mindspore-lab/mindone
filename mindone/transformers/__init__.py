@@ -2,11 +2,7 @@ __version__ = "4.42.4"
 
 
 from .modeling_utils import MSPreTrainedModel
-from .models.auto import (
-    AutoModel,
-    AutoModelForCausalLM,
-    AutoModelForMaskedLM,
-)
+from .models.auto import AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,

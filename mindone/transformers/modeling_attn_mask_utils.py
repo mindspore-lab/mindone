@@ -317,6 +317,7 @@ def _prepare_4d_attention_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optiona
     """
     return _expand_mask(mask=mask, dtype=dtype, tgt_len=tgt_len)
 
+
 def _prepare_4d_causal_attention_mask_for_sdpa(
     attention_mask: Optional[ms.Tensor],
     input_shape: Union[ms.Tensor, Tuple, List],
@@ -393,6 +394,7 @@ def _create_4d_causal_attention_mask(
 
     return attention_mask
 
+
 def _prepare_4d_attention_mask_for_sdpa(mask: ms.Tensor, dtype: ms.dtype, tgt_len: Optional[int] = None):
     """
     Creates a non-causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)` from a 2D mask of shape
@@ -414,28 +416,3 @@ def _prepare_4d_attention_mask_for_sdpa(mask: ms.Tensor, dtype: ms.dtype, tgt_le
         return None
     else:
         return AttentionMaskConverter._expand_mask(mask=mask, dtype=dtype, tgt_len=tgt_len)
-
-
-def _create_4d_causal_attention_mask(
-    input_shape: Union[Tuple, List],
-    dtype: ms.Type,
-    past_key_values_length: int = 0,
-    sliding_window: Optional[int] = None,
-) -> Optional[ms.Tensor]:
-    """
-    Creates a causal 4D mask of shape `(batch_size, 1, query_length, key_value_length)`
-
-    Args:
-        input_shape (`tuple(int)` or `list(int)`):
-            The input shape should be a tuple that defines `(batch_size, query_length)`.
-        dtype (`torch.dtype`):
-            The torch dtype the created mask shall have.
-        sliding_window (`int`, *optional*):
-            If the model uses windowed attention, a sliding window should be passed.
-    """
-    key_value_length = past_key_values_length + input_shape[-1]
-    attention_mask = to_causal_4d(
-        input_shape[0], input_shape[-1], key_value_length, dtype=dtype, sliding_window=sliding_window
-    )
-
-    return attention_mask
