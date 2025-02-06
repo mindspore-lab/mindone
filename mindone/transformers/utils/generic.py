@@ -417,9 +417,9 @@ def infer_framework(model_class):
         raise TypeError(f"Could not infer framework from class {model_class}.")
 
 
-def torch_int(x):
+def mindspore_int(x):
     """
-    Casts an input to a torch int64 tensor if we are in a tracing context, otherwise to a Python int.
+    Casts an input to a mindspore int64 tensor if we are in a tracing context, otherwise to a Python int.
     """
     if not is_mindspore_available():
         return int(x)
@@ -429,9 +429,9 @@ def torch_int(x):
     return x.to(ms.int64) if isinstance(x, ms.Tensor) else int(x)
 
 
-def torch_float(x):
+def mindspore_float(x):
     """
-    Casts an input to a torch float32 tensor if we are in a tracing context, otherwise to a Python float.
+    Casts an input to a mindspore float32 tensor if we are in a tracing context, otherwise to a Python float.
     """
     if not is_mindspore_available():
         return int(x)

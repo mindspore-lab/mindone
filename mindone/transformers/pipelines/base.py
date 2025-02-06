@@ -49,8 +49,7 @@ if is_mindspore_available():
     from ..models.auto.modeling_auto import AutoModel
 
     # Re-export for backward compatibility
-    # fixme meaning??????
-    # from .pt_utils import KeyDataset
+    from .pt_utils import KeyDataset
 else:
     Dataset = None
     KeyDataset = None

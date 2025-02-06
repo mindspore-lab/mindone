@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch OpenAI GPT-2 model."""
+"""MindSpore OpenAI GPT-2 model."""
 
 import math
 import os
@@ -310,11 +310,9 @@ class GPT2Attention(nn.Cell):
         if self.scale_attn_by_inverse_layer_idx:
             scale_factor /= float(self.layer_idx + 1)
 
-        # Upcast (turn off autocast) and reorder (Scale K by 1 / root(dk))
-        with ms.amp.autocast(query.device.type, enabled=False):
-            q, k = query.reshape(-1, q_seq_len, dk), key.transpose(-1, -2).reshape(-1, dk, k_seq_len)
-            attn_weights = ops.baddbmm(attn_weights, q.float(), k.float(), beta=0, alpha=scale_factor)
-            attn_weights = attn_weights.reshape(bsz, num_heads, q_seq_len, k_seq_len)
+        q, k = query.reshape(-1, q_seq_len, dk), key.transpose(-1, -2).reshape(-1, dk, k_seq_len)
+        attn_weights = ops.baddbmm(attn_weights, q.float(), k.float(), beta=0, alpha=scale_factor)
+        attn_weights = attn_weights.reshape(bsz, num_heads, q_seq_len, k_seq_len)
 
         if not self.is_cross_attention:
             # if only "normal" attention layer implements causal mask
