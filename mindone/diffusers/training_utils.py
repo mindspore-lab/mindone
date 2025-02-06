@@ -1,3 +1,4 @@
+import contextlib
 import copy
 import logging
 import math
@@ -14,9 +15,17 @@ from tqdm.auto import tqdm
 import mindspore as ms
 from mindspore import context, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
+from mindspore.common import dtype as mstype
+from mindspore.common.api import _pynative_executor
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
+from mindspore.communication.management import GlobalComm
+from mindspore.context import ParallelMode
+from mindspore.parallel._utils import _get_parallel_mode
 
 from mindone.diffusers._peft import set_peft_model_state_dict
+from mindone.diffusers.models.model_loading_utils import silence_mindspore_logger
+from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.trainers.zero import ZeroHelper, prepare_network
 
 from .models import UNet2DConditionModel
 from .schedulers import SchedulerMixin
@@ -383,6 +392,10 @@ class EMAModel:
 
 def is_master(args):
     return args.rank == 0
+
+
+def is_local_master(args):
+    return args.local_rank == 0
 
 
 def init_distributed_device(args):
@@ -806,3 +819,174 @@ class TrainStep(nn.Cell, metaclass=ABCMeta):
         loss = self.unscale_loss(outputs[0])
         outputs = (loss,) + outputs[1:]
         return outputs
+
+
+@ms.jit_class
+class pynative_no_grad(contextlib.ContextDecorator):
+    """
+    Context Manager to disable gradient calculation. When enter this context, we will disable calculate
+    gradient. When exit this context, we will resume its prev state.
+    Currently, it can use both in Pynative and Graph mode. It also can be used as decorator.
+
+    For mindone.diffusers, it is used in PyNative training to decorate the part of calculation that
+    does not require gradients, e.g. vae.encode_images or text_encoder.encode_prompts where does not
+    need to train VAE or text-encoders.
+    """
+
+    def __init__(self):
+        self.is_pynative_mode = context.get_context("mode") == context.PYNATIVE_MODE or os.getenv("MS_JIT") == "0"
+        self.prev_state = False
+
+    def __enter__(self):
+        if self.is_pynative_mode:
+            self.prev_state = _pynative_executor.enable_grad()
+            _pynative_executor.set_enable_grad(False)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.is_pynative_mode:
+            _pynative_executor.set_enable_grad(self.prev_state)
+        return False
+
+
+# Adapted from mindone.trainers.zero.prepare_train_network
+def prepare_train_network(
+    network: nn.Cell,
+    optimizer: nn.Optimizer,
+    scale_sense: Union[float, nn.Cell] = 1.0,
+    updates: int = 0,
+    drop_overflow_update: bool = True,
+    gradient_accumulation_steps: int = 1,
+    clip_grad: bool = False,
+    clip_norm: float = 1.0,
+    verbose: bool = False,
+    zero_stage: int = 0,
+    optimizer_offload: bool = False,
+    op_group: str = None,
+    dp_group: str = None,
+    comm_fusion: dict = None,
+    parallel_modules=None,
+):
+    """
+    Prepare network and optimizer for distributed training.
+
+    Args:
+        network (`nn.Cell`): train network, not include grad function,
+            grad function must be built after rewrite train network.
+        optimizer (`nn.Optimizer`): Must be the subclass of MindSpore Optimizer.
+        scale_sense (Union[Tensor, Cell]): If this value is a Cell, it will be called
+            to update loss scale. If this value is a Tensor, the loss scale can be modified by `set_sense_scale`,
+            the shape should be :math:`()` or :math:`(1,)`.
+        zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
+        optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
+        op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+        dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
+        comm_fusion (`dict`, *optional*): A dict contains the types and configurations
+            for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
+            turn on the communication fusion.
+            Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
+                       "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                       "allgather": {"openstate": False, "bucket_size": 5e8},}
+        parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
+            If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
+    """
+    if zero_stage not in [0, 1, 2, 3]:
+        raise ValueError("Not support zero_stage {zero_stage}")
+    if op_group is None:
+        logger.warning("Not set zero group, set it WORLD_COMM_GROUP.")
+        op_group = GlobalComm.WORLD_COMM_GROUP
+    if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
+        raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
+
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel and zero_stage == 0:
+        logger.info("No need prepare train_network with zero.")
+        zero_helper = None
+    else:
+        network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+
+    if isinstance(scale_sense, float):
+        scale_sense = ms.Tensor(scale_sense, ms.float32)
+    train_network = DiffusersTrainOneStepWrapper(
+        network,
+        optimizer,
+        scale_sense=scale_sense,
+        updates=updates,
+        drop_overflow_update=drop_overflow_update,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        clip_grad=clip_grad,
+        clip_norm=clip_norm,
+        verbose=verbose,
+        zero_helper=zero_helper,
+    )
+    return train_network
+
+
+class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def use_zero(self):
+        return self.zero_helper is not None and self.zero_stage != 0
+
+    def need_save_optimizer(self, args):
+        # TODO: Now we save optimizer in every process, try to save depend on self.zero_helper.op_group
+        return True if self.use_zero else is_local_master(args)
+
+    def save_state(self, args, output_dir, optimizer_state_filter=lambda x: True):
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Saving current state to {output_dir}")
+
+        # Optimizer states
+        if self.use_zero:
+            os.makedirs(os.path.join(output_dir, "mindspore_model"), exist_ok=True)
+            optimizer_file = os.path.join(output_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
+        elif self.need_save_optimizer(args):
+            optimizer_file = os.path.join(output_dir, "optimizer.ckpt")
+        ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+
+        # Loss Scaler states
+        loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")
+        loss_scaler_states = {"scale_sense": self.scale_sense}
+        if self.loss_scaling_manager:
+            loss_scaler_states.update(
+                {
+                    "cur_iter": self.loss_scaling_manager.cur_iter,
+                    "last_overflow_iter": self.loss_scaling_manager.last_overflow_iter,
+                }
+            )
+        ms.save_checkpoint(loss_scaler_states, loss_scaler_file)
+
+    def load_state(self, args, input_dir, optimizer_state_filter=lambda x: True):
+        # Optimizer states
+        optimizer_file = (
+            os.path.join(input_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
+            if self.use_zero
+            else os.path.join(input_dir, "optimizer.ckpt")
+        )
+        optimizer_state_dict = ms.load_checkpoint(optimizer_file)
+
+        with silence_mindspore_logger():
+            param_not_load, ckpt_not_load = ms.load_param_into_net(
+                self.optimizer, optimizer_state_dict, strict_load=True
+            )
+
+        param_not_load = list(filter(lambda x: optimizer_state_filter(x), param_not_load))
+        if param_not_load or ckpt_not_load:
+            logger.warning(
+                f"Loading checkpoint into optimizer returns param_not_load:{param_not_load} \nand ckpt_not_load:{ckpt_not_load}"
+            )
+
+        # Loss Scaler states
+        loss_scaler_file = os.path.join(input_dir, "loss_scaler.ckpt")
+        loss_scaler_state_dict = ms.load_checkpoint(loss_scaler_file)
+
+        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.Tensor(1.0, dtype=mstype.float32))
+        cur_iter = loss_scaler_state_dict.get("cur_iter", None)
+        last_overflow_iter = loss_scaler_state_dict.get("last_overflow_iter", None)
+
+        ops.assign(self.scale_sense, scale_sense)
+        if cur_iter is not None and last_overflow_iter is not None:
+            ops.assign(self.loss_scaling_manager.cur_iter, cur_iter)
+            ops.assign(self.loss_scaling_manager.last_overflow_iter, last_overflow_iter)

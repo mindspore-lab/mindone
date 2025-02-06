@@ -10,6 +10,8 @@ except ImportError:
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
+from .version_control import MS_VERSION
+
 _logger = logging.getLogger(__name__)
 
 
@@ -22,10 +24,9 @@ def init_train_env(
     cache_path: str = "./cache",
     distributed: bool = False,
     ascend_config: Optional[dict] = None,
+    jit_level: Optional[Literal["O0", "O1", "O2"]] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
-    num_workers: int = 1,
-    json_data_path: Optional[str] = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore training environment.
@@ -41,12 +42,10 @@ def init_train_env(
         cache_path: The path to save or load the saved computation graph.
         distributed: Whether to enable distributed training. Default is False.
         ascend_config: Parameters specific to the Ascend hardware platform.
+        jit_level: The compilation optimization level. Options: "O0", "O1", "O2".
+                   Default is None and the level selected based on the device.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
-        num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
-        json_data_path: The path of num_samples.json containing a dictionary with 64 parts. Each part is a large
-                        dictionary containing counts of samples of 533 tar packages.
-                        Used only when `enable_modelarts` is True.
 
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
@@ -58,9 +57,18 @@ def init_train_env(
         mode = ms.PYNATIVE_MODE
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
+    if jit_level:
+        if MS_VERSION >= "2.3":
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            _logger.warning("Compilation optimization (JIT Level) is supported only in MindSpore 2.3 or later.")
+
     if distributed:
-        device_id = int(os.getenv("DEVICE_ID"))
-        ms.set_context(mode=mode, device_target=device_target, device_id=device_id, ascend_config=ascend_config or {})
+        ms.set_context(mode=mode, device_target=device_target, ascend_config=ascend_config or {})
+        device_id = os.getenv("DEVICE_ID", None)
+        if device_id:
+            ms.set_context(device_id=int(device_id))
+
         init()
         device_num = get_group_size()
         rank_id = get_rank()
@@ -76,7 +84,6 @@ def init_train_env(
         _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:
-            # split_and_sync_data(json_data_path, num_workers, device_num, rank_id)
             raise NotImplementedError("ModelArts is not supported yet.")
     else:
         device_num = 1

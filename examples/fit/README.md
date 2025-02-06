@@ -8,27 +8,15 @@ Nature is infinitely resolution-free. In the context of this reality, existing d
 
 ## Get Started
 
-### Pretrained Checkpoints
+### Requirements
 
-## Sampling
+| mindspore | ascend driver | firmware    | cann toolkit/kernel         |
+|:---------:|:-------------:|:-----------:|:---------------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1               |
 
-To run inference of `FiT-XL/2` model with the `256x256` image size on Ascend devices, you can use:
-```bash
-python sample.py --imagegrid True
+Python: 3.9 or later.
 
-```
-You can also adjust the image size by adding the flag `--image_height` and `--image_width`. For example, you can run
-```bash
-python sample.py --imagegrid True --image_height 320 --image_width 160
-```
-to generate image with 160x320 size.
-
-#### Intermediate Result
-Some generated example images of are shown below:
-
-<p align="center"><img width="400" src="https://github.com/zhtmike/mindone/assets/8342575/71404444-61e8-44c1-a8fb-34bed6fddb1f"/>
-<br><em>Sampling Result (85/360 epochs)</em></p>
-
+Then run `pip install -r requirements.txt` to install the necessary packages.
 
 ## Training with ImageNet format
 
@@ -57,7 +45,7 @@ We use the `train` folder for training the FiT model.
 You need first extract the latent vectors of ImageNet Dataset using the following command:
 
 ```bash
-python preprocess.py --dataset_path PATH_TO_YOUR_DATASET --outdir latent
+python preprocess.py --data_path PATH_TO_YOUR_DATASET --outdir latent
 ```
 
 where `PATH_TO_YOUR_DATASET` is the path of your ImageNet dataset, e.g. `ImageNet2012/train`. The latent vector of each image is then stored at `latent` directory.
@@ -67,50 +55,53 @@ where `PATH_TO_YOUR_DATASET` is the path of your ImageNet dataset, e.g. `ImageNe
 You can then start the distributed training using the following command
 
 ```bash
-export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"
-mpirun -n 4 python train.py \
+msrun --worker_num=4 --local_worker_num=4 train.py \
     -c configs/training/class_cond_train.yaml \
-    --dataset_path PATH_TO_YOUR_LATENT_DATASET \
+    --data_path PATH_TO_YOUR_LATENT_DATASET \
     --use_parallel True
 ```
 
 where `PATH_TO_YOUR_LATENT_DATASET` is the path of directory storing the latent vectors, e.g. `./latent`.
 
-For machine with Ascend devices, you can also start the distributed training using the rank table.
-Please run
+## Sampling
 
+To run inference of `FiT-XL/2` model with the `256x256` image size on Ascend devices, you can use:
 ```bash
-bash scripts/run_distributed.sh path_of_the_rank_table 0 4 path_to_your_latent_dataset
+python sample.py --imagegrid True --fit_checkpoint PATH_TO_YOUR_CKPT
 ```
+where `PATH_TO_YOUR_CKPT` is the path of your trained checkpoint.
 
-to launch a 4P training. For detail usage of the training script, please run
-
+You can also adjust the image size by adding the flag `--image_height` and `--image_width`. For example, you can run
 ```bash
-bash scripts/run_distributed.sh -h
+python sample.py --imagegrid True --image_height 320 --image_width 160 --fit_checkpoint PATH_TO_YOUR_CKPT
 ```
+to generate image with 160x320 size.
 
-## Benchmark
+#### Intermediate Result
+Some generated example images of are shown below:
 
-### Training
+<p align="center"><img width="400" src="https://github.com/zhtmike/mindone/assets/8342575/71404444-61e8-44c1-a8fb-34bed6fddb1f"/>
+<br><em>Sampling Result (85/360 epochs)</em></p>
 
-| Model    | Context       | Global Batch Size x Grad. Accu. | Max. Resolution | Acceleration | FPS (img/s) |
-|----------|---------------|---------------------------------|-----------------|--------------|-------------|
-| FiT-XL-2 | D910*x4-MS2.2 | 256x1                           | 256x256         | FP16         | 319.7       |
+## Performance
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Acceleration: FP16: float16 computation. Flash attention is not used in the test currently.
-> Max. Resolution: The maximum resolution of the image in training.
-> FPS: images per second during training. average training time (s/step) = batch_size / FPS
+### Training Performance
 
-### Inference
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
-| SD Model | Context       | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) |
-|----------|---------------|-----------|-------|------------|------------|----------------|
-| FiT-XL-2 | D910*x1-MS2.2 | DDPM      | 250   | 256x256    | 8          | 2.19           |
-| FiT-XL-2 | D910*x1-MS2.2 | DDIM      | 50    | 256x256    | 8          | 1.82           |
+| model name | cards | batch size   | resolution  | recompute  | sink      | jit level | graph compile | s/step |         img/s |
+| :--------: | :---: | :-----------:| :--------:  | :--------: | :-------: | :-------: | :-----------: | :----: | :-----------: |
+| FiT-XL-2   |   4   |     64       |  256x256    |    ON      |    OFF    |    O0     |   3~5 mins    | 0.73   |    315        |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Speed (step/s): sampling speed measured in the number of sampling steps per second.
+> s/step: training time measured in the number of seconds for each training step.\
+> imgs/s: images per second during training. imgs/s = cards * batch_size / step time
+
+### Inference Performance
+
+| model name   | cards | scheduler | batch size | resolution  | jit level  |  graph compile | s/step    |
+|:------------:|:-----:|:---------:|:----------:|:-----------:|:----------:|:--------------:|:---------:|
+| FiT-XL-2     | 1     | IDDPM     | 8          |256 x 256    | O0         | < 3 mins       | 0.09      |
+| FiT-XL-2     | 1     | DDIM      | 8          |256 x 256    | O0         | < 3 mins       | 0.09      |
 
 # References
 
