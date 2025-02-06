@@ -48,7 +48,7 @@ The inference examples are shown below:
 
 ### Inference
 
-Experiments are tested on ascend 910* with mindspore 2.4.1.
+Experiments are tested on ascend 910* with mindspore 2.4.1 PyNative mode.
 
 To test the benchmark, you may use the video `-0og5HrzhpY_0.mp4` and place it under `./examples`
 and run the following command:
