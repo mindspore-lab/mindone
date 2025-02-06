@@ -410,20 +410,27 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 
 ## Results
 
-### Training
-The training performance for exp02-motion transfer is as follows.
 
-| **NPU**     | ** Num. Cards**    | **Dataset**  |  **Batch size** | ** Performance (ms/step)**  |
-|-------------|----------------|---------------|----------------|----------------|
-| 910*        | 1x8 		| WebVid     | 	1	|   ~950	|
-| 910*        | 8x8 		| WebVid     | 	1	|   ~1100 	|
+### Training
+The training performance for exp02-motion transfer with 1 910B card, with different  is as follows:
+| **Mindspore Version** | **Mode**  | **JIT Level** | **Performance (s/step)** |
+|:----------------------:|:---------:|:-------------:|:-------------------------:|
+| 2.2                   | Graph     | -             | 0.95
+| 2.3.1                 | Graph     | O2            | 0.7  
+| 2.3.1                 | Graph     | O1            | 10  
+| 2.3.1                 | Graph     | O0            | 16                     |                   |
+| 2.3.1                 | Pynative     |            | 18                  |
+
+
 
 ### Inference
 
 The video generation speed is as follows.
 | **NPU**     | ** Framework **    | ** Sampler ** | ** Steps ** |** Performance (s/trial)**  |
 |-------------|-------------------|----------------|----------------|----------------|
-| 910*        | MindSpore-2.2(20230907)	 |  DDIM   	|	50 	|	12	|
-| 910*        | MindSpore-Lite-2.2(20230907) |   DDIM 	|	50	| 	11.6	|
+| 910*        | MindSpore-2.3.1	 |  DDIM   	|	50 	|	11.2	|
+| 910*        | MindSpore-Lite-2.3.1 |   DDIM 	|	50	| 	10.9	|
+| 910*        | MindSpore-2.2	 |  DDIM   	|	50 	|	12	|
+| 910*        | MindSpore-Lite-2.2 |   DDIM 	|	50	| 	11.6	|
 
 Note that with MindSpore-Lite, the graph compilation time is eliminated.

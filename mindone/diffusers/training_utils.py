@@ -1,5 +1,7 @@
+import contextlib
 import copy
 import logging
+import math
 import os
 import random
 import time
@@ -13,9 +15,17 @@ from tqdm.auto import tqdm
 import mindspore as ms
 from mindspore import context, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
+from mindspore.common import dtype as mstype
+from mindspore.common.api import _pynative_executor
 from mindspore.communication import get_group_size, get_local_rank, get_rank, init
+from mindspore.communication.management import GlobalComm
+from mindspore.context import ParallelMode
+from mindspore.parallel._utils import _get_parallel_mode
 
 from mindone.diffusers._peft import set_peft_model_state_dict
+from mindone.diffusers.models.model_loading_utils import silence_mindspore_logger
+from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.trainers.zero import ZeroHelper, prepare_network
 
 from .models import UNet2DConditionModel
 from .schedulers import SchedulerMixin
@@ -129,6 +139,44 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
 
 
+def compute_density_for_timestep_sampling(
+    weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
+):
+    """Compute the density for sampling the timesteps when doing SD3 training.
+
+    Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
+
+    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    """
+    if weighting_scheme == "logit_normal":
+        # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
+        u = ops.normal(mean=logit_mean, stddev=logit_std, shape=(batch_size,))
+        u = ops.sigmoid(u)
+    elif weighting_scheme == "mode":
+        u = ops.rand(batch_size)
+        u = 1 - u - mode_scale * (ops.cos(math.pi * u / 2) ** 2 - 1 + u)
+    else:
+        u = ops.rand(batch_size)
+    return u
+
+
+def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
+    """Computes loss weighting scheme for SD3 training.
+
+    Courtesy: This was contributed by Rafie Walker in https://github.com/huggingface/diffusers/pull/8528.
+
+    SD3 paper reference: https://arxiv.org/abs/2403.03206v1.
+    """
+    if weighting_scheme == "sigma_sqrt":
+        weighting = (sigmas**-2.0).float()
+    elif weighting_scheme == "cosmap":
+        bot = 1 - 2 * sigmas + 2 * sigmas**2
+        weighting = 2 / (math.pi * bot)
+    else:
+        weighting = ops.ones_like(sigmas)
+    return weighting
+
+
 # Adapted from torch-ema https://github.com/fadel/pytorch_ema/blob/master/torch_ema/ema.py#L14
 class EMAModel:
     """
@@ -144,6 +192,7 @@ class EMAModel:
         use_ema_warmup: bool = False,
         inv_gamma: Union[float, int] = 1.0,
         power: Union[float, int] = 2 / 3,
+        foreach: bool = False,
         model_cls: Optional[Any] = None,
         model_config: Dict[str, Any] = None,
     ):
@@ -157,6 +206,7 @@ class EMAModel:
             inv_gamma (float):
                 Inverse multiplicative factor of EMA warmup. Default: 1. Only used if `use_ema_warmup` is True.
             power (float): Exponential factor of EMA warmup. Default: 2/3. Only used if `use_ema_warmup` is True.
+            foreach (bool): Use torch._foreach functions for updating shadow parameters. Should be faster.
 
         @crowsonkb's notes on EMA Warmup:
             If gamma=1 and power=1, implements a simple average. gamma=1, power=2/3 are good values for models you plan
@@ -175,16 +225,17 @@ class EMAModel:
         self.power = power
         self.optimization_step = 0
         self.cur_decay_value = None  # set in `step()`
+        self.foreach = foreach
 
         self.model_cls = model_cls
         self.model_config = model_config
 
     @classmethod
-    def from_pretrained(cls, path, model_cls) -> "EMAModel":
+    def from_pretrained(cls, path, model_cls, foreach=False) -> "EMAModel":
         _, ema_kwargs = model_cls.load_config(path, return_unused_kwargs=True)
         model = model_cls.from_pretrained(path)
 
-        ema_model = cls(model.get_parameters(), model_cls=model_cls, model_config=model.config)
+        ema_model = cls(model.get_parameters(), model_cls=model_cls, model_config=model.config, foreach=foreach)
 
         ema_model.load_state_dict(ema_kwargs)
         return ema_model
@@ -233,12 +284,15 @@ class EMAModel:
         self.cur_decay_value = decay
         one_minus_decay = 1 - decay
 
-        for s_param, param in zip(self.shadow_params, parameters):
-            # TODO: gather parameters if they are sharded.
-            if param.requires_grad:
-                ops.assign_sub(s_param, one_minus_decay * (s_param - param))
-            else:
-                ops.assign(s_param, param)
+        if self.foreach:
+            raise NotImplementedError("Not Implemeneted for `foreach` branch.")
+        else:
+            for s_param, param in zip(self.shadow_params, parameters):
+                # TODO: gather parameters if they are sharded.
+                if param.requires_grad:
+                    ops.assign_sub(s_param, one_minus_decay * (s_param - param))
+                else:
+                    ops.assign(s_param, param)
 
     def copy_to(self, parameters: Iterable[ms.Parameter]) -> None:
         """
@@ -250,8 +304,24 @@ class EMAModel:
                 `ExponentialMovingAverage` was initialized will be used.
         """
         parameters = list(parameters)
-        for s_param, param in zip(self.shadow_params, parameters):
-            ops.assign(param, s_param)
+        if self.foreach:
+            raise NotImplementedError("Not Implemeneted for `foreach` branch.")
+        else:
+            for s_param, param in zip(self.shadow_params, parameters):
+                ops.assign(param, s_param)
+
+    def pin_memory(self) -> None:
+        r"""
+        Move internal buffers of the ExponentialMovingAverage to pinned memory. Useful for non-blocking transfers for
+        offloading EMA params to the host.
+        """
+
+        raise NotImplementedError("Not Implemeneted for `pin_memory`.")
+
+    def to(self, dtype=None, non_blocking=False) -> None:
+        r"""Move internal buffers of the ExponentialMovingAverage to `device`."""
+        # .to() on the tensors handles None correctly
+        raise NotImplementedError("Not Implemeneted for `to`.")
 
     def state_dict(self) -> dict:
         r"""
@@ -322,6 +392,10 @@ class EMAModel:
 
 def is_master(args):
     return args.rank == 0
+
+
+def is_local_master(args):
+    return args.local_rank == 0
 
 
 def init_distributed_device(args):
@@ -745,3 +819,174 @@ class TrainStep(nn.Cell, metaclass=ABCMeta):
         loss = self.unscale_loss(outputs[0])
         outputs = (loss,) + outputs[1:]
         return outputs
+
+
+@ms.jit_class
+class pynative_no_grad(contextlib.ContextDecorator):
+    """
+    Context Manager to disable gradient calculation. When enter this context, we will disable calculate
+    gradient. When exit this context, we will resume its prev state.
+    Currently, it can use both in Pynative and Graph mode. It also can be used as decorator.
+
+    For mindone.diffusers, it is used in PyNative training to decorate the part of calculation that
+    does not require gradients, e.g. vae.encode_images or text_encoder.encode_prompts where does not
+    need to train VAE or text-encoders.
+    """
+
+    def __init__(self):
+        self.is_pynative_mode = context.get_context("mode") == context.PYNATIVE_MODE or os.getenv("MS_JIT") == "0"
+        self.prev_state = False
+
+    def __enter__(self):
+        if self.is_pynative_mode:
+            self.prev_state = _pynative_executor.enable_grad()
+            _pynative_executor.set_enable_grad(False)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.is_pynative_mode:
+            _pynative_executor.set_enable_grad(self.prev_state)
+        return False
+
+
+# Adapted from mindone.trainers.zero.prepare_train_network
+def prepare_train_network(
+    network: nn.Cell,
+    optimizer: nn.Optimizer,
+    scale_sense: Union[float, nn.Cell] = 1.0,
+    updates: int = 0,
+    drop_overflow_update: bool = True,
+    gradient_accumulation_steps: int = 1,
+    clip_grad: bool = False,
+    clip_norm: float = 1.0,
+    verbose: bool = False,
+    zero_stage: int = 0,
+    optimizer_offload: bool = False,
+    op_group: str = None,
+    dp_group: str = None,
+    comm_fusion: dict = None,
+    parallel_modules=None,
+):
+    """
+    Prepare network and optimizer for distributed training.
+
+    Args:
+        network (`nn.Cell`): train network, not include grad function,
+            grad function must be built after rewrite train network.
+        optimizer (`nn.Optimizer`): Must be the subclass of MindSpore Optimizer.
+        scale_sense (Union[Tensor, Cell]): If this value is a Cell, it will be called
+            to update loss scale. If this value is a Tensor, the loss scale can be modified by `set_sense_scale`,
+            the shape should be :math:`()` or :math:`(1,)`.
+        zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
+        optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
+        op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+        dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
+        comm_fusion (`dict`, *optional*): A dict contains the types and configurations
+            for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
+            turn on the communication fusion.
+            Examples: {"allreduce": {"openstate": True, "bucket_size": 5e8},
+                       "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
+                       "allgather": {"openstate": False, "bucket_size": 5e8},}
+        parallel_modules (`dict`, *optional*): A dict of Cells could split parameters in zero3, default is None.
+            If None, use `PARALLEL_MODULES` from `mindone.models.modules.parallel`.
+    """
+    if zero_stage not in [0, 1, 2, 3]:
+        raise ValueError("Not support zero_stage {zero_stage}")
+    if op_group is None:
+        logger.warning("Not set zero group, set it WORLD_COMM_GROUP.")
+        op_group = GlobalComm.WORLD_COMM_GROUP
+    if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
+        raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
+
+    is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
+    if not is_parallel and zero_stage == 0:
+        logger.info("No need prepare train_network with zero.")
+        zero_helper = None
+    else:
+        network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+
+    if isinstance(scale_sense, float):
+        scale_sense = ms.Tensor(scale_sense, ms.float32)
+    train_network = DiffusersTrainOneStepWrapper(
+        network,
+        optimizer,
+        scale_sense=scale_sense,
+        updates=updates,
+        drop_overflow_update=drop_overflow_update,
+        gradient_accumulation_steps=gradient_accumulation_steps,
+        clip_grad=clip_grad,
+        clip_norm=clip_norm,
+        verbose=verbose,
+        zero_helper=zero_helper,
+    )
+    return train_network
+
+
+class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @property
+    def use_zero(self):
+        return self.zero_helper is not None and self.zero_stage != 0
+
+    def need_save_optimizer(self, args):
+        # TODO: Now we save optimizer in every process, try to save depend on self.zero_helper.op_group
+        return True if self.use_zero else is_local_master(args)
+
+    def save_state(self, args, output_dir, optimizer_state_filter=lambda x: True):
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Saving current state to {output_dir}")
+
+        # Optimizer states
+        if self.use_zero:
+            os.makedirs(os.path.join(output_dir, "mindspore_model"), exist_ok=True)
+            optimizer_file = os.path.join(output_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
+        elif self.need_save_optimizer(args):
+            optimizer_file = os.path.join(output_dir, "optimizer.ckpt")
+        ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+
+        # Loss Scaler states
+        loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")
+        loss_scaler_states = {"scale_sense": self.scale_sense}
+        if self.loss_scaling_manager:
+            loss_scaler_states.update(
+                {
+                    "cur_iter": self.loss_scaling_manager.cur_iter,
+                    "last_overflow_iter": self.loss_scaling_manager.last_overflow_iter,
+                }
+            )
+        ms.save_checkpoint(loss_scaler_states, loss_scaler_file)
+
+    def load_state(self, args, input_dir, optimizer_state_filter=lambda x: True):
+        # Optimizer states
+        optimizer_file = (
+            os.path.join(input_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
+            if self.use_zero
+            else os.path.join(input_dir, "optimizer.ckpt")
+        )
+        optimizer_state_dict = ms.load_checkpoint(optimizer_file)
+
+        with silence_mindspore_logger():
+            param_not_load, ckpt_not_load = ms.load_param_into_net(
+                self.optimizer, optimizer_state_dict, strict_load=True
+            )
+
+        param_not_load = list(filter(lambda x: optimizer_state_filter(x), param_not_load))
+        if param_not_load or ckpt_not_load:
+            logger.warning(
+                f"Loading checkpoint into optimizer returns param_not_load:{param_not_load} \nand ckpt_not_load:{ckpt_not_load}"
+            )
+
+        # Loss Scaler states
+        loss_scaler_file = os.path.join(input_dir, "loss_scaler.ckpt")
+        loss_scaler_state_dict = ms.load_checkpoint(loss_scaler_file)
+
+        scale_sense = loss_scaler_state_dict.get("scale_sense", ms.Tensor(1.0, dtype=mstype.float32))
+        cur_iter = loss_scaler_state_dict.get("cur_iter", None)
+        last_overflow_iter = loss_scaler_state_dict.get("last_overflow_iter", None)
+
+        ops.assign(self.scale_sense, scale_sense)
+        if cur_iter is not None and last_overflow_iter is not None:
+            ops.assign(self.loss_scaling_manager.cur_iter, cur_iter)
+            ops.assign(self.loss_scaling_manager.last_overflow_iter, last_overflow_iter)

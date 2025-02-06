@@ -5,7 +5,11 @@
 > We've tried to provide a completely consistent interface and usage with the [huggingface/diffusers](https://github.com/huggingface/diffusers).
 > Only necessary changes are made to the [huggingface/diffusers](https://github.com/huggingface/diffusers) to make it seamless for users from torch.
 
+## Requirements
 
+| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
+|:----------:|:--------------:|:-----------:|:------------------:|
+|   2.3.1    |    24.1.RC2    | 7.3.0.1.231 |   8.0.RC2.beta1    |
 
 
 ## Quickstart
@@ -35,3 +39,9 @@ official supported mindone.diffusers examples(follow hf diffusers):
  - [**Textual Inversion**](./textual_inversion)
  - [**Dreambooth**](./dreambooth)
  - [**ControlNet**](./controlnet)
+
+third-party supported mindone.diffusers examples:
+- [**CogVideoX**](./cogvideox_factory/) (follow [a-r-r-o-w/finetrainers](https://github.com/a-r-r-o-w/finetrainers/tree/main/training/cogvideox))
+
+> [!TIP]
+> If you are trying to develop your own 🤗diffusers-style training script based on MindONE diffusers, you can refer to this [guide](https://gist.github.com/townwish4git/3a181a1884747dfbbe4b31107ec02166).

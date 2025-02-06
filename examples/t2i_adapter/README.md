@@ -26,12 +26,17 @@ There are multiple advantages of this architecture:
 - **Generalizable**: Can be directly used on custom models as long as they are fine-tuned from the same model (e.g., use
   T2I-Adapters trained on SD 1.4 with SD 1.5 or Anything anime model).
 
+## 2. Requirements
+
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+
 ## Pretrained Models
 
-<div align="center">
 
 | SD Compatibility | Task          | SD Train Version | Dataset                                | Recipe                             | Weights                                                                                                          |
-|:----------------:|---------------|:----------------:|----------------------------------------|------------------------------------|------------------------------------------------------------------------------------------------------------------|
+|:----------------:|:---------------:|:----------------:|:------------------------------------:|:----------------------------------:|:----------------------------------------------------------------------------------------------------------------:|
 |       SDXL       | Canny         |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_canny-aecfc7d6.ckpt)           |
 |                  | Depth (MiDaS) |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_depth-5ce5acf2.ckpt)           |
 |                  | LineArt       |     SDXL 1.0     | LAION-Aesthetics V2 (3M)               |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/adapter_xl_lineart-6110edd0.ckpt)         |
@@ -49,7 +54,6 @@ There are multiple advantages of this architecture:
 |                  | Sketch        |       1.5        | [COCO-Stuff](#segmentation-coco-stuff) |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_sketch_sd15v2-6c537e26.ckpt)   |
 |                  | Style         |       1.4        |                                        |                                    | [Download](https://download.mindspore.cn/toolkits/mindone/t2i-adapters/t2iadapter_style_sd14v1-a620ae97.ckpt)    |
 
-</div>
 
 **Notes**:
 
@@ -126,7 +130,7 @@ python adapter_image2image_sdxl.py \
 --SDXL.checkpoints=models/sd_xl_base_1.0_ms.ckpt \
 --adapter.condition=canny \
 --adapter.ckpt_path=models/adapter_xl_canny-aecfc7d6.ckpt \
---adapter.cond_weight=0.8 \
+--adapter.cond_weight=1.0 \
 --adapter.image=samples/canny/figs_SDXLV1.0_cond_canny.png \
 --prompt="Mystical fairy in real, magic, 4k picture, high quality" \
 --negative_prompt="extra digit, fewer digits, cropped, worst quality, low quality, glitch, deformed, mutated, ugly, disfigured" \
@@ -154,7 +158,7 @@ python adapter_image2image_sdxl.py \
 --SDXL.checkpoints=models/sd_xl_base_1.0_ms.ckpt \
 --adapter.condition=lineart \
 --adapter.ckpt_path=models/adapter_xl_lineart-6110edd0.ckpt \
---adapter.cond_weight=0.8 \
+--adapter.cond_weight=1.0 \
 --adapter.image=samples/lineart/figs_SDXLV1.0_cond_lin.png \
 --prompt="Ice dragon roar, 4k photo" \
 --negative_prompt="anime, cartoon, graphic, text, painting, crayon, graphite, abstract, glitch, deformed, mutated, ugly, disfigured" \
@@ -258,7 +262,7 @@ python adapter_image2image_sd.py \
 --version 2.1 \
 --prompt "A black Honda motorcycle parked in front of a garage, best quality, extremely detailed" \
 --ckpt_path=models/sd_v2-1_base-7c8d09ce.ckpt \
---adapter_ckpt_path models/t2iadapter_seg_sd21-86d4e0db.ckptt \
+--adapter_ckpt_path models/t2iadapter_seg_sd21-86d4e0db.ckpt \
 --ddim \
 --adapter_condition seg \
 --condition_image samples/seg/motor.png
@@ -320,7 +324,7 @@ python adapter_image2image_sdxl.py \
 --SDXL.checkpoints=models/sd_xl_base_1.0_ms.ckpt \
 --adapter.condition=sketch \
 --adapter.ckpt_path=models/adapter_xl_sketch-98dbd348.ckpt \
---adapter.cond_weight=0.9 \
+--adapter.cond_weight=1.0 \
 --adapter.image=samples/sketch/figs_SDXLV1.0_cond_sketch.png \
 --prompt="a robot, mount fuji in the background, 4k photo, highly detailed" \
 --negative_prompt="extra digit, fewer digits, cropped, worst quality, low quality, glitch, deformed, mutated, ugly, disfigured" \
@@ -349,30 +353,44 @@ Individual T2I-Adapters can also be combined without retraining to condition on 
 python adapter_image2image_sd.py \
 --version 1.5 \
 --prompt "A car with flying wings" \
---adapter_ckpt_path models/t2iadapter_sketch_sd15v2.ckpt models/t2iadapter_color_sd14v1.ckpt \
+--adapter_ckpt_path models/t2iadapter_sketch_sd15v2-6c537e26.ckpt models/t2iadapter_color_sd14v1-7cb31ebd.ckpt \
 --adapter_condition sketch color \
 --condition_image samples/sketch/car.png samples/color/color_0004.png \
 --cond_weight 1.0 1.2 \
 --ddim
+--ms_mode 1
 ```
 
 </details>
 
+### Performance
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step  | img/s |
+|:---------------:|:------------:  |:------------:   |:------------:|:------------:|:---------:|:----------:|:---------:|:-------------:|:-----:|:-------:|
+| canny_adapter_sd1.5 |  1           |      4          | 768x512      |    DDIM      |     50    |     fp16  |       O0  |       1~2 mins |  0.33 |   12.12   |
+| canny_adapter_sdxl |  1           |      4          | 1216x1024      | EulerAncestral   |    30    |     fp16  |       O0  |       1~2 mins |  0.77 |   5.19   |
+| lineart_adapter_sdxl |  1           |      4          | 1024x1856      | EulerAncestral   |    30    |     fp16  |       O0  |       1~2 mins |  1.21 |   3.31   |
+| color_adapter_sd1.5 |  1           |      4          | 512x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.17 |   23.53   |
+| depth_adapter_sd1.5 |  1           |      4          | 704x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.28 |   14.29   |
+| openpose_adapter_sd1.5 |  1           |      4          | 768x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.33 |   12.12   |
+| segmentation_adapter_sd2.1 |  1           |      4          | 512x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.10 |   40.00   |
+| segmentation_adapter_sd1.5 |  1           |      4          | 512x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.17 |   24.10   |
+| sketch_adapter_sd1.5 |  1           |      4          | 512x512      | DDIM   |    50    |     fp16  |       O0  |       1~2 mins |  0.17 |   24.10   |
+| sketch_adapter_sdxl |  1           |      4          | 512x512      | EulerAncestral   |    30    |     fp16  |       O0  |       1~2 mins |  0.78 |   5.12   |
+
+
 ## Training
 
-The following table summarizes T2I-Adapters training details:
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
-<div align="center">
 
-| Task         | SD Version | Dataset                                      | Context         | Train Time      | Throughput   | Recipe                             |
-|--------------|:----------:|----------------------------------------------|-----------------|-----------------|--------------|------------------------------------|
-| Segmentation |    2.1     | [COCO-Stuff Train](#segmentation-coco-stuff) | D910Ax4-MS2.1-G | 10h 35m / epoch | 39.2 img / s | [yaml](configs/sd_v2.1_train.yaml) |
+|     model_name           | cards | batch size  | resolution |   sink | jit_level | graph compile  | s/step | img/s |
+|:------------------------:|:----:|:------------:|:----------:|:------:|:---------:|:--------------:|:---------:|:------:|
+|segmentation_adapter_sd2.1|   1  |      8      |   512x512   |   OFF  | O0    |     2 mins   |   0.38   |  21.05|
 
-</div>
 
-> Context: Training context denoted as {device}x{pieces}-{MS version}{MS mode}, where mindspore mode can be G - graph
-> mode or F - pynative mode with ms function. For example, D910x8-G is for training on 8 pieces of Ascend 910 NPU using
-> graph mode.
 
 ### Data preparation
 
@@ -405,46 +423,8 @@ mpirun --allow-run-as-root -n 4 python train_t2i_adapter_sd.py \
 --train.output_dir: PATH_TO_OUTPUT_DIR
 ```
 
-## Evaluation
 
-T2I-Adapters are evaluated on COCO-Stuff Validation dataset (see [Data Preparation](#segmentation-coco-stuff)
-for more details) by using
-[the first prompt per image](https://github.com/TencentARC/T2I-Adapter/issues/65#issuecomment-1541324103) only.
-The following table summarizes the performance of T2I-Adapters:
 
-<div align="center">
-
-| Task         | SD Version | Dataset                                    | FID ↓ | CLIP Score ↑ | Recipe                             |
-|--------------|:----------:|--------------------------------------------|-------|--------------|------------------------------------|
-| Segmentation |    2.1     | [COCO-Stuff Val](#segmentation-coco-stuff) | 26.10 | 26.32        | [yaml](configs/sd_v2.1_train.yaml) |
-
-</div>
-
-To evaluate T2I-Adapters yourself, first you will need to generate images with `adapter_image2image.py` (see
-[Inference and Examples](#inference-and-examples) for more details). Then, to calculate FID, run the following command:
-
-```shell
-python examples/stable_diffusion_v2/tools/eval/eval_fid.py \
---backend=ms \
---real_dir=PATH_TO_VALIDATION_IMAGES \
---gen_dir=PATH_TO_GENERATED_IMAGES \
---batch_size=50
-```
-
-CLIP score is calculated by using the `clip_vit_l_14` model (more information and weights can be found
-[here](../stable_diffusion_v2/tools/eval/README.md#clip-score)). To calculate the score, run the following command:
-
-```shell
-python examples/stable_diffusion_v2/tools/eval/eval_clip_score.py \
---backend=ms \
---config=examples/stable_diffusion_v2/tools/_common/clip/configs/clip_vit_l_14.yaml \
---ckpt_path=PATH/TO/clip_vit_l_14.ckpt \
---tokenizer_path=examples/stable_diffusion_v2/ldm/models/clip/bpe_simple_vocab_16e6.txt.gz \
---image_path_or_dir=PATH_TO_GENERATED_IMAGES \
---prompt_or_path=PATH_TO_PROMPTS \
---save_result=False \
---quiet
-```
 
 ## Acknowledgements
 

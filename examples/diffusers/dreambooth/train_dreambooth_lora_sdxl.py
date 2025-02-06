@@ -860,7 +860,7 @@ def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
     sigmas = noise_scheduler.sigmas.to(dtype=dtype)
     schedule_timesteps = noise_scheduler.timesteps
 
-    step_indices = [(schedule_timesteps == t).nonzero().item() for t in timesteps]
+    step_indices = [(schedule_timesteps == t).nonzero().item(0) for t in timesteps]
 
     sigma = sigmas[step_indices].flatten()
     while len(sigma.shape) < n_dim:
@@ -870,7 +870,9 @@ def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
 
 def main():
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.LAX)
+    if args.train_text_encoder:
+        ms.set_context(max_call_depth=5000)
     init_distributed_device(args)  # read attr distributed, writer attrs rank/local_rank/world_size
 
     # tensorboard, mindinsight, wandb logging stuff into logging_dir
@@ -1268,14 +1270,16 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    for peft_model in models:
-        for _, module in peft_model.cells_and_names():
-            if isinstance(module, BaseTunerLayer):
-                for layer_name in module.adapter_layer_names:
-                    module_dict = getattr(module, layer_name)
-                    for key, layer in module_dict.items():
-                        if key in module.active_adapters and isinstance(layer, nn.Cell):
-                            layer.to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        for peft_model in models:
+            for _, module in peft_model.cells_and_names():
+                if isinstance(module, BaseTunerLayer):
+                    for layer_name in module.adapter_layer_names:
+                        module_dict = getattr(module, layer_name)
+                        for key, layer in module_dict.items():
+                            if key in module.active_adapters and isinstance(layer, nn.Cell):
+                                layer.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -1448,8 +1452,9 @@ def main():
                         output_model_file = os.path.join(save_path, "pytorch_model.ckpt")
                         ms.save_checkpoint(unet, output_model_file)
                         logger.info(f"Saved state to {save_path}")
-
-            logs = {"loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}
+            log_lr = optimizer.get_lr()
+            log_lr = log_lr[0] if isinstance(log_lr, tuple) else log_lr
+            logs = {"loss": loss.numpy().item(), "lr": log_lr.numpy().item()}
             progress_bar.set_postfix(**logs)
             for tracker_name, tracker in trackers.items():
                 if tracker_name == "tensorboard":
@@ -1468,6 +1473,19 @@ def main():
                 pipeline_args,
                 (epoch + 1),
             )
+
+    # Final inference
+    if args.validation_prompt and args.num_validation_images > 0:
+        pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
+        log_validation(
+            pipeline,
+            args,
+            trackers,
+            logging_dir,
+            pipeline_args,
+            args.num_train_epochs,
+            is_final_validation=True,
+        )
 
     # Save the lora layers
     if is_master(args):
@@ -1490,19 +1508,6 @@ def main():
             unet_lora_layers=unet_lora_layers,
             text_encoder_lora_layers=text_encoder_lora_layers,
             text_encoder_2_lora_layers=text_encoder_2_lora_layers,
-        )
-
-    # Final inference
-    if args.validation_prompt and args.num_validation_images > 0:
-        pipeline_args = {"prompt": args.validation_prompt, "num_inference_steps": 25}
-        log_validation(
-            pipeline,
-            args,
-            trackers,
-            logging_dir,
-            pipeline_args,
-            args.num_train_epochs,
-            is_final_validation=True,
         )
 
     # End of training
