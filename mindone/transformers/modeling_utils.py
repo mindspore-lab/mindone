@@ -54,6 +54,7 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.nn import Identity
+
 from .activations import get_activation
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
@@ -722,20 +723,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             config._attn_implementation = "eager"
 
         return config
-
-    @classmethod
-    def can_generate(cls) -> bool:
-        """
-        Returns whether this model can generate sequences with `.generate()`.
-
-        Returns:
-            `bool`: Whether this model can generate sequences with `.generate()`.
-        """
-        # Detects whether `prepare_inputs_for_generation` has been overwritten, which is a requirement for generation.
-        # Alternativelly, the model can also have a custom `generate` function.
-        if "GenerationMixin" in str(cls.prepare_inputs_for_generation) and "GenerationMixin" in str(cls.generate):
-            return False
-        return True
 
     @classmethod
     def _check_and_enable_flash_attn_2(
@@ -1663,6 +1650,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
+        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
+        adapter_kwargs = kwargs.pop("adapter_kwargs", {})
+        adapter_name = kwargs.pop("adapter_name", "default")
 
         if use_auth_token is not None:
             warnings.warn(

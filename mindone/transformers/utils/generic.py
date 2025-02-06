@@ -29,8 +29,6 @@ import numpy as np
 
 from .import_utils import is_mindspore_available
 
-import inspect
-
 
 class cached_property(property):
     """
@@ -257,6 +255,7 @@ class ContextManagers:
 
     def __exit__(self, *args, **kwargs):
         self.stack.__exit__(*args, **kwargs)
+
 
 def can_return_loss(model_class):
     """

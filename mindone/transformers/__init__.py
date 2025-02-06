@@ -41,9 +41,9 @@ from .models.gemma import (
     GemmaModel,
     GemmaPreTrainedModel,
 )
+from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
 from .models.gpt2 import GPT2LMHeadModel
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
-from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,

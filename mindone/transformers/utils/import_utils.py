@@ -24,6 +24,7 @@ from typing import Tuple, Union
 
 # hf exists
 from transformers.utils import logging
+
 from ..mindspore_adapter.utils import _is_ascend
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -131,6 +132,7 @@ def requires_backends(obj, backends):
     failed = [msg.format(name) for available, msg in checks if not available()]
     if failed:
         raise ImportError("".join(failed))
+
 
 def is_flash_attn_2_available():
     if _is_ascend():
