@@ -219,9 +219,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
             return_tensors="np",
         )
 
-        text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = text_inputs.attention_mask
-        prompt_attention_mask = prompt_attention_mask.bool()
+        text_input_ids = ms.Tensor(text_inputs.input_ids)
+        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask, dtype=ms.bool_)
 
         # The original Mochi implementation zeros out empty negative prompts
         # but this can lead to overflow when placing the entire pipeline under the autocast context
@@ -232,8 +231,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
-            text_input_ids, untruncated_ids
+        if untruncated_ids.shape[-1] >= text_input_ids.numpy().shape[-1] and not np.array_equal(
+            text_input_ids.asnumpy(), untruncated_ids
         ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
@@ -241,7 +240,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(ms.Tensor.from_numpy(text_input_ids))[0]
+        prompt_embeds = self.text_encoder(text_input_ids)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -714,9 +713,6 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
 
             video = self.vae.decode(latents, return_dict=False)[0]
             video = self.video_processor.postprocess_video(video, output_type=output_type)
-
-        # Offload all models
-        self.maybe_free_model_hooks()
 
         if not return_dict:
             return (video,)

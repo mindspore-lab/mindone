@@ -785,7 +785,7 @@ class MochiAttention(nn.Cell):
         context_pre_only: bool = False,
         eps: float = 1e-5,
     ):
-        super().__init__(query_dim=query_dim)
+        super().__init__()
         from .normalization import MochiRMSNorm
 
         self.inner_dim = out_dim if out_dim is not None else dim_head * heads
@@ -794,6 +794,7 @@ class MochiAttention(nn.Cell):
         self.context_pre_only = context_pre_only
 
         self.heads = out_dim // dim_head if out_dim is not None else heads
+        self.scale = dim_head**-0.5
 
         self.norm_q = MochiRMSNorm(dim_head, eps, True)
         self.norm_k = MochiRMSNorm(dim_head, eps, True)
@@ -971,16 +972,15 @@ class MochiAttnProcessor2_0:
             attn_outputs.append(attn_output)
 
         hidden_states = ops.cat(attn_outputs, axis=0)
-        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(start_dim=2, end_dim=3)
 
-        # TODO check dim here
-        hidden_states, encoder_hidden_states = (
-            hidden_states[:, :sequence_length, :, :],
-            hidden_states[:, sequence_length:, :, :],
-        )
         # hidden_states, encoder_hidden_states = hidden_states.split_with_sizes(
         #     (sequence_length, encoder_sequence_length), dim=1
         # )
+        hidden_states, encoder_hidden_states = (
+            hidden_states[:, :sequence_length, :],
+            hidden_states[:, sequence_length:, :],
+        )
 
         # linear proj
         hidden_states = attn.to_out[0](hidden_states)

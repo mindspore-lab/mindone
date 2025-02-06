@@ -117,6 +117,7 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("pixart-sigma-pag", PixArtSigmaPAGPipeline),
         ("auraflow", AuraFlowPipeline),
         ("flux", FluxPipeline),
+        ("flux-control", FluxControlPipeline),
         ("flux-controlnet", FluxControlNetPipeline),
         ("lumina", LuminaText2ImgPipeline),
         ("cogview3", CogView3PlusPipeline),

@@ -35,6 +35,20 @@ from .vae import DecoderOutput, DiagonalGaussianDistribution
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
+class NoneCell(nn.Cell):
+    r"""
+    For 'CellList' in mindspore, each cell mush be subclass for `Cell`, so we wrap a cell for `NoneType`.
+    e.g.
+    nn.CellList([nn.Dropout(), None, None]) -> nn.CellList([nn.Dropout(), NoneCell(), NoneCell()])
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def construct(self, x):
+        return x
+
+
 class MochiChunkedGroupNorm3D(nn.Cell):
     r"""
     Applies per-frame group normalization for 5D video inputs. It also supports memory-efficient chunked group
@@ -60,7 +74,7 @@ class MochiChunkedGroupNorm3D(nn.Cell):
         self.chunk_size = chunk_size
 
     def construct(self, x: ms.Tensor = None) -> ms.Tensor:
-        batch_size = x.size(0)
+        batch_size = x.shape[0]
 
         x = x.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         output = ops.cat([self.norm_layer(chunk) for chunk in x.split(self.chunk_size, axis=0)], axis=0)
@@ -97,7 +111,7 @@ class MochiResnetBlock3D(nn.Cell):
 
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.nonlinearity = get_activation(act_fn)
+        self.nonlinearity = get_activation(act_fn)()
 
         self.norm1 = MochiChunkedGroupNorm3D(num_channels=in_channels)
         self.conv1 = CogVideoXCausalConv3d(
@@ -108,7 +122,7 @@ class MochiResnetBlock3D(nn.Cell):
             in_channels=out_channels, out_channels=out_channels, kernel_size=3, stride=1, pad_mode="replicate"
         )
 
-    def contruct(
+    def construct(
         self,
         inputs: ms.Tensor,
         conv_cache: Optional[Dict[str, ms.Tensor]] = None,
@@ -186,8 +200,8 @@ class MochiDownBlock3D(nn.Cell):
                     )
                 )
             else:
-                norms.append(None)
-                attentions.append(None)
+                norms.append(NoneCell())
+                attentions.append(NoneCell())
 
         self.resnets = nn.CellList(resnets)
         self.norms = nn.CellList(norms)
@@ -236,11 +250,11 @@ class MochiDownBlock3D(nn.Cell):
 
                 # Perform attention in chunks to avoid following error:
                 # RuntimeError: CUDA error: invalid configuration argument
-                if hidden_states.size(0) <= chunk_size:
+                if hidden_states.shape[0] <= chunk_size:
                     hidden_states = attn(hidden_states)
                 else:
                     hidden_states_chunks = []
-                    for i in range(0, hidden_states.size(0), chunk_size):
+                    for i in range(0, hidden_states.shape[0], chunk_size):
                         hidden_states_chunk = hidden_states[i : i + chunk_size]
                         hidden_states_chunk = attn(hidden_states_chunk)
                         hidden_states_chunks.append(hidden_states_chunk)
@@ -496,7 +510,7 @@ class MochiEncoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.nonlinearity = get_activation(act_fn)
+        self.nonlinearity = get_activation(act_fn)()
 
         self.fourier_features = FourierFeatures()
         self.proj_in = nn.Dense(in_channels, block_out_channels[0])
@@ -515,7 +529,7 @@ class MochiEncoder3D(nn.Cell):
                 add_attention=add_attention_block[i + 1],
             )
             down_blocks.append(down_block)
-        self.down_blocks = nn.Cell(down_blocks)
+        self.down_blocks = nn.CellList(down_blocks)
 
         self.block_out = MochiMidBlock3D(
             in_channels=block_out_channels[-1], num_layers=layers_per_block[-1], add_attention=add_attention_block[-1]
@@ -537,7 +551,7 @@ class MochiEncoder3D(nn.Cell):
                 down_block.recompute()
             self.block_in.recompute()
 
-    def contruct(self, hidden_states: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
         r"""Forward method of the `MochiEncoder3D` class."""
 
         new_conv_cache = {}
@@ -605,9 +619,9 @@ class MochiDecoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.nonlinearity = get_activation(act_fn)
+        self.nonlinearity = get_activation(act_fn)()
 
-        self.conv_in = nn.Conv3d(in_channels, block_out_channels[-1], kernel_size=(1, 1, 1))
+        self.conv_in = nn.Conv3d(in_channels, block_out_channels[-1], kernel_size=(1, 1, 1), pad_mode="pad")
         self.block_in = MochiMidBlock3D(
             in_channels=block_out_channels[-1],
             num_layers=layers_per_block[-1],
@@ -631,7 +645,7 @@ class MochiDecoder3D(nn.Cell):
             num_layers=layers_per_block[0],
             add_attention=False,
         )
-        self.proj_out = nn.Linear(block_out_channels[0], out_channels)
+        self.proj_out = nn.Dense(block_out_channels[0], out_channels)
 
         self._gradient_checkpointing = False
 
@@ -954,7 +968,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         else:
             dec, _ = self.decoder(z)
 
-        if self.drop_last_temporal_frames and dec.size(2) >= self.temporal_compression_ratio:
+        if self.drop_last_temporal_frames and dec.shape[2] >= self.temporal_compression_ratio:
             dec = dec[:, :, self.temporal_compression_ratio - 1 :]
 
         if not return_dict:
@@ -1112,7 +1126,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                 else:
                     time, _ = self.decoder(z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width])
 
-                if self.drop_last_temporal_frames and time.size(2) >= self.temporal_compression_ratio:
+                if self.drop_last_temporal_frames and time.shape[2] >= self.temporal_compression_ratio:
                     time = time[:, :, self.temporal_compression_ratio - 1 :]
 
                 row.append(time)

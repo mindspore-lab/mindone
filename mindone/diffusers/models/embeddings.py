@@ -1932,64 +1932,12 @@ class MochiAttentionPool(nn.Cell):
         Returns:
             pooled: (B, D) tensor of pooled tokens.
         """
-        assert x.size(1) == mask.size(1)  # Expected mask to have same length as tokens.
-        assert x.size(0) == mask.size(0)  # Expected mask to have same batch size as tokens.
+        assert x.shape[1] == mask.shape[1]  # Expected mask to have same length as tokens.
+        assert x.shape[0] == mask.shape[0]  # Expected mask to have same batch size as tokens.
         mask = mask[:, :, None].to(dtype=x.dtype)
-        mask = mask / mask.sum(axis=1, keepdim=True).clamp(min=1)
-        pooled = (x * mask).sum(axis=1, keepdim=keepdim)
+        mask = mask / mask.sum(axis=1, keepdims=True).clamp(min=1)
+        pooled = (x * mask).sum(axis=1, keepdims=keepdim)
         return pooled
-
-    def scaled_dot_product_attention(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        dropout_p: float = 0.0,
-        is_causal: bool = False,
-        scale: Optional[float] = None,
-    ):
-        if query.dtype in (ms.float16, ms.bfloat16):
-            return self.flash_attention_op(query, key, value, attn_mask, keep_prob=1 - dropout_p, scale=scale)
-        else:
-            return self.flash_attention_op(
-                query.to(ms.float16),
-                key.to(ms.float16),
-                value.to(ms.float16),
-                attn_mask,
-                keep_prob=1 - dropout_p,
-                scale=scale,
-            ).to(query.dtype)
-
-    def flash_attention_op(
-        self,
-        query: ms.Tensor,
-        key: ms.Tensor,
-        value: ms.Tensor,
-        attn_mask: Optional[ms.Tensor] = None,
-        keep_prob: float = 1.0,
-        scale: Optional[float] = None,
-    ):
-        # For most scenarios, qkv has been processed into a BNSD layout before sdp
-        input_layout = "BNSD"
-        head_num = self.num_attention_heads
-
-        # In case qkv is 3-dim after `head_to_batch_dim`
-        if query.ndim == 3:
-            input_layout = "BSH"
-            head_num = 1
-
-        # process `attn_mask` as logic is different between PyTorch and Mindspore
-        # In MindSpore, False indicates retention and True indicates discard, in PyTorch it is the opposite
-        if attn_mask is not None:
-            attn_mask = ops.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
-            attn_mask = ops.broadcast_to(
-                attn_mask, (attn_mask.shape[0], attn_mask.shape[1], query.shape[-2], key.shape[-2])
-            )[:, :1, :, :]
-
-        return ops.operations.nn_ops.FlashAttentionScore(
-            head_num=head_num, keep_prob=keep_prob, scale_value=scale or self.scale, input_layout=input_layout
-        )(query, key, value, None, None, None, attn_mask)[3]
 
     def construct(self, x: ms.Tensor, mask: ms.Tensor) -> ms.Tensor:
         r"""
@@ -2028,6 +1976,24 @@ class MochiAttentionPool(nn.Cell):
         q = q.unsqueeze(2)  # (B, H, 1, head_dim)
 
         # Compute attention.
+        if attn_mask is not None:
+            attn_mask = ops.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = ops.broadcast_to(attn_mask, (attn_mask.shape[0], attn_mask.shape[1], q.shape[-2], k.shape[-2]))[
+                :, :1, :, :
+            ]
+
+        scale = head_dim**-0.5
+        if q.dtype in (ms.float16, ms.bfloat16):
+            x = ops.operations.nn_ops.FlashAttentionScore(
+                head_num=self.num_attention_heads, keep_prob=1.0, scale_value=scale, input_layout="BNSD"
+            )(q, k, v, None, None, None, attn_mask)[3]
+
+        else:
+            x = ops.operations.nn_ops.FlashAttentionScore(
+                head_num=self.num_attention_heads, keep_prob=1.0, scale_value=scale, input_layout="BNSD"
+            )(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, attn_mask)[3]
+            x = x.to(q.dtype)
+
         x = self.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=0.0)  # (B, H, 1, head_dim)
 
         # Concatenate heads and run output.

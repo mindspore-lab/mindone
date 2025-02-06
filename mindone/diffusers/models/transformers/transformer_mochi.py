@@ -228,7 +228,7 @@ class MochiTransformerBlock(nn.Cell):
                 context_attn_hidden_states, ops.tanh(enc_gate_msa).unsqueeze(1)
             )
             norm_encoder_hidden_states = self.norm3_context(
-                encoder_hidden_states, (1 + enc_scale_mlp.unsqueeze(1).to(ops.float32))
+                encoder_hidden_states, (1 + enc_scale_mlp.unsqueeze(1).to(ms.float32))
             )
             context_ff_output = self.ff_context(norm_encoder_hidden_states)
             encoder_hidden_states = encoder_hidden_states + self.norm4_context(
