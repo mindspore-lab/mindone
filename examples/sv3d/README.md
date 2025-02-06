@@ -125,7 +125,7 @@ python train.py \
 
 ## Perfromance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
 
 ### Training
 | model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |steps/s | frame/s |
