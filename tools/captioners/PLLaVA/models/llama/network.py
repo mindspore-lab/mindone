@@ -200,7 +200,7 @@ class LlamaModel(nn.Cell):
                 raise ValueError("Custom 4D attention mask should be passed in inverted form with max==0`")
             causal_mask = attention_mask
         else:
-            fill_value = -ms.numpy.inf if self.attn_implementation == "flash_attention" else 1.0
+            fill_value = -ms.numpy.inf if self.attn_implementation == "eager" else 1.0
             causal_mask = ops.full((sequence_length, target_length), fill_value=fill_value, dtype=dtype)
             exclude_mask = ops.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask = ops.masked_fill(causal_mask, ~exclude_mask, Tensor(0, dtype=dtype))
