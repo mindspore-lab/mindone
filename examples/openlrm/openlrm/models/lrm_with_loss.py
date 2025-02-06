@@ -44,13 +44,9 @@ class ModelLRMWithLoss(nn.Cell):
         render_bg_colors: Tensor,
     ) -> Tensor:
         """For training, only return loss."""
-        # TODO: debug use, delete later
-        # 20241224 comment: loss=0 can run
-        # loss = ms.Tensor(0.)
-        # return loss
 
         # Infer image2triplane + render views
-        planes, images_rgb = self.lrm_generator.construct_train(
+        planes, images_rgb = self.lrm_generator(
             image=source_image,
             source_camera=source_camera,
             render_cameras=render_camera,
@@ -85,7 +81,7 @@ class ModelLRMWithLoss(nn.Cell):
 
         logger.info(f"loss: {loss}, loss pixel: {loss_pixel}, loss lpips: {loss_perceptual}, loss tv: {loss_tv}")
 
-        return loss  # , loss_pixel, loss_perceptual, loss_tv
+        return loss
 
 
 class ModelLRMWithLossEval(nn.Cell):
@@ -179,7 +175,7 @@ class ModelLRMWithLossEval(nn.Cell):
         render_bg_colors: Tensor,
     ):
         # Infer image2triplane + render views
-        planes, images_rgb = self.lrm_generator.construct_train(
+        planes, images_rgb = self.lrm_generator(
             image=source_image,
             source_camera=source_camera,
             render_cameras=render_camera,
