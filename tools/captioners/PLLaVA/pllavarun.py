@@ -7,7 +7,7 @@ from tasks.eval.model_utils import load_pllava, pllava_answer
 
 import mindspore as ms
 
-ms.set_context(pynative_synchronize=True, jit_config=dict(jit_level="O1"))
+ms.set_context(jit_config=dict(jit_level="O1"))
 
 
 def parse_args():
