@@ -23,6 +23,14 @@ class Dense(nn.Cell):
         self.net = net
         self.set_param_wrapper(zero_stage, op_group, cell_type)
 
+    @property
+    def weight(self):
+        return self.net.weight
+
+    @property
+    def bias(self):
+        return self.net.bias
+
     def set_param_wrapper(self, zero_stage, op_group, cell_type=None):
         self.param_wrapper_w = nn.Identity()
         self.param_wrapper_b = nn.Identity()

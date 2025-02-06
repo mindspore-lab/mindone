@@ -1,4 +1,4 @@
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.communication import get_group_size, get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.context import ParallelMode
@@ -12,6 +12,14 @@ class _Conv(nn.Cell):
         super(_Conv, self).__init__(auto_prefix=False)
         self.net = net
         self.set_param_wrapper(zero_stage, op_group, cell_type)
+
+    @property
+    def weight(self):
+        return self.net.weight
+
+    @property
+    def bias(self):
+        return self.net.bias
 
     def set_param_wrapper(self, zero_stage, op_group, cell_type=None):
         self.param_wrapper_w = nn.Identity()
@@ -71,3 +79,45 @@ class Conv3d(_Conv):
                 new_shape[1] = self.net.out_channels
                 out = out + bias.reshape(new_shape)
         return out
+
+
+class Mint_Conv2d(_Conv):
+    def construct(self, x):
+        weight = self.param_wrapper_w(self.net.weight)
+        bias = self.param_wrapper_b(self.net.bias)
+        if self.net.padding_mode != "zeros":
+            output = self.net.conv2d(
+                mint.pad(input, self.net._reversed_padding, mode=self.net.padding_mode),
+                weight,
+                bias,
+                self.net.stride,
+                (0, 0),
+                self.net.dilation,
+                self.net.groups,
+            )
+        else:
+            output = self.net.conv2d(
+                input, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
+            )
+        return output
+
+
+class Mint_Conv3d(_Conv):
+    def construct(self, x):
+        weight = self.param_wrapper_w(self.net.weight)
+        bias = self.param_wrapper_b(self.net.bias)
+        if self.net.padding_mode != "zeros":
+            output = self.net.conv3d(
+                mint.pad(input, self.net._reversed_padding, mode=self.net.padding_mode),
+                weight,
+                bias,
+                self.net.stride,
+                (0, 0, 0),
+                self.net.dilation,
+                self.net.groups,
+            )
+        else:
+            output = self.net.conv3d(
+                input, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
+            )
+        return output

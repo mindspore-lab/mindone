@@ -302,52 +302,41 @@ class ZeroHelper:
 
     def get_need_parameter_split(self):
         self.need_parameter_split = [False] * len(self.optimizer._parameters)
-        param_tuples = self.get_optimizer_param_tuples()
         for i, param in enumerate(self.optimizer._parameters):
             if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
+                self.need_parameter_split[i] = param.parallel_optimizer
             else:
                 B = param.shape[0]
-            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
-                if self.zero_stage in [1, 2]:
-                    self.need_parameter_split[i] = True
+                if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
+                    if self.zero_stage in [1, 2]:
+                        self.need_parameter_split[i] = True
         self.need_parameter_split = tuple(self.need_parameter_split)
 
     def split_params(self):
-        if self.zero_stage in [1, 2] and self.is_parallel:
-            _logger.info("Clone optimizer.parameters, will increase memory.")
-            # Because the first input of MindSpore optimizer must be ms.Parameter,
-            # copy optimizer.parameters for optimizer parameters update.
-            # It will increase 1/n parameters' memory.
-            self.optimizer.parameters = self.optimizer.parameters.clone(prefix="wrapper", init="same")
-            self.optimizer._parameters = self.optimizer.parameters
-            self.last_assign = True
+        if not (self.zero_stage in [1, 2] and self.is_parallel):
+            _logger.info("No need to split optimizer parameters standalone.")
+            return
+        _logger.info("Clone optimizer.parameters, will increase memory.")
+        # Because the first input of MindSpore optimizer must be ms.Parameter,
+        # copy optimizer.parameters for optimizer parameters update.
+        # It will increase 1/n parameters' memory.
+        self.optimizer.parameters = self.optimizer.parameters.clone(prefix="wrapper", init="same")
+        self.optimizer._parameters = self.optimizer.parameters
+        self.last_assign = True
 
         param_tuples = self.get_optimizer_param_tuples()
         for i, param in enumerate(self.optimizer._parameters):
             _logger.debug(f"Split optimizer param {param.name} {param.shape}")
-            # If zero_stage is 3, the parameters in train network have been split,
-            # use parameter in param_tuples to get batch size.
-            if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
-            else:
-                B = param.shape[0]
-            _logger.debug(f"Do split with zero_stage {self.zero_stage}")
+            B = param.shape[0]
             if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
-                if self.zero_stage in [1, 2]:
-                    ori_shape = param.shape
-                    param.assign_value(self.split_param(param))
-                    _logger.debug(f"Optimizer {param.name} from {ori_shape} to {param.shape}")
+                _logger.debug(f"Do split with zero_stage {self.zero_stage}")
+                ori_shape = param.shape
+                param.assign_value(self.split_param(param))
+                _logger.debug(f"Optimizer {param.name} from {ori_shape} to {param.shape}")
                 for param_tuple in param_tuples:
                     ori_shape = param_tuple[i].shape
                     param_tuple[i].assign_value(self.split_param(param_tuple[i]))
-                    _logger.debug(f"Optimizer {param_tuple[i].name} " f"from {ori_shape} to {param_tuple[i].shape}")
+                    _logger.debug(f"Optimizer {param_tuple[i].name} from {ori_shape} to {param_tuple[i].shape}")
 
     def reduce_scatter_gradients(self, gradients):
         dtype = gradients[0].dtype
