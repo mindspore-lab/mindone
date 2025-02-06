@@ -1,1 +1,1 @@
-from utils import GenerationMixin
+from .utils import GenerationMixin
