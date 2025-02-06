@@ -25,7 +25,7 @@ class PllavaConfig:
         use_pooling=True,
         gradient_checkpointing=False,
         pad_token_id=0,
-        dtype=ms.float32,
+        dtype=ms.bfloat16,
         **kwargs,
     ):
         self.ignore_index = ignore_index
@@ -63,7 +63,6 @@ class PllavaConfig:
                 "model_type": "llama",
                 "vocab_size": self.vocab_size,
                 "gradient_checkpointing": self.gradient_checkpointing,
-                "_attn_implementation": "flash_attention_2",
             }
         self.text_config = text_config
 

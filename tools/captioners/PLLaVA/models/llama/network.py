@@ -30,8 +30,8 @@ class LlamaDecoderLayer(nn.Cell):
         rope_theta: float = 10000.0,
         attention_dropout: float = 0.0,
         hidden_act: str = "silu",
-        attn_implementation: Literal["eager", "flash_attention"] = "eager",
-        dtype: ms.dtype = ms.float32,
+        attn_implementation: Literal["eager", "flash_attention"] = "flash_attention",
+        dtype: ms.dtype = ms.bfloat16,
     ) -> None:
         super().__init__()
         self.hidden_size = hidden_size
@@ -100,8 +100,8 @@ class LlamaModel(nn.Cell):
         attention_dropout: float = 0.0,
         hidden_act: str = "silu",
         pad_token_id: Optional[int] = None,
-        attn_implementation: Literal["eager", "flash_attention"] = "eager",
-        dtype: ms.dtype = ms.float32,
+        attn_implementation: Literal["eager", "flash_attention"] = "flash_attention",
+        dtype: ms.dtype = ms.bfloat16,
     ) -> None:
         super().__init__()
         self.padding_idx = pad_token_id
@@ -200,7 +200,7 @@ class LlamaModel(nn.Cell):
                 raise ValueError("Custom 4D attention mask should be passed in inverted form with max==0`")
             causal_mask = attention_mask
         else:
-            fill_value = -ms.numpy.inf if self.attn_implementation == "eager" else 1.0
+            fill_value = -ms.numpy.inf if self.attn_implementation == "flash_attention" else 1.0
             causal_mask = ops.full((sequence_length, target_length), fill_value=fill_value, dtype=dtype)
             exclude_mask = ops.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask = ops.masked_fill(causal_mask, ~exclude_mask, Tensor(0, dtype=dtype))
@@ -231,8 +231,8 @@ class LlamaForCausalLM(nn.Cell):
         attention_dropout: float = 0.0,
         hidden_act: str = "silu",
         pad_token_id: Optional[int] = None,
-        attn_implementation: Literal["eager", "flash_attention"] = "eager",
-        dtype: ms.dtype = ms.float32,
+        attn_implementation: Literal["eager", "flash_attention"] = "flash_attention",
+        dtype: ms.dtype = ms.bfloat16,
         **kwargs,
     ) -> None:
         super().__init__()
@@ -295,5 +295,5 @@ class LlamaForCausalLM(nn.Cell):
             past_value_cache_list=past_value_cache_list,
             return_key_value_cache=return_key_value_cache,
         )
-        logits = self.lm_head(hidden_states).to(ms.float32)
+        logits = self.lm_head(hidden_states).to(ms.bfloat16)
         return logits, key_cache_list, value_cache_list

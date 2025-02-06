@@ -59,6 +59,6 @@ python pllavarun.py --video ./example/-0og5HrzhpY_0.mp4 --benchmark
 
 | model name | cards | jit level | batch size | throughput (tokens/second) |
 |------------|-------|---------|------------|----------------------------|
-| pllava-7b  | 1     | O1      | 1          | 8.89                       |
+| pllava-7b  | 1     | O1      | 1          | 9.59                       |
 
 > We use the second round of inference as the benchmark result.
