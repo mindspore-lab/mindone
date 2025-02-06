@@ -65,6 +65,7 @@ def init_model(
     resume: bool = False,
     enable_flash_attention: bool = True,
     recompute_every_nth_block: Optional[int] = None,
+    not_recompute_fa: bool = False,
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
 ) -> LlamaModel:
     attn_implementation = "flash_attention" if enable_flash_attention else "eager"
@@ -72,6 +73,7 @@ def init_model(
         in_channels=in_channels,
         attn_implementation=attn_implementation,
         recompute_every_nth_block=recompute_every_nth_block,
+        not_recompute_fa=not_recompute_fa,
         dtype=MODEL_DTYPE[dtype],
     )
 

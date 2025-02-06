@@ -9,7 +9,6 @@ from typing import List, Tuple
 import numpy as np
 from jsonargparse import ActionConfigFile, ArgumentParser
 from jsonargparse.typing import path_type
-from mg.acceleration import set_sequence_parallel_group
 
 import mindspore as ms
 from mindspore import amp, nn
@@ -21,6 +20,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
 sys.path.append(os.path.join(__dir__, ".."))
 
+from mg.acceleration import set_sequence_parallel_group
 from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import InferPipeline
 from mg.utils import init_model, to_numpy

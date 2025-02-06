@@ -15,7 +15,12 @@
 """Learning Rate Scheduler Factory"""
 import logging
 
-from mindcv.scheduler.dynamic_lr import cosine_annealing_warm_restarts_lr
+try:
+    from mindcv.scheduler.dynamic_lr import cosine_annealing_warm_restarts_lr
+
+    CAWR_AVAILABLE = True
+except Exception:
+    CAWR_AVAILABLE = False
 
 from .dynamic_lr import cosine_decay_refined_lr, linear_refined_lr, multi_step_lr, polynomial_refined_lr
 
@@ -99,7 +104,7 @@ def create_scheduler(
         main_lr_scheduler = multi_step_lr(milestones=milestones, gamma=decay_rate, lr=lr, total_steps=main_steps)
     elif name == "constant":
         main_lr_scheduler = [lr for _ in range(main_steps)]
-    elif name == "cosine_annealing_warm_restarts_lr":
+    elif name == "cosine_annealing_warm_restarts_lr" and CAWR_AVAILABLE:
         main_lr_scheduler = cosine_annealing_warm_restarts_lr(
             te=decay_steps // steps_per_epoch,
             tm=1,
