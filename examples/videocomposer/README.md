@@ -377,7 +377,7 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 The training performance for exp02-motion transfer with 1 910* card, with different  is as follows:
 
 | model name   | cards |  batch size | resolution   | recompute | sink | graph compile | mode | jit level  | s/step |  video/s                                                                  |
-|:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:------------------------------------------------------------------------|
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:-----------:|
 | videocomposer | 1     | 1           | 16x256x256    | ON | ON |  20 ~ 30 mins | pynative | N/A             | 18    | 0.06 |
 | videocomposer | 1     | 1           | 16x256x256    | ON | ON |  20 ~ 30 mins | graph |  O2             | 0.7    | 1.42 |
 | videocomposer | 1     | 1           | 16x256x256    | ON |ON |  20 ~ 30 mins | graph |  O1           | 10    | 0.1 |
@@ -389,7 +389,7 @@ The training performance for exp02-motion transfer with 1 910* card, with differ
 The video generation speed is as follows.
 
 | model name   | cards |  batch size | resolution    | s/step | video/s                                                              |
-|:------------:|:-----:|:-----------:|:----------:|:---------:|:------------------------------------------------------------------------|
+|:------------:|:-----:|:-----------:|:----------:|:---------:|:---------:|
 | videocomposer | 1     | 1           | 16x256x256         |  0.22 | 0.09  |
 
 
