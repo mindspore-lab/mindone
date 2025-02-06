@@ -159,10 +159,9 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
   ```
 
 ## Performace
-Experiments are tested on 1 ascend 910* with mindSpore 2.4.1 pynative mode.
-
 
 ### Inference Performance
+Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 - Input a single image, here reports speed of image-to-3D and image rendering.
 
 | model name|  cards| batch size | resolution | precision | flash attn| (image to 3D) s/step | (render) img/s|  recipe| weight|
@@ -181,6 +180,7 @@ Experiments are tested on 1 ascend 910* with mindSpore 2.4.1 pynative mode.
 
 
 ### Training Performance
+Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 - Train with objaverse data only:
 
 |model name	| cards	| batch size	| resolution	| precision| recompute	|  s/step	| batch/s|
