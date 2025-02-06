@@ -29,6 +29,8 @@ import numpy as np
 
 from .import_utils import is_mindspore_available
 
+import inspect
+
 
 class cached_property(property):
     """
@@ -256,7 +258,6 @@ class ContextManagers:
     def __exit__(self, *args, **kwargs):
         self.stack.__exit__(*args, **kwargs)
 
-
 def can_return_loss(model_class):
     """
     Check if a given model can return loss.
@@ -264,13 +265,7 @@ def can_return_loss(model_class):
     Args:
         model_class (`type`): The class of the model.
     """
-    framework = infer_framework(model_class)
-    if framework == "tf":
-        signature = inspect.signature(model_class.call)  # TensorFlow models
-    elif framework == "pt":
-        signature = inspect.signature(model_class.forward)  # PyTorch models
-    else:
-        signature = inspect.signature(model_class.__call__)  # Flax models
+    signature = inspect.signature(model_class.construct)  # MindSpore models
 
     for p in signature.parameters:
         if p == "return_loss" and signature.parameters[p].default is True:
@@ -287,11 +282,7 @@ def find_labels(model_class):
         model_class (`type`): The class of the model.
     """
     model_name = model_class.__name__
-    framework = infer_framework(model_class)
-    if framework == "ms":
-        signature = inspect.signature(model_class.construct)  # TensorFlow models
-    else:
-        signature = inspect.signature(model_class.__call__)  # Flax models
+    signature = inspect.signature(model_class.construct)  # MindSpore models
 
     if "QuestionAnswering" in model_name:
         return [p for p in signature.parameters if "label" in p or p in ("start_positions", "end_positions")]

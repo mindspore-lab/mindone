@@ -58,6 +58,6 @@ msrun --bind_core=True --node_rank=$NODE_RANK --worker_num=$MS_WORKER_NUM --loca
     --train_sp_batch_size 1 \
     --max_device_memory "59GB" \
     --jit_syntax_level "lax" \
-    --dataset_sink_mode True \
+    --dataset_sink_mode False \
     # --gradient_checkpointing \
     # --group_frame \

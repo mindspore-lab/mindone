@@ -1,3 +1,6 @@
+__version__ = "4.42.4"
+
+
 from .modeling_utils import MSPreTrainedModel
 from .models.auto import AutoModel
 from .models.bert import (
@@ -39,6 +42,8 @@ from .models.gemma import (
     GemmaPreTrainedModel,
 )
 from .models.gpt2 import GPT2LMHeadModel
+from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
+from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
