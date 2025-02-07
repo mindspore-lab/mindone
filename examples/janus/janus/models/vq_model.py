@@ -22,9 +22,11 @@ from dataclasses import dataclass, field
 from typing import List
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
+from mindspore import Tensor, Parameter
 import mindspore.ops.functional as F
 from mindspore.common.initializer import Uniform, Normal
+from mindspore.common.initializer import initializer
 
 from functools import partial
 
@@ -214,9 +216,11 @@ class Decoder(nn.Cell):
                 if len(block.attn) > 0:
                     h = block.attn[i_block](h)
             if i_level != self.num_resolutions - 1:
+                # import pdb; pdb.set_trace()
                 h = block.upsample(h)
 
         # end
+        import pdb; pdb.set_trace()
         h = self.norm_out(h)
         h = nonlinearity(h)
         h = self.conv_out(h)
@@ -232,15 +236,15 @@ class VectorQuantizer(nn.Cell):
         self.entropy_loss_ratio = entropy_loss_ratio
         self.l2_norm = l2_norm
         self.show_usage = show_usage
-
+        
+        # TODO: re-write the cell to map panme from ms to torch: embedding_table -> weight.
         self.embedding = nn.Embedding(self.n_e, self.e_dim, embedding_table=Uniform(scale=1.0 / self.n_e))
         if self.l2_norm:
             #    self.embedding.weight.data, p=2, dim=-1
             l2_normalize = ops.L2Normalize(axis=-1, epsilon=1e-12)
-            self.embedding = nn.Embedding(self.n_e, self.e_dim)
             self.embedding.embedding_table.set_data(l2_normalize(self.embedding.embedding_table.value()))
         if self.show_usage:
-            self.codebook_used = ops.zeros(65536)
+            self.codebook_used = Parameter(ops.zeros(65536), requires_grad=False)
             # self.register_buffer("codebook_used", nn.Parameter(torch.zeros(65536)))
 
     def construct(self, z):
@@ -408,11 +412,48 @@ def nonlinearity(x):
     # TODO: maybe cast to fp32
     return x * (ops.sigmoid(x))
 
+# TODO: smae accuracy as mint.nn.GroupNorm
+group_norm = ms.mint.nn.functional.group_norm
+
+class GroupNorm(nn.Cell):
+    # gamma -> weight, beta -> bias
+    num_groups: int
+    num_channels: int
+    eps: float
+    affine: bool
+
+    def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5, affine: bool = True, dtype=ms.float32):
+        super().__init__()
+        if num_channels % num_groups != 0:
+            raise ValueError("num_channels must be divisible by num_groups")
+
+        self.num_groups = num_groups
+        self.num_channels = num_channels
+        self.eps = eps
+        self.affine = affine
+        weight = initializer("ones", num_channels, dtype=dtype)
+        bias = initializer("zeros", num_channels, dtype=dtype)
+        if self.affine:
+            self.weight = Parameter(weight, name="weight")
+            self.bias = Parameter(bias, name="bias")
+        else:
+            self.weight = None
+            self.bias = None
+
+    def construct(self, x: Tensor):
+        if self.affine:
+            x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
+        else:
+            x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
+        return x
+
 
 def Normalize(in_channels, norm_type="group"):
     assert norm_type in ["group", "batch"]
     if norm_type == "group":
-        return nn.GroupNorm(
+        # TODO: check mint GroupNorm accuracy
+        # return mint.nn.GroupNorm(
+        return GroupNorm(
             num_groups=32, num_channels=in_channels, eps=1e-6, affine=True
         )
     elif norm_type == "batch":
@@ -434,7 +475,9 @@ class Upsample(nn.Cell):
         out_shape = tuple(2 * x for x in in_shape)
         if x.dtype != ms.float32:
             x = x.to(ms.float32)
-        x = ops.ResizeNearestNeighbor(out_shape)(x)
+        # import pdb; pdb.set_trace()
+        # x = ops.ResizeNearestNeighbor(out_shape)(x)
+        x = ops.interpolate(x, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
         if x.dtype != ms.float32:
             x = x.to(in_dtype)
 
@@ -515,6 +558,7 @@ class VQModel(nn.Cell):
         return quant, emb_loss, info
 
     def decode(self, quant):
+        # import pdb; pdb.set_trace()
         quant = self.post_quant_conv(quant)
         dec = self.decoder(quant)
         return dec
@@ -530,24 +574,42 @@ class VQModel(nn.Cell):
         return dec, diff
 
     def load_from_checkpoint(self, ckpt_path):
+        # mainly used in unit test
         parameter_dict = dict()
         if ckpt_path.endswith('.bin'):
             import torch
-            model = torch.load('model.bin')
-            num_params = sum(p.numel() for p in model.parameters())
-            sd = model.parameters()
-            print(f"vq has {num_params} parameters")
-            # TODO: support bf16 param loading
-            param_dtype = ms.float32
-            for name, param in model.named_parameters():
-                print(name, param.size(), param.dtype)
-                np_val = param.data
-                parameter_dict[name] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+            sd = torch.load(ckpt_path)
+            # filter to keep gen_vision_model params only and remove prefix
+            pnames = [p for p in sd]
+            for p in pnames:
+                if not "gen_vision_model" in p:
+                    sd.pop(p)
+                else:
+                    # remove prefix
+                    new_pname = p.replace("gen_vision_model.", "")
+                    # special: weight (pt) - > embedding_table (ms)
+                    if "embedding.weight" in p:
+                        new_pname = new_pname.replace("embedding.weight", "embedding.embedding_table")
+
+                    sd[new_pname] = sd.pop(p)
+
+            # import pdb; pdb.set_trace()
+            # print(f"vq has {num_params} parameters")
+            # get net param dtype
+            param_dtype = tuple(self.get_parameters())[0].dtype
+            print('Get vq param dtype: ', param_dtype)
+            
+            for pname in sd:
+                # print(pname, sd[pname].shape, sd[pname].dtype)
+                np_val = sd[pname].cpu().detach().float().numpy()
+                # TODO: support bf16 param loading
+                parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+
         elif ckpt_path.endswith('.ckpt'):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
-
+        
         param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
         print(
             "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
@@ -555,6 +617,7 @@ class VQModel(nn.Cell):
         print(
             "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
         )
+
 
 
 #################################################################################
