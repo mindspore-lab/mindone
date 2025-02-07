@@ -836,9 +836,7 @@ class GenerationMixin:
         num_new_tokens: int = 1,
     ) -> Dict[str, Any]:
         # update past_key_values keeping its naming used in model code
-        cache_name, cache = self._extract_past_from_model_output(
-            outputs, standardize_cache_format=standardize_cache_format
-        )
+        cache_name, cache = self._extract_past_from_model_output(outputs)
         model_kwargs[cache_name] = cache
         if getattr(outputs, "state", None) is not None:
             model_kwargs["state"] = outputs.state
@@ -852,50 +850,27 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-
-                cur_lens = attention_mask.sum(-1)
-                for batch_idx in range(attention_mask.shape[0]):
-                    cur_len = int(cur_lens[batch_idx])
-                    if cur_len < attention_mask.shape[-1]:
-                        attention_mask[batch_idx, cur_len] = 1
-                    else:
-                        attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
-                        attention_mask[batch_idx, -1:] = 1
-                model_kwargs["attention_mask"] = attention_mask
-
-                # model_kwargs["attention_mask"] = ops.cat(
-                #     [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
-                # )
+                model_kwargs["attention_mask"] = ops.cat(
+                    [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)],
+                    axis=-1,
+                )
         else:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
                 decoder_attention_mask = model_kwargs["decoder_attention_mask"]
                 model_kwargs["decoder_attention_mask"] = ops.cat(
-                    [
-                        decoder_attention_mask,
-                        ops.ones((decoder_attention_mask.shape[0], 1), dtype=decoder_attention_mask.dtype),
-                    ],
+                    [decoder_attention_mask, decoder_attention_mask.new_ones((decoder_attention_mask.shape[0], 1))],
                     axis=-1,
                 )
 
-        if (
-            model_kwargs.get("use_cache", True)
-            and "cache_position" in model_kwargs
-            and model_kwargs["cache_position"] is not None
-        ):
-            if (
-                model_kwargs.get("attention_mask", None) is not None
-                and model_kwargs["attention_mask"].shape[-1] == model_kwargs["cache_position"].shape[0]
-            ):
-                # `cache_position` obtain effective length after 1st step
-                cur_idx = int(model_kwargs["attention_mask"].sum(-1).max()) - 1
-                past_idx = cur_idx - 1
-                model_kwargs["cache_position"] = (
-                    model_kwargs["cache_position"][past_idx : past_idx + 1] + num_new_tokens
-                )
-            else:
-                model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
-
+        if model_kwargs.get("use_cache", True):
+            model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
+        else:
+            past_positions = model_kwargs.pop("cache_position")
+            new_positions = ops.arange(
+                past_positions[-1] + 1, past_positions[-1] + num_new_tokens + 1, dtype=past_positions.dtype
+            )
+            model_kwargs["cache_position"] = ops.cat((past_positions, new_positions))
         return model_kwargs
 
     def _get_logits_processor(
@@ -1627,30 +1602,6 @@ class GenerationMixin:
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
-        # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        (
-            padded_input_ids,
-            padded_inputs_embeds,
-            padded_labels,
-            padded_position_ids,
-            padded_attention_mask,
-        ) = self._padding_inputs(
-            generation_config,
-            input_ids,
-            model_kwargs.get("inputs_embeds", None),
-            model_kwargs.get("labels", None),
-            model_kwargs.get("position_ids", None),
-            model_kwargs.get("attention_mask", None),
-        )
-        input_ids = padded_input_ids
-        model_kwargs["attention_mask"] = padded_attention_mask
-        if model_kwargs.get("inputs_embeds", None) is not None:
-            model_kwargs["inputs_embeds"] = padded_inputs_embeds
-        if model_kwargs.get("labels", None) is not None:
-            model_kwargs["labels"] = padded_labels
-        if model_kwargs.get("position_ids", None) is not None:
-            model_kwargs["position_ids"] = padded_position_ids
-
         # keep track of which sequences are already finished
         batch_size = input_ids.shape[0]
         this_peer_finished = False
@@ -1738,7 +1689,6 @@ class GenerationMixin:
             # finished sentences should have their next token be a padding token
             if has_eos_stopping_criteria:
                 next_tokens = next_tokens * unfinished_sequences + pad_token_id * (1 - unfinished_sequences)
-            next_tokens = next_tokens.to(ms.int32)
 
             # update generated ids, model inputs, and length for next step
             input_ids = ops.cat([input_ids, next_tokens[:, None]], axis=-1)
