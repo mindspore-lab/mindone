@@ -6,4 +6,5 @@ from .modules import (
     PatchDropout,
     PatchEmbed,
     resample_abs_pos_embed,
+    _no_grad_trunc_normal_
 )

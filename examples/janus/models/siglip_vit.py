@@ -29,7 +29,6 @@ from models.timm import (
     resample_abs_pos_embed,
     _no_grad_trunc_normal_
 )
-from timm.models._manipulate import checkpoint_seq, named_apply
 
 
 def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
@@ -104,7 +103,7 @@ class Attention(nn.Cell):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop) if proj_drop > 0.0 else nn.Identity()
 
-    def forward(self, x: Tensor) -> Tensor:
+    def construct(self, x: Tensor) -> Tensor:
         B, N, C = x.shape
         qkv = (
             self.qkv(x)
@@ -145,7 +144,7 @@ class LayerScale(nn.Cell):
         self.inplace = inplace
         self.gamma = Parameter(init_values * mint.ones(dim))
 
-    def forward(self, x: Tensor) -> Tensor:
+    def construct(self, x: Tensor) -> Tensor:
         return x.mul_(self.gamma) if self.inplace else x * self.gamma
 
 
@@ -193,7 +192,7 @@ class Block(nn.Cell):
         )
         self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-    def forward(self, x: Tensor) -> Tensor:
+    def construct(self, x: Tensor) -> Tensor:
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         return x
@@ -371,16 +370,16 @@ class VisionTransformer(nn.Cell):
             nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         )
 
-        if weight_init != "skip":
-            self.init_weights(weight_init)
+        # if weight_init != "skip":
+        #     self.init_weights(weight_init)
 
-    def init_weights(self, mode: Literal["jax", "jax_nlhb", "moco", ""] = "") -> None:
-        assert mode in ("jax", "jax_nlhb", "moco", "")
-        # head_bias = -math.log(self.num_classes) if "nlhb" in mode else 0.0
-        trunc_normal_(self.pos_embed, std=0.02)
-        if self.cls_token is not None:
-            nn.init.normal_(self.cls_token, std=1e-6)
-        named_apply(init_weights_vit_timm, self)
+    # def init_weights(self, mode: Literal["jax", "jax_nlhb", "moco", ""] = "") -> None:
+    #     assert mode in ("jax", "jax_nlhb", "moco", "")
+    #     # head_bias = -math.log(self.num_classes) if "nlhb" in mode else 0.0
+    #     trunc_normal_(self.pos_embed, std=0.02)
+    #     if self.cls_token is not None:
+    #         nn.init.normal_(self.cls_token, std=1e-6)
+    #     named_apply(init_weights_vit_timm, self)
 
     def no_weight_decay(self) -> Set:
         return {"pos_embed", "cls_token", "dist_token"}
@@ -503,10 +502,11 @@ class VisionTransformer(nn.Cell):
         x = self._pos_embed(x)
         x = self.patch_drop(x)
         x = self.norm_pre(x)
-        if self.grad_checkpointing:
-            x = checkpoint_seq(self.blocks, x)
-        else:
-            x = self.blocks(x)
+        # no recompute by default
+        # if self.grad_checkpointing:
+        #     x = checkpoint_seq(self.blocks, x)
+        # else:
+        x = self.blocks(x)
         x = self.norm(x)
         return x
 
@@ -521,7 +521,7 @@ class VisionTransformer(nn.Cell):
         x = self.head_drop(x)
         return x if pre_logits else self.head(x)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def construct(self, x: Tensor) -> Tensor:
         x = self.forward_features(x)
         if not self.ignore_head:
             x = self.forward_head(x)

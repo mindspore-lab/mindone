@@ -142,7 +142,7 @@ class AttentionPoolLatent(nn.Cell):
             trunc_normal_tf_(self.pos_embed, std=self.pos_embed.shape[1] ** -0.5)
         trunc_normal_tf_(self.latent, std=self.latent_dim ** -0.5)
 
-    def forward(self, x):
+    def construct(self, x):
         B, N, C = x.shape
 
         if self.pos_embed is not None:
@@ -206,7 +206,7 @@ class DropPath(nn.Cell):
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
 
-    def forward(self, x):
+    def construct(self, x):
         return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
 
     def extra_repr(self):
@@ -254,7 +254,7 @@ class Mlp(nn.Cell):
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
         self.drop2 = nn.Dropout(drop_probs[1])
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop1(x)
@@ -305,7 +305,7 @@ class GluMlp(nn.Cell):
             nn.init.ones_(self.fc1.bias[self.fc1.bias.shape[0] // 2:])
         nn.init.normal_(self.fc1.weight[self.fc1.weight.shape[0] // 2:], std=1e-6)
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.fc1(x)
         x1, x2 = x.chunk(2, dim=self.chunk_dim)
         x = x1 * self.act(x2) if self.gate_last else self.act(x1) * x2
@@ -354,7 +354,7 @@ class SwiGLU(nn.Cell):
             nn.init.ones_(self.fc1_g.bias)
         nn.init.normal_(self.fc1_g.weight, std=1e-6)
 
-    def forward(self, x):
+    def construct(self, x):
         x_gate = self.fc1_g(x)
         x = self.fc1_x(x)
         x = self.act(x_gate) * x
@@ -398,7 +398,7 @@ class GatedMlp(nn.Cell):
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1])
         self.drop2 = nn.Dropout(drop_probs[1])
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop1(x)
@@ -433,7 +433,7 @@ class ConvMlp(nn.Cell):
         self.drop = nn.Dropout(drop)
         self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1])
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.fc1(x)
         x = self.norm(x)
         x = self.act(x)
@@ -471,7 +471,7 @@ class GlobalResponseNormMlp(nn.Cell):
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
         self.drop2 = nn.Dropout(drop_probs[1])
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop1(x)
@@ -499,7 +499,7 @@ class GlobalResponseNorm(nn.Cell):
         self.weight = Parameter(mint.zeros(dim))
         self.bias = Parameter(mint.zeros(dim))
 
-    def forward(self, x):
+    def construct(self, x):
         x_g = x.norm(p=2, dim=self.spatial_dim, keepdim=True)
         x_n = x_g / (x_g.mean(dim=self.channel_dim, keepdim=True) + self.eps)
         return x + mint.addcmul(self.bias.view(self.wb_shape), self.weight.view(self.wb_shape), x * x_n)
@@ -525,7 +525,7 @@ class PatchDropout(nn.Cell):
         self.ordered = ordered
         self.return_indices = return_indices
 
-    def forward(self, x) -> Union[mint.Tensor, Tuple[mint.Tensor, Optional[mint.Tensor]]]:
+    def construct(self, x) -> Union[mint.Tensor, Tuple[mint.Tensor, Optional[mint.Tensor]]]:
         if not self.training or self.prob == 0.:
             if self.return_indices:
                 return x, None
@@ -657,7 +657,7 @@ class PatchEmbed(nn.Cell):
         else:
             return img_size[0] // self.patch_size[0], img_size[1] // self.patch_size[1]
 
-    def forward(self, x):
+    def construct(self, x):
         B, C, H, W = x.shape
         if self.img_size is not None:
             if self.strict_img_size:
@@ -706,7 +706,7 @@ class PatchEmbedWithSize(PatchEmbed):
             bias=bias,
         )
 
-    def forward(self, x) -> Tuple[mint.Tensor, List[int]]:
+    def construct(self, x) -> Tuple[mint.Tensor, List[int]]:
         B, C, H, W = x.shape
         if self.img_size is not None:
             assert H % self.patch_size[0] == 0, f"Input image height ({H}) must be divisible by patch size ({self.patch_size[0]})."
