@@ -26,7 +26,6 @@ def init_env(
     device_target: str = "Ascend",
     parallel_mode: str = "data",
     mempool_block_size: str = "9GB",
-    global_bf16: bool = False,
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
     sp_size: int = 1,
@@ -51,7 +50,6 @@ def init_env(
         parallel_mode (str, default "data"): if `distributed` is True, `parallel_mode` will be one of ["data", "optim"]
         mempool_block_size (str, default "9GB"): Set the size of the memory pool block in PyNative mode for devices. \
             The format is “xxGB”. Default: “1GB”. Minimum size is “1G”.
-        global_bf16 (bool, default False): Whether to use global_bf16 in GE mode (jit_level="O2").
         strategy_ckpt_save_file (str, default None): The path to strategy_ckpt when parallel_mode == "optim". \
             This strategy_ckpt is useful for merging multiple checkpoint shards.
         optimizer_weight_shard_size (int, default 8): Set the size of the communication domain split by the optimizer \
@@ -167,10 +165,6 @@ def init_env(
         ms.set_context(jit_syntax_level=jit_syntax_level)
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
-    if global_bf16:
-        logger.info("Using global bf16")
-        assert jit_level is not None and jit_level == "O2", "global_bf16 is supported in GE mode only!"
-        ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
     assert device_num >= sp_size and device_num % sp_size == 0, (
         f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"

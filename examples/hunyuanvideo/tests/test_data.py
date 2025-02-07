@@ -59,7 +59,6 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         mempool_block_size=args.mempool_block_size,
-        global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
         sp_size=args.sp_size if args.num_frames != 1 and args.use_image_num == 0 else 1,

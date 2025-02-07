@@ -158,9 +158,7 @@ def parse_train_args(parser):
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
-    parser.add_argument(
-        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
-    )
+
     #################################################################################
     #                                 Model Optimization                            #
     #################################################################################

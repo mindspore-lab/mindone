@@ -17,8 +17,8 @@ sys.path.append("./")
 from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, PROMPT_TEMPLATE, VAE_PATH
 from hyvideo.dataset import getdataset
 from hyvideo.dataset.loader import create_dataloader
-from hyvideo.diffusion.net_with_loss import DiffusionWithLoss, DiffusionWithLossEval
-from hyvideo.diffusion.schedulers import FlowMatchDiscreteScheduler
+from hyvideo.diffusion.net_with_loss import DiffusionWithLoss
+from hyvideo.diffusion.schedulers.rectified_flow_trainer import RFlowEvalLoss, RFlowLossWrapper
 from hyvideo.modules.models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
 from hyvideo.train.commons import create_loss_scaler, parse_args
 from hyvideo.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
@@ -27,14 +27,11 @@ from hyvideo.utils.ema import EMA
 from hyvideo.utils.helpers import set_model_param_dtype
 from hyvideo.utils.message_utils import print_banner
 from hyvideo.utils.ms_utils import init_env
+from hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
 from hyvideo.utils.utils import get_precision
 from hyvideo.vae import load_vae
 from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
-from examples.hunyuanvideo.hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
-
-# from mindone.diffusers.schedulers import FlowMatchEulerDiscreteScheduler
-from mindone.diffusers.schedulers import DDPMScheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.lr_schedule import create_scheduler
@@ -84,7 +81,6 @@ def main(args):
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
         mempool_block_size=args.mempool_block_size,
-        global_bf16=args.global_bf16,
         strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
         optimizer_weight_shard_size=args.optimizer_weight_shard_size,
         sp_size=args.sp_size if args.num_frames != 1 and args.use_image_num == 0 else 1,
@@ -180,7 +176,7 @@ def main(args):
         "use_recompute": args.gradient_checkpointing,
         "num_no_recompute": args.num_no_recompute,
     }
-    model = HYVideoDiffusionTransformer(
+    network = HYVideoDiffusionTransformer(
         args,
         in_channels=args.latent_channels,
         use_conv2d_patchify=True,
@@ -188,26 +184,24 @@ def main(args):
         **HUNYUAN_VIDEO_CONFIG[args.model],
         **factor_kwargs,
     )
-    if model.guidance_embed:
+    if network.guidance_embed:
         embed_cfg_scale = args.embedded_cfg_scale
     else:
         embed_cfg_scale = None
 
     # mixed precision
     if model_dtype != ms.float32:
-        set_model_param_dtype(model, dtype=model_dtype)
-
-    if model_dtype != ms.float32:
-        auto_mixed_precision(model, amp_level="O2", dtype=model_dtype)
+        set_model_param_dtype(network, dtype=model_dtype)
+        auto_mixed_precision(network, amp_level="O2", dtype=model_dtype)
 
     # load checkpoint
     if args.pretrained is not None and len(args.pretrained) > 0:
         assert os.path.exists(args.pretrained), f"Provided checkpoint file {args.pretrained} does not exist!"
         logger.info(f"Loading ckpt {args.pretrained}...")
-        model.load_from_checkpoint(args.pretrained)
+        network.load_from_checkpoint(args.pretrained)
     else:
         logger.info("Use random initialization for transformer")
-    model.set_train(True)
+    network.set_train(True)
 
     # Load text encoder
     if not args.text_embed_cache:
@@ -220,20 +214,7 @@ def main(args):
         text_encoder_1, text_encoder_2 = None, None
         text_encoder_1_dtype, text_encoder_2_dtype = None, None
 
-    kwargs = dict(prediction_type=args.prediction_type, rescale_betas_zero_snr=args.rescale_betas_zero_snr)
-    if args.cogvideox_scheduler:
-        from mindone.diffusers import CogVideoXDDIMScheduler
-
-        noise_scheduler = CogVideoXDDIMScheduler(**kwargs)
-    elif args.v1_5_scheduler:
-        kwargs["beta_start"] = 0.00085
-        kwargs["beta_end"] = 0.0120
-        kwargs["beta_schedule"] = "scaled_linear"
-        noise_scheduler = DDPMScheduler(**kwargs)
-    elif args.rf_scheduler:
-        noise_scheduler = FlowMatchDiscreteScheduler()
-    else:
-        noise_scheduler = DDPMScheduler(**kwargs)
+    rflow_loss_wrapper = RFlowLossWrapper(network)  # a wrapper of Rectified Flow loss
 
     assert args.use_image_num >= 0, f"Expect to have use_image_num>=0, but got {args.use_image_num}"
     if args.use_image_num > 0:
@@ -245,8 +226,7 @@ def main(args):
             logger.info("Training on video datasets only.")
 
     latent_diffusion_with_loss = DiffusionWithLoss(
-        model,
-        noise_scheduler,
+        rflow_loss_wrapper,
         vae=vae,
         text_encoder=text_encoder_1,
         text_encoder_2=text_encoder_2,
@@ -254,9 +234,6 @@ def main(args):
         video_emb_cached=False,
         use_image_num=args.use_image_num,
         dtype=model_dtype,
-        noise_offset=args.noise_offset,
-        snr_gamma=args.snr_gamma,
-        rf_scheduler=args.rf_scheduler,
         rank_id=rank_id,
         device_num=device_num,
         embedded_guidance_scale=embed_cfg_scale,
@@ -357,9 +334,9 @@ def main(args):
         ), "Incorrect validation dataset size. Please check your dataset size and your global batch size"
 
         # create eval network
-        latent_diffusion_eval = DiffusionWithLossEval(
-            model,
-            noise_scheduler,
+        eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.num_sampling_steps)
+        latent_diffusion_eval = DiffusionWithLoss(
+            eval_rflow_loss,
             vae=vae,
             text_encoder=text_encoder_1,
             text_encoder_2=text_encoder_2,
@@ -367,8 +344,6 @@ def main(args):
             video_emb_cached=False,
             use_image_num=args.use_image_num,
             dtype=model_dtype,
-            noise_offset=args.noise_offset,
-            snr_gamma=args.snr_gamma,
             embedded_guidance_scale=embed_cfg_scale,
         )
         metrics = {"val loss": get_metric_fn("loss")}
@@ -496,7 +471,7 @@ def main(args):
             else args.resume_from_checkpoint
         )
 
-        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(model, optimizer, resume_ckpt)
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(network, optimizer, resume_ckpt)
         loss_scaler.loss_scale_value = loss_scale
         loss_scaler.cur_iter = cur_iter
         loss_scaler.last_overflow_iter = last_overflow_iter
@@ -573,21 +548,13 @@ def main(args):
     )
     logger.info("Dynamic inputs are initialized for training!")
 
-    if not args.global_bf16:
-        model = Model(
-            net_with_grads,
-            eval_network=latent_diffusion_eval,
-            metrics=metrics,
-            eval_indexes=eval_indexes,
-        )
-    else:
-        model = Model(
-            net_with_grads,
-            eval_network=latent_diffusion_eval,
-            metrics=metrics,
-            eval_indexes=eval_indexes,
-            amp_level="O0",
-        )
+    model = Model(
+        net_with_grads,
+        eval_network=latent_diffusion_eval,
+        metrics=metrics,
+        eval_indexes=eval_indexes,
+    )
+
     # callbacks
     callback = [TimeMonitor(args.log_interval), EMAEvalSwapCallback(ema)]
     ofm_cb = OverflowMonitor()
@@ -672,7 +639,7 @@ def main(args):
                 f"Num params: {num_params} (transformer: {num_params_transformer}, vae: {num_params_vae})",
                 f"Num trainable params: {num_params_trainable}",
                 f"Transformer model dtype: {model_dtype}",
-                f"Transformer AMP level: {args.amp_level}" if not args.global_bf16 else "Global BF16: True",
+                f"Transformer AMP level: {args.amp_level}",
                 f"VAE dtype: {vae_dtype}"
                 + (
                     f"\nText encoder dtype: text encoder 1 {text_encoder_1_dtype} and text encoder 2 {text_encoder_2_dtype}"
@@ -1006,21 +973,6 @@ def parse_t2v_train_args(parser):
         "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
-    parser.add_argument("--noise_offset", type=float, default=0.02, help="The scale of noise offset.")
-    parser.add_argument(
-        "--snr_gamma",
-        type=float,
-        default=None,
-        help="SNR weighting gamma to be used if rebalancing the loss. Recommended value is 5.0. More details here: \
-            https://arxiv.org/abs/2303.09556.",
-    )
-    parser.add_argument(
-        "--prediction_type",
-        type=str,
-        default=None,
-        help="The prediction_type that shall be used for training. Choose between 'epsilon' or 'v_prediction' or leave `None`. \
-            If left to `None` the default prediction type of the scheduler: `noise_scheduler.config.prediciton_type` is chosen.",
-    )
     parser.add_argument("--ema_start_step", type=int, default=0)
     parser.add_argument(
         "--gradient_checkpointing",
