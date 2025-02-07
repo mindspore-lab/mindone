@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import mint
+from mindspore import mint, nn
 from attrdict import AttrDict
 from einops import rearrange
 from transformers import (
@@ -15,7 +15,7 @@ from janus.models.clip_encoder import CLIPVisionTower
 from janus.models.projector import MlpProjector
 
 
-class vision_head(ms.Cell):
+class vision_head(nn.Cell):
     def __init__(self, params):
         super().__init__()
         self.output_mlp_projector = mint.nn.Linear(
