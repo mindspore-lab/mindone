@@ -24,7 +24,6 @@ python hyvideo/train/train_t2v.py \
     --clip_grad True \
     --max_grad_norm 1.0 \
     --gradient_checkpointing \
-    --noise_offset 0.02 \
     --ema_decay 0.999 \
     --speed_factor 1.0 \
     --drop_short_ratio 1.0 \

@@ -29,7 +29,6 @@ class DiffusionWithLoss(nn.Cell):
     def __init__(
         self,
         network: nn.Cell,
-        noise_scheduler,
         vae: nn.Cell = None,
         text_encoder: nn.Cell = None,
         text_encoder_2: nn.Cell = None,  # not to use yet
@@ -45,9 +44,7 @@ class DiffusionWithLoss(nn.Cell):
         # TODO: is set_grad() necessary?
         self.network = network.set_grad()
         self.vae = vae
-        self.noise_scheduler = noise_scheduler
-        self.prediction_type = self.noise_scheduler.config.prediction_type
-        self.num_train_timesteps = self.noise_scheduler.config.num_train_timesteps
+
         self.rank_id = rank_id
         self.device_num = device_num
         self.embedded_guidance_scale = embedded_guidance_scale
@@ -191,17 +188,7 @@ class DiffusionWithLoss(nn.Cell):
                 encoder_attention_mask_2,
                 use_image_num,
             )
-
-        # sample a random timestep for each image without bias
-        t = explicit_uniform_sampling(
-            T=self.num_train_timesteps,
-            n=self.device_num,
-            rank=self.rank_id,
-            bsz=bsz,
-        )
-        # t = ops.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
         if get_sequence_parallel_state():
-            t = self.reduce_t(t) % self.num_train_timesteps
             assert (attention_mask.bool()).all()
             # assert attention_mask is None
             attention_mask = None
@@ -220,7 +207,6 @@ class DiffusionWithLoss(nn.Cell):
         )
         loss = self.network(
             x,
-            t,
             text_states=text_embed,
             text_mask=encoder_attention_mask,
             text_states_2=text_embed_2,

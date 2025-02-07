@@ -125,20 +125,20 @@ class RFlowLossWrapper(nn.Cell):
     def construct(
         self,
         x: Tensor,
-        timestep: Tensor,
         text_states: Tensor,
         text_mask: Tensor,
         text_states_2: Tensor,
         guidance: Optional[Tensor] = None,
+        timestep: Optional[Tensor] = None,
     ) -> Tensor:
         """
         Calculate the training loss for the corresponding timestep.
         x: (N, T, C, H, W) tensor of inputs (latent representations of video)
-        timestep: (N,) tensor to indicate a denoising step
         text_states: (N, L1, 4096) LLAMA text embeddings
         text_maskL (N, L1),
         text_states_2: (N, 768) CLIP text embeddings
         guidance: (N, ), the guidance scale for distillation
+        timestep: (N,) tensor to indicate a denoising step
         """
         x = x.to(mstype.float32)
 
@@ -186,11 +186,11 @@ class RFlowEvalLoss(nn.Cell):
     def construct(
         self,
         x: Tensor,
-        timestep: Tensor,
         text_states: Tensor,
         text_mask: Tensor,
         text_states_2: Tensor,
         guidance: Optional[Tensor] = None,
+        timestep: Optional[Tensor] = None,
     ) -> Tensor:
         loss = Tensor(0, dtype=mstype.float32)
         timesteps = mint.tile(self.timesteps, (1, x.shape[0]))
