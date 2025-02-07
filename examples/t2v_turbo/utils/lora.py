@@ -4,6 +4,8 @@ import pickle
 from itertools import groupby
 from typing import Dict, List, Optional, Set, Tuple, Type, Union
 
+import numpy as np
+
 import mindspore as ms
 import mindspore.common.initializer as init
 from mindspore import nn, ops
@@ -19,6 +21,8 @@ safetensors_available = True
 def load_lora_from_pkl(file_path):
     with open(file_path, "rb") as file:
         loras = pickle.load(file)
+
+    loras = [ms.Tensor(lora_weight) if isinstance(lora_weight, np.ndarray) else lora_weight for lora_weight in loras]
     return loras
 
 
@@ -571,8 +575,8 @@ def save_lora_weight(
 ):
     weights = []
     for _up, _down in extract_lora_ups_down(model, target_replace_module=target_replace_module):
-        weights.append(_up.weight.value().to(ms.float32))
-        weights.append(_down.weight.value().to(ms.float32))
+        weights.append(_up.weight.value().asnumpy())
+        weights.append(_down.weight.value().asnumpy())
 
     import pickle
 
