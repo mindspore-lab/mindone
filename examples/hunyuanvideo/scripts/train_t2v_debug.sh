@@ -19,7 +19,6 @@ python hyvideo/train/train_t2v.py \
     --checkpointing_steps=1000 \
     --output_dir="t2v-video3d-29x256p/" \
     --cfg 0.1 \
-    --snr_gamma 5.0 \
     --use_ema False \
     --ema_start_step 0 \
     --clip_grad True \

@@ -273,14 +273,6 @@ def parse_t2v_train_args(parser):
         "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
     )
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
-    parser.add_argument("--noise_offset", type=float, default=0.02, help="The scale of noise offset.")
-    parser.add_argument(
-        "--snr_gamma",
-        type=float,
-        default=None,
-        help="SNR weighting gamma to be used if rebalancing the loss. Recommended value is 5.0. More details here: \
-            https://arxiv.org/abs/2303.09556.",
-    )
 
     return parser
 
