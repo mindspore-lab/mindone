@@ -44,7 +44,15 @@ from mindone.diffusers import (
     StableDiffusion3Pipeline,
 )
 from mindone.diffusers.optimization import get_scheduler
-from mindone.diffusers.training_utils import AttrJitWrapper, TrainStep, init_distributed_device, is_master, set_seed
+from mindone.diffusers.training_utils import (
+    AttrJitWrapper,
+    TrainStep,
+    compute_density_for_timestep_sampling,
+    compute_loss_weighting_for_sd3,
+    init_distributed_device,
+    is_master,
+    set_seed,
+)
 from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
 
 logger = logging.getLogger(__name__)
@@ -70,6 +78,7 @@ def log_validation(
     logging_dir,
     pipeline_args,
     epoch,
+    mindspore_dtype,
     is_final_validation=False,
 ):
     logger.info(
@@ -205,6 +214,12 @@ def parse_args(input_args=None):
         type=str,
         default=None,
         help="The prompt to specify images in the same class as provided instance images.",
+    )
+    parser.add_argument(
+        "--max_sequence_length",
+        type=int,
+        default=77,
+        help="Maximum sequence length to use with with the T5 text encoder",
     )
     parser.add_argument(
         "--validation_prompt",
@@ -380,11 +395,30 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--weighting_scheme", type=str, default="logit_normal", choices=["sigma_sqrt", "logit_normal", "mode"]
+        "--weighting_scheme",
+        type=str,
+        default="logit_normal",
+        choices=["sigma_sqrt", "logit_normal", "mode", "cosmap"],
     )
-    parser.add_argument("--logit_mean", type=float, default=0.0)
-    parser.add_argument("--logit_std", type=float, default=1.0)
-    parser.add_argument("--mode_scale", type=float, default=1.29)
+    parser.add_argument(
+        "--logit_mean", type=float, default=0.0, help="mean to use when using the `'logit_normal'` weighting scheme."
+    )
+    parser.add_argument(
+        "--logit_std", type=float, default=1.0, help="std to use when using the `'logit_normal'` weighting scheme."
+    )
+    parser.add_argument(
+        "--mode_scale",
+        type=float,
+        default=1.29,
+        help="Scale of mode weighting scheme. Only effective when using the `'mode'` as the `weighting_scheme`.",
+    )
+    parser.add_argument(
+        "--precondition_outputs",
+        type=int,
+        default=1,
+        help="Flag indicating if we are preconditioning the model outputs or not as done in EDM. This affects how "
+        "model `target` is calculated.",
+    )
     parser.add_argument(
         "--optimizer",
         type=str,
@@ -408,7 +442,7 @@ def parse_args(input_args=None):
         "--prodigy_beta3",
         type=float,
         default=None,
-        help="coefficients for computing the Prodidy stepsize using running averages. If set to None, "
+        help="coefficients for computing the Prodigy stepsize using running averages. If set to None, "
         "uses the value of square root of beta2. Ignored if optimizer is adamW",
     )
     parser.add_argument("--prodigy_decouple", type=bool, default=True, help="Use AdamW style decoupled weight decay")
@@ -553,12 +587,14 @@ class DreamBoothDataset(object):
         size=1024,
         repeats=1,
         center_crop=False,
+        max_sequence_length=77,
     ):
         self.size = size
         self.center_crop = center_crop
         self.tokenizer_one = tokenizer_one
         self.tokenizer_two = tokenizer_two
         self.tokenizer_three = tokenizer_three
+        self.max_sequence_length = max_sequence_length
 
         self.instance_prompt = instance_prompt
         self.custom_instance_prompts = None
@@ -704,7 +740,9 @@ class DreamBoothDataset(object):
 
         example["instance_tokens_one"] = tokenize_prompt(self.tokenizer_one, example["instance_prompt"])
         example["instance_tokens_two"] = tokenize_prompt(self.tokenizer_two, example["instance_prompt"])
-        example["instance_tokens_three"] = tokenize_prompt(self.tokenizer_three, example["instance_prompt"])
+        example["instance_tokens_three"] = tokenize_prompt(
+            self.tokenizer_three, example["instance_prompt"], self.max_sequence_length, add_special_tokens=True
+        )
 
         if self.class_data_root:
             class_image = Image.open(self.class_images_path[index % self.num_class_images])
@@ -716,7 +754,9 @@ class DreamBoothDataset(object):
             example["class_prompt"] = self.class_prompt
             example["class_tokens_one"] = tokenize_prompt(self.tokenizer_one, example["class_prompt"])
             example["class_tokens_two"] = tokenize_prompt(self.tokenizer_two, example["class_prompt"])
-            example["class_tokens_three"] = tokenize_prompt(self.tokenizer_three, example["class_prompt"])
+            example["class_tokens_three"] = tokenize_prompt(
+                self.tokenizer_three, example["class_prompt"], self.max_sequence_length, add_special_tokens=True
+            )
 
         return example
 
@@ -760,13 +800,14 @@ class PromptDataset(object):
         return example
 
 
-def tokenize_prompt(tokenizer, prompt):
+def tokenize_prompt(tokenizer, prompt, max_sequence_length=77, **tokenizer_kwargs):
     text_inputs = tokenizer(
         prompt,
         padding="max_length",
-        max_length=77,
+        max_length=max_sequence_length,
         truncation=True,
         return_tensors="np",
+        **tokenizer_kwargs,
     )
     text_input_ids = text_inputs.input_ids
     return text_input_ids
@@ -1041,12 +1082,16 @@ def main():
     if not train_dataset.custom_instance_prompts:
         tokens_one = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_one, args.instance_prompt))
         tokens_two = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_two, args.instance_prompt))
-        tokens_three = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_three, args.instance_prompt))
+        tokens_three = ms.Tensor.from_numpy(
+            tokenize_prompt(tokenizer_three, args.instance_prompt, args.max_sequence_length, add_special_tokens=True)
+        )
 
         if args.with_prior_preservation:
             class_tokens_one = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_one, args.class_prompt))
             class_tokens_two = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_two, args.class_prompt))
-            class_tokens_three = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_three, args.class_prompt))
+            class_tokens_three = ms.Tensor.from_numpy(
+                tokenize_prompt(tokenizer_three, args.class_prompt, args.max_sequence_length, add_special_tokens=True)
+            )
 
             tokens_one = ops.cat([tokens_one, class_tokens_one], axis=0)
             tokens_two = ops.cat([tokens_two, class_tokens_two], axis=0)
@@ -1328,6 +1373,7 @@ def main():
             pipeline_args,
             args.num_train_epochs,
             is_final_validation=True,
+            mindspore_dtype=weight_dtype,
         )
 
     # End of training
@@ -1384,6 +1430,7 @@ class TrainStepForSD3DB(TrainStep):
         self.vae = vae
         self.vae_dtype = vae.dtype
         self.vae_scaling_factor = vae.config.scaling_factor
+        self.vae_shift_factor = vae.config.shift_factor
         self.text_encoder_one = text_encoder_one
         self.text_encoder_two = text_encoder_two
         self.text_encoder_three = text_encoder_three
@@ -1491,7 +1538,7 @@ class TrainStepForSD3DB(TrainStep):
 
         # Convert images to latent space
         model_input = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values)[0])
-        model_input = model_input * self.vae_scaling_factor
+        model_input = (model_input - self.vae_shift_factor) * self.vae_scaling_factor
         model_input = model_input.to(dtype=self.weight_dtype)
 
         # Sample noise that we'll add to the latents
@@ -1500,22 +1547,20 @@ class TrainStepForSD3DB(TrainStep):
 
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
-        if self.args.weighting_scheme == "logit_normal":
-            # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-            u = ops.normal(mean=self.args.logit_mean, stddev=self.args.logit_std, shape=(bsz,))
-            u = ops.sigmoid(u)
-        elif self.args.weighting_scheme == "mode":
-            u = ops.rand(bsz)
-            u = 1 - u - self.args.mode_scale * (ops.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
-        else:
-            u = ops.rand(bsz)
-
+        u = compute_density_for_timestep_sampling(
+            weighting_scheme=self.args.weighting_scheme,
+            batch_size=bsz,
+            logit_mean=self.args.logit_mean,
+            logit_std=self.args.logit_std,
+            mode_scale=self.args.mode_scale,
+        )
         indices = (u * self.noise_scheduler_num_train_timesteps).long()
         timesteps = self.noise_scheduler.timesteps[indices]
 
         # Add noise according to flow matching.
+        # zt = (1 - texp) * x + texp * z1
         sigmas = self.get_sigmas(indices, n_dim=model_input.ndim, dtype=model_input.dtype)
-        noisy_model_input = sigmas * noise + (1.0 - sigmas) * model_input
+        noisy_model_input = (1.0 - sigmas) * model_input + sigmas * noise
 
         # Predict the noise residual
         model_pred = self.transformer(
@@ -1528,21 +1573,18 @@ class TrainStepForSD3DB(TrainStep):
 
         # Follow: Section 5 of https://arxiv.org/abs/2206.00364.
         # Preconditioning of the model outputs.
-        model_pred = model_pred * (-sigmas) + noisy_model_input
+        if self.args.precondition_outputs:
+            model_pred = model_pred * (-sigmas) + noisy_model_input
 
-        # TODO (kashif, sayakpaul): weighting sceme needs to be experimented with :)
-        # these weighting schemes use a uniform timestep sampling and instead post-weight the loss
-        if self.args.weighting_scheme == "sigma_sqrt":
-            weighting = (sigmas**-2.0).float()
-        elif self.args.weighting_scheme == "cosmap":
-            bot = 1 - 2 * sigmas + 2 * sigmas**2
-            weighting = 2 / (ms.numpy.pi * bot)
+        # these weighting schemes use a uniform timestep sampling
+        # and instead post-weight the loss
+        weighting = compute_loss_weighting_for_sd3(weighting_scheme=self.args.weighting_scheme, sigmas=sigmas)
+
+        # flow matching loss
+        if self.args.precondition_outputs:
+            target = model_input
         else:
-            weighting = ops.ones_like(sigmas)
-
-        # simplified flow matching aka 0-rectified flow matching loss
-        # target = model_input - noise
-        target = model_input
+            target = noise - model_input
 
         if self.args.with_prior_preservation:
             # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
