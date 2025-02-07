@@ -22,13 +22,14 @@ from dataclasses import dataclass, field
 from typing import List
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import nn, ops, mint
 from mindspore import Tensor, Parameter
 import mindspore.ops.functional as F
 from mindspore.common.initializer import Uniform, Normal
-from mindspore.common.initializer import initializer
 
 from functools import partial
+
+from .compat import normalize_l2, GroupNorm
 
 
 @dataclass
@@ -216,11 +217,9 @@ class Decoder(nn.Cell):
                 if len(block.attn) > 0:
                     h = block.attn[i_block](h)
             if i_level != self.num_resolutions - 1:
-                # import pdb; pdb.set_trace()
                 h = block.upsample(h)
 
         # end
-        import pdb; pdb.set_trace()
         h = self.norm_out(h)
         h = nonlinearity(h)
         h = self.conv_out(h)
@@ -236,16 +235,15 @@ class VectorQuantizer(nn.Cell):
         self.entropy_loss_ratio = entropy_loss_ratio
         self.l2_norm = l2_norm
         self.show_usage = show_usage
-        
+
         # TODO: re-write the cell to map panme from ms to torch: embedding_table -> weight.
         self.embedding = nn.Embedding(self.n_e, self.e_dim, embedding_table=Uniform(scale=1.0 / self.n_e))
         if self.l2_norm:
-            #    self.embedding.weight.data, p=2, dim=-1
-            l2_normalize = ops.L2Normalize(axis=-1, epsilon=1e-12)
-            self.embedding.embedding_table.set_data(l2_normalize(self.embedding.embedding_table.value()))
+            self.embedding.embedding_table.set_data(
+                normalize_l2(self.embedding.embedding_table.value(), dim=-1)
+                )
         if self.show_usage:
             self.codebook_used = Parameter(ops.zeros(65536), requires_grad=False)
-            # self.register_buffer("codebook_used", nn.Parameter(torch.zeros(65536)))
 
     def construct(self, z):
         # reshape z -> (batch, height, width, channel) and flatten
@@ -255,12 +253,12 @@ class VectorQuantizer(nn.Cell):
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
 
         if self.l2_norm:
-            norm = ops.L2Normalize(axis=-1, epsilon=1e-12)
-            z_flattened = norm(z_flattened)
-            embedding = norm(self.embedding.embedding_table)
+            z = normalize_l2(z, dim=-1)
+            z_flattened = normalize_l2(z_flattened, dim=-1)
+            embedding = normalize_l2(self.embedding.embedding_table, dim=-1)
         else:
             embedding = self.embedding.embedding_table
-        # TODO: pdb check
+        # TODO: double check
         d = (
             ops.sum(z_flattened**2, dim=1, keepdim=True)
             + ops.sum(embedding**2, dim=1)
@@ -269,8 +267,6 @@ class VectorQuantizer(nn.Cell):
         )
 
         min_encoding_indices = ops.argmin(d, axis=1)
-        # TODO: check cast needed
-        # min_encoding_indices = self.cast(min_encoding_indices, ms.int64)
         z_q = embedding[min_encoding_indices].view(z.shape)
         perplexity = None
         min_encodings = None
@@ -300,8 +296,8 @@ class VectorQuantizer(nn.Cell):
     def get_codebook_entry(self, indices, shape=None, channel_first=True):
         # shape = (batch, channel, height, width) if channel_first else (batch, height, width, channel)
         if self.l2_norm:
-            norm = ops.L2Normalize(axis=-1, epsilon=1e-12)
-            embedding = norm(self.embedding.embedding_table)
+            # TODO: improve l2norm accuracy in bf16
+            embedding = normalize_l2(self.embedding.embedding_table, dim=-1)
         else:
             embedding = self.embedding.embedding_table
         z_q = embedding[indices]  # (b*h*w, c)
@@ -412,42 +408,6 @@ def nonlinearity(x):
     # TODO: maybe cast to fp32
     return x * (ops.sigmoid(x))
 
-# TODO: smae accuracy as mint.nn.GroupNorm
-group_norm = ms.mint.nn.functional.group_norm
-
-class GroupNorm(nn.Cell):
-    # gamma -> weight, beta -> bias
-    num_groups: int
-    num_channels: int
-    eps: float
-    affine: bool
-
-    def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5, affine: bool = True, dtype=ms.float32):
-        super().__init__()
-        if num_channels % num_groups != 0:
-            raise ValueError("num_channels must be divisible by num_groups")
-
-        self.num_groups = num_groups
-        self.num_channels = num_channels
-        self.eps = eps
-        self.affine = affine
-        weight = initializer("ones", num_channels, dtype=dtype)
-        bias = initializer("zeros", num_channels, dtype=dtype)
-        if self.affine:
-            self.weight = Parameter(weight, name="weight")
-            self.bias = Parameter(bias, name="bias")
-        else:
-            self.weight = None
-            self.bias = None
-
-    def construct(self, x: Tensor):
-        if self.affine:
-            x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
-        else:
-            x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
-        return x
-
-
 def Normalize(in_channels, norm_type="group"):
     assert norm_type in ["group", "batch"]
     if norm_type == "group":
@@ -475,10 +435,9 @@ class Upsample(nn.Cell):
         out_shape = tuple(2 * x for x in in_shape)
         if x.dtype != ms.float32:
             x = x.to(ms.float32)
-        # import pdb; pdb.set_trace()
         # x = ops.ResizeNearestNeighbor(out_shape)(x)
         x = ops.interpolate(x, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
-        if x.dtype != ms.float32:
+        if x.dtype != in_dtype:
             x = x.to(in_dtype)
 
         if self.with_conv:
@@ -558,7 +517,6 @@ class VQModel(nn.Cell):
         return quant, emb_loss, info
 
     def decode(self, quant):
-        # import pdb; pdb.set_trace()
         quant = self.post_quant_conv(quant)
         dec = self.decoder(quant)
         return dec
@@ -593,12 +551,9 @@ class VQModel(nn.Cell):
 
                     sd[new_pname] = sd.pop(p)
 
-            # import pdb; pdb.set_trace()
-            # print(f"vq has {num_params} parameters")
-            # get net param dtype
             param_dtype = tuple(self.get_parameters())[0].dtype
             print('Get vq param dtype: ', param_dtype)
-            
+
             for pname in sd:
                 # print(pname, sd[pname].shape, sd[pname].dtype)
                 np_val = sd[pname].cpu().detach().float().numpy()
@@ -609,7 +564,7 @@ class VQModel(nn.Cell):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
-        
+
         param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
         print(
             "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
@@ -632,4 +587,3 @@ def VQ_16(**kwargs):
 
 
 VQ_models = {"VQ-16": VQ_16}
-
