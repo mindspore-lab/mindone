@@ -1,3 +1,23 @@
+# Copyright (c) 2023-2024 DeepSeek.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy of
+# this software and associated documentation files (the "Software"), to deal in
+# the Software without restriction, including without limitation the rights to
+# use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+# the Software, and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+# FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+# COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+# IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+# https://github.com/huggingface/pytorch-image-models/blob/main/timm/models/vision_transformer.py
 
 from dataclasses import dataclass
 from functools import partial
@@ -19,7 +39,7 @@ import mindspore as ms
 from mindspore import mint, nn, Tensor, Parameter
 from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
 
-from models.timm import (
+from .timm import (
     AttentionPoolLatent,
     DropPath,
     LayerType,
@@ -97,11 +117,11 @@ class Attention(nn.Cell):
         self.fused_attn = True
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-        self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
-        self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
-        self.attn_drop = nn.Dropout(attn_drop)
+        self.q_norm = norm_layer([self.head_dim]) if qk_norm else nn.Identity()
+        self.k_norm = norm_layer([self.head_dim]) if qk_norm else nn.Identity()
+        self.attn_drop = nn.Dropout(p=attn_drop)
         self.proj = nn.Linear(dim, dim)
-        self.proj_drop = nn.Dropout(proj_drop) if proj_drop > 0.0 else nn.Identity()
+        self.proj_drop = nn.Dropout(p=proj_drop) if proj_drop > 0.0 else nn.Identity()
 
     def construct(self, x: Tensor) -> Tensor:
         B, N, C = x.shape
@@ -118,7 +138,6 @@ class Attention(nn.Cell):
                 q,
                 k,
                 v,
-                dropout_p=self.attn_drop.p if self.training else 0.0,
             )
         else:
             q = q * self.scale
@@ -127,7 +146,7 @@ class Attention(nn.Cell):
             attn = self.attn_drop(attn)
             x = attn @ v
 
-        x = x.transpose(1, 2).reshape(B, N, C)
+        x = x.transpose(0, 2, 1, 3).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
@@ -165,7 +184,7 @@ class Block(nn.Cell):
         mlp_layer: nn.Cell = Mlp,
     ) -> None:
         super().__init__()
-        self.norm1 = norm_layer(dim)
+        self.norm1 = norm_layer([dim])
         self.attn = Attention(
             dim,
             num_heads=num_heads,
@@ -180,7 +199,7 @@ class Block(nn.Cell):
         )
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
-        self.norm2 = norm_layer(dim)
+        self.norm2 = norm_layer([dim])
         self.mlp = mlp_layer(
             in_features=dim,
             hidden_features=int(dim * mlp_ratio),
@@ -275,7 +294,7 @@ class VisionTransformer(nn.Cell):
         use_fc_norm = global_pool == "avg" if fc_norm is None else fc_norm
         # norm_layer = get_norm_layer(norm_layer) or partial(nn.LayerNorm, eps=1e-6)
         # act_layer = get_act_layer(act_layer) or nn.GELU
-        norm_layer = partial(nn.LayerNorm, eps=1e-6)
+        norm_layer = partial(nn.LayerNorm, epsilon=1e-6)
         act_layer = nn.GELU
 
         self.num_classes = num_classes
@@ -327,12 +346,12 @@ class VisionTransformer(nn.Cell):
             )
         else:
             self.patch_drop = nn.Identity()
-        self.norm_pre = norm_layer(embed_dim) if pre_norm else nn.Identity()
+        self.norm_pre = norm_layer([embed_dim]) if pre_norm else nn.Identity()
 
         dpr = [
             x.item() for x in mint.linspace(0, drop_path_rate, depth)
         ]  # stochastic depth decay rule
-        self.blocks = nn.Sequential(
+        self.blocks = nn.SequentialCell(
             *[
                 block_fn(
                     dim=embed_dim,
@@ -351,7 +370,7 @@ class VisionTransformer(nn.Cell):
                 for i in range(depth)
             ]
         )
-        self.norm = norm_layer(embed_dim) if not use_fc_norm else nn.Identity()
+        self.norm = norm_layer([embed_dim]) if not use_fc_norm else nn.Identity()
 
         # Classifier Head
         if global_pool == "map":
@@ -364,8 +383,8 @@ class VisionTransformer(nn.Cell):
             )
         else:
             self.attn_pool = None
-        self.fc_norm = norm_layer(embed_dim) if use_fc_norm else nn.Identity()
-        self.head_drop = nn.Dropout(drop_rate)
+        self.fc_norm = norm_layer([embed_dim]) if use_fc_norm else nn.Identity()
+        self.head_drop = nn.Dropout(p=drop_rate)
         self.head = (
             nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         )
@@ -380,6 +399,56 @@ class VisionTransformer(nn.Cell):
     #     if self.cls_token is not None:
     #         nn.init.normal_(self.cls_token, std=1e-6)
     #     named_apply(init_weights_vit_timm, self)
+
+    def load_from_checkpoint(self, ckpt_path):
+        # mainly used in unit test
+        parameter_dict = dict()
+        if ckpt_path.endswith('.bin'):
+            import torch
+            sd = torch.load(ckpt_path, weights_only=True)
+            # filter to keep vision_tower params only and remove prefix vision_model.vision_tower
+            pnames = [p for p in sd]
+            for p in pnames:
+                if not "vision_tower" in p:
+                    sd.pop(p)
+                else:
+                    # remove prefix
+                    new_pname = p.replace("vision_model.vision_tower.", "")
+                    # special: weight (pt) - > embedding_table (ms)
+                    if "embedding.weight" in p:
+                        new_pname = new_pname.replace("embedding.weight", "embedding.embedding_table")
+                    elif "norm" in p:
+                        new_pname = new_pname.replace("weight", "gamma").replace("bias", "beta")
+
+                    sd[new_pname] = sd.pop(p)
+
+            # import pdb; pdb.set_trace()
+            # print(f"vq has {num_params} parameters")
+            # get net param dtype
+            param_dtype = tuple(self.get_parameters())[0].dtype
+            print('Get siglip param dtype: ', param_dtype)
+            
+            for pname in sd:
+                # print(pname, sd[pname].shape, sd[pname].dtype)
+                np_val = sd[pname].cpu().detach().float().numpy()
+                # TODO: support bf16 param loading
+                parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+
+        elif ckpt_path.endswith('.ckpt'):
+            parameter_dict = ms.load_checkpoint(ckpt_path)
+        else:
+            raise ValueError("Unsupported checkpoint format")
+        
+        param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
+        if param_not_load:
+            print(
+                "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+            )
+        if ckpt_not_load:
+            print(
+                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+            )
+        print('finish loading ckpt siglip')
 
     def no_weight_decay(self) -> Set:
         return {"pos_embed", "cls_token", "dist_token"}
@@ -580,7 +649,6 @@ def create_siglip_vit(
     model_name: str = "siglip_so400m_patch14_384",
     image_size: int = 384,
     select_layer: int = -1,
-    ckpt_path: str = "",
     **kwargs,
 ):
     assert (
@@ -608,20 +676,39 @@ def create_siglip_vit(
         num_classes=0,
     )
 
-    if ckpt_path:
-        state_dict = ms.load_checkpoint(ckpt_path, map_location="cpu")
-
-        incompatible_keys = model.load_state_dict(state_dict, strict=False)
-        print(
-            f"SigLIP-ViT restores from {ckpt_path},\n"
-            f"\tincompatible_keys:', {incompatible_keys}."
-        )
-
     return model
 
 
-if __name__ == "main":
+if __name__ == "__main__":
     from mindone.utils.logger import set_logger
+    ms.set_context(device_id=7)
+
+    import numpy as np
     _debug = True
     # put name as ""
     logger = set_logger(name="", output_dir=str('.') if not _debug else None)
+
+    jp1b = "/mnt/disk2/fredhong/hf_ckpts/Janus-Pro-1B"
+
+    # load input and golden gt, run this testing under Janus dir
+    input_tensor = Tensor(np.load("./image_tensor.npy")).to(ms.bfloat16)
+    gt_tensor = np.load("./image_forward_outs.npy")
+    print(input_tensor)
+    print(f'gt tensor dtype is {gt_tensor.dtype}')
+
+    # default setup, unit load hard to load ckpt this way, do entire model loading
+    from transformers import AutoModelForCausalLM
+    from mindone.transformers import LlamaForCausalLM
+    from modeling_vlm import MultiModalityCausalLM
+    vl_gpt: MultiModalityCausalLM = MultiModalityCausalLM.from_pretrained(
+        jp1b, local_files_only=True
+    )
+    vl_gpt = vl_gpt.to(ms.bfloat16)
+    vision_tower = vl_gpt.vision_model.vision_tower
+
+    # cal & eval
+    out = vision_tower(input_tensor)
+    out = out.to(ms.float32).asnumpy()
+
+    assert np.allclose(out, gt_tensor, rtol=1e-1, atol=1e-1), f"recal result is not closed to gt!, out:{out.shape}\n{out}\ngt:{gt_tensor.shape}\n{gt_tensor}"
+    print('test success')

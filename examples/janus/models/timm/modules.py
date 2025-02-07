@@ -19,7 +19,7 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
     # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
     def norm_cdf(x):
         # Computes standard normal cumulative distribution function
-        return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
+        return (1.0 + ops.erf(x / ops.sqrt(Tensor(2.0)))) / 2.0
 
     if (mean < a - 2 * std) or (mean > b + 2 * std):
         warnings.warn(
@@ -84,8 +84,6 @@ def trunc_normal_tf_(tensor, mean=0., std=1., a=-2., b=2.):
 class AttentionPoolLatent(nn.Cell):
     """ Attention pooling w/ latent query
     """
-    fused_attn: ms.bool_
-
     def __init__(
             self,
             in_features: int,
@@ -123,16 +121,16 @@ class AttentionPoolLatent(nn.Cell):
 
         self.latent_dim = latent_dim or embed_dim
         self.latent_len = latent_len
-        self.latent = Parameter(mint.zeros(1, self.latent_len, embed_dim))
+        self.latent = Parameter(mint.zeros((1, self.latent_len, embed_dim)))
 
         self.q = nn.Linear(embed_dim, embed_dim, bias=qkv_bias)
         self.kv = nn.Linear(embed_dim, embed_dim * 2, bias=qkv_bias)
         self.q_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
         self.k_norm = norm_layer(self.head_dim) if qk_norm else nn.Identity()
         self.proj = nn.Linear(embed_dim, embed_dim)
-        self.proj_drop = nn.Dropout(drop)
+        self.proj_drop = nn.Dropout(p=drop)
 
-        self.norm = norm_layer(out_features) if norm_layer is not None else nn.Identity()
+        self.norm = norm_layer([out_features]) if norm_layer is not None else nn.Identity()
         self.mlp = Mlp(embed_dim, int(embed_dim * mlp_ratio))
 
         self.init_weights()
@@ -150,7 +148,7 @@ class AttentionPoolLatent(nn.Cell):
             x = x + self.pos_embed.unsqueeze(0).to(x.dtype)
 
         q_latent = self.latent.expand(B, -1, -1)
-        q = self.q(q_latent).reshape(B, self.latent_len, self.num_heads, self.head_dim).transpose(1, 2)
+        q = self.q(q_latent).reshape(B, self.latent_len, self.num_heads, self.head_dim).transpose(0, 2, 1)
 
         kv = self.kv(x).reshape(B, N, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         k, v = kv.unbind(0)
@@ -164,7 +162,7 @@ class AttentionPoolLatent(nn.Cell):
             attn = q @ k.transpose(-2, -1)
             attn = attn.softmax(dim=-1)
             x = attn @ v
-        x = x.transpose(1, 2).reshape(B, self.latent_len, C)
+        x = x.transpose(0, 2, 1).reshape(B, self.latent_len, C)
         x = self.proj(x)
         x = self.proj_drop(x)
 
@@ -249,10 +247,10 @@ class Mlp(nn.Cell):
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
-        self.drop1 = nn.Dropout(drop_probs[0])
+        self.drop1 = nn.Dropout(p=drop_probs[0])
         self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
-        self.drop2 = nn.Dropout(drop_probs[1])
+        self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def construct(self, x):
         x = self.fc1(x)
@@ -294,10 +292,10 @@ class GluMlp(nn.Cell):
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
-        self.drop1 = nn.Dropout(drop_probs[0])
-        self.norm = norm_layer(hidden_features // 2) if norm_layer is not None else nn.Identity()
+        self.drop1 = nn.Dropout(p=drop_probs[0])
+        self.norm = norm_layer([hidden_features // 2]) if norm_layer is not None else nn.Identity()
         self.fc2 = linear_layer(hidden_features // 2, out_features, bias=bias[1])
-        self.drop2 = nn.Dropout(drop_probs[1])
+        self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def init_weights(self):
         # override init of fc1 w/ gate portion set to weight near zero, bias=1
@@ -343,10 +341,10 @@ class SwiGLU(nn.Cell):
         self.fc1_g = nn.Linear(in_features, hidden_features, bias=bias[0])
         self.fc1_x = nn.Linear(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
-        self.drop1 = nn.Dropout(drop_probs[0])
-        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        self.drop1 = nn.Dropout(p=drop_probs[0])
+        self.norm = norm_layer([hidden_features]) if norm_layer is not None else nn.Identity()
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1])
-        self.drop2 = nn.Dropout(drop_probs[1])
+        self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def init_weights(self):
         # override init of fc1 w/ gate portion set to weight near zero, bias=1
@@ -387,16 +385,16 @@ class GatedMlp(nn.Cell):
 
         self.fc1 = nn.Linear(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
-        self.drop1 = nn.Dropout(drop_probs[0])
+        self.drop1 = nn.Dropout(p=drop_probs[0])
         if gate_layer is not None:
             assert hidden_features % 2 == 0
             self.gate = gate_layer(hidden_features)
             hidden_features = hidden_features // 2  # FIXME base reduction on gate property?
         else:
             self.gate = nn.Identity()
-        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
+        self.norm = norm_layer([hidden_features]) if norm_layer is not None else nn.Identity()
         self.fc2 = nn.Linear(hidden_features, out_features, bias=bias[1])
-        self.drop2 = nn.Dropout(drop_probs[1])
+        self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def construct(self, x):
         x = self.fc1(x)
@@ -427,11 +425,11 @@ class ConvMlp(nn.Cell):
         hidden_features = hidden_features or in_features
         bias = to_2tuple(bias)
 
-        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, bias=bias[0])
-        self.norm = norm_layer(hidden_features) if norm_layer else nn.Identity()
+        self.fc1 = nn.Conv2d(in_features, hidden_features, kernel_size=1, has_bias=bias[0])
+        self.norm = norm_layer([hidden_features]) if norm_layer else nn.Identity()
         self.act = act_layer()
-        self.drop = nn.Dropout(drop)
-        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, bias=bias[1])
+        self.drop = nn.Dropout(p=drop)
+        self.fc2 = nn.Conv2d(hidden_features, out_features, kernel_size=1, has_bias=bias[1])
 
     def construct(self, x):
         x = self.fc1(x)
@@ -466,10 +464,10 @@ class GlobalResponseNormMlp(nn.Cell):
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
-        self.drop1 = nn.Dropout(drop_probs[0])
+        self.drop1 = nn.Dropout(p=drop_probs[0])
         self.grn = GlobalResponseNorm(hidden_features, channels_last=not use_conv)
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
-        self.drop2 = nn.Dropout(drop_probs[1])
+        self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def construct(self, x):
         x = self.fc1(x)
@@ -509,7 +507,7 @@ class PatchDropout(nn.Cell):
     """
     https://arxiv.org/abs/2212.00794 and https://arxiv.org/pdf/2208.07220
     """
-    return_indices: mint.jit.Final[bool]
+    return_indices: ms.bool_
 
     def __init__(
             self,
@@ -565,9 +563,9 @@ def nchw_to(x: Tensor, fmt: Format):
     if fmt == Format.NHWC:
         x = x.permute(0, 2, 3, 1)
     elif fmt == Format.NLC:
-        x = x.flatten(2).transpose(1, 2)
+        x = x.flatten(start_dim=2).transpose(0, 2, 1)
     elif fmt == Format.NCL:
-        x = x.flatten(2)
+        x = x.flatten(start_dim=2)
     return x
 
 
@@ -575,7 +573,7 @@ class PatchEmbed(nn.Cell):
     """ 2D Image to Patch Embedding
     """
     output_fmt: Format
-    dynamic_img_pad: mint.jit.Final[bool]
+    dynamic_img_pad: ms.bool_
 
     def __init__(
             self,
@@ -604,8 +602,8 @@ class PatchEmbed(nn.Cell):
         self.strict_img_size = strict_img_size
         self.dynamic_img_pad = dynamic_img_pad
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias)
-        self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
+        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, has_bias=bias)
+        self.norm = norm_layer([embed_dim]) if norm_layer else nn.Identity()
 
     def _init_img_size(self, img_size: Union[int, Tuple[int, int]]):
         assert self.patch_size
@@ -631,7 +629,7 @@ class PatchEmbed(nn.Cell):
                     self.proj.out_channels,
                     kernel_size=new_patch_size,
                     stride=new_patch_size,
-                    bias=self.proj.bias is not None,
+                    has_bias=self.proj.bias is not None,
                 )
                 new_proj.weight.copy_(resample_patch_embed(self.proj.weight, new_patch_size, verbose=True))
                 if self.proj.bias is not None:
@@ -672,7 +670,7 @@ class PatchEmbed(nn.Cell):
             x = mint.nn.functional.pad(x, (0, pad_w, 0, pad_h))
         x = self.proj(x)
         if self.flatten:
-            x = x.flatten(2).transpose(1, 2)  # NCHW -> NLC
+            x = x.flatten(start_dim=2).transpose(0, 2, 1)  # NCHW -> NLC
         elif self.output_fmt != Format.NCHW:
             x = nchw_to(x, self.output_fmt)
         x = self.norm(x)
@@ -715,7 +713,7 @@ class PatchEmbedWithSize(PatchEmbed):
         x = self.proj(x)
         feat_size = x.shape[-2:]
         if self.flatten:
-            x = x.flatten(2).transpose(1, 2)  # NCHW -> NLC
+            x = x.flatten(start_dim=2).transpose(0, 2, 1)  # NCHW -> NLC
         elif self.output_fmt != Format.NCHW:
             x = nchw_to(x, self.output_fmt)
         x = self.norm(x)
