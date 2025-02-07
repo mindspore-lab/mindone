@@ -220,7 +220,7 @@ class Decoder(nn.Cell):
                 h = block.upsample(h)
 
         # end
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         h = self.norm_out(h)
         h = nonlinearity(h)
         h = self.conv_out(h)
@@ -236,7 +236,7 @@ class VectorQuantizer(nn.Cell):
         self.entropy_loss_ratio = entropy_loss_ratio
         self.l2_norm = l2_norm
         self.show_usage = show_usage
-        
+
         # TODO: re-write the cell to map panme from ms to torch: embedding_table -> weight.
         self.embedding = nn.Embedding(self.n_e, self.e_dim, embedding_table=Uniform(scale=1.0 / self.n_e))
         if self.l2_norm:
@@ -598,7 +598,7 @@ class VQModel(nn.Cell):
             # get net param dtype
             param_dtype = tuple(self.get_parameters())[0].dtype
             print('Get vq param dtype: ', param_dtype)
-            
+
             for pname in sd:
                 # print(pname, sd[pname].shape, sd[pname].dtype)
                 np_val = sd[pname].cpu().detach().float().numpy()
@@ -609,7 +609,7 @@ class VQModel(nn.Cell):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
-        
+
         param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
         print(
             "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
