@@ -246,7 +246,7 @@ class VectorQuantizer(nn.Cell):
     def construct(self, z):
         # reshape z -> (batch, height, width, channel) and flatten
         # "b c h w -> b h w c"
-        z = ops.transpose(z, (0, 2, 3, 1)) 
+        z = ops.transpose(z, (0, 2, 3, 1))
         z_flattened = z.view(-1, self.e_dim)
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
 
@@ -528,6 +528,33 @@ class VQModel(nn.Cell):
         quant, diff, _ = self.encode(input)
         dec = self.decode(quant)
         return dec, diff
+
+    def load_from_checkpoint(self, ckpt_path):
+        parameter_dict = dict()
+        if ckpt_path.endswith('.bin'):
+            import torch
+            model = torch.load('model.bin')
+            num_params = sum(p.numel() for p in model.parameters())
+            sd = model.parameters()
+            print(f"vq has {num_params} parameters")
+            # TODO: support bf16 param loading
+            param_dtype = ms.float32
+            for name, param in model.named_parameters():
+                print(name, param.size(), param.dtype)
+                np_val = param.data
+                parameter_dict[name] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+        elif ckpt_path.endswith('.ckpt'):
+            parameter_dict = ms.load_checkpoint(ckpt_path)
+        else:
+            raise ValueError("Unsupported checkpoint format")
+
+        param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
+        print(
+            "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+        )
+        print(
+            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+        )
 
 
 #################################################################################
