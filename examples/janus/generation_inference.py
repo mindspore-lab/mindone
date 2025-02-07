@@ -20,7 +20,8 @@ vl_gpt = vl_gpt.to(ms.bfloat16).cuda().eval()
 conversation = [
     {
         "role": "User",
-        "content": "A close-up high-contrast photo of Sydney Opera House sitting next to Eiffel tower, under a blue night sky of roiling energy, exploding yellow stars, and radiating swirls of blue.",
+        "content": "A close-up high-contrast photo of Sydney Opera House sitting next to Eiffel tower, "
+        "under a blue night sky of roiling energy, exploding yellow stars, and radiating swirls of blue.",
     },
     {"role": "Assistant", "content": ""},
 ]
@@ -57,6 +58,7 @@ def generate(
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32).cuda()
 
+    outputs = []
     for i in range(image_token_num_per_image):
         outputs = mmgpt.language_model.model(inputs_embeds=inputs_embeds, use_cache=True, past_key_values=outputs.past_key_values if i != 0 else None)
         hidden_states = outputs.last_hidden_state
