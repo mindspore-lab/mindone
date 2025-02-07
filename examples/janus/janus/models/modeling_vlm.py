@@ -25,13 +25,15 @@ from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
     LlamaConfig,
-    LlamaForCausalLM,
-    PreTrainedModel,
 )
+from mindone.transformers import (
+    LlamaForCausalLM,
+)
+from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 from transformers.configuration_utils import PretrainedConfig
 
-from janus.models.clip_encoder import CLIPVisionTower
-from janus.models.projector import MlpProjector
+# from janus.models.clip_encoder import CLIPVisionTower
+# from janus.models.projector import MlpProjector
 
 
 class vision_head(nn.Cell):

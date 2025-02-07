@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import nn, ops
 from mindspore import Tensor, Parameter
 import mindspore.ops.functional as F
 from mindspore.common.initializer import Uniform, Normal
