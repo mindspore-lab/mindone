@@ -39,7 +39,7 @@ class MlpProjector(nn.Cell):
             mlp_depth = cfg.get("depth", 1)
             modules = [nn.Linear(cfg.input_dim, cfg.n_embed)]
             for _ in range(1, mlp_depth):
-                modules.append(nn.GELU())
+                modules.append(nn.GELU(approximate=False))
                 modules.append(nn.Linear(cfg.n_embed, cfg.n_embed))
             modules = nn.SequentialCell(*modules)
 
@@ -50,7 +50,7 @@ class MlpProjector(nn.Cell):
 
             modules = []
             for _ in range(1, mlp_depth):
-                modules.append(nn.GELU())
+                modules.append(nn.GELU(approximate=False))
                 modules.append(nn.Linear(cfg.n_embed, cfg.n_embed))
             modules = nn.SequentialCell(*modules)
 

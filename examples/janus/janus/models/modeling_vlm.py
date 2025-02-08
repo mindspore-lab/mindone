@@ -39,11 +39,11 @@ from janus.models.projector import MlpProjector
 class vision_head(nn.Cell):
     def __init__(self, params):
         super().__init__()
-        self.output_mlp_projector = mint.nn.Linear(
+        self.output_mlp_projector = nn.Linear(
             params.n_embed, params.image_token_embed
         )
-        self.vision_activation = mint.nn.GELU()
-        self.vision_head = mint.nn.Linear(
+        self.vision_activation = nn.GELU(approximate=False)
+        self.vision_head = nn.Linear(
             params.image_token_embed, params.image_token_size
         )
 
@@ -214,7 +214,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         gen_head_cls = model_name_to_cls(gen_head_config.cls)
         self.gen_head = gen_head_cls(gen_head_config.params)
 
-        self.gen_embed = mint.nn.Embedding(
+        self.gen_embed = nn.Embedding(
             gen_vision_config.params.image_token_size, gen_vision_config.params.n_embed
         )
 

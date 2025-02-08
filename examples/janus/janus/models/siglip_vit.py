@@ -292,8 +292,6 @@ class VisionTransformer(nn.Cell):
         assert global_pool in ("", "avg", "token", "map")
         assert class_token or global_pool != "token"
         use_fc_norm = global_pool == "avg" if fc_norm is None else fc_norm
-        # norm_layer = get_norm_layer(norm_layer) or partial(nn.LayerNorm, eps=1e-6)
-        # act_layer = get_act_layer(act_layer) or nn.GELU
         norm_layer = partial(nn.LayerNorm, epsilon=1e-6)
         act_layer = nn.GELU
 
