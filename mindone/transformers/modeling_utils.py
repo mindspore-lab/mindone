@@ -173,7 +173,7 @@ def dtype_byte_size(dtype):
 
 
 def shard_checkpoint(
-    state_dict: Dict[str, ms.Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
+    state_dict: Dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
 ):
     """
     Splits a model state dictionary in sub-checkpoints so that the final size of each sub-checkpoint does not exceed a
@@ -192,7 +192,7 @@ def shard_checkpoint(
     </Tip>
 
     Args:
-        state_dict (`Dict[str, ms.Tensor]`): The state dictionary of a model to save.
+        state_dict (`Dict[str, Tensor]`): The state dictionary of a model to save.
         max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
             The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
             (like `"5MB"`).
@@ -587,11 +587,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
     _supports_quantized_cache = False
 
     @property
-    def dummy_inputs(self) -> Dict[str, ms.Tensor]:
+    def dummy_inputs(self) -> Dict[str, Tensor]:
         """
-        `Dict[str, ms.Tensor]`: Dummy inputs to do a forward pass in the network.
+        `Dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
         """
-        return {"input_ids": ms.tensor(DUMMY_INPUTS)}
+        return {"input_ids": Tensor(DUMMY_INPUTS)}
 
     @property
     def framework(self) -> str:
@@ -1077,7 +1077,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 Whether the process calling this is the main process or not. Useful when in distributed training like
                 TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
                 the main process to avoid race conditions.
-            state_dict (nested dictionary of `ms.Tensor`):
+            state_dict (nested dictionary of `Tensor`):
                 The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
                 save parts of the model or if special precautions need to be taken when recovering the state dictionary
                 of a model (like when using model parallelism).
@@ -1342,7 +1342,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (`Dict[str, ms.Tensor]`, *optional*):
+            state_dict (`Dict[str, Tensor]`, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -1537,8 +1537,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             else:
                 commit_hash = getattr(config, "_commit_hash", None)
 
-        # Always True: if is_peft_available():
-        _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+        try:
+            _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+        except Exception:
+            _adapter_model_path = None
+            adapter_kwargs = {}
 
         if _adapter_model_path is None:
             _adapter_model_path = find_adapter_config_file(
@@ -1870,7 +1873,20 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if from_pt:
             if not is_sharded and state_dict is None:
                 # Time to load the checkpoint
-                state_dict = load_state_dict(resolved_archive_file)
+                dir_split_tuple = os.path.split(resolved_archive_file)
+                if os.path.splitext(resolved_archive_file)[-1] == '.safetensors': 
+                    state_dict = load_state_dict(resolved_archive_file)
+                elif dir_split_tuple[-1] == 'pytorch_model.bin':
+                    # for .bin model convert to sf and cache it for future loading
+                    _sf_path = os.path.join(dir_split_tuple[0], "model.safetensors")
+                    if not os.path.exists(_sf_path): 
+                        import torch
+                        import numpy as np
+                        from safetensors.torch import save_file
+                        state_dict = torch.load(resolved_archive_file, weights_only=True)
+                        metadata = {"format": "pt"}
+                        save_file(state_dict, _sf_path, metadata=metadata)
+                    state_dict = load_state_dict(_sf_path)
 
             # set dtype to instantiate the model under:
             # 1. If mindspore_dtype is not None, we use that dtype
