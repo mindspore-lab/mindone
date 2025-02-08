@@ -68,12 +68,12 @@ class MlpProjector(nn.Cell):
         """
 
         Args:
-            x_or_tuple (Union[Tuple[ms.Tensor, ms.Tensor], ms.Tensor]:  if it is a tuple of torch.Tensor,
+            x_or_tuple (Union[Tuple[Tensor, Tensor], Tensor]:  if it is a tuple of Tensor,
                 then it comes from the hybrid vision encoder, and x = high_res_x, low_res_x);
                 otherwise it is the feature from the single vision encoder.
 
         Returns:
-            x (torch.Tensor): [b, s, c]
+            x (Tensor): [b, s, c]
         """
 
         if isinstance(x_or_tuple, tuple):
@@ -81,7 +81,7 @@ class MlpProjector(nn.Cell):
             high_x, low_x = x_or_tuple
             high_x = self.high_up_proj(high_x)
             low_x = self.low_up_proj(low_x)
-            x = ops.concat([high_x, low_x], axis=-1)
+            x = mint.concat([high_x, low_x], dim=-1)
         else:
             x = x_or_tuple
 
@@ -96,10 +96,10 @@ if __name__ == "__main__":
         depth=2,
         projector_type="low_high_hybrid_split_mlp_gelu",
     )
-    inputs = (ms.Tensor(np.random.normal(size=(4, 576, 1024)), dtype=ms.float32),
-              ms.Tensor(np.random.normal(size=(4, 576, 1024)), dtype=ms.float32))
+
+    inputs = (ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)),
+         ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)))
 
     m = MlpProjector(cfg)
     out = m(inputs)
     print(out.shape)
-

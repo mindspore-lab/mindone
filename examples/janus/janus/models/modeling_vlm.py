@@ -18,8 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import mindspore as ms
-from mindspore import mint, nn
-from mindspore import Tensor
+from mindspore import mint, nn, Tensor
 from attrdict import AttrDict
 from einops import rearrange
 from transformers import (
@@ -33,8 +32,8 @@ from mindone.transformers import (
 from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 from transformers.configuration_utils import PretrainedConfig
 
-# from janus.models.clip_encoder import CLIPVisionTower
-# from janus.models.projector import MlpProjector
+from janus.models.clip_encoder import CLIPVisionTower
+from janus.models.projector import MlpProjector
 
 
 class vision_head(nn.Cell):
@@ -48,7 +47,7 @@ class vision_head(nn.Cell):
             params.image_token_embed, params.image_token_size
         )
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.output_mlp_projector(x)
         x = self.vision_activation(x)
         x = self.vision_head(x)
@@ -233,7 +232,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         """
 
         Args:
-            input_ids (ms.int64): [b, T]
+            input_ids (Tensor): [b, T]
             pixel_values (ms.float32):   [b, n_images, 3, h, w]
             images_seq_mask (ms.BoolTensor): [b, T]
             images_emb_mask (ms.BoolTensor): [b, n_images, n_image_tokens]
