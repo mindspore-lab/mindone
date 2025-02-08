@@ -41,8 +41,8 @@ def generate(
     for i in range(image_token_num_per_image):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds, 
-            use_cache=True, 
-            past_key_values=outputs.past_key_values if i != 0 else None,
+            use_cache=False, # TODO support kv cache
+            past_key_values=None,
             return_dict=True
         )
         hidden_states = outputs.last_hidden_state
@@ -71,7 +71,7 @@ def generate(
 
     os.makedirs('generated_samples', exist_ok=True)
     for i in range(parallel_size):
-        save_path = os.path.join('generated_samples', "img_{}.jpg".format(i))
+        save_path = os.path.join('outputs/generated_samples', "img_{}.jpg".format(i))
         PIL.Image.fromarray(visual_img[i]).save(save_path)
 
 
