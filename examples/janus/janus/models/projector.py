@@ -96,7 +96,6 @@ if __name__ == "__main__":
         depth=2,
         projector_type="low_high_hybrid_split_mlp_gelu",
     )
-
     inputs = (ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)),
          ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)))
 

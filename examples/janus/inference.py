@@ -1,11 +1,16 @@
 import mindspore as ms
 from transformers import AutoModelForCausalLM
 
+import os
+import sys
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
+
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images
 
 # specify the path to the model
-model_path = "deepseek-ai/Janus-1.3B"
+model_path = "/mnt/disk2/fredhong/hf_ckpts/Janus-Pro-1B"
 vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(model_path)
 tokenizer = vl_chat_processor.tokenizer
 
@@ -27,7 +32,7 @@ conversation = [
 pil_images = load_pil_images(conversation)
 prepare_inputs = vl_chat_processor(
     conversations=conversation, images=pil_images, force_batchify=True
-).to(vl_gpt.device)
+)
 
 # # run image encoder to get the image embeddings
 inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
@@ -41,7 +46,7 @@ outputs = vl_gpt.language_model.generate(
     eos_token_id=tokenizer.eos_token_id,
     max_new_tokens=512,
     do_sample=False,
-    use_cache=True,
+    use_cache=False,
 )
 
 answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)

@@ -11,6 +11,7 @@ from janus.models import MultiModalityCausalLM, VLChatProcessor
 import numpy as np
 import os
 import PIL.Image
+from tqdm import tqdm
 
 
 def generate(
@@ -38,11 +39,14 @@ def generate(
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
     outputs = []
-    for i in range(image_token_num_per_image):
-        outputs = mmgpt.language_model.model(inputs_embeds=inputs_embeds, use_cache=True, past_key_values=outputs.past_key_values if i != 0 else None)
-        # hidden_states = outputs.last_hidden_state
-        hidden_states = outputs[0]
-        # FIXME the above output from LlamaForCausalLM discprency
+    for i in tqdm(range(image_token_num_per_image)):
+        outputs = mmgpt.language_model.model(
+            inputs_embeds=inputs_embeds, 
+            use_cache=False, # TODO support kv cache
+            past_key_values=None,
+            return_dict=True
+        )
+        hidden_states = outputs.last_hidden_state
         
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
         logit_cond = logits[0::2, :]
@@ -68,7 +72,7 @@ def generate(
 
     os.makedirs('generated_samples', exist_ok=True)
     for i in range(parallel_size):
-        save_path = os.path.join('generated_samples', "img_{}.jpg".format(i))
+        save_path = os.path.join('outputs/generated_samples', "img_{}.jpg".format(i))
         PIL.Image.fromarray(visual_img[i]).save(save_path)
 
 
