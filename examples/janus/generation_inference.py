@@ -39,10 +39,13 @@ def generate(
 
     outputs = []
     for i in range(image_token_num_per_image):
-        outputs = mmgpt.language_model.model(inputs_embeds=inputs_embeds, use_cache=True, past_key_values=outputs.past_key_values if i != 0 else None)
-        # hidden_states = outputs.last_hidden_state
-        hidden_states = outputs[0]
-        # FIXME the above output from LlamaForCausalLM discprency
+        outputs = mmgpt.language_model.model(
+            inputs_embeds=inputs_embeds, 
+            use_cache=True, 
+            past_key_values=outputs.past_key_values if i != 0 else None,
+            return_dict=True
+        )
+        hidden_states = outputs.last_hidden_state
         
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
         logit_cond = logits[0::2, :]
