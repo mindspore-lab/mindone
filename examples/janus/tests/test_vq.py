@@ -59,7 +59,7 @@ def test_decode(pt_ckpt=None, pt_np=None, dtype=ms.float32, visualize=False):
         set_model_param_dtype(vq, dtype=dtype, keep_norm_fp32=False)
     if pt_ckpt:
         vq.load_from_checkpoint(pt_ckpt)
-    
+
     if decode_from_code:
         out = vq.decode_code(Tensor(code).to(ms.int32), shape=(B, C, H, W))
     else:
@@ -74,7 +74,7 @@ def test_decode(pt_ckpt=None, pt_np=None, dtype=ms.float32, visualize=False):
         print('pt min max: ', pt_out.min(), pt_out.max())
         diff = _diff_res(out.asnumpy(), pt_out)
         print(diff)
-    
+
     if visualize:
         dec = out
         parallel_size, c, img_size, _ = dec.shape
