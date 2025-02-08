@@ -35,9 +35,11 @@ from typing import (
     Union,
 )
 
+import numpy as np
 import mindspore as ms
-from mindspore import mint, nn, Tensor, Parameter
+from mindspore import mint, nn, ops, Tensor, Parameter
 from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
+from mindone.diffusers.models.normalization import LayerNorm
 
 from .timm import (
     AttentionPoolLatent,
@@ -71,12 +73,14 @@ def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
         >>> nn.init.trunc_normal_(w)
     """
 
-    with ms._no_grad():
-        dtype = tensor.dtype
-        tensor_fp32 = tensor.float()
-        tensor_fp32 = _no_grad_trunc_normal_(tensor_fp32, mean, std, a, b)
-        tensor_dtype = tensor_fp32.to(dtype=dtype)
-        tensor.copy_(tensor_dtype)
+    # with ms._no_grad(): # dosn't support graph mode
+    dtype = tensor.dtype
+    tensor_fp32 = tensor.float()
+    tensor_fp32 = _no_grad_trunc_normal_(tensor_fp32, mean, std, a, b)
+    tensor_dtype = tensor_fp32.to(dtype=dtype)
+    tensor.copy_(tensor_dtype)
+
+    ops.stop_gradient(tensor)
 
 
 def init_weights(self):
@@ -87,7 +91,7 @@ def init_weights(self):
 
 def init_weights_vit_timm(module: nn.Cell, name: str = "") -> None:
     """ViT weight initialization, original timm impl (for reproducibility)"""
-    if isinstance(module, nn.Linear):
+    if isinstance(module, mint.nn.Linear):
         trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
             nn.init.zeros_(module.bias)
@@ -106,7 +110,7 @@ class Attention(nn.Cell):
         qk_norm: bool = False,
         attn_drop: float = 0.0,
         proj_drop: float = 0.0,
-        norm_layer: nn.Cell = nn.LayerNorm,
+        norm_layer: nn.Cell = LayerNorm,
     ) -> None:
         super().__init__()
         assert dim % num_heads == 0, "dim should be divisible by num_heads"
@@ -116,11 +120,11 @@ class Attention(nn.Cell):
         # self.fused_attn = use_fused_attn()
         self.fused_attn = True
 
-        self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
+        self.qkv = mint.nn.Linear(dim, dim * 3, bias=qkv_bias)
         self.q_norm = norm_layer([self.head_dim]) if qk_norm else nn.Identity()
         self.k_norm = norm_layer([self.head_dim]) if qk_norm else nn.Identity()
         self.attn_drop = nn.Dropout(p=attn_drop)
-        self.proj = nn.Linear(dim, dim)
+        self.proj = mint.nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(p=proj_drop) if proj_drop > 0.0 else nn.Identity()
 
     def construct(self, x: Tensor) -> Tensor:
@@ -180,7 +184,7 @@ class Block(nn.Cell):
         init_values: Optional[float] = None,
         drop_path: float = 0.0,
         act_layer: nn.Cell = nn.GELU,
-        norm_layer: nn.Cell = nn.LayerNorm,
+        norm_layer: nn.Cell = LayerNorm,
         mlp_layer: nn.Cell = Mlp,
     ) -> None:
         super().__init__()
@@ -294,8 +298,8 @@ class VisionTransformer(nn.Cell):
         use_fc_norm = global_pool == "avg" if fc_norm is None else fc_norm
         # norm_layer = get_norm_layer(norm_layer) or partial(nn.LayerNorm, eps=1e-6)
         # act_layer = get_act_layer(act_layer) or nn.GELU
-        norm_layer = partial(nn.LayerNorm, epsilon=1e-6)
-        act_layer = nn.GELU
+        norm_layer = partial(LayerNorm, eps=1e-6)
+        act_layer = partial(nn.GELU, approximate=False)
 
         self.num_classes = num_classes
         self.global_pool = global_pool
@@ -337,7 +341,8 @@ class VisionTransformer(nn.Cell):
         embed_len = (
             num_patches if no_embed_class else num_patches + self.num_prefix_tokens
         )
-        self.pos_embed = Parameter(mint.randn(1, embed_len, embed_dim) * 0.02)
+        # self.pos_embed = Parameter(mint.randn(1, embed_len, embed_dim) * 0.02) # doesn't support graph mode
+        self.pos_embed = Parameter(ms.Tensor(np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32) * 0.02))
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
         if patch_drop_rate > 0:
             self.patch_drop = PatchDropout(
@@ -386,7 +391,7 @@ class VisionTransformer(nn.Cell):
         self.fc_norm = norm_layer([embed_dim]) if use_fc_norm else nn.Identity()
         self.head_drop = nn.Dropout(p=drop_rate)
         self.head = (
-            nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+            mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         )
 
         # if weight_init != "skip":
@@ -477,7 +482,7 @@ class VisionTransformer(nn.Cell):
                 self.attn_pool = None  # remove attention pooling
             self.global_pool = global_pool
         self.head = (
-            nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+            mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
         )
 
     def _pos_embed(self, x: Tensor) -> Tensor:

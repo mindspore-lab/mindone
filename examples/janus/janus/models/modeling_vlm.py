@@ -41,7 +41,7 @@ class vision_head(nn.Cell):
         self.output_mlp_projector = mint.nn.Linear(
             params.n_embed, params.image_token_embed
         )
-        self.vision_activation = mint.nn.GELU()
+        self.vision_activation = nn.GELU(approximate=False)
         self.vision_head = mint.nn.Linear(
             params.image_token_embed, params.image_token_size
         )
@@ -187,6 +187,8 @@ class MultiModalityPreTrainedModel(PreTrainedModel):
     base_model_prefix = "multi_modality"
     _no_split_modules = []
     _skip_keys_device_placement = "past_key_values"
+    # since LlamaPreTrainedModel support FA
+    _supports_flash_attn_2 = True
 
 
 class MultiModalityCausalLM(MultiModalityPreTrainedModel):
@@ -218,6 +220,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         )
 
         language_config = config.language_config
+        # FIXME: allow set attn impl in from_pretrained, or  default FA (current default eager)
+        # language_config._attn_implementation = "flash_attention_2"
+        # print("Set _attn_implementation = \"flash_attention_2\"")
         self.language_model = LlamaForCausalLM(language_config)
 
     def prepare_inputs_embeds(
