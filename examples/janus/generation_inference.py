@@ -11,6 +11,7 @@ from janus.models import MultiModalityCausalLM, VLChatProcessor
 import numpy as np
 import os
 import PIL.Image
+from tqdm import tqdm
 
 
 def generate(
@@ -38,7 +39,7 @@ def generate(
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
     outputs = []
-    for i in range(image_token_num_per_image):
+    for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds, 
             use_cache=False, # TODO support kv cache
