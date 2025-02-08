@@ -19,6 +19,7 @@
 
 import mindspore as ms
 from mindspore import mint, nn
+from mindspore import Tensor
 from attrdict import AttrDict
 from einops import rearrange
 from transformers import (
@@ -223,10 +224,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
     def prepare_inputs_embeds(
         self,
-        input_ids: ms.int64,
-        pixel_values: ms.float32,
-        images_seq_mask: ms.int64,
-        images_emb_mask: ms.int64,
+        input_ids: Tensor,
+        pixel_values: Tensor,
+        images_seq_mask: Tensor,
+        images_emb_mask: Tensor,
         **kwargs,
     ):
         """
@@ -262,7 +263,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         return inputs_embeds
 
-    def prepare_gen_img_embeds(self, image_ids: ms.int64):
+    def prepare_gen_img_embeds(self, image_ids: Tensor):
         return self.gen_aligner(self.gen_embed(image_ids))
 
 
