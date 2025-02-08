@@ -18,7 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, Tensor
 from attrdict import AttrDict
 from einops import rearrange
 from transformers import (
@@ -47,7 +47,7 @@ class vision_head(nn.Cell):
             params.image_token_embed, params.image_token_size
         )
 
-    def forward(self, x):
+    def construct(self, x):
         x = self.output_mlp_projector(x)
         x = self.vision_activation(x)
         x = self.vision_head(x)
@@ -223,16 +223,16 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
     def prepare_inputs_embeds(
         self,
-        input_ids: ms.int64,
-        pixel_values: ms.float32,
-        images_seq_mask: ms.int64,
-        images_emb_mask: ms.int64,
+        input_ids: Tensor,
+        pixel_values: Tensor,
+        images_seq_mask: Tensor,
+        images_emb_mask: Tensor,
         **kwargs,
     ):
         """
 
         Args:
-            input_ids (ms.int64): [b, T]
+            input_ids (Tensor): [b, T]
             pixel_values (ms.float32):   [b, n_images, 3, h, w]
             images_seq_mask (ms.BoolTensor): [b, T]
             images_emb_mask (ms.BoolTensor): [b, n_images, n_image_tokens]
@@ -262,7 +262,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         return inputs_embeds
 
-    def prepare_gen_img_embeds(self, image_ids: ms.int64):
+    def prepare_gen_img_embeds(self, image_ids: Tensor):
         return self.gen_aligner(self.gen_embed(image_ids))
 
 

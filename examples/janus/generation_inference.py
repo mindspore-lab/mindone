@@ -40,7 +40,9 @@ def generate(
     outputs = []
     for i in range(image_token_num_per_image):
         outputs = mmgpt.language_model.model(inputs_embeds=inputs_embeds, use_cache=True, past_key_values=outputs.past_key_values if i != 0 else None)
-        hidden_states = outputs.last_hidden_state
+        # hidden_states = outputs.last_hidden_state
+        hidden_states = outputs[0]
+        # FIXME the above output from LlamaForCausalLM discprency
         
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
         logit_cond = logits[0::2, :]
@@ -50,7 +52,7 @@ def generate(
         probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
 
         next_token = mint.multinomial(probs, num_samples=1)
-        generated_tokens[:, i] = next_token.squeeze(dim=-1)
+        generated_tokens[:, i] = next_token.squeeze(axis=-1)
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
