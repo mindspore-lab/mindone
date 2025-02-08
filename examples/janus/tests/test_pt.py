@@ -8,6 +8,9 @@ from torch import Tensor
 from easydict import EasyDict as edict
 
 from janus.models.vq_model import VQ_16
+from janus.models.processing_vlm import VLChatProcessor
+from janus.utils.io import load_pil_images
+
 
 np.random.seed(42)
 torch.manual_seed(42)
@@ -46,5 +49,32 @@ def test_decode(pt_ckpt=None, pt_np=None, dtype=torch.float32):
     return out.detach().cpu().numpy()
 
 
+def test_vlm_proc():
+    # specify the path to the model
+    model_path = "ckpts/Janus-Pro-1B"
+    vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(model_path)
+    tokenizer = vl_chat_processor.tokenizer
+
+    question = 'explain this meme'
+    image = 'images/doge.png'
+
+    conversation = [
+        {
+            "role": "<|User|>",
+            "content": f"<image_placeholder>\n{question}",
+            "images": [image],
+        },
+        {"role": "<|Assistant|>", "content": ""},
+    ]
+    pil_images = load_pil_images(conversation)
+
+    prepare_inputs = vl_chat_processor(
+        conversations=conversation, images=pil_images, force_batchify=True
+    ) # .to(vl_gpt.device)
+
+    print(prepare_inputs)
+
+
 if __name__ == "__main__":
-    test_decode("ckpts/Janus-Pro-1B/pytorch_model.bin")
+    # test_decode("ckpts/Janus-Pro-1B/pytorch_model.bin")
+    test_vlm_proc()
