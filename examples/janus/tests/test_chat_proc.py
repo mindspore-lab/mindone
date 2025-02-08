@@ -31,8 +31,9 @@ def test_chat_proc():
     )
 
     print(prepare_inputs)
+    print(prepare_inputs.pixel_values)
 
 
 if __name__ == '__main__':
-    ms.set_context(mode=1)
+    ms.set_context(mode=0)
     test_chat_proc()

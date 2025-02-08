@@ -21,9 +21,6 @@ from typing import List, Tuple, Union
 
 import numpy as np
 import mindspore as ms
-# TODO: use cv2/pil transform instead of torchvision
-import torchvision
-import torchvision.transforms.functional
 from PIL import Image
 # TODO: replace with mindone.transformers
 from transformers import AutoImageProcessor, PretrainedConfig
@@ -148,12 +145,19 @@ class VLMImageProcessor(BaseImageProcessor):
             print(f"orig size = {pil_img.size}, new size = {size}")
             raise ValueError("Invalid size!")
 
-        pil_img = torchvision.transforms.functional.resize(
-            pil_img,
-            size,
-            interpolation=torchvision.transforms.functional.InterpolationMode.BICUBIC,
-            antialias=True,
-        )
+        backend = 'pil'
+        if backend == 'torchvision':
+            import torchvision
+            import torchvision.transforms.functional
+            pil_img = torchvision.transforms.functional.resize(
+                pil_img,
+                size,
+                interpolation=torchvision.transforms.functional.InterpolationMode.BICUBIC,
+                antialias=True,
+            )
+        else:
+            pil_img = pil_img.resize(size, Image.Resampling.LANCZOS)
+            # pil_img = pil_img.resize(size, Image.Resampling.BICUBIC)
 
         pil_img = expand2square(pil_img, self.background_color)
         x = to_numpy_array(pil_img)
