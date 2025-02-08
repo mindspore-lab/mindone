@@ -20,7 +20,6 @@
 import mindspore as ms
 from mindspore import mint, nn, Tensor
 from attrdict import AttrDict
-from einops import rearrange
 from transformers import (
     AutoConfig,
     AutoModelForCausalLM,
@@ -244,14 +243,14 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         """
 
         bs, n = pixel_values.shape[0:2]
-        images = rearrange(pixel_values, "b n c h w -> (b n) c h w")
+        images = pixel_values.flatten(start_dim=0, end_dim=1)
         # [b x n, T2, D]
         images_embeds = self.aligner(self.vision_model(images))
 
         # [b x n, T2, D] -> [b, n x T2, D]
-        images_embeds = rearrange(images_embeds, "(b n) t d -> b (n t) d", b=bs, n=n)
+        images_embeds = images_embeds.reshape(bs, n, images_embeds.shape[-2], images_embeds.shape[-1])
         # [b, n, T2] -> [b, n x T2]
-        images_emb_mask = rearrange(images_emb_mask, "b n t -> b (n t)")
+        images_emb_mask = images_embeds.flatten(start_dim=1, end_dim=2)
 
         # [b, T, D]
         input_ids[input_ids < 0] = 0  # ignore the image embeddings
