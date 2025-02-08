@@ -19,7 +19,9 @@
 
 from typing import Tuple, Union
 
-from mindspore import Tensor, nn, mint
+import mindspore as ms
+from mindspore import mint, ops, nn
+from mindspore import Tensor
 from attrdict import AttrDict
 
 
@@ -33,25 +35,26 @@ class MlpProjector(nn.Cell):
             modules = nn.Identity()
 
         elif cfg.projector_type == "linear":
-            modules = nn.Linear(cfg.input_dim, cfg.n_embed)
+            modules = mint.nn.Linear(cfg.input_dim, cfg.n_embed)
 
         elif cfg.projector_type == "mlp_gelu":
+            # default used
             mlp_depth = cfg.get("depth", 1)
-            modules = [nn.Linear(cfg.input_dim, cfg.n_embed)]
+            modules = [mint.nn.Linear(cfg.input_dim, cfg.n_embed)]
             for _ in range(1, mlp_depth):
                 modules.append(nn.GELU(approximate=False))
-                modules.append(nn.Linear(cfg.n_embed, cfg.n_embed))
+                modules.append(mint.nn.Linear(cfg.n_embed, cfg.n_embed))
             modules = nn.SequentialCell(*modules)
 
         elif cfg.projector_type == "low_high_hybrid_split_mlp_gelu":
             mlp_depth = cfg.get("depth", 1)
-            self.high_up_proj = nn.Linear(cfg.input_dim, cfg.n_embed // 2)
-            self.low_up_proj = nn.Linear(cfg.input_dim, cfg.n_embed // 2)
+            self.high_up_proj = mint.nn.Linear(cfg.input_dim, cfg.n_embed // 2)
+            self.low_up_proj = mint.nn.Linear(cfg.input_dim, cfg.n_embed // 2)
 
             modules = []
             for _ in range(1, mlp_depth):
                 modules.append(nn.GELU(approximate=False))
-                modules.append(nn.Linear(cfg.n_embed, cfg.n_embed))
+                modules.append(mint.nn.Linear(cfg.n_embed, cfg.n_embed))
             modules = nn.SequentialCell(*modules)
 
         else:
@@ -86,13 +89,15 @@ class MlpProjector(nn.Cell):
 
 
 if __name__ == "__main__":
+    import numpy as np
     cfg = AttrDict(
         input_dim=1024,
         n_embed=2048,
         depth=2,
         projector_type="low_high_hybrid_split_mlp_gelu",
     )
-    inputs = (mint.rand(4, 576, 1024), mint.rand(4, 576, 1024))
+    inputs = (ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)),
+         ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)))
 
     m = MlpProjector(cfg)
     out = m(inputs)

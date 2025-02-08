@@ -18,7 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import mindspore as ms
-from mindspore import mint, nn, Tensor
+from mindspore import mint, ops, nn, Tensor
 from attrdict import AttrDict
 from transformers import (
     AutoConfig,
@@ -42,7 +42,7 @@ class vision_head(nn.Cell):
             params.n_embed, params.image_token_embed
         )
         self.vision_activation = nn.GELU(approximate=False)
-        self.vision_head = nn.Linear(
+        self.vision_head = mint.nn.Linear(
             params.image_token_embed, params.image_token_size
         )
 
@@ -187,6 +187,8 @@ class MultiModalityPreTrainedModel(PreTrainedModel):
     base_model_prefix = "multi_modality"
     _no_split_modules = []
     _skip_keys_device_placement = "past_key_values"
+    # since LlamaPreTrainedModel support FA
+    _supports_flash_attn_2 = True
 
 
 class MultiModalityCausalLM(MultiModalityPreTrainedModel):
@@ -218,6 +220,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         )
 
         language_config = config.language_config
+        # FIXME: allow set attn impl in from_pretrained, or  default FA (current default eager)
+        # language_config._attn_implementation = "flash_attention_2"
+        # print("Set _attn_implementation = \"flash_attention_2\"")
         self.language_model = LlamaForCausalLM(language_config)
 
     def prepare_inputs_embeds(
@@ -242,15 +247,23 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             input_embeds (ms.Tensor): [b, T, D]
         """
 
-        bs, n = pixel_values.shape[0:2]
-        images = pixel_values.flatten(start_dim=0, end_dim=1)
+
+        bs, n, c, h, w = pixel_values.shape
+        images = ops.reshape(pixel_values, (bs*n, c, h, w))
+
         # [b x n, T2, D]
         images_embeds = self.aligner(self.vision_model(images))
 
         # [b x n, T2, D] -> [b, n x T2, D]
-        images_embeds = images_embeds.reshape(bs, n, images_embeds.shape[-2], images_embeds.shape[-1])
+        # (b n) t d -> b n t d -> b (n t) d
+        bn, T, D = images_embeds.shape
+        images_embeds = ops.reshape(images_embeds, (bs, n, T, D))
+        images_embeds = ops.reshape(images_embeds, (bs, n*T, D))
+
         # [b, n, T2] -> [b, n x T2]
-        images_emb_mask = images_embeds.flatten(start_dim=1, end_dim=2)
+        # images_emb_mask = rearrange(images_emb_mask, "b n t -> b (n t)")
+        _, Nm, Tm = images_emb_mask.shape
+        images_emb_mask = ops.reshape(images_emb_mask, (bs, Nm * Tm)) 
 
         # [b, T, D]
         input_ids[input_ids < 0] = 0  # ignore the image embeddings

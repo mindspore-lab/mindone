@@ -673,7 +673,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 'future release. Please use `attn_implementation="flash_attention_2"` instead.'
             )
             config._attn_implementation = "flash_attention_2"
-
         if config._attn_implementation == "flash_attention_2":
             cls._check_and_enable_flash_attn_2(
                 config,

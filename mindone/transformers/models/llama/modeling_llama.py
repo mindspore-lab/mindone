@@ -71,7 +71,8 @@ class LlamaRotaryEmbedding(nn.Cell):
         self.max_position_embeddings = max_position_embeddings
         self.base = base
         inv_freq = 1.0 / (self.base ** (np.arange(0, self.dim, 2).astype(np.float32) / self.dim))
-        self.inv_freq = Parameter(Tensor(inv_freq, ms.float32), requires_grad=False, name="inv_freq_buffer")
+        # self.inv_freq = Parameter(Tensor(inv_freq, ms.float32), requires_grad=False, name="inv_freq_buffer")
+        self.inv_freq = Tensor(inv_freq, ms.float32)
         # For BC we register cos and sin cached
         self.max_seq_len_cached = max_position_embeddings
 
@@ -475,7 +476,6 @@ class LlamaDecoderLayer(nn.Cell):
     def __init__(self, config: LlamaConfig, layer_idx: int):
         super().__init__()
         self.hidden_size = config.hidden_size
-
         self.self_attn = LLAMA_ATTENTION_CLASSES[config._attn_implementation](config=config, layer_idx=layer_idx)
 
         self.mlp = LlamaMLP(config)

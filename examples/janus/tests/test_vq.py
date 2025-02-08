@@ -20,7 +20,6 @@ def _diff_res(ms_val, pt_val, eps=1e-8):
 
     return dict(mae=mae, max_ae=max_ae, mre=mre, max_re=max_re)
 
-
 def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
     if model is not None:
         assert isinstance(model, ms.nn.Cell)
