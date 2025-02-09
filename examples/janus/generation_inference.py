@@ -1,5 +1,5 @@
 import mindspore as ms
-from mindspore import mint, Tensor
+from mindspore import mint, Tensor, ops
 from transformers import AutoModelForCausalLM
 
 import os
@@ -7,7 +7,9 @@ import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
 
+from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
+from janus.utils.io import set_model_param_dtype
 import numpy as np
 import os
 import PIL.Image
@@ -26,7 +28,7 @@ def generate(
     patch_size: int = 16,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
-    input_ids = Tensor(input_ids, ms.int64)
+    input_ids = Tensor(input_ids, ms.int32)
 
     tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int32)
     for i in range(parallel_size*2):
@@ -36,14 +38,16 @@ def generate(
 
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens)
 
+    from transformers import LlamaForCausalLM
+
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
     outputs = []
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds, 
-            use_cache=False, # TODO support kv cache
-            past_key_values=None,
+            use_cache=True, # TODO support kv cache
+            past_key_values=outputs.past_key_values if i != 0 else None,
             return_dict=True
         )
         hidden_states = outputs.last_hidden_state
@@ -55,8 +59,8 @@ def generate(
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
 
-        next_token = mint.multinomial(probs, num_samples=1)
-        generated_tokens[:, i] = next_token.squeeze(axis=-1)
+        next_token = mint.multinomial(probs, num_samples=1).squeeze(-1)
+        generated_tokens[:, i] = next_token
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
@@ -70,7 +74,7 @@ def generate(
     visual_img = np.zeros((parallel_size, img_size, img_size, 3), dtype=np.uint8)
     visual_img[:, :, :] = dec
 
-    os.makedirs('generated_samples', exist_ok=True)
+    os.makedirs('outputs/generated_samples', exist_ok=True)
     for i in range(parallel_size):
         save_path = os.path.join('outputs/generated_samples', "img_{}.jpg".format(i))
         PIL.Image.fromarray(visual_img[i]).save(save_path)
@@ -78,6 +82,7 @@ def generate(
 
 if __name__ == "__main__":
     ms.set_context(device_id=6, mode=1, pynative_synchronize=True)
+    set_random_seed(42)
     
     # specify the path to the model
     model_path = "/mnt/disk2/fredhong/hf_ckpts/Janus-Pro-1B"
@@ -85,7 +90,8 @@ if __name__ == "__main__":
     tokenizer = vl_chat_processor.tokenizer
 
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(model_path)
-    # vl_gpt = vl_gpt.to(ms.bfloat16)
+    vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
+    vl_gpt.set_train(False)
 
     # conversation = [
     #     {
@@ -115,4 +121,5 @@ if __name__ == "__main__":
         vl_gpt,
         vl_chat_processor,
         prompt,
+        parallel_size=1
     )

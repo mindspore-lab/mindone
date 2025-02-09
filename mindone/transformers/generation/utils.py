@@ -1677,7 +1677,7 @@ class GenerationMixin:
 
             print(
                 f"======> sampling, step: {step}, sample outputs shape: "
-                f"{[o.shape for o in outputs if isinstance(o, ms.Tensor)]}, time cost: {time.time() - s_time:.3f}s"
+                f"{[o.shape for o in outputs.values() if isinstance(o, ms.Tensor)]}, time cost: {time.time() - s_time:.3f}s"
             )
             s_time = time.time()
             step += 1

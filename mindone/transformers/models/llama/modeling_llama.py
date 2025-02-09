@@ -28,7 +28,7 @@ from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 
 from ...activations import ACT2FN
-from ...cache_utils import get_max_length, get_seq_length, update
+from ...cache_utils import get_max_length, get_seq_length, update, reset, init_static_cache
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
@@ -770,6 +770,32 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
+
+        # FIXME setup static cache, but self(input_embeds) output tokens still not correct
+        if use_cache and (past_key_values is None or past_key_values[0] is None):
+            bs, cache_len = inputs_embeds.shape[:2]
+            max_batch_size, max_cache_len, cache_dtype = (
+                getattr(self.config, "num_beams", 1) * bs,
+                cache_len,
+                self.dtype,
+            )
+            need_new_cache = (
+                past_key_values is None
+                or (not isinstance(past_key_values, tuple))
+                or (not isinstance(past_key_values[0][0], ms.Tensor))
+                or past_key_values[0][0].shape[0] != max_batch_size
+                or past_key_values[0][0].shape[2] < max_cache_len
+            )
+
+            if need_new_cache:
+                past_key_values = init_static_cache(
+                    config=self.config,
+                    max_batch_size=max_batch_size,
+                    max_cache_len=max_cache_len,
+                    dtype=cache_dtype,
+                )
+            else:
+                past_key_values = reset(past_key_values)
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0

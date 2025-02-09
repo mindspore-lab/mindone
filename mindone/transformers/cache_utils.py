@@ -21,14 +21,14 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
         config.num_attention_heads if config.num_key_value_heads is None else config.num_key_value_heads
     )
 
-    key_value_cache: Tuple[Tuple[ms.Tensor, ms.Tensor]] = ()
+    key_value_cache: Tuple[Tuple[ms.Tensor, ms.Tensor]] = []
     cache_shape = (max_batch_size, num_key_value_heads, max_cache_len, head_dim)
     for _layer_index in range(config.num_hidden_layers):
         # Note: `mark_static_address` is used to tag the cache as an fixed data pointer, preventing cuda graph
         # breaks when updating the cache.
         new_layer_key_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
         new_layer_value_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
-        key_value_cache += ((new_layer_key_cache, new_layer_value_cache),)
+        key_value_cache += [(new_layer_key_cache, new_layer_value_cache)]
 
     return key_value_cache
 

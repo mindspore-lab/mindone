@@ -46,8 +46,8 @@ outputs = vl_gpt.language_model.generate(
     eos_token_id=tokenizer.eos_token_id,
     max_new_tokens=512,
     do_sample=False,
-    use_cache=False,
+    use_cache=True,
 )
 
-answer = tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
+answer = tokenizer.decode(outputs[0].asnumpy().tolist(), skip_special_tokens=True)
 print(f"{prepare_inputs['sft_format'][0]}", answer)
