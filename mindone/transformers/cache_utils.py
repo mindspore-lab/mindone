@@ -280,6 +280,7 @@ class StaticCache(Cache):
             ops.assign(self.key_cache[layer_idx], ms.Tensor(0.0))
             ops.assign(self.value_cache[layer_idx], ms.Tensor(0.0))
 
+
 class DynamicCache(Cache):
     """
     A cache that grows dynamically as more tokens are generated. This is the default for generative models.
@@ -396,6 +397,9 @@ class DynamicCache(Cache):
         layer_seq_length = self.key_cache[layer_idx].shape[-2] if not is_empty_layer else 0
         return layer_seq_length
 
+    def get_max_length(self) -> Optional[int]:
+        return self.get_max_cache_shape()
+
     def get_max_cache_shape(self) -> Optional[int]:
         """Returns the maximum sequence length of the cache object. DynamicCache does not have a maximum length."""
         return None
@@ -409,9 +413,7 @@ class DynamicCache(Cache):
         return legacy_cache
 
     @classmethod
-    def from_legacy_cache(
-        cls, past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
-    ) -> "DynamicCache":
+    def from_legacy_cache(cls, past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None) -> "DynamicCache":
         """Converts a cache in the legacy cache format into an equivalent `DynamicCache`. Used for
         backward compatibility."""
         cache = cls()
@@ -437,9 +439,7 @@ class DynamicCache(Cache):
                 self.key_cache[idx] = self.key_cache[idx][..., :max_length, :]
                 self.value_cache[idx] = self.value_cache[idx][..., :max_length, :]
 
-    def batch_split(
-        self, full_batch_size: int, split_size: int
-    ) -> List["DynamicCache"]:
+    def batch_split(self, full_batch_size: int, split_size: int) -> List["DynamicCache"]:
         """Split the current instance into a list of `DynamicCache` by the batch size. This will be used by
         `_split_model_inputs()` in `generation.utils`"""
         out = []
@@ -476,3 +476,8 @@ class DynamicCache(Cache):
         for layer_idx in range(len(self)):
             self.key_cache[layer_idx] = self.key_cache[layer_idx][indices, ...]
             self.value_cache[layer_idx] = self.value_cache[layer_idx][indices, ...]
+
+
+class EncoderDecoderCache(Cache):
+    def __init__(self):
+        raise NotImplementedError
