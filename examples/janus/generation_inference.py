@@ -92,16 +92,18 @@ def generate(
     for i in range(parallel_size):
         save_path = os.path.join('generated_samples', "img_{}.jpg".format(i))
         PIL.Image.fromarray(visual_img[i]).save(save_path)
-        print('images saved in', save_path)
+        print('Image saved in', save_path)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--use_cache", type=str2bool, default=False, help="use kv cache or not")
-    parser.add_argument("--ms_mode", type=str, default=1, help="0: graph, 1: pynative")
+    parser.add_argument("--ms_mode", type=str, default=1, help="mindspore mode, 0: graph, 1: pynative")
+    parser.add_argument("--prompt", type=str, default="A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair", help="prompt for image content. the more detailed, the better")
     parser.add_argument("--temperature", type=float, default=1, help="Temperature value for controlling randomness in sampling. 0 - no randomness in sampling. default 1.0")
     parser.add_argument("--parallel_size", type=int, default=1, help="number of images to generate in parallel, i.e. number of images in a batch")
     parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder")
+    parser.add_argument("--use_cache", type=str2bool, default=False, help="use kv cache or not")
+    parser.add_argument("--seed", type=int, default=42, help="random seed")
     # parser.add_argument("--jit_level", type=str, default="O0", choices=["O0", "O1", "O2"], help="graph optimization level")
     args = parser.parse_args()
 
@@ -109,7 +111,7 @@ if __name__ == "__main__":
     ms.set_context(mode=args.ms_mode)
     if args.ms_mode == 0:
         ms.set_context(jit_config={"jit_level": "O0"})
-    set_random_seed(42)
+    set_random_seed(args.seed)
 
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
@@ -119,19 +121,10 @@ if __name__ == "__main__":
     vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
     vl_gpt.set_train(False)
 
-    # conversation = [
-    #     {
-    #         "role": "User",
-    #         "content": "A close-up high-contrast photo of Sydney Opera House sitting next to Eiffel tower, "
-    #         "under a blue night sky of roiling energy, exploding yellow stars, and radiating swirls of blue.",
-    #     },
-    #     {"role": "Assistant", "content": ""},
-    # ]
-
     conversation = [
         {
             "role": "<|User|>",
-            "content": "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair",
+            "content": args.prompt,
         },
         {"role": "<|Assistant|>", "content": ""},
     ]
