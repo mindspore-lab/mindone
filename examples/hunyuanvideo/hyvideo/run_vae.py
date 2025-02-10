@@ -33,11 +33,6 @@ def vae_reconstruction(vae, input, dtype=None, sample_posterior=True):
     dtype = input.dtype if dtype is None else dtype
     latents = vae.encode(input, sample_posterior=sample_posterior)
     latents = latents.to(dtype)
-    latents = 1 / vae.config.scaling_factor * latents
-    if hasattr(vae.config, "shift_factor") and vae.config.shift_factor:
-        latents = latents / vae.config.scaling_factor + vae.config.shift_factor
-    else:
-        latents = latents / vae.config.scaling_factor
     recon = vae.decode(latents)  # b c t h w
     return recon
 
