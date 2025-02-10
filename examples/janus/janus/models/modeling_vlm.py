@@ -38,7 +38,7 @@ from janus.models.projector import MlpProjector
 class vision_head(nn.Cell):
     def __init__(self, params):
         super().__init__()
-        self.output_mlp_projector = nn.Linear(
+        self.output_mlp_projector = mint.nn.Linear(
             params.n_embed, params.image_token_embed
         )
         self.vision_activation = nn.GELU(approximate=False)
