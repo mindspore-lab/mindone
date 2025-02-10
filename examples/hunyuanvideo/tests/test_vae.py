@@ -10,6 +10,7 @@ import sys
 import torch
 
 import mindspore as ms
+from mindspore import mint
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
@@ -30,14 +31,14 @@ from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 logger = logging.getLogger(__name__)
 
 
-def print_diff(x_ms, x_torch):
+def print_diff(x_ms, x_torch, name):
     abs_diff = np.abs(x_ms - x_torch).mean()
     rel_diff = (np.abs(x_ms - x_torch) / (np.abs(x_torch) + 1e-8)).mean()
     rel_diff2 = (np.abs(x_ms - x_torch) / (np.abs(x_torch) + np.abs(x_torch).mean())).mean()
-    print("abs_diff: {:.4f}, rel_diff: {:.4f}, rel_diff2: {:.4f}".format(abs_diff, rel_diff, rel_diff2))
+    print("{} abs_diff: {:.4f}, rel_diff: {:.4f}, rel_diff2: {:.4f}".format(name, abs_diff, rel_diff, rel_diff2))
 
 
-def test_video(args, vae, vae_torch, dtype):
+def test_vae_encoder_decoder(args, vae, vae_torch, dtype):
     x_vae = preprocess_video(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
     input_ms = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     # ms reconstruction
@@ -53,15 +54,53 @@ def test_video(args, vae, vae_torch, dtype):
     input_torch = torch.Tensor(x_vae).unsqueeze(0).to(torch_dtype)
     latents = vae_torch.encode(input_torch, return_dict=False)[0].mean
     encoder_output_torch = latents.detach().to(torch.float32).cpu().numpy()
-    latents = latents.to(torch_dtype)
+    latents = torch.Tensor(encoder_output_ms).to(torch_dtype)  # force the input to decoder is the same for ms and torch
     recon = vae_torch.decode(latents, return_dict=False)[0]
     decoder_output_torch = recon.detach().to(torch.float32).cpu().numpy()
 
     # compare differences between torch and ms outputs
-    print("Compare encoder output")
-    print_diff(encoder_output_ms, encoder_output_torch)
-    print("Compare decoder output")
-    print_diff(decoder_output_ms, decoder_output_torch)
+    print_diff(encoder_output_ms, encoder_output_torch, name="encoder output")
+    print_diff(decoder_output_ms, decoder_output_torch, name="decoder output")
+
+
+def test_vae_encoder(args, vae, vae_torch, dtype):
+    x_vae = preprocess_video(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
+    input_ms = ms.Tensor(x_vae, dtype).unsqueeze(0)
+
+    # mindspore output
+    x = input_ms
+
+    if vae.use_slicing and x.shape[0] > 1:
+        encoded_slices = [vae.encoder(x_slice) for x_slice in mint.split(x, 1)]
+        h_ms = mint.cat(encoded_slices)
+    else:
+        h_ms = vae.encoder(x)
+
+    moments_ms = vae.quant_conv(h_ms)
+    posterior_mean_ms, _ = mint.split(moments_ms, [moments_ms.shape[1] // 2, moments_ms.shape[1] // 2], dim=1)
+    h_ms_np = h_ms.asnumpy()
+    moments_ms_np = moments_ms.asnumpy()
+    posterior_mean_ms_np = posterior_mean_ms.asnumpy()
+
+    # torch output
+    torch_dtype = torch.float32
+    input_torch = torch.Tensor(x_vae).unsqueeze(0).to(torch_dtype)
+    x = input_torch
+    if vae_torch.use_slicing and x.shape[0] > 1:
+        encoded_slices = [vae_torch.encoder(x_slice) for x_slice in x.split(1)]
+        h_torch = torch.cat(encoded_slices)
+    else:
+        h_torch = vae_torch.encoder(x)
+
+    moments_torch = vae_torch.quant_conv(h_torch)
+    posterior_mean_torch, _ = torch.chunk(moments_torch, 2, dim=1)
+    h_torch_np = h_torch.detach().cpu().numpy()
+    moments_torch_np = moments_torch.detach().cpu().numpy()
+    posterior_mean_torch_np = posterior_mean_torch.detach().cpu().numpy()
+
+    print_diff(h_torch_np, h_ms_np, "h")
+    print_diff(moments_torch_np, moments_ms_np, "moments")
+    print_diff(posterior_mean_torch_np, posterior_mean_ms_np, "posterior_mean")
 
 
 def main(args):
@@ -128,7 +167,8 @@ def main(args):
     vae_torch.eval()
 
     if args.input_type == "video":
-        test_video(args, vae, vae_torch, dtype)
+        test_vae_encoder(args, vae, vae_torch, dtype)
+        # test_vae_encoder_decoder(args, vae, vae_torch, dtype)
     else:
         raise ValueError("Unsupported input type. Please choose from 'image', 'video', or 'folder'.")
 
