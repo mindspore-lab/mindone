@@ -7,16 +7,25 @@ from mindspore import Parameter, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.diffusers.models.activations import get_activation
-from mindone.diffusers.models.attention_processor import SpatialNorm
+from mindone.diffusers.models.attention_processor import Attention, SpatialNorm
 from mindone.diffusers.models.normalization import AdaGroupNorm, GroupNorm, RMSNorm
 from mindone.diffusers.utils import logging
-
-from .attention import Attention
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 MIN_VALUE = -1e5
 MAX_VALUE = 1e5
+
+
+def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None):
+    seq_len = n_frame * n_hw
+    mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
+    for i in range(seq_len):
+        i_frame = i // n_hw
+        mask[i, : (i_frame + 1) * n_hw] = 0
+    if batch_size is not None:
+        mask = mint.expand(mask.unsqueeze(0), (batch_size, -1, -1))
+    return mask
 
 
 class MSPad(nn.Cell):
@@ -588,21 +597,22 @@ class UNetMidBlockCausal3D(nn.Cell):
 
         for _ in range(num_layers):
             if self.add_attention:
-                attentions.append(
-                    Attention(
-                        in_channels,
-                        heads=in_channels // attention_head_dim,
-                        dim_head=attention_head_dim,
-                        rescale_output_factor=output_scale_factor,
-                        eps=resnet_eps,
-                        norm_num_groups=attn_groups,
-                        spatial_norm_dim=temb_channels if resnet_time_scale_shift == "spatial" else None,
-                        residual_connection=True,
-                        bias=True,
-                        upcast_softmax=True,
-                        _from_deprecated_attn_block=True,
-                    )
+                attention_ops = Attention(
+                    in_channels,
+                    heads=in_channels // attention_head_dim,
+                    dim_head=attention_head_dim,
+                    rescale_output_factor=output_scale_factor,
+                    eps=resnet_eps,
+                    norm_num_groups=attn_groups,
+                    spatial_norm_dim=temb_channels if resnet_time_scale_shift == "spatial" else None,
+                    residual_connection=True,
+                    bias=True,
+                    upcast_softmax=True,
+                    _from_deprecated_attn_block=True,
                 )
+                # use math_ops and causal attention mask
+                attention_ops.fa_op_available = False
+                attentions.append(attention_ops)
             else:
                 attentions.append(None)
 
@@ -632,8 +642,8 @@ class UNetMidBlockCausal3D(nn.Cell):
                 # b c f h w -> b (f h w) c
                 hidden_states = ops.permute(hidden_states, (0, 2, 3, 4, 1))
                 hidden_states = hidden_states.reshape((hidden_states.shape[0], -1, hidden_states.shape[-1]))
-                # attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
-                hidden_states = attn(hidden_states, temb=temb, attention_mask=None, is_causal=True)
+                attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
+                hidden_states = attn(hidden_states, temb=temb, attention_mask=attention_mask)
                 # b (f h w) c -> b c f h w
                 hidden_states = ops.permute(hidden_states, (0, 2, 1))
                 hidden_states = hidden_states.reshape((hidden_states.shape[0], hidden_states.shape[1], T, H, W))
