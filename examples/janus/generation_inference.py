@@ -32,7 +32,7 @@ def generate(
     image_token_num_per_image: int = 576,
     img_size: int = 384,
     patch_size: int = 16,
-    use_cache: bool= False,
+    use_cache: bool = False,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int32)
@@ -45,15 +45,13 @@ def generate(
 
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
 
-    from transformers import LlamaForCausalLM
-
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
     outputs = []
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
-            use_cache=use_cache, # TODO support kv cache
+            use_cache=use_cache,  # TODO support kv cache
             past_key_values=outputs.past_key_values if (i != 0 and use_cache)else None,
             return_dict=True
         )
@@ -71,10 +69,8 @@ def generate(
             next_token = mint.argmax(logits[:, -1], dim=-1, keepdim=True)
 
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
-        # generated_tokens[:, i] = next_token
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
-
 
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
 
