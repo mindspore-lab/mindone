@@ -78,9 +78,9 @@ def test_vae_encoding(args, vae, vae_torch, dtype):
 
     moments_ms = vae.quant_conv(h_ms)
     posterior_mean_ms, _ = mint.split(moments_ms, [moments_ms.shape[1] // 2, moments_ms.shape[1] // 2], dim=1)
-    h_ms_np = h_ms.asnumpy()
-    moments_ms_np = moments_ms.asnumpy()
-    posterior_mean_ms_np = posterior_mean_ms.asnumpy()
+    h_ms_np = h_ms.float().asnumpy()
+    moments_ms_np = moments_ms.float().asnumpy()
+    posterior_mean_ms_np = posterior_mean_ms.float().asnumpy()
 
     # torch output
     torch_dtype = torch.float32
@@ -94,9 +94,9 @@ def test_vae_encoding(args, vae, vae_torch, dtype):
 
     moments_torch = vae_torch.quant_conv(h_torch)
     posterior_mean_torch, _ = torch.chunk(moments_torch, 2, dim=1)
-    h_torch_np = h_torch.detach().cpu().numpy()
-    moments_torch_np = moments_torch.detach().cpu().numpy()
-    posterior_mean_torch_np = posterior_mean_torch.detach().cpu().numpy()
+    h_torch_np = h_torch.detach().to(torch.float32).cpu().numpy()
+    moments_torch_np = moments_torch.detach().to(torch.float32).cpu().numpy()
+    posterior_mean_torch_np = posterior_mean_torch.detach().to(torch.float32).cpu().numpy()
 
     print_diff(h_torch_np, h_ms_np, "h")
     print_diff(moments_torch_np, moments_ms_np, "moments")
@@ -168,7 +168,7 @@ def test_vae_encoder(args, vae, vae_torch, dtype):
             f"down_block_{i}",
         )
     print_diff(
-        mid_block_out_ms.float().asnumpy(), mid_block_out_torch[i].detach().to(torch.float32).cpu().numpy(), "mid_block"
+        mid_block_out_ms.float().asnumpy(), mid_block_out_torch.detach().to(torch.float32).cpu().numpy(), "mid_block"
     )
     print_diff(
         conv_norm_out_ms.float().asnumpy(),
