@@ -242,9 +242,9 @@ def main(args):
     vae_torch.eval()
 
     if args.input_type == "video":
-        test_vae_encoding(args, vae, vae_torch, dtype)
-        test_vae_encoder(args, vae, vae_torch, dtype)
-        # test_vae_encoder_decoder(args, vae, vae_torch, dtype)
+        # test_vae_encoding(args, vae, vae_torch, dtype)
+        # test_vae_encoder(args, vae, vae_torch, dtype)
+        test_vae_encoder_decoder(args, vae, vae_torch, dtype)
     else:
         raise ValueError("Unsupported input type. Please choose from 'image', 'video', or 'folder'.")
 

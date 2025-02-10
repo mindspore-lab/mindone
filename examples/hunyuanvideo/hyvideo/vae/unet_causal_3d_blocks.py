@@ -24,7 +24,7 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
         i_frame = i // n_hw
         mask[i, : (i_frame + 1) * n_hw] = 0
     if batch_size is not None:
-        mask = mint.expand(mask.unsqueeze(0), (batch_size, -1, -1))
+        mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
     return mask
 
 
