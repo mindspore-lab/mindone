@@ -46,7 +46,7 @@ def parse_args():
     parser.add_argument(
         "--text_encoder_precision",
         type=str,
-        default="bf16",
+        default="fp16",
         choices=PRECISIONS,
         help="Precision mode for the text encoder model.",
     )
@@ -189,6 +189,12 @@ def parse_args():
         help="File path of prompts, must be a txt or csv file.",
     )
     parser.add_argument(
+        "--text_preprocessing",
+        type=str2bool,
+        default=False,
+        help="Whether do text preprocessing on input prompts.",
+    )
+    parser.add_argument(
         "--prompt",
         type=str,
         default=None,
@@ -220,8 +226,8 @@ def save_emb(output, output_2, output_dir, file_paths):
     for i in range(num):
         fn = Path(str(file_paths[i])).with_suffix(".npz")
         npz_fp = Path(output_dir) / fn
-        if not os.path.exists(npz_fp.parent):
-            os.makedirs(npz_fp.parent)
+        npz_fp.parent.mkdir(parents=True, exist_ok=True)
+
         np.savez(
             npz_fp,
             prompt_embeds=output.hidden_state[i].float().asnumpy().astype(np.float32) if output is not None else None,
@@ -330,7 +336,7 @@ def main(args):
         output_dir = Path(args.data_file_path).parent if args.data_file_path is not None else "./"
     else:
         output_dir = Path(args.output_path)
-    os.makedirs(output_dir, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=True)
     logger.info(f"Output embeddings will be saved: {output_dir}")
     logger.info("Start embedding...")
     if dataset is not None:
@@ -341,7 +347,8 @@ def main(args):
         file_paths = data["file_path"]
         captions = data["caption"]
         captions = [str(captions[i]) for i in range(len(captions))]
-        captions = [text_preprocessing(prompt) for prompt in captions]
+        if args.text_preprocessing:
+            captions = [text_preprocessing(prompt) for prompt in captions]
 
         output, output_2 = None, None
         # llm

@@ -40,7 +40,6 @@ def load_text_encoder(
         text_encoder.final_layer_norm = text_encoder.norm
     else:
         raise ValueError(f"Unsupported text encoder type: {text_encoder_type}")
-    # from_pretrained will ensure that the model is in eval mode.
 
     if text_encoder_precision is not None:
         # text_encoder = text_encoder.to_float(PRECISION_TO_TYPE[text_encoder_precision])
@@ -58,11 +57,7 @@ def load_text_encoder(
             f"Set text encoder mixed precision to {amp_level} with dtype={dtype}, custom fp32_cells {custom_fp32_cells}"
         )
 
-    # text_encoder.requires_grad_(False)
     text_encoder.set_train(False)
-
-    if logger is not None:
-        logger.info(f"Text encoder to dtype: {text_encoder.dtype}")
 
     return text_encoder, text_encoder_path
 
@@ -184,7 +179,6 @@ class TextEncoder(nn.Cell):
             text_encoder_path=self.model_path,
             logger=self.logger,
         )
-        self.dtype = self.model.dtype
 
         self.tokenizer, self.tokenizer_path = load_tokenizer(
             tokenizer_type=self.tokenizer_type,
