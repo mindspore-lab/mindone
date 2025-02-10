@@ -17,7 +17,7 @@ MIN_VALUE = -1e5
 MAX_VALUE = 1e5
 
 
-def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None):
+def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None, return_fa_mask: bool = False):
     seq_len = n_frame * n_hw
     mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
     for i in range(seq_len):
@@ -25,6 +25,10 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
         mask[i, : (i_frame + 1) * n_hw] = 0
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
+
+    if return_fa_mask:
+        mask = (mask == 0).to(ms.bool_)  # bool
+
     return mask
 
 
@@ -610,8 +614,9 @@ class UNetMidBlockCausal3D(nn.Cell):
                     upcast_softmax=True,
                     _from_deprecated_attn_block=True,
                 )
-                # use math_ops and causal attention mask
-                attention_ops.fa_op_available = False
+                # fa_op_available is False: use math_ops and causal attention mask with -inf
+                # fa_op_available is True: use ms flash_attention and boolean causal attention mask
+                attention_ops.fa_op_available = True
                 attentions.append(attention_ops)
             else:
                 attentions.append(None)
@@ -642,7 +647,9 @@ class UNetMidBlockCausal3D(nn.Cell):
                 # b c f h w -> b (f h w) c
                 hidden_states = ops.permute(hidden_states, (0, 2, 3, 4, 1))
                 hidden_states = hidden_states.reshape((hidden_states.shape[0], -1, hidden_states.shape[-1]))
-                attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
+                attention_mask = prepare_causal_attention_mask(
+                    T, H * W, hidden_states.dtype, batch_size=B, return_fa_mask=attn.fa_op_available
+                )
                 hidden_states = attn(hidden_states, temb=temb, attention_mask=attention_mask)
                 # b (f h w) c -> b c f h w
                 hidden_states = ops.permute(hidden_states, (0, 2, 1))
