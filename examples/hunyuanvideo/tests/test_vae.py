@@ -98,9 +98,9 @@ def test_vae_encoding(args, vae, vae_torch, dtype):
     moments_torch_np = moments_torch.detach().cpu().numpy().astype(np.float32)
     posterior_mean_torch_np = posterior_mean_torch.detach().cpu().numpy().astype(np.float32)
 
-    print_diff(h_torch_np, h_ms_np, "h")
-    print_diff(moments_torch_np, moments_ms_np, "moments")
-    print_diff(posterior_mean_torch_np, posterior_mean_ms_np, "posterior_mean")
+    print_diff(h_ms_np, h_torch_np, "h")
+    print_diff(moments_ms_np, moments_torch_np, "moments")
+    print_diff(posterior_mean_ms_np, posterior_mean_torch_np, "posterior_mean")
 
 
 def test_vae_encoder(args, vae, vae_torch, dtype):
