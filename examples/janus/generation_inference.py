@@ -37,15 +37,13 @@ def generate(
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int32)
 
-    tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int32)
+    tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int64)
     for i in range(parallel_size*2):
         tokens[i, :] = input_ids
         if i % 2 != 0:
             tokens[i, 1:-1] = vl_chat_processor.pad_id
 
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
-
-    from transformers import LlamaForCausalLM
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
@@ -68,10 +66,9 @@ def generate(
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
             next_token = mint.multinomial(probs, num_samples=1)
         else:
-            next_token = mint.argmax(logits[:, -1], dim=-1, keepdim=True)
+            next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
-        # generated_tokens[:, i] = next_token
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
 
