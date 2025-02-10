@@ -47,12 +47,16 @@ def generate(
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
+    if use_cache:
+        init_kv = mmgpt.language_model.model.prepare_static_cache(inputs_embeds)
+    else:
+        init_kv = None 
     outputs = []
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,  # TODO support kv cache
-            past_key_values=outputs.past_key_values if (i != 0 and use_cache)else None,
+            past_key_values=outputs.past_key_values if i != 0 else init_kv,
             return_dict=True
         )
         hidden_states = outputs.last_hidden_state
