@@ -1,3 +1,7 @@
+"""
+Use small-size video input to verify the correctness of the VAE.
+python tests/test_vae.py --video-path test.mp4 --height 64 --width 64 --num-frames 9
+"""
 import argparse
 import logging
 import os
@@ -44,22 +48,13 @@ def test_video(args, vae, vae_torch, dtype):
     recon = vae.decode(latents)  # b c t h w
     decoder_output_ms = recon.to(ms.float32).asnumpy()
 
-    # torch reconstruction
-    if dtype == ms.float32:
-        torch_dtype = torch.float32
-    elif dtype == ms.float16:
-        torch_dtype = torch.float16
-    elif dtype == ms.bfloat16:
-        torch_dtype = torch.bfloat16
-    else:
-        raise ValueError
-
-    vae_torch.eval()
+    # torch reconstruction for fp32
+    torch_dtype = torch.float32
     input_torch = torch.Tensor(x_vae).unsqueeze(0).to(torch_dtype)
     latents = vae_torch.encode(input_torch, return_dict=False)[0].mean
     encoder_output_torch = latents.detach().to(torch.float32).cpu().numpy()
     latents = latents.to(torch_dtype)
-    recon = vae_torch.decode(latents)
+    recon = vae_torch.decode(latents, return_dict=False)[0]
     decoder_output_torch = recon.detach().to(torch.float32).cpu().numpy()
 
     # compare differences between torch and ms outputs
@@ -90,7 +85,7 @@ def main(args):
     else:
         state_dict = None
 
-    vae, _, s_ratio, t_ratio = load_vae(
+    vae, _, _, _ = load_vae(
         args.vae,
         logger=logger,
         state_dict=state_dict,
@@ -117,20 +112,20 @@ def main(args):
         raise ValueError(f"Unsupported precision {args.vae_precision}")
 
     # load vae in torch
-    # download https://github.com/Tencent/HunyuanVideo/tree/main/hyvideo/vae and place it under ./torch_vae
     assert os.path.exists(
-        "torch_vae"
-    ), "Please download torch_vae from https://github.com/Tencent/HunyuanVideo/tree/main/hyvideo/vae and place it under ./torch_vae"
-    from torch_vae import load_vae as load_vae_torch
+        "torch_hyvideo"
+    ), "Please download hyvideo from https://github.com/Tencent/HunyuanVideo/tree/main/hyvideo and name it as ./torch_hyvideo"
+    from torch_hyvideo.vae import load_vae as load_vae_torch
 
-    vae_torch, _, s_ratio, t_ratio = load_vae_torch(
+    vae_torch, _, _, _ = load_vae_torch(
         args.vae,
-        args.vae_precision,
+        "fp32",  # torch uses fp32
         logger=logger,
         device="cpu",
     )
     if args.vae_tiling:
         vae_torch.enable_tiling()
+    vae_torch.eval()
 
     if args.input_type == "video":
         test_video(args, vae, vae_torch, dtype)
