@@ -68,11 +68,14 @@ def generate(
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
             next_token = mint.multinomial(probs, num_samples=1)
         else:
-            next_token = mint.argmax(logits[:, -1], dim=-1)
+            next_token = mint.argmax(logits[:, -1], dim=-1, keepdim=True)
 
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
+        # generated_tokens[:, i] = next_token
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
+
+
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
 
         if use_cache:
