@@ -315,8 +315,8 @@ def get_parser():
     parser.add_argument(
         "--dataset-name", default="video", type=str, choices=["image", "video"], help="Dataset name: image or video."
     )
-
-    return parser
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == "__main__":
