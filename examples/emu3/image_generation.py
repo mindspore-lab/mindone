@@ -1,4 +1,14 @@
 # -*- coding: utf-8 -*-
+# debug use, TODO: delete later
+import os
+import sys
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, ".")))
+
+
 # from transformers import AutoModel, AutoTokenizer, AutoImageProcessor, AutoModelForCausalLM
 from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
@@ -8,39 +18,47 @@ from PIL import Image
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
-from mindspore import Tensor
+from mindspore import Tensor, nn
 
 from mindone.transformers.generation.logits_process import (
     LogitsProcessorList,
     PrefixConstrainedLogitsProcessor,
     UnbatchedClassifierFreeGuidanceLogitsProcessor,
 )
+from mindone.utils.amp import auto_mixed_precision
+
+# Both modes are supported
+ms.set_context(mode=ms.PYNATIVE_MODE)  # PYNATIVE
+# ms.set_context(mode=ms.GRAPH_MODE)      # GRAPH
 
 # model path
+# TODO: you need to modify the path of EMU_HUB and VQ_HUB here
 EMU_HUB = "BAAI/Emu3-Gen"
 VQ_HUB = "BAAI/Emu3-VisionTokenizer"
+MS_DTYPE = ms.bfloat16
 
 # prepare model and processor
-PATH_TO_CONVERTED_EMU3_WEIGHTS = "BAAI/Emu3-Gen"
 model = Emu3ForCausalLM.from_pretrained(
-    PATH_TO_CONVERTED_EMU3_WEIGHTS,
-    mindspore_dtype=ms.bfloat16,
+    EMU_HUB,
+    mindspore_dtype=MS_DTYPE,
     use_safetensors=True,
     attn_implementation="flash_attention_2",
-    trust_remote_code=True,
 )
 # model = AutoModelForCausalLM.from_pretrained(
 #     EMU_HUB,
-#     device_map="cuda:0",
-#     torch_dtype=torch.bfloat16,
+#     mindspore_dtype=MS_DTYPE,
 #     attn_implementation="flash_attention_2",
-#     trust_remote_code=True,
 # )
 model.set_train(False)
 
-tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")  # TODO
-image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)  # TODO
-image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB).set_train(False)  # TODO
+tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
+image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
+image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, use_safetensors=True, mindspore_dtype=MS_DTYPE).set_train(
+    False
+)
+image_tokenizer = auto_mixed_precision(
+    image_tokenizer, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+)
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
 # prepare input
@@ -72,15 +90,15 @@ GENERATION_CONFIG = GenerationConfig(
     top_k=2048,
 )
 
-h = pos_inputs.image_size[:, 0]
-w = pos_inputs.image_size[:, 1]
+h = Tensor(pos_inputs.image_size[:, 0])
+w = Tensor(pos_inputs.image_size[:, 1])
 constrained_fn = processor.build_prefix_constrained_fn(h, w)
 logits_processor = LogitsProcessorList(
     [
         UnbatchedClassifierFreeGuidanceLogitsProcessor(
             classifier_free_guidance,
             model,
-            unconditional_ids=Tensor(neg_inputs.input_ids),
+            unconditional_ids=Tensor(neg_inputs.input_ids, dtype=ms.int32),
         ),
         PrefixConstrainedLogitsProcessor(
             constrained_fn,
@@ -91,7 +109,7 @@ logits_processor = LogitsProcessorList(
 
 # generate
 outputs = model.generate(
-    Tensor(pos_inputs.input_ids),
+    Tensor(pos_inputs.input_ids, dtype=ms.int32),
     GENERATION_CONFIG,
     logits_processor=logits_processor,
     attention_mask=Tensor(pos_inputs.attention_mask),

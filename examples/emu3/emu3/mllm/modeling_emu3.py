@@ -38,7 +38,7 @@ from mindspore.common.initializer import Normal, initializer
 from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache  # DynamicCache not supported
+from mindone.transformers.cache_utils import Cache, DynamicCache
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask_for_sdpa  # NEW
 from mindone.transformers.modeling_attn_mask_utils import (
@@ -65,15 +65,8 @@ from mindone.utils.version_control import check_valid_flash_attention, choose_fl
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 FA_MS23_UPDATE = False
 if FLASH_IS_AVAILABLE:
-    try:
-        from mindspore.nn.layer.flash_attention import FlashAttention
-    except Exception:
-        # for ms2.3 >= 20240219, FA API changed
-        from mindspore.ops.operations.nn_ops import FlashAttentionScore
-
-        FA_MS23_UPDATE = True
-
     logger.info("Flash attention is available.")
+    from mindone.models.modules.flash_attention import MSFlashAttention
 
 _CONFIG_FOR_DOC = "Emu3Config"
 
@@ -176,7 +169,7 @@ class Emu3RotaryEmbedding(nn.Cell):
         # Build here to make `jit.trace` work.
         self._set_cos_sin_cache(seq_len=max_position_embeddings)
 
-    def _set_cos_sin_cache(self, seq_len, dtype):
+    def _set_cos_sin_cache(self, seq_len, dtype=None):
         self.max_seq_len_cached = seq_len
         t = ops.arange(self.max_seq_len_cached, dtype=self.inv_freq.dtype)
 
@@ -185,6 +178,9 @@ class Emu3RotaryEmbedding(nn.Cell):
         emb = mint.cat((freqs, freqs), dim=-1)
         self.cos_cached = emb.cos()
         self.sin_cached = emb.sin()
+        if dtype is not None:
+            self.cos_cached = self.cos_cached.to(dtype)
+            self.sin_cached = self.sin_cached.to(dtype)
 
     def construct(self, x, seq_len=None):
         # x: [bs, num_attention_heads, seq_len, head_size]
@@ -335,15 +331,15 @@ class Emu3Attention(nn.Cell):
             )
 
         self.attention_dropout = config.attention_dropout
-        self.hidden_size = config.hidden_size
-        self.num_heads = config.num_attention_heads
-        self.head_dim = self.hidden_size // self.num_heads
-        self.num_key_value_heads = config.num_key_value_heads
-        self.num_key_value_groups = self.num_heads // self.num_key_value_heads
-        self.max_position_embeddings = config.max_position_embeddings
+        self.hidden_size = config.hidden_size  # 4096
+        self.num_heads = config.num_attention_heads  # 32
+        self.head_dim = self.hidden_size // self.num_heads  # 128
+        self.num_key_value_heads = config.num_key_value_heads  # 8
+        self.num_key_value_groups = self.num_heads // self.num_key_value_heads  # 4
+        self.max_position_embeddings = config.max_position_embeddings  # 9216
         self.rope_theta = config.rope_theta
         self.is_causal = True
-        self.scaling = float(1.0 / math.sqrt(self.head_dim))
+        self.scaling = float(1.0 / math.sqrt(self.head_dim))  # i.e. default value: head_dim**-0.5
 
         if (self.head_dim * self.num_heads) != self.hidden_size:
             raise ValueError(
@@ -513,22 +509,13 @@ class Emu3FlashAttention2(Emu3Attention):
         dropout_rate = self.attention_dropout if self.training else 0.0
 
         if self.enable_flash_attention:
-            if not FA_MS23_UPDATE:
-                self.flash_attention = FlashAttention(
-                    head_dim=self.head_dim, head_num=self.num_heads, high_precision=True
-                )
-            else:
-                # Q: (b s n*d) -> (b n s d))  #  s - seq_len, n - num_head, d - head dim
-                # softmax_scale (`float`, *optional*):
-                #     The scaling of QK^T before applying softmax. Default to 1 / sqrt(head_dim)
-                self.flash_attention = FlashAttentionScore(
-                    head_num=self.num_heads,
-                    keep_prob=1 - dropout_rate,
-                    scale_value=self.scaling,  # required if we didn't scale q or k before FA
-                    input_layout="BNSD",  # BSH or BNSD
-                )
-            self.fa_mask_dtype = choose_flash_attention_dtype()  # ms.uint8 or ms.float16 depending on version
-            logger.info("Flash attention is enabled.")
+            # Q: (b s n d) -> (b n s d)  #  b - batch_size, s - seq_len, n - num_head, d - head dim
+            self.flash_attention = MSFlashAttention(
+                head_dim=self.head_dim,
+                head_num=self.num_heads,
+                attention_dropout=dropout_rate,
+                input_layout="BNSD",  # BSH or BNSD
+            )
         else:
             self.flash_attention = None
 
@@ -560,7 +547,7 @@ class Emu3FlashAttention2(Emu3Attention):
         value_states = self.v_proj(hidden_states)
 
         # Flash attention requires the input to have the shape
-        # batch_size x seq_length x head_dim x hidden_dim
+        # batch_size x head_dim x seq_length x hidden_dim
         # therefore we just need to keep the original shape
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
@@ -579,9 +566,11 @@ class Emu3FlashAttention2(Emu3Attention):
         # TODO: These transpose are quite inefficient but Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim].
         # We would need to refactor the KV cache
         # to be able to avoid many of these swapaxes/reshape/view.
-        query_states = query_states.swapaxes(1, 2)
-        key_states = key_states.swapaxes(1, 2)
-        value_states = value_states.swapaxes(1, 2)
+        # query_states = query_states.swapaxes(1, 2)
+        # key_states = key_states.swapaxes(1, 2)
+        # value_states = value_states.swapaxes(1, 2)
+
+        # NOTE: MSFlashAttention needs shape of BNSD ==> [batch_size,  num_heads, sequence_length, head_dim].
 
         # dropout_rate = self.attention_dropout if self.training else 0.0
 
@@ -615,7 +604,7 @@ class Emu3FlashAttention2(Emu3Attention):
             value_states,
             attention_mask=attention_mask,
         )
-
+        attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
@@ -641,47 +630,13 @@ class Emu3FlashAttention2(Emu3Attention):
                 position of padding tokens and 1 for the position of non-padding tokens.
         """
         # causal = self.is_causal
-        attn_output = self.flash_attention(query_states, key_states, value_states, attn_mask=attention_mask)
+        if attention_mask is not None:
+            attention_mask = ~attention_mask if attention_mask.dtype == ms.bool_ else 1 - attention_mask
+            k_len = key_states.shape[-2]
+            attention_mask = ops.tile(attention_mask[:, None, :, None], (1, 1, 1, k_len))  # (b, 1, q_len, k_len)
+        attn_output = self.flash_attention(query_states, key_states, value_states, mask=attention_mask)
 
         return attn_output
-
-    # def _upad_input(self, query_layer, key_layer, value_layer, attention_mask, query_length):
-    #     indices_k, cu_seqlens_k, max_seqlen_in_batch_k = _get_unpad_data(attention_mask)
-    #     batch_size, kv_seq_len, num_key_value_heads, head_dim = key_layer.shape
-
-    #     key_layer = index_first_axis(
-    #         key_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim), indices_k
-    #     )
-    #     value_layer = index_first_axis(
-    #         value_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim), indices_k
-    #     )
-    #     if query_length == kv_seq_len:
-    #         query_layer = index_first_axis(
-    #             query_layer.reshape(batch_size * kv_seq_len, self.num_heads, head_dim), indices_k
-    #         )
-    #         cu_seqlens_q = cu_seqlens_k
-    #         max_seqlen_in_batch_q = max_seqlen_in_batch_k
-    #         indices_q = indices_k
-    #     elif query_length == 1:
-    #         max_seqlen_in_batch_q = 1
-    #         cu_seqlens_q = ops.arange(
-    #             batch_size + 1, dtype=ms.int32
-    #         )
-    #         indices_q = cu_seqlens_q[:-1]
-    #         query_layer = query_layer.squeeze(1)
-    #     else:
-    #         # The -q_len: slice assumes left padding.
-    #         attention_mask = attention_mask[:, -query_length:]
-    #         query_layer, indices_q, cu_seqlens_q, max_seqlen_in_batch_q = unpad_input(query_layer, attention_mask)
-
-    #     return (
-    #         query_layer,
-    #         key_layer,
-    #         value_layer,
-    #         indices_q,
-    #         (cu_seqlens_q, cu_seqlens_k),
-    #         (max_seqlen_in_batch_q, max_seqlen_in_batch_k),
-    #     )
 
 
 class Emu3SdpaAttention(Emu3Attention):
@@ -691,7 +646,7 @@ class Emu3SdpaAttention(Emu3Attention):
     SDPA API.
     """
 
-    # Adapted from Emu3Attention.forward
+    # Adapted from Emu3Attention.construct
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -882,7 +837,7 @@ class Emu3PreTrainedModel(MSPreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
     _supports_sdpa = True
-    _supports_cache_class = True
+    _supports_cache_class = True # support DynamicCache
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -1044,9 +999,9 @@ class Emu3Model(Emu3PreTrainedModel):
 
         past_key_values_length = 0
         if use_cache:
-            # use_legacy_cache = not isinstance(past_key_values, Cache)
-            # if use_legacy_cache:
-            # past_key_values = DynamicCache.from_legacy_cache(past_key_values) # not supported
+            use_legacy_cache = not isinstance(past_key_values, Cache)
+            if use_legacy_cache:
+                past_key_values = DynamicCache.from_legacy_cache(past_key_values)
             past_key_values_length = past_key_values.get_usable_length(seq_length)
 
         if position_ids is None:
@@ -1058,7 +1013,7 @@ class Emu3Model(Emu3PreTrainedModel):
 
         if self._use_flash_attention_2:
             # 2d mask is passed through the layers
-            attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask) else None
+            attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask.flatten()) else None
         # TODO
         elif self._use_sdpa and not output_attentions:
             # output_attentions=True can not be supported when using SDPA, and we fall back on
@@ -1123,7 +1078,7 @@ class Emu3Model(Emu3PreTrainedModel):
 
         next_cache = None
         if use_cache:
-            # next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache # Not support DynamicCache
+            next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
             next_cache = next_decoder_cache
         if not return_dict:
             return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
@@ -1342,8 +1297,8 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         position_ids = kwargs.get("position_ids", None)
         if attention_mask is not None and position_ids is None:
             # create position_ids on the fly for batch generation
-            position_ids = attention_mask.long().cumsum(-1) - 1
-            position_ids.masked_fill_(attention_mask == 0, 1)
+            position_ids = attention_mask.int().cumsum(-1) - 1  # cumsum support int32/int8/uint8 not support int64
+            position_ids.masked_fill(attention_mask == 0, 1)
             if past_key_values:
                 position_ids = position_ids[:, -input_ids.shape[1] :]
 

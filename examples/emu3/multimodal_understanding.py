@@ -10,33 +10,32 @@ from PIL import Image
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
-from mindspore import Tensor
+from mindspore import Tensor, nn
+
+from mindone.utils.amp import auto_mixed_precision
 
 # model path
 EMU_HUB = "BAAI/Emu3-Chat"
 VQ_HUB = "BAAI/Emu3-VisionTokenizer"
+MS_DTYPE = ms.bfloat16
 
 # prepare model and processor
-PATH_TO_CONVERTED_EMU3_WEIGHTS = "BAAI/Emu3-Chat"
 model = Emu3ForCausalLM.from_pretrained(
-    PATH_TO_CONVERTED_EMU3_WEIGHTS,
+    EMU_HUB,
     mindspore_dtype=ms.bfloat16,
     use_safetensors=True,
     attn_implementation="flash_attention_2",
-    trust_remote_code=True,
 )
-# model = AutoModelForCausalLM.from_pretrained(
-#     EMU_HUB,
-#     device_map="cuda:0",
-#     torch_dtype=torch.bfloat16,
-#     attn_implementation="flash_attention_2",
-#     trust_remote_code=True,
-# )
 model.set_train(False)
 
-tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, trust_remote_code=True, padding_side="left")
-image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB, trust_remote_code=True)
-image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, device_map="cuda:0", trust_remote_code=True).eval()  # TODO
+tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
+image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
+image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, use_safetensors=True, mindspore_dtype=MS_DTYPE).set_train(
+    False
+)
+image_tokenizer = auto_mixed_precision(
+    image_tokenizer, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+)
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
 # prepare input
@@ -60,10 +59,10 @@ GENERATION_CONFIG = GenerationConfig(
 
 # generate
 outputs = model.generate(
-    Tensor(inputs.input_ids),
+    Tensor(inputs.input_ids, dtype=ms.int32),
     GENERATION_CONFIG,
     max_new_tokens=1024,
-    attention_mask=inputs.attention_mask.to("cuda:0"),
+    attention_mask=Tensor(inputs.attention_mask),
 )
 
 outputs = outputs[:, inputs.input_ids.shape[-1] :]
