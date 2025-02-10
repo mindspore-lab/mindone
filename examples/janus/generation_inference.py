@@ -37,7 +37,7 @@ def generate(
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int32)
 
-    tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int32)
+    tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int64)
     for i in range(parallel_size*2):
         tokens[i, :] = input_ids
         if i % 2 != 0:
@@ -66,7 +66,7 @@ def generate(
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
             next_token = mint.multinomial(probs, num_samples=1)
         else:
-            next_token = mint.argmax(logits[:, -1], dim=-1, keepdim=True)
+            next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
 
