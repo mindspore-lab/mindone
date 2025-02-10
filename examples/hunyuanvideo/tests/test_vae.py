@@ -63,7 +63,7 @@ def test_vae_encoder_decoder(args, vae, vae_torch, dtype):
     print_diff(decoder_output_ms, decoder_output_torch, name="decoder output")
 
 
-def test_vae_encoder(args, vae, vae_torch, dtype):
+def test_vae_encoding(args, vae, vae_torch, dtype):
     x_vae = preprocess_video(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
     input_ms = ms.Tensor(x_vae, dtype).unsqueeze(0)
 
@@ -101,6 +101,84 @@ def test_vae_encoder(args, vae, vae_torch, dtype):
     print_diff(h_torch_np, h_ms_np, "h")
     print_diff(moments_torch_np, moments_ms_np, "moments")
     print_diff(posterior_mean_torch_np, posterior_mean_ms_np, "posterior_mean")
+
+
+def test_vae_encoder(args, vae, vae_torch, dtype):
+    x_vae = preprocess_video(read_video(args.video_path, args.num_frames, args.sample_rate), args.height, args.width)
+    input_ms = ms.Tensor(x_vae, dtype).unsqueeze(0)
+
+    # mindspore output
+    sample = input_ms
+    sample = vae.encoder.conv_in(sample)
+    conv_in_out_ms = sample
+
+    # down
+    down_block_out_ms = []
+    for down_block in vae.encoder.down_blocks:
+        sample = down_block(sample)
+        down_block_out_ms.append(sample)
+
+    # middle
+    sample = vae.encoder.mid_block(sample)
+    mid_block_out_ms = sample
+
+    # post-process
+    sample = vae.encoder.conv_norm_out(sample)
+    conv_norm_out_ms = sample
+    sample = vae.encoder.conv_act(sample)
+    conv_act_out_ms = sample
+    sample = vae.encoder.conv_out(sample)
+    conv_out_ms = sample
+
+    # torch output
+    torch_dtype = torch.float32
+    input_torch = torch.Tensor(x_vae).unsqueeze(0).to(torch_dtype)
+    sample = input_torch
+
+    sample = vae_torch.encoder.conv_in(sample)
+    conv_in_out_torch = sample
+
+    # down
+    down_block_out_torch = []
+
+    for down_block in vae_torch.encoder.down_blocks:
+        sample = down_block(sample)
+        down_block_out_torch.append(sample)
+
+    # middle
+    sample = vae_torch.encoder.mid_block(sample)
+    mid_block_out_torch = sample
+
+    # post-process
+    sample = vae_torch.encoder.conv_norm_out(sample)
+    conv_norm_out_torch = sample
+    sample = vae_torch.encoder.conv_act(sample)
+    conv_act_out_torch = sample
+    sample = vae_torch.encoder.conv_out(sample)
+    conv_out_torch = sample
+
+    # compare diff
+    print_diff(
+        conv_in_out_ms.float().asnumpy(), conv_in_out_torch.detach().to(torch.float32).cpu().numpy(), "conv_in_out"
+    )
+    for i in range(len(down_block_out_ms)):
+        print_diff(
+            down_block_out_ms[i].float().asnumpy(),
+            down_block_out_torch[i].detach().to(torch.float32).cpu().numpy(),
+            f"down_block_{i}",
+        )
+    print_diff(
+        mid_block_out_ms.float().asnumpy(), mid_block_out_torch[i].detach().to(torch.float32).cpu().numpy(), "mid_block"
+    )
+    print_diff(
+        conv_norm_out_ms.float().asnumpy(),
+        conv_norm_out_torch.detach().to(torch.float32).cpu().numpy(),
+        "conv_norm_out",
+    )
+    print_diff(
+        conv_act_out_ms.float().asnumpy(), conv_act_out_torch.detach().to(torch.float32).cpu().numpy(), "conv_act_out"
+    )
+    print_diff(conv_out_ms.float().asnumpy(), conv_out_torch.detach().to(torch.float32).cpu().numpy(), "conv_out")
 
 
 def main(args):
@@ -168,6 +246,7 @@ def main(args):
 
     if args.input_type == "video":
         test_vae_encoder(args, vae, vae_torch, dtype)
+        # test_vae_encoding(args, vae, vae_torch, dtype)
         # test_vae_encoder_decoder(args, vae, vae_torch, dtype)
     else:
         raise ValueError("Unsupported input type. Please choose from 'image', 'video', or 'folder'.")
