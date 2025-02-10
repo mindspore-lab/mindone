@@ -2,11 +2,10 @@
 
 import os
 import os.path as osp
-
-# debug use, TODO: delete later
 import sys
 import time
 
+# debug use, TODO: delete later
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
@@ -47,6 +46,7 @@ class no_grad(_no_grad):
 
 start_time = time.time()
 
+# TODO: you need to modify the path of MODEL_HUB here
 MODEL_HUB = "BAAI/Emu3-VisionTokenizer"
 MS_DTYPE = ms.bfloat16  # float16 fail to reconstruct
 model = Emu3VisionVQModel.from_pretrained(MODEL_HUB, use_safetensors=True, mindspore_dtype=MS_DTYPE).set_train(False)
@@ -58,9 +58,9 @@ processor = Emu3VisionVQImageProcessor.from_pretrained(MODEL_HUB)
 # AutoImageProcessor: "BAAI/Emu3-VisionTokenizer--image_processing_emu3visionvq.Emu3VisionVQImageProcessor"
 print("Load model ==> Time elapsed: %.4fs" % (time.time() - start_time))
 
-# TODO: you need to modify the path here
-# VIDEO_FRAMES_PATH = "YOUR_VIDEO_FRAMES_PATH"
-VIDEO_FRAMES_PATH = "assets/video_pd"
+# TODO: you need to modify the path of VIDEO_FRAMES_PATH here
+VIDEO_FRAMES_PATH = "YOUR_VIDEO_FRAMES_PATH"
+# VIDEO_FRAMES_PATH = "assets/video_pd"
 
 video = os.listdir(VIDEO_FRAMES_PATH)
 video.sort()
@@ -91,7 +91,7 @@ recon_image.save("recon_image.png")
 print("Saved image recon_image.png")
 
 # video autoencode #
-
+# NOTE: number of frames must be multiple of `model.config.temporal_downsample_factor`
 # This script OOM
 # if images.shape[1] % model.config.temporal_downsample_factor !=0:
 #     images = images[:, :images.shape[1] // model.config.temporal_downsample_factor * model.config.temporal_downsample_factor]

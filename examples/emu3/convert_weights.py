@@ -6,9 +6,9 @@ Because some weights and variables in networks cannot be auto-converted, e.g. Ba
 To run this script, you should have installed both pytorch and mindspore.
 
 Usage:
-python convert_model.py --safetensor_path pytorch_model.safetensors --ms_safetensor_path model.savetensors
+python convert_model.py --safetensor_path pytorch_model.safetensors --target_safetensor_path model.safetensors
 
-The converted model `model.savetensors` will be saved in the same directory as this file belonging to.
+The converted model `model.safetensors` will be saved in the same directory as this file belonging to.
 """
 
 import argparse
@@ -44,7 +44,7 @@ def convert_safetensors(args):
 
         weights_ms_safetensors[key] = torch.from_numpy(value.numpy())
 
-    save_file_dir = os.path.join(os.path.dirname(args.safetensor_path), args.ms_safetensor_path)
+    save_file_dir = os.path.join(os.path.dirname(args.safetensor_path), args.target_safetensor_path)
     save_file(weights_ms_safetensors, save_file_dir, metadata=metadata)
     print(f"Safetensors is converted and saved as {save_file_dir}")
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         help="path to Emu3 weight from torch (model.safetensors)",
     )
     parser.add_argument(
-        "--ms_safetensor_path", type=str, help="path to sdxl lora weight from mindone kohya (xxx.safetensors)"
+        "--target_safetensor_path", type=str, help="path to sdxl lora weight from mindone kohya (xxx.safetensors)"
     )
 
     args, _ = parser.parse_known_args()
