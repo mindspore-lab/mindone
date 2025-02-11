@@ -234,7 +234,7 @@ class Mlp(nn.Cell):
             in_features,
             hidden_features=None,
             out_features=None,
-            act_layer=partial(nn.GELU, approximate=False),
+            act_layer=mint.nn.GELU,
             norm_layer=None,
             bias=True,
             drop=0.,
@@ -248,10 +248,7 @@ class Mlp(nn.Cell):
         linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else mint.nn.Linear
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
-        if act_layer == nn.GELU:
-            self.act = act_layer(approximate=False)
-        else:
-            self.act = act_layer()
+        self.act = act_layer()
         self.drop1 = nn.Dropout(p=drop_probs[0])
         self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
