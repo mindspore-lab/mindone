@@ -135,11 +135,9 @@ def main():
         # text preprocess
         # add [] to match dimension (support when using a single string instead of a list of strings)
         if isinstance(text, str):
-            text = Tensor(B * [processor(text=text, padding='max_length',
-                                         max_length=77, truncation=True, return_tensors="np")['input_ids']])
+            text = Tensor(B * [processor(text = text, padding = 'max_length', max_length = 77, truncation = True)['input_ids']])
         else:
-            text = Tensor(processor(text = text, padding = 'max_length',
-                                    max_length = 77, truncation = True, return_tensors="np")['input_ids'])
+            text = Tensor(processor(text = text, padding = 'max_length', max_length = 77, truncation = True)['input_ids'])
         text_features = model.get_text_features(text)
 
         normalize = ops.L2Normalize(axis = -1)
