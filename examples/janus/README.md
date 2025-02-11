@@ -27,6 +27,8 @@
   <!-- 🤗 Online Demo (<a href="https://huggingface.co/spaces/deepseek-ai/Janus-Pro-7B"><b>Janus-Pro-7B</b></a>, <a href="https://huggingface.co/spaces/deepseek-ai/Janus-1.3B"><b>Janus</b></a>, <a href="https://huggingface.co/spaces/deepseek-ai/JanusFlow-1.3B"><b>JanusFlow</b></a>) -->
 </p>
 
+We provide an efficient MindSpore implementation of [JanusPro](https://github.com/deepseek-ai/Janus). This repository is built on the models and code released by DeepSeek. We are grateful for their exceptional work and generous contribution to open source.
+
 
 ## News
 
@@ -70,8 +72,6 @@ huggingface-cli download deepseek-ai/Janus-Pro-7B --local_dir ckpts/Janus-Pro-7B
 
 
 ## 3. Quick Start
-<details>
-<summary><h3>Janus-Pro</h3></summary>
 
 ### Requirments
 
@@ -127,7 +127,6 @@ Have Fun!
 
 -->
 
-</details>
 
 
 ## 4. License
@@ -145,4 +144,5 @@ This code repository is licensed under [the MIT License](https://github.com/deep
 }
 
 ```
+
 
