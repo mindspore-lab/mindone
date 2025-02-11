@@ -1,4 +1,4 @@
-python hyvideo/train/train_t2v.py \
+python scripts/train_t2v.py \
     --model "HYVideo-T/2-depth1" \
     --cache_dir "./ckpts" \
     --dataset t2v \

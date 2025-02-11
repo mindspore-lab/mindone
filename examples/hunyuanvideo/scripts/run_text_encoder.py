@@ -12,12 +12,12 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
-from constants import PRECISIONS, PROMPT_TEMPLATE
-from dataset.text_dataset import create_dataloader
-from dataset.transform import text_preprocessing
-from text_encoder import TextEncoder
-from utils.message_utils import print_banner
-from utils.ms_utils import init_env
+from hyvideo.constants import PRECISIONS, PROMPT_TEMPLATE
+from hyvideo.dataset.text_dataset import create_dataloader
+from hyvideo.dataset.transform import text_preprocessing
+from hyvideo.text_encoder import TextEncoder
+from hyvideo.utils.message_utils import print_banner
+from hyvideo.utils.ms_utils import init_env
 
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger

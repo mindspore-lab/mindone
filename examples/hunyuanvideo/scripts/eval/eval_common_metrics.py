@@ -39,9 +39,10 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(".")
 
-from hyvideo.eval.cal_lpips import calculate_lpips
-from hyvideo.eval.cal_psnr import calculate_psnr
 from hyvideo.utils.dataset_utils import VideoPairDataset, create_dataloader
+
+from .cal_lpips import calculate_lpips
+from .cal_psnr import calculate_psnr
 
 flolpips_isavailable = False
 calculate_flolpips = None
@@ -96,27 +97,64 @@ def calculate_common_metric(args, dataloader, dataset_size):
 
 def main():
     parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--batch_size", type=int, default=2, help="Batch size to use")
-    parser.add_argument("--real_video_dir", type=str, help=("the path of real videos`"))
-    parser.add_argument("--real_data_file_path", type=str, default=None, help=("the path of real videos csv file`"))
-    parser.add_argument("--generated_video_dir", type=str, help=("the path of generated videos`"))
+    parser.add_argument("--batch-size", type=int, default=2, help="Batch size to use")
+    parser.add_argument("--real-video-dir", type=str, help="The path of real videos")
+    parser.add_argument("--real-data-file-path", type=str, default=None, help="The path of real videos CSV file")
+    parser.add_argument("--generated-video-dir", type=str, help="The path of generated videos")
     parser.add_argument("--device", type=str, default=None, help="Device to use. Like GPU or Ascend")
     parser.add_argument(
-        "--num_workers",
+        "--num-workers",
         type=int,
         default=8,
-        help=("Number of processes to use for data loading. " "Defaults to `min(8, num_cpus)`"),
+        help="Number of processes to use for data loading. Defaults to `min(8, num_cpus)`",
     )
-    parser.add_argument("--sample_fps", type=int, default=30)
-    parser.add_argument("--resolution", type=int, default=336)
-    parser.add_argument("--crop_size", type=int, default=None)
-    parser.add_argument("--num_frames", type=int, default=100)
-    parser.add_argument("--sample_rate", type=int, default=1)
-    parser.add_argument("--subset_size", type=int, default=None)
-    parser.add_argument("--metric", type=str, default="fvd", choices=["fvd", "psnr", "ssim", "lpips", "flolpips"])
-    parser.add_argument("--fvd_method", type=str, default="styleganv", choices=["styleganv", "videogpt"])
+    parser.add_argument("--sample-fps", type=int, default=30, help="Sampling frames per second for the video.")
+    parser.add_argument(
+        "--short-size",
+        type=int,
+        default=256,
+        help=(
+            "Resize the video frames to this size. If provided, the smaller dimension will be resized to this value "
+            "while maintaining the aspect ratio. "
+        ),
+    )
+    parser.add_argument(
+        "--height",
+        type=int,
+        default=256,
+        help="Height to crop the video frames.",
+    )
+
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=256,
+        help="Width to crop the video frames.",
+    )
+    parser.add_argument("--num-frames", type=int, default=100, help="Number of frames to sample from the video.")
+    parser.add_argument("--sample-rate", type=int, default=1, help="Sampling rate for video frames.")
+    parser.add_argument("--subset-size", type=int, default=None, help="Subset size to evaluate.")
+    parser.add_argument(
+        "--metric",
+        type=str,
+        default="fvd",
+        choices=["fvd", "psnr", "ssim", "lpips", "flolpips"],
+        help="Metric to calculate.",
+    )
+    parser.add_argument(
+        "--fvd-method",
+        type=str,
+        default="styleganv",
+        choices=["styleganv", "videogpt"],
+        help="Method to use for FVD calculation.",
+    )
 
     args = parser.parse_args()
+    # Check if short_size is less than the minimum of height and width
+    if args.short_size < min(args.height, args.width):
+        raise ValueError(
+            f"short_size ({args.short_size}) cannot be less than the minimum of height ({args.height}) and width ({args.width})."
+        )
 
     if args.num_workers is None:
         try:
@@ -137,8 +175,8 @@ def main():
         num_frames=args.num_frames,
         real_data_file_path=args.real_data_file_path,
         sample_rate=args.sample_rate,
-        crop_size=args.crop_size,
-        resolution=args.resolution,
+        crop_size=(args.height, args.width),
+        short_size=args.short_size,
     )
 
     dataloader = create_dataloader(

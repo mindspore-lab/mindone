@@ -20,7 +20,6 @@ from hyvideo.dataset.loader import create_dataloader
 from hyvideo.diffusion.net_with_loss import DiffusionWithLoss
 from hyvideo.diffusion.schedulers.rectified_flow_trainer import RFlowEvalLoss, RFlowLossWrapper
 from hyvideo.modules.models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
-from hyvideo.train.commons import create_loss_scaler, parse_args
 from hyvideo.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback
 from hyvideo.utils.dataset_utils import Collate, LengthGroupedSampler
 from hyvideo.utils.ema import EMA
@@ -42,6 +41,8 @@ from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
+
+from .commons import create_loss_scaler, parse_args
 
 logger = logging.getLogger(__name__)
 
@@ -206,7 +207,7 @@ def main(args):
     # Load text encoder
     if not args.text_embed_cache:
         print_banner("text encoder init")
-        from hyvideo.run_text_encoder import build_model
+        from .run_text_encoder import build_model
 
         text_encoder_1, text_encoder_2 = build_model(args, logger)
         text_encoder_1_dtype, text_encoder_2_dtype = args.text_encoder_precision, args.text_encoder_precision_2

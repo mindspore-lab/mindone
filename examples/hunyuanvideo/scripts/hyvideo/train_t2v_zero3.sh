@@ -1,7 +1,7 @@
 NUM_FRAME=29
 export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=8000 --log_dir="t2v-video3d-${NUM_FRAME}x256p_zero3/parallel_logs" \
- hyvideo/train/train_t2v.py \
+ scripts/train_t2v.py \
     --model "HYVideo-T/2-cfgdistill" \
     --cache_dir "./ckpts" \
     --dataset t2v \
