@@ -148,7 +148,7 @@ class VideoBlock(nn.Cell):
         x = x.transpose(0, 2, 3, 1).reshape(b, -1, c)  # b c h w -> b (h w) c
 
         x_mix = x
-        num_frames = ops.arange(timesteps).repeat(b // timesteps)
+        num_frames = ops.arange(timesteps).repeat_interleave(b // timesteps)
         t_emb = timestep_embedding(num_frames, self.in_channels, repeat_only=False)
         emb = self.video_time_embed(t_emb)  # b, n_channels
         emb = emb[:, None, :]
