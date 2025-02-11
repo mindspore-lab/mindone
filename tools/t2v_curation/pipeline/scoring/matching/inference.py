@@ -49,7 +49,7 @@ class VideoTextDataset:
         # transform & stack
         if self.transform is not None:
             images = [self.transform(images=img, return_tensors="np").pixel_values for img in images]
-        images = np.stack([img.asnumpy() for img in images])
+        images = np.stack(images)
 
          # read from csv directly if exists, else return None
         text = sample.get('text', '')
