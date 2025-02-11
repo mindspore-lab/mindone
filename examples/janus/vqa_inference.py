@@ -16,12 +16,12 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
             vl_gpt: MultiModalityCausalLM,
             vl_chat_processor: VLChatProcessor,
             ):
-    # Clear CUDA cache before generating
-    # torch.cuda.empty_cache()
-    
+    # Clear cache before generating
+    # ms.hal.empty_cache()
+
     # set seed
     set_random_seed(seed)
-    
+
     conversation = [
         {
             "role": "<|User|>",
@@ -31,14 +31,14 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
         {"role": "<|Assistant|>", "content": ""},
     ]
     tokenizer = vl_chat_processor.tokenizer
-    
+
     pil_images = load_pil_images(conversation)
     prepare_inputs = vl_chat_processor(
         conversations=conversation, images=pil_images, force_batchify=True
-    ).to(ms.bfloat16)  # NOTE: no device, all inputs are bf16 
-    
+    ).to(ms.bfloat16)  # NOTE: no device, all inputs are bf16
+
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
-    
+
     outputs = vl_gpt.language_model.generate(
         inputs_embeds=inputs_embeds,
         attention_mask=prepare_inputs.attention_mask,
@@ -51,7 +51,7 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
         temperature=temperature if temperature > 0 else None,
         top_p=top_p if temperature > 0 else None,
     )
-    
+
     answer = tokenizer.decode(outputs[0].asnumpy().tolist(), skip_special_tokens=True)
 
     return answer, prepare_inputs
@@ -59,7 +59,7 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ms_mode", type=str, default=1, help="mindspore mode, 0: graph, 1: pynative")
+    parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
     parser.add_argument("--image", type=str, default="images/doge.png", help="path to input image")
     parser.add_argument("--question", type=str, default="explain this meme", help="path to input image")
     parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder. e.g. deepseek-ai/Janus-Pro-7B, deepseek-ai/Janus-Pro-1B")
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     )
     vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
     vl_gpt.set_train(False)
-    
+
     # infer
     answer, prepare_inputs = multimodal_understanding(args.image, args.question, args.seed, args.top_p, args.temperature,
             vl_gpt=vl_gpt,
