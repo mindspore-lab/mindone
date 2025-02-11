@@ -35,7 +35,7 @@ def generate(
     use_cache: bool= False,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
-    input_ids = Tensor(input_ids, ms.int32)
+    input_ids = Tensor(input_ids, ms.int64)
 
     tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int64)
     for i in range(parallel_size*2):
