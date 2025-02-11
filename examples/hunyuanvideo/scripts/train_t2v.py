@@ -17,7 +17,7 @@ sys.path.append("./")
 from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, PROMPT_TEMPLATE, VAE_PATH
 from hyvideo.dataset import getdataset
 from hyvideo.dataset.loader import create_dataloader
-from hyvideo.diffusion.net_with_loss import DiffusionWithLoss
+from hyvideo.diffusion.pipelines.train_pipelines import DiffusionWithLoss
 from hyvideo.diffusion.schedulers.rectified_flow_trainer import RFlowEvalLoss, RFlowLossWrapper
 from hyvideo.modules.models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
 from hyvideo.utils.callbacks import EMAEvalSwapCallback, PerfRecorderCallback

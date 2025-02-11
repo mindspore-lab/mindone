@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from hyvideo.vae.lpips import LPIPS
+from eval.lpips import LPIPS
 
 import mindspore as ms
 from mindspore import ops

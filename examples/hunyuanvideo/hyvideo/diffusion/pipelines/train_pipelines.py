@@ -1,10 +1,8 @@
 import logging
-import math
 
 from hyvideo.utils.communications import prepare_parallel_data
 from hyvideo.utils.ms_utils import no_grad
 from hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
-from hyvideo.utils.utils import explicit_uniform_sampling
 
 import mindspore as ms
 from mindspore import mint, nn, ops
