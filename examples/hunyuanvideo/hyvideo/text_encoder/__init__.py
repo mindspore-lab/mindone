@@ -1,5 +1,3 @@
-import os
-import sys
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
@@ -10,12 +8,11 @@ from transformers.utils import ModelOutput
 import mindspore as ms
 from mindspore import Tensor, nn
 
-from mindone.transformers import CLIPTextModel
+from mindone.transformers import CLIPTextModel, LlamaModel
+from mindone.transformers.models.llama.modeling_llama import ALL_LAYERNORM_LAYERS
 from mindone.utils.amp import auto_mixed_precision
 
-from ..constants import PRECISION_TO_TYPE, TEXT_ENCODER_PATH, TOKENIZER_PATH
-from .transformers import LlamaModel
-from .transformers.models.llama.modeling_llama import ALL_LAYERNORM_LAYERS
+from constants import PRECISION_TO_TYPE, TEXT_ENCODER_PATH, TOKENIZER_PATH
 
 
 def use_default(value, default):
@@ -36,7 +33,7 @@ def load_text_encoder(
         text_encoder = CLIPTextModel.from_pretrained(text_encoder_path)
         text_encoder.final_layer_norm = text_encoder.text_model.final_layer_norm
     elif text_encoder_type == "llm":
-        text_encoder = LlamaModel.from_pretrained(text_encoder_path)
+        text_encoder = LlamaModel.from_pretrained(text_encoder_path, use_flash_attention_2=True)
         text_encoder.final_layer_norm = text_encoder.norm
     else:
         raise ValueError(f"Unsupported text encoder type: {text_encoder_type}")
