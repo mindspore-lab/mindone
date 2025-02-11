@@ -90,8 +90,14 @@ def _get_pt2ms_mappings(m):
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
     return mappings
 
+PT_MS_DTYPE_MAP = {
+    "torch.bfloat16": ms.bfloat16,
+    "torch.float32": ms.float32
+}
 
 def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
+    if value_pt is not None:
+        _pt_dtype = str(value_pt.dtype)
     if key_pt.startswith(prefix):
         key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
         key_ms = prefix + key_ms
@@ -101,7 +107,11 @@ def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
     if value_pt is None:
         return key_ms, None
     else:
-        return key_ms, value_mapping(value_pt)
+        if isinstance(value_pt, Tensor):
+            return key_ms, value_mapping(value_pt)
+        else:
+            # FIXME precision loss?
+            return key_ms, Tensor(value_mapping(value_pt).float().numpy(), dtype=PT_MS_DTYPE_MAP[_pt_dtype])
 
 
 def _convert_state_dict(m, state_dict_pt, prefix=""):
@@ -253,6 +263,9 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     "you save your model with the `save_pretrained` method."
                 )
             return safe_load_file(checkpoint_file)
+        elif checkpoint_file.endswith(".bin"):
+            import torch
+            return torch.load(checkpoint_file, map_location="cpu", weights_only=True)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -1870,22 +1883,14 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         # load pt weights early so that we know which dtype to init the model under
         if from_pt:
+            # Time to load the checkpoint
             if not is_sharded and state_dict is None:
-                # Time to load the checkpoint
-                dir_split_tuple = os.path.split(resolved_archive_file)
-                if os.path.splitext(resolved_archive_file)[-1] == '.safetensors': 
+                dir_split_tuple = os.path.splitext(resolved_archive_file)
+                if dir_split_tuple[-1] == '.safetensors':
                     state_dict = load_state_dict(resolved_archive_file)
-                elif dir_split_tuple[-1] == 'pytorch_model.bin':
-                    # for .bin model convert to sf and cache it for future loading
-                    _sf_path = os.path.join(dir_split_tuple[0], "model.safetensors")
-                    if not os.path.exists(_sf_path): 
-                        import torch
-                        import numpy as np
-                        from safetensors.torch import save_file
-                        state_dict = torch.load(resolved_archive_file, weights_only=True)
-                        metadata = {"format": "pt"}
-                        save_file(state_dict, _sf_path, metadata=metadata)
-                    state_dict = load_state_dict(_sf_path)
+                elif dir_split_tuple[-1] == '.bin':
+                    import torch
+                    state_dict = torch.load(resolved_archive_file, weights_only=True)
 
             # set dtype to instantiate the model under:
             # 1. If mindspore_dtype is not None, we use that dtype
