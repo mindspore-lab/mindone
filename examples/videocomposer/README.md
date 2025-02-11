@@ -374,7 +374,8 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 
 
 ### Training
-The training performance for exp02-motion transfer with 1 910* card, with different  is as follows:
+
+The training performance for exp02-motion transfer on ascend 910* with different modes is as follows:
 
 | model name   | cards |  batch size | resolution   | recompute | sink | graph compile | mode | jit level  | s/step |  video/s                                                                  |
 |:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:-----------:|
@@ -393,4 +394,3 @@ The video generation speed is as follows.
 | videocomposer | 1     | 1           | 16x256x256         |  0.22 | 0.09  |
 
 
-Note that with MindSpore-Lite, the graph compilation time is eliminated.
