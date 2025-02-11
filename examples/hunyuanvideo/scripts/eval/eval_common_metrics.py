@@ -39,14 +39,13 @@ mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
 sys.path.append(".")
 
+from cal_lpips import calculate_lpips
+from cal_psnr import calculate_psnr
 from hyvideo.utils.dataset_utils import VideoPairDataset, create_dataloader
-
-from .cal_lpips import calculate_lpips
-from .cal_psnr import calculate_psnr
 
 flolpips_isavailable = False
 calculate_flolpips = None
-from hyvideo.eval.cal_ssim import calculate_ssim
+from cal_ssim import calculate_ssim
 from tqdm import tqdm
 
 
@@ -109,15 +108,7 @@ def main():
         help="Number of processes to use for data loading. Defaults to `min(8, num_cpus)`",
     )
     parser.add_argument("--sample-fps", type=int, default=30, help="Sampling frames per second for the video.")
-    parser.add_argument(
-        "--short-size",
-        type=int,
-        default=256,
-        help=(
-            "Resize the video frames to this size. If provided, the smaller dimension will be resized to this value "
-            "while maintaining the aspect ratio. "
-        ),
-    )
+
     parser.add_argument(
         "--height",
         type=int,
@@ -150,11 +141,6 @@ def main():
     )
 
     args = parser.parse_args()
-    # Check if short_size is less than the minimum of height and width
-    if args.short_size < min(args.height, args.width):
-        raise ValueError(
-            f"short_size ({args.short_size}) cannot be less than the minimum of height ({args.height}) and width ({args.width})."
-        )
 
     if args.num_workers is None:
         try:
@@ -176,7 +162,7 @@ def main():
         real_data_file_path=args.real_data_file_path,
         sample_rate=args.sample_rate,
         crop_size=(args.height, args.width),
-        short_size=args.short_size,
+        size=(args.height, args.width),
     )
 
     dataloader = create_dataloader(

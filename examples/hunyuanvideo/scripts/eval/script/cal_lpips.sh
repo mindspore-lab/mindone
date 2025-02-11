@@ -5,6 +5,5 @@ python scripts/eval/eval_common_metrics.py \
     --num-frames 33 \
     --height 360 \
     --width 640 \
-    --short-size 360 \
     --device 'Ascend' \
     --metric 'lpips'

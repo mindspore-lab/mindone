@@ -161,7 +161,7 @@ class VideoPairDataset:
         real_data_file_path=None,
         sample_rate=1,
         crop_size=None,
-        short_size=128,
+        size=128,
         output_columns=["real", "generated"],
     ) -> None:
         super().__init__()
@@ -179,12 +179,12 @@ class VideoPairDataset:
         self.num_frames = num_frames
         self.sample_rate = sample_rate
         self.crop_size = crop_size
-        self.short_size = short_size
+        self.size = size
         self.output_columns = output_columns
         self.real_video_dir = real_video_dir
 
         self.pixel_transforms = create_video_transforms(
-            size=self.short_size,
+            size=self.size,
             crop_size=crop_size,
             random_crop=False,
             disable_flip=True,
