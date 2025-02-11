@@ -1,0 +1,13 @@
+opencv-python
+scikit-image
+ftfy
+regex
+albumentations
+pillow==9.1.1
+tqdm
+mindcv
+decord
+omegaconf
+pyyaml
+ml-collections
+imageio

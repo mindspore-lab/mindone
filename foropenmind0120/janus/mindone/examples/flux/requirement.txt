@@ -1,0 +1,10 @@
+mindspore >= 2.3.0
+fire >= 0.6.0
+huggingface-hub
+safetensors
+sentencepiece
+transformers
+tokenizers
+protobuf
+requests
+invisible-watermark

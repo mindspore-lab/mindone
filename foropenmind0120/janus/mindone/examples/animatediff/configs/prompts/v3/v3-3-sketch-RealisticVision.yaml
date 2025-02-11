@@ -1,0 +1,49 @@
+Sketch-to-Video:
+  sd_config: "configs/stable_diffusion/v3-inference-mmv2-image-condition.yaml"
+  domain_lora_scale: 1.0
+  adapter_lora_path: "models/domain_adapter_lora/v3_sd15_adapter.ckpt"
+  dreambooth_path:   "models/dreambooth_lora/realisticVisionV51_v51VAE.ckpt"
+  inference_config: "configs/inference/inference-v3.yaml"
+  motion_module:
+  - "models/motion_module/v3_sd15_mm.ckpt"
+  controlnet_path:   "models/sparsectrl_encoder/v3_sd15_sparsectrl_scribble.ckpt"
+
+  seed: 42
+  steps: 25
+  guidance_scale: 8.5
+
+  controlnet_image_indexs: [0]
+  controlnet_images:
+    - "__assets__/demos/scribble/scribble_1.png"
+
+  prompt:
+    - "a back view of a boy, standing on the ground, looking at the sky, sunlight, masterpieces"
+    - "a back view of a boy, standing on the ground, looking at the sky, clouds, sunset, orange sky, beautiful sunlight, masterpieces"
+  n_prompt:
+    - "worst quality, low quality, letterboxed"
+
+Storyboarding:
+  sd_config: "configs/stable_diffusion/v3-inference-mmv2-image-condition.yaml"
+  domain_lora_scale: 1.0
+  adapter_lora_path: "models/domain_adapter_lora/v3_sd15_adapter.ckpt"
+  dreambooth_path:   "models/dreambooth_lora/realisticVisionV51_v51VAE.ckpt"
+  inference_config: "configs/inference/inference-v3.yaml"
+  motion_module:
+  - "models/motion_module/v3_sd15_mm.ckpt"
+  controlnet_path:   "models/sparsectrl_encoder/v3_sd15_sparsectrl_scribble.ckpt"
+
+  seed: 42
+  steps: 25
+  guidance_scale: 8.5
+
+  controlnet_image_indexs: [0,8,15]
+  controlnet_images:
+    - "__assets__/demos/scribble/scribble_2_1.png"
+    - "__assets__/demos/scribble/scribble_2_2.png"
+    - "__assets__/demos/scribble/scribble_2_3.png"
+
+  prompt:
+    - "an aerial view of a modern city, sunlight, day time, masterpiece, high quality"
+    - "an aerial view of a cyberpunk city, night time, neon lights, masterpiece, high quality"
+  n_prompt:
+    - "worst quality, low quality, letterboxed"

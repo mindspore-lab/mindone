@@ -1,0 +1,23 @@
+output_path: output/tests/
+
+environment:
+  mode: 0
+  debug: false
+  seed: 42
+
+SDXL:
+  config: ../stable_diffusion_xl/configs/inference/sd_xl_base.yaml
+  overwrite:
+    model:
+      params:
+        network_config:
+          target: modules.adapter_unet.T2IAdapterUNetXL
+  amp_level: O2
+  ratio: '1.0'
+
+sampler:
+  steps: 30
+  sampler: EulerAncestralSampler
+  guider: VanillaCFG
+  guidance_scale: 7.5
+  discretization: LegacyDDPMDiscretization

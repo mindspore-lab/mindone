@@ -1,0 +1,46 @@
+Animation-1:
+  sd_config: "configs/stable_diffusion/v3-inference-mmv2-latent-condition.yaml"
+  domain_lora_scale: 1.0
+  adapter_lora_path: "models/domain_adapter_lora/v3_sd15_adapter.ckpt"
+  dreambooth_path:   "models/dreambooth_lora/realisticVisionV51_v51VAE.ckpt"
+  inference_config: "configs/inference/inference-v3.yaml"
+  motion_module:
+  - "models/motion_module/v3_sd15_mm.ckpt"
+  controlnet_path:   "models/sparsectrl_encoder/v3_sd15_sparsectrl_rgb.ckpt"
+
+  seed: 42
+  steps: 25
+  guidance_scale: 8.5
+
+  controlnet_image_indexs: [0]
+  controlnet_images:
+    - "__assets__/demos/image/RealisticVision_firework.png"
+
+  prompt:
+    - "closeup face photo of man in black clothes, night city street, bokeh, fireworks in background"
+    - "closeup face photo of man in black clothes, night city street, bokeh, fireworks in background"
+  n_prompt:
+    - "worst quality, low quality, letterboxed"
+
+Animation-2:
+  sd_config: "configs/stable_diffusion/v3-inference-mmv2-latent-condition.yaml"
+  domain_lora_scale: 1.0
+  adapter_lora_path: "models/domain_adapter_lora/v3_sd15_adapter.ckpt"
+  dreambooth_path:   "models/dreambooth_lora/realisticVisionV51_v51VAE.ckpt"
+  inference_config: "configs/inference/inference-v3.yaml"
+  motion_module:
+  - "models/motion_module/v3_sd15_mm.ckpt"
+  controlnet_path:   "models/sparsectrl_encoder/v3_sd15_sparsectrl_rgb.ckpt"
+  seed: 42
+  steps: 25
+  guidance_scale: 8.5
+
+  controlnet_image_indexs: [0]
+  controlnet_images:
+    - "__assets__/demos/image/RealisticVision_sunset.png"
+
+  prompt:
+    - "masterpiece, bestquality, highlydetailed, ultradetailed, sunset, orange sky, warm lighting, fishing boats, ocean waves, seagulls, rippling water, wharf, silhouette, serene atmosphere, dusk, evening glow, golden hour, coastal landscape, seaside scenery"
+    - "masterpiece, bestquality, highlydetailed, ultradetailed, sunset, orange sky, warm lighting, fishing boats, ocean waves, seagulls, rippling water, wharf, silhouette, serene atmosphere, dusk, evening glow, golden hour, coastal landscape, seaside scenery"
+  n_prompt:
+    - "worst quality, low quality, letterboxed"

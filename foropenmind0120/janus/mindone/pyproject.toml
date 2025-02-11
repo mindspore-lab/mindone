@@ -1,0 +1,99 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mindone"
+dynamic = ["version"]
+description = "ONE for all, Optimal generator with No Exception."
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+  { name = "MindSpore Lab", email = "mindspore-lab@example.com" },
+]
+keywords = ["artificial intelligence", "deep learning", "generative model", "diffusion", "mindspore"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "tqdm",
+    "pyyaml",
+    "omegaconf",
+    "opencv-python",
+    "sentencepiece",
+    "numpy<2.0",
+    "huggingface-hub>=0.20.2",
+    "safetensors>=0.3.1",
+    "transformers>=4.42.0",
+]
+
+[project.optional-dependencies]
+lint = [
+    "pre-commit"
+]
+docs = [
+    "mkdocs>=1.6",
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
+    "mkdocs-static-i18n>=1.2",
+    "mkdocs-git-revision-date-localized-plugin>=1.2",
+    "mkdocs-git-authors-plugin>=0.9",
+    "mike>=2.1"
+]
+training = [
+    "datasets",
+    "protobuf",
+    "tensorboard",
+    "tensorboardX",
+    "ftfy",
+    "Jinja2"
+]
+tests = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock"
+]
+dev = [
+  "mindone[lint,docs,training,tests]"  # Self-referential. Developers install everything.
+]
+
+[project.urls]
+Homepage = "https://pypi.org/project/mindone/"
+Documentation = "https://mindspore-lab.github.io/mindone/"
+Issues = "https://github.com/mindspore-lab/mindone/issues"
+Source = "https://github.com/mindspore-lab/mindone"
+
+[tool.hatch.envs.default]
+python = "3.8"
+
+[tool.hatch.version]
+# Since we always work in dev(or editable) mode at this stage, it makes sense to keep the version file.
+# In the future, we will deprecate the version file and use hatch-vcs to determine the project version.
+path = "mindone/version.py"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/.github",
+    "/docs",
+    "/examples"
+]
+
+[tool.isort]
+profile = "black"
+line_length = 120
+known_mindspore = ["mindspore"]
+known_first_party = ["mindone"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "MINDSPORE", "FIRSTPARTY", "LOCALFOLDER"]
+
+[tool.black]
+line-length = 120

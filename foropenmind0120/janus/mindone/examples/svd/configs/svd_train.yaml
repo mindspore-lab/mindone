@@ -1,0 +1,48 @@
+environment:
+  mode: 0
+  debug: False
+  seed: 42
+  distributed: False
+  enable_modelarts: False
+
+train:
+  epochs: 1000
+  temporal_only: True   # train only the temporal layers or the entire UNet
+  pretrained: ../model/svd-d19a808f.ckpt
+  output_dir: ../output/
+  save_interval: 10
+
+  dataset:
+    class_path: data.video_dataset.VideoDataset
+    init_args:
+      data_dir:
+      metadata:
+      frames: 4
+      step: 3
+
+  dataloader:
+    batch_size: 1
+    shuffle: True
+    drop_remainder: True
+
+  scheduler:
+    name: cosine_decay
+    lr: 3.0e-5
+    end_lr: 1.0e-7
+    warmup_steps: 50
+
+  optimizer:
+    name: adamw
+    betas: [ 0.9, 0.98 ]
+    weight_decay: 0.01
+
+  settings:
+    drop_overflow_update: True
+    gradient_accumulation_steps: 5
+    clip_grad: True
+    clip_norm: 1.0
+
+LossScale:
+  loss_scale_value: 65536
+  scale_factor: 2
+  scale_window: 1000

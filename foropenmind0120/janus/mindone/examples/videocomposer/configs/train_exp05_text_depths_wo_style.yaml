@@ -1,0 +1,34 @@
+TASK_TYPE: SINGLE_TASK
+ENABLE: true
+DATASET: webvid10m
+video_compositions: ['text', 'mask', 'depthmap', 'sketch', 'single_sketch', 'motion', 'image', 'local_image']
+conditions_for_train: ['text', 'depthmap']  # PyTorch + Ascend setting
+vit_image_size: 224
+network_name: UNetSD_temporal
+resume: true
+seed: 182
+mvs_visual: False
+chunk_size: 16
+log_dir: 'outputs'
+
+# accelerate or memory reduction
+dataset_sink_mode: True # to show every-step loss
+use_recompute: True  # set to True to avoid OOM
+
+optim: "adamw_fp32"
+betas: [0.9, 0.999]
+optim_eps: 1.e-8
+offload: False #
+
+max_frames: 16
+epochs: 50
+ckpt_save_interval: 50
+ckpt_max_keep: 10
+
+loss_scale: 65536
+
+batch_size: 1
+learning_rate: 5.e-5
+warmup_steps: 100
+scheduler: "cosine_decay"
+end_learning_rate: 1.e-5

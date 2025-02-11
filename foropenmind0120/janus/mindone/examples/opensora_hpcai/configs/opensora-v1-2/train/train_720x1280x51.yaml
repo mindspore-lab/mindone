@@ -1,0 +1,72 @@
+# model
+model_version: v1.2
+pretrained_model_path: models/OpenSora-STDiT-v3/opensora_stdit_v3.ckpt
+model_max_length: 300
+freeze_y_embedder: True
+
+noise_scheduler: rflow
+sample_method: logit-normal
+use_timestep_transform: True
+
+vae_type: OpenSoraVAE_V1_2
+vae_checkpoint: models/OpenSora-VAE-v1.2/model.ckpt
+vae_dtype: bf16
+vae_micro_batch_size: 4
+vae_micro_frame_size: 17  # keep it unchanged for the best results
+
+enable_flash_attention: True
+use_recompute: True
+
+# data
+num_parallel_workers: 2
+max_rowsize: 256
+
+# mindspore params, refer to https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/mindspore/mindspore.set_context.html
+jit_level: "O1"
+
+# precision
+amp_level: "O2"
+dtype: bf16
+loss_scaler_type: static
+init_loss_scale: 1
+
+# training hyper-params
+scheduler: "constant"
+start_learning_rate: 1.e-4
+end_learning_rate: 1.e-4
+warmup_steps: 1000
+
+clip_grad: True
+max_grad_norm: 1.0
+use_ema: True
+ema_decay: 0.99
+
+optim: "adamw_re"
+optim_eps: 1e-15
+weight_decay: 0.
+
+epochs: 1000
+ckpt_save_interval: &save_interval 100
+
+mask_ratios:
+  random: 0.005
+  interpolate: 0.002
+  quarter_random: 0.007
+  quarter_head: 0.002
+  quarter_tail: 0.002
+  quarter_head_tail: 0.002
+  image_random: 0.0
+  image_head: 0.22
+  image_tail: 0.005
+  image_head_tail: 0.005
+
+image_size: [ 720, 1280 ]
+num_frames: 51
+batch_size: 1
+
+# bucket_config:
+#  "720p": { 51: [ 0.03, 1 ] }
+
+
+# ---------- Validation ----------
+validate: False

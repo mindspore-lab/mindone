@@ -1,0 +1,31 @@
+base: ../stable_diffusion_v2/configs/v1-inference.yaml
+model:
+  target: adapter.sdv2.models.diffusion.ddpm.IPAdapterLatentDiffusion
+  params:
+    unet_config:
+      target: adapter.sdv2.modules.diffusionmodules.openaimodel.IPAdapterUNetModel
+      params:
+        enable_flash_attention: False
+        ip_scale: 1.0
+        num_tokens: 4
+
+    embedder_config:
+      target: adapter.common.modules.embedders.modules.IPAdapterImageEmbedder
+      params:
+        freeze: True
+        embed_dim: 1024
+        image_resolution: 224
+        vision_layers: 32
+        vision_width: 1280
+        vision_patch_size: 14
+        vision_head_width: 80
+        unet_cross_attention_dim: 768
+        num_tokens: 4
+        mlp_ratio: 4.0
+        use_fp16: True
+
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.FrozenCLIPEmbedder
+      params:
+        tokenizer_name: CLIPTokenizer
+        version: openai/clip-vit-large-patch14

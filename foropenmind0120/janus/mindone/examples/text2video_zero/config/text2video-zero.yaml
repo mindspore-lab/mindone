@@ -1,0 +1,15 @@
+# video_path: "./videos/deer.mp4"
+video_path: "./videos/girl_turning.mp4"
+# prompt: 'oil painting of a deer, a high-quality, detailed, and professional photo'  # The prompt to render
+prompt: 'A beautiful girl, a high-quality, detailed, and professional photo'
+controlnet_mode: "canny" # candidates: [canny]
+a_prompt: "best quality, extremely detailed"
+negative_prompt: "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality"  # The negative prompt not to render
+H: 512  # Image height, in pixel space
+W: 512  # Image width, in pixel space
+image_resolution: 512
+low_threshold: 100
+high_threshold: 200
+strength: 1
+guess_mode: False
+pretrained_ckpt: "models/control_canny_sd_v1.5_static-6350d204.ckpt" # change it to ckpt corresponding to certain control mode

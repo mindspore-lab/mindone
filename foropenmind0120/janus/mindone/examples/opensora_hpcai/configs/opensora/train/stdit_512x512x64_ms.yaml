@@ -1,0 +1,40 @@
+# model
+space_scale: 1.0  # 0.5 for 256. 1.0 for 512
+time_scale: 0.6666666667
+pretrained_model_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
+
+sd_scale_factor: 0.18215
+enable_flash_attention: True
+use_recompute: True
+num_recompute_blocks: 24
+
+# data
+image_size: 512
+num_frames: 64
+frame_stride: 2
+
+num_parallel_workers: 16
+max_rowsize: 96
+
+# mixed precision
+vae_dtype: "fp32"
+global_bf16: True  # stidit
+init_loss_scale: 65536
+
+# training hyper-params
+scheduler: "constant"
+start_learning_rate: 2.e-5
+end_learning_rate: 2.e-5
+warmup_steps: 0
+
+batch_size: 1
+clip_grad: True
+max_grad_norm: 1.0
+use_ema: False
+
+optim: "adamw_re"
+optim_eps: 1.e-8
+weight_decay: 0.
+
+epochs: 20000
+ckpt_save_interval: 50

@@ -1,0 +1,28 @@
+# system
+mode: 0
+use_parallel: False
+num_workers: 2
+
+# dataset
+data_path: "/path/to/data"
+train_batch_size: 16
+image_size: 512
+image_filter_size: 200
+
+# model
+model_config: "configs/training/sd_model_configs/sd_v15.yaml"
+ckpt_save_interval: 50
+epochs: 2000
+use_ema: False
+clip_grad: False
+
+# lr scheduler
+scheduler: "constant"
+start_learning_rate: 1e-4
+warmup_steps: 1000
+decay_steps: 0
+
+# optimizer
+optim: "adamw"
+betas: [0.9, 0.98]
+weight_decay: 0.01

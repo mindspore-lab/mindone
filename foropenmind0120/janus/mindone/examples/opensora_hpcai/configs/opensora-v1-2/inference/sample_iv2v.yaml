@@ -1,0 +1,42 @@
+model_version: v1.2
+ckpt_path: "models/opensora_stdit_v3.ckpt"
+t5_model_dir: "models/t5-v1_1-xxl/"
+# t5_dtype: bf16   # uncomment if oom
+
+vae_type: "OpenSoraVAE_V1_2"
+vae_checkpoint: "models/OpenSora-VAE-v1.2/model.ckpt"
+vae_dtype: bf16
+vae_micro_batch_size: 4
+vae_micro_frame_size: 17  # keep it unchanged for the best results
+
+resolution: 720p
+aspect_ratio: "9:16"
+num_frames: 4s
+fps: 24
+enable_flash_attention: True
+model_max_length: 300
+dtype: bf16
+batch_size: 1
+
+# sampling
+sampling_steps: 30
+guidance_scale: 7.0
+seed: 42
+sampling: rflow
+
+loop: 1
+condition_frame_length: 5
+
+# ms
+jit_level: O0
+
+captions:
+  - "In an ornate, historical hall, a massive tidal wave peaks and begins to crash. Two surfers, seizing the moment, skillfully navigate the face of the wave."
+
+mask_strategy:
+  # 6 numbers: loop index, reference id, reference starting frame, position in the generated video,
+  # number of conditioning frames, editing strength. For more, see docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above
+  - "0, 0, 0, 0, 1, 0"
+
+reference_path:
+  - "assets/wave.png"

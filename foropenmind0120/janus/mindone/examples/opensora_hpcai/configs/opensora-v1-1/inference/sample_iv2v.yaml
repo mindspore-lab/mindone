@@ -1,0 +1,36 @@
+model_version: v1.1
+ckpt_path: "models/opensora_v1.1_stage3.ckpt"
+t5_model_dir: "models/t5-v1_1-xxl/"
+
+vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
+vae_dtype: bf16
+
+image_size: [ 240, 426 ]
+num_frames: 16
+frame_interval: 3
+fps: 24
+enable_flash_attention: True
+model_max_length: 200
+dtype: bf16
+batch_size: 1
+
+# sampling
+sampling_steps: 100
+guidance_scale: 7.0
+guidance_channels: 3
+seed: 42
+sampling: ddpm
+
+loop: 1
+condition_frame_length: 4
+
+captions:
+  - "In an ornate, historical hall, a massive tidal wave peaks and begins to crash. Two surfers, seizing the moment, skillfully navigate the face of the wave."
+
+mask_strategy:
+  # 6 numbers: loop index, reference id, reference starting frame, position in the generated video,
+  # number of conditioning frames, editing strength. For more, see docs/quick_start.md#imagevideo-to-video-opensora-v11-and-above
+  - "0, 0, 0, 0, 1, 0"
+
+reference_path:
+  - "assets/wave.png"

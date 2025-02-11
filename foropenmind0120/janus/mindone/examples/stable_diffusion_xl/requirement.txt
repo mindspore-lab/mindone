@@ -1,0 +1,8 @@
+streamlit
+omegaconf
+ftfy
+transformers
+imagesize
+git+https://github.com/webdataset/webdataset.git
+pandas
+opencv-python

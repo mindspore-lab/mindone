@@ -1,0 +1,83 @@
+# model
+model_version: v1.2
+pretrained_model_path: models/PixArt-Sigma-XL-2-2K-MS.ckpt
+model_max_length: 300
+freeze_y_embedder: True
+
+noise_scheduler: rflow
+sample_method: logit-normal
+use_timestep_transform: True
+
+vae_type: OpenSoraVAE_V1_2
+vae_checkpoint: models/OpenSora-VAE-v1.2/model.ckpt
+vae_dtype: bf16
+vae_micro_batch_size: 4
+vae_micro_frame_size: 17  # keep it unchanged for the best results
+
+enable_flash_attention: True
+use_recompute: True
+
+# data
+num_parallel_workers: 2
+num_workers_dataset: 2
+prefetch_size: 2
+max_rowsize: 256
+
+# precision
+amp_level: "O2"
+dtype: bf16
+loss_scaler_type: static
+init_loss_scale: 1
+
+# mindspore params, refer to https://www.mindspore.cn/docs/zh-CN/r2.3.1/api_python/mindspore/mindspore.set_context.html
+max_device_memory: "59GB"
+jit_level: "O1"
+manual_pad: True
+
+# training hyper-params
+scheduler: "constant"
+start_learning_rate: 1.e-4
+end_learning_rate: 1.e-4
+warmup_steps: 1000
+
+clip_grad: True
+max_grad_norm: 1.0
+use_ema: True
+ema_decay: 0.99
+
+optim: "adamw_re"
+optim_eps: 1e-15
+weight_decay: 0.
+
+# epochs: 2
+train_steps: 30000
+ckpt_save_steps:  500
+
+mask_ratios:
+  random: 0.05
+  interpolate: 0.005
+  quarter_random: 0.005
+  quarter_head: 0.005
+  quarter_tail: 0.005
+  quarter_head_tail: 0.005
+  image_random: 0.025
+  image_head: 0.05
+  image_tail: 0.025
+  image_head_tail: 0.025
+
+bucket_config:
+  # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
+  # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
+  "144p": {1: [1.0, 475], 51: [1.0, 46], 102: [[1.0, 0.33], 23], 204: [[1.0, 0.1], 13], 408: [[1.0, 0.1], 6]}
+  "256": {1: [0.4, 297], 51: [0.5, 24], 102: [[0.5, 0.33], 12], 204: [[0.5, 0.1], 5], 408: [[0.5, 0.1], 2]}
+  "240p": {1: [0.3, 297], 51: [0.4, 16], 102: [[0.4, 0.33], 8], 204: [[0.4, 0.1], 5], 408: [[0.4, 0.1], 2]}
+  "360p": {1: [0.2, 141], 51: [0.15, 7], 102: [[0.15, 0.33], 3], 204: [[0.15, 0.1], 2], 408: [[0.15, 0.1], 1]}
+  "512": {1: [0.1, 141]}
+  "480p": {1: [0.1, 89]}
+  "720p": {1: [0.05, 36]}
+  "1024": {1: [0.05, 36]}
+  "1080p": {1: [0.1, 5]}
+  "2048": {1: [0.1, 5]}
+
+# ---------- Validation ----------
+validate: False

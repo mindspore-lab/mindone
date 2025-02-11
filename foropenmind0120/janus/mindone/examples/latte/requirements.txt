@@ -1,0 +1,10 @@
+imageio==2.31.2
+decord>=0.6.0
+omegaconf
+safetensors
+albumentations
+ftfy
+regex
+torch
+av
+tqdm

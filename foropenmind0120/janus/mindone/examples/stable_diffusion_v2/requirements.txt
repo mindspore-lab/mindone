@@ -1,0 +1,13 @@
+opencv-python
+omegaconf
+einops
+ftfy
+regex
+albumentations
+pandas
+imagesize
+toolz
+pillow==9.1.1
+tqdm
+jsonargparse[signatures,omegaconf,urls]>=4.25.0
+PyWavelets>=1.1.1

@@ -1,0 +1,10 @@
+data_config:
+  data_folder: ""
+  train_data_type: "video_file"
+  sample_stride: 3
+  use_safer_augment: True
+  image_video_joint: False
+  use_image_num:
+  num_parallel_workers: 8
+  max_rowsize: 64
+  shuffle: True

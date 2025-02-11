@@ -1,0 +1,23 @@
+space_scale: 1.0
+time_scale: 1.0
+
+ckpt_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
+t5_model_dir: "models/t5-v1_1-xxl/"
+vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
+
+image_size: 512
+num_frames: 16
+sd_scale_factor: 0.18215
+enable_flash_attention: False
+dtype: "fp32"
+batch_size: 1
+
+# sampling
+sampling_steps: 100
+guidance_scale: 7.0
+seed: 42
+sampling: ddpm
+
+captions:
+- "A snowy forest landscape with a dirt road running through it. The road is flanked by trees covered in snow, and the ground is also covered in snow. The sun is shining, creating a bright and serene atmosphere. The road appears to be empty, and there are no people or animals visible in the video. The style of the video is a natural landscape shot, with a focus on the beauty of the snowy forest and the peacefulness of the road."
+- "The video captures the majestic beauty of a waterfall cascading down a cliff into a serene lake. The waterfall, with its powerful flow, is the central focus of the video."

@@ -1,0 +1,16 @@
+# in addition to mindone
+transformers
+rembg
+tqdm
+omegaconf
+matplotlib
+opencv-python
+imageio
+jaxtyping
+SentencePiece
+trimesh
+xatlas
+ninja
+gradio
+open3d
+# pyglet<2 # if do rendering locally

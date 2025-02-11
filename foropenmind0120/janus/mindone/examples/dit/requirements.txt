@@ -1,0 +1,6 @@
+imageio==2.31.2
+gdown
+einops
+omegaconf
+safetensors
+albumentations

@@ -1,0 +1,14 @@
+opencv-python
+omegaconf
+einops
+ftfy
+regex
+albumentations
+pandas
+imagesize
+toolz
+pillow==9.1.1
+tqdm
+jsonargparse[signatures,omegaconf,urls]>=4.25.0
+imageio==2.9.0
+imageio-ffmpeg==0.4.2

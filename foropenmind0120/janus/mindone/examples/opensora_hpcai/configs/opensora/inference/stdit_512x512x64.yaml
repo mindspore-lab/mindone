@@ -1,0 +1,29 @@
+space_scale: 1.0
+time_scale: 0.6666666667
+
+ckpt_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
+t5_model_dir: "models/t5-v1_1-xxl/"
+vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
+
+image_size: 512
+num_frames: 64
+batch_size: 1
+enable_flash_attention: True
+dtype: "bf16"
+
+# vae
+sd_scale_factor: 0.18215
+vae_micro_batch_size: 16
+
+# sampling
+sampling_steps: 100
+guidance_scale: 7.0
+seed: 42
+sampling: ddpm
+
+captions:
+- "a young girl standing in a field of flowers"
+- "a young girl in a field of dandelions"
+- "a person in a kayak in a river"
+- "a young boy holding a basketball up to his face"
+- "a man with a surprised look on his face"

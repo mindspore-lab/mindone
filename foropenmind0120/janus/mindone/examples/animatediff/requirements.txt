@@ -1,0 +1,9 @@
+imageio==2.31.2
+decord>=0.6.0
+gdown
+einops
+omegaconf
+safetensors
+albumentations
+ftfy
+regex
