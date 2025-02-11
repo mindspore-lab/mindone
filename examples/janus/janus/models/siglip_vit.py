@@ -145,10 +145,10 @@ class Attention(nn.Cell):
             )
         else:
             q = q * self.scale
-            attn = q @ k.transpose(-2, -1)
-            attn = attn.softmax(dim=-1)
+            attn = ops.bmm(q, k.transpose(0, 1, 3, 2))
+            attn = ops.softmax(attn, axis=-1)
             attn = self.attn_drop(attn)
-            x = attn @ v
+            x = ops.bmm(attn, v)
 
         x = x.transpose(0, 2, 1, 3).reshape(B, N, C)
         x = self.proj(x)
