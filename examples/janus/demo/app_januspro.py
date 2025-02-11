@@ -225,10 +225,10 @@ with gr.Blocks() as demo:
                 "explain this meme",
                 "images/doge.png",
             ],
-            [
-                "Convert the formula into latex code.",
-                "images/equation.png",
-            ],
+            # [
+            #    "Convert the formula into latex code.",
+            #    "images/equation.png",
+            # ],
         ],
         inputs=[question_input, image_input],
     )
