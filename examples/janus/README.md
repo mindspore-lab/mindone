@@ -65,8 +65,8 @@ permitted under these terms.
 You can download by: 
 
 ```shell
-huggingface-cli download deepseek-ai/Janus-Pro-1B --local_dir ckpts/Janus-Pro-1B
-huggingface-cli download deepseek-ai/Janus-Pro-7B --local_dir ckpts/Janus-Pro-7B
+huggingface-cli download deepseek-ai/Janus-Pro-1B --local-dir ckpts/Janus-Pro-1B
+huggingface-cli download deepseek-ai/Janus-Pro-7B --local-dir ckpts/Janus-Pro-7B
 ```
 
 
@@ -111,21 +111,20 @@ python generation_inference.py \
 
 ### Gradio Demo
 
-Coming soon...
 
-<!--
+For the remote gradio demo, you can run with the following command:
 
-For the local gradio demo, you can run with the following command:
 
-```
+on NPU server:
+```shell
 pip install -e .[gradio]
 
 python demo/app_januspro.py
 ```
 
-Have Fun!
+on local terminal, run `ssh -L 37906:local_host:37906 user_name@server_ip`, then `local_host:37906` on the web.
 
--->
+Have Fun!
 
 
 

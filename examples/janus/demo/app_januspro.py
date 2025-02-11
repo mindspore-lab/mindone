@@ -1,13 +1,15 @@
+import argparse
 import gradio as gr
 import os, sys
 import mindspore as ms
-from mindspore import Tensor
+from mindspore import Tensor, mint, ops
 from transformers import AutoConfig, AutoModelForCausalLM
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
+from mindone.utils.config import str2bool
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images
 from janus.utils.io import set_model_param_dtype
@@ -18,27 +20,31 @@ import numpy as np
 import os
 import time
 
+# args
+parser = argparse.ArgumentParser()
+parser.add_argument("--ms_mode", type=str, default=1, help="mindspore mode, 0: graph, 1: pynative")
+parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder")
+parser.add_argument("--share", type=str2bool, default=False, help="private or share demo (public)")
+args = parser.parse_args()
 
 # ms init
-ms_mode = 1
-ms.set_context(mode=ms_mode)  # TODO: t2v support graph mode
-if ms_mode == 0:
+ms.set_context(mode=args.ms_mode)  # TODO: t2v support graph mode
+if args.ms_mode == 0:
     ms.set_context(jit_config={"jit_level": "O0"})
 
 # Load model and processor
-# model_path = "deepseek-ai/Janus-Pro-1B"
-model_path = "deepseek-ai/Janus-Pro-7B"
-config = AutoConfig.from_pretrained(model_path)
+# model_path = "deepseek-ai/Janus-Pro-7B"
+config = AutoConfig.from_pretrained(args.model_path)
 language_config = config.language_config
 language_config._attn_implementation = 'eager'
-vl_gpt = AutoModelForCausalLM.from_pretrained(model_path,
+vl_gpt = AutoModelForCausalLM.from_pretrained(args.model_path,
                                              language_config=language_config,
                                              trust_remote_code=True)
 
 vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
 vl_gpt.set_train(False)
 
-vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
+vl_chat_processor = VLChatProcessor.from_pretrained(args.model_path)
 tokenizer = vl_chat_processor.tokenizer
 
 
@@ -46,10 +52,10 @@ tokenizer = vl_chat_processor.tokenizer
 def multimodal_understanding(image, question, seed, top_p, temperature):
     # Clear cache before generating
     # ms.hal.empty_cache()
-    
+
     # set seed
     set_random_seed(seed)
-    
+
     conversation = [
         {
             "role": "<|User|>",
@@ -58,16 +64,16 @@ def multimodal_understanding(image, question, seed, top_p, temperature):
         },
         {"role": "<|Assistant|>", "content": ""},
     ]
-    
+
     pil_images = [Image.fromarray(image)]
-    
+
     prepare_inputs = vl_chat_processor(
         conversations=conversation, images=pil_images, force_batchify=True
-    ).to(ms.bfloat16) 
- 
-    
+    ).to(ms.bfloat16)
+
+
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
-    
+
     outputs = vl_gpt.language_model.generate(
         inputs_embeds=inputs_embeds,
         attention_mask=prepare_inputs.attention_mask,
@@ -80,7 +86,7 @@ def multimodal_understanding(image, question, seed, top_p, temperature):
         temperature=temperature if temperature > 0 else None,
         top_p=top_p if temperature > 0 else None,
     )
- 
+
     answer = tokenizer.decode(outputs[0].asnumpy().tolist(), skip_special_tokens=True)
 
     return answer
@@ -97,7 +103,7 @@ def generate(input_ids,
              patch_size: int = 16):
     # Clear cache before generating
     # ms.hal.empty_cache()
-    
+
     tokens = mint.zeros((parallel_size*2, len(input_ids)), dtype=ms.int64)
 
     for i in range(parallel_size * 2):
@@ -141,7 +147,7 @@ def generate(input_ids,
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
             inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
-    
+
 
     patches = vl_gpt.gen_vision_model.decode_code(generated_tokens.to(dtype=ms.int32),
                                                  shape=[parallel_size, 8, width // patch_size, height // patch_size])
@@ -174,14 +180,14 @@ def generate_image(prompt,
     width = 384
     height = 384
     parallel_size = 2
-    
+
     messages = [{'role': '<|User|>', 'content': prompt},
                 {'role': '<|Assistant|>', 'content': ''}]
     text = vl_chat_processor.apply_sft_template_for_multi_turn_prompts(conversations=messages,
                                                                sft_format=vl_chat_processor.sft_format,
                                                                system_prompt='')
     text = text + vl_chat_processor.image_start_tag
-    
+
     input_ids = ms.Tensor(tokenizer.encode(text), ms.int64)
     output, patches = generate(input_ids,
                                width // 16 * 16,
@@ -196,7 +202,7 @@ def generate_image(prompt,
 
     # return [Image.fromarray(images[i]).resize((768, 768), Image.LANCZOS) for i in range(parallel_size)]
     return [Image.fromarray(images[i]) for i in range(parallel_size)]
-        
+
 
 # Gradio interface
 with gr.Blocks() as demo:
@@ -208,7 +214,7 @@ with gr.Blocks() as demo:
             und_seed_input = gr.Number(label="Seed", precision=0, value=42)
             top_p = gr.Slider(minimum=0, maximum=1, value=0.95, step=0.05, label="top_p")
             temperature = gr.Slider(minimum=0, maximum=1, value=0.1, step=0.05, label="temperature")
-        
+
     understanding_button = gr.Button("Chat")
     understanding_output = gr.Textbox(label="Response")
 
@@ -226,12 +232,12 @@ with gr.Blocks() as demo:
         ],
         inputs=[question_input, image_input],
     )
-    
-        
+
+
     gr.Markdown(value="# Text-to-Image Generation")
 
-    
-    
+
+
     with gr.Row():
         cfg_weight_input = gr.Slider(minimum=1, maximum=10, value=5, step=0.5, label="CFG Weight")
         t2i_temperature = gr.Slider(minimum=0, maximum=1, value=1.0, step=0.05, label="temperature")
@@ -255,18 +261,20 @@ with gr.Blocks() as demo:
         ],
         inputs=prompt_input,
     )
-    
+
     understanding_button.click(
         multimodal_understanding,
         inputs=[image_input, question_input, und_seed_input, top_p, temperature],
         outputs=understanding_output
     )
-    
+
     generation_button.click(
         fn=generate_image,
         inputs=[prompt_input, seed_input, cfg_weight_input, t2i_temperature],
         outputs=image_output
     )
 
-# demo.launch(share=True)
-demo.queue(concurrency_count=1, max_size=10).launch(server_name="127.0.0.1", server_port=37906, root_path="/path")
+if args.share:
+    demo.launch(share=True)
+else:
+    demo.queue(concurrency_count=1, max_size=10).launch(server_name="127.0.0.1", server_port=37906, root_path="/path")
