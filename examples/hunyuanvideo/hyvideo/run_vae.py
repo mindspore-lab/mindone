@@ -75,7 +75,7 @@ def process_video(args, vae, dtype):
     logger.info(f"Save reconstructed data to {save_fp}")
 
 
-def process_folder(args, vae, dtype):
+def process_folder(args, vae, dtype, rank_id, device_num):
     real_video_dir = args.real_video_dir
     generated_video_dir = args.generated_video_dir
     height, width = args.height, args.width
@@ -119,8 +119,8 @@ def process_folder(args, vae, dtype):
         ds_name=args.dataset_name,
         num_parallel_workers=num_workers,
         shuffle=False,  # be in order
-        device_num=1,
-        rank_id=0,
+        device_num=device_num,
+        rank_id=rank_id,
         drop_remainder=False,
     )
     num_batches = dataloader.get_dataset_size()
@@ -158,7 +158,7 @@ def process_folder(args, vae, dtype):
 
 
 def main(args):
-    init_env(
+    rank_id, device_num = init_env(
         mode=args.mode,
         device_target=args.device,
         precision_mode=args.precision_mode,
@@ -205,11 +205,13 @@ def main(args):
         raise ValueError(f"Unsupported precision {args.vae_precision}")
 
     if args.input_type == "image":
+        assert device_num == 1, "Only support single-device inference given single input"
         process_image(args, vae, dtype)
     elif args.input_type == "video":
+        assert device_num == 1, "Only support single-device inference given single input"
         process_video(args, vae, dtype)
     elif args.input_type == "folder":
-        process_folder(args, vae, dtype)
+        process_folder(args, vae, dtype, rank_id, device_num)
     else:
         raise ValueError("Unsupported input type. Please choose from 'image', 'video', or 'folder'.")
 
@@ -253,7 +255,7 @@ def get_parser():
     parser.add_argument(
         "--real-video-dir", type=str, default="", help="Directory containing real videos for processing."
     )
-    parser.add_argument("--generated-video_dir", type=str, default="", help="Directory to save generated videos.")
+    parser.add_argument("--generated-video-dir", type=str, default="", help="Directory to save generated videos.")
     parser.add_argument("--batch-size", type=int, default=1, help="Batch size for processing.")
     parser.add_argument("--num-workers", type=int, default=8, help="Number of workers for data loading.")
     parser.add_argument(
@@ -261,6 +263,9 @@ def get_parser():
         default=None,
         help="Data file path where video paths are recorded. Supports json and csv files. "
         "If not provided, will search all videos under `real_video_dir` recursively.",
+    )
+    parser.add_argument(
+        "--video-column", dtype=str, default="video", help="The video column name in the provided Data file path."
     )
 
     # Other Group
@@ -279,7 +284,7 @@ def get_parser():
     parser.add_argument(
         "--dynamic-start-index", action="store_true", help="Use dynamic start index for video sampling."
     )
-    parser.add_argument("--expand_dim_t", default=False, type=str2bool, help="Expand dimension t for the dataset.")
+    parser.add_argument("--expand-dim-t", default=False, type=str2bool, help="Expand dimension t for the dataset.")
     # MindSpore setting
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode.")
     parser.add_argument("--device", type=str, default="Ascend", help="Device to run the model on: Ascend or GPU.")
