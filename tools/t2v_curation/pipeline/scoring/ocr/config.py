@@ -44,7 +44,7 @@ def create_parser():
     parser.add_argument(
         "--det_model_dir",
         type=str,
-        default=None,
+        default="pretrained_models/dbnetpp_resnet50_ch_en_general-884ba5b9.ckpt",
         help="directory containing the detection model checkpoint best.ckpt, or path to a specific checkpoint file.",
     )  # determine the network weights
     parser.add_argument(

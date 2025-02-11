@@ -100,14 +100,16 @@ in natural scenes. By default, we use DB++ for detection and
 CRNN for recognition. You can check the [MindOCR](https://github.com/mindspore-lab/mindocr/tree/main/tools/infer/text) 
 page for the full list.
 
+First, download the DB++ model [here](https://download.mindspore.cn/toolkits/mindocr/dbnet/dbnetpp_resnet50_ch_en_general-884ba5b9.ckpt).
+By default, you can put them in the folder 
+`./pretrained_models/`.
+
 Run the following command for inference. **Make sure** the meta file has the column `path` (path to the sample).
 
-Currently, we only support captioning on Ascend on a single chip.
-Data parallelism may be supported in future release. 
 
 ```bash
 export PYTHONPATH=$(pwd)
-msrun --worker_num=1 --local_worker_num=1 --join=True \
+msrun --worker_num=2 --local_worker_num=2 --join=True \
  --log_dir=msrun_log pipeline/scoring/ocr/inference.py \
  /path/to/meta.csv \
  --num_boxes \

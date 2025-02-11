@@ -119,7 +119,7 @@ def main():
 
             # OCR
             boxes, text_scores, _ = text_system(image)
-            ocr_result = {"boxes": boxes, "texts": text_scores}
+            ocr_result = repr({"boxes": boxes, "texts": text_scores}) # as string for storing in csv
             batch_ocr_results.append(ocr_result)
 
             if compute_num_boxes:
