@@ -140,6 +140,9 @@ def process_folder(args, vae, dtype, rank_id, device_num):
             file_path = file_paths[idx]
             if ".avi" in os.path.basename(file_path):
                 file_path = file_path.replace(".avi", ".mp4")
+            real_video_dir = real_video_dir.rstrip(os.sep)
+            generated_video_dir = generated_video_dir.rstrip(os.sep)
+            file_path = file_path.rstrip(os.sep)
             output_path = file_path.replace(
                 real_video_dir, generated_video_dir
             )  # the same folder structure as the real video folder
