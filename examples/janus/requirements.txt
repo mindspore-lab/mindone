@@ -1,6 +1,6 @@
 transformers==4.42.4
 sentencepiece
-attrdict
+addict
 
 # for gradio demo
 gradio==3.48.0
