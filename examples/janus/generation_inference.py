@@ -97,7 +97,7 @@ def generate(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ms_mode", type=str, default=1, help="mindspore mode, 0: graph, 1: pynative")
+    parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
     parser.add_argument("--prompt", type=str, default="A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair", help="prompt for image content. the more detailed, the better")
     parser.add_argument("--temperature", type=float, default=1, help="Temperature value for controlling randomness in sampling. 0 - no randomness in sampling. default 1.0")
     parser.add_argument("--parallel_size", type=int, default=1, help="number of images to generate in parallel, i.e. number of images in a batch")

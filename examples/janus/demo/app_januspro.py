@@ -22,8 +22,8 @@ import time
 
 # args
 parser = argparse.ArgumentParser()
-parser.add_argument("--ms_mode", type=str, default=1, help="mindspore mode, 0: graph, 1: pynative")
-parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder")
+parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
+parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-7B", help="path to model weight folder")
 parser.add_argument("--share", type=str2bool, default=False, help="private or share demo (public)")
 args = parser.parse_args()
 
@@ -111,13 +111,13 @@ def generate(input_ids,
         if i % 2 != 0:
             tokens[i, 1:-1] = vl_chat_processor.pad_id
 
-    inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
+    inputs_embeds = vl_gpt.language_model.get_input_embeddings()(tokens).to(vl_gpt.dtype)
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
     use_cache = False
     pkv = None
     for i in range(image_token_num_per_image):
-        outputs = mmgpt.language_model.model(
+        outputs = vl_gpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
             past_key_values=outputs.past_key_values if (i != 0 and use_cache)else None,
