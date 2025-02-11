@@ -19,7 +19,7 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 
 from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
-from hyvideo.dataset.dataset_videobase import VideoDataset, create_dataloader
+from hyvideo.dataset.vae_dataset import VideoDataset, create_dataloader
 from hyvideo.utils.data_utils import preprocess_image, preprocess_video, read_video, transform_to_rgb
 from hyvideo.utils.ms_utils import init_env
 from hyvideo.vae import load_vae
