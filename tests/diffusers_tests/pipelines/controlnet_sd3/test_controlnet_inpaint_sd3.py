@@ -195,9 +195,11 @@ class StableDiffusion3ControlInpaintNetPipelineFastTests(PipelineTesterMixin, un
 
         return get_pipeline_components(components, self.pipeline_config)
 
-    def get_dummy_inputs(self):
-        pt_control_image = randn_tensor((1, 3, 32, 32), dtype=torch.float16)
-        pt_control_mask = randn_tensor((1, 1, 32, 32), dtype=torch.float16)
+    def get_dummy_inputs(self, seed=0):
+        generator = torch.manual_seed(seed)
+
+        pt_control_image = randn_tensor((1, 3, 32, 32), generator=generator)
+        pt_control_mask = randn_tensor((1, 1, 32, 32), generator=generator)
 
         ms_control_image = ms.tensor(pt_control_image.numpy())
         ms_control_mask = ms.tensor(pt_control_mask.numpy())

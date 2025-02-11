@@ -147,9 +147,12 @@ class StableDiffusionControlNetPAGInpaintPipelineFastTests(PipelineTesterMixin, 
         return get_pipeline_components(components, self.pipeline_config)
 
     def get_dummy_inputs(self, seed=0):
+        generator = torch.manual_seed(seed)
+
         controlnet_embedder_scale_factor = 2
         pt_control_image = randn_tensor(
             (1, 3, 32 * controlnet_embedder_scale_factor, 32 * controlnet_embedder_scale_factor),
+            generator=generator,
         )
         ms_control_image = ms.tensor(pt_control_image.numpy())
         init_image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
