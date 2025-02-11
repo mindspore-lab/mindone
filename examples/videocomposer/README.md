@@ -378,10 +378,10 @@ The training performance for exp02-motion transfer with 1 910* card, with differ
 
 | model name   | cards |  batch size | resolution   | recompute | sink | graph compile | mode | jit level  | s/step |  video/s                                                                  |
 |:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:-----------:|
-| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  20 ~ 30 mins | pynative | N/A             | 18    | 0.06 |
-| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  20 ~ 30 mins | graph |  O2             | 0.7    | 1.42 |
-| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  20 ~ 30 mins | graph |  O1           | 10    | 0.1 |
-| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  20 ~ 30 mins | graph |  O0          | 16    | 0.06 |
+| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  N/A | pynative | N/A             | 18    | 0.06 |
+| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  13 ~ 16 mins | graph |  O2             | 0.7    | 1.42 |
+| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  21 ~ 24 mins | graph |  O1           | 10    | 0.1 |
+| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  25 ~ 28 mins | graph |  O0          | 16    | 0.06 |
 
 
 ### Inference
