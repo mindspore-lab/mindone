@@ -20,9 +20,14 @@ MAX_VALUE = 1e5
 def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None, return_fa_mask: bool = False):
     seq_len = n_frame * n_hw
     mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
-    for i in range(seq_len):
-        i_frame = i // n_hw
-        mask[i, : (i_frame + 1) * n_hw] = 0
+    # for i in range(seq_len):
+    #     i_frame = i // n_hw
+    #     mask[i, : (i_frame + 1) * n_hw] = 0
+    row_indices = ops.arange(seq_len)
+    col_indices = (row_indices // n_hw + 1) * n_hw
+
+    bool_mask = ops.arange(seq_len).unsqueeze(0) < col_indices.unsqueeze(1)
+    mask = ops.where(bool_mask, ops.zeros_like(mask), mask)
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
 
