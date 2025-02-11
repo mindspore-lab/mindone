@@ -43,9 +43,8 @@ Generation with Data and Model Scaling</b></a>
 **Janus-Pro** is an advanced version of the previous work Janus. Specifically, Janus-Pro incorporates (1) an optimized training strategy, (2) expanded training data, and (3) scaling to larger model size. With these improvements, Janus-Pro achieves significant advancements in both multimodal understanding and text-to-image instruction-following capabilities, while also enhancing the stability of text-to-image generation.
 
 <div align="center">
-<img alt="image" src="images/teaser_januspro.png" style="width:90%;">
+<img alt="image" src="https://github.com/user-attachments/assets/b1ca9876-08a5-4833-bc9a-2ba771269886" style="width:90%;">
 </div>
-
 
 
 ## 2. Model Download
@@ -115,14 +114,14 @@ python generation_inference.py \
 For the remote gradio demo, you can run with the following command:
 
 
-on NPU server:
+On NPU server:
 ```shell
 pip install -e .[gradio]
 
 python demo/app_januspro.py
 ```
 
-on local terminal, run `ssh -L 37906:local_host:37906 user_name@server_ip`, then `local_host:37906` on the web.
+On local terminal, run `ssh -L 37906:local_host:37906 user_name@server_ip`, then open `local_host:37906` on the web.
 
 Have Fun!
 
