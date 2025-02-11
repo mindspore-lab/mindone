@@ -8,8 +8,8 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 import mindspore.dataset as ds
-from mindspore.communication import get_rank, get_group_size, init
 from mindspore import Tensor, load_checkpoint, save_checkpoint, load_param_into_net
+from mindspore.mint.distributed import init_process_group, get_rank, get_world_size, all_gather
 from tqdm import tqdm
 from transformers import AutoProcessor
 
@@ -17,7 +17,7 @@ from pipeline.datasets.utils import extract_frames, pil_loader, is_video
 from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
 sys.path.insert(0, mindone_lib_path)
 
 from mindone.transformers import CLIPModel
@@ -116,7 +116,7 @@ def main():
     if not args.use_cpu:
         ms.set_context(mode=ms.GRAPH_MODE, device_target="Ascend")
         ms.set_auto_parallel_context(parallel_mode = ms.ParallelMode.DATA_PARALLEL)
-        init()
+        init_process_group()
 
     model = AestheticScorer()
     preprocess = model.processor
@@ -126,7 +126,7 @@ def main():
     raw_dataset = VideoTextDataset(args.meta_path, transform=preprocess, num_frames=args.num_frames)
     if not args.use_cpu:
         rank_id = get_rank()
-        rank_size = get_group_size()
+        rank_size = get_world_size()
         dataset = ds.GeneratorDataset(source=raw_dataset, column_names=['index', 'images'], shuffle=False,
                                       num_shards = rank_size, shard_id = rank_id)
     else:
@@ -154,14 +154,21 @@ def main():
         scores_list.extend(scores_np.tolist())
 
     if not args.use_cpu:
-        allgather = ops.AllGather()
         indices_list = Tensor(indices_list, dtype=ms.int64)
         scores_list = Tensor(scores_list, dtype=ms.float32)
-        indices_list = allgather(indices_list).asnumpy().tolist()
-        scores_list = allgather(scores_list).asnumpy().tolist()
+
+        indices_list_all = [Tensor(np.zeros(indices_list.shape, dtype=np.int64)) for _ in range(rank_size)]
+        scores_list_all = [Tensor(np.zeros(scores_list.shape, dtype=np.float32)) for _ in range(rank_size)]
+
+        all_gather(indices_list_all, indices_list)
+        all_gather(scores_list_all, scores_list)
+
+        concat = ops.Concat(axis = 0)
+        indices_list_all = concat(indices_list_all).asnumpy().tolist()
+        scores_list_all = concat(scores_list_all).asnumpy().tolist()
 
     if args.use_cpu or (not args.use_cpu and rank_id == 0):
-        meta_local = merge_scores([(indices_list, scores_list)], raw_dataset.meta, column="aes")
+        meta_local = merge_scores([(indices_list_all, scores_list_all)], raw_dataset.meta, column="aes")
         meta_local.to_csv(out_path, index = False)
         print(meta_local)
         print(f"New meta with aesthetic scores saved to '{out_path}'.")

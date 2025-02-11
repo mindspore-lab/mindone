@@ -210,20 +210,45 @@ def main():
         if compute_num_boxes:
             meta_local = merge_scores([(indices_list_all, num_boxes_list_all)], meta_local, column="num_boxes")
         if compute_max_single_text_box_area_percentage:
-            meta_local = merge_scores([(indices_list_all, max_single_percentage_list_all)], meta_local,
-                                      column="max_single_percentage")
-        if compute_total_text_area_percentage:
-            meta_local = merge_scores([(indices_list_all, total_text_percentage_list_all)], meta_local,
-                                      column="total_text_percentage")
-    else: # store directly without gathering
-        meta_local = raw_dataset.meta.copy()
-        meta_local['ocr'] = ocr_results_list
-        if compute_num_boxes:
-            meta_local['num_boxes'] = num_boxes_list
-        if compute_max_single_text_box_area_percentage:
-            meta_local['max_single_percentage'] = max_single_percentage_list
-        if compute_total_text_area_percentage:
-            meta_local['total_text_percentage'] = total_text_percentage_list
+
+    #     # ===============================
+    #     meta_local = merge_scores([(gathered_indices, gathered_ocr_results)], raw_dataset.meta, column="ocr")
+    #     if compute_num_boxes:
+    #         meta_local = merge_scores([(gathered_indices, gathered_num_boxes)], meta_local, column="num_boxes")
+    #     if compute_max_single_text_box_area_percentage:
+    #         meta_local = merge_scores([(gathered_indices, gathered_max_single)], meta_local,
+    #                                   column="max_single_percentage")
+    #     if compute_total_text_area_percentage:
+    #         meta_local = merge_scores([(gathered_indices, gathered_total_text)], meta_local,
+    #                                   column="total_text_percentage")
+    # else:
+    #     # No parallel gathering is needed when only one process is used.
+    #     meta_local = raw_dataset.meta.copy()
+    #     meta_local['ocr'] = ocr_results_list
+    #     if compute_num_boxes:
+    #         meta_local['num_boxes'] = num_boxes_list
+    #     if compute_max_single_text_box_area_percentage:
+    #         meta_local['max_single_percentage'] = max_single_percentage_list
+    #     if compute_total_text_area_percentage:
+    #         meta_local['total_text_percentage'] = total_text_percentage_list
+    #     # ===============================
+    #     # End Parallel Gathering Section
+    #     # -------------------------------
+    #
+    # meta_local.to_csv(out_path, index=False)
+    # print(meta_local)
+    # print(f"New meta with OCR results saved to '{out_path}'.")
+
+    meta_local = raw_dataset.meta.copy()
+    # TODO: add parallel support using all_gather_object (for ocr_results_list) and all_gather (for the others)
+    meta_local['ocr'] = ocr_results_list
+
+    if compute_num_boxes:
+        meta_local['num_boxes'] = num_boxes_list
+    if compute_max_single_text_box_area_percentage:
+        meta_local['max_single_percentage'] = max_single_percentage_list
+    if compute_total_text_area_percentage:
+        meta_local['total_text_percentage'] = total_text_percentage_list
 
     meta_local.to_csv(out_path, index=False)
     print(meta_local)

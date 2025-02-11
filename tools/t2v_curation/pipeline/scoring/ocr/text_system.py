@@ -18,8 +18,6 @@ from mindocr.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from mindocr.data.transforms import create_transforms, run_transforms
 
 logger = logging.getLogger("mindocr")
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../../")))
 
 def get_image_paths(img_dir: str) -> List[str]:
     """

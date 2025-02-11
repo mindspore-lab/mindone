@@ -96,7 +96,6 @@ def create_parser():
         type=str,
         help="directory containing the recognition model checkpoint best.ckpt, or path to a specific checkpoint file.",
     )  # determine the network weights
-    # parser.add_argument("--rec_image_inverse", type=str2bool, default=True)
     parser.add_argument(
         "--rec_image_shape",
         type=str,
