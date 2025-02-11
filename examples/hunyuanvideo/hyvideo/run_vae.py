@@ -165,6 +165,7 @@ def main(args):
         jit_level=args.jit_level,
         jit_syntax_level=args.jit_syntax_level,
         seed=args.seed,
+        distributed=args.use_parallel,
     )
 
     set_logger(name="", output_dir=args.output_path, rank=0)
@@ -265,7 +266,7 @@ def get_parser():
         "If not provided, will search all videos under `real_video_dir` recursively.",
     )
     parser.add_argument(
-        "--video-column", dtype=str, default="video", help="The video column name in the provided Data file path."
+        "--video-column", type=str, default="video", help="The video column name in the provided Data file path."
     )
 
     # Other Group
