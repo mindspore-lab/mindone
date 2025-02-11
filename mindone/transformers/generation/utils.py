@@ -1676,8 +1676,7 @@ class GenerationMixin:
                 continue  # don't waste resources running the code we don't need
 
             print(
-                f"======> sampling, step: {step}, sample outputs shape: "
-                f"{[o.shape for o in outputs.values() if isinstance(o, ms.Tensor)]}, time cost: {time.time() - s_time:.3f}s"
+                f"==> sampling, step: {step}, time cost: {time.time() - s_time:.5f}s"
             )
             s_time = time.time()
             step += 1
