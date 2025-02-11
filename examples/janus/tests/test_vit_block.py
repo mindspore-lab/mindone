@@ -1,0 +1,110 @@
+import sys, os
+import numpy as np
+import mindspore as ms
+from mindspore import Tensor
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+sys.path.append(".")
+from janus.models.siglip_vit import Block
+from janus.utils.io import load_pil_images
+from janus.utils.io import set_model_param_dtype
+
+np.random.seed(42)
+
+
+def _diff_res(ms_val, pt_val, eps=1e-8):
+    abs_diff = np.fabs(ms_val - pt_val)
+    mae = abs_diff.mean()
+    max_ae = abs_diff.max()
+
+    rel_diff = abs_diff / (np.fabs(pt_val) + eps)
+    mre = rel_diff.mean()
+    max_re = rel_diff.max()
+
+    return dict(mae=mae, max_ae=max_ae, mre=mre, max_re=max_re)
+
+
+def load_from_checkpoint(net, ckpt_path):
+    # mainly used in unit test
+    parameter_dict = dict()
+    if ckpt_path.endswith('.bin'):
+        import torch
+        sd = torch.load(ckpt_path)
+        # filter to keep gen_vision_model params only and remove prefix
+        pnames = [p for p in sd]
+        for p in pnames:
+            # print(p)
+            if not ("vision_model.vision_tower.blocks.0." in p ):
+                sd.pop(p)
+            else:
+                # remove prefix
+                new_pname = p.replace("vision_model.vision_tower.blocks.0.", "")
+                sd[new_pname] = sd.pop(p)
+        print("Remain params in ckpt: ", len(sd))
+        param_dtype = tuple(net.get_parameters())[0].dtype
+        for pname in sd:
+            # print(pname, sd[pname].shape, sd[pname].dtype)
+            np_val = sd[pname].cpu().detach().float().numpy()
+            # TODO: support bf16 param loading
+            parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+
+    elif ckpt_path.endswith('.ckpt'):
+        parameter_dict = ms.load_checkpoint(ckpt_path)
+    else:
+        raise ValueError("Unsupported checkpoint format")
+
+    param_not_load, ckpt_not_load = ms.load_param_into_net(net, parameter_dict, strict_load=True)
+    print(
+        "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+    )
+    print(
+        "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+    )
+
+    return net
+
+
+def test(pt_np=None, dtype=ms.float32):
+    d = 1024
+    shape =  (1, 576, d)
+    if pt_np:
+        pt_data = np.load(pt_np)
+        x = pt_data["x"]
+        pt_out = pt_data["out"]
+    else:
+        x = np.random.normal(size=shape).astype(np.float32)
+
+    x = Tensor(x, dtype)
+
+    net = Block(
+        dim=d,
+        num_heads=16,
+        mlp_ratio = 4.0,
+        qkv_bias = True,
+        qk_norm = False,
+        proj_drop = 0.0,
+        attn_drop = 0.0,
+        init_values = None,
+        drop_path = 0.0,
+        )
+
+    net.set_train(False)
+    if dtype != ms.float32:
+        set_model_param_dtype(net, dtype=dtype, keep_norm_fp32=False)
+
+    net = load_from_checkpoint(net, "ckpts/Janus-Pro-1B/pytorch_model.bin")
+
+    out = net(x)
+
+    print(out.shape)
+    print(out.sum(), out.std())
+
+    if pt_np:
+        print('pt min max: ', pt_out.min(), pt_out.max())
+        diff = _diff_res(out.asnumpy(), pt_out)
+        print(diff)
+
+if __name__ == '__main__':
+    ms.set_context(mode=1)
+    test(pt_np='tests/vit_block_io.npz', dtype=ms.float32)
