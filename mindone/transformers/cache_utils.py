@@ -35,7 +35,7 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
     return key_value_cache
 
 
-# Notes: Only return the updated value, do not modifying the original `past_key_value` in-place !
+# Notes: Only return the updated value, do not modify the original `past_key_value` in-place !
 def update(
     past_key_value: Tuple[ms.Tensor, ms.Tensor],
     key_states: ms.Tensor,
@@ -63,7 +63,7 @@ def update(
     """
     k_out, v_out = past_key_value[0], past_key_value[1]
 
-    if cache_position.shape[0] == 1:
+    if cache_position.shape[0] == 1 or k_out.shape[2] != key_states.shape[2]:
         k_out[:, :, cache_position] = key_states
         v_out[:, :, cache_position] = value_states
     else:

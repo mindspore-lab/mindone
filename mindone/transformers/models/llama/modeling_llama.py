@@ -742,6 +742,21 @@ class LlamaModel(LlamaPreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
+    def prepare_static_cache(self, input_embeds):
+        bs = input_embeds.shape[0]
+        max_batch_size, max_cache_len, cache_dtype = (
+            getattr(self.config, "num_beams", 1) * bs,
+            self.config.max_position_embeddings,
+            self.dtype,
+        )
+        past_key_values = init_static_cache(
+            config=self.config, 
+            max_batch_size=max_batch_size, 
+            max_cache_len=max_cache_len, 
+            dtype=cache_dtype
+        )
+        return past_key_values
+
     @add_start_docstrings_to_model_forward(LLAMA_INPUTS_DOCSTRING)
     def construct(
         self,

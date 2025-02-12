@@ -32,7 +32,7 @@ def generate(
     image_token_num_per_image: int = 576,
     img_size: int = 384,
     patch_size: int = 16,
-    use_cache: bool= False,
+    use_cache: bool = False,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int64)
@@ -47,12 +47,16 @@ def generate(
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
 
+    if use_cache:
+        init_kv = mmgpt.language_model.model.prepare_static_cache(inputs_embeds)
+    else:
+        init_kv = None
     outputs = []
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
-            use_cache=use_cache, # TODO support kv cache
-            past_key_values=outputs.past_key_values if (i != 0 and use_cache)else None,
+            use_cache=use_cache,  # TODO support kv cache
+            past_key_values=outputs.past_key_values if i != 0 else init_kv,
             return_dict=True
         )
         hidden_states = outputs.last_hidden_state
@@ -71,7 +75,6 @@ def generate(
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
-
 
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
 
