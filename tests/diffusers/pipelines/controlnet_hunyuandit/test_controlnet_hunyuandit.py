@@ -22,6 +22,9 @@ from diffusers.utils.torch_utils import randn_tensor
 
 import mindspore as ms
 
+from mindone.diffusers.utils import load_image
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -156,8 +159,6 @@ class HunyuanDiTControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestCa
         control_image = randn_tensor(
             (1, 3, 16, 16),
             generator=generator,
-            device=torch.device("cpu"),
-            dtype=torch.float16,
         )
         pt_control_image = control_image
         ms_control_image = ms.tensor(control_image.numpy())
@@ -221,3 +222,51 @@ class HunyuanDiTControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestCa
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class HunyuanDiTControlNetPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_controlnet_hunyuandit(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet_cls = get_module("mindone.diffusers.models.controlnet_hunyuan.HunyuanDiT2DControlNetModel")
+        controlnet = controlnet_cls.from_pretrained(
+            "Tencent-Hunyuan/HunyuanDiT-v1.1-ControlNet-Diffusers-Canny", mindspore_dtype=ms_dtype
+        )
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.controlnet_hunyuandit.pipeline_hunyuandit_controlnet.HunyuanDiTControlNetPipeline"
+        )
+        pipe = pipe_cls.from_pretrained(
+            "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers", controlnet=controlnet, mindspore_dtype=ms_dtype
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        prompt = "At night, an ancient Chinese-style lion statue stands in front of the hotel, its eyes gleaming as if guarding the building. The background is the hotel entrance at night, with a close-up, eye-level, and centered composition. This photo presents a realistic photographic style, embodies Chinese sculpture culture, and reveals a mysterious atmosphere."
+        n_prompt = ""
+        control_image = load_image(
+            "https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.1-ControlNet-Diffusers-Canny/resolve/main/canny.jpg?download=true"
+        )
+
+        output = pipe(
+            prompt,
+            negative_prompt=n_prompt,
+            control_image=control_image,
+            controlnet_conditioning_scale=0.5,
+            guidance_scale=5.0,
+            num_inference_steps=2,
+            output_type="np",
+        )
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_{dtype}.npy",
+            subfolder="controlnet_hunyuandit",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold

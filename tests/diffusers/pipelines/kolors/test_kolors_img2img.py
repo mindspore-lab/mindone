@@ -22,6 +22,12 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -188,3 +194,35 @@ class KolorsPipelineImg2ImgFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KolorsPipelineImg2ImgIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kolors_i2i(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.kolors.pipeline_kolors_img2img.KolorsImg2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("Kwai-Kolors/Kolors-diffusers", variant="fp16", mindspore_dtype=ms_dtype)
+        pipe.set_progress_bar_config(disable=None)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images",
+            "bunny_source.png",
+            subfolder="kolors",
+        )
+        prompt = "high quality image of a capybara wearing sunglasses. In the background of the image there are trees, poles, grass and other objects. At the bottom of the object there is the road., 8k, highly detailed."
+
+        torch.manual_seed(0)
+        image = pipe(prompt, image=init_image)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2i_{dtype}.npy",
+            subfolder="kolors",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold

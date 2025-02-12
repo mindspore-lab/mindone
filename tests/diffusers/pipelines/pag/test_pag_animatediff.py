@@ -1,11 +1,15 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import CLIPTextConfig
 
 import mindspore as ms
+
+from mindone.diffusers import AnimateDiffPAGPipeline, DDIMScheduler, MotionAdapter
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -170,3 +174,49 @@ class AnimateDiffPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class AnimateDiffPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_animatediff_pag(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip("Skipping this case since this pipeline will OOM in float32")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "SG161222/Realistic_Vision_V5.1_noVAE"
+        motion_adapter_id = "guoyww/animatediff-motion-adapter-v1-5-2"
+        motion_adapter = MotionAdapter.from_pretrained(motion_adapter_id, mindspore_dtype=ms_dtype)
+
+        scheduler = DDIMScheduler.from_pretrained(
+            model_id, subfolder="scheduler", beta_schedule="linear", steps_offset=1, clip_sample=False
+        )
+        pipe = AnimateDiffPAGPipeline.from_pretrained(
+            model_id,
+            motion_adapter=motion_adapter,
+            scheduler=scheduler,
+            pag_applied_layers=["mid"],
+            mindspore_dtype=ms_dtype,
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        video = pipe(
+            prompt="car, futuristic cityscape with neon lights, street, no human",
+            negative_prompt="low quality, bad quality",
+            num_inference_steps=25,
+            guidance_scale=6.0,
+            pag_scale=3.0,
+        )[0][0]
+
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"animatediff_t2v_{dtype}.npy",
+            subfolder="pag",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_video - video) / np.linalg.norm(expected_video) < threshold
