@@ -50,7 +50,7 @@ def generate(
     if use_cache:
         init_kv = mmgpt.language_model.model.prepare_static_cache(inputs_embeds)
     else:
-        init_kv = None 
+        init_kv = None
     outputs = []
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
