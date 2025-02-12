@@ -53,7 +53,7 @@ from transformers.utils import (
 from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, Parameter, nn, ops
 
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
@@ -76,7 +76,7 @@ def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: Parameter(
                 ops.expand_dims(x, axis=-2), name=x.name
             )
         elif isinstance(cell, nn.Embedding):
@@ -90,10 +90,12 @@ def _get_pt2ms_mappings(m):
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
     return mappings
 
+
 PT_MS_DTYPE_MAP = {
     "torch.bfloat16": ms.bfloat16,
     "torch.float32": ms.float32
 }
+
 
 def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
     if value_pt is not None:
@@ -107,11 +109,11 @@ def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
     if value_pt is None:
         return key_ms, None
     else:
-        if isinstance(value_pt, Tensor):
+        if isinstance(value_pt, Parameter):
             return key_ms, value_mapping(value_pt)
         else:
             # FIXME precision loss?
-            return key_ms, Tensor(value_mapping(value_pt).float().numpy(), dtype=PT_MS_DTYPE_MAP[_pt_dtype])
+            return key_ms, Parameter(Tensor(value_mapping(value_pt).float().numpy(), dtype=PT_MS_DTYPE_MAP[_pt_dtype]))
 
 
 def _convert_state_dict(m, state_dict_pt, prefix=""):
