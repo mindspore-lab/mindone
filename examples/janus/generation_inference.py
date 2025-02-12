@@ -1,5 +1,6 @@
 import argparse
 import mindspore as ms
+from time import time
 from mindspore import mint, ops, Tensor
 from transformers import AutoModelForCausalLM
 import numpy as np
@@ -52,6 +53,7 @@ def generate(
     else:
         init_kv = None
     outputs = []
+    st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
@@ -82,6 +84,9 @@ def generate(
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
             inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
+
+    time_cost = time() - st
+    print("Time cost (s): {:.4f}, est. throughput (tokens/s): {:4f}".format(time_cost, generated_tokens.shape[-1]/time_cost))
 
     dec = mmgpt.gen_vision_model.decode_code(generated_tokens.to(dtype=ms.int32), shape=[parallel_size, 8, img_size//patch_size, img_size//patch_size])
     dec = dec.to(ms.float32).transpose(0, 2, 3, 1).asnumpy()

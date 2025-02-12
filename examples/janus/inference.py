@@ -1,11 +1,11 @@
 import argparse
 import os, sys
+from time import time
 import mindspore as ms
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-# TODO: mindone support AutoModelForCausalLM
 from transformers import AutoModelForCausalLM
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images, set_model_param_dtype
@@ -35,10 +35,12 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
     pil_images = load_pil_images(conversation)
     prepare_inputs = vl_chat_processor(
         conversations=conversation, images=pil_images, force_batchify=True
-    ).to(ms.bfloat16)  # NOTE: no device, all inputs are bf16
+    ).to(ms.bfloat16)
 
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
-
+    st = time()
+    print('Running generation ')
+    
     outputs = vl_gpt.language_model.generate(
         inputs_embeds=inputs_embeds,
         attention_mask=prepare_inputs.attention_mask,
@@ -51,6 +53,9 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
         temperature=temperature if temperature > 0 else None,
         top_p=top_p if temperature > 0 else None,
     )
+    
+    time_cost = time() - st
+    print("Time cost (s): {:.4f}, est. throughput (tokens/s): {:4f}".format(time_cost, outputs[0].shape[-1]/time_cost))
 
     answer = tokenizer.decode(outputs[0].asnumpy().tolist(), skip_special_tokens=True)
 
@@ -75,13 +80,10 @@ if __name__ == "__main__":
         ms.set_context(jit_config={"jit_level": "O0"})
 
     # specify the path to the model
-    # model_path = "deepseek-ai/Janus-Pro-7B"
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
 
-    # TODO: support setting FA. currently can set in modeling_vlm.py
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
         args.model_path, trust_remote_code=True,
-        # use_flash_attention_2=True,
     )
     vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
     vl_gpt.set_train(False)
