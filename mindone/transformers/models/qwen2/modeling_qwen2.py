@@ -85,7 +85,8 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
         sequence_length (`int`):
             The sequence length being processed.
         target_length (`int`):
-            The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+            The target length: when generating with static cache, the mask should be as long as the static cache,
+            to account for the 0 padding, the part of the cache that is not filled yet.
         dtype (`torch.dtype`):
             The dtype to use for the 4D attention mask.
         device (`torch.device`):
@@ -944,7 +945,10 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             if past_key_values:
                 position_ids = position_ids[:, -input_ids.shape[1] :]
 
-                # This `clone` call is needed to avoid recapturing cuda graphs with `torch.compile`'s  `mode="reduce-overhead`, as otherwise the input `position_ids` would have various stride during the decoding. Here, simply using `.contiguous()` is not sufficient as in the batch size = 1 case, `position_ids` is already contiguous but with varying stride which retriggers a capture.
+                # This `clone` call is needed to avoid recapturing cuda graphs with
+                # `torch.compile`'s  `mode="reduce-overhead`, as otherwise the input `position_ids` would have various stride
+                # during the decoding. Here, simply using `.contiguous()` is not sufficient as in the batch size = 1 case,
+                # `position_ids` is already contiguous but with varying stride which retriggers a capture.
                 position_ids = position_ids
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
