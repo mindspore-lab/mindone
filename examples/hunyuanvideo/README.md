@@ -98,18 +98,19 @@ coming soon...
 To generate text embeddings given a dataset annotation file in JSON format, please use the following command:
 
 ```bash
-python hyvideo/run_text_encoder.py \
-    --data_file_path /path/to/caption.json \
-    --output_path /path/to/text_embed_folder \
+python scripts/run_text_encoder.py \
+    --data-file-path /path/to/caption.json \
+    --output-path /path/to/text_embed_folder \
 ```
 
-Please refer to [dataset format](hyvideo/dataset/README.md) to setup the json file.  A shell script `scripts/run_text_encoder.sh` is provided as well.
+Please refer to [dataset format](hyvideo/dataset/README.md) to setup the json file.  A shell script `scripts/text_encoder/run_text_encoder.sh` is provided as well.
 
 
 If you just want to generate text embedding for a single prompt, you can run like:
 ```bash
-python hyvideo/run_text_encoder.py \
+python scripts/run_text_encoder.py \
     --prompt "A cat walks on the grass, realistic style." \
+    --output-path /path/to/text_embed_folder \
 ```
 
 The generated npz file, which contains the prompt embedding using clip and llm and the prompt mask, will be saved in the current folder.

@@ -23,13 +23,13 @@ class TextDataset:
         output_columns=["file_path", "caption"],
     ):
         logger.info(f"loading annotations from {data_file_path} ...")
-        self.parse_data_file(data_file_path)
         self.tokenizer = tokenizer
         self.caption_column = caption_column
         self.file_column = file_column
         self.random_drop_text = random_drop_text
         self.random_drop_text_ratio = random_drop_text_ratio
         self.output_columns = output_columns
+        self.parse_data_file(data_file_path)
         if "caption" not in output_columns:
             raise ValueError("caption column is not in output_colum")
         self.read_captions(self.dataset)
