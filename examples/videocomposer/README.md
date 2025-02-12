@@ -144,56 +144,25 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 <em> VideoComposer Architecture </em>
 </p>
 
-## Environment Setup
+## Requirements
 
-**NOTES:** The training code of VC is well tested on **NPU 910* + MindSpore 2.2 (20230907) + CANN 7.0T2 + Ascend driver 23.0.rc3.b060**. Other mindspore and CANN versions may suffer from precision issues.
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|:-----------:|:---------------:|:-------------:|:---------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
 
-### 1. Framework Installation
-- For 910* NPU, please make sure the following packages are installed using the exact versions.
-    1. CANN 7.0-T2. Version check:
-    ```
-        ll /usr/local/Ascend/latest
-    ```
-    2. Ascend driver 23.0.rc3.b060. Version check:
-    ```
-        cat /usr/local/Ascend/driver/version.info
-    ```
-    3. MindSpore 2.2 (20230907)
-    ```
-        pip show mindspore
-    ```
 
-### 2. Patching
+Python: 3.7 or higher.
 
-For CANN 7.0T2, please disable `AdamApplyOneFusionPasss` to avoid overflow in training. It can be done by modifying `/usr/local/Ascend/latest/ops/built-in/fusion_pass/config/fusion_config.json` as follows:
+Then run `pip install -r requirements.txt` to install the necessary packages.
 
-```
-{
-    "Switch":{
-	"GraphFusion":{
-    		"AdamApplyOneFusionPass":"off",  # ==> add this line in the file
-		"GroupConv2DFusionPass": "off",
-		...
-    },
-    "UBFusion":{
-	...
-    }
-}
-```
-
-### 3. Pip Package Installation
-    ```shell
-    pip install -r requirements.txt
-    ```
-
-    For `ffmpeg`, install by
+For `ffmpeg`, install by
     ```shell
     conda install ffmpeg
     ```
 
-    If case you fail to install `motion-vector-extractor` via pip, please manually install it referring to the [official](https://github.com/LukasBommes/mv-extractor) repo.
+If case you fail to install `motion-vector-extractor` via pip, please manually install it referring to the [official](https://github.com/LukasBommes/mv-extractor) repo.
 
-> Notes for 910: the code is also runnable on 910 for training and inference. But the number of frames `max_frames` for training should be changed from 16 to 8 frames or fewer due to memory limitation.
+
 
 ## Prepare Pretrained Weights
 
@@ -236,8 +205,6 @@ bash scripts/run_infer.sh
 On 910, to run a single task, you can pick the corresponding snippet of code in `scripts/run_infer.sh`, such as
 
 ```shell
-# export MS_ENABLE_GE=1  # for 910*
-# export MS_ENABLE_REF_MODE=1 # for 910* and Mindspore > 2.1
 python infer.py \
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --seed 9999 \
@@ -247,7 +214,6 @@ python infer.py \
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-On 910*, you need to enable the GE Mode first by running `export MS_ENABLE_GE=1`. For Mindspore >2.1, you also need to enable the REF mode first by running ` export MS_ENABLE_REF_MODE=1`.
 
 It takes additional time for graph compilation to execute the first step inference (around 5~8 minutes).
 
@@ -284,11 +250,9 @@ To install Mindspore Lite, please refer to [Lite install](https://mindspore.cn/l
 
 #### Export Mindspore Lite Model
 
-For different tasks, you can use the corresponding snippet of the code in `scripts/run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model. Please remember to run `export MS_ENABLE_GE=1` first on 910* and run `export MS_ENABLE_REF_MODE=1` on 910* and Mindspore > 2.1 before running the code snippet.
+For different tasks, you can use the corresponding snippet of the code in `scripts/run_infer.sh`, and change `infer.py` to `export.py` to save the MindIR model.
 
 ```shell
-# export MS_ENABLE_GE=1  # for 910*
-# export MS_ENABLE_REF_MODE=1 # for 910* and Mindspore > 2.1
 python export.py\
     --cfg configs/exp02_motion_transfer_vs_style.yaml \
     --input_video "demo_video/motion_transfer.mp4" \
@@ -297,11 +261,9 @@ python export.py\
     --input_text_desc "A beautiful big silver moon on the water"
 ```
 
-The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory. Please note that on 910*, you need to unset `MS_ENABLE_GE` and `MS_ENABLE_REF_MODE` environmental variables before running the conversion.
+The exported MindIR models will be saved at `models/mindir` directory. Once the exporting is finished, you need to convert the MindIR model to Mindspore Lite MindIR model. We have provided a script `convert_lite.py` to convert all MindIR models in `models/mindir` directory.
 
 ```shell
-unset MS_ENABLE_GE  # Remember to unset MS_ENABLE_GE on 910*
-unset MS_ENABLE_REF_MODE  # Remember to unset MS_ENABLE_REF_MODE on 910* and Mindspore > 2.1
 python convert_lite.py
 ```
 
@@ -330,9 +292,9 @@ To run training on a specific task, please refer to `scripts/run_train.sh`.
 After changing the `task_name` and `yaml_file` in the script for your task, run:
 
 ```shell
-bash scripts/run_train.sh $DEVICE_ID
+bash scripts/run_train.sh $DEVICE_ID $OUTPUT_DIR
 ```
-e.g. `bash scripts/run_train.sh 0` to launch the training task using NPU card 0.
+e.g. `bash scripts/run_train.sh 0 out_train` to launch the training task using NPU card 0 and output folder is out_train.
 
 Under `configs/`, we provide several tasks' yaml files:
 ```bash
@@ -412,25 +374,21 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 
 
 ### Training
-The training performance for exp02-motion transfer with 1 910B card, with different  is as follows:
-| **Mindspore Version** | **Mode**  | **JIT Level** | **Performance (s/step)** |
-|:----------------------:|:---------:|:-------------:|:-------------------------:|
-| 2.2                   | Graph     | -             | 0.95
-| 2.3.1                 | Graph     | O2            | 0.7  
-| 2.3.1                 | Graph     | O1            | 10  
-| 2.3.1                 | Graph     | O0            | 16                     |                   |
-| 2.3.1                 | Pynative     |            | 18                  |
 
+The training performance for exp02-motion transfer on ascend 910* with different modes is as follows:
+
+| model name   | cards |  batch size | resolution   | recompute | sink | graph compile | mode | jit level  | s/step |  video/s                                                                  |
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:-----------:|
+| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  N/A | pynative | N/A             | 18    | 0.06 |
+| videocomposer | 1     | 1           | 16x256x256    | ON | ON |  13 ~ 16 mins | graph |  O2             | 0.7    | 1.42 |
+| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  21 ~ 24 mins | graph |  O1           | 10    | 0.1 |
+| videocomposer | 1     | 1           | 16x256x256    | ON |ON |  25 ~ 28 mins | graph |  O0          | 16    | 0.06 |
 
 
 ### Inference
 
 The video generation speed is as follows.
-| **NPU**     | ** Framework **    | ** Sampler ** | ** Steps ** |** Performance (s/trial)**  |
-|-------------|-------------------|----------------|----------------|----------------|
-| 910*        | MindSpore-2.3.1	 |  DDIM   	|	50 	|	11.2	|
-| 910*        | MindSpore-Lite-2.3.1 |   DDIM 	|	50	| 	10.9	|
-| 910*        | MindSpore-2.2	 |  DDIM   	|	50 	|	12	|
-| 910*        | MindSpore-Lite-2.2 |   DDIM 	|	50	| 	11.6	|
 
-Note that with MindSpore-Lite, the graph compilation time is eliminated.
+| model name   | cards |  batch size | resolution    | s/step | video/s                                                              |
+|:------------:|:-----:|:-----------:|:----------:|:---------:|:---------:|
+| videocomposer | 1     | 1           | 16x256x256         |  0.22 | 0.09  |
