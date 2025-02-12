@@ -124,6 +124,6 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(prepare_captions, as_group=False, skip={"rank_id", "device_num"})
     parser.add_argument("--batch_size", default=10, type=int, help="Inference batch size.")
-    parser.add_argument("--model_max_length", type=int, default=300, help="Model's embedded sequence length.")
+    parser.add_argument("--model_max_length", type=int, required=True, help="Model's embedded sequence length.")
     cfg = parser.parse_args()
     main(cfg)

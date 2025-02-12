@@ -67,5 +67,5 @@ class DiffusionWithLoss(nn.Cell):
         ul2_emb = self.get_condition_embeddings(ul2_tokens)
         byt5_emb = self.get_condition_embeddings(byt5_tokens)
         # FIXME: add metaclip
-        metaclip_emb = mint.ones((byt5_emb.shape[0], 300, 1280), dtype=byt5_emb.dtype)
+        metaclip_emb = mint.ones((byt5_emb.shape[0], 256, 1280), dtype=byt5_emb.dtype)
         return self.network(latent_embedding, ul2_emb, metaclip_emb, byt5_emb)

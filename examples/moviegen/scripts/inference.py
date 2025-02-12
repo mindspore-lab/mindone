@@ -109,7 +109,7 @@ def main(args):
     prompt_prefix = [os.path.basename(emb)[:-4] for emb in ul2_emb]
     ul2_emb = ms.Tensor([np.load(emb)["text_emb"] for emb in ul2_emb], dtype=ms.float32)
     # metaclip_emb = ms.Tensor([np.load(emb)["text_emb"] for emb in metaclip_emb], dtype=ms.float32)
-    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 300, 1280)), dtype=ms.float32)  # FIXME: replace with actual
+    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 256, 1280)), dtype=ms.float32)  # FIXME: replace with actual
     byt5_emb = ms.Tensor([np.load(emb)["text_emb"] for emb in byt5_emb], dtype=ms.float32)
     num_prompts = ul2_emb.shape[0]
 

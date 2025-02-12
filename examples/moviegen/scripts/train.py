@@ -173,8 +173,8 @@ def main(args):
         bs = Symbol(unique=True)
         video = Tensor(shape=[bs, None, args.model.in_channels if tae is None else 3, None, None], dtype=mstype.float32)
         # FIXME: fix sequence length
-        ul2_emb = Tensor(shape=[bs, 300, 4096], dtype=mstype.float32)
-        byt5_emb = Tensor(shape=[bs, 100, 1472], dtype=mstype.float32)
+        ul2_emb = Tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
+        byt5_emb = Tensor(shape=[bs, 128, 1472], dtype=mstype.float32)
         net_with_grads.set_inputs(video, ul2_emb, byt5_emb)
         logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
 
