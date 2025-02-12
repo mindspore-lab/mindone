@@ -2,13 +2,16 @@ import logging
 from typing import Dict, Optional, Tuple, Union
 
 from hyvideo.constants import PRECISION_TO_TYPE
-from hyvideo.modules import load_model
+from hyvideo.modules.models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
+from hyvideo.utils.helpers import set_model_param_dtype
 from jsonargparse.typing import Path_fr
 
 import mindspore as ms
 from mindspore import _no_grad, amp, jit_class, nn
+from mindspore.communication.management import GlobalComm
 
 from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.trainers.zero import prepare_network
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.params import load_param_into_net_with_filter
 
@@ -61,7 +64,7 @@ class no_grad(_no_grad):
 
 
 def init_model(
-    name: str = "",
+    name: str = "HYVideo-T/2-cfgdistill",
     in_channels: int = 16,
     out_channels: int = 16,
     pretrained_model_path: Optional[Path_fr] = None,
@@ -74,17 +77,31 @@ def init_model(
     enable_ms_amp: bool = True,
     amp_level: str = "O2",
 ):
-    dtype = factor_kwargs["dtype"]
-    dtype = PRECISION_TO_TYPE[dtype]
-    model = load_model(
-        name=name,
-        zero_stage=zero_stage,
-        text_states_dim=text_states_dim,
-        text_states_dim_2=text_states_dim_2,
-        in_channels=in_channels,
-        out_channels=out_channels,
-        factor_kwargs=factor_kwargs,
-    )
+    if name in HUNYUAN_VIDEO_CONFIG.keys():
+        model = HYVideoDiffusionTransformer(
+            text_states_dim=text_states_dim,
+            text_states_dim_2=text_states_dim_2,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            **HUNYUAN_VIDEO_CONFIG[name],
+            **factor_kwargs,
+        )
+        if zero_stage is not None:
+            assert zero_stage in [0, 1, 2, 3], "zero_stage should be in [0, 1, 2, 3]"
+            model = prepare_network(
+                model,
+                zero_stage=zero_stage,
+                op_group=GlobalComm.WORLD_COMM_GROUP,
+            )
+
+        # half model parameter
+        dtype = factor_kwargs["dtype"]
+        if isinstance(dtype, str):
+            dtype = PRECISION_TO_TYPE[dtype]
+        if dtype != ms.float32:
+            set_model_param_dtype(model, dtype=dtype)
+    else:
+        raise NotImplementedError(f"Model {name} is not implemented yet.")
 
     if resume:
         logger.info("Resume training checkpoint provided, skipping weight loading.")

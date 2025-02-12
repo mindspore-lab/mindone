@@ -1,6 +1,6 @@
 
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=9000 --log_dir="./sample_videos/parallel_logs/" \
-   scripts/sample_video.py \
+   sample_video.py \
     --video-size 256 256 \
     --video-length 29 \
     --infer-steps 50 \
