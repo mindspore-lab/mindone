@@ -11,7 +11,6 @@ import mindspore as ms
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
@@ -23,7 +22,6 @@ from hyvideo.dataset.vae_dataset import VideoDataset, create_dataloader
 from hyvideo.utils.data_utils import preprocess_image, preprocess_video, read_video, transform_to_rgb
 from hyvideo.utils.ms_utils import init_env
 from hyvideo.vae import load_vae
-from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
 logger = logging.getLogger(__name__)
 
@@ -185,28 +183,12 @@ def main(args):
     vae, _, s_ratio, t_ratio = load_vae(
         args.vae,
         logger=logger,
+        vae_precision=args.vae_precision,
         state_dict=state_dict,
     )
-
+    dtype = PRECISION_TO_TYPE[args.vae_precision]
     if args.vae_tiling:
         vae.enable_tiling()
-
-    if args.vae_precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        dtype = PRECISION_TO_TYPE[args.vae_precision]
-        if dtype == ms.float16:
-            custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
-        else:
-            custom_fp32_cells = [MSPad, MSInterpolate]
-
-        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(
-            f"Set mixed precision to {amp_level} with dtype={args.vae_precision}, custom fp32_cells {custom_fp32_cells}"
-        )
-    elif args.vae_precision == "fp32":
-        dtype = PRECISION_TO_TYPE[args.vae_precision]
-    else:
-        raise ValueError(f"Unsupported precision {args.vae_precision}")
 
     if args.input_type == "image":
         assert device_num == 1, "Only support single-device inference given single input"

@@ -35,6 +35,7 @@ def init_env(
     jit_syntax_level: str = "strict",
     comm_fusion: bool = False,
     memory_offload: bool = False,
+    debug: bool = False,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -61,12 +62,15 @@ def init_env(
         enable_parallel_fusion (bool, default None): If True, will enable optimizer parallel fusion for AdamW.
         precision_mode (str, default None): If provided, will set precision_mode to overwrite the default option "allow_fp32_to_fp16".
         memory_offload (bool, default None): If True, will enable memory offload.
+        debug: Whether to enable debug mode (forces PyNative mode). Default is False.
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
     """
     set_random_seed(seed)
     ms.set_context(mempool_block_size=mempool_block_size)
-
+    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
+        logger.warning("Debug mode is on, switching execution mode to PyNative.")
+        mode = ms.PYNATIVE_MODE
     if max_device_memory is not None:
         ms.set_context(max_device_memory=max_device_memory)
     if enable_parallel_fusion:

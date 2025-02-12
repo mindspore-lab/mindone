@@ -29,7 +29,6 @@ from hyvideo.utils.ms_utils import init_env
 from hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
 from hyvideo.utils.utils import get_precision
 from hyvideo.vae import load_vae
-from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import resume_train_network
@@ -71,8 +70,6 @@ def set_all_reduce_fusion(
 
 def main(args):
     # 1. init
-    if args.num_frames == 1 or args.use_image_num != 0:
-        args.sp_size = 1
     save_src_strategy = args.use_parallel and args.parallel_mode == "optim"
     rank_id, device_num = init_env(
         args.mode,
@@ -115,28 +112,13 @@ def main(args):
         vae, _, s_ratio, t_ratio = load_vae(
             args.vae,
             logger=logger,
+            vae_precision=args.vae_precision,
         )
+        vae_dtype = PRECISION_TO_TYPE(args.vae_precision)
         # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
 
         if args.vae_tiling:
             vae.enable_tiling()
-
-        if args.vae_precision in ["fp16", "bf16"]:
-            amp_level = "O2"
-            vae_dtype = PRECISION_TO_TYPE[args.vae_precision]
-            if vae_dtype == ms.float16:
-                custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
-            else:
-                custom_fp32_cells = [MSPad, MSInterpolate]
-
-            vae = auto_mixed_precision(vae, amp_level, vae_dtype, custom_fp32_cells=custom_fp32_cells)
-            logger.info(
-                f"Set mixed precision to {amp_level} with dtype={args.vae_precision}, custom fp32_cells {custom_fp32_cells}"
-            )
-        elif args.vae_precision == "fp32":
-            vae_dtype = PRECISION_TO_TYPE[args.vae_precision]
-        else:
-            raise ValueError(f"Unsupported precision {args.vae_precision}")
 
     ae_stride_t, ae_stride_h, ae_stride_w = 4, 8, 8
 
