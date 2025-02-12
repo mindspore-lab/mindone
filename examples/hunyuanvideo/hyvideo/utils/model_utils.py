@@ -2,7 +2,6 @@ import logging
 from typing import Dict, Literal, Optional, Tuple, Union
 
 from jsonargparse.typing import Path_fr
-from mg.models import LlamaModel, llama3_1B, llama3_5B, llama3_30B
 
 import mindspore as ms
 from mindspore import _no_grad, jit_class, nn
@@ -14,7 +13,7 @@ __all__ = ["MODEL_DTYPE", "no_grad", "init_model", "resume_train_net"]
 
 logger = logging.getLogger(__name__)
 
-MODEL_SPEC = {"llama-1B": llama3_1B, "llama-5B": llama3_5B, "llama-30B": llama3_30B}
+# MODEL_SPEC = {"llama-1B": llama3_1B, "llama-5B": llama3_5B, "llama-30B": llama3_30B}
 
 MODEL_DTYPE = {
     "fp32": ms.float32,
@@ -67,16 +66,17 @@ def init_model(
     recompute_every_nth_block: Optional[int] = None,
     not_recompute_fa: bool = False,
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
-) -> LlamaModel:
-    attn_implementation = "flash_attention" if enable_flash_attention else "eager"
-    model = MODEL_SPEC[name](
-        in_channels=in_channels,
-        attn_implementation=attn_implementation,
-        recompute_every_nth_block=recompute_every_nth_block,
-        not_recompute_fa=not_recompute_fa,
-        dtype=MODEL_DTYPE[dtype],
-    )
+):
+    # attn_implementation = "flash_attention" if enable_flash_attention else "eager"
+    # model = MODEL_SPEC[name](
+    #     in_channels=in_channels,
+    #     attn_implementation=attn_implementation,
+    #     recompute_every_nth_block=recompute_every_nth_block,
+    #     not_recompute_fa=not_recompute_fa,
+    #     dtype=MODEL_DTYPE[dtype],
+    # )
 
+    model = None
     if resume:
         logger.info("Resume training checkpoint provided, skipping weight loading.")
     elif pretrained_model_path:

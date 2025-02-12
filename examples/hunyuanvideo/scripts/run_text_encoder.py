@@ -206,8 +206,8 @@ def parse_args():
     )
     parser.add_argument(
         "--caption-column",
-        default="cap",
-        help="The column of caption file path in `data_file_path`. Defaults to `cap`.",
+        default="caption",
+        help="The column of caption file path in `data_file_path`. Defaults to `caption`.",
     )
     args = parser.parse_args()
 
