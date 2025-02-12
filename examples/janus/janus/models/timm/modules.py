@@ -68,7 +68,7 @@ def trunc_normal_tf_(tensor, mean=0., std=1., a=-2., b=2.):
     and the result is subsequently scaled and shifted by the mean and std args.
 
     Args:
-        tensor: an n-dimensional `mint.Tensor`
+        tensor: an n-dimensional `ms.Tensor`
         mean: the mean of the normal distribution
         std: the standard deviation of the normal distribution
         a: the minimum cutoff value
@@ -234,7 +234,7 @@ class Mlp(nn.Cell):
             in_features,
             hidden_features=None,
             out_features=None,
-            act_layer=partial(nn.GELU, approximate=False),
+            act_layer=mint.nn.GELU,
             norm_layer=None,
             bias=True,
             drop=0.,
@@ -248,10 +248,7 @@ class Mlp(nn.Cell):
         linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else mint.nn.Linear
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
-        if act_layer == nn.GELU:
-            self.act = act_layer(approximate=False)
-        else:
-            self.act = act_layer()
+        self.act = act_layer()
         self.drop1 = nn.Dropout(p=drop_probs[0])
         self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
@@ -287,7 +284,7 @@ class PatchDropout(nn.Cell):
         self.ordered = ordered
         self.return_indices = return_indices
 
-    def construct(self, x) -> Union[mint.Tensor, Tuple[mint.Tensor, Optional[mint.Tensor]]]:
+    def construct(self, x) -> Union[ms.Tensor, Tuple[ms.Tensor, Optional[ms.Tensor]]]:
         if not self.training or self.prob == 0.:
             if self.return_indices:
                 return x, None
@@ -301,7 +298,7 @@ class PatchDropout(nn.Cell):
         B = x.shape[0]
         L = x.shape[1]
         num_keep = max(1, int(L * (1. - self.prob)))
-        keep_indices = mint.argsort(mint.randn(B, L, device=x.device), dim=-1)[:, :num_keep]
+        keep_indices = mint.argsort(mint.randn(B, L), dim=-1)[:, :num_keep]
         if self.ordered:
             # NOTE does not need to maintain patch order in typical transformer use,
             # but possibly useful for debug / visualization
@@ -468,7 +465,7 @@ class PatchEmbedWithSize(PatchEmbed):
             bias=bias,
         )
 
-    def construct(self, x) -> Tuple[mint.Tensor, List[int]]:
+    def construct(self, x) -> Tuple[ms.Tensor, List[int]]:
         B, C, H, W = x.shape
         if self.img_size is not None:
             assert H % self.patch_size[0] == 0, f"Input image height ({H}) must be divisible by patch size ({self.patch_size[0]})."
@@ -526,7 +523,7 @@ def resample_patch_embed(
         logger.info(f"Resize patch embedding {patch_embed.shape} to {new_size}, w/ {interpolation} interpolation.")
 
     def resize(x_np, _new_size):
-        x_tf = mint.Tensor(x_np)[None, None, ...]
+        x_tf = ms.Tensor(x_np)[None, None, ...]
         x_upsampled = mint.nn.functional.interpolate(
             x_tf, size=_new_size, mode=interpolation, antialias=antialias)[0, 0, ...].numpy()
         return x_upsampled
@@ -540,7 +537,7 @@ def resample_patch_embed(
         return np.stack(mat).T
 
     resize_mat = get_resize_mat(old_size, new_size)
-    resize_mat_pinv = mint.tensor(np.linalg.pinv(resize_mat.T), device=patch_embed.device)
+    resize_mat_pinv = mint.tensor(np.linalg.pinv(resize_mat.T))
 
     def resample_kernel(kernel):
         resampled_kernel = resize_mat_pinv @ kernel.reshape(-1)
@@ -555,7 +552,7 @@ def resample_patch_embed(
 
 
 def resample_abs_pos_embed(
-        posemb: mint.Tensor,
+        posemb: ms.Tensor,
         new_size: List[int],
         old_size: Optional[List[int]] = None,
         num_prefix_tokens: int = 1,

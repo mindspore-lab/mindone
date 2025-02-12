@@ -95,7 +95,7 @@ pip install -e .
 #### Multimodal Understanding
 
 ```shell
-python vqa_inference.py \
+python inference.py \
     --image images/doge.png  \
     --question "explain this meme" 
 ```

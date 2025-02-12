@@ -15,7 +15,7 @@ dependencies = [
     "mindspore>=2.4.1",
     "transformers==4.42.4",
     "sentencepiece",
-    "attrdict",
+    "addict",
 ]
 
 [project.optional-dependencies]
