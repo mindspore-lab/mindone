@@ -1,6 +1,5 @@
 import logging
 
-from hyvideo.utils.communications import prepare_parallel_data
 from hyvideo.utils.ms_utils import no_grad
 from hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
 
@@ -168,6 +167,7 @@ class DiffusionWithLoss(nn.Cell):
 
         current_step_frame = x.shape[2]
         if get_sequence_parallel_state() and current_step_frame > 1:
+            prepare_parallel_data = lambda x: x  # TODO: replace it later placeholder
             x = self.all_gather(x[None])[0]
             (
                 x,

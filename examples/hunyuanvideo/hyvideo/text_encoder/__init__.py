@@ -182,6 +182,7 @@ class TextEncoder(nn.Cell):
             padding_side="right",
             logger=self.logger,
         )
+        self.dtype = PRECISION_TO_TYPE[self.precision]
 
     def __repr__(self):
         return f"{self.text_encoder_type} ({self.precision} - {self.model_path})"
