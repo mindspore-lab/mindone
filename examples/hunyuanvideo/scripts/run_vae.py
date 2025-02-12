@@ -171,20 +171,11 @@ def main(args):
 
     set_logger(name="", output_dir=args.output_path, rank=0)
 
-    if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
-        logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
-        state_dict = ms.load_checkpoint(args.ms_checkpoint)
-        state_dict = dict(
-            [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
-        )
-    else:
-        state_dict = None
-
     vae, _, s_ratio, t_ratio = load_vae(
         args.vae,
         logger=logger,
         vae_precision=args.vae_precision,
-        state_dict=state_dict,
+        checkpoint=args.ms_checkpoint,
     )
     dtype = PRECISION_TO_TYPE[args.vae_precision]
     if args.vae_tiling:

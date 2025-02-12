@@ -17,7 +17,7 @@ def load_vae(
     sample_size: tuple = None,
     vae_path: str = None,
     logger=None,
-    state_dict=None,
+    checkpoint=None,
 ):
     """the fucntion to load the 3D VAE model
 
@@ -27,7 +27,7 @@ def load_vae(
         sample_size (tuple, optional): the tiling size. Defaults to None.
         vae_path (str, optional): the path to vae. Defaults to None.
         logger (_type_, optional): logger. Defaults to None.
-        state_dict (Dict, optional): existing state dictionary to be loaded.
+        checkpoint (str, optional): the checkpoint to load vae. Defaults to None and use default path.
     """
     if vae_path is None:
         vae_path = VAE_PATH[vae_type]
@@ -39,8 +39,9 @@ def load_vae(
         vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)
     else:
         vae = AutoencoderKLCausal3D.from_config(config)
-    if state_dict is None:
+    if checkpoint is None:
         vae_ckpt = Path(vae_path) / "model.safetensors"
+        logger.info(f"Load from default checkpoint {vae_ckpt}")
         # assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
 
         if vae_ckpt.exists():
@@ -53,7 +54,19 @@ def load_vae(
         else:
             print("No vae ckpt is loaded")
     else:
-        vae.load_state_dict(state_dict)
+        if isinstance(checkpoint, str):
+            logger.info(f"Load from checkpoint {checkpoint}")
+            assert checkpoint.exists(), f"The provided checkpoint {checkpoint} does not exist!"
+            state_dict = ms.load_checkpoint(checkpoint)
+            state_dict = dict(
+                [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
+            )
+            vae.load_state_dict(state_dict)
+        elif isinstance(checkpoint, dict):
+            logger.info("Load from state dictionary")
+            vae.load_state_dict(checkpoint)
+        else:
+            raise ValueError(f"The provided checkpoint {checkpoint} is not a valid checkpoint!")
 
     spatial_compression_ratio = vae.config.spatial_compression_ratio
     time_compression_ratio = vae.config.time_compression_ratio
