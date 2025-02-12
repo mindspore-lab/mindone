@@ -7,31 +7,42 @@ from ..utils.helpers import set_model_param_dtype
 from .models import HUNYUAN_VIDEO_CONFIG, HYVideoDiffusionTransformer
 
 
-def load_model(args, in_channels, out_channels, factor_kwargs):
+def load_model(
+    name,
+    in_channels,
+    out_channels,
+    factor_kwargs,
+    zero_stage=None,
+    text_states_dim: int = 4096,
+    text_states_dim_2: int = 768,
+):
     """load hunyuan video model
 
     Args:
-        args (dict): model args
         in_channels (int): input channels number
         out_channels (int): output channels number
+        zero_stage (int, optional): zero stage. Defaults to None.
+        text_states_dim (int, optional): text states dim of text encoder 1. Defaults to 4096.
+        text_states_dim (int ,optional): text states dim of text encoder 2. Defaults to 768.
         factor_kwargs (dict): factor kwargs
 
     Returns:
         model (nn.Module): The hunyuan video model
     """
-    if args.model in HUNYUAN_VIDEO_CONFIG.keys():
+    if name in HUNYUAN_VIDEO_CONFIG.keys():
         model = HYVideoDiffusionTransformer(
-            args,
+            text_states_dim=text_states_dim,
+            text_states_dim_2=text_states_dim_2,
             in_channels=in_channels,
             out_channels=out_channels,
-            **HUNYUAN_VIDEO_CONFIG[args.model],
+            **HUNYUAN_VIDEO_CONFIG[name],
             **factor_kwargs,
         )
-        if args.zero_stage is not None:
-            assert args.zero_stage in [0, 1, 2, 3], "zero_stage should be in [0, 1, 2, 3]"
+        if zero_stage is not None:
+            assert zero_stage in [0, 1, 2, 3], "zero_stage should be in [0, 1, 2, 3]"
             model = prepare_network(
                 model,
-                zero_stage=args.zero_stage,
+                zero_stage=zero_stage,
                 op_group=GlobalComm.WORLD_COMM_GROUP,
             )
 

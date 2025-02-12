@@ -48,7 +48,10 @@ def test_pipeline():
     factor_kwargs = {"dtype": dtype, "attn_mode": "vanilla"}
     print("creating model")
     model = load_model(
-        args,
+        name=args.model,
+        zero_stage=args.zero_stage,
+        text_states_dim=args.text_states_dim,
+        text_states_dim_2=args.text_states_dim_2,
         in_channels=args.latent_channels,
         out_channels=args.latent_channels,
         factor_kwargs=factor_kwargs,

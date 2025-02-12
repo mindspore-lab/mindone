@@ -269,7 +269,8 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     # model
     factor_kwargs = {"dtype": dtype}
     net = HYVideoDiffusionTransformer(
-        args,
+        text_states_dim=args.text_states_dim,
+        text_states_dim_2=args.text_states_dim_2,
         in_channels=C,
         use_conv2d_patchify=True,
         attn_mode="vanilla",

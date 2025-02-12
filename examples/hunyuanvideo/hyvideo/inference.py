@@ -77,7 +77,10 @@ class Inference(object):
         dtype = factor_kwargs["dtype"]
         rank_id = kwargs.get("rank_id", 0)
         model = load_model(
-            args,
+            name=args.model,
+            zero_stage=args.zero_stage,
+            text_states_dim=args.text_states_dim,
+            text_states_dim_2=args.text_states_dim_2,
             in_channels=in_channels,
             out_channels=out_channels,
             factor_kwargs=factor_kwargs,
