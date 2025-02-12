@@ -392,5 +392,3 @@ The video generation speed is as follows.
 | model name   | cards |  batch size | resolution    | s/step | video/s                                                              |
 |:------------:|:-----:|:-----------:|:----------:|:---------:|:---------:|
 | videocomposer | 1     | 1           | 16x256x256         |  0.22 | 0.09  |
-
-
