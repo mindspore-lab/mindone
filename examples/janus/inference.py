@@ -6,7 +6,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
-from transformers import AutoModelForCausalLM
+from transformers import AutoConfig, AutoModelForCausalLM
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images, set_model_param_dtype
 from mindone.utils.seed import set_random_seed
@@ -82,9 +82,14 @@ if __name__ == "__main__":
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
 
-    vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
-        args.model_path, trust_remote_code=True,
-    )
+    config = AutoConfig.from_pretrained(args.model_path)
+    language_config = config.language_config
+    language_config._attn_implementation = 'eager'
+    # language_config._attn_implementation = 'flash_attention_2'
+    vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path,
+                                                 language_config=language_config,
+                                                 trust_remote_code=True)
+
     vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
     vl_gpt.set_train(False)
 
