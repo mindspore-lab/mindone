@@ -34,6 +34,7 @@ def generate(
     img_size: int = 384,
     patch_size: int = 16,
     use_cache: bool = False,
+    ms_mode: int = 1,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int64)
@@ -54,6 +55,8 @@ def generate(
     else:
         init_kv = None
     outputs = []
+    # FIXME: just use mint multinomial after it supports graph mode
+    multinomial = mint.multinomial if ms_mode==1 else ops.multinomial
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
@@ -71,7 +74,8 @@ def generate(
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         if temperature > 0:
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
-            next_token = ops.multinomial(probs.float(), num_samples=1)
+            # FIXME: rm .float() after switch to mint.multinomial
+            next_token = multinomial(probs.float(), num_samples=1, replacement=False)
         else:
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
@@ -159,4 +163,5 @@ if __name__ == "__main__":
         temperature=args.temperature,
         parallel_size=args.parallel_size,
         use_cache=args.use_cache,
+        ms_mode=args.ms_mode,
     )
