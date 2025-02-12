@@ -22,13 +22,14 @@
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from transformers import Qwen2Config, logging
 
 import mindspore as ms
-from mindspore import nn, ops, Parameter
+from mindspore import Parameter, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, StaticCache, DynamicCache
+from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
@@ -37,9 +38,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import MSPreTrainedModel
-
-from transformers import logging, Qwen2Config
-
 
 logger = logging.get_logger(__name__)
 
@@ -64,7 +62,6 @@ def dtype_to_min(dtype):
         return _MIN_BF16
     else:
         raise ValueError(f"Only support get minimum value of (float16, ), but got {dtype}")
-
 
 
 # Copied from transformers.models.llama.modeling_llama._prepare_4d_causal_attention_mask_with_cache_position
@@ -122,9 +119,11 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
                 causal_mask = causal_mask.masked_fill(padding_mask, min_dtype)
             else:
                 causal_mask = ops.cat(
-                    [ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(padding_mask, min_dtype),
-                     ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length)],
-                    axis=-1
+                    [
+                        ops.narrow(causal_mask, -1, 0, mask_length).masked_fill(padding_mask, min_dtype),
+                        ops.narrow(causal_mask, -1, mask_length, causal_mask.shape[-1] - mask_length),
+                    ],
+                    axis=-1,
                 )
 
     return causal_mask
@@ -163,9 +162,7 @@ class Qwen2RotaryEmbedding(nn.Cell):
         self.inv_freq = inv_freq
 
         # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(
-            seq_len=max_position_embeddings, device=None, dtype=ms.float32
-        )
+        self._set_cos_sin_cache(seq_len=max_position_embeddings, device=None, dtype=ms.float32)
 
     def _set_cos_sin_cache(self, seq_len, device, dtype):
         self.max_seq_len_cached = seq_len
@@ -296,7 +293,7 @@ class Qwen2Attention(nn.Cell):
             base=self.rope_theta,
         )
 
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
 
     def construct(
         self,
@@ -338,8 +335,8 @@ class Qwen2Attention(nn.Cell):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        query_states = ops.mul(query_states, self.scale ** 0.5)
-        key_states = ops.mul(key_states, self.scale ** 0.5)
+        query_states = ops.mul(query_states, self.scale**0.5)
+        key_states = ops.mul(key_states, self.scale**0.5)
 
         attn_weights = ops.matmul(query_states, key_states.swapaxes(2, 3))
 
@@ -612,7 +609,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
     def set_input_embeddings(self, value):
         self.embed_tokens = value
 
-
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -660,9 +656,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = ops.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
@@ -789,11 +783,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
             batch_size=input_tensor.shape[0],
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
@@ -831,7 +821,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
 
     def get_decoder(self):
         return self.model
-
 
     def construct(
         self,
@@ -944,7 +933,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             #     input_ids = input_ids[:, :cache_position.shape[0]]
             if inputs_embeds is not None:  # Exception 1
                 if 0 not in input_ids.shape:
-                    input_ids = input_ids[:, -cache_position.shape[0]:]
+                    input_ids = input_ids[:, -cache_position.shape[0] :]
             elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
                 input_ids = ops.index_select(input_ids, -1, cache_position)
 
@@ -998,7 +987,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         return model_inputs
 
 
-
 class Qwen2ForSequenceClassification(Qwen2PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -1014,7 +1002,6 @@ class Qwen2ForSequenceClassification(Qwen2PreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.model.embed_tokens = value
-
 
     def construct(
         self,
@@ -1106,7 +1093,6 @@ class Qwen2ForSequenceClassification(Qwen2PreTrainedModel):
         )
 
 
-
 # Copied from transformers.models.llama.modeling_llama.LlamaForTokenClassification with Llama->Qwen2, LLAMA->QWEN2
 class Qwen2ForTokenClassification(Qwen2PreTrainedModel):
     def __init__(self, config):
@@ -1130,7 +1116,6 @@ class Qwen2ForTokenClassification(Qwen2PreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.model.embed_tokens = value
-
 
     def construct(
         self,
