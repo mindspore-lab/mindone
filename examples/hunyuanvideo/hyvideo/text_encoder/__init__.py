@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, Tuple
 
+from hyvideo.constants import PRECISION_TO_TYPE, TEXT_ENCODER_PATH, TOKENIZER_PATH
 from hyvideo.utils.helpers import set_model_param_dtype
 from transformers import AutoTokenizer, CLIPTokenizer
 from transformers.utils import ModelOutput
@@ -11,8 +12,6 @@ from mindspore import Tensor, nn
 from mindone.transformers import CLIPTextModel, LlamaModel
 from mindone.transformers.models.llama.modeling_llama import ALL_LAYERNORM_LAYERS
 from mindone.utils.amp import auto_mixed_precision
-
-from constants import PRECISION_TO_TYPE, TEXT_ENCODER_PATH, TOKENIZER_PATH
 
 
 def use_default(value, default):

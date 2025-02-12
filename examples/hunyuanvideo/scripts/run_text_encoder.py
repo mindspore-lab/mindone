@@ -201,8 +201,8 @@ def parse_args():
     )
     parser.add_argument(
         "--file-column",
-        default="path",
-        help="The column of file path in `data_file_path`. Defaults to `path`.",
+        default="video",
+        help="The column of file path in `data_file_path`. Defaults to `video`.",
     )
     parser.add_argument(
         "--caption-column",
@@ -309,6 +309,7 @@ def main(args):
     print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions
+    print_banner("data init")
     if args.data_file_path is not None:
         assert isinstance(args.data_file_path, str), "Expect data_file_path to be a string!"
         assert Path(args.data_file_path).exists(), "data_file_path does not exist!"

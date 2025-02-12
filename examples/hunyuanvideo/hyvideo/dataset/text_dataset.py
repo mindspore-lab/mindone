@@ -44,6 +44,15 @@ class TextDataset:
                 self.dataset = json.load(f)
         else:
             raise ValueError("Only support json and csv file now!")
+        assert len(self.dataset) > 0, "No data found in the data file."
+        sample = self.dataset[0]
+        assert (
+            self.caption_column in sample
+        ), f"Expected caption column `{self.caption_column}` in dataset, but got {sample.keys()}"
+
+        assert (
+            self.file_column in sample
+        ), f"Expected file path column {self.file_column} in dataset, but got {sample.keys()}"
 
     def __len__(self):
         return self.num_captions
@@ -63,13 +72,9 @@ class TextDataset:
     def __getitem__(self, idx_text):
         idx = self.caption_sample_indices[idx_text]
         row = self.dataset[idx]
-        assert (
-            self.caption_column in row
-        ), f"Expected caption column {self.caption_column} in dataset, but got {row.keys()}"
         captions = row[self.caption_column]
         if isinstance(captions, str):
             captions = [captions]
-        assert self.file_column in row, f"Expected file path column {self.file_column} in dataset, but got {row.keys()}"
         file_path = row[self.file_column]
         # get the caption id
         first_text_index = self.caption_sample_indices.index(idx)
