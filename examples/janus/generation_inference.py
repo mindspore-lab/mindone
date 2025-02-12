@@ -47,7 +47,8 @@ def generate(
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
-
+    
+    assert use_cache==False, "kv cache not supported"
     if use_cache:
         init_kv = mmgpt.language_model.model.prepare_static_cache(inputs_embeds)
     else:
@@ -57,11 +58,11 @@ def generate(
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
-            use_cache=use_cache,  # TODO support kv cache
-            past_key_values=outputs.past_key_values if i != 0 else init_kv,
-            return_dict=True
+            use_cache=use_cache,
+            past_key_values=outputs[1] if (i != 0 and use_cache) else init_kv,
+            return_dict=False,
         )
-        hidden_states = outputs.last_hidden_state
+        hidden_states = outputs[0]
 
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
         logit_cond = logits[0::2, :]
@@ -70,7 +71,7 @@ def generate(
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         if temperature > 0:
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
-            next_token = mint.multinomial(probs, num_samples=1)
+            next_token = ops.multinomial(probs.float(), num_samples=1)
         else:
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
@@ -126,8 +127,15 @@ if __name__ == "__main__":
     tokenizer = vl_chat_processor.tokenizer
 
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path)
-    vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
+    dtype = ms.bfloat16
+    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
+
+    if args.ms_mode == 0:
+        bs = args.parallel_size * 2
+        hidden_size = vl_gpt.language_model.model.layers[0].hidden_size
+        input_dyn = ms.Tensor(shape=[bs, None, hidden_size], dtype=dtype)
+        vl_gpt.language_model.model.set_inputs(inputs_embeds=input_dyn)
 
     conversation = [
         {
