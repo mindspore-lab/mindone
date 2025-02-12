@@ -17,6 +17,7 @@ from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import set_model_param_dtype
+from janus.models.compat import get_multinomial_op
 import numpy as np
 import os
 import PIL.Image
@@ -54,6 +55,9 @@ def generate(
     else:
         init_kv = None
     outputs = []
+    # FIXME: use mint multinomial after ms2.5 adaptation
+    multinomial = get_multinomial_op()
+    
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
@@ -71,7 +75,8 @@ def generate(
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         if temperature > 0:
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
-            next_token = ops.multinomial(probs.float(), num_samples=1)
+            # FIXME: rm .float() after switch to mint.multinomial
+            next_token = multinomial(probs.float(), num_samples=1, replacement=False)
         else:
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
