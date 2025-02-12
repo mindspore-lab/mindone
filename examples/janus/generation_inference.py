@@ -1,25 +1,18 @@
 import argparse
-import mindspore as ms
-from mindspore import mint, ops, Tensor
-from transformers import AutoModelForCausalLM
 import numpy as np
 import os
 import PIL.Image
-from tqdm import tqdm
-
-import os
 import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
-
+import time
+import mindspore as ms
+from mindspore import mint, ops, Tensor
+from transformers import AutoModelForCausalLM
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import set_model_param_dtype
-import numpy as np
-import os
-import PIL.Image
-from tqdm import tqdm
 
 
 def generate(
@@ -52,13 +45,19 @@ def generate(
     else:
         init_kv = None
     outputs = []
-    for i in tqdm(range(image_token_num_per_image)):
+    s_time = time.time()
+    for i in range(image_token_num_per_image):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,  # TODO support kv cache
             past_key_values=outputs.past_key_values if i != 0 else init_kv,
             return_dict=True
         )
+        time_cost = time.time() - s_time
+        print(
+            f"======> vlm forwarding, step: {i}, output_shape: {outputs.last_hidden_state.shape}"
+            f"time cost: {time_cost:.3f}s, speed: {1/time_cost:.3f} iter/s"
+        )  # iter/s indicates avg token generation speed
         hidden_states = outputs.last_hidden_state
 
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
@@ -67,8 +66,8 @@ def generate(
 
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         if temperature > 0:
-            probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
-            next_token = mint.multinomial(probs, num_samples=1)
+            probs = mint.nn.functional.softmax(logits / temperature, dim=-1).to(ms.float32)
+            next_token = ops.multinomial(probs, num_samples=1)
         else:
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
@@ -76,12 +75,12 @@ def generate(
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
 
-        img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
+        img_embeds = mmgpt.prepare_gen_img_embeds(next_token).to(mmgpt.dtype)
 
         if use_cache:
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
-            inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
+            inputs_embeds = mint.cat((inputs_embeds, img_embeds.unsqueeze(dim=1)), dim=1)
 
     dec = mmgpt.gen_vision_model.decode_code(generated_tokens.to(dtype=ms.int32), shape=[parallel_size, 8, img_size//patch_size, img_size//patch_size])
     dec = dec.to(ms.float32).transpose(0, 2, 3, 1).asnumpy()
