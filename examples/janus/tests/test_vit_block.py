@@ -13,12 +13,23 @@ from janus.utils.io import set_model_param_dtype
 np.random.seed(42)
 
 
-def _diff_res(ms_val, pt_val, eps=1e-8):
+def _diff_res(ms_val, pt_val, eps=1e-8, relax=False):
     abs_diff = np.fabs(ms_val - pt_val)
     mae = abs_diff.mean()
     max_ae = abs_diff.max()
 
     rel_diff = abs_diff / (np.fabs(pt_val) + eps)
+	
+    # relax
+    if relax:
+        rel_diff = abs_diff / (np.fabs(pt_val))
+        tot = np.prod(rel_diff.shape)
+        n_nan = np.isnan(rel_diff).sum()
+        n_inf = np.isinf(rel_diff).sum()
+        print('# values: {}, # nan values: {}, # inf values:{}, (nan+inf)/tot'.format(tot, n_nan, n_inf, (n_nan + n_inf) / tot ))
+        rel_diff = rel_diff[~np.isnan(rel_diff)]
+        rel_diff = rel_diff[~np.isinf(rel_diff)]
+
     mre = rel_diff.mean()
     max_re = rel_diff.max()
 
@@ -69,12 +80,10 @@ def test(pt_np=None, dtype=ms.float32):
     d = 1024
     shape =  (1, 576, d)
     if pt_np:
-        pt_data = np.load(pt_np)
-        x = pt_data["x"]
-        pt_out = pt_data["out"]
+        x = np.load(pt_np[0])
+        pt_out = np.load(pt_np[1])
     else:
         x = np.random.normal(size=shape).astype(np.float32)
-
     x = Tensor(x, dtype)
 
     net = Block(
@@ -100,11 +109,14 @@ def test(pt_np=None, dtype=ms.float32):
     print(out.shape)
     print(out.sum(), out.std())
 
+    print('ms min max', out.min(), out.max())
     if pt_np:
         print('pt min max: ', pt_out.min(), pt_out.max())
-        diff = _diff_res(out.asnumpy(), pt_out)
+        diff = _diff_res(out.asnumpy(), pt_out, eps=1e-6, relax=True)
         print(diff)
 
 if __name__ == '__main__':
     ms.set_context(mode=1)
-    test(pt_np='tests/vit_block_io.npz', dtype=ms.float32)
+    test(pt_np=['tests/pt_vit_block_inp.npy', 'tests/pt_vit_block_out.npy'], 
+            dtype=ms.bfloat16)
+            # dtype=ms.float32)
