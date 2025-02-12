@@ -16,21 +16,18 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
 sys.path.append(os.path.join(__dir__, ".."))
 from hyvideo.acceleration import create_parallel_group
-from hyvideo.constants import PRECISION_TO_TYPE  # , PRECISIONS, PROMPT_TEMPLATE, VAE_PATH
 from hyvideo.dataset import ImageVideoDataset, bucket_split_function
 from hyvideo.diffusion.pipelines import DiffusionWithLoss
 from hyvideo.diffusion.schedulers import RFlowEvalLoss, RFlowLossWrapper
 from hyvideo.utils import EMA, init_model, resume_train_net
 from hyvideo.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
 from hyvideo.vae import AutoencoderKLCausal3D, load_vae
-from hyvideo.vae.unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_train_env, set_logger
-from mindone.utils.amp import auto_mixed_precision
 
 logger = logging.getLogger(__name__)
 
@@ -99,37 +96,16 @@ def main(args):
     ):
         logger.info("Initializing vae...")
         vae, _, s_ratio, t_ratio = load_vae(
-            args.vae,
+            args.vae.vae_type,
             logger=logger,
+            vae_precision=args.vae.vae_precision,
         )
         # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
+        # vae_dtype = PRECISION_TO_TYPE(args.vae.vae_precision)
 
-        if args.vae_tiling:
+        if args.vae.vae_tiling:
             vae.enable_tiling()
 
-        if args.vae_precision in ["fp16", "bf16"]:
-            amp_level = "O2"
-            vae_dtype = PRECISION_TO_TYPE[args.vae_precision]
-            if vae_dtype == ms.float16:
-                custom_fp32_cells = [GroupNorm] if args.vae_keep_gn_fp32 else []
-            else:
-                custom_fp32_cells = [MSPad, MSInterpolate]
-
-            vae = auto_mixed_precision(vae, amp_level, vae_dtype, custom_fp32_cells=custom_fp32_cells)
-            logger.info(
-                f"Set mixed precision to {amp_level} with dtype={args.vae_precision}, custom fp32_cells {custom_fp32_cells}"
-            )
-        elif args.vae_precision == "fp32":
-            vae_dtype = PRECISION_TO_TYPE[args.vae_precision]
-        else:
-            raise ValueError(f"Unsupported precision {args.vae_precision}")
-
-        if args.model.in_channels != vae.out_channels:
-            logger.warning(
-                f"The number of model input channels ({args.model.in_channels}) doesn't match the number of vae output"
-                f" channels ({vae.out_channels}). Setting it to {vae.out_channels}."
-            )
-            args.model.in_channels = vae.out_channels
     else:
         logger.info("vae latent folder provided. Skipping vae initialization.")
         vae = None
@@ -299,7 +275,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description="Movie Gen training script.")
+    parser = ArgumentParser(description="Hunyuan Video training script.")
     parser.add_argument(
         "-c",
         "--config",

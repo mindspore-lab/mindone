@@ -1,12 +1,15 @@
 import logging
-from typing import Dict, Literal, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
+from hyvideo.constants import PRECISION_TO_TYPE
+from hyvideo.modules import load_model
 from jsonargparse.typing import Path_fr
 
 import mindspore as ms
-from mindspore import _no_grad, jit_class, nn
+from mindspore import _no_grad, amp, jit_class, nn
 
 from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.params import load_param_into_net_with_filter
 
 __all__ = ["MODEL_DTYPE", "no_grad", "init_model", "resume_train_net"]
@@ -58,31 +61,58 @@ class no_grad(_no_grad):
 
 
 def init_model(
-    name: Literal["llama-1B", "llama-5B", "llama-30B"],
+    name: str = "",
     in_channels: int = 16,
+    out_channels: int = 16,
     pretrained_model_path: Optional[Path_fr] = None,
+    zero_stage: Optional[int] = None,
+    text_states_dim: int = 4096,
+    text_states_dim_2: int = 768,
     resume: bool = False,
-    enable_flash_attention: bool = True,
-    recompute_every_nth_block: Optional[int] = None,
-    not_recompute_fa: bool = False,
-    dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
+    factor_kwargs: dict = {},
+    use_fp8: bool = False,
+    enable_ms_amp: bool = True,
+    amp_level: str = "O2",
 ):
-    # attn_implementation = "flash_attention" if enable_flash_attention else "eager"
-    # model = MODEL_SPEC[name](
-    #     in_channels=in_channels,
-    #     attn_implementation=attn_implementation,
-    #     recompute_every_nth_block=recompute_every_nth_block,
-    #     not_recompute_fa=not_recompute_fa,
-    #     dtype=MODEL_DTYPE[dtype],
-    # )
+    dtype = factor_kwargs["dtype"]
+    dtype = PRECISION_TO_TYPE[dtype]
+    model = load_model(
+        name=name,
+        zero_stage=zero_stage,
+        text_states_dim=text_states_dim,
+        text_states_dim_2=text_states_dim_2,
+        in_channels=in_channels,
+        out_channels=out_channels,
+        factor_kwargs=factor_kwargs,
+    )
 
-    model = None
     if resume:
         logger.info("Resume training checkpoint provided, skipping weight loading.")
     elif pretrained_model_path:
         load_ckpt_params(model, pretrained_model_path.absolute)
     else:
         logger.info(f"Initialize {name} model randomly.")
+
+    if use_fp8:
+        raise NotImplementedError("fp8 is not supported yet.")
+
+    if enable_ms_amp and dtype != ms.float32:
+        logger.warning(f"Use MS auto mixed precision, amp_level: {amp_level}")
+        if amp_level == "auto":
+            amp.auto_mixed_precision(model, amp_level=amp_level, dtype=dtype)
+        else:
+            from hyvideo.modules.embed_layers import SinusoidalEmbedding
+            from hyvideo.modules.norm_layers import FP32LayerNorm, LayerNorm, RMSNorm
+
+            whitelist_ops = [
+                LayerNorm,
+                RMSNorm,
+                FP32LayerNorm,
+                SinusoidalEmbedding,
+            ]
+            logger.info("custom fp32 cell for dit: ", whitelist_ops)
+            model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
+
     return model
 
 

@@ -1,3 +1,5 @@
+from hyvideo.constants import PRECISION_TO_TYPE
+
 import mindspore as ms
 from mindspore.communication.management import GlobalComm
 
@@ -48,6 +50,8 @@ def load_model(
 
         # half model parameter
         dtype = factor_kwargs["dtype"]
+        if isinstance(dtype, str):
+            dtype = PRECISION_TO_TYPE[dtype]
         if dtype != ms.float32:
             set_model_param_dtype(model, dtype=dtype)
 
