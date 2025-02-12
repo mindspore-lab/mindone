@@ -9,7 +9,7 @@ import mindspore as ms
 import mindspore.dataset as ds
 import mindspore.ops as ops
 from mindspore import Tensor, context
-from mindspore.communication import get_group_size, get_rank, init
+from mindspore.mint.distributed import init_process_group, get_rank, get_world_size, all_gather
 from tqdm import tqdm
 
 from pipeline.datasets.utils import extract_frames
@@ -80,9 +80,9 @@ def main():
     if not args.use_cpu:
         ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend")
         ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
-        init()
+        init_process_group()
         rank_id = get_rank()
-        rank_size = get_group_size()
+        rank_size = get_world_size()
 
     model = LPIPS()
     model.load_from_pretrained(args.lpips_ckpt_path)
@@ -148,14 +148,21 @@ def main():
 
     # Allgather results if necessary
     if not args.use_cpu:
-        allgather = ops.AllGather()
-        indices_tensor = Tensor(indices_list, ms.int64)
-        scores_tensor = Tensor(scores_list, ms.float32)
-        indices_list = allgather(indices_tensor).asnumpy().tolist()
-        scores_list = allgather(scores_tensor).asnumpy().tolist()
+        indices_list = Tensor(indices_list, dtype=ms.int64)
+        scores_list = Tensor(scores_list, dtype=ms.float32)
+
+        indices_list_all = [Tensor(np.zeros(indices_list.shape, dtype=np.int64)) for _ in range(rank_size)]
+        scores_list_all = [Tensor(np.zeros(scores_list.shape, dtype=np.float32)) for _ in range(rank_size)]
+
+        all_gather(indices_list_all, indices_list)
+        all_gather(scores_list_all, scores_list)
+
+        concat = ops.Concat(axis=0)
+        indices_list_all = concat(indices_list_all).asnumpy().tolist()
+        scores_list_all = concat(scores_list_all).asnumpy().tolist()
 
     if args.use_cpu or (not args.use_cpu and rank_id == 0):
-        meta_new = merge_scores([(indices_list, scores_list)], dataset_generator.meta, column="lpips")
+        meta_new = merge_scores([(indices_list_all, scores_list_all)], dataset_generator.meta, column="lpips")
         meta_new.to_csv(out_path, index=False)
         print(f"New meta with LPIPS motion scores saved to '{out_path}'.")
 
