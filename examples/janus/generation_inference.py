@@ -1,5 +1,6 @@
 import argparse
 import mindspore as ms
+from time import time
 from mindspore import mint, ops, Tensor
 from transformers import AutoModelForCausalLM
 import numpy as np
@@ -33,6 +34,7 @@ def generate(
     img_size: int = 384,
     patch_size: int = 16,
     use_cache: bool = False,
+    ms_mode: int = 1,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int64)
@@ -46,20 +48,24 @@ def generate(
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
-
+    
+    assert use_cache==False, "kv cache not supported"
     if use_cache:
         init_kv = mmgpt.language_model.model.prepare_static_cache(inputs_embeds)
     else:
         init_kv = None
     outputs = []
+    # FIXME: just use mint multinomial after it supports graph mode
+    multinomial = mint.multinomial if ms_mode==1 else ops.multinomial
+    st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
-            use_cache=use_cache,  # TODO support kv cache
-            past_key_values=outputs.past_key_values if i != 0 else init_kv,
-            return_dict=True
+            use_cache=use_cache,
+            past_key_values=outputs[1] if (i != 0 and use_cache) else init_kv,
+            return_dict=False,
         )
-        hidden_states = outputs.last_hidden_state
+        hidden_states = outputs[0]
 
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
         logit_cond = logits[0::2, :]
@@ -68,7 +74,8 @@ def generate(
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         if temperature > 0:
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
-            next_token = mint.multinomial(probs, num_samples=1)
+            # FIXME: rm .float() after switch to mint.multinomial
+            next_token = multinomial(probs.float(), num_samples=1, replacement=False)
         else:
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
@@ -82,6 +89,9 @@ def generate(
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
             inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
+
+    time_cost = time() - st
+    print("Time cost (s): {:.4f}, est. throughput (tokens/s): {:4f}".format(time_cost, generated_tokens.shape[-1]/time_cost))
 
     dec = mmgpt.gen_vision_model.decode_code(generated_tokens.to(dtype=ms.int32), shape=[parallel_size, 8, img_size//patch_size, img_size//patch_size])
     dec = dec.to(ms.float32).transpose(0, 2, 3, 1).asnumpy()
@@ -121,8 +131,15 @@ if __name__ == "__main__":
     tokenizer = vl_chat_processor.tokenizer
 
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path)
-    vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
+    dtype = ms.bfloat16
+    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
+
+    if args.ms_mode == 0:
+        bs = args.parallel_size * 2
+        hidden_size = vl_gpt.language_model.model.layers[0].hidden_size
+        input_dyn = ms.Tensor(shape=[bs, None, hidden_size], dtype=dtype)
+        vl_gpt.language_model.model.set_inputs(inputs_embeds=input_dyn)
 
     conversation = [
         {
@@ -146,4 +163,5 @@ if __name__ == "__main__":
         temperature=args.temperature,
         parallel_size=args.parallel_size,
         use_cache=args.use_cache,
+        ms_mode=args.ms_mode,
     )

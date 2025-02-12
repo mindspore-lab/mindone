@@ -145,10 +145,10 @@ class Attention(nn.Cell):
             )
         else:
             q = q * self.scale
-            attn = q @ k.transpose(-2, -1)
-            attn = attn.softmax(dim=-1)
+            attn = ops.bmm(q, k.transpose(0, 1, 3, 2))
+            attn = ops.softmax(attn, axis=-1)
             attn = self.attn_drop(attn)
-            x = attn @ v
+            x = ops.bmm(attn, v)
 
         x = x.transpose(0, 2, 1, 3).reshape(B, N, C)
         x = self.proj(x)
@@ -183,7 +183,7 @@ class Block(nn.Cell):
         attn_drop: float = 0.0,
         init_values: Optional[float] = None,
         drop_path: float = 0.0,
-        act_layer: nn.Cell = nn.GELU,
+        act_layer: nn.Cell = mint.nn.GELU,
         norm_layer: nn.Cell = LayerNorm,
         mlp_layer: nn.Cell = Mlp,
     ) -> None:
@@ -298,7 +298,7 @@ class VisionTransformer(nn.Cell):
         use_fc_norm = global_pool == "avg" if fc_norm is None else fc_norm
 
         norm_layer = partial(LayerNorm, eps=1e-6)
-        act_layer = partial(nn.GELU, approximate=False)
+        act_layer = mint.nn.GELU
 
         self.num_classes = num_classes
         self.global_pool = global_pool

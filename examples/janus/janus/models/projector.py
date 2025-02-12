@@ -22,7 +22,7 @@ from typing import Tuple, Union
 import mindspore as ms
 from mindspore import mint, ops, nn
 from mindspore import Tensor
-from attrdict import AttrDict
+from addict import Dict
 
 
 class MlpProjector(nn.Cell):
@@ -90,7 +90,7 @@ class MlpProjector(nn.Cell):
 
 if __name__ == "__main__":
     import numpy as np
-    cfg = AttrDict(
+    cfg = Dict(
         input_dim=1024,
         n_embed=2048,
         depth=2,
