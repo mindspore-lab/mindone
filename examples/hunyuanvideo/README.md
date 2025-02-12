@@ -9,26 +9,19 @@
 
 Please download all checkpoints and convert them into MindSpore checkpoints following this [instruction](./ckpts/README.md).
 
-### Run text encoder
-
-```bash
-cd hyvideo
-python run_text_encoder.py
-```
-
-
 ### Run VAE reconstruction
 
 To run a video reconstruction using the CausalVAE, please use the following command:
 ```bash
-python hyvideo/rec_video.py \
-  --video_path input_video.mp4 \
-  --rec_path rec.mp4 \
-  --height 360 \
-  --width 640 \
-  --num_frames 33 \
+python scripts/run_vae.py \
+    --video-path "path/to/input_video.mp4" \
+    --output-path "path/to/output_directory" \
+    --rec-path "reconstructed_video.mp4" \
+    --height 336 \
+    --width 336 \
+    --num-frames 65 \
 ```
-The reconstructed video is saved under `./samples/`. To run video reconstruction on a given folder of input videos, please see `hyvideo/rec_video_folder.py` for more information.
+The reconstructed video is saved under `./save_samples/`. To run reconstruction on an input image or a input folder of videos, please refer to `scripts/vae/recon_image.sh` or `scripts/vae/recon_video_folder.sh`.
 
 
 ## 🔑 Training
@@ -37,6 +30,14 @@ The reconstructed video is saved under `./samples/`. To run video reconstruction
 
 To prepare the dataset for training HuyuanVideo, please refer to the [dataset format](./hyvideo/dataset/README.md).
 
+### Extract Text Embeddings
+
+```bash
+python scripts/run_text_encoder.py \
+  --data-file-path /path/to/caption.csv \
+  --output-path /path/to/text_embed_folder \
+```
+Please refer to `scripts/text_encoder/run_text_encoder.sh`. More details can be found by `python scripts/run_text_encoder.py --help`.
 
 ### Distributed Training
 

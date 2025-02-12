@@ -231,7 +231,7 @@ def get_parser():
         help="Type of input data: image, video, or folder.",
     )
     parser.add_argument(
-        "--output-path", type=str, default="save_videos/", help="Path to save the reconstructed video or image path."
+        "--output-path", type=str, default="save_samples/", help="Path to save the reconstructed video or image path."
     )
     # Image Group
     parser.add_argument("--image-path", type=str, default="", help="Path to the input image file")
