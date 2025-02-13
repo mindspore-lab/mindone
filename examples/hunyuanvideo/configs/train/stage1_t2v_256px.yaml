@@ -8,7 +8,7 @@ env:
 model:
   name: "HYVideo-T/2-cfgdistill"
   in_channels: 16
-  pretrained_model_path:
+  pretrained_model_path: ../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt # the path is relative to this config
   text_states_dim: 4096
   text_states_dim_2: 768
   enable_ms_amp: True
@@ -53,7 +53,7 @@ train:
 
   lr_scheduler:
     name: constant
-    lr: 1.0e-4
+    lr: 5.0e-5
     warmup_steps: 1000
 
   lr_reduce_on_plateau:

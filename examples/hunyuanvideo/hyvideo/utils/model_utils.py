@@ -1,5 +1,6 @@
 import copy
 import logging
+from pathlib import Path
 from typing import Dict, Optional, Tuple, Union
 
 from hyvideo.constants import PRECISION_TO_TYPE
@@ -109,7 +110,7 @@ def init_model(
     if resume:
         logger.info("Resume training checkpoint provided, skipping weight loading.")
     elif pretrained_model_path:
-        load_ckpt_params(model, pretrained_model_path.absolute)
+        model.load_from_checkpoint(Path(pretrained_model_path).absolute)
     else:
         logger.info(f"Initialize {name} model randomly.")
 
