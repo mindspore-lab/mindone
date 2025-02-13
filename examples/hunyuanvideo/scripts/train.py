@@ -267,7 +267,7 @@ def main(args):
                 f"Grad clipping: {args.train.settings.clip_grad}",
                 f"Max grad norm: {args.train.settings.clip_norm}",
                 f"EMA: {ema is not None}",
-                f"Enable flash attention: {args.model.enable_flash_attention}",
+                f"Attention mode: {args.model.factor_kwargs['attn_mode']}",
             ]
         )
         key_info += "\n" + "=" * 50
