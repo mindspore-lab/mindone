@@ -176,11 +176,11 @@ class RFlowLossWrapper(nn.Cell):
 
 
 class RFlowEvalLoss(nn.Cell):
-    def __init__(self, network: RFlowLossWrapper, num_sampling_steps: int = 10):
+    def __init__(self, model: RFlowLossWrapper, num_sampling_steps: int = 10):
         super().__init__()
-        self.network = network
+        self.model = model
         self.timesteps = Tensor(
-            np.linspace(0, network.num_timesteps, num_sampling_steps + 2)[1:-1].reshape(-1, 1), dtype=mstype.float32
+            np.linspace(0, model.num_timesteps, num_sampling_steps + 2)[1:-1].reshape(-1, 1), dtype=mstype.float32
         )
 
     def construct(
@@ -195,7 +195,7 @@ class RFlowEvalLoss(nn.Cell):
         loss = Tensor(0, dtype=mstype.float32)
         timesteps = mint.tile(self.timesteps, (1, x.shape[0]))
         for t in timesteps:
-            loss += self.network(
+            loss += self.model(
                 x,
                 timestep,
                 text_states=text_states,
