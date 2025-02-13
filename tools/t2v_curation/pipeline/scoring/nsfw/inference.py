@@ -14,6 +14,7 @@ from tqdm import tqdm
 from transformers import AutoProcessor
 
 from pipeline.datasets.utils import extract_frames, pil_loader, is_video
+from pipeline.scoring.nsfw.nsfw_model import NSFWModel
 from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -23,7 +24,7 @@ sys.path.insert(0, mindone_lib_path)
 from mindone.transformers import CLIPModel
 
 class VideoTextDataset:
-    def __init__(self, meta_path, transform = None, num_frames = 3):
+    def __init__(self, meta_path, transform = None, num_frames = 1):
         self.meta_path = meta_path
         self.meta = pd.read_csv(meta_path)
         self.transform = transform
@@ -56,10 +57,10 @@ class NSFWDetector(nn.Cell):
         self.clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
         self.processor = AutoProcessor.from_pretrained("openai/clip-vit-large-patch14")
 
-        from .nsfw_model import NSFWModel
         self.nsfw_model = NSFWModel()
 
         params = load_checkpoint(ckpt_path)
+        params = {'nsfw_model.' + key: value for key, value in params.items()}
         load_param_into_net(self.nsfw_model, params)
 
         self.threshold = threshold
@@ -77,7 +78,7 @@ def parse_args():
 
     parser.add_argument("--use_cpu", action="store_true", help="Whether to use CPU")
     parser.add_argument("--bs", type=int, default=64, help="Batch size")
-    parser.add_argument("--num_frames", type=int, default=3,
+    parser.add_argument("--num_frames", type=int, default=1,
                         help="Number of frames to extract; support 1, 2, or 3.")
 
     parser.add_argument("--skip_if_existing", action="store_true",
