@@ -30,10 +30,9 @@ class LayerNorm(nn.Cell):
         else:
             self.weight = ms.Tensor.from_numpy(_weight)
             self.bias = ms.Tensor.from_numpy(_bias)
-        # TODO: In fact, we need -len(normalized_shape) instead of -1, but LayerNorm doesn't allow it.
-        #  For positive axis, the ndim of input is needed. Put it in construct?
-        self.layer_norm = mint.nn.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.weight.to(x.dtype), self.bias.to(x.dtype))
+        x = mint.nn.functional.layer_norm(
+            x, self.normalized_shape, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps
+        )
         return x

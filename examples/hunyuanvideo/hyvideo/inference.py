@@ -94,12 +94,11 @@ class Inference(object):
                 amp.auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype)
             else:
                 from hyvideo.modules.embed_layers import SinusoidalEmbedding
-                from hyvideo.modules.norm_layers import FP32LayerNorm, LayerNorm, RMSNorm
+                from hyvideo.modules.norm_layers import LayerNorm, RMSNorm
 
                 whitelist_ops = [
                     LayerNorm,
                     RMSNorm,
-                    FP32LayerNorm,
                     SinusoidalEmbedding,
                 ]
                 logger.info("custom fp32 cell for dit: ", whitelist_ops)

@@ -10,8 +10,6 @@ from .mlp_layers import MLP
 from .modulate_layers import apply_gate
 from .norm_layers import LayerNorm, get_norm_layer
 
-# from .norm_layers import FP32LayerNorm
-
 
 def rearrange_qkv(qkv, heads_num):
     # qkv: shape (B L K*H*D), K=3

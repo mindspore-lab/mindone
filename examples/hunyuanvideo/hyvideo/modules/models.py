@@ -14,8 +14,6 @@ from .embed_layers import PatchEmbed, TextProjection, TimestepEmbedder
 from .mlp_layers import MLP, FinalLayer, MLPEmbedder
 from .modulate_layers import ModulateDiT, apply_gate, modulate
 from .norm_layers import LayerNorm, get_norm_layer
-
-# from .norm_layers import FP32LayerNorm
 from .posemb_layers import apply_rotary_emb
 from .token_refiner import SingleTokenRefiner, rearrange_qkv
 
