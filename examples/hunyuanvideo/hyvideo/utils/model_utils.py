@@ -77,6 +77,10 @@ def init_model(
     enable_ms_amp: bool = True,
     amp_level: str = "O2",
 ):
+    dtype = factor_kwargs["dtype"]
+    if isinstance(dtype, str):
+        dtype = PRECISION_TO_TYPE[dtype]
+    factor_kwargs["dtype"] = dtype
     if name in HUNYUAN_VIDEO_CONFIG.keys():
         model = HYVideoDiffusionTransformer(
             text_states_dim=text_states_dim,
@@ -95,9 +99,6 @@ def init_model(
             )
 
         # half model parameter
-        dtype = factor_kwargs["dtype"]
-        if isinstance(dtype, str):
-            dtype = PRECISION_TO_TYPE[dtype]
         if dtype != ms.float32:
             set_model_param_dtype(model, dtype=dtype)
     else:

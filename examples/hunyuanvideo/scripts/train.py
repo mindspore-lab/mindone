@@ -243,7 +243,7 @@ def main(args):
                 f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {args.model.dtype}",
-                f"vae dtype: {args.vae.dtype}",
+                f"vae dtype: {args.vae.precision}",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
