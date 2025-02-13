@@ -1,3 +1,4 @@
+import copy
 import logging
 from typing import Dict, Optional, Tuple, Union
 
@@ -77,10 +78,11 @@ def init_model(
     enable_ms_amp: bool = True,
     amp_level: str = "O2",
 ):
+    factor_kwargs_cp = copy.deepcopy(factor_kwargs)
     dtype = factor_kwargs["dtype"]
     if isinstance(dtype, str):
         dtype = PRECISION_TO_TYPE[dtype]
-    factor_kwargs["dtype"] = dtype
+    factor_kwargs_cp["dtype"] = dtype
     if name in HUNYUAN_VIDEO_CONFIG.keys():
         model = HYVideoDiffusionTransformer(
             text_states_dim=text_states_dim,
@@ -88,7 +90,7 @@ def init_model(
             in_channels=in_channels,
             out_channels=out_channels,
             **HUNYUAN_VIDEO_CONFIG[name],
-            **factor_kwargs,
+            **factor_kwargs_cp,
         )
         if zero_stage is not None:
             assert zero_stage in [0, 1, 2, 3], "zero_stage should be in [0, 1, 2, 3]"
