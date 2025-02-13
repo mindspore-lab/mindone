@@ -72,8 +72,8 @@ def initialize_dataset(
         if batch_count >= 3:
             break
         print(f"Batch {batch_count}:")
-        for key, value in batch.items():
-            print(f"  {key}: shape={value.shape}, dtype={value.dtype}")
+        for value in batch:
+            print(f" shape={value.shape}, dtype={value.dtype}")
         batch_count += 1
 
     return dataloader, len(dataset)
@@ -143,7 +143,7 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
-    parser.add_function_arguments(load_vae, "vae", instantiate=False, skip={"logger"})
+    parser.add_function_arguments(load_vae, "vae", skip={"logger"})
     parser.add_class_arguments(
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
     )

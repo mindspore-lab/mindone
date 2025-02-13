@@ -281,7 +281,7 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
-    parser.add_function_arguments(load_vae, "vae", instantiate=False, skip={"logger"})
+    parser.add_function_arguments(load_vae, "vae", skip={"logger"})
     parser.add_class_arguments(
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
     )
