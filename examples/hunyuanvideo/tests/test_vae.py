@@ -195,7 +195,7 @@ def main(args):
         checkpoint=args.ms_checkpoint,
         tiling=args.vae_tiling,
     )
-    dtype = PRECISION_TO_TYPE(args.vae_precision)
+    dtype = PRECISION_TO_TYPE[args.vae_precision]
 
     # load vae in torch
     assert os.path.exists(
