@@ -22,7 +22,7 @@ class LPIPS(nn.Cell):
         # load NetLin metric layers
 
         # create vision backbone and load pretrained weights
-        self.net = vgg16(pretrained=True, requires_grad=False)
+        self.net = vgg16(pretrained=False, requires_grad=False)
 
         self.set_train(False)
         for param in self.trainable_params():
