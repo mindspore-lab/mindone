@@ -114,7 +114,7 @@ class Inference(object):
         # VAE
         vae, _, s_ratio, t_ratio = load_vae(
             args.vae,
-            vae_precision=args.vae_precision,
+            precision=args.vae_precision,
             logger=logger,
         )
         vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}

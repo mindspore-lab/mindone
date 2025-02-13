@@ -191,12 +191,11 @@ def main(args):
     vae, _, _, _ = load_vae(
         args.vae,
         logger=logger,
-        vae_precision=args.vae_precision,
+        precision=args.vae_precision,
         checkpoint=args.ms_checkpoint,
+        tiling=args.vae_tiling,
     )
     dtype = PRECISION_TO_TYPE(args.vae_precision)
-    if args.vae_tiling:
-        vae.enable_tiling()
 
     # load vae in torch
     assert os.path.exists(

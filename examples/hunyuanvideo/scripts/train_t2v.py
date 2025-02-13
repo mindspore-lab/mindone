@@ -110,15 +110,10 @@ def main(args):
             logger.info("Force VAE running in FP32")
             args.vae_precision = "fp32"
         vae, _, s_ratio, t_ratio = load_vae(
-            args.vae,
-            logger=logger,
-            vae_precision=args.vae_precision,
+            args.vae, logger=logger, precision=args.vae_precision, tiling=args.vae_tiling
         )
         vae_dtype = PRECISION_TO_TYPE(args.vae_precision)
         # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
-
-        if args.vae_tiling:
-            vae.enable_tiling()
 
     ae_stride_t, ae_stride_h, ae_stride_w = 4, 8, 8
 

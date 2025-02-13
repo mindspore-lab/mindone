@@ -48,7 +48,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         sample_size: int = 32,
         sample_tsize: int = 64,
         scaling_factor: float = 0.18215,
-        force_upcast: float = True,
+        force_upcast: bool = True,
         spatial_compression_ratio: int = 8,
         time_compression_ratio: int = 4,
         mid_block_add_attention: bool = True,
