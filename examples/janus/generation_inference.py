@@ -6,13 +6,13 @@ from transformers import AutoModelForCausalLM
 import numpy as np
 import os
 import PIL.Image
+from tqdm import tqdm
+
+import os
 import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
-import time
-import mindspore as ms
-from mindspore import mint, ops, Tensor
-from transformers import AutoModelForCausalLM
+
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
@@ -35,7 +35,6 @@ def generate(
     img_size: int = 384,
     patch_size: int = 16,
     use_cache: bool = False,
-    ms_mode: int = 1,
 ):
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     input_ids = Tensor(input_ids, ms.int64)
@@ -56,9 +55,9 @@ def generate(
     else:
         init_kv = None
     outputs = []
-
     # FIXME: use mint multinomial after ms2.5 adaptation
-    multinomial = get_multinomial_op() 
+    multinomial = get_multinomial_op()
+    
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
@@ -67,12 +66,6 @@ def generate(
             past_key_values=outputs[1] if (i != 0 and use_cache) else init_kv,
             return_dict=False,
         )
-        time_cost = time.time() - s_time
-        print(
-            f"======> vlm forwarding, step: {i}, output_shape: {outputs.last_hidden_state.shape}"
-            f"time cost: {time_cost:.3f}s, speed: {1/time_cost:.3f} iter/s"
-        )  # iter/s indicates avg token generation speed
-        hidden_states = outputs.last_hidden_state
         hidden_states = outputs[0]
 
         logits = mmgpt.gen_head(hidden_states[:, -1, :])
@@ -81,8 +74,6 @@ def generate(
 
         logits = logit_uncond + cfg_weight * (logit_cond-logit_uncond)
         if temperature > 0:
-            probs = mint.nn.functional.softmax(logits / temperature, dim=-1).to(ms.float32)
-            next_token = ops.multinomial(probs, num_samples=1)
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
             # FIXME: rm .float() after switch to mint.multinomial
             next_token = multinomial(probs.float(), num_samples=1, replacement=False)
@@ -93,12 +84,12 @@ def generate(
 
         next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
 
-        img_embeds = mmgpt.prepare_gen_img_embeds(next_token).to(mmgpt.dtype)
+        img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
 
         if use_cache:
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
-            inputs_embeds = mint.cat((inputs_embeds, img_embeds.unsqueeze(dim=1)), dim=1)
+            inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
 
     time_cost = time() - st
     print("Time cost (s): {:.4f}, est. throughput (tokens/s): {:4f}".format(time_cost, generated_tokens.shape[-1]/time_cost))
@@ -173,5 +164,4 @@ if __name__ == "__main__":
         temperature=args.temperature,
         parallel_size=args.parallel_size,
         use_cache=args.use_cache,
-        ms_mode=args.ms_mode,
     )

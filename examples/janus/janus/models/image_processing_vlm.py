@@ -144,8 +144,9 @@ class VLMImageProcessor(BaseImageProcessor):
         if width <= 0 or height <= 0 or size[0] <= 0 or size[1] <= 0:
             print(f"orig size = {pil_img.size}, new size = {size}")
             raise ValueError("Invalid size!")
-
-        backend = 'pil'
+        
+        # backend = 'torchvision'  # better precision
+        backend = 'ms'
         if backend == 'torchvision':
             import torchvision
             import torchvision.transforms.functional
@@ -155,9 +156,11 @@ class VLMImageProcessor(BaseImageProcessor):
                 interpolation=torchvision.transforms.functional.InterpolationMode.BICUBIC,
                 antialias=True,
             )
+        # elif backend == 'pil':
+        #    pil_img = pil_img.resize(size, Image.Resampling.LANCZOS)
         else:
-            pil_img = pil_img.resize(size, Image.Resampling.LANCZOS)
-            # pil_img = pil_img.resize(size, Image.Resampling.BICUBIC)
+            from mindspore.dataset.vision import Inter
+            pil_img = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(pil_img)
 
         pil_img = expand2square(pil_img, self.background_color)
         x = to_numpy_array(pil_img)

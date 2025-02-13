@@ -1,7 +1,8 @@
 import sys, os
+from functools import partial
 import numpy as np
 import mindspore as ms
-from mindspore import Tensor
+from mindspore import Tensor, nn, mint, ops
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
@@ -14,6 +15,9 @@ np.random.seed(42)
 
 
 def _diff_res(ms_val, pt_val, eps=1e-8, relax=False):
+    if isinstance(ms_val, ms.Tensor):
+        ms_val = ms_val.asnumpy()
+
     abs_diff = np.fabs(ms_val - pt_val)
     mae = abs_diff.mean()
     max_ae = abs_diff.max()
@@ -59,6 +63,7 @@ def load_from_checkpoint(net, ckpt_path):
             np_val = sd[pname].cpu().detach().float().numpy()
             # TODO: support bf16 param loading
             parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+        
 
     elif ckpt_path.endswith('.ckpt'):
         parameter_dict = ms.load_checkpoint(ckpt_path)
@@ -86,6 +91,18 @@ def test(pt_np=None, dtype=ms.float32):
         x = np.random.normal(size=shape).astype(np.float32)
     x = Tensor(x, dtype)
 
+    # from mindone.diffusers.models.normalization import LayerNorm
+    # from mindone.diffusers.models.normalization import FP32LayerNorm as LayerNorm
+    from mindspore.mint.nn import LayerNorm
+
+    from mindspore.mint.nn import GELU
+    
+    norm_layer = partial(LayerNorm, eps=1e-6)
+    # act_layer = GELU
+    # act_layer = partial(nn.GELU, approximate=False)  # 20% mre
+    act_layer = partial(nn.GELU, approximate=True)  # mre=0, ok?? why?? doc mismatch???
+    # act_layer = partial(mint.nn.GELU, approximate='none')
+    
     net = Block(
         dim=d,
         num_heads=16,
@@ -96,13 +113,19 @@ def test(pt_np=None, dtype=ms.float32):
         attn_drop = 0.0,
         init_values = None,
         drop_path = 0.0,
+        norm_layer=norm_layer,
+        act_layer=act_layer,
         )
 
     net.set_train(False)
     if dtype != ms.float32:
         set_model_param_dtype(net, dtype=dtype, keep_norm_fp32=False)
-
-    net = load_from_checkpoint(net, "ckpts/Janus-Pro-1B/pytorch_model.bin")
+    
+    if not os.path.exists("tests/vit_block.ckpt"):
+        net = load_from_checkpoint(net, "ckpts/Janus-Pro-1B/pytorch_model.bin")
+        ms.save_checkpoint(net, "tests/vit_block.ckpt")
+    else:
+        net = load_from_checkpoint(net, "tests/vit_block.ckpt")
 
     out = net(x)
 
@@ -117,6 +140,10 @@ def test(pt_np=None, dtype=ms.float32):
 
 if __name__ == '__main__':
     ms.set_context(mode=1)
-    test(pt_np=['tests/pt_vit_block_inp.npy', 'tests/pt_vit_block_out.npy'], 
+    # inp_path = 'tests/pt_vit_block_inp.npy'
+    # out_path = 'tests/pt_vit_block_out.npy'
+    inp_path = '/home_host/yx/torch_npu/ModelZoo-PyTorch/MindIE/MultiModal/Janus-Pro/pta_vit_block_inp.npy'
+    out_path = '/home_host/yx/torch_npu/ModelZoo-PyTorch/MindIE/MultiModal/Janus-Pro/pta_vit_block_out.npy'
+    test(pt_np=[inp_path ,out_path], 
             dtype=ms.bfloat16)
             # dtype=ms.float32)

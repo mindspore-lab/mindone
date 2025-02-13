@@ -31,11 +31,11 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
         {"role": "<|Assistant|>", "content": ""},
     ]
     tokenizer = vl_chat_processor.tokenizer
-
+    
     pil_images = load_pil_images(conversation)
     prepare_inputs = vl_chat_processor(
         conversations=conversation, images=pil_images, force_batchify=True
-    ).to(ms.bfloat16)
+    ).to(vl_gpt.dtype)
 
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
     st = time()
@@ -89,8 +89,8 @@ if __name__ == "__main__":
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path,
                                                  language_config=language_config,
                                                  trust_remote_code=True)
-
-    vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
+    dtype = ms.bfloat16
+    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
 
     # infer

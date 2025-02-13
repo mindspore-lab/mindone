@@ -39,7 +39,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import mint, nn, ops, Tensor, Parameter
 from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
-from mindone.diffusers.models.normalization import LayerNorm
+from mindspore.mint.nn import LayerNorm
 
 from .timm import (
     AttentionPoolLatent,
@@ -183,11 +183,12 @@ class Block(nn.Cell):
         attn_drop: float = 0.0,
         init_values: Optional[float] = None,
         drop_path: float = 0.0,
-        act_layer: nn.Cell = mint.nn.GELU,
+        act_layer: nn.Cell = nn.GELU,
         norm_layer: nn.Cell = LayerNorm,
         mlp_layer: nn.Cell = Mlp,
     ) -> None:
         super().__init__()
+        # print("D--: Blocks local args: ", locals())
         self.norm1 = norm_layer([dim])
         self.attn = Attention(
             dim,
@@ -218,6 +219,7 @@ class Block(nn.Cell):
     def construct(self, x: Tensor) -> Tensor:
         x = x + self.drop_path1(self.ls1(self.attn(self.norm1(x))))
         x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
+
         return x
 
 
@@ -298,7 +300,7 @@ class VisionTransformer(nn.Cell):
         use_fc_norm = global_pool == "avg" if fc_norm is None else fc_norm
 
         norm_layer = partial(LayerNorm, eps=1e-6)
-        act_layer = mint.nn.GELU
+        act_layer = nn.GELU
 
         self.num_classes = num_classes
         self.global_pool = global_pool
@@ -426,8 +428,6 @@ class VisionTransformer(nn.Cell):
 
                     sd[new_pname] = sd.pop(p)
 
-            # import pdb; pdb.set_trace()
-            # print(f"vq has {num_params} parameters")
             # get net param dtype
             param_dtype = tuple(self.get_parameters())[0].dtype
             print('Get siglip param dtype: ', param_dtype)
@@ -575,11 +575,9 @@ class VisionTransformer(nn.Cell):
         x = self._pos_embed(x)
         x = self.patch_drop(x)
         x = self.norm_pre(x)
-        # no recompute by default
-        # if self.grad_checkpointing:
-        #     x = checkpoint_seq(self.blocks, x)
-        # else:
+
         x = self.blocks(x)
+
         x = self.norm(x)
         return x
 

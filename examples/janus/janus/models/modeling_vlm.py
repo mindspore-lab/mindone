@@ -41,7 +41,7 @@ class vision_head(nn.Cell):
         self.output_mlp_projector = mint.nn.Linear(
             params.n_embed, params.image_token_embed
         )
-        self.vision_activation = nn.GELU(approximate=False)
+        self.vision_activation = nn.GELU()
         self.vision_head = mint.nn.Linear(
             params.image_token_embed, params.image_token_size
         )
