@@ -37,10 +37,6 @@ class DiffusionWithLoss(nn.Cell):
         self.network = network.set_grad()
         self.vae = vae
         self.embedded_guidance_scale = embedded_guidance_scale
-        if self.network.model.guidance_embed:
-            assert (
-                self.embedded_guidance_scale is not None
-            ), "embedded_guidance_scale should be set when using guidance embed"
 
         self.text_encoder = text_encoder
         self.text_encoder_2 = text_encoder_2

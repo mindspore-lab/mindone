@@ -16,6 +16,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
 sys.path.append(os.path.join(__dir__, ".."))
 from hyvideo.acceleration import create_parallel_group
+from hyvideo.constants import PRECISION_TO_TYPE
 from hyvideo.dataset import ImageVideoDataset, bucket_split_function
 from hyvideo.diffusion.pipelines import DiffusionWithLoss
 from hyvideo.diffusion.schedulers import RFlowEvalLoss, RFlowLossWrapper
@@ -100,8 +101,7 @@ def main(args):
             **args.vae,
         )
         # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
-
-        # vae_dtype = PRECISION_TO_TYPE(args.vae.precision)
+        vae_dtype = PRECISION_TO_TYPE(args.vae.precision)
 
     else:
         logger.info("vae latent folder provided. Skipping vae initialization.")
@@ -110,10 +110,12 @@ def main(args):
     # 2.2 Llama 3
     logger.info("Transformer init")
     network = init_model(resume=args.train.resume_ckpt is not None, **args.model)
+    model_dtype = PRECISION_TO_TYPE(args.model.factor_kwargs["dtype"])
     if network.guidance_embed:
         embed_cfg_scale = 6.0
     else:
         embed_cfg_scale = None
+
     # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
@@ -250,8 +252,8 @@ def main(args):
                 f"Data path: {args.dataset.csv_path}",
                 f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
-                f"Model dtype: {args.model.dtype}",
-                f"vae dtype: {args.vae.precision}",
+                f"Model dtype: {model_dtype}",
+                f"vae dtype: {vae_dtype}",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
