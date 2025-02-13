@@ -1,36 +1,11 @@
-python scripts/train_t2v.py \
-    --model "HYVideo-T/2-depth1" \
-    --cache_dir "./ckpts" \
-    --dataset t2v \
-    --data "train_data/mixkit.txt" \
-    --sample_rate 1 \
-    --num_frames 29 \
-    --max_height 256 \
-    --max_width 256 \
-    --train_batch_size=1 \
-    --dataloader_num_workers 1 \
-    --gradient_accumulation_steps=1 \
-    --max_train_steps=10000 \
-    --start_learning_rate=2e-5 \
-    --lr_scheduler="constant" \
-    --seed=10 \
-    --lr_warmup_steps=500 \
-    --precision="bf16" \
-    --checkpointing_steps=1000 \
-    --output_dir="t2v-video3d-29x256p/" \
-    --cfg 0.1 \
-    --use_ema False \
-    --ema_start_step 0 \
-    --clip_grad True \
-    --max_grad_norm 1.0 \
-    --gradient_checkpointing \
-    --ema_decay 0.999 \
-    --speed_factor 1.0 \
-    --drop_short_ratio 1.0 \
-    --parallel_mode "zero" \
-    --zero_stage 3 \
-    --max_device_memory "59GB" \
-    --jit_syntax_level "lax" \
-    --rf_scheduler \
-    --force_resolution \
-    --mode 0 \
+python scripts/train.py \
+  --config configs/train/stage1_t2v_256px.yaml \
+  --env.mode 1 \
+  --model.name "HYVideo-T/2-depth1" \
+  --model.zero_stage 0 \
+  --dataset.csv_path datasets/mixkit-100videos/video_caption_train.csv \
+  --dataset.video_folder datasets/mixkit-100videos/mixkit \
+  --dataset.text_emb_folder.ul2 datasets/mixkit-100videos/text_embed \
+  --valid.dataset.csv_path datasets/mixkit-100videos/video_caption_test.csv \
+  --valid.dataset.video_folder datasets/mixkit-100videos/mixkit \
+  --valid.dataset.text_emb_folder.ul2 datasets/mixkit-100videos/text_embed \
