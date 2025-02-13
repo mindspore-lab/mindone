@@ -234,7 +234,7 @@ class Mlp(nn.Cell):
             in_features,
             hidden_features=None,
             out_features=None,
-            act_layer=mint.nn.GELU,
+            act_layer=nn.GELU,
             norm_layer=None,
             bias=True,
             drop=0.,
@@ -255,6 +255,7 @@ class Mlp(nn.Cell):
         self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def construct(self, x):
+        
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop1(x)
