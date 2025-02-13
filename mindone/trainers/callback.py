@@ -3,7 +3,8 @@ import os
 import time
 from typing import List, Literal, Optional, Tuple, Union
 
-from mindspore import Profiler, Tensor, nn, save_checkpoint
+import mindspore as ms
+from mindspore import Profiler, Tensor, nn, ops, save_checkpoint
 from mindspore.communication import get_rank
 from mindspore.communication.management import GlobalComm
 from mindspore.train.callback._callback import Callback, _handle_loss
@@ -77,6 +78,12 @@ class EvalSaveCallback(Callback):
                 Otherwise, only params that contain one of the keyword in param_save_filter list will be saved.
             resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint,
                                      e.g. ('swap.', 'vae.').
+            zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
+            op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+            ckpt_combine_online (`bool`, *optional*): combining trainable parameters for saving checkpoint when zero_stage=3, \
+                using allgather ops to combile the checkpoint online if `ckpt_combine_online=True`, \
+                saving all device parameters if `ckpt_combine_online=False`, \
+                and need to use `transform_checkpoints` to combile the checkpoint offline. default is False.
         """
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
