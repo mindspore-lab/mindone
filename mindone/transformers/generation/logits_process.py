@@ -7,7 +7,7 @@ from transformers.utils.logging import get_logger
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers.mindspore_adapter.utils import dtype_to_min
 
@@ -358,7 +358,7 @@ class TopKLogitsWarper(LogitsProcessor):
         if isinstance(scores, ms.Tensor):
             top_k = min(self.top_k, scores.shape[-1])  # Safety check
             # Remove all tokens with a probability less than the last token of the top-k
-            indices_to_remove = scores < ops.topk(scores, top_k)[0][..., -1, None]
+            indices_to_remove = scores < mint.topk(scores, top_k)[0][..., -1, None]
             scores_processed = scores.masked_fill(indices_to_remove, self.filter_value)
         elif isinstance(scores, np.ndarray):
             raise NotImplementedError

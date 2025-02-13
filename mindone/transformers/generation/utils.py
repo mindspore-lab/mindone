@@ -13,7 +13,7 @@ from transformers.utils.generic import ModelOutput
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers.cache_utils import Cache, get_seq_length, init_static_cache, reset
 from mindone.transformers.generation.logits_process import (
@@ -336,7 +336,7 @@ class GenerationMixin:
             for argument, value in model_kwargs.items()
             if not any(argument.startswith(p) for p in irrelevant_prefix)
         }
-        encoder_signature = set(inspect.signature(encoder.forward).parameters)
+        encoder_signature = set(inspect.signature(encoder.construct).parameters)
         encoder_accepts_wildcard = "kwargs" in encoder_signature or "model_kwargs" in encoder_signature
         if not encoder_accepts_wildcard:
             encoder_kwargs = {
@@ -1731,7 +1731,7 @@ class GenerationMixin:
             # token selection
             if do_sample:
                 probs = ops.softmax(next_token_scores, axis=-1, dtype=ms.float32).to(next_token_scores.dtype)
-                next_tokens = ops.multinomial(probs, num_samples=1).squeeze(1)
+                next_tokens = mint.multinomial(probs, num_samples=1, replacement=False).squeeze(1)
             else:
                 next_tokens = ops.argmax(next_token_scores, dim=-1)
 
