@@ -32,12 +32,20 @@ To prepare the dataset for training HuyuanVideo, please refer to the [dataset fo
 
 ### Extract Text Embeddings
 
+You need to extract the text embeddings for the train and validation dataset using the following command respectively:
 ```bash
 python scripts/run_text_encoder.py \
   --data-file-path /path/to/caption.csv \
   --output-path /path/to/text_embed_folder \
 ```
-Please refer to `scripts/text_encoder/run_text_encoder.sh`. More details can be found by `python scripts/run_text_encoder.py --help`.
+Please refer to `scripts/text_encoder/run_text_encoder.sh` for more details.
+
+Please also extract the text embedding for an empty string, because it will be used during training when the prompt is dropped randomly.
+```bash
+python scripts/run_text_encoder.py \
+  --prompt "" \
+  --output-path /path/to/text_embed_folder \
+```
 
 ### Distributed Training
 
@@ -50,8 +58,11 @@ bash scripts/train_t2v_zero3.sh
 
 ### Run Text-to-Video Inference
 
-
-
+To run the text-to-video inference on a single prompt, please use the following command:
+```bash
+bash scripts/hyvideo/run_t2v_sample.sh
+```
+If you want change to another prompt, please set `--prompt` to the new prompt.
 
 ### Run Image-to-Video Inference
 
@@ -66,25 +77,11 @@ bash scripts/train_t2v_zero3.sh
 
 ### Video Reconstruction and Evalution
 
-To run video reconstruction using 3D-VAE, please use the following command:
 
-```bash
-python hyvideo/rec_video.py \
-  --video_path input_video.mp4 \
-  --rec_path rec.mp4 \
-  --height 360 \
-  --width 640 \
-  --num_frames 33 \
-```
+To run video reconstruction on a folder of videos, please refer to `scripts/vae/recon_video_folder.sh`.
 
-The reconstructed video will be saved under `./samples/`.
+To evaluate the reconsturcted videos, you may use the  `scripts/eval/script/cal_psnr.sh` on the real and generated video folders.
 
-To run video reconstruction on a folder of videos, please replace the script with `hyvideo/rec_video_folder.py` and use `--real_video_dir` to parse the video folder path.
-
-To evaluate the reconsturcted videos, you may use the  `hyvideo/eval/scripts/cal_psnr.sh` script.
-
-TODOs:
-- [ ] For simplicity, remove `rec_video_folder.py` and allow evaluate a video folder in `rec_video.py` (e.g. `--real_video_dir`), and evaluate PSNR when video reconstruction finished.
 
 ### 3D-VAE Training
 
@@ -94,17 +91,6 @@ coming soon...
 ## Embedding Cache
 
 ### Text embedding cache
-
-To generate text embeddings given a dataset annotation file in JSON format, please use the following command:
-
-```bash
-python scripts/run_text_encoder.py \
-    --data-file-path /path/to/caption.json \
-    --output-path /path/to/text_embed_folder \
-```
-
-Please refer to [dataset format](hyvideo/dataset/README.md) to setup the json file.  A shell script `scripts/text_encoder/run_text_encoder.sh` is provided as well.
-
 
 If you just want to generate text embedding for a single prompt, you can run like:
 ```bash
