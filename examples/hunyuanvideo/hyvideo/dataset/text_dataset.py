@@ -32,7 +32,7 @@ class TextDataset:
         self.parse_data_file(data_file_path)
         if "caption" not in output_columns:
             raise ValueError("caption column is not in output_colum")
-        self.read_captions(self.dataset)
+        self.dataset = self.read_captions(self.dataset)
         logger.info(f"Number of text prompts: {self.num_captions}")
 
     def parse_data_file(self, data_file_path):
@@ -58,34 +58,37 @@ class TextDataset:
         return self.num_captions
 
     def read_captions(self, dataset):
+        """
+        Read captions from the dataset:
+        if captions is a list, only use the first one.
+        if captions is empty, skip this sample.
+        """
         num_captions = 0
-        caption_sample_indices = []
-        for i, item in enumerate(dataset):
-            captions = item[self.caption_column]
-            if isinstance(captions, str):
-                captions = [captions]
-            num_captions += len(captions)
-            caption_sample_indices.extend([i] * len(captions))
+        new_dataset = []
+        for i in range(len(dataset)):
+            row = dataset[i]
+            captions = row[self.caption_column]
+            if captions is None or captions == "" or len(captions) == 0:
+                print("caption is empty, skip this sample...")
+                continue
+            if isinstance(captions, list):
+                if len(captions) > 1:
+                    print("found multiple captions, only use the first one.")
+                captions = captions[0]
+            assert isinstance(captions, str), "caption should be a string!"
+            row[self.caption_column] = captions
+            new_dataset.append(row)
+            num_captions += 1
         self.num_captions = num_captions
-        self.caption_sample_indices = caption_sample_indices
+        return new_dataset
 
-    def __getitem__(self, idx_text):
-        idx = self.caption_sample_indices[idx_text]
+    def __getitem__(self, idx):
         row = self.dataset[idx]
-        captions = row[self.caption_column]
-        if isinstance(captions, str):
-            captions = [captions]
+        caption = row[self.caption_column]
+        assert isinstance(caption, str), "caption should be a string!"
         file_path = row[self.file_column]
-        # get the caption id
-        first_text_index = self.caption_sample_indices.index(idx)
-        index = idx_text - first_text_index
-        caption = captions[index]
-        # use index as an extra identifier
-        identifer = f"-{index}"
         file_path = Path(str(file_path))
-        extension = file_path.suffix
-        file_path = str(file_path.with_suffix("")) + identifer
-        file_path = file_path + extension
+        file_path = str(file_path.with_suffix(".npz"))
 
         if self.random_drop_text:
             if random.random() <= self.random_drop_text_ratio:
