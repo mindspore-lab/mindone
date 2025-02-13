@@ -1,6 +1,6 @@
 python scripts/train.py \
   --config configs/train/stage1_t2v_256px.yaml \
-  --env.mode 1 \
+  --env.mode 0 \
   --model.name "HYVideo-T/2-depth1" \
   --dataset.csv_path datasets/mixkit-100videos/video_caption_train.csv \
   --dataset.video_folder datasets/mixkit-100videos/mixkit \

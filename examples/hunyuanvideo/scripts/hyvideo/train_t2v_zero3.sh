@@ -2,7 +2,7 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=8000 --log_dir="./parallel_logs" \
   scripts/train.py \
    --config configs/train/stage1_t2v_256px.yaml \
-   --env.mode 1 \
+   --env.mode 0 \
    --env.distributed True \
    --model.name "HYVideo-T/2-cfgdistill" \
    --train.settings.zero_stage 3 \
