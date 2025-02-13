@@ -21,7 +21,7 @@ from hyvideo.diffusion.pipelines import DiffusionWithLoss
 from hyvideo.diffusion.schedulers import RFlowEvalLoss, RFlowLossWrapper
 from hyvideo.utils import EMA, init_model, resume_train_net
 from hyvideo.utils.callbacks import PerfRecorderCallback, ReduceLROnPlateauByStep, ValidationCallback
-from hyvideo.vae import AutoencoderKLCausal3D, load_vae
+from hyvideo.vae import load_vae
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
@@ -96,15 +96,12 @@ def main(args):
     ):
         logger.info("Initializing vae...")
         vae, _, s_ratio, t_ratio = load_vae(
-            args.vae.vae_type,
             logger=logger,
-            vae_precision=args.vae.vae_precision,
+            **args.vae,
         )
         # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
-        # vae_dtype = PRECISION_TO_TYPE(args.vae.vae_precision)
 
-        if args.vae.vae_tiling:
-            vae.enable_tiling()
+        # vae_dtype = PRECISION_TO_TYPE(args.vae.precision)
 
     else:
         logger.info("vae latent folder provided. Skipping vae initialization.")
@@ -284,7 +281,7 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
-    parser.add_class_arguments(AutoencoderKLCausal3D, "vae", instantiate=False)
+    parser.add_function_arguments(load_vae, "vae", instantiate=False, skip={"logger"})
     parser.add_class_arguments(
         ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
     )

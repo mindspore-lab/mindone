@@ -22,9 +22,10 @@ model:
     num_no_recompute: 0
 
 vae:
-  vae_type: "884-16c-hy"
-  vae_precision: fp16
-  vae_tiling: True
+  type: "884-16c-hy"
+  precision: fp16
+  tiling: True
+  trainable: False
 
 dataset:
   csv_path: CSV_PATH
