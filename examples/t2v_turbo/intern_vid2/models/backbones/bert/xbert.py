@@ -985,7 +985,7 @@ class BertModel(BertPreTrainedModel):
             if is_decoder:
                 batch_size, seq_length = input_shape
                 seq_ids = ops.arange(seq_length)
-                causal_mask = seq_ids[None, None, :].repeat(batch_size, seq_length, 1) <= seq_ids[None, :, None]
+                causal_mask = seq_ids[None, None, :].tile((batch_size, seq_length, 1)) <= seq_ids[None, :, None]
                 # in case past_key_values are used we need to add a prefix ones mask to the causal mask
                 # causal and attention masks must have same type with pytorch version < 1.3
                 causal_mask = causal_mask.to(attention_mask.dtype)

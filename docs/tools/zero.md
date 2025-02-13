@@ -2,8 +2,6 @@
 
 Zero Redundancy Optimizer (ZeRO) is a method for reducing memory usage under data parallelism strategy on paper: [ZeRO: ZeRO: Memory Optimization Towards Training A Trillion Parameter Models](https://arxiv.org/pdf/1910.02054.pdf).
 
-In a typical data parallel strategy, each GPU/NPU independently maintains a complete set of model parameters, Zero Redundancy
-Optimizer (ZeRO), to optimize memory, vastly improving training speed while increasing the model size that can be efficiently trained.
 ZeRO eliminates memory redundancies in data and model parallel training while retaining low communication volume and high computational
 granularity, allowing us to scale the model size proportional to the number of devices with sustained high efficiency.
 
@@ -11,12 +9,11 @@ This tutorial walks you through how to generate faster and better with the ZeRO 
 
 ## Build Train Network With ZeRO
 
-Build a Train Network with ZeRO.
+Build a train network with ZeRO.
 
 ```python
-import numpy as np
 import mindspore as ms
-from mindspore.communication import get_group_size, get_rank, init
+from mindspore.communication import init
 from mindspore.communication.management import GlobalComm
 from mindone.trainers.zero import prepare_train_network
 
@@ -43,23 +40,23 @@ train_net = prepare_train_network(net, opt, zero_stage=2, op_group=GlobalComm.WO
 ```
 
 !!! tip
-    op_group may not be GlobalComm.WORLD_COMM_GROUP, could use [create_group](https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore.communication.html#mindspore.communication.create_group) create your op_group.
+    op_group may not be GlobalComm.WORLD_COMM_GROUP. Using [create_group](https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore.communication.html#mindspore.communication.create_group) to create your op_group.
 
-More details could be find
+More details:
 
 ::: mindone.trainers.zero.prepare_train_network
 
-[Here](https://github.com/mindspore-lab/mindone/blob/master/tests/others/test_zero.py) has a st.
+[Here](https://github.com/mindspore-lab/mindone/blob/master/tests/others/test_zero.py) is an example.
 
 ## Memory Analysis
 
 The memory consumption during the training can be divided into two main parts:
 
 - Residual states. Mainly includes activate functions, temporary buffers, and unavailable memory fragments.
-- Model states. Mainly includes three parts: optimizer states(AdamW fp32), gradients(fp16), and parameters(fp16). The three are abbreviated as OPG. Assuming the number of model parameters is Φ, 
+- Model states. Mainly includes three parts: optimizer states(AdamW fp32), gradients(fp16), and parameters(fp16). The three are abbreviated as OPG. Assuming the number of model parameters is Φ,
 the total model states is 2Φ(parameters) + 2Φ(gradients) + (4Φ + 4Φ + 4Φ)(optimizer states) = 16Φ, the AdamW states accounting for 75%.
 
-Residual states can be greatly reduced through [recompute](https://www.mindspore.cn/docs/en/master/model_train/parallel/recompute.html) and [model parallel](https://www.mindspore.cn/docs/en/master/model_train/parallel/strategy_select.html). 
+Residual states can be greatly reduced through [recompute](https://www.mindspore.cn/docs/en/master/model_train/parallel/recompute.html) and [model parallel](https://www.mindspore.cn/docs/en/master/model_train/parallel/strategy_select.html).
 Then the ZeRO algorithm can be used to reduce model states.
 
 For the optimization of model states (removing redundancy), ZeRO uses the method of partitioning, which means that each card only stores 1/N data.

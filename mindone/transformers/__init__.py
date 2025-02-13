@@ -1,3 +1,4 @@
+__version__ = "4.42.4"
 from .modeling_utils import MSPreTrainedModel
 from .models.bert import (
     BertForMaskedLM,
@@ -38,12 +39,20 @@ from .models.gemma import (
     GemmaPreTrainedModel,
 )
 from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
     MT5ForConditionalGeneration,
     MT5Model,
     MT5PreTrainedModel,
+)
+from .models.phi3 import (
+    Phi3ForCausalLM,
+    Phi3ForSequenceClassification,
+    Phi3ForTokenClassification,
+    Phi3Model,
+    Phi3PreTrainedModel,
 )
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
