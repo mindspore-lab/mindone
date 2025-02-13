@@ -9,8 +9,11 @@ import torch
 
 import mindspore as ms
 import mindspore.nn as nn
+import mindspore.ops as ops
 
 from mindone.diffusers.schedulers.scheduling_utils import KarrasDiffusionSchedulers, SchedulerMixin
+from mindone.utils import _brownian
+from mindone.utils._brownian import BrownianInterval
 
 STEP_THR_FP16 = 1e-2
 STEP_THR_FP32 = 1e-4
@@ -33,6 +36,45 @@ class NoiseSchedulerWrapper(nn.Cell):
             return self.ns.step(*args, **kwargs)
         else:
             raise NotImplementedError
+
+
+class BatchedBrownianTree:
+    """A wrapper around torchsde.BrownianTree that enables batches of entropy."""
+
+    def __init__(self, x, t0, t1, seed=None, **kwargs):
+        t0, t1, self.sign = self.sort(t0, t1)
+        w0 = kwargs.get("w0", ops.zeros_like(x))
+        if seed is None:
+            seed = torch.randint(0, 2**63 - 1, []).item()
+        self.batched = True
+        try:
+            assert len(seed) == x.shape[0]
+            w0 = w0[0]
+        except TypeError:
+            seed = [seed]
+            self.batched = False
+        self.trees = [
+            BrownianInterval(
+                t0=t0,
+                t1=t1,
+                size=w0.shape,
+                dtype=w0.dtype,
+                entropy=s,
+                tol=1e-6,
+                pool_size=24,
+                halfway_tree=True,
+            )
+            for s in seed
+        ]
+
+    @staticmethod
+    def sort(a, b):
+        return (a, b, 1) if a < b else (b, a, -1)
+
+    def __call__(self, t0, t1):
+        t0, t1, sign = self.sort(t0, t1)
+        w = ops.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
+        return w if self.batched else w[0]
 
 
 def randn_tensor(
@@ -84,6 +126,13 @@ def randn_tensor(
     return ms.Tensor(latents.numpy())
 
 
+def _randn(size, dtype, seed):
+    device = "cpu"
+    dtype = torch.float32 if dtype == ms.float32 else torch.float16
+    generator = torch.Generator(device).manual_seed(int(seed))
+    return ms.Tensor(torch.randn(size, dtype=dtype, device=device, generator=generator).numpy())
+
+
 def grab_all_schedulers():
     karras_schedulers = {scheduler.name for scheduler in KarrasDiffusionSchedulers}
     maybe_schedulers = inspect.getmembers(sys.modules["mindone.diffusers.schedulers"], inspect.isclass)
@@ -107,6 +156,9 @@ def test_schedulers(scheduler_name, dtype):
     ms_dtype, pt_dtype = getattr(ms, dtype), getattr(torch, dtype)
     # replace randn_tensor
     sys.modules[scheduler_name_ms.__module__].randn_tensor = randn_tensor
+    if scheduler_name_pt in ["DPMSolverSDEScheduler"]:
+        _brownian.brownian_interval._randn = _randn
+        sys.modules[scheduler_name_ms.__module__].BatchedBrownianTree = BatchedBrownianTree
     # set_timesteps & ms
     scheduler_ms = scheduler_name_ms()
     scheduler_ms.set_timesteps(50)
