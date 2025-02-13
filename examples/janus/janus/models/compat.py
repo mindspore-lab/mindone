@@ -2,6 +2,7 @@ import mindspore as ms
 from mindspore import nn, ops, mint
 from mindspore import Tensor, Parameter
 from mindspore.common.initializer import initializer
+from packaging.version import parse
 
 def normalize_l2(
     input: Tensor,
@@ -29,7 +30,6 @@ def normalize_l2(
     # l2norm = mint.sqrt(mint.sum(mint.square(input), dim=dim, keepdim=True))
     denom = ops.clamp(l2norm, min=eps).expand_as(input)
     return ops.div(input, denom)
-
 
 
 # TODO: same accuracy as mint.nn.GroupNorm
@@ -66,5 +66,16 @@ class GroupNorm(nn.Cell):
         else:
             x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
         return x
+
+
+def get_multinomial_op():
+    if parse(ms.__version__) >= parse("2.5"):
+        return mint.multinomial
+    else:
+        if ms.get_context("mode")==0:
+            return ops.multinomial
+        else:
+            # before ms2.5, mint multinomial doesn't support graph mode
+            return mint.multinomial
 
 

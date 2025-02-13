@@ -17,6 +17,11 @@ from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import set_model_param_dtype
+from janus.models.compat import get_multinomial_op
+import numpy as np
+import os
+import PIL.Image
+from tqdm import tqdm
 
 
 def generate(
@@ -51,10 +56,9 @@ def generate(
     else:
         init_kv = None
     outputs = []
-    s_time = time.time()
-    for i in range(image_token_num_per_image):
-    # FIXME: just use mint multinomial after it supports graph mode
-    multinomial = mint.multinomial if ms_mode==1 else ops.multinomial
+
+    # FIXME: use mint multinomial after ms2.5 adaptation
+    multinomial = get_multinomial_op() 
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
