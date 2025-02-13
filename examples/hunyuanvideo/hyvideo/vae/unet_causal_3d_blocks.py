@@ -1,10 +1,10 @@
-import numbers
 from typing import Optional, Tuple, Union
+
+from hyvideo.utils.modules_utils import LayerNorm
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Parameter, mint, nn, ops
-from mindspore.common.initializer import initializer
+from mindspore import mint, nn, ops
 
 from mindone.diffusers.models.activations import get_activation
 from mindone.diffusers.models.attention_processor import Attention, SpatialNorm
@@ -89,27 +89,6 @@ class CausalConv3d(nn.Cell):
             return self.conv(x).to(ms.float32)
         else:
             return self.conv(x)
-
-
-class LayerNorm(nn.Cell):
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine: bool = True, dtype=ms.float32):
-        super().__init__()
-        if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,)
-        self.normalized_shape = tuple(normalized_shape)
-        self.eps = eps
-        self.elementwise_affine = elementwise_affine
-        if self.elementwise_affine:
-            self.gamma = Parameter(initializer("ones", normalized_shape, dtype=dtype))
-            self.beta = Parameter(initializer("zeros", normalized_shape, dtype=dtype))
-        else:
-            self.gamma = ops.ones(normalized_shape, dtype=dtype)
-            self.beta = ops.zeros(normalized_shape, dtype=dtype)
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
-
-    def construct(self, x: ms.Tensor):
-        x, _, _ = self.layer_norm(x, self.gamma, self.beta)
-        return x
 
 
 class MSInterpolate(nn.Cell):
