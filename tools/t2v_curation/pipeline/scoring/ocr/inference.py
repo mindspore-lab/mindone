@@ -165,7 +165,6 @@ def main():
         max_single_percentage_list.extend(batch_max_single_percentage)
         total_text_percentage_list.extend(batch_total_text_percentage)
 
-    meta_local = raw_dataset.meta.copy()
     if rank_size > 1:
         # indices
         indices_list = Tensor(np.array(indices_list), dtype=ms.int64)

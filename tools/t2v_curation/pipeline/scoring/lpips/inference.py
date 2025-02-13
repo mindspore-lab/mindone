@@ -160,6 +160,9 @@ def main():
         concat = ops.Concat(axis=0)
         indices_list_all = concat(indices_list_all).asnumpy().tolist()
         scores_list_all = concat(scores_list_all).asnumpy().tolist()
+    else:
+        indices_list_all = indices_list
+        scores_list_all = scores_list
 
     if args.use_cpu or (not args.use_cpu and rank_id == 0):
         meta_new = merge_scores([(indices_list_all, scores_list_all)], dataset_generator.meta, column="lpips")
