@@ -99,7 +99,7 @@ class RFlowLossWrapper(nn.Cell):
             raise ValueError(f"Unknown sample method: {sample_method}")
 
         self.model = model
-        self.criteria = nn.MSELoss(reduction="none")
+        self.criteria = nn.MSELoss(reduction="mean")
 
         self.broadcast = None
         if get_sequence_parallel_state() and (sp_group := hccl_info.world_size) is not None:

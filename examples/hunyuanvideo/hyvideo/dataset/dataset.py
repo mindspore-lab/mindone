@@ -32,8 +32,8 @@ class ImageVideoDataset(BaseDataset):
         empty_text_emb: The path to the empty text embedding file or dictionary ({emb_name: file}). Default: None.
         text_drop_prob: The probability of dropping a text embedding during training. Default: 0.2.
         vae_latent_folder: The folder containing the vae latent files. Default: None.
-        vae_scale_factor: The scale factor for vae latent files. Default: 1.5305.
-        vae_shift_factor: The shift factor for vae latent files. Default: 0.0609.
+        vae_scale_factor: The scale factor for vae latent files. Default: 0.476986.
+        vae_shift_factor: The shift factor for vae latent files. Default: None.
         target_size: The target size for resizing the frames. Default: None.
         sample_n_frames: The number of frames to sample from a video. Default: 16.
         sample_stride: The stride for sampling frames. Default: 1.
@@ -55,8 +55,8 @@ class ImageVideoDataset(BaseDataset):
         empty_text_emb: Optional[Union[str, Dict[str, str]]] = None,
         text_drop_prob: float = 0.2,
         vae_latent_folder: Optional[str] = None,
-        vae_scale_factor: float = 1.5305,
-        vae_shift_factor: float = 0.0609,
+        vae_scale_factor: float = 0.476986,
+        vae_shift_factor: float = None,
         target_size: Optional[Tuple[int, int]] = None,
         sample_n_frames: int = 16,
         sample_stride: int = 1,
@@ -84,6 +84,7 @@ class ImageVideoDataset(BaseDataset):
 
         self._vae_latent_folder = vae_latent_folder
         self._vae_scale_factor = vae_scale_factor
+        assert self._vae_scale_factor is not None, "vae_scale_factor must be specified"
         self._vae_shift_factor = vae_shift_factor
         self._fmask_gen = frames_mask_generator
         self._t_compress_func = t_compress_func or (lambda x: x)
@@ -175,7 +176,7 @@ class ImageVideoDataset(BaseDataset):
 
         if self._vae_latent_folder:
             vae_latent_data = np.load(data["vae_latent"])
-            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]  # T C H W
+            latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]  # C T H W
             if 1 < len(latent_mean) < self._min_length:  # TODO: add support for buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
@@ -184,8 +185,10 @@ class ImageVideoDataset(BaseDataset):
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
-            data["video"] = (vae_latent - self._vae_shift_factor) * self._vae_scale_factor
-
+            vae_latent = vae_latent / self._vae_scale_factor
+            if self._vae_shift_factor is not None:
+                vae_latent = vae_latent + self._vae_shift_factor
+            data["video"] = vae_latent
         else:
             if data["video"].lower().endswith(IMAGE_EXT):
                 num_frames = 1

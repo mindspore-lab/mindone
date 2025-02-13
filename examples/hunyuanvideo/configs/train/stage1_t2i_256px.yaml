@@ -9,7 +9,6 @@ model:
   name: "HYVideo-T/2-cfgdistill"
   in_channels: 16
   pretrained_model_path:
-  zero_stage: 3
   text_states_dim: 4096
   text_states_dim_2: 768
   enable_ms_amp: True
@@ -36,6 +35,7 @@ dataset:
   text_drop_prob: 0.2
   target_size: [ 256, 455 ]
   apply_transforms_dataset: True
+  vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
   output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2" ]
 
 dataloader:

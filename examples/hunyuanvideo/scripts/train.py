@@ -110,12 +110,19 @@ def main(args):
     # 2.2 Llama 3
     logger.info("Transformer init")
     network = init_model(resume=args.train.resume_ckpt is not None, **args.model)
+    if network.guidance_embed:
+        embed_cfg_scale = 6.0
+    else:
+        embed_cfg_scale = None
     # 2.3 LossWrapper
     rflow_loss_wrapper = RFlowLossWrapper(network)
 
     # 3. build training network
     latent_diffusion_with_loss = DiffusionWithLoss(
-        rflow_loss_wrapper, vae, video_emb_cached=bool(args.dataset.vae_latent_folder)
+        rflow_loss_wrapper,
+        vae,
+        video_emb_cached=bool(args.dataset.vae_latent_folder),
+        embedded_guidance_scale=embed_cfg_scale,
     )
 
     # 4. build train & val datasets
@@ -132,7 +139,10 @@ def main(args):
         )
         eval_rflow_loss = RFlowEvalLoss(rflow_loss_wrapper, num_sampling_steps=args.valid.sampling_steps)
         eval_diffusion_with_loss = DiffusionWithLoss(
-            eval_rflow_loss, vae, video_emb_cached=bool(args.valid.dataset.init_args.vae_latent_folder)
+            eval_rflow_loss,
+            vae,
+            video_emb_cached=bool(args.valid.dataset.init_args.vae_latent_folder),
+            embedded_guidance_scale=embed_cfg_scale,
         )
 
     # 5. build training utils: lr, optim, callbacks, trainer
@@ -158,23 +168,21 @@ def main(args):
     if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
         _bs = ms.Symbol(unique=True)
         video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
-        attention_mask = ms.Tensor(shape=[_bs, None, None, None], dtype=ms.float32)  # (b, f, h, w)
+        text_embed_cache = args.dataset.text_emb_folder is not None
         text_tokens = (
-            ms.Tensor(shape=[_bs, args.model_max_length_1, None], dtype=ms.float32)
-            if args.text_embed_cache
-            else ms.Tensor(shape=[_bs, args.model_max_length_1], dtype=ms.float32)
+            ms.Tensor(shape=[_bs, None, None], dtype=ms.float32)
+            if text_embed_cache
+            else ms.Tensor(shape=[_bs, None], dtype=ms.float32)
         )
-        encoder_attention_mask = ms.Tensor(shape=[_bs, args.model_max_length_1], dtype=ms.uint8)
+        encoder_attention_mask = ms.Tensor(shape=[_bs, None], dtype=ms.uint8)
 
         text_tokens_2 = (
             ms.Tensor(shape=[_bs, None], dtype=ms.float32)  # pooled hidden states
-            if args.text_embed_cache
-            else ms.Tensor(shape=[_bs, args.model_max_length_2], dtype=ms.float32)
+            if text_embed_cache
+            else ms.Tensor(shape=[_bs, None], dtype=ms.float32)
         )
-        encoder_attention_mask_2 = ms.Tensor(shape=[_bs, args.model_max_length_2], dtype=ms.uint8)
-        net_with_grads.set_inputs(
-            video, attention_mask, text_tokens, encoder_attention_mask, text_tokens_2, encoder_attention_mask_2
-        )
+        encoder_attention_mask_2 = ms.Tensor(shape=[_bs, None], dtype=ms.uint8)
+        net_with_grads.set_inputs(video, text_tokens, encoder_attention_mask, text_tokens_2, encoder_attention_mask_2)
         logger.info("Dynamic inputs are initialized for training!")
 
     model = Model(net_with_grads)
