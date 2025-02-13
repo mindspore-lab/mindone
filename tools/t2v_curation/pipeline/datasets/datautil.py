@@ -149,9 +149,6 @@ CMOTION_TEXT = {
     "zoom_out": "zoom out",
     "tilt_up": "tilt up",
     "tilt_down": "tilt down",
-    # "pan/tilt": "The camera is panning.",
-    # "dynamic": "The camera is moving.",
-    # "unknown": None,
 }
 CMOTION_PROBS = {
     # hard-coded probabilities
@@ -608,6 +605,9 @@ def main(args):
     if args.lpipsmin is not None:
         assert "lpips" in data.columns
         data = data[data['lpips'] >= args.lpipsmin]
+    if args.safety_check:
+        assert "nsfw" in data.columns
+        data = data[data["nsfw"] == 0]
     if args.remove_text_duplication:
         data = data.drop_duplicates(subset=["text"], keep="first")
     if args.img_only:
@@ -729,6 +729,7 @@ def parse_args():
     parser.add_argument("--secondsmax", type=float, default=None, help="filter the dataset by maximum seconds")
     parser.add_argument("--secondsmin", type=float, default=None, help="filter the dataset by minimum seconds")
     parser.add_argument("--lpipsmin", type=float, default=None, help="filter the datasaet by minimum lpips score")
+    parser.add_argument("--safety_check", action="store_true", help="filter out videos flagged NSFW")
 
     # data processing
     parser.add_argument("--shuffle", default=False, action="store_true", help="shuffle the dataset")
@@ -825,6 +826,9 @@ def get_output_path(args, input_name):
         name += f"_flowmin{args.flowmin:.1f}"
     if args.lpipsmin is not None:
         name += f"_lpipsmin{args.lpipsmin:.1f}"
+    if args.safety_check is not None:
+        name += f"_safe"
+
     if args.img_only:
         name += "_img"
     if args.vid_only:

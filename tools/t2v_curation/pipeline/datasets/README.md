@@ -39,7 +39,10 @@ All data should be tracked in a `.csv` file (or `parquet.gzip` to save space), w
 - `aes`: aesthetic score calculated by the asethetic scorer based on CLIP. For filtering.
 - `flow`: optical flow score calculated by UniMatch. For filtering.
 - `match`: matching score of an image-text/video-text pair calculated by CLIP. For filtering.
+- `lpips`: LPIPS score calculated by extracting frames from the video at regular intervals and calculating the perceptual similarity between consecutive frames. -1 if only one or no frame is extracted.
+- `nsfw`: NSFW flag, 1 for not NSFW, 0 for NSFW.
 - `fps`: the frame rate of the video.
+
 
 An example ready for training:
 
@@ -148,6 +151,8 @@ You can also use `python -m pipeline.datasets.datautil --help` to see usage.
 | `--ocr_total_max TOTALMAX`   | `_ocrtotalmax`  | Filter the dataset by maximum total text boxes area percentage |
 | `--matchmin MATCHMIN`        | `_matchmin`     | Filter the dataset by minimum clip score                       |
 | `--flowmin FLOWMIN`          | `_flowmin`      | Filter the dataset by minimum optical flow score               |
+| `--lpipsmin LPIPSMIN`        | `_lpipsmin`     | Filter the dataset by minimum LPIPS score                      |
+| `--safety_check`             | `_safe`         | Filter out the videos flagged NSFW                             |
 
 
 ## Analyze datasets
