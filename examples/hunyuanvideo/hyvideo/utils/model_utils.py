@@ -128,7 +128,7 @@ def init_model(
                 FP32LayerNorm,
                 SinusoidalEmbedding,
             ]
-            logger.info("custom fp32 cell for dit: ", whitelist_ops)
+            logger.info(f"custom fp32 cell for dit: {whitelist_ops}")
             model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
 
     return model

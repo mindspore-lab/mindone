@@ -102,6 +102,7 @@ valid:
     text_emb_folder: TEXT_EMB_FOLDER
     target_size: [ 256, 256 ]
     apply_transforms_dataset: True
+    vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
     output_columns:  [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2" ]
 
   dataloader:
