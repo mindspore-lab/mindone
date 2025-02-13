@@ -298,7 +298,14 @@ def build_model(args, logger):
 
 
 def main(args):
-    set_logger(name="", output_dir="logs/text_embed")
+    if args.output_path is None:
+        output_dir = Path(args.data_file_path).parent if args.data_file_path is not None else Path("./")
+    else:
+        output_dir = Path(args.output_path)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Output embeddings will be saved: {output_dir}")
+
+    set_logger(name="", output_dir=f"{output_dir}/logs")
     rank_id, device_num = init_env(
         mode=args.mode,
         distributed=args.use_parallel,
@@ -309,8 +316,8 @@ def main(args):
     print(f"rank_id {rank_id}, device_num {device_num}")
 
     # build dataloader for large amount of captions
-    print_banner("data init")
     if args.data_file_path is not None:
+        print_banner("dataset init")
         assert isinstance(args.data_file_path, str), "Expect data_file_path to be a string!"
         assert Path(args.data_file_path).exists(), "data_file_path does not exist!"
         assert args.data_file_path.endswith(".csv") or args.data_file_path.endswith(
@@ -336,6 +343,7 @@ def main(args):
         dataset_size = dataset.get_dataset_size()
         logger.info(f"Num batches: {dataset_size}")
     elif args.prompt is not None:
+        print_banner("Text prompts loading")
         assert isinstance(args.prompt, str), "Expect prompt to be a non-empty string!"
         data = {}
         if len(args.prompt) > 0:
@@ -343,8 +351,8 @@ def main(args):
         else:
             # empty string text embeding
             assert args.prompt == ""
-            prompt_fn = "empty-string-text-embedding.npz"
-        data["file_path"] = ["./{}.npz".format(prompt_fn)]
+            prompt_fn = "empty_string_text_embeddings.npz"
+        data["file_path"] = ["{}/{}.npz".format(output_dir, prompt_fn)]
         data["caption"] = [args.prompt]
         dataset = None
         dataset_size = 1
@@ -356,13 +364,6 @@ def main(args):
     text_encoder, text_encoder_2 = build_model(args, logger)
 
     # infer
-    print_banner("Text prompts loading")
-    if args.output_path is None:
-        output_dir = Path(args.data_file_path).parent if args.data_file_path is not None else "./"
-    else:
-        output_dir = Path(args.output_path)
-    output_dir.mkdir(parents=True, exist_ok=True)
-    logger.info(f"Output embeddings will be saved: {output_dir}")
     logger.info("Start embedding...")
     if dataset is not None:
         ds_iter = dataset.create_dict_iterator(1, output_numpy=True)
