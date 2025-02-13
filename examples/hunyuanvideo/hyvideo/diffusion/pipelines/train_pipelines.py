@@ -66,7 +66,7 @@ class DiffusionWithLoss(nn.Cell):
         if self.video_emb_cached:  # (B, C, T, H, W)
             return video_tokens
         with no_grad():  # (B, C, T, H, W)
-            video_emb = ops.stop_gradient(self.vae.encode(video_tokens)[0]).to(ms.float32)
+            video_emb = ops.stop_gradient(self.vae.encode(video_tokens)).to(ms.float32)
             if hasattr(self.vae.config, "shift_factor") and self.vae.config.shift_factor:
                 video_emb = video_emb / self.vae.config.scaling_factor + self.vae.config.shift_factor
             else:
@@ -94,7 +94,6 @@ class DiffusionWithLoss(nn.Cell):
             loss: (B,)
         """
         # 1. get image/video latents z using vae
-        x = x.to(self.dtype)
         with no_grad():
             if not self.video_emb_cached:
                 x = ops.stop_gradient(self.get_latents(x))
