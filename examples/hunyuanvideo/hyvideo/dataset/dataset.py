@@ -79,9 +79,7 @@ class ImageVideoDataset(BaseDataset):
         if self._empty_text_emb:
             if isinstance(self._empty_text_emb, str):
                 assert os.path.exists(self._empty_text_emb), f"Empty text embedding not found: {self._empty_text_emb}"
-            else:
-                for path in self._empty_text_emb.values():
-                    assert os.path.exists(path), f"Empty text embedding not found: {path}"
+
         self._text_drop_prob = text_drop_prob
 
         self._vae_latent_folder = vae_latent_folder
@@ -116,11 +114,7 @@ class ImageVideoDataset(BaseDataset):
                 if isinstance(sample_["text_emb"], str) and not os.path.isfile(sample_["text_emb"]):
                     _logger.warning(f"Text embedding not found: {sample_['text_emb']}")
                     return None
-                else:
-                    for name, path in sample_["text_emb"].items():
-                        if not os.path.isfile(sample_["text_emb"][name]):
-                            _logger.warning(f"Text embedding not found: {sample_['text_emb'][name]}")
-                            return None
+
             if "vae_latent" in sample_ and not os.path.isfile(sample_["vae_latent"]):
                 _logger.warning(f"Text embedding not found: {sample_['vae_latent']}")
                 return None
@@ -133,12 +127,9 @@ class ImageVideoDataset(BaseDataset):
                     sample = {**item, "video": os.path.join(data_dir, item["video"])}
                     if text_emb_folder:
                         if isinstance(text_emb_folder, str):
-                            sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
-                        else:
-                            sample["text_emb"] = {
-                                name: os.path.join(path, Path(item["video"]).with_suffix(".npz"))
-                                for name, path in text_emb_folder.items()
-                            }
+                            sample["text_emb"] = os.path.join(
+                                text_emb_folder, Path(item["video"] + "-*").with_suffix(".npz")
+                            )
                     if vae_latent_folder:
                         sample["vae_latent"] = os.path.join(vae_latent_folder, Path(item["video"]).with_suffix(".npz"))
                     data.append(sample)
@@ -178,11 +169,9 @@ class ImageVideoDataset(BaseDataset):
 
             if isinstance(data["text_emb"], str):
                 with np.load(data["text_emb"]) as td:
-                    data.update({"caption": td["text_emb"], "mask": td["mask"]})
-            else:
-                for enc_name, path in data["text_emb"].items():
-                    with np.load(path) as td:
-                        data.update({enc_name + "_caption": td["text_emb"], enc_name + "_mask": td["mask"]})
+                    data.update({"prompt_embeds": td["prompt_embeds"], "prompt_mask": td["prompt_mask"]})
+                    if "prompt_embeds_2" in td:
+                        data.update({"prompt_embeds_2": td["prompt_embeds_2"]})
 
         if self._vae_latent_folder:
             vae_latent_data = np.load(data["vae_latent"])

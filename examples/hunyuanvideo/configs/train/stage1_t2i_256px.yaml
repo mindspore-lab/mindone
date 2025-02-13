@@ -29,17 +29,13 @@ vae:
 dataset:
   csv_path: CSV_PATH
   video_folder: VIDEO_FOLDER
-  text_emb_folder:
-    ul2: UL2_FOLDER
-    byt5: BYT5_FOLDER
-  empty_text_emb:
-    ul2: EMPTY_TEXT_EMB
-    byt5: EMPTY_TEXT_EMB
+  text_emb_folder: TEXT_EMB_FOLDER
+  empty_text_emb: EMPTY_TEXT_EMB_PATH
   deterministic_sample: False
   text_drop_prob: 0.2
   target_size: [ 256, 455 ]
   apply_transforms_dataset: True
-  output_columns: [ "video", "ul2_caption", "byt5_caption" ]
+  output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2" ]
 
 dataloader:
   batch_size: 70

@@ -1,288 +1,227 @@
 import logging
 import os
 import sys
-import time
+from typing import Dict, Tuple, Union
 
-from tqdm import tqdm
+from jsonargparse import ActionConfigFile, ArgumentParser
+from jsonargparse.typing import path_type
 
-import mindspore as ms
+import mindspore.dataset as ds
+from mindspore import GRAPH_MODE, get_context, nn, set_context, set_seed
 
-mindone_lib_path = os.path.abspath("../../")
-sys.path.insert(0, mindone_lib_path)
-sys.path.append("./")
-from hyvideo.dataset import getdataset
-from hyvideo.dataset.loader import create_dataloader
-from hyvideo.train.commons import parse_args
-from hyvideo.utils.dataset_utils import Collate, LengthGroupedSampler
-from hyvideo.utils.message_utils import print_banner
-from hyvideo.utils.ms_utils import init_env
+# TODO: remove in future when mindone is ready for install
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.append(mindone_lib_path)
+sys.path.append(os.path.join(__dir__, ".."))
+from hyvideo.acceleration import create_parallel_group
+from hyvideo.dataset import ImageVideoDataset, bucket_split_function
+from hyvideo.utils import EMA, init_model, resume_train_net
+from hyvideo.utils.callbacks import ReduceLROnPlateauByStep
+from hyvideo.vae import AutoencoderKLCausal3D, load_vae
 
-from examples.hunyuanvideo.hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
-from mindone.utils.config import str2bool
-from mindone.utils.logger import set_logger
+from mindone.data import create_dataloader
+from mindone.trainers import create_optimizer, create_scheduler
+from mindone.trainers.callback import EvalSaveCallback
+from mindone.trainers.zero import prepare_train_network
+from mindone.utils import init_train_env, set_logger
 
 logger = logging.getLogger(__name__)
 
 
-def set_all_reduce_fusion(
-    params,
-    split_num: int = 7,
-    distributed: bool = False,
-    parallel_mode: str = "data",
-) -> None:
-    """Set allreduce fusion strategy by split_num."""
+def initialize_dataset(
+    dataset_args, dataloader_args, device_num: int, shard_rank_id: int
+) -> Tuple[Union[ds.BatchDataset, ds.BucketBatchByLengthDataset], int]:
+    dataset = ImageVideoDataset(**dataset_args)
+    transforms = (
+        dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
+    )
 
-    if distributed and parallel_mode == "data":
-        all_params_num = len(params)
-        step = all_params_num // split_num
-        split_list = [i * step for i in range(1, split_num)]
-        split_list.append(all_params_num - 1)
-        logger.info(f"Distribute config set: dall_params_num: {all_params_num}, set all_reduce_fusion: {split_list}")
-        ms.set_auto_parallel_context(all_reduce_fusion_config=split_list)
+    dataloader_args = dataloader_args.as_dict()
+    batch_size = dataloader_args.pop("batch_size")
+    dataloader = create_dataloader(
+        dataset,
+        batch_size=batch_size if isinstance(batch_size, int) else 0,  # Turn off batching if using buckets
+        transforms=transforms,
+        device_num=device_num,
+        rank_id=shard_rank_id,
+        **dataloader_args,
+    )
+    if isinstance(batch_size, dict):  # if buckets are used
+        hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(**batch_size)
+        dataloader = dataloader.bucket_batch_by_length(
+            ["video"],
+            bucket_boundaries,
+            bucket_batch_sizes,
+            element_length_function=hash_func,
+            drop_remainder=dataloader_args["drop_remainder"],
+        )
 
+    # Extract and print the shape and dtype of the first three samples from the dataset
+    print("Dataset Sample Shapes and Dtypes:")
+    for i in range(3):
+        sample = dataset[i]
+        print(f"Sample {i}:")
+        for value in sample:
+            print(f" shape={value.shape}, dtype={value.dtype}")
 
-#################################################################################
-#                                  Training Loop                                #
-#################################################################################
+    # Extract and print the shape and dtype of the first three batches from the dataloader
+    print("\nDataloader Batch Shapes and Dtypes:")
+    batch_count = 0
+    for batch in dataloader:
+        if batch_count >= 3:
+            break
+        print(f"Batch {batch_count}:")
+        for key, value in batch.items():
+            print(f"  {key}: shape={value.shape}, dtype={value.dtype}")
+        batch_count += 1
+
+    return dataloader, len(dataset)
 
 
 def main(args):
-    # 1. init
-    if args.num_frames == 1 or args.use_image_num != 0:
-        args.sp_size = 1
-    save_src_strategy = args.use_parallel and args.parallel_mode != "data"
-    rank_id, device_num = init_env(
-        args.mode,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        device_target=args.device,
-        max_device_memory=args.max_device_memory,
-        parallel_mode=args.parallel_mode,
-        mempool_block_size=args.mempool_block_size,
-        strategy_ckpt_save_file=os.path.join(args.output_dir, "src_strategy.ckpt") if save_src_strategy else "",
-        optimizer_weight_shard_size=args.optimizer_weight_shard_size,
-        sp_size=args.sp_size if args.num_frames != 1 and args.use_image_num == 0 else 1,
-        jit_level=args.jit_level,
-        enable_parallel_fusion=args.enable_parallel_fusion,
-        jit_syntax_level=args.jit_syntax_level,
-        comm_fusion=args.comm_fusion,
-    )
-    set_logger(name="", output_dir=args.output_dir, rank=rank_id, log_level=eval(args.log_level))
+    # 1. init env
+    args.train.output_path = os.path.abspath(args.train.output_path)
+    os.makedirs(args.train.output_path, exist_ok=True)
+    device_id, rank_id, device_num = init_train_env(**args.env)
+    mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
 
-    # 2. Init and load models
-    # define vae
-    ae_stride_t, ae_stride_h, ae_stride_w = 4, 8, 8
+    # if bucketing is used in Graph mode, activate dynamic mode
+    if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
+        set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
-    assert (
-        ae_stride_h == ae_stride_w
-    ), f"Support only ae_stride_h == ae_stride_w now, but found ae_stride_h ({ae_stride_h}), ae_stride_w ({ae_stride_w})"
-    args.ae_stride_t, args.ae_stride_h, args.ae_stride_w = ae_stride_t, ae_stride_h, ae_stride_w
-    args.ae_stride = args.ae_stride_h
+    # 1.1 init model parallel
+    shard_rank_id = rank_id
+    if args.train.sequence_parallel.shards > 1:
+        create_parallel_group(**args.train.sequence_parallel)
+        device_num = device_num // args.train.sequence_parallel.shards
+        shard_rank_id = rank_id // args.train.sequence_parallel.shards
 
-    patch_size_t, patch_size_h, patch_size_w = 1, 2, 2
-    args.patch_size = patch_size_h
-    args.patch_size_t, args.patch_size_h, args.patch_size_w = patch_size_t, patch_size_h, patch_size_w
-    assert (
-        patch_size_h == patch_size_w
-    ), f"Support only patch_size_h == patch_size_w now, but found patch_size_h ({patch_size_h}), patch_size_w ({patch_size_w})"
-    assert (
-        args.max_height % ae_stride_h == 0
-    ), f"Height must be divisible by ae_stride_h, but found Height ({args.max_height}), ae_stride_h ({ae_stride_h})."
-    assert (
-        args.num_frames - 1
-    ) % ae_stride_t == 0, f"(Frames - 1) must be divisible by ae_stride_t, but found num_frames ({args.num_frames}), ae_stride_t ({ae_stride_t})."
-    assert (
-        args.max_width % ae_stride_h == 0
-    ), f"Width size must be divisible by ae_stride_h, but found Width ({args.max_width}), ae_stride_h ({ae_stride_h})."
+    # FIXME: Improve seed setting
+    set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
+    ds.set_seed(args.env.seed)  # keep MS.dataset's seed consistent as datasets first shuffled and then distributed
 
-    args.stride_t = ae_stride_t * patch_size_t
-    args.stride = ae_stride_h * patch_size_h
+    set_logger("", output_dir=args.train.output_path, rank=rank_id)
 
-    args.latent_size_t = (args.num_frames - 1) // ae_stride_t + 1
+    # instantiate classes only after initializing training environment
+    initializer = parser.instantiate_classes(cfg)
 
-    # 3. create dataset
-    # TODO: replace it with new dataset
-    assert args.dataset == "t2v", "Support t2v dataset only."
-    print_banner("Training dataset Loading...")
+    # 2. model initialize and weight loading
+    # 2.1 vae
+    if not args.dataset.vae_latent_folder or (
+        args.valid.dataset and not args.valid.dataset.init_args.vae_latent_folder
+    ):
+        logger.info("Initializing vae...")
+        vae, _, s_ratio, t_ratio = load_vae(
+            args.vae.vae_type,
+            logger=logger,
+            vae_precision=args.vae.vae_precision,
+        )
+        if args.vae.vae_tiling:
+            vae.enable_tiling()
 
-    # Setup data:
-    # TODO: to use in v1.3
-    if args.trained_data_global_step is not None:
-        initial_global_step_for_sampler = args.trained_data_global_step
     else:
-        initial_global_step_for_sampler = 0
-    total_batch_size = args.train_batch_size * device_num * args.gradient_accumulation_steps
-    total_batch_size = total_batch_size // args.sp_size * args.train_sp_batch_size
-    args.total_batch_size = total_batch_size
-    if args.max_hxw is not None and args.min_hxw is None:
-        args.min_hxw = args.max_hxw // 4
+        logger.info("vae latent folder provided. Skipping vae initialization.")
+        vae = None
 
-    train_dataset = getdataset(args, dataset_file=args.data)
-    sampler = LengthGroupedSampler(
-        args.train_batch_size,
-        world_size=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
-        gradient_accumulation_size=args.gradient_accumulation_steps,
-        initial_global_step=initial_global_step_for_sampler,
-        lengths=train_dataset.lengths,
-        group_data=args.group_data,
-    )
-    collate_fn = Collate(args.train_batch_size, args)
-    dataloader = create_dataloader(
-        train_dataset,
-        batch_size=args.train_batch_size,
-        shuffle=sampler is None,
-        device_num=device_num if not get_sequence_parallel_state() else (device_num // hccl_info.world_size),
-        rank_id=rank_id if not get_sequence_parallel_state() else hccl_info.group_id,
-        num_parallel_workers=args.dataloader_num_workers,
-        max_rowsize=args.max_rowsize,
-        prefetch_size=args.dataloader_prefetch_size,
-        collate_fn=collate_fn,
-        sampler=sampler,
-        column_names=[
-            "pixel_values",
-            "attention_mask",
-            "text_embed",
-            "encoder_attention_mask",
-            "text_embed_2",
-            "encoder_attention_mask_2",
-        ],
-    )
-    dataloader_size = dataloader.get_dataset_size()
-    assert (
-        dataloader_size > 0
-    ), "Incorrect training dataset size. Please check your dataset size and your global batch size"
-    return train_dataset, dataloader
+    # 4. build train & val datasets
+    if args.train.sequence_parallel.shards > 1:
+        logger.info(
+            f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards."
+        )
+    dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
 
-
-def test_dataset(ds):
-    num_samples = len(ds)
-    steps = min(20, num_samples)
-    start = time.time()
-    tot = 0
-    for i in tqdm(range(steps)):
-        batch = ds.__getitem__(i % num_samples)
-
-        dur = time.time() - start
-        tot += dur
-
-        if i < 3:
-            video = batch["pixel_values"]
-            print("D--: ", video.shape, video.dtype, video.min(), video.max())
-            print(f"{i+1}/{steps}, time cost: {dur * 1000} ms")
-
-        start = time.time()
-
-    mean = tot / steps
-    print("Avg sample loading time: ", mean)
-
-
-def test_dataloder(dl):
-    num_batches = dl.get_dataset_size()
-
-    steps = num_batches * 2
-    iterator = dl.create_dict_iterator(2, output_numpy=True)
-    tot = 0
-
-    progress_bar = tqdm(range(steps))
-    progress_bar.set_description("Steps")
-
-    start = time.time()
-    for epoch in range(steps // num_batches):
-        for i, batch in enumerate(iterator):
-            dur = time.time() - start
-            tot += dur
-
-            if epoch * num_batches + i < 3:
-                for k in batch:
-                    print(k, batch[k].shape, batch[k].dtype)  # , batch[k].min(), batch[k].max())
-                print(f"time cost: {dur * 1000} ms")
-
-            progress_bar.update(1)
-            if i + 1 > steps:  # in case the data size is too large
-                break
-            start = time.time()
-
-    mean = tot / steps
-    print("Avg batch loading time: ", mean)
-
-
-def parse_t2v_train_args(parser):
-    # TODO: NEW in v1.3 , but may not use
-    # dataset & dataloader
-    parser.add_argument("--max_hxw", type=int, default=None)
-    parser.add_argument("--min_hxw", type=int, default=None)
-    parser.add_argument("--group_data", action="store_true")
-    parser.add_argument("--hw_stride", type=int, default=32)
-    parser.add_argument("--force_resolution", action="store_true")
-    parser.add_argument("--trained_data_global_step", type=int, default=None)
-    parser.add_argument(
-        "--use_decord",
-        type=str2bool,
-        default=True,
-        help="whether to use decord to load videos. If not, use opencv to load videos.",
-    )
-    parser.add_argument("--output_dir", default="outputs/", help="The directory where training results are saved.")
-    parser.add_argument("--dataset", type=str, default="t2v")
-    parser.add_argument(
-        "--data",
-        type=str,
-        required=True,
-        help="The training dataset text file specifying the path of video folder, text embedding cache folder, and the annotation json file",
-    )
-    parser.add_argument(
-        "--filter_nonexistent",
-        type=str2bool,
-        default=True,
-        help="Whether to filter out non-existent samples in image datasets and video datasets." "Defaults to True.",
-    )
-
-    parser.add_argument("--sample_rate", type=int, default=1)
-    parser.add_argument("--train_fps", type=int, default=24)
-    parser.add_argument("--drop_short_ratio", type=float, default=1.0)
-    parser.add_argument("--speed_factor", type=float, default=1.0)
-    parser.add_argument("--num_frames", type=int, default=17)
-    parser.add_argument("--max_height", type=int, default=320)
-    parser.add_argument("--max_width", type=int, default=240)
-    parser.add_argument("--group_frame", action="store_true")
-    parser.add_argument("--group_resolution", action="store_true")
-    parser.add_argument("--cache_dir", type=str, default="./ckpts")
-    parser.add_argument("--model_max_length_1", type=int, default=315)  # llava llama text encoder
-    parser.add_argument("--text_encoder_name", type=str, default="DeepFloyd/t5-v1_1-xxl")
-    parser.add_argument("--text_encoder_name_2", type=str, default=None)
-    parser.add_argument(
-        "--model_max_length_2", type=int, default=77
-    )  # for text encoder 2 tokenizer, but CLIP text encoder returns pooled hidden states
-    parser.add_argument(
-        "--text_embed_cache",
-        type=str2bool,
-        default=True,
-        help="Whether to use T5 embedding cache. Must be provided in image/video_data.",
-    )
-    parser.add_argument("--multi_scale", action="store_true")
-
-    parser.add_argument("--use_image_num", type=int, default=0)
-    parser.add_argument("--use_img_from_vid", action="store_true")
-
-    parser.add_argument("--cfg", type=float, default=0.1)
-
-    parser.add_argument("--dataloader_prefetch_size", type=int, default=None, help="minddata prefetch size setting")
-    parser.add_argument("--sp_size", type=int, default=1, help="For sequence parallel")
-    parser.add_argument("--train_sp_batch_size", type=int, default=1, help="Batch size for sequence parallel training")
-
-    parser.add_argument(
-        "--enable_parallel_fusion", default=True, type=str2bool, help="Whether to parallel fusion for AdamW"
-    )
-    parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
-
-    return parser
+    if args.valid.dataset is not None:
+        val_dataloader, val_dataloader_len = initialize_dataset(
+            args.valid.dataset.init_args, args.valid.dataloader, device_num, shard_rank_id
+        )
 
 
 if __name__ == "__main__":
-    logger.debug("process id:", os.getpid())
-    args = parse_args(additional_parse_args=parse_t2v_train_args)
-    if args.resume_from_checkpoint == "True":
-        args.resume_from_checkpoint = True
-    dataset, dataloader = main(args)
+    parser = ArgumentParser(description="Hunyuan Video training script.")
+    parser.add_argument(
+        "-c",
+        "--config",
+        action=ActionConfigFile,
+        help="Path to load a config yaml file that describes the setting which will override the default arguments.",
+    )
+    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_model, "model", skip={"resume"})
+    parser.add_class_arguments(AutoencoderKLCausal3D, "vae", instantiate=False)
+    parser.add_class_arguments(
+        ImageVideoDataset, "dataset", skip={"frames_mask_generator", "t_compress_func"}, instantiate=False
+    )
+    parser.add_function_arguments(
+        create_dataloader,
+        "dataloader",
+        skip={"dataset", "batch_size", "transforms", "batch_transforms", "device_num", "rank_id"},
+    )
+    parser.add_argument(  # FIXME: support bucketing
+        "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
+    )
+    parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
+    parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")
+    parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
+    parser.add_class_arguments(
+        ReduceLROnPlateauByStep, "train.lr_reduce_on_plateau", skip={"optimizer"}, instantiate=False
+    )
+    parser.add_function_arguments(create_optimizer, "train.optimizer", skip={"params", "lr"})
+    parser.add_subclass_arguments(
+        nn.Cell,
+        "train.loss_scaler",
+        fail_untyped=False,  # no typing in mindspore
+        help="mindspore.nn.FixedLossScaleUpdateCell or mindspore.nn.DynamicLossScaleUpdateCell",
+    )
+    parser.add_function_arguments(
+        prepare_train_network, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}
+    )
+    parser.add_subclass_arguments(EMA, "train.ema", skip={"network"}, required=False, instantiate=False)
+    parser.add_function_arguments(resume_train_net, "train", skip={"train_net"})
+    parser.add_argument(
+        "--train.output_path",
+        default="output/",
+        type=path_type("dcc"),  # path to a directory that can be created if it does not exist
+        help="Output directory to save training results.",
+    )
+    parser.add_argument("--train.steps", default=100, type=int, help="Number of steps to train. Default: 100.")
+    parser.link_arguments("train.steps", "train.lr_scheduler.total_steps", apply_on="parse")
+    parser.add_class_arguments(
+        EvalSaveCallback,
+        "train.save",
+        skip={
+            "network",
+            "rank_id",
+            "shard_rank_id",
+            "ckpt_save_dir",
+            "output_dir",
+            "ema",
+            "start_epoch",
+            "model_name",
+            "step_mode",
+            "use_step_unit",
+            "train_steps",
+            "resume_prefix_blacklist",
+        },
+        instantiate=False,
+    )
 
-    test_dataset(dataset)
-    test_dataloder(dataloader)
+    # validation
+    val_group = parser.add_argument_group("Validation")
+    val_group.add_argument(
+        "valid.sampling_steps", type=int, default=10, help="Number of sampling steps for validation."
+    )
+    val_group.add_argument("valid.frequency", type=int, default=1, help="Frequency of validation in steps.")
+    val_group.add_subclass_arguments(
+        ImageVideoDataset,
+        "valid.dataset",
+        skip={"frames_mask_generator", "t_compress_func"},
+        instantiate=False,
+        required=False,
+    )
+    val_group.add_function_arguments(
+        create_dataloader, "valid.dataloader", skip={"dataset", "transforms", "device_num", "rank_id"}
+    )
+    parser.link_arguments("env.debug", "valid.dataloader.debug", apply_on="parse")
+
+    cfg = parser.parse_args()
+    main(cfg)
