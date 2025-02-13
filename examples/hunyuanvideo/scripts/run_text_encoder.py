@@ -336,9 +336,14 @@ def main(args):
         dataset_size = dataset.get_dataset_size()
         logger.info(f"Num batches: {dataset_size}")
     elif args.prompt is not None:
-        assert isinstance(args.prompt, str) and len(args.prompt) > 0, "Expect prompt to be a non-empty string!"
+        assert isinstance(args.prompt, str), "Expect prompt to be a non-empty string!"
         data = {}
-        prompt_fn = "-".join((args.prompt.replace("/", "").split(" ")[:16]))
+        if len(args.prompt) > 0:
+            prompt_fn = "-".join((args.prompt.replace("/", "").split(" ")[:16]))
+        else:
+            # empty string text embeding
+            assert args.prompt == ""
+            prompt_fn = "empty-string-text-embedding.npz"
         data["file_path"] = ["./{}.npz".format(prompt_fn)]
         data["caption"] = [args.prompt]
         dataset = None
