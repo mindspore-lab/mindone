@@ -351,7 +351,7 @@ def main(args):
         else:
             # empty string text embeding
             assert args.prompt == ""
-            prompt_fn = "empty_string_text_embeddings.npz"
+            prompt_fn = "empty_string_text_embeddings"
         data["file_path"] = ["{}/{}.npz".format(output_dir, prompt_fn)]
         data["caption"] = [args.prompt]
         dataset = None
@@ -383,8 +383,10 @@ def main(args):
         if text_encoder_2 is not None:
             output_2 = text_encoder_2(captions, data_type="video")
         save_emb(output, output_2, output_dir, file_paths)
-
-    logger.info(f"Done. Embeddings saved in {output_dir}")
+    if dataset_size > 1:
+        logger.info(f"Done. Embeddings saved in {output_dir}")
+    else:
+        logger.info(f"Done. Embeddings saved in {file_paths}")
 
 
 if __name__ == "__main__":
