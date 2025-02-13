@@ -5,6 +5,7 @@
   - [Matching Score](#matching-score)
   - [OCR](#OCR)
   - [LPIPS Motion Analysis](#lpips-score-motion-analysis)
+  - [NSFW](#NSFW)
   - [Optical Flow Score](#optical-flow-score)
   - [Filtering](#filtering)
 
@@ -175,12 +176,49 @@ If running on Ascend, you may use
 
 ```bash
 export PYTHONPATH=$(pwd)
-msrun --worker_num=1 --local_worker_num=1 --join=True \
+msrun --worker_num=2 --local_worker_num=2 --join=True \
  --log_dir=msrun_log pipeline/scoring/lpips/inference.py \
  /path/to/meta.csv
 ```
 
 This should output `/path/to/meta_lpips.csv` with column `lpips`.
+
+## NSFW
+
+NSFW (Not Safe for Work) is a metric used to identify
+restricted content in images. In the context of videos,
+we extract frames and feed them into a trained NSFW
+classifier to determine if frames contains content
+that may be unsafe or inappropriate.
+
+We use the same NSFW classifier as the one used in
+stable diffusion 2.x. The classifier is trained via
+a supervised approach, taking image features from 
+CLIP as input. The output is a number from 0 to 1,
+representing the probability of the generated image
+being NSFW. If the probability exceeds a certain
+threshold (default 0.2), the image is considered NSFW.
+
+To get started, first download the [NSFW model](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/safety_checker/l14_nsfw-c7c99ae7.ckpt). 
+By default, you can put it in the folder `./pretrained_models/` and you may rename the model as `nsfw_model.ckpt`.
+
+Then, run the following command if using CPU. **Make sure** the meta file has the column 
+`path` (path to the sample).
+
+```bash
+python -m scoring.nsfw.inference /path/to/meta.csv
+```
+
+If running on Ascend, you may use
+
+```bash
+export PYTHONPATH=$(pwd)
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/scoring/nsfw/inference.py \
+ /path/to/meta.csv
+```
+
+This should output `/path/to/meta_nsfw.csv` with column `nsfw`.
 
 ## Optical Flow Score
 Optical flow scores are used to assess the motion of a video. 
