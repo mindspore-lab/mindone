@@ -5,7 +5,8 @@ python scripts/train.py \
   --model.zero_stage 0 \
   --dataset.csv_path datasets/mixkit-100videos/video_caption_train.csv \
   --dataset.video_folder datasets/mixkit-100videos/mixkit \
-  --dataset.text_emb_folder.ul2 datasets/mixkit-100videos/text_embed \
+  --dataset.text_emb_folder datasets/mixkit-100videos/text_embed \
+  --dataset.empty_text_emb datasets/mixkit-100videos/empty_string_text_embeddings.npz \
   --valid.dataset.csv_path datasets/mixkit-100videos/video_caption_test.csv \
   --valid.dataset.video_folder datasets/mixkit-100videos/mixkit \
-  --valid.dataset.text_emb_folder.ul2 datasets/mixkit-100videos/text_embed \
+  --valid.dataset.text_emb_folder datasets/mixkit-100videos/text_embed \
