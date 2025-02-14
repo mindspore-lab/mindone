@@ -197,7 +197,7 @@ class RFlowEvalLoss(nn.Cell):
         for t in timesteps:
             loss += self.model(
                 x,
-                timestep,
+                timestep=timestep,
                 text_states=text_states,
                 text_mask=text_mask,
                 text_states_2=text_states_2,
