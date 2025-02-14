@@ -1,12 +1,10 @@
 __version__ = "4.42.4"
 
+# Feature Extractor
+from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_utils import ImageFeatureExtractionMixin
-
-# Feature Extractor
-from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
-
 from .modeling_utils import MSPreTrainedModel
 from .models.auto import AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
 from .models.bert import (
@@ -73,5 +71,4 @@ from .models.umt5 import (
     UMT5PreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
-
 from .processing_utils import ProcessorMixin
