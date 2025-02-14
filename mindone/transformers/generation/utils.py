@@ -1730,8 +1730,7 @@ class GenerationMixin:
             # token selection
             if do_sample:
                 probs = ops.softmax(next_token_scores, axis=-1, dtype=ms.float32).to(next_token_scores.dtype)
-                # TODO: replace with mint.multinomial after it supports graph mode
-                next_tokens = ops.multinomial(probs, num_samples=1, replacement=False).squeeze(1)
+                next_tokens = ops.multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = ops.argmax(next_token_scores, dim=-1)
 
