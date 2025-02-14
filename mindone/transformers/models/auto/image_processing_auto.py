@@ -35,7 +35,6 @@ from .auto_factory import _LazyAutoMapping
 from .configuration_auto import (
     CONFIG_MAPPING_NAMES,
     AutoConfig,
-    model_type_to_module_name,
     replace_list_option_in_docstrings,
 )
 

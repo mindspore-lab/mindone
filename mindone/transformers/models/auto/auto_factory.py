@@ -24,10 +24,14 @@ from pathlib import Path
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import get_class_from_dynamic_module, resolve_trust_remote_code
+from transformers.models.auto.configuration_auto import (
+    AutoConfig,
+    model_type_to_module_name,
+    replace_list_option_in_docstrings,
+)
 from transformers.utils import CONFIG_NAME, cached_file, copy_func, extract_commit_hash, logging
 
 from ...utils import is_mindspore_available, requires_backends
-from transformers.models.auto.configuration_auto import AutoConfig, model_type_to_module_name, replace_list_option_in_docstrings
 
 if is_mindspore_available():
     from ...generation import GenerationMixin
