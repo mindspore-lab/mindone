@@ -28,16 +28,16 @@ import mindspore as ms
 from mindspore import Parameter, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, StaticCache
-from ...modeling_attn_mask_utils import AttentionMaskConverter
-from ...modeling_outputs import (
+from mindone.transformers.activations import ACT2FN
+from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
+from mindone.transformers.modeling_attn_mask_utils import AttentionMaskConverter
+from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_utils import MSPreTrainedModel
+from mindone.transformers.modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
 
@@ -140,12 +140,13 @@ class Qwen2RMSNorm(nn.Cell):
         self.weight = Parameter(ops.ones(hidden_size))
         self.variance_epsilon = eps
 
+    @ms.jit
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keep_dims=True)
         hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        return self.weight.to(input_dtype) * hidden_states.to(input_dtype)  # FIXME
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
@@ -488,7 +489,7 @@ class Qwen2PreTrainedModel(MSPreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
     _supports_sdpa = True
-    _supports_cache_class = True
+    _supports_cache_class = False  # FIXME
 
     def _init_weights(self, module):
         # std = self.config.initializer_range
@@ -631,10 +632,11 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
-            raise ValueError(
-                "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
-            )
+        # FIXME
+        # if (input_ids is None) ^ (inputs_embeds is not None):
+        #     raise ValueError(
+        #         "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
+        #     )
 
         if self.gradient_checkpointing and self.training:
             if use_cache:
@@ -792,6 +794,26 @@ class Qwen2Model(Qwen2PreTrainedModel):
 
         return causal_mask
 
+    # FIXME
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        if gradient_checkpointing_kwargs is None:
+            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
+            gradient_checkpointing_kwargs = {}
+
+        # llama layers
+        for decoder_layer in self.layers:
+            assert isinstance(decoder_layer, Qwen2DecoderLayer)
+            for name, cell in decoder_layer.name_cells().items():
+                if "output_identity" in name:
+                    assert isinstance(cell, nn.Identity)
+                    pass
+                else:
+                    cell.recompute(**gradient_checkpointing_kwargs)
+        self.embed_tokens.recompute(**gradient_checkpointing_kwargs)
+        self.norm.recompute(**gradient_checkpointing_kwargs)
+
+        logger.info(f"{self.__class__.__name__}: enable recompute.")
+
 
 class Qwen2ForCausalLM(Qwen2PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
@@ -940,8 +962,8 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
 
         if attention_mask is not None and position_ids is None:
             # create position_ids on the fly for batch generation
-            position_ids = attention_mask.long().cumsum(-1) - 1
-            position_ids.masked_fill(attention_mask == 0, 1)
+            position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1  # FIXME
+            position_ids = position_ids.masked_fill(attention_mask == 0, 1)
             if past_key_values:
                 position_ids = position_ids[:, -input_ids.shape[1] :]
 
@@ -955,6 +977,11 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         if inputs_embeds is not None and cache_position[0] == 0:
             model_inputs = {"inputs_embeds": inputs_embeds}
         else:
+            # Padding to max_len when no cache
+            if past_key_values is None:
+                pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
+                input_ids = ops.pad(input_ids, (0, pad_len), value=0)
+
             model_inputs = {"input_ids": input_ids}
 
         if isinstance(past_key_values, StaticCache) and attention_mask.ndim == 2:
@@ -989,6 +1016,10 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             }
         )
         return model_inputs
+
+    # FIXME
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
 
 
 class Qwen2ForSequenceClassification(Qwen2PreTrainedModel):
