@@ -1,21 +1,59 @@
-# Hunyuan Video
+# Hunyuan Video: A Systematic Framework For Large Video Generation Model
+
+This is a **MindSpore** implementation of [HunyuanVideo](https://arxiv.org/abs/2412.03603). It contains the code for **training** and **inference** of HunyuanVideo and 3D CausalVAE.
 
 
-## Quick Start
+## 📑 Development Plan
 
-### Installation
+Here is the development plan of the project:
+
+- CausalVAE:
+    - [x] Inference
+    - [x] Evalution
+    - [ ] Training
+- HunyuanVideo (13B):
+    - [x] Inference
+    - [x] Training stage 1: T2I 256px
+    - [ ] Training stage 2: T2I  256px 512px (buckts)
+    - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckts)
+    - [ ] LoRA finetune
+
+
+## 🎥 Demo
+
+
+
+## 📦 Requirements
+
+
+<div align="center">
+
+| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.4.1   |    |   |  8.0.RC3 |
+
+</div>
+
+1. Install
+   [CANN 8.0.RC3.20.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.20.beta1)
+   and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
+2. Install requirements
+    ```shell
+    pip install -r requirements.txt
+    ```
+
+## 🚀 Quick Start
 
 ### Checkpoints
 
-Please download all checkpoints and convert them into MindSpore checkpoints following this [instruction](./ckpts/README.md).
+Please download all checkpoints and convert them into MindSpore checkpoints following this [instruction](./docs/checkpoints_docs.md).
 
 ### Run VAE reconstruction
 
-To run a video reconstruction using the CausalVAE, please use the following command:
+To run a video reconstruction task using the CausalVAE, please use the following command:
 ```bash
 python scripts/run_vae.py \
     --video-path "path/to/input_video.mp4" \
-    --output-path "path/to/output_directory" \
     --rec-path "reconstructed_video.mp4" \
     --height 336 \
     --width 336 \
@@ -24,11 +62,23 @@ python scripts/run_vae.py \
 The reconstructed video is saved under `./save_samples/`. To run reconstruction on an input image or a input folder of videos, please refer to `scripts/vae/recon_image.sh` or `scripts/vae/recon_video_folder.sh`.
 
 
+### Run Text-to-Video Inference
+
+To run the text-to-video inference on a single prompt, please use the following command:
+```bash
+bash scripts/hyvideo/run_t2v_sample.sh
+```
+If you want change to another prompt, please set `--prompt` to the new prompt.
+
+### Run Image-to-Video Inference
+
+Coming Soon.
+
 ## 🔑 Training
 
 ### Dataset Preparation
 
-To prepare the dataset for training HuyuanVideo, please refer to the [dataset format](./hyvideo/dataset/README.md).
+To prepare the dataset for training HuyuanVideo, please refer to the [dataset format](./docs/dataset_docs.md).
 
 ### Extract Text Embeddings
 
@@ -55,55 +105,26 @@ To train HunyuanVideo (13B) on multiple NPUs, we use ZeRO3 and data parallelism 
 bash scripts/train_t2v_zero3.sh
 ```
 
+## 📈 Evaluation
 
-### Run Text-to-Video Inference
-
-To run the text-to-video inference on a single prompt, please use the following command:
-```bash
-bash scripts/hyvideo/run_t2v_sample.sh
-```
-If you want change to another prompt, please set `--prompt` to the new prompt.
-
-### Run Image-to-Video Inference
-
-
-## Train
-
-
-## Evaluation
-
-
-### VAE Evaluation
-
-### Video Reconstruction and Evalution
-
+### VAE Reconstruction Evaluation
 
 To run video reconstruction on a folder of videos, please refer to `scripts/vae/recon_video_folder.sh`.
 
-To evaluate the reconsturcted videos, you may use the  `scripts/eval/script/cal_psnr.sh` on the real and generated video folders.
+To evaluate the PSNR score between the real and the reconsturcted videos, you may use `scripts/eval/script/cal_psnr.sh`.
+
+### Text-to-Video Evalution
+
+After training, the checkpoint will be saved under `output/experiment_dir/ckpts/`. To run Text-to-Video evaluation with the saved checkpoint, please refer to `scripts/hyvideo/run_t2v_sample_multi.sh`. You need to change the `--dit-weight` to the saved checkpoint directory, for example:
+```bash
+--dit-weight output/experiment_dir/ckpts/
+```
 
 
 ### 3D-VAE Training
 
-coming soon...
+coming soon.
 
-
-## Embedding Cache
-
-### Text embedding cache
-
-If you just want to generate text embedding for a single prompt, you can run like:
-```bash
-python scripts/run_text_encoder.py \
-    --prompt "A cat walks on the grass, realistic style." \
-    --output-path /path/to/text_embed_folder \
-```
-
-The generated npz file, which contains the prompt embedding using clip and llm and the prompt mask, will be saved in the current folder.
-
-
-
-### Video embedding cache
 
 
 ## Acknowledgements

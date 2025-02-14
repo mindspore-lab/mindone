@@ -1,8 +1,7 @@
 python run_vae.py \
     --input-type folder \
-    --real-video-dir datasets/MCL_JCV/ \
+    --real-video-dir "path/to/input_videos" \
     --generated-video-dir "path/to/generated_videos" \
-    --output-path datasets/MCL_JCV_generated/ \
     --height 336 \
     --width 336 \
     --num-frames 65 \
