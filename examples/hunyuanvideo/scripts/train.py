@@ -213,7 +213,7 @@ def main(args):
         callbacks.append(
             EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,
-                model_name=args.model.name,
+                model_name=args.model.name.replace("/", "-"),
                 rank_id=0 if args.train.settings.zero_stage == 3 else rank_id,  # ZeRO-3 shards across all ranks
                 ckpt_save_dir=ckpt_save_dir,
                 ema=ema,
