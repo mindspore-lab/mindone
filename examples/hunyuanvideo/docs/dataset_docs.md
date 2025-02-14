@@ -54,4 +54,4 @@ valid:
     text_emb_folder: TEXT_EMB_FOLDER # validation text embedding folder
 ```
 
-[Here](../../scripts/hyvideo/train_t2v_zero3.sh) is an example of training script which sets the dataset parameters using command line arguments.
+[Here](../scripts/hyvideo/train_t2v_zero3.sh) is an example of training script which sets the dataset parameters using command line arguments.
