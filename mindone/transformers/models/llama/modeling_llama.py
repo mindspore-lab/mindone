@@ -19,7 +19,6 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-import math
 import numpy as np
 from transformers import LlamaConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
@@ -27,14 +26,13 @@ from transformers.utils import add_start_docstrings, add_start_docstrings_to_mod
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
-from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...activations import ACT2FN
 from ...cache_utils import get_max_length, get_seq_length, update, reset, init_static_cache
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
-from ...modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
+from ...modeling_attn_mask_utils import _MIN_FP16
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
 from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
 
@@ -217,6 +215,7 @@ class LlamaAttention(nn.Cell):
                 "lead to errors during the forward call if caching is used. Please make sure to provide a `layer_idx` "
                 "when creating this class."
             )
+
         self.attention_dropout = config.attention_dropout
         self.hidden_size = config.hidden_size
         self.num_heads = config.num_attention_heads
@@ -363,22 +362,21 @@ class LlamaFlashAttention2(LlamaAttention):
 
     def __init__(self, config: LlamaConfig, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
-        
-        scale_factor = 1 / math.sqrt(self.head_dim)
-        self.flash_attention = FlashAttentionScore(
-            self.num_heads, keep_prob=1 - self.attention_dropout, scale_value=scale_factor, input_layout="BNSD"
+
+        self.flash_attention = FlashAttention2(
+            self.head_dim, self.num_heads, self.attention_dropout, input_layout="BNSD", dtype=ms.float16
         )
 
-    def convert_mask_to_fa_format(self, attention_mask, dtype=ms.float16):
+    def convert_mask_to_fa_format(self, attention_mask):
         if attention_mask is not None:
             if attention_mask.dtype == ms.bool_:
                 # flip mask, since ms FA treats 1 as discard, 0 as retain.
                 attention_mask = 1 - attention_mask
                 attention_mask = attention_mask.to(ms.uint8)
             else:
-                attention_mask = attention_mask.to(dtype)
+                attention_mask = attention_mask.to(ms.float16)
                 attention_mask = ops.select(
-                    ops.equal(attention_mask, dtype_to_min(dtype)),
+                    ops.equal(attention_mask, _MIN_FP16),
                     ops.ones((), ms.uint8),
                     ops.zeros((), ms.uint8),
                 )
@@ -437,12 +435,8 @@ class LlamaFlashAttention2(LlamaAttention):
         # 1. flash attention
         if attention_mask is not None:  # no matter the length, we just slice it
             attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-            attention_mask = (-attention_mask).to(ms.bool_)
-
-        _, _, _, attn_output = self.flash_attention(
-            query_states, key_states, value_states, None, None, None, attention_mask
-        )
-
+        attention_mask = self.convert_mask_to_fa_format(attention_mask)
+        attn_output = self.flash_attention(query_states, key_states, value_states, attention_mask)
         # assert attn_output.shape == (bsz, self.num_heads, q_len, self.head_dim)
 
         # 2. vanilla attention
@@ -904,21 +898,18 @@ class LlamaModel(LlamaPreTrainedModel):
             #     raise ValueError("Custom 4D attention mask should be passed in inverted form with max==0`")
             causal_mask = attention_mask
         else:
-            causal_mask = ops.broadcast_to(dtype_to_min(input_tensor.dtype), (sequence_length, target_length))
+            causal_mask = ops.broadcast_to(_MIN_FP16, (sequence_length, target_length))
             if sequence_length != 1:
                 causal_mask = ops.triu(causal_mask, diagonal=1)
             _mask_position = ops.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask *= _mask_position
-
-            causal_mask = causal_mask[None, None, :, :]
-            causal_mask = ops.broadcast_to(causal_mask, (input_tensor.shape[0], 1, -1, -1))
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((input_tensor.shape[0], 1, -1, -1))
             if attention_mask is not None:
-                #    causal_mask = causal_mask.clone()
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
                 causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
-                    padding_mask, dtype_to_min(input_tensor.dtype)
+                    padding_mask, _MIN_FP16
                 )
 
         return causal_mask
