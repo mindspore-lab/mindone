@@ -109,6 +109,7 @@ def init_model(
     if resume:
         logger.info("Resume training checkpoint provided, skipping weight loading.")
     elif pretrained_model_path:
+        logger.info(f"Load checkpoint {pretrained_model_path.absolute} into network...")
         model.load_from_checkpoint(pretrained_model_path.absolute)
     else:
         logger.info(f"Initialize {name} model randomly.")
