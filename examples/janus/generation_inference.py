@@ -63,7 +63,7 @@ def generate(
         )
         for batch_idx in range(inputs_embeds.shape[0]):
             padded_inputs_embeds[batch_idx, :inputs_embeds.shape[1]] = inputs_embeds[batch_idx][:]
-        input_ids = ms.mutable(padded_inputs_embeds)
+        inputs_embeds = ms.mutable(padded_inputs_embeds)
     else:
         init_kv = None
     outputs = []
@@ -75,7 +75,7 @@ def generate(
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
-            past_key_values=ms.mutable(outputs[1]) if (i != 0 and use_cache) else init_kv,
+            past_key_values=outputs[1] if (i != 0 and use_cache) else init_kv,
             return_dict=False,
         )
         hidden_states = outputs[0]
