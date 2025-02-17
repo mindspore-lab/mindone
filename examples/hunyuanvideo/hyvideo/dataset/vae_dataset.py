@@ -4,14 +4,13 @@ import json
 import logging
 import os
 import random
+from typing import Literal
 
 import imageio
 import numpy as np
 from decord import VideoReader
 from hyvideo.utils.dataset_utils import create_video_transforms
 from PIL import Image, ImageSequence
-
-import mindspore as ms
 
 logger = logging.getLogger(__name__)
 
@@ -224,40 +223,40 @@ def check_sanity(x, save_fp="./tmp.gif"):
     imageio.mimsave(save_fp, x, duration=1 / 8.0, loop=1)
 
 
-def create_dataloader(
-    dataset,
-    batch_size,
-    ds_name="video",
-    num_parallel_workers=12,
-    max_rowsize=32,
-    shuffle=True,
-    device_num=1,
-    rank_id=0,
-    drop_remainder=True,
-):
-    """
-    Args:
-        ds_config, dataset config, args for ImageDataset or VideoDataset
-        ds_name: dataset name, image or video
-    """
-    column_names = getattr(dataset, "output_columns", ["video"])
-    dataloader = ms.dataset.GeneratorDataset(
-        source=dataset,
-        column_names=column_names,
-        num_shards=device_num,
-        shard_id=rank_id,
-        python_multiprocessing=True,
-        shuffle=shuffle,
-        num_parallel_workers=num_parallel_workers,
-        max_rowsize=max_rowsize,
-    )
+class BatchTransform:
+    def __init__(
+        self,
+        mixed_strategy: Literal["mixed_video_image", "mixed_video_random", "image_only"],
+        mixed_image_ratio: float = 0.2,
+    ):
+        if mixed_strategy == "mixed_video_image":
+            self._trans_fn = self._mixed_video_image
+        elif mixed_strategy == "mixed_video_random":
+            self._trans_fn = self._mixed_video_random
+        elif mixed_strategy == "image_only":
+            self._trans_fn = self._image_only
+        else:
+            raise NotImplementedError(f"Unknown mixed_strategy: {mixed_strategy}")
+        self.mixed_image_ratio = mixed_image_ratio
 
-    dl = dataloader.batch(
-        batch_size,
-        drop_remainder=drop_remainder,
-    )
+    def _mixed_video_image(self, x: np.ndarray) -> np.ndarray:
+        if random.random() < self.mixed_image_ratio:
+            x = x[:, :, :1, :, :]
+        return x
 
-    return dl
+    @staticmethod
+    def _mixed_video_random(x: np.ndarray) -> np.ndarray:
+        # TODO: somehow it's slow. consider do it with tensor in NetWithLoss
+        length = random.randint(1, x.shape[2])
+        return x[:, :, :length, :, :]
+
+    @staticmethod
+    def _image_only(x: np.ndarray) -> np.ndarray:
+        return x[:, :, :1, :, :]
+
+    def __call__(self, x):
+        # x: (bs, c, t, h, w)
+        return self._trans_fn(x)
 
 
 if __name__ == "__main__":

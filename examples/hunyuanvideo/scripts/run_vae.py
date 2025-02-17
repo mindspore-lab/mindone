@@ -18,10 +18,12 @@ from mindone.visualize.videos import save_videos
 sys.path.append(".")
 
 from hyvideo.constants import PRECISION_TO_TYPE, PRECISIONS, VAE_PATH
-from hyvideo.dataset.vae_dataset import VideoDataset, create_dataloader
+from hyvideo.dataset.vae_dataset import VideoDataset
 from hyvideo.utils.data_utils import preprocess_image, preprocess_video, read_video, transform_to_rgb
 from hyvideo.utils.ms_utils import init_env
 from hyvideo.vae import load_vae
+
+from mindone.data import create_dataloader
 
 logger = logging.getLogger(__name__)
 
@@ -114,8 +116,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
     dataloader = create_dataloader(
         dataset,
         batch_size=batch_size,
-        ds_name=args.dataset_name,
-        num_parallel_workers=num_workers,
+        num_workers=num_workers,
         shuffle=False,  # be in order
         device_num=device_num,
         rank_id=rank_id,
