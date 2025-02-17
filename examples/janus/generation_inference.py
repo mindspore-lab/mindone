@@ -48,22 +48,34 @@ def generate(
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
-    
-    assert use_cache==False, "kv cache not supported"
+
     if use_cache:
-        init_kv = mmgpt.language_model.model.prepare_static_cache(inputs_embeds)
+        init_kv = ms.mutable(mmgpt.language_model.model.prepare_static_cache(inputs_embeds, args.max_new_tokens))
+        # pad input emb for aligning the shape, meets graph mode
+        emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
+        padded_inputs_embeds = ops.zeros(
+            (
+                inputs_embeds.shape[0],
+                args.max_new_tokens,
+                emb_length
+            ),
+            inputs_embeds.dtype if inputs_embeds is not None else None
+        )
+        for batch_idx in range(inputs_embeds.shape[0]):
+            padded_inputs_embeds[batch_idx, :inputs_embeds.shape[1]] = inputs_embeds[batch_idx][:]
+        input_ids = ms.mutable(padded_inputs_embeds)
     else:
         init_kv = None
     outputs = []
     # FIXME: use mint multinomial after ms2.5 adaptation
     multinomial = get_multinomial_op()
-    
+
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
-            past_key_values=outputs[1] if (i != 0 and use_cache) else init_kv,
+            past_key_values=ms.mutable(outputs[1]) if (i != 0 and use_cache) else init_kv,
             return_dict=False,
         )
         hidden_states = outputs[0]
@@ -118,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder")
     parser.add_argument("--use_cache", type=str2bool, default=False, help="use kv cache or not")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
+    parser.add_argument("--max_new_tokens", type=int, default=1024)
     # parser.add_argument("--jit_level", type=str, default="O0", choices=["O0", "O1", "O2"], help="graph optimization level")
     args = parser.parse_args()
 
