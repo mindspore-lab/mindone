@@ -743,7 +743,7 @@ class TrainStepForCogVideo(nn.Cell):
                 image_noise_sigma = ops.normal((images.shape[0],), -3.0, 0.5).to(self.vae_dtype)
                 image_noise_sigma = ops.exp(image_noise_sigma)
                 images = images + ops.randn_like(images) * image_noise_sigma[:, None, None, None, None]
-                images = self.vae.encode(images)[0]
+                images = self.vae.encode(images.to(self.vae_dtype))[0]
 
                 videos = videos.permute(0, 2, 1, 3, 4).to(self.vae_dtype)  # [B, C, F, H, W]
                 videos = self.vae.encode(videos)[0]
