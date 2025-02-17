@@ -40,6 +40,7 @@ class ZeroParamWrapper(nn.Cell):
         B = param.shape[0]
         if not param.parallel_optimizer or B < self.op_group_size or B % self.op_group_size != 0:
             need_rewrite = False
+        param.parallel_optimizer = need_rewrite
         return need_rewrite
 
     def construct(self, param):

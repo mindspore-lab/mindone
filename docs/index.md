@@ -32,6 +32,14 @@ hide:
 
     [:octicons-arrow-right-24: Start tuning!](peft/index.md)
 
+-   :star2: __Tools__
+
+    ---
+
+    Train Tools. Include Trainer, ZeRO, Image/Vedio data filtering strategy...
+
+    [:octicons-arrow-right-24: Using it!](tools/zero.md)
+
 -   > :rocket: __Accelerate__
 
     > ---

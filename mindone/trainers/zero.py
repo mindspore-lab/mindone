@@ -302,22 +302,20 @@ class ZeroHelper:
 
     def get_need_parameter_split(self):
         self.need_parameter_split = [False] * len(self.optimizer._parameters)
-        param_tuples = self.get_optimizer_param_tuples()
         for i, param in enumerate(self.optimizer._parameters):
             if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
+                self.need_parameter_split[i] = param.parallel_optimizer
             else:
                 B = param.shape[0]
-            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
-                if self.zero_stage in [1, 2]:
-                    self.need_parameter_split[i] = True
+                if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
+                    if self.zero_stage in [1, 2]:
+                        self.need_parameter_split[i] = True
         self.need_parameter_split = tuple(self.need_parameter_split)
 
     def split_params(self):
-        if self.zero_stage in [1, 2] and self.is_parallel:
+        if not (self.zero_stage in [1, 2, 3] and self.is_parallel):
+            return
+        if self.zero_stage in [1, 2]:
             _logger.info("Clone optimizer.parameters, will increase memory.")
             # Because the first input of MindSpore optimizer must be ms.Parameter,
             # copy optimizer.parameters for optimizer parameters update.
@@ -331,15 +329,14 @@ class ZeroHelper:
             _logger.debug(f"Split optimizer param {param.name} {param.shape}")
             # If zero_stage is 3, the parameters in train network have been split,
             # use parameter in param_tuples to get batch size.
-            if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
-            else:
-                B = param.shape[0]
             _logger.debug(f"Do split with zero_stage {self.zero_stage}")
-            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
+            if self.zero_stage in [1, 2]:
+                B = param.shape[0]
+                if self.ori_parameters[i] and B >= self.op_group_size and B % self.op_group_size == 0:
+                    param.parallel_optimizer = True
+                else:
+                    param.parallel_optimizer = False
+            if param.parallel_optimizer:
                 if self.zero_stage in [1, 2]:
                     ori_shape = param.shape
                     param.assign_value(self.split_param(param))
@@ -347,7 +344,7 @@ class ZeroHelper:
                 for param_tuple in param_tuples:
                     ori_shape = param_tuple[i].shape
                     param_tuple[i].assign_value(self.split_param(param_tuple[i]))
-                    _logger.debug(f"Optimizer {param_tuple[i].name} " f"from {ori_shape} to {param_tuple[i].shape}")
+                    _logger.debug(f"Optimizer {param_tuple[i].name} from {ori_shape} to {param_tuple[i].shape}")
 
     def reduce_scatter_gradients(self, gradients):
         dtype = gradients[0].dtype
