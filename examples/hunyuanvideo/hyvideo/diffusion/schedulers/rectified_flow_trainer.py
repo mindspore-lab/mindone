@@ -154,7 +154,7 @@ class RFlowLossWrapper(nn.Cell):
             text_states_2=text_states_2,
             guidance=guidance,
         ).to(mstype.float32)
-        v_t = x - noise
+        v_t = noise - x
 
         # 3.1.2 Eqa (2)
         loss = self.criteria(model_output, v_t)
