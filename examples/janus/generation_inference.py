@@ -145,8 +145,9 @@ if __name__ == "__main__":
     tokenizer = vl_chat_processor.tokenizer
 
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path)
-    dtype = ms.bfloat16
-    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+    # dtype = ms.bfloat16
+    # vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+    dtype = ms.float32
     vl_gpt.set_train(False)
 
     if args.ms_mode == 0:
