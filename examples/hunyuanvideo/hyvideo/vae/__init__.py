@@ -45,10 +45,9 @@ def load_vae(
         vae = AutoencoderKLCausal3D.from_config(config)
     if checkpoint is None:
         vae_ckpt = Path(path) / "model.safetensors"
-        logger.info(f"Load from default checkpoint {vae_ckpt}")
         # assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
-
         if vae_ckpt.exists():
+            logger.info(f"Load from default checkpoint {vae_ckpt}")
             ckpt = load_file(vae_ckpt)
             if "state_dict" in ckpt:
                 ckpt = ckpt["state_dict"]
@@ -56,16 +55,20 @@ def load_vae(
                 ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
             vae.load_state_dict(ckpt)
         else:
-            print("No vae ckpt is loaded")
+            print("No vae ckpt is loaded, use randomly initialized weight!")
     else:
         if isinstance(checkpoint, str):
-            logger.info(f"Load from checkpoint {checkpoint}")
-            assert checkpoint.exists(), f"The provided checkpoint {checkpoint} does not exist!"
-            state_dict = ms.load_checkpoint(checkpoint)
-            state_dict = dict(
-                [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
-            )
-            vae.load_state_dict(state_dict)
+            checkpoint = Path(checkpoint)
+            if checkpoint.exists():
+                logger.info(f"Load from checkpoint {checkpoint}")
+                state_dict = ms.load_checkpoint(checkpoint)
+                state_dict = dict(
+                    [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v]
+                    for k, v in state_dict.items()
+                )
+                vae.load_state_dict(state_dict)
+            else:
+                print("No vae ckpt is loaded, use randomly initialized weight!")
         elif isinstance(checkpoint, dict):
             logger.info("Load from state dictionary")
             vae.load_state_dict(checkpoint)
