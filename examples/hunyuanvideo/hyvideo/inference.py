@@ -227,19 +227,25 @@ class Inference(object):
                         subfolders = list(dit_weight.glob("rank_*"))
                         if len(subfolders) == 0:
                             raise ValueError(f"No sharded weights found in {dit_weight}")
-                        subfolder = dit_weight / f"rank_{rank_id}"
+                        subfolder = dit_weight / f"rank_{rank_id}" / "ckpt"
                         assert subfolder.exists(), f"Subfolder {subfolder} not found"
                         files = list(subfolder.glob("*.ckpt"))
                         if len(files) == 0:
                             raise ValueError(f"No model weights found in {subfolder}")
-                        model_path = files[0]
+                        model_path = sorted(files)[-1]
                         if len(files) > 1:
                             logger.warning(f"Multiple model weights found in {subfolder}, using {model_path}")
 
             elif dit_weight.is_file():
                 model_path = dit_weight
             else:
-                raise ValueError(f"Invalid model path: {dit_weight}")
+                if "rank_*" in str(dit_weight):
+                    # a wildcard pattern
+                    model_path = str(dit_weight).replace("rank_*", f"rank_{rank_id}")
+                    if not Path(model_path).exists():
+                        raise ValueError(f"{model_path} not found")
+                else:
+                    raise ValueError(f"Invalid model path: {dit_weight}")
 
         if not model_path.exists():
             raise ValueError(f"model_path not exists: {model_path}")
