@@ -42,6 +42,7 @@ class DiffusionWithLoss(nn.Cell):
         self.text_encoder_2 = text_encoder_2
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
+        self.vae_scaling_factor = self.vae.config.scaling_factor
 
         if self.text_emb_cached:
             self.text_encoder = None
@@ -67,7 +68,7 @@ class DiffusionWithLoss(nn.Cell):
             return video_tokens
         with no_grad():  # (B, C, T, H, W)
             video_emb = ops.stop_gradient(self.vae.encode(video_tokens)).to(ms.float32)
-            video_emb = video_emb * self.vae.config.scaling_factor
+            video_emb = video_emb * self.vae_scaling_factor
         return video_emb
 
     def construct(
