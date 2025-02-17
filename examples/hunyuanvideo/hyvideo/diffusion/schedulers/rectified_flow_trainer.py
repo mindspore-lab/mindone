@@ -82,11 +82,9 @@ class RFlowLossWrapper(nn.Cell):
         sample_method: Literal["discrete-uniform", "uniform", "logit-normal"] = "logit-normal",
         loc: float = 0.0,
         scale: float = 1.0,
-        eps: float = 1e-5,
     ) -> None:
         super().__init__(auto_prefix=False)
         self.num_timesteps = num_timesteps
-        self.eps = eps
 
         if sample_method == "discrete-uniform":
             self._sample_func = self._discrete_sample
@@ -156,7 +154,7 @@ class RFlowLossWrapper(nn.Cell):
             text_states_2=text_states_2,
             guidance=guidance,
         ).to(mstype.float32)
-        v_t = x - (1 - self.eps) * noise
+        v_t = x - noise
 
         # 3.1.2 Eqa (2)
         loss = self.criteria(model_output, v_t)
@@ -172,7 +170,7 @@ class RFlowLossWrapper(nn.Cell):
         timesteps = timesteps[:, None, None, None, None]
 
         # 3.1.2 First Eqa.
-        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise  # TODO: check for zero SNR
+        return timesteps * x + (1 - timesteps) * noise  # TODO: check for zero SNR
 
 
 class RFlowEvalLoss(nn.Cell):
