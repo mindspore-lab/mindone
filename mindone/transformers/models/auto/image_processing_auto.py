@@ -32,11 +32,7 @@ from ...image_processing_utils import BaseImageProcessor, ImageProcessingMixin
 from ...image_processing_utils_fast import BaseImageProcessorFast
 from ...utils import IMAGE_PROCESSOR_NAME, is_vision_available, logging
 from .auto_factory import _LazyAutoMapping
-from .configuration_auto import (
-    CONFIG_MAPPING_NAMES,
-    AutoConfig,
-    replace_list_option_in_docstrings,
-)
+from .configuration_auto import CONFIG_MAPPING_NAMES, AutoConfig, replace_list_option_in_docstrings
 
 logger = logging.get_logger(__name__)
 
