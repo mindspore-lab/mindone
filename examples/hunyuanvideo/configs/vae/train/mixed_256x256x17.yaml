@@ -10,7 +10,7 @@ vae:
   precision: bf16
   tiling: False
   trainable: True
-  checkpoint: "random_weight"
+  checkpoint:
 
 dataset:
   data_file_path: "../videocomposer/datasets/webvid5_copy.csv"
@@ -43,7 +43,7 @@ train:
     kl_weight: 1e-6
     perceptual_weight: 0.1
     loss_type: "l1"
-    print_losses: True
+    print_losses: False
 
 
   sequence_parallel:

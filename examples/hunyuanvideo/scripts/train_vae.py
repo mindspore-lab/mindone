@@ -17,13 +17,13 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.append(mindone_lib_path)
 sys.path.append(os.path.join(__dir__, ".."))
 from hyvideo.acceleration import create_parallel_group
+from hyvideo.constants import PRECISION_TO_TYPE
 from hyvideo.dataset import BatchTransform, VideoDataset
 from hyvideo.utils import EMA, init_model, resume_train_net
 from hyvideo.utils.callbacks import ReduceLROnPlateauByStep
 from hyvideo.utils.helpers import set_modules_requires_grad, set_train
 from hyvideo.vae import load_vae_train
-from hyvideo.vae.losses.discriminator import NLayerDiscriminator3D
-from hyvideo.vae.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
+from hyvideo.vae.losses import DiscriminatorWithLoss, GeneratorWithLoss, NLayerDiscriminator3D
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
@@ -51,10 +51,14 @@ def initialize_dataset(dataset_args, dataloader_args, sampler_args, device_num: 
     return dataloader, len(dataset)
 
 
-def create_train_network(vae, args):
+def create_train_network(vae, args, dtype):
     use_discriminator = args.train.losses.disc_weight > 0
     if use_discriminator:
         disc = NLayerDiscriminator3D()
+        if dtype != ms.float32:
+            amp_level = "O2"
+            disc = ms.amp.auto_mixed_precision(disc, amp_level=amp_level, dtype=dtype)
+            logger.info(f"Set discriminator mixed precision to {amp_level} with dtype={dtype}")
     else:
         disc = None
     ae_with_loss = GeneratorWithLoss(
@@ -104,13 +108,13 @@ def main(args):
         **args.vae,
     )
     # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
-    vae_dtype = args.vae.precision
+    vae_dtype = PRECISION_TO_TYPE[args.vae.precision]
     sample_n_frames = args.dataset.sample_n_frames
     if (sample_n_frames - 1) % 4 != 0:
         raise ValueError(f"`sample_n_frames - 1` must be a multiple of 4, got {sample_n_frames}")
 
     # 3. build training network
-    ae_with_loss, disc_with_loss = create_train_network(vae, args)
+    ae_with_loss, disc_with_loss = create_train_network(vae, args, dtype=vae_dtype)
 
     # 4. build train & val datasets
     if args.train.sequence_parallel.shards > 1:
@@ -312,7 +316,7 @@ def main(args):
                             )
                 # log
                 step_time = time.time() - start_time_s
-                if step % args.log_interval == 0:
+                if step % args.train.save.log_interval == 0:
                     if step_gen:
                         loss_ae = float(loss_ae_t.asnumpy())
                         logger.info(
