@@ -75,7 +75,7 @@ def generate(
         outputs = mmgpt.language_model.model(
             inputs_embeds=ms.mutable(inputs_embeds),
             use_cache=use_cache,
-            past_key_values=outputs[1] if (i != 0 and use_cache) else init_kv,
+            past_key_values=ms.mutable(outputs[1]) if (i != 0 and use_cache) else init_kv,
             return_dict=False,
         )
         hidden_states = outputs[0]
