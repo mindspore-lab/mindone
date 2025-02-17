@@ -902,7 +902,7 @@ class LlamaModel(LlamaPreTrainedModel):
             if sequence_length != 1:
                 causal_mask = ops.triu(causal_mask, diagonal=1)
             _mask_position = ops.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask *= _mask_position
+            causal_mask = causal_mask * _mask_position
             causal_mask = causal_mask[None, None, :, :].broadcast_to((input_tensor.shape[0], 1, -1, -1))
             if attention_mask is not None:
                 mask_length = attention_mask.shape[-1]
