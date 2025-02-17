@@ -1,0 +1,10 @@
+python scripts/run_vae.py \
+    --input-type video \
+    --video-path "path/to/input_video.mp4" \
+    --output-path "path/to/output_directory" \
+    --rec-path "reconstructed_video.mp4" \
+    --height 336 \
+    --width 336 \
+    --num-frames 65 \
+    --sample-rate 1 \
+    --fps 30 \
