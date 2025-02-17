@@ -1,0 +1,103 @@
+env:
+  mode: 0
+  jit_level: O0
+  seed: 42
+  distributed: False
+  debug: False
+
+vae:
+  type: "884-16c-hy"
+  precision: bf16
+  tiling: False
+  trainable: True
+  checkpoint: "random_weight"
+
+dataset:
+  data_file_path: "../videocomposer/datasets/webvid5_copy.csv"
+  data_folder: "../videocomposer/datasets/webvid5"
+  sample_stride: 1
+  sample_n_frames: 17
+  size: 256
+  crop_size: 256
+  output_columns: [ "video"]
+  disable_flip: False
+
+dataloader:
+  batch_size: 1
+  shuffle: True
+  num_workers_dataset: 4
+
+sampler:
+  mixed_strategy: "mixed_video_image"
+  mixed_image_ratio: 0.2
+
+
+train:
+  steps: 30000
+  output_path: ../../output/stage1_t2v_256px  # the path is relative to this config
+
+  losses:
+    lpips_ckpt_path: "pretrained/lpips_vgg-426bf45c.ckpt"
+    disc_start: 1000
+    disc_weight: 0.05
+    kl_weight: 1e-6
+    perceptual_weight: 0.1
+    loss_type: "l1"
+    print_losses: True
+
+
+  sequence_parallel:
+    shards: 1
+
+  lr_scheduler:
+    name: constant
+    lr: 5.0e-5
+    warmup_steps: 1000
+
+  lr_reduce_on_plateau:
+    factor: 0.5
+    patience: 50  # in the number of validation steps, i.e., valid.frequency * patience steps
+    mode: min
+    min_delta: 0.01
+    min_lr: 1.0e-6
+
+  optimizer_ae:
+    name: adamw_re
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.0001
+
+  optimizer_disc:
+    name: adamw_re
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.0001
+
+  loss_scaler_ae:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  loss_scaler_disc:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  ema:
+    ema_decay: 0.9999
+    offloading: True
+
+  settings:
+    zero_stage: 0
+    gradient_accumulation_steps: 1
+    clip_grad: True
+    clip_norm: 1.0
+    drop_overflow_update: True
+
+  save:
+    ckpt_save_policy: latest_k
+    ckpt_save_interval: &save_interval 1000
+    ckpt_max_keep: 10
+    log_interval: 1
+    save_ema_only: False
+    record_lr: False

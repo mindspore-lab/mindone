@@ -245,15 +245,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         return z
 
-    def encode(self, x: ms.Tensor, sample_posterior=True) -> ms.Tensor:
-        """
-        Encode a batch of images/videos into latents.
-
-        Args:
-            x (`ms.Tensor`): Input batch of images/videos.
-            sample_posterior (`bool`, *optional*, defaults to `True`):
-                Whether to return a posterior distribution or a posterior mean.
-        """
+    def _encode(self, x: ms.Tensor) -> ms.Tensor:
         assert len(x.shape) == 5, "The input tensor should have 5 dimensions."
 
         if self.use_temporal_tiling and x.shape[2] > self.tile_sample_min_tsize:
@@ -273,6 +265,18 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         moments = self.quant_conv(h)
         posterior_mean, posterior_logvar = mint.split(moments, [moments.shape[1] // 2, moments.shape[1] // 2], dim=1)
 
+        return posterior_mean, posterior_logvar
+
+    def encode(self, x: ms.Tensor, sample_posterior=True) -> ms.Tensor:
+        """
+        Encode a batch of images/videos into latents.
+
+        Args:
+            x (`ms.Tensor`): Input batch of images/videos.
+            sample_posterior (`bool`, *optional*, defaults to `True`):
+                Whether to return a sample from a posterior distribution or a posterior mean.
+        """
+        posterior_mean, posterior_logvar = self._encode(x)
         if sample_posterior:
             z = self.sample(posterior_mean, posterior_logvar)
         else:
@@ -332,9 +336,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             )
         return b
 
-    def spatial_tiled_encode(
-        self, x: ms.Tensor, sample_posterior: bool = True, return_moments: bool = False
-    ) -> ms.Tensor:
+    def spatial_tiled_encode(self, x: ms.Tensor, return_moments: bool = False) -> ms.Tensor:
         r"""Encode a batch of images/videos using a tiled encoder.
 
         When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several
@@ -344,9 +346,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         output, but they should be much less noticeable.
 
         Args:
-            x (`ms.Tensor`): Input batch of images/videos.
-            sample_posterior (`bool`, *optional*, defaults to `True`):
-                Whether to return a posterior distribution or a posterior mean.
+            posterior_mean: (ms.Tensor) The mean of the posterior distribution.
+            posterior_logvar: (ms.Tensor) The log variance of the posterior distribution.
         """
         overlap_size = int(self.tile_sample_min_size * (1 - self.tile_overlap_factor))
         blend_extent = int(self.tile_latent_min_size * self.tile_overlap_factor)
@@ -380,11 +381,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             return moments
 
         posterior_mean, posterior_logvar = mint.split(moments, [moments.shape[1] // 2, moments.shape[1] // 2], dim=1)
-        if sample_posterior:
-            z = self.sample(posterior_mean, posterior_logvar)
-        else:
-            z = posterior_mean
-        return z
+
+        return posterior_mean, posterior_logvar
 
     def spatial_tiled_decode(self, z: ms.Tensor) -> ms.Tensor:
         r"""
@@ -424,7 +422,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         dec = mint.cat(result_rows, dim=-2)
         return dec
 
-    def temporal_tiled_encode(self, x: ms.Tensor, sample_posterior: bool = True) -> ms.Tensor:
+    def temporal_tiled_encode(self, x: ms.Tensor) -> ms.Tensor:
         B, C, T, H, W = x.shape
         overlap_size = int(self.tile_sample_min_tsize * (1 - self.tile_overlap_factor))
         blend_extent = int(self.tile_latent_min_tsize * self.tile_overlap_factor)
@@ -454,11 +452,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         moments = mint.cat(result_row, dim=2)
         posterior_mean, posterior_logvar = mint.split(moments, [moments.shape[1] // 2, moments.shape[1] // 2], dim=1)
-        if sample_posterior:
-            z = self.sample(posterior_mean, posterior_logvar)
-        else:
-            z = posterior_mean
-        return z
+
+        return posterior_mean, posterior_logvar
 
     def temporal_tiled_decode(self, z: ms.Tensor) -> ms.Tensor:
         # Split z into overlapping tiles and decode them separately.
@@ -504,10 +499,15 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 Whether to sample from the posterior.
         """
         x = sample
-        z = self.encode(x, sample_posterior=sample_posterior)
+        posterior_mean, posterior_logvar = self._encode(x)
+        if sample_posterior:
+            z = self.sample(posterior_mean, posterior_logvar)
+        else:
+            z = posterior_mean
+
         dec = self.decode(z)
 
-        return dec
+        return dec, posterior_mean, posterior_logvar
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.fuse_qkv_projections
     def fuse_qkv_projections(self):

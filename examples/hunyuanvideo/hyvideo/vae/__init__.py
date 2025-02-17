@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Any
 
 import mindspore as ms
 
@@ -17,8 +18,8 @@ def load_vae(
     sample_size: tuple = None,
     tiling: bool = False,
     path: str = None,
-    logger=None,
-    checkpoint=None,
+    logger: Any = None,
+    checkpoint: str = None,
     trainable: bool = False,
 ):
     """the fucntion to load the 3D VAE model

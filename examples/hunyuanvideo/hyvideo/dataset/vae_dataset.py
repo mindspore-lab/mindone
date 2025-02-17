@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import random
-from typing import Literal
+from typing import List, Literal, Tuple, Union
 
 import imageio
 import numpy as np
@@ -37,20 +37,20 @@ def get_video_path_list(folder):
 class VideoDataset:
     def __init__(
         self,
-        data_file_path=None,
-        data_folder=None,
-        size=384,
-        crop_size=256,
-        random_crop=False,
-        sample_stride=4,
-        sample_n_frames=16,
-        return_image=False,
-        transform_backend="al",
-        video_column="video",
-        disable_flip=True,
-        dynamic_sample=False,  # random sample rate
-        dynamic_start_index=True,  # random start index
-        output_columns=["video", "path"],
+        data_file_path: str = None,
+        data_folder: str = None,
+        size: Union[Tuple[int], List[int], int] = 384,
+        crop_size: Union[Tuple[int], List[int], int] = 256,
+        random_crop: bool = False,
+        sample_stride: int = 4,
+        sample_n_frames: int = 16,
+        return_image: bool = False,
+        transform_backend: str = "al",
+        video_column: str = "video",
+        disable_flip: bool = True,
+        dynamic_sample: bool = False,  # random sample rate
+        dynamic_start_index: bool = True,  # random start index
+        output_columns: Union[Tuple[str], List[str]] = ["video", "path"],
     ):
         if data_file_path is not None:
             logger.info(f"loading videos from data file {data_file_path} ...")
@@ -83,9 +83,11 @@ class VideoDataset:
             disable_flip=disable_flip,
             num_frames=sample_n_frames,
         )
+        self.target_size = list(crop_size) if isinstance(crop_size, (tuple, list)) else [crop_size, crop_size]
+
         self.transform_backend = transform_backend
         self.video_column = video_column
-        self.output_columns = output_columns
+        self.output_columns = list(output_columns)
         assert "video" in self.output_columns, "At least video should be returned"
 
         # prepare replacement data
