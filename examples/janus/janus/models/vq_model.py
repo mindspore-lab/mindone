@@ -62,7 +62,7 @@ class Encoder(nn.Cell):
         super().__init__()
         self.num_resolutions = len(ch_mult)
         self.num_res_blocks = num_res_blocks
-        self.conv_in = nn.Conv2d(in_channels, ch, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True)
+        self.conv_in = mint.nn.Conv2d(in_channels, ch, kernel_size=3, stride=1, padding=1)
 
         # downsampling
         in_ch_mult = (1,) + tuple(ch_mult)
@@ -106,8 +106,8 @@ class Encoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in, norm_type)
-        self.conv_out = nn.Conv2d(
-            block_in, z_channels, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True,
+        self.conv_out = mint.nn.Conv2d(
+            block_in, z_channels, kernel_size=3, stride=1, padding=1
         )
 
     def construct(self, x):
@@ -150,8 +150,8 @@ class Decoder(nn.Cell):
 
         block_in = ch * ch_mult[self.num_resolutions - 1]
         # z to block_in
-        self.conv_in = nn.Conv2d(
-            z_channels, block_in, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True
+        self.conv_in = mint.nn.Conv2d(
+            z_channels, block_in, kernel_size=3, stride=1, padding=1
         )
 
         # middle
@@ -194,8 +194,8 @@ class Decoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in, norm_type)
-        self.conv_out = nn.Conv2d(
-            block_in, out_channels, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True
+        self.conv_out = mint.nn.Conv2d(
+            block_in, out_channels, kernel_size=3, stride=1, padding=1
         )
 
     @property
@@ -328,23 +328,23 @@ class ResnetBlock(nn.Cell):
         self.use_conv_shortcut = conv_shortcut
 
         self.norm1 = Normalize(in_channels, norm_type)
-        self.conv1 = nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True,
+        self.conv1 = mint.nn.Conv2d(
+            in_channels, out_channels, kernel_size=3, stride=1, padding=1
         )
         self.norm2 = Normalize(out_channels, norm_type)
         self.dropout = nn.Dropout(p=dropout)
-        self.conv2 = nn.Conv2d(
-            out_channels, out_channels, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True,
+        self.conv2 = mint.nn.Conv2d(
+            out_channels, out_channels, kernel_size=3, stride=1, padding=1
         )
 
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
-                self.conv_shortcut = nn.Conv2d(
-                    in_channels, out_channels, kernel_size=3, stride=1, pad_mode='pad', padding=1, has_bias=True,
+                self.conv_shortcut = mint.nn.Conv2d(
+                    in_channels, out_channels, kernel_size=3, stride=1, padding=1
                 )
             else:
-                self.nin_shortcut = nn.Conv2d(
-                    in_channels, out_channels, kernel_size=1, stride=1, pad_mode='valid', has_bias=True,
+                self.nin_shortcut = mint.nn.Conv2d(
+                    in_channels, out_channels, kernel_size=1, stride=1, padding=0
                 )
 
     def construct(self, x):
@@ -369,11 +369,11 @@ class AttnBlock(nn.Cell):
     def __init__(self, in_channels, norm_type="group"):
         super().__init__()
         self.norm = Normalize(in_channels, norm_type)
-        self.q = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
-        self.k = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
-        self.v = nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True)
-        self.proj_out = nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, pad_mode="valid", has_bias=True
+        self.q = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.k = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.v = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.proj_out = mint.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
         )
 
     def construct(self, x):
@@ -424,9 +424,10 @@ class Upsample(nn.Cell):
         super().__init__()
         self.with_conv = with_conv
         if self.with_conv:
-            self.conv = nn.Conv2d(
-                in_channels, in_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
+            self.conv = mint.nn.Conv2d(
+                in_channels, in_channels, kernel_size=3, stride=1, padding=1
             )
+
     def construct(self, x):
         # x = F.interpolate(x.to(ms.float32), scale_factor=2.0, mode="nearest").to(
         # TODO: if use amp, need to ensure interpolation is computed in fp32
@@ -451,8 +452,8 @@ class Downsample(nn.Cell):
         self.with_conv = with_conv
         if self.with_conv:
             # no asymmetric padding in torch conv, must do it ourselves
-            self.conv = nn.Conv2d(
-                in_channels, in_channels, kernel_size=3, stride=2, pad_mode="valid", padding=0, has_bias=True
+            self.conv = mint.nn.Conv2d(
+                in_channels, in_channels, kernel_size=3, stride=2, padding=0
             )
 
     def construct(self, x):
@@ -504,10 +505,9 @@ class VQModel(nn.Cell):
             config.codebook_l2_norm,
             config.codebook_show_usage,
         )
-        self.quant_conv = nn.Conv2d(config.z_channels, config.codebook_embed_dim, 1, pad_mode="valid", has_bias=True)
-
-        self.post_quant_conv = nn.Conv2d(
-            config.codebook_embed_dim, config.z_channels, 1, pad_mode="valid", has_bias=True
+        self.quant_conv = mint.nn.Conv2d(config.z_channels, config.codebook_embed_dim, 1)
+        self.post_quant_conv = mint.nn.Conv2d(
+            config.codebook_embed_dim, config.z_channels, 1
         )
 
     def encode(self, x):

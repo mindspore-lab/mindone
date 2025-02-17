@@ -245,7 +245,7 @@ class Mlp(nn.Cell):
         hidden_features = hidden_features or in_features
         bias = to_2tuple(bias)
         drop_probs = to_2tuple(drop)
-        linear_layer = partial(nn.Conv2d, kernel_size=1) if use_conv else mint.nn.Linear
+        linear_layer = partial(mint.nn.Conv2d, kernel_size=1) if use_conv else mint.nn.Linear
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
@@ -364,7 +364,7 @@ class PatchEmbed(nn.Cell):
         self.strict_img_size = strict_img_size
         self.dynamic_img_pad = dynamic_img_pad
 
-        self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, has_bias=bias)
+        self.proj = mint.nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias)
         self.norm = norm_layer([embed_dim]) if norm_layer else nn.Identity()
 
     def _init_img_size(self, img_size: Union[int, Tuple[int, int]]):
@@ -386,12 +386,12 @@ class PatchEmbed(nn.Cell):
             new_patch_size = to_2tuple(patch_size)
         if new_patch_size is not None and new_patch_size != self.patch_size:
             with ms._no_grad():
-                new_proj = nn.Conv2d(
+                new_proj = mint.nn.Conv2d(
                     self.proj.in_channels,
                     self.proj.out_channels,
                     kernel_size=new_patch_size,
                     stride=new_patch_size,
-                    has_bias=self.proj.bias is not None,
+                    bias=self.proj.bias is not None,
                 )
                 new_proj.weight.copy_(resample_patch_embed(self.proj.weight, new_patch_size, verbose=True))
                 if self.proj.bias is not None:

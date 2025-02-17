@@ -76,7 +76,7 @@ def generate(
         if temperature > 0:
             probs = mint.nn.functional.softmax(logits / temperature, dim=-1)
             # FIXME: rm .float() after switch to mint.multinomial
-            next_token = multinomial(probs.float(), num_samples=1, replacement=False)
+            next_token = multinomial(probs, num_samples=1)
         else:
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
