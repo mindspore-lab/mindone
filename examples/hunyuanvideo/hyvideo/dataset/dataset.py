@@ -185,9 +185,8 @@ class ImageVideoDataset(BaseDataset):
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
-            vae_latent = vae_latent / self._vae_scale_factor
-            if self._vae_shift_factor is not None:
-                vae_latent = vae_latent + self._vae_shift_factor
+
+            vae_latent = vae_latent * self._vae_scale_factor
             data["video"] = vae_latent
         else:
             if data["video"].lower().endswith(IMAGE_EXT):

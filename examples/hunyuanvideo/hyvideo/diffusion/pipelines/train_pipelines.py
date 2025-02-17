@@ -67,10 +67,7 @@ class DiffusionWithLoss(nn.Cell):
             return video_tokens
         with no_grad():  # (B, C, T, H, W)
             video_emb = ops.stop_gradient(self.vae.encode(video_tokens)).to(ms.float32)
-            if hasattr(self.vae.config, "shift_factor") and self.vae.config.shift_factor:
-                video_emb = video_emb / self.vae.config.scaling_factor + self.vae.config.shift_factor
-            else:
-                video_emb = video_emb / self.vae.config.scaling_factor
+            video_emb = video_emb * self.vae.config.scaling_factor
         return video_emb
 
     def construct(
