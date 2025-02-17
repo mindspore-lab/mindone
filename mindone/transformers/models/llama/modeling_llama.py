@@ -784,6 +784,8 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
+        else:  # for graph mode dynamic shape input, wrapped as a tuple outside
+            inputs_embeds = inputs_embeds[0]
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0

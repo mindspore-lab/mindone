@@ -63,7 +63,8 @@ def generate(
         )
         for batch_idx in range(inputs_embeds.shape[0]):
             padded_inputs_embeds[batch_idx, :inputs_embeds.shape[1]] = inputs_embeds[batch_idx][:]
-        inputs_embeds = padded_inputs_embeds
+        inputs_embeds = ()
+        inputs_embeds += (padded_inputs_embeds,)
     else:
         init_kv = None
     outputs = []
@@ -100,6 +101,7 @@ def generate(
 
         if use_cache:
             inputs_embeds = img_embeds.unsqueeze(dim=1)
+            inputs_embeds = (inputs_embeds,)
         else:
             inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
 
@@ -150,11 +152,11 @@ if __name__ == "__main__":
     dtype = ms.float32
     vl_gpt.set_train(False)
 
-    if args.ms_mode == 0:
-        bs = args.parallel_size * 2
-        hidden_size = vl_gpt.language_model.model.layers[0].hidden_size
-        input_dyn = ms.Tensor(shape=[bs, None, hidden_size], dtype=dtype)
-        vl_gpt.language_model.model.set_inputs(inputs_embeds=input_dyn)
+    # if args.ms_mode == 0:
+    #     bs = args.parallel_size * 2
+    #     hidden_size = vl_gpt.language_model.model.layers[0].hidden_size
+    #     input_dyn = ms.Tensor(shape=[bs, None, hidden_size], dtype=dtype)
+    #     vl_gpt.language_model.model.set_inputs(inputs_embeds=input_dyn)
 
     conversation = [
         {
