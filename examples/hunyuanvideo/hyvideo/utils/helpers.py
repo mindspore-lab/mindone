@@ -2,6 +2,7 @@ import collections.abc
 from itertools import repeat
 
 import mindspore as ms
+from mindspore import nn
 
 
 def _ntuple(n):
@@ -61,3 +62,24 @@ def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
         print(f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}.")
 
     return model
+
+
+def set_train(modules):
+    for module in modules:
+        if isinstance(module, nn.Cell):
+            module.set_train(True)
+
+
+def set_eval(modules):
+    for module in modules:
+        if isinstance(module, nn.Cell):
+            module.set_train(False)
+
+
+def set_modules_requires_grad(modules, requires_grad):
+    for module in modules:
+        if isinstance(module, nn.Cell):
+            for param in module.get_parameters():
+                param.requires_grad = requires_grad
+        elif isinstance(module, ms.Parameter):
+            module.requires_grad = requires_grad
