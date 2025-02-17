@@ -391,9 +391,9 @@ def main(args):
         batch_size=args.train_batch_size,
         per_batch_map=lambda examples, batch_info: collate_fn(examples),
         input_columns=["examples"],
-        output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"]
+        output_columns=["images", "videos", "text_input_ids", "rotary_positional_embeddings"]
         if transformer_config.use_rotary_positional_embeddings
-        else ["videos", "text_input_ids"],
+        else ["images", "videos", "text_input_ids"],
     )
 
     # Scheduler and math around the number of training steps.
