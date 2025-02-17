@@ -44,34 +44,29 @@ def load_vae(
         vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)
     else:
         vae = AutoencoderKLCausal3D.from_config(config)
+
     if checkpoint is None:
         vae_ckpt = Path(path) / "model.safetensors"
-        # assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
-        if vae_ckpt.exists():
-            logger.info(f"Load from default checkpoint {vae_ckpt}")
-            ckpt = load_file(vae_ckpt)
-            if "state_dict" in ckpt:
-                ckpt = ckpt["state_dict"]
-            if any(k.startswith("vae.") for k in ckpt.keys()):
-                ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
-            vae.load_state_dict(ckpt)
-        else:
-            print("No vae ckpt is loaded, use randomly initialized weight!")
+        assert vae_ckpt.exists(), f"VAE checkpoint not found: {vae_ckpt}"
+        logger.info(f"Load from default checkpoint {vae_ckpt}")
+        ckpt = load_file(vae_ckpt)
+        if "state_dict" in ckpt:
+            ckpt = ckpt["state_dict"]
+        if any(k.startswith("vae.") for k in ckpt.keys()):
+            ckpt = {k.replace("vae.", ""): v for k, v in ckpt.items() if k.startswith("vae.")}
+        vae.load_state_dict(ckpt)
     else:
+        # given the input checkpoint path or state dict
         if isinstance(checkpoint, str):
             checkpoint = Path(checkpoint)
-            if checkpoint.exists():
-                logger.info(f"Load from checkpoint {checkpoint}")
-                state_dict = ms.load_checkpoint(checkpoint)
-                state_dict = dict(
-                    [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v]
-                    for k, v in state_dict.items()
-                )
-                vae.load_state_dict(state_dict)
-            else:
-                print("No vae ckpt is loaded, use randomly initialized weight!")
+            assert checkpoint.exists(), f"VAE checkpoint not found: {checkpoint}"
+            logger.info(f"Load from checkpoint {checkpoint}")
+            state_dict = ms.load_checkpoint(checkpoint)
+            state_dict = dict(
+                [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
+            )
+            vae.load_state_dict(state_dict)
         elif isinstance(checkpoint, dict):
-            logger.info("Load from state dictionary")
             vae.load_state_dict(checkpoint)
         else:
             raise ValueError(f"The provided checkpoint {checkpoint} is not a valid checkpoint!")
@@ -112,3 +107,21 @@ def load_vae(
         vae.enable_tiling()
 
     return vae, path, spatial_compression_ratio, time_compression_ratio
+
+
+def load_vae_train(
+    type: str = "884-16c-hy",
+    precision: str = None,
+    sample_size: tuple = None,
+    tiling: bool = False,
+    path: str = None,
+    logger: Any = None,
+    checkpoint: str = None,
+    trainable: bool = False,
+):
+    # the function to initiate the 3D VAE model for training
+    assert trainable, "trainable must be True!"
+    if checkpoint is None:
+        checkpoint = {}  # empty state dict, use random weight
+
+    return load_vae(type, precision, sample_size, tiling, path, logger, checkpoint, trainable)

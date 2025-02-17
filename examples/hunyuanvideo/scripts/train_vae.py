@@ -21,7 +21,7 @@ from hyvideo.dataset import BatchTransform, VideoDataset
 from hyvideo.utils import EMA, init_model, resume_train_net
 from hyvideo.utils.callbacks import ReduceLROnPlateauByStep
 from hyvideo.utils.helpers import set_modules_requires_grad, set_train
-from hyvideo.vae import load_vae
+from hyvideo.vae import load_vae_train
 from hyvideo.vae.losses.discriminator import NLayerDiscriminator3D
 from hyvideo.vae.losses.net_with_loss import DiscriminatorWithLoss, GeneratorWithLoss
 
@@ -99,7 +99,7 @@ def main(args):
     # 2.1 vae
     logger.info("Initializing vae...")
     assert args.vae.trainable, "Expect vae to be trainable"
-    vae, _, s_ratio, t_ratio = load_vae(
+    vae, _, s_ratio, t_ratio = load_vae_train(
         logger=logger,
         **args.vae,
     )
@@ -437,7 +437,7 @@ if __name__ == "__main__":
     )
     parser.add_function_arguments(init_train_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
-    parser.add_function_arguments(load_vae, "vae", skip={"logger"})
+    parser.add_function_arguments(load_vae_train, "vae", skip={"logger"})
     parser.add_class_arguments(VideoDataset, "dataset", instantiate=False)
     parser.add_function_arguments(
         create_dataloader,
