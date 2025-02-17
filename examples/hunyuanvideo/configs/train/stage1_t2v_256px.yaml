@@ -85,9 +85,8 @@ train:
     clip_norm: 1.0
 
   save:
-    ckpt_save_policy: top_k
-    monitor_metric: eval_loss_smoothed
-    ckpt_save_interval: &save_interval 500
+    ckpt_save_policy: latest_k  # if using "top_k", set monitor_metric as "eval_loss_smoothed"
+    ckpt_save_interval: &save_interval 1000
     ckpt_max_keep: 10
     log_interval: 1
     save_ema_only: False

@@ -241,9 +241,7 @@ class Inference(object):
             else:
                 if "rank_*" in str(dit_weight):
                     # a wildcard pattern
-                    model_path = str(dit_weight).replace("rank_*", f"rank_{rank_id}")
-                    if not Path(model_path).exists():
-                        raise ValueError(f"{model_path} not found")
+                    model_path = Path(str(dit_weight).replace("rank_*", f"rank_{rank_id}"))
                 else:
                     raise ValueError(f"Invalid model path: {dit_weight}")
 

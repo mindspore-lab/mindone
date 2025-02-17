@@ -776,6 +776,10 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         elif ckpt_path.endswith(".ckpt"):
             parameter_dict = ms.load_checkpoint(ckpt_path)
             parameter_dict = dict(
+                [k.replace("network.model.model.", "") if k.startswith("network.model.model.") else k, v]
+                for k, v in parameter_dict.items()
+            )
+            parameter_dict = dict(
                 [k.replace("network.model.", "") if k.startswith("network.model.") else k, v]
                 for k, v in parameter_dict.items()
             )
