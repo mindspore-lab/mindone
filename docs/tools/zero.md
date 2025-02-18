@@ -36,11 +36,11 @@ net = Net()
 opt = nn.AdamWeightDecay(net.trainable_params(), learning_rate=1e-3)
 
 # build a train network with ZeRO
-train_net = prepare_train_network(net, opt, zero_stage=2, op_group=GlobalComm.WORLD_COMM_GROUP)
+train_net = prepare_train_network(net, opt, zero_stage=2, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
 ```
 
 !!! tip
-    op_group may not be GlobalComm.WORLD_COMM_GROUP. Using [create_group](https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore.communication.html#mindspore.communication.create_group) to create your op_group.
+    optimizer_parallel_group may not be GlobalComm.WORLD_COMM_GROUP. Using [create_group](https://www.mindspore.cn/docs/zh-CN/master/api_python/mindspore.communication.html#mindspore.communication.create_group) to create your optimizer_parallel_group.
 
 More details:
 
@@ -104,7 +104,7 @@ checkpoint save:
 ```python
 rank_id = get_rank_id()
 zero_stage=2
-train_net = prepare_train_network(net, opt, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP)
+train_net = prepare_train_network(net, opt, zero_stage=zero_stage, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
 if resume:
     network_ckpt = "network.ckpt" if zero_stage != 3 else f"network_{rank_id}.ckpt"
     ms.load_checkpoint(network_ckpt, net=train_net.network)
@@ -121,9 +121,9 @@ Inference need complete model parameters when use zero3. There are two ways(onli
 #### Online Checkpoint Combile
 
 ```python
-def do_ckpt_combine_online(net_to_save, op_group):
+def do_ckpt_combine_online(net_to_save, optimizer_parallel_group):
     new_net_to_save = []
-    all_gather_op = ops.AllGather(op_group)
+    all_gather_op = ops.AllGather(optimizer_parallel_group)
     for param in net_to_save:
         if param.parallel_optimizer:
             new_data = ms.Tensor(all_gather_op(param).asnumpy())
@@ -133,7 +133,7 @@ def do_ckpt_combine_online(net_to_save, op_group):
     return new_net_to_save
 
 net_to_save = [{"name": p.name, "data": p} for p in network.trainable_params()]
-net_to_save = net_to_save if zero_stage != 3 else do_ckpt_combine_online(net_to_save, op_group)
+net_to_save = net_to_save if zero_stage != 3 else do_ckpt_combine_online(net_to_save, optimizer_parallel_group)
 ms.save_checkpoint(net_to_save, "network.ckpt")
 ```
 

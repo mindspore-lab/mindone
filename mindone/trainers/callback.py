@@ -68,7 +68,7 @@ class EvalSaveCallback(Callback):
         train_steps: int = -1,
         prefer_low_perf: bool = False,
         zero_stage: int = 0,
-        op_group: str = None,
+        optimizer_parallel_group: str = None,
         ckpt_combine_online: bool = False,
     ):
         """
@@ -79,7 +79,7 @@ class EvalSaveCallback(Callback):
             resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint,
                                      e.g. ('swap.', 'vae.').
             zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
-            op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+            optimizer_parallel_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
             ckpt_combine_online (`bool`, *optional*): combining trainable parameters for saving checkpoint when zero_stage=3, \
                 using allgather ops to combile the checkpoint online if `ckpt_combine_online=True`, \
                 saving all device parameters if `ckpt_combine_online=False`, \
@@ -96,11 +96,11 @@ class EvalSaveCallback(Callback):
         self.need_save_network = self.is_main_device or (zero_stage == 3 and not self.ckpt_combine_online)
         self.need_save_optimizer = self.is_main_device or self.use_zero
         if self.use_zero:
-            if op_group is None:
+            if optimizer_parallel_group is None:
                 _logger.warning("EvalSaveCallback not set zero group, set it WORLD_COMM_GROUP.")
-                op_group = GlobalComm.WORLD_COMM_GROUP
-            self.op_group = op_group
-            self.op_rank_id = get_rank(op_group)
+                optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+            self.optimizer_parallel_group = optimizer_parallel_group
+            self.op_rank_id = get_rank(optimizer_parallel_group)
         self.ema = ema
         if output_dir is not None:
             self.output_dir = output_dir
@@ -170,7 +170,7 @@ class EvalSaveCallback(Callback):
 
     def _do_ckpt_combine_online(self):
         new_net_to_save = []
-        all_gather_op = ops.AllGather(self.op_group)
+        all_gather_op = ops.AllGather(self.optimizer_parallel_group)
         for param in self.net_to_save:
             if param.parallel_optimizer:
                 new_data = ms.Tensor(all_gather_op(param).asnumpy())
