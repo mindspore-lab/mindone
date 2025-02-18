@@ -1208,13 +1208,11 @@ class GenerationMixin:
             )
 
         for batch_idx, cur_attention_mask in enumerate(attention_mask):
-            # cur_len = cur_attention_mask.sum()
-            cur_len = len(cur_attention_mask)
+            cur_len = cur_attention_mask.sum()
 
-            padded_attention_mask[batch_idx, :cur_len] = attention_mask[batch_idx][:cur_len]
-            input_len = min(cur_len, input_ids[batch_idx].shape[0])
-            padded_input_ids[batch_idx, :input_len] = input_ids[batch_idx][:input_len]
-            padded_labels[batch_idx, :cur_len] = labels[batch_idx][:cur_len]
+            padded_attention_mask[batch_idx, :cur_len] = attention_mask[batch_idx][:]
+            padded_input_ids[batch_idx, : min(cur_len, input_ids[batch_idx].shape[0])] = input_ids[batch_idx][:]
+            padded_labels[batch_idx, :cur_len] = labels[batch_idx][:]
             padded_position_ids[batch_idx, :cur_len] = ops.arange(0, cur_len, dtype=position_ids.dtype)
 
             if inputs_embeds is not None:
@@ -1448,7 +1446,11 @@ class GenerationMixin:
                 raise NotImplementedError("Not support Quantized Cache")
         # Use DynamicCache instance by default. This will avoid back and forth from legacy format that
         # keeps copying the cache thus using much more memory
-        elif generation_config.cache_implementation is None and self._supports_default_dynamic_cache():
+        elif (
+            generation_config.cache_implementation is None
+            and self._supports_default_dynamic_cache()
+            and model_kwargs.get("use_cache", False)
+        ):
             past = model_kwargs.get(cache_name, None)
 
             requires_cross_attention_cache = (
@@ -1671,7 +1673,7 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        if not self._supports_default_dynamic_cache:
+        if not self._supports_default_dynamic_cache: # if tuple cache
             (
                 padded_input_ids,
                 padded_inputs_embeds,

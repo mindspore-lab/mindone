@@ -1,14 +1,16 @@
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+"""
+Cache utils.
+"""
+import copy
+import json
+import os
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from transformers.configuration_utils import PretrainedConfig
-from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import ops
-
-logger = logging.get_logger(__name__)
+from mindspore import nn, ops
 
 
 def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
@@ -104,8 +106,7 @@ def reset(past_key_values):
     return past_key_values
 
 
-@dataclass
-class Cache:
+class Cache(nn.Cell):
     """
     Base, abstract class for all caches. The actual data structure is specific to each subclass.
     """
@@ -159,15 +160,11 @@ class Cache:
     def reorder_cache(self, beam_idx: ms.Tensor):
         """Reorders the cache for beam search, given the selected beam indices."""
         for layer_idx in range(len(self.key_cache)):
-            self.key_cache[layer_idx] = self.key_cache[layer_idx].gather(input_indices=beam_idx, axis=0)
-            self.value_cache[layer_idx] = self.value_cache[layer_idx].gather(input_indices=beam_idx, axis=0)
+            self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx)
+            self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx)
 
     @property
     def seen_tokens(self):
-        logger.warning_once(
-            "The `seen_tokens` attribute is deprecated and will be removed in v4.41. Use the `cache_position` "
-            "model input instead."
-        )
         if hasattr(self, "_seen_tokens"):
             return self._seen_tokens
         else:
@@ -281,38 +278,119 @@ class StaticCache(Cache):
             ops.assign(self.value_cache[layer_idx], ms.Tensor(0.0))
 
 
+class CacheConfig:
+    """
+    Base class for cache configs
+    """
+
+    cache_implementation: None
+
+    @classmethod
+    def from_dict(cls, config_dict, **kwargs):
+        """
+        Constructs a CacheConfig instance from a dictionary of parameters.
+        Args:
+            config_dict (Dict[str, Any]): Dictionary containing configuration parameters.
+            **kwargs: Additional keyword arguments to override dictionary values.
+
+        Returns:
+            CacheConfig: Instance of CacheConfig constructed from the dictionary.
+        """
+        config = cls(**config_dict)
+        to_remove = []
+        for key, value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+                to_remove.append(key)
+        for key in to_remove:
+            kwargs.pop(key, None)
+        return config
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.to_json_file
+    def to_json_file(self, json_file_path: Union[str, os.PathLike]):
+        """
+        Save this instance to a JSON file.
+
+        Args:
+            json_file_path (`str` or `os.PathLike`):
+                Path to the JSON file in which this configuration instance's parameters will be saved.
+            use_diff (`bool`, *optional*, defaults to `True`):
+                If set to `True`, only the difference between the config instance and the default
+                `QuantizationConfig()` is serialized to JSON file.
+        """
+        with open(json_file_path, "w", encoding="utf-8") as writer:
+            config_dict = self.to_dict()
+            json_string = json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
+
+            writer.write(json_string)
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.to_dict
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serializes this instance to a Python dictionary. Returns:
+            `Dict[str, Any]`: Dictionary of all the attributes that make up this configuration instance.
+        """
+        return copy.deepcopy(self.__dict__)
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.__iter__
+    def __iter__(self):
+        """allows `dict(obj)` for situations where obj may be a dict or QuantizationConfigMixin"""
+        for attr, value in copy.deepcopy(self.__dict__).items():
+            yield attr, value
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.__repr__
+    def __repr__(self):
+        return f"{self.__class__.__name__} {self.to_json_string()}"
+
+    def to_json_string(self):
+        """
+        Serializes this instance to a JSON formatted string.
+        Returns:
+            str: JSON formatted string representing the configuration instance.
+        """
+        return json.dumps(self.__dict__, indent=2) + "\n"
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.update
+    def update(self, **kwargs):
+        """
+        Updates attributes of this class instance with attributes from `kwargs` if they match existing attributes,
+        returning all the unused kwargs.
+
+        Args:
+            kwargs (`Dict[str, Any]`):
+                Dictionary of attributes to tentatively update this class.
+
+        Returns:
+            `Dict[str, Any]`: Dictionary containing all the key-value pairs that were not used to update the instance.
+        """
+        to_remove = []
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+                to_remove.append(key)
+
+        # Remove all the attributes that were updated, without modifying the input dict
+        unused_kwargs = {key: value for key, value in kwargs.items() if key not in to_remove}
+        return unused_kwargs
+
+
 class DynamicCache(Cache):
     """
     A cache that grows dynamically as more tokens are generated. This is the default for generative models.
 
     It stores the Key and Value states as a list of tensors, one for each layer. The expected shape for each tensor is
     `[batch_size, num_heads, seq_len, head_dim]`.
-
-    Example:
-
-        ```python
-        >>> from mindone.transformers import AutoTokenizer, AutoModelForCausalLM, DynamicCache
-
-        >>> model = AutoModelForCausalLM.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
-        >>> tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-0.5B-Instruct")
-
-        >>> inputs = tokenizer(text="My name is Qwen2", return_tensors="np")
-
-        >>> # Prepare a cache class and pass it to model's forward
-        >>> past_key_values = DynamicCache()
-        >>> outputs = model(**inputs, past_key_values=past_key_values, use_cache=True)
-        >>> outputs.past_key_values # access cache filled with key/values from generation
-        DynamicCache()
-        ```
     """
 
-    # @deprecate_kwarg("num_hidden_layers", version="4.47.0")
-    # num_hidden_layers: Optional[int] = None
-    def __init__(self) -> None:
+    def __init__(self, num_hidden_layers: Optional[int] = None) -> None:
         super().__init__()
+        if num_hidden_layers is None:
+            self.key_cache: List[ms.Tensor] = []
+            self.value_cache: List[ms.Tensor] = []
+        else:
+            self.key_cache: List[ms.Tensor] = [[] for _ in range(num_hidden_layers)]
+            self.value_cache: List[ms.Tensor] = [[] for _ in range(num_hidden_layers)]
         self._seen_tokens = 0  # Used in `generate` to keep tally of how many tokens the cache has seen
-        self.key_cache: List[ms.Tensor] = []
-        self.value_cache: List[ms.Tensor] = []
 
     def __getitem__(self, layer_idx: int) -> List[Tuple[ms.Tensor]]:
         """
@@ -367,41 +445,29 @@ class DynamicCache(Cache):
             self._seen_tokens += key_states.shape[-2]
 
         # Update the cache
-        if key_states is not None:
-            if len(self.key_cache) <= layer_idx:
-                # There may be skipped layers, fill them with empty lists
-                for _ in range(len(self.key_cache), layer_idx):
-                    self.key_cache.append([])
-                    self.value_cache.append([])
-                self.key_cache.append(key_states)
-                self.value_cache.append(value_states)
-            elif (
-                len(self.key_cache[layer_idx]) == 0
-            ):  # fills previously skipped layers; checking for tensor causes errors
-                self.key_cache[layer_idx] = key_states
-                self.value_cache[layer_idx] = value_states
-            else:
-                self.key_cache[layer_idx] = ops.cat([self.key_cache[layer_idx], key_states], axis=-2)
-                self.value_cache[layer_idx] = ops.cat([self.value_cache[layer_idx], value_states], axis=-2)
+        if len(self.key_cache) <= layer_idx:
+            self.key_cache.append(key_states)
+            self.value_cache.append(value_states)
+        # content on layer cache can be a tensor and checking not tensor causes errors
+        # so we explicitly check for the empty list
+        elif self.key_cache[layer_idx] == []:
+            self.key_cache[layer_idx] = key_states
+            self.value_cache[layer_idx] = value_states
+        else:
+            self.key_cache[layer_idx] = ops.cat([self.key_cache[layer_idx], key_states], axis=-2)
+            self.value_cache[layer_idx] = ops.cat([self.value_cache[layer_idx], value_states], axis=-2)
 
         return self.key_cache[layer_idx], self.value_cache[layer_idx]
 
     def get_seq_length(self, layer_idx: Optional[int] = 0) -> int:
         """Returns the sequence length of the cached states. A layer index can be optionally passed."""
         # TODO: deprecate this function in favor of `cache_position`
-        is_empty_layer = (
-            len(self.key_cache) == 0  # no cache in any layer
-            or len(self.key_cache) <= layer_idx  # skipped `layer_idx` and hasn't run a layer with cache after it
-            or len(self.key_cache[layer_idx]) == 0  # the layer has no cache
-        )
-        layer_seq_length = self.key_cache[layer_idx].shape[-2] if not is_empty_layer else 0
-        return layer_seq_length
+        if len(self.key_cache) <= layer_idx or (len(self.key_cache) > layer_idx and self.key_cache[layer_idx] == []):
+            return 0
+        return self.key_cache[layer_idx].shape[-2]
 
     def get_max_length(self) -> Optional[int]:
-        return self.get_max_cache_shape()
-
-    def get_max_cache_shape(self) -> Optional[int]:
-        """Returns the maximum sequence length of the cache object. DynamicCache does not have a maximum length."""
+        """Returns the maximum sequence length of the cached states. DynamicCache does not have a maximum length."""
         return None
 
     def to_legacy_cache(self) -> Tuple[Tuple[ms.Tensor], Tuple[ms.Tensor]]:
@@ -435,9 +501,8 @@ class DynamicCache(Cache):
 
         self._seen_tokens = max_length
         for idx in range(len(self.key_cache)):
-            if self.key_cache[idx] != []:
-                self.key_cache[idx] = self.key_cache[idx][..., :max_length, :]
-                self.value_cache[idx] = self.value_cache[idx][..., :max_length, :]
+            self.key_cache[idx] = self.key_cache[idx][..., :max_length, :]
+            self.value_cache[idx] = self.value_cache[idx][..., :max_length, :]
 
     def batch_split(self, full_batch_size: int, split_size: int) -> List["DynamicCache"]:
         """Split the current instance into a list of `DynamicCache` by the batch size. This will be used by
@@ -457,19 +522,16 @@ class DynamicCache(Cache):
         `generation.utils`"""
         cache = cls()
         for idx in range(len(splits[0])):
-            key_cache = [current.key_cache[idx] for current in splits if current.key_cache[idx] != []]
-            value_cache = [current.value_cache[idx] for current in splits if current.value_cache[idx] != []]
-            if key_cache != []:
-                layer_keys = ops.cat(key_cache, axis=0)
-                layer_values = ops.cat(value_cache, axis=0)
-                cache.update(layer_keys, layer_values, idx)
+            layer_keys = ops.cat([current.key_cache[idx] for current in splits], dim=0)
+            layer_values = ops.cat([current.value_cache[idx] for current in splits], dim=0)
+            cache.update(layer_keys, layer_values, idx)
         return cache
 
     def batch_repeat_interleave(self, repeats: int):
         """Repeat the cache `repeats` times in the batch dimension. Used in contrastive search."""
         for layer_idx in range(len(self)):
-            self.key_cache[layer_idx] = self.key_cache[layer_idx].repeat_interleave(repeats, axis=0)
-            self.value_cache[layer_idx] = self.value_cache[layer_idx].repeat_interleave(repeats, axis=0)
+            self.key_cache[layer_idx] = ops.repeat_interleave(self.key_cache[layer_idx], repeats, dim=0)
+            self.value_cache[layer_idx] = ops.repeat_interleave(self.value_cache[layer_idx], repeats, dim=0)
 
     def batch_select_indices(self, indices: ms.Tensor):
         """Only keep the `indices` in the batch dimension of the cache. Used in contrastive search."""

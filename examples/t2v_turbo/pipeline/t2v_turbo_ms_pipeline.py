@@ -67,7 +67,7 @@ class T2VTurboMSPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat(num_videos_per_prompt, 1)
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         # Don't need to get uncond prompt embedding because of LCM Guided Distillation
@@ -177,7 +177,7 @@ class T2VTurboMSPipeline(DiffusionPipeline):
         bs = batch_size * num_videos_per_prompt
 
         # 6. Get Guidance Scale Embedding
-        w = ms.Tensor(guidance_scale).repeat(bs)
+        w = ms.Tensor(guidance_scale).tile((bs,))
         w_embedding = self.get_w_embedding(w, embedding_dim=256)
 
         # 7. LCM MultiStep Sampling Loop:
