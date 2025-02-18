@@ -78,7 +78,7 @@ The code is tested in the following environments
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:     |   :---:       | :---:    | :---:              |
-| 2.4.1     |  24.1.0     |7.35.23    |   8.0.RC3   |
+| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3   |
 
 
 ### Installation
