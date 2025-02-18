@@ -34,7 +34,7 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
 
     return key_value_cache
 
-
+# TODO backup code for a future implementation of the graph mode static cache
 # _pad_ops = ops.operations.PadV3()
 # _sub_ops = ops.operations.Sub()
 # _concat_ops = ops.operations.Concat(axis=0)  # for setting up arg 
@@ -84,26 +84,16 @@ def update(
     """
     k_out, v_out = past_key_value[0], past_key_value[1]
 
-    if cache_position.shape[0] == 1 or k_out.shape[2] != key_states.shape[2]:
-        k_out[:, :, cache_position] = key_states
-        v_out[:, :, cache_position] = value_states
-    else:
-        # # pad kv seq and cache pos if they do not match with  the $ size
-        # if cache_position.shape[0] != k_out.shape[2]:
-        #     key_states, value_states, cache_position = kv_padding_subsequence(
-        #         k_out.shape[2], cache_position.shape[0], key_states, value_states, cache_position, dtype=key_states.dtype
-        #     )
-
-        k_out = ops.select(
-            (ops.arange(k_out.shape[2]) == cache_position)[None, None, :, None],
-            key_states,
-            k_out,
-        )
-        v_out = ops.select(
-            (ops.arange(v_out.shape[2]) == cache_position)[None, None, :, None],
-            value_states,
-            v_out,
-        )
+    k_out = ops.select(
+        (ops.arange(k_out.shape[2]) == cache_position)[None, None, :, None],
+        key_states,
+        k_out,
+    )
+    v_out = ops.select(
+        (ops.arange(v_out.shape[2]) == cache_position)[None, None, :, None],
+        value_states,
+        v_out,
+    )
 
     return k_out, v_out
 

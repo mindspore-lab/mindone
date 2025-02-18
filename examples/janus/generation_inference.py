@@ -1,27 +1,20 @@
-import argparse
-import mindspore as ms
-from time import time
-from mindspore import mint, ops, Tensor
-from transformers import AutoModelForCausalLM
-import numpy as np
-import os
-import PIL.Image
-from tqdm import tqdm
-
 import os
 import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
-
+import argparse
+import mindspore as ms
+import numpy as np
+import PIL.Image
+from time import time
+from mindspore import mint, ops, Tensor
+from transformers import AutoModelForCausalLM
+from tqdm import tqdm
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import set_model_param_dtype
 from janus.models.compat import get_multinomial_op
-import numpy as np
-import os
-import PIL.Image
-from tqdm import tqdm
 
 
 def generate(
@@ -63,8 +56,7 @@ def generate(
         )
         for batch_idx in range(inputs_embeds.shape[0]):
             padded_inputs_embeds[batch_idx, :inputs_embeds.shape[1]] = inputs_embeds[batch_idx][:]
-        inputs_embeds = ()
-        inputs_embeds += (padded_inputs_embeds,)
+        inputs_embeds = padded_inputs_embeds
     else:
         init_kv = None
     outputs = []
@@ -74,7 +66,7 @@ def generate(
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
-            inputs_embeds=ms.mutable(inputs_embeds),
+            inputs_embeds=inputs_embeds,
             use_cache=use_cache,
             past_key_values=ms.mutable(outputs[1]) if (i != 0 and use_cache) else init_kv,
             return_dict=False,
@@ -101,12 +93,12 @@ def generate(
 
         if use_cache:
             inputs_embeds = img_embeds.unsqueeze(dim=1)
-            inputs_embeds = (inputs_embeds,)
         else:
             inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
 
     time_cost = time() - st
-    print("Time cost (s): {:.4f}, est. throughput (tokens/s): {:4f}".format(time_cost, generated_tokens.shape[-1]/time_cost))
+    print("Time cost (s): {:.4f}, step time (s): {:.4f}\nEst. throughput (tokens/s): {:4f}\n"
+          .format(time_cost, time_cost/image_token_num_per_image, generated_tokens.shape[-1]/time_cost))
 
     dec = mmgpt.gen_vision_model.decode_code(generated_tokens.to(dtype=ms.int32), shape=[parallel_size, 8, img_size//patch_size, img_size//patch_size])
     dec = dec.to(ms.float32).transpose(0, 2, 3, 1).asnumpy()
@@ -133,7 +125,6 @@ if __name__ == "__main__":
     parser.add_argument("--use_cache", type=str2bool, default=False, help="use kv cache or not")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_new_tokens", type=int, default=1024)
-    # parser.add_argument("--jit_level", type=str, default="O0", choices=["O0", "O1", "O2"], help="graph optimization level")
     args = parser.parse_args()
 
     # ms context
@@ -147,16 +138,9 @@ if __name__ == "__main__":
     tokenizer = vl_chat_processor.tokenizer
 
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path)
-    # dtype = ms.bfloat16
-    # vl_gpt = set_model_param_dtype(vl_gpt, dtype)
-    dtype = ms.float32
+    dtype = ms.bfloat16
+    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
-
-    # if args.ms_mode == 0:
-    #     bs = args.parallel_size * 2
-    #     hidden_size = vl_gpt.language_model.model.layers[0].hidden_size
-    #     input_dyn = ms.Tensor(shape=[bs, None, hidden_size], dtype=dtype)
-    #     vl_gpt.language_model.model.set_inputs(inputs_embeds=input_dyn)
 
     conversation = [
         {
