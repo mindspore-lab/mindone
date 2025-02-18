@@ -83,7 +83,7 @@ class EvalSaveCallback(Callback):
             ckpt_combine_online (`bool`, *optional*): combining trainable parameters for saving checkpoint when zero_stage=3, \
                 using allgather ops to combile the checkpoint online if `ckpt_combine_online=True`, \
                 saving all device parameters if `ckpt_combine_online=False`, \
-                and need to use `transform_checkpoints` to combile the checkpoint offline. default is False.
+                and need to use `convert_checkpoints` to combile the checkpoint offline. default is False.
         """
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]

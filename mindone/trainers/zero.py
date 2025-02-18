@@ -622,7 +622,7 @@ def prepare_train_network(
     return train_network
 
 
-def transform_checkpoints(src_checkpoint: str, src_param_split_info_json: str, group_size: int):
+def convert_checkpoints(src_checkpoint: str, src_param_split_info_json: str, group_size: int):
     """
     src_checkpoint (`str`): The path of checkpoints need to merge parameters. eg. "save_checkpoint_dir/ckpt_{}.ckpt",
         {} is placeholder of rank_id.

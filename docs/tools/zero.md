@@ -144,12 +144,12 @@ Add the code when need save model parameters.
 Parameters split infomation will be save when using ZereHelper, could use it to combile the checkpoints offline.
 
 ```python
-from mindone.trainers.zero import transform_checkpoints
+from mindone.trainers.zero import convert_checkpoints
 
 src_checkpoint = "save_checkpoint_dir/ckpt_{}.ckpt"
 src_param_split_info_json = "params_info/params_split_info_{}.json"
 group_size = 2
-transform_checkpoints(src_checkpoint, src_param_split_info_json, group_size)
+convert_checkpoints(src_checkpoint, src_param_split_info_json, group_size)
 ```
 
 And get the complete model parameters checkpoint at `save_checkpoint_dir/ckpt_all_2.ckpt`.
