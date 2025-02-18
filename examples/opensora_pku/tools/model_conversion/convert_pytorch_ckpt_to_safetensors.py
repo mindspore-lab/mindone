@@ -31,9 +31,9 @@ def _remove_duplicate_names(
                 complete_names = {name}
             else:
                 raise RuntimeError(
-                    f"Error while trying to find names to remove to save state dict, but found no suitable name to keep for saving amongst: {shared}.\
+                    f"Error while trying to find names to remove to save state dict, but found no suitable name to keep for saving amongst {shared}.\
                       None is covering the entire storage.Refusing to save/load the model since you could be storing much more memory than needed. \
-                      Please refer to https://huggingface.co/docs/safetensors/torch_shared_tensors for more information. Or open an issue."
+                      Please refer to https: //huggingface.co/docs/safetensors/torch_shared_tensors for more information. Or open an issue."
                 )
 
         keep_name = sorted(list(complete_names))[0]
@@ -62,9 +62,7 @@ def check_file_size(sf_filename: str, pt_filename: str):
 
     if (sf_size - pt_size) / pt_size > 0.01:
         raise RuntimeError(
-            f"""The file size different is more than 1%:
-         - {sf_filename}: {sf_size}
-         - {pt_filename}: {pt_size}
+            f"""The file size different is more than 1%, \n - {sf_filename} {sf_size} \n - {pt_filename} {pt_size}
          """
         )
 
@@ -97,6 +95,8 @@ def convert_file(
     loaded = torch.load(pt_filename, map_location="cpu", weights_only=True)
     if "state_dict" in loaded:
         loaded = loaded["state_dict"]
+    if "ema_state_dict" in loaded:
+        loaded = loaded["ema_state_dict"]
     to_removes = _remove_duplicate_names(loaded, discard_names=discard_names)
 
     metadata = {"format": "pt"}
@@ -153,4 +153,4 @@ if __name__ == "__main__":
     discard_names = get_discard_names(config_path) if config_path else []
 
     convert_file(pt_filename, sf_filename, discard_names)
-    print(f"Conversion successful! `safetensors` file saved at: {sf_filename}")
+    print(f"Conversion successful! safetensors file saved at: {sf_filename}")

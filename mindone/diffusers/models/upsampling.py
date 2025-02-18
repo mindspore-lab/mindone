@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 import mindspore as ms
 from mindspore import nn, ops
 
-from .layers_compat import conv_transpose2d, fp32_interpolate, pad
+from .layers_compat import conv_transpose2d, pad, upsample_nearest3d_free_interpolate
 from .normalization import LayerNorm, RMSNorm
 
 
@@ -348,7 +348,8 @@ class KUpsample2D(nn.Cell):
                 inputs.shape[1],
                 self.kernel.shape[0],
                 self.kernel.shape[1],
-            ]
+            ],
+            dtype=inputs.dtype,
         )
         indices = ops.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))
@@ -403,22 +404,22 @@ class CogVideoXUpsample3D(nn.Cell):
                 # split first frame
                 x_first, x_rest = inputs[:, :, 0], inputs[:, :, 1:]
 
-                x_first = fp32_interpolate(x_first, scale_factor=2.0)
-                x_rest = fp32_interpolate(x_rest, scale_factor=2.0)
+                x_first = upsample_nearest3d_free_interpolate(x_first, scale_factor=2.0)
+                x_rest = upsample_nearest3d_free_interpolate(x_rest, scale_factor=2.0)
                 x_first = x_first[:, :, None, :, :]
                 inputs = ops.cat([x_first, x_rest], axis=2)
             elif inputs.shape[2] > 1:
-                inputs = fp32_interpolate(inputs, scale_factor=2.0)
+                inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
             else:
                 if inputs.shape[2] == 1:
                     inputs = inputs.squeeze(2)
-                inputs = fp32_interpolate(inputs, scale_factor=2.0)
+                inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
                 inputs = inputs[:, :, None, :, :]
         else:
             # only interpolate 2D
             b, c, t, h, w = inputs.shape
             inputs = inputs.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
-            inputs = fp32_interpolate(inputs, scale_factor=2.0)
+            inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
             inputs = inputs.reshape(b, t, c, *inputs.shape[2:]).permute(0, 2, 1, 3, 4)
 
         b, c, t, h, w = inputs.shape

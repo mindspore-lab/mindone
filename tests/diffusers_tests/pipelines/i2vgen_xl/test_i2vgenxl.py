@@ -23,6 +23,12 @@ from transformers import CLIPTextConfig, CLIPVisionConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -217,4 +223,45 @@ class I2VGenXLPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_frame[0][0][0][-3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class I2VGenXLPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_i2vgen_xl(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.i2vgen_xl.I2VGenXLPipeline")
+        pipe = pipe_cls.from_pretrained("ali-vilab/i2vgen-xl", mindspore_dtype=ms_dtype, variant="fp16")
+        pipe.set_progress_bar_config(disable=None)
+
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat_6.png",
+            subfolder="pix2pix",
+        )
+
+        num_frames = 3
+
+        torch.manual_seed(0)
+        output = pipe(
+            image=image,
+            prompt="my cat",
+            num_frames=num_frames,
+            num_inference_steps=3,
+            output_type="np",
+        )
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2vgen_xl_{dtype}.npy",
+            subfolder="i2vgen_xl",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold

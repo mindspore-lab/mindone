@@ -39,6 +39,7 @@ from packaging.version import parse
 import mindspore as ms
 from mindspore import ops
 from mindspore.common.api import _function_forbid_reuse
+from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpolate_ext_scale_factor_convert_size
 
 __all__ = [
     "conv_transpose1d",
@@ -46,6 +47,7 @@ __all__ = [
     "group_norm",
     "interpolate",
     "fp32_interpolate",
+    "upsample_nearest3d_free_interpolate",
     "multinomial",
     "pad",
     "view_as_complex",
@@ -299,6 +301,50 @@ def _fp32_interpolate(input, **kwargs):
 
 
 fp32_interpolate = _fp32_interpolate
+
+
+# ================================================================================
+# upsample_nearest3d_free_interpolate
+# ================================================================================
+def upsample_nearest3d_free_interpolate(
+    input,
+    size=None,
+    scale_factor=None,
+    mode="nearest",
+    align_corners=None,
+    recompute_scale_factor=None,
+):
+    r"""
+    When input is 5-dimensions tensor and mode is 'nearest', interpolate calls `aclnnUpsampleNearest3d`
+    in Ascend, which is slow and doesn't support Bfloat16.
+
+    This is an equivalent impl which doesn't use UpsampleNearest3d, it uses UpsampleNearest1d and UpsampleNearest2d
+    to do the same thing.
+    """
+    if input.ndim != 5 or mode != "nearest":
+        return interpolate(input, size, scale_factor, mode, align_corners, recompute_scale_factor)
+
+    # check for size and scale_factor
+    if size is not None and scale_factor is not None:
+        raise ValueError("For 'interpolate', 'size' and 'scale_factor' cannot be set simultaneously")
+    if size is not None:
+        size = _interploate_ext_make_tuple(input, size)
+    elif scale_factor is not None:
+        scale_factor = _interploate_ext_make_tuple(input, scale_factor)
+        size = _interpolate_ext_scale_factor_convert_size(input, scale_factor)
+        scale_factor = None
+    else:
+        raise ValueError("For 'interpolate', 'size' and 'scale_factor' cannot be both empty")
+
+    B, C, T, H, W = input.shape
+    # interpolate H, W
+    x = interpolate(input.reshape(-1, T, H, W), size[1:])
+    # interpolate T
+    x = x.permute(0, 2, 3, 1).reshape(B * C, -1, T)
+    x = interpolate(x, size[0])
+    # reshape to (b, c, t', h', w')
+    x = x.reshape(B, C, size[-2], size[-1], size[0]).permute(0, 1, 4, 2, 3)
+    return x
 
 
 # ================================================================================

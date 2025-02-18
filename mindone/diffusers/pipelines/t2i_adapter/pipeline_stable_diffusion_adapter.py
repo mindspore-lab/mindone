@@ -911,7 +911,7 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline, StableDiffusionMixin):
             image, has_nsfw_concept = self.run_safety_checker(image, prompt_embeds.dtype)
 
             # 10. Convert to PIL
-            image = self.numpy_to_pil(image.numpy())
+            image = self.numpy_to_pil(image)
         else:
             # 8. Post-processing
             image = self.decode_latents(latents)

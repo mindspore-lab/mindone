@@ -21,6 +21,7 @@ logger = logging.getLogger("PipelinesUnitTest")
 
 THRESHOLD_FP16 = 5e-2
 THRESHOLD_FP32 = 5e-3
+THRESHOLD_PIXEL = 20.0
 
 
 # copied from mindone.diffusers.models.modeling_utils

@@ -22,9 +22,17 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils import PIL_INTERPOLATION
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -141,4 +149,37 @@ class LDMSuperResolutionPipelineFastTests(PipelineTesterMixin, unittest.TestCase
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class LDMSuperResolutionPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference_superresolution(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "teddy_bear_pool.png",
+            subfolder="vq_diffusion",
+        )
+        init_image = init_image.resize((64, 64), resample=PIL_INTERPOLATION["lanczos"])
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.latent_diffusion.LDMSuperResolutionPipeline")
+        ldm = pipe_cls.from_pretrained(
+            "CompVis/ldm-super-resolution-4x-openimages", variant="fp16", mindspore_dtype=ms_dtype
+        )
+        ldm.set_progress_bar_config(disable=None)
+
+        torch.manual_seed(0)
+        image = ldm(image=init_image, num_inference_steps=20)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"superresolution_{dtype}.npy",
+            subfolder="latent_diffusion",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

@@ -17,7 +17,7 @@ from mindspore import Callback, Model, nn
 
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
+from mindone.trainers.callback import EvalSaveCallback
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.env import init_train_env
 from mindone.utils.logger import set_logger
@@ -57,7 +57,7 @@ def main(args):
         train_cfg,
         checkpoints=train_cfg.pretrained,
         freeze=False,
-        amp_level="O0",  # the network should be init as O0, otherwise loss becomes fp16 just in the current code base and raise loss nan
+        amp_level=train_cfg.amp_level,
     )
 
     temporal_param_names = ldm_with_loss.model.diffusion_model.get_temporal_param_names(prefix="model.diffusion_model.")
@@ -94,7 +94,7 @@ def main(args):
         ldm_with_loss, optimizer=optimizer, scale_sense=loss_scaler, **train_cfg.settings
     )
 
-    callbacks = [OverflowMonitor(), SetTrainCallback()]
+    callbacks = [SetTrainCallback()]
 
     if rank_id == 0:
         callbacks.extend(
@@ -127,9 +127,9 @@ def main(args):
             [
                 f"Debugging: {_debug}",
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {_mode}",
-                f"Num params sv3d: {num_params: , } (unet: {num_params_unet: , }, \
-                    text encoder: {num_params_text_encoder: , }, vae: {num_params_vae: , })",
-                f"Num trainable params: {num_trainable_params: , }",
+                f"Num params sv3d: {num_params:,} (unet: {num_params_unet:,}, \
+                    text encoder: {num_params_text_encoder:,}, vae: {num_params_vae:,})",
+                f"Num trainable params: {num_trainable_params:,}",
                 f"Precision sv3d: {train_cfg.amp_level}",
                 f"Num epochs: {train_cfg.epochs}",
                 f"Learning rate: {train_cfg.scheduler.lr}",

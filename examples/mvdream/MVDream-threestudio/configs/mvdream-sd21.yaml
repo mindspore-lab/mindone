@@ -1,0 +1,122 @@
+name: "mvdream-sd21-rescale0.5"
+tag: "out_from_training"
+trial_dir: "outputs_trial_120views"
+exp_root_dir: "outputs"
+resume:
+
+data_type: "random-multiview-camera-datamodule"
+data:
+  n_view: 4
+  # 0-4999: 64x64, >=5000: 256x256
+  batch_size: 8  # must be dividable by n_view
+  width: 64
+  height: 64
+  resolution_milestones: [5000]
+  camera_distance_range: [0.8, 1.0] # relative
+  fovy_range: [15, 60]
+  elevation_range: [0, 30]
+  camera_perturb: 0.
+  center_perturb: 0.
+  up_perturb: 0.
+  n_val_views: 4
+  eval_camera_distance: 3.0
+  eval_fovy_deg: 40.
+
+
+system_type: "mvdream-system"
+system:
+  use_recompute: false
+  geometry_type: "implicit-volume"
+  geometry:
+    radius: 1.0
+    normal_type: null
+    density_bias: "blob_magic3d"
+    density_activation: softplus
+    density_blob_scale: 10.
+    density_blob_std: 0.5
+
+    pos_encoding_config:
+      otype: HashGrid
+      n_levels: 16
+      n_features_per_level: 2
+      log2_hashmap_size: 19
+      base_resolution: 16
+      per_level_scale: 1.447269237440378 # max resolution 4096
+
+  material_type: "no-material"
+  material:
+    n_output_dims: 3
+    color_activation: sigmoid
+
+  background_type: "neural-environment-map-background"
+  background:
+    color_activation: sigmoid
+    random_aug: true
+    share_aug_bg: true
+
+  renderer_type: "nerf-volume-renderer"
+  renderer:
+    radius: 1.0
+    num_samples_per_ray: 64  # default nerf, try it for now, as not doing custom ascendcl acceleration
+
+  prompt_processor_type: "stable-diffusion-prompt-processor"
+  prompt_processor:
+    pretrained_model_name_or_path: "stabilityai/stable-diffusion-2-1-base"
+    prompt: "an astronaut riding a horse"
+    negative_prompt: "ugly, bad anatomy, blurry, pixelated obscure, unnatural colors, poor lighting, dull, and unclear, cropped, lowres, low quality, artifacts, duplicate, morbid, mutilated, poorly drawn face, deformed, dehydrated, bad proportions"
+    front_threshold: 30.
+    back_threshold: 30.
+    spawn: false
+
+  guidance_type: "multiview-diffusion-guidance"
+  guidance:
+    model_name: "sd-v2.1-base-4view"
+    ckpt_path: "~/examples/mvdream/MVDream/sd-v2.1-base-4view.ckpt"
+    guidance_scale: 50.0
+    min_step_percent: [0, 0.98, 0.02, 8000]  # (start_iter, start_val, end_val, end_iter)
+    max_step_percent: [0, 0.98, 0.50, 8000]
+    recon_loss: true
+    recon_std_rescale: 0.5
+
+  loss:
+    lambda_sds: 1.
+    lambda_orient: 0.
+    lambda_sparsity: 0.
+    lambda_opaque: 0.
+    lambda_z_variance: 0.
+
+  optimizer:
+    name: AdamW
+    args:
+      betas: [0.9, 0.99]
+      eps: 1.e-15
+      weight_decay: 0.01
+    lr_params:
+      geometry_encoding: 0.01
+      geometry_density_network: 0.001
+      geometry_feature_network: 0.001
+      background: 0.001
+
+train_cfg:
+  params:
+    save_interval: 200
+    log_interval: 1  # dump to log_0.txt file
+    ckpt_max_keep: 2
+    amp_level: O2
+    max_steps: 10000
+    log_every_n_steps: 1
+    num_sanity_val_steps: 0
+    val_check_interval: 200
+    precision:
+  dataloader:
+    num_workers: 4
+    shuffle: false
+    drop_remainder: true
+  settings:
+    gradient_acc:
+    clip_grad:
+    clip_norm:
+  loss_scale:
+    loss_scale_value: 65536
+    scale_factor: 2
+    scale_window: 1000
