@@ -498,14 +498,7 @@ class Emu3FlashAttention2(Emu3Attention):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-        # flash_attn<2.1 generates top-left aligned causal mask,
-        # while what is needed here is bottom-right alignement, that was made default for flash_attn>=2.1.
-        # This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
-        # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
-        # self._flash_attn_uses_top_left_mask = False # not is_flash_attn_greater_or_equal_2_10()
         self.enable_flash_attention = FLASH_IS_AVAILABLE
-
         dropout_rate = self.attention_dropout if self.training else 0.0
 
         if self.enable_flash_attention:
@@ -558,21 +551,11 @@ class Emu3FlashAttention2(Emu3Attention):
             kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
         cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
+        # NOTE: MSFlashAttention needs shape of BNSD ==> [batch_size,  num_heads, sequence_length, head_dim].
 
         if past_key_value is not None:
             cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-
-        # TODO: These transpose are quite inefficient but Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim].
-        # We would need to refactor the KV cache
-        # to be able to avoid many of these swapaxes/reshape/view.
-        # query_states = query_states.swapaxes(1, 2)
-        # key_states = key_states.swapaxes(1, 2)
-        # value_states = value_states.swapaxes(1, 2)
-
-        # NOTE: MSFlashAttention needs shape of BNSD ==> [batch_size,  num_heads, sequence_length, head_dim].
-
-        # dropout_rate = self.attention_dropout if self.training else 0.0
 
         # In PEFT, usually we cast the layer norms in float32 for training stability reasons
         # therefore the input hidden states gets silently casted in float32. Hence, we need
@@ -837,7 +820,10 @@ class Emu3PreTrainedModel(MSPreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
     _supports_sdpa = True
-    _supports_cache_class = True # support DynamicCache
+    _supports_cache_class = True  # support Cache Classes
+    # True: use DynamicCache by default, if cache_implementation=="static", use StaticCache;
+    # False: use default Tuple static cache
+    # Emu3 only supports DynamicCache for now
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -998,6 +984,7 @@ class Emu3Model(Emu3PreTrainedModel):
                 use_cache = False
 
         past_key_values_length = 0
+        use_legacy_cache = False
         if use_cache:
             use_legacy_cache = not isinstance(past_key_values, Cache)
             if use_legacy_cache:

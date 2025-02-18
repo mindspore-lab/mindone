@@ -753,7 +753,3 @@ class Emu3VisionVQModel(Emu3VisionVQPretrainedModel):
         if ndim == 3:
             return video[:, 0]
         return video
-
-    @property
-    def dtype(self):
-        return next(self.parameters()).dtype

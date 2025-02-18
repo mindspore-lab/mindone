@@ -1,20 +1,17 @@
-# -*- coding: utf-8 -*-
 # debug use, TODO: delete later
-import os
-import sys
+import os, sys
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, ".")))
 
-
-# from transformers import AutoModel, AutoTokenizer, AutoImageProcessor, AutoModelForCausalLM
+import time
+# TODO: from mindone.transformers import Emu3ForCausalLM
 from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
 
-# TODO: from mindone.transformers import Emu3ForCausalLM
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
@@ -31,8 +28,11 @@ from mindone.utils.amp import auto_mixed_precision
 ms.set_context(mode=ms.PYNATIVE_MODE)  # PYNATIVE
 # ms.set_context(mode=ms.GRAPH_MODE)      # GRAPH
 
+# 1. Load Models and Processor
+start_time = time.time()
+
 # model path
-# TODO: you need to modify the path of EMU_HUB and VQ_HUB here
+# NOTE: you need to modify the path of EMU_HUB and VQ_HUB here
 EMU_HUB = "BAAI/Emu3-Gen"
 VQ_HUB = "BAAI/Emu3-VisionTokenizer"
 MS_DTYPE = ms.bfloat16
@@ -42,14 +42,8 @@ model = Emu3ForCausalLM.from_pretrained(
     EMU_HUB,
     mindspore_dtype=MS_DTYPE,
     use_safetensors=True,
-    attn_implementation="flash_attention_2",
-)
-# model = AutoModelForCausalLM.from_pretrained(
-#     EMU_HUB,
-#     mindspore_dtype=MS_DTYPE,
-#     attn_implementation="flash_attention_2",
-# )
-model.set_train(False)
+    attn_implementation="eager", # optional: "flash_attention_2"
+).set_train(False)
 
 tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
 image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
@@ -61,7 +55,11 @@ image_tokenizer = auto_mixed_precision(
 )
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
-# prepare input
+print("Loaded all models, time elapsed: %.4fs"%(time.time() - start_time))
+
+# 2. Prepare Input
+start_time = time.time()
+
 POSITIVE_PROMPT = "masterpiece, film grained, best quality."
 NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, \
      fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry."
@@ -83,6 +81,7 @@ neg_inputs = processor(text=[NEGATIVE_PROMPT] * len(prompt), **kwargs)
 # prepare hyper parameters
 GENERATION_CONFIG = GenerationConfig(
     use_cache=True,
+    bos_token_id=model.config.bos_token_id,
     eos_token_id=model.config.eos_token_id,
     pad_token_id=model.config.pad_token_id,
     max_new_tokens=40960,
@@ -107,17 +106,26 @@ logits_processor = LogitsProcessorList(
     ]
 )
 
-# generate
+print("Prepared inputs, time elapsed: %.4fs"%(time.time() - start_time))
+
+
+# 3. Generate Next Tokens, Decode Tokens
+
+start_time = time.time()
 outputs = model.generate(
     Tensor(pos_inputs.input_ids, dtype=ms.int32),
     GENERATION_CONFIG,
     logits_processor=logits_processor,
     attention_mask=Tensor(pos_inputs.attention_mask),
 )
+print("Finish generation, time elapsed: %.4fs"%(time.time() - start_time))
 
+start_time = time.time()
 for idx_i, out in enumerate(outputs):
     mm_list = processor.decode(out)
     for idx_j, im in enumerate(mm_list):
         if not isinstance(im, Image.Image):
             continue
         im.save(f"result_{idx_i}_{idx_j}.png")
+        print(f"Saved result_{idx_i}_{idx_j}.png")
+print("Finish detokenization, time elapsed: %.4fs"%(time.time() - start_time))

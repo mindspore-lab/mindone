@@ -98,7 +98,7 @@ class Emu3Processor(ProcessorMixin):
         super().__init__(image_processor, tokenizer, chat_template=chat_template)
         self.const_helper = self.build_const_helper()
 
-    @no_grad()
+
     def __call__(
         self,
         text: Optional[TextInput | PreTokenizedInput] = None,
@@ -140,112 +140,118 @@ class Emu3Processor(ProcessorMixin):
             - **input_ids** -- List of token ids to be fed to a model.
             - **image_size** -- List of image size of input images or generated images.
         """
-        assert mode in ("G", "U"), "mode must be 'G' or 'U'."
-        if isinstance(text, str):
-            text = [text]
+        with no_grad():
+            assert mode in ("G", "U"), "mode must be 'G' or 'U'."
+            if isinstance(text, str):
+                text = [text]
 
-        if isinstance(image, Image.Image):
-            image = [image]
+            if isinstance(image, Image.Image):
+                image = [image]
 
-        if not isinstance(text[0], str):
-            raise ValueError("`text` must be string or list of string")
+            if not isinstance(text[0], str):
+                raise ValueError("`text` must be string or list of string")
 
-        image_tokens = None
-        if mode == "G":
-            if image is not None:
-                raise ValueError("You have to specify only `text` in generation mode")
+            image_tokens = None
+            if mode == "G":
+                if image is not None:
+                    raise ValueError("You have to specify only `text` in generation mode")
 
-            if isinstance(ratio, str):
-                ratio = [ratio] * len(text)
+                if isinstance(ratio, str):
+                    ratio = [ratio] * len(text)
 
-            if len(ratio) != len(text):
-                raise ValueError("ratio number must match text number")
-        else:
-            if image is None:
-                raise ValueError("Invalid input image. Please provide exactly one PIL.Image.Image per text.")
-
-            if not isinstance(image, Sequence) and not isinstance(image, Image.Image):
-                raise ValueError("Invalid input image. Please provide PIL.Image.Image or List[PIL.Image.Image].")
-
-            if isinstance(image, Sequence) and not isinstance(image[0], Image.Image):
-                raise ValueError("Invalid input image. Please provide PIL.Image.Image or List[PIL.Image.Image].")
-
-            image_tokens = self.tokenize_image(image, padding_image=padding_image)
-            if len(text) != len(image_tokens):
-                raise ValueError("number of image must match number of text prompt")
-
-        prompt_list, size_list = [], []
-        for idx, text_prompt in enumerate(text):
-            prompt = self.tokenizer.bos_token
-            if mode == "U":
-                h, w = image_tokens[idx].shape
-                imgstr = self.to_imgstr(image_tokens[idx])
-                image_prompt = (
-                    self.tokenizer.boi_token
-                    + self.prefix_template.format(H=h, W=w)
-                    + self.tokenizer.img_token
-                    + imgstr
-                    + self.tokenizer.eol_token
-                    + self.tokenizer.eof_token
-                    + self.tokenizer.eoi_token
-                )
-                prompt += self.chat_template.format(image_prompt=image_prompt, text_prompt=text_prompt)
+                if len(ratio) != len(text):
+                    raise ValueError("ratio number must match text number")
             else:
-                h, w = self.calculate_generate_size(ratio[idx], image_area, self.vision_tokenizer.spatial_scale_factor)
-                image_prompt = (
-                    self.tokenizer.boi_token + self.prefix_template.format(H=h, W=w) + self.tokenizer.img_token
-                )
-                prompt += text_prompt + image_prompt
+                if image is None:
+                    raise ValueError("Invalid input image. Please provide exactly one PIL.Image.Image per text.")
 
-            prompt_list.append(prompt)
-            size_list.append([h, w])
+                if not isinstance(image, Sequence) and not isinstance(image, Image.Image):
+                    raise ValueError("Invalid input image. Please provide PIL.Image.Image or List[PIL.Image.Image].")
 
-        text_inputs = self.tokenizer(prompt_list, **kwargs)
-        return BatchFeature(data={**text_inputs, "image_size": size_list}, tensor_type=kwargs.get("return_tensors"))
+                if isinstance(image, Sequence) and not isinstance(image[0], Image.Image):
+                    raise ValueError("Invalid input image. Please provide PIL.Image.Image or List[PIL.Image.Image].")
 
-    @no_grad()
+                image_tokens = self.tokenize_image(image, padding_image=padding_image)
+                if len(text) != len(image_tokens):
+                    raise ValueError("number of image must match number of text prompt")
+
+            prompt_list, size_list = [], []
+            for idx, text_prompt in enumerate(text):
+                prompt = self.tokenizer.bos_token
+                if mode == "U":
+                    h, w = image_tokens[idx].shape
+                    imgstr = self.to_imgstr(image_tokens[idx])
+                    image_prompt = (
+                        self.tokenizer.boi_token
+                        + self.prefix_template.format(H=h, W=w)
+                        + self.tokenizer.img_token
+                        + imgstr
+                        + self.tokenizer.eol_token
+                        + self.tokenizer.eof_token
+                        + self.tokenizer.eoi_token
+                    )
+                    prompt += self.chat_template.format(image_prompt=image_prompt, text_prompt=text_prompt)
+                else:
+                    h, w = self.calculate_generate_size(ratio[idx], image_area, self.vision_tokenizer.spatial_scale_factor)
+                    image_prompt = (
+                        self.tokenizer.boi_token + self.prefix_template.format(H=h, W=w) + self.tokenizer.img_token
+                    )
+                    prompt += text_prompt + image_prompt
+
+                prompt_list.append(prompt)
+                size_list.append([h, w])
+
+            text_inputs = self.tokenizer(prompt_list, **kwargs)
+            return BatchFeature(data={**text_inputs, "image_size": size_list}, tensor_type=kwargs.get("return_tensors"))
+
+    
     def batch_decode(self, *args, **kwargs):
-        docs = self.tokenizer.batch_decode(*args, **kwargs)
-        return [self.multimodal_decode(d) for d in docs]
+        with no_grad():
+            docs = self.tokenizer.batch_decode(*args, **kwargs)
+            return [self.multimodal_decode(d) for d in docs]
 
-    @no_grad()
+
     def decode(self, *args, **kwargs):
-        doc = self.tokenizer.decode(*args, **kwargs)
-        return self.multimodal_decode(doc)
+        with no_grad():
+            doc = self.tokenizer.decode(*args, **kwargs)
+            return self.multimodal_decode(doc)
 
-    @no_grad()
+
     def vision_encode(self, *args, **kwargs):
-        return self.vision_tokenizer.encode(*args, **kwargs)
+        with no_grad():
+            return self.vision_tokenizer.encode(*args, **kwargs)
 
-    @no_grad()
+
     def vision_decode(self, *args, **kwargs):
-        return self.vision_tokenizer.decode(*args, **kwargs)
+        with no_grad():
+            return self.vision_tokenizer.decode(*args, **kwargs)
 
-    @no_grad()
+
     def multimodal_decode(self, doc):
-        multimodal_output = []
-        pattern = rf"({re.escape(self.tokenizer.boi_token)}.*?{re.escape(self.tokenizer.eoi_token)})"
-        chunks = re.split(pattern, doc)
-        for c in chunks:
-            if len(c) == 0:
-                continue
+        with no_grad():
+            multimodal_output = []
+            pattern = rf"({re.escape(self.tokenizer.boi_token)}.*?{re.escape(self.tokenizer.eoi_token)})"
+            chunks = re.split(pattern, doc)
+            for c in chunks:
+                if len(c) == 0:
+                    continue
 
-            if self.tokenizer.boi_token in c:
-                image = []
-                image_rows = re.split(re.escape(self.tokenizer.eol_token), c)
-                for r in image_rows:
-                    token_ids = re.findall(self.visual_template[1], r)
-                    if len(token_ids) > 0:
-                        row_token = [int(m) for m in token_ids]
-                        image.append(row_token)
-                image = Tensor(image, dtype=ms.int32)
-                image = self.vision_tokenizer.decode(image[None]).float()
-                image = self.image_processor.postprocess(image)["pixel_values"][0]
-                multimodal_output.append(image)
-            else:
-                multimodal_output.append(c)
+                if self.tokenizer.boi_token in c:
+                    image = []
+                    image_rows = re.split(re.escape(self.tokenizer.eol_token), c)
+                    for r in image_rows:
+                        token_ids = re.findall(self.visual_template[1], r)
+                        if len(token_ids) > 0:
+                            row_token = [int(m) for m in token_ids]
+                            image.append(row_token)
+                    image = Tensor(image, dtype=ms.int32)
+                    image = self.vision_tokenizer.decode(image[None]).float()
+                    image = self.image_processor.postprocess(image)["pixel_values"][0]
+                    multimodal_output.append(image)
+                else:
+                    multimodal_output.append(c)
 
-        return multimodal_output if len(multimodal_output) > 1 else multimodal_output[0]
+            return multimodal_output if len(multimodal_output) > 1 else multimodal_output[0]
 
     @property
     def model_input_names(self):
