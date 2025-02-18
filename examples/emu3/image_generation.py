@@ -1,5 +1,6 @@
 # debug use, TODO: delete later
-import os, sys
+import os
+import sys
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -7,11 +8,11 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, ".")))
 
 import time
+
 # TODO: from mindone.transformers import Emu3ForCausalLM
 from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
-
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
@@ -42,7 +43,7 @@ model = Emu3ForCausalLM.from_pretrained(
     EMU_HUB,
     mindspore_dtype=MS_DTYPE,
     use_safetensors=True,
-    attn_implementation="eager", # optional: "flash_attention_2"
+    attn_implementation="eager",  # optional: "flash_attention_2"
 ).set_train(False)
 
 tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
@@ -55,7 +56,7 @@ image_tokenizer = auto_mixed_precision(
 )
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
-print("Loaded all models, time elapsed: %.4fs"%(time.time() - start_time))
+print("Loaded all models, time elapsed: %.4fs" % (time.time() - start_time))
 
 # 2. Prepare Input
 start_time = time.time()
@@ -106,7 +107,7 @@ logits_processor = LogitsProcessorList(
     ]
 )
 
-print("Prepared inputs, time elapsed: %.4fs"%(time.time() - start_time))
+print("Prepared inputs, time elapsed: %.4fs" % (time.time() - start_time))
 
 
 # 3. Generate Next Tokens, Decode Tokens
@@ -118,7 +119,7 @@ outputs = model.generate(
     logits_processor=logits_processor,
     attention_mask=Tensor(pos_inputs.attention_mask),
 )
-print("Finish generation, time elapsed: %.4fs"%(time.time() - start_time))
+print("Finish generation, time elapsed: %.4fs" % (time.time() - start_time))
 
 start_time = time.time()
 for idx_i, out in enumerate(outputs):
@@ -128,4 +129,4 @@ for idx_i, out in enumerate(outputs):
             continue
         im.save(f"result_{idx_i}_{idx_j}.png")
         print(f"Saved result_{idx_i}_{idx_j}.png")
-print("Finish detokenization, time elapsed: %.4fs"%(time.time() - start_time))
+print("Finish detokenization, time elapsed: %.4fs" % (time.time() - start_time))

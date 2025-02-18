@@ -98,7 +98,6 @@ class Emu3Processor(ProcessorMixin):
         super().__init__(image_processor, tokenizer, chat_template=chat_template)
         self.const_helper = self.build_const_helper()
 
-
     def __call__(
         self,
         text: Optional[TextInput | PreTokenizedInput] = None,
@@ -192,7 +191,9 @@ class Emu3Processor(ProcessorMixin):
                     )
                     prompt += self.chat_template.format(image_prompt=image_prompt, text_prompt=text_prompt)
                 else:
-                    h, w = self.calculate_generate_size(ratio[idx], image_area, self.vision_tokenizer.spatial_scale_factor)
+                    h, w = self.calculate_generate_size(
+                        ratio[idx], image_area, self.vision_tokenizer.spatial_scale_factor
+                    )
                     image_prompt = (
                         self.tokenizer.boi_token + self.prefix_template.format(H=h, W=w) + self.tokenizer.img_token
                     )
@@ -204,28 +205,23 @@ class Emu3Processor(ProcessorMixin):
             text_inputs = self.tokenizer(prompt_list, **kwargs)
             return BatchFeature(data={**text_inputs, "image_size": size_list}, tensor_type=kwargs.get("return_tensors"))
 
-    
     def batch_decode(self, *args, **kwargs):
         with no_grad():
             docs = self.tokenizer.batch_decode(*args, **kwargs)
             return [self.multimodal_decode(d) for d in docs]
-
 
     def decode(self, *args, **kwargs):
         with no_grad():
             doc = self.tokenizer.decode(*args, **kwargs)
             return self.multimodal_decode(doc)
 
-
     def vision_encode(self, *args, **kwargs):
         with no_grad():
             return self.vision_tokenizer.encode(*args, **kwargs)
 
-
     def vision_decode(self, *args, **kwargs):
         with no_grad():
             return self.vision_tokenizer.decode(*args, **kwargs)
-
 
     def multimodal_decode(self, doc):
         with no_grad():

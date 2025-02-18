@@ -54,18 +54,14 @@ from mindone.transformers.modeling_utils import MSPreTrainedModel
 
 from .configuration_emu3 import Emu3Config
 
-# import torch.utils.checkpoint
-
-
 logger = logging.get_logger(__name__)
 
 from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
-from mindone.utils.version_control import check_valid_flash_attention, choose_flash_attention_dtype
+from mindone.utils.version_control import check_valid_flash_attention
 
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 FA_MS23_UPDATE = False
 if FLASH_IS_AVAILABLE:
-    logger.info("Flash attention is available.")
     from mindone.models.modules.flash_attention import MSFlashAttention
 
 _CONFIG_FOR_DOC = "Emu3Config"
@@ -1134,17 +1130,21 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         Example:
 
         ```python
-        >>> from transformers import AutoTokenizer, AutoModel, AutoImageProcessor, Emu3ForCausalLM
+        >>> from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
+        >>> from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
         >>> from transformers.generation.configuration_utils import GenerationConfig
-        >>> from transformers.generation import LogitsProcessorList, PrefixConstrainedLogitsProcessor, UnbatchedClassifierFreeGuidanceLogitsProcessor
-        >>> from transformers import Emu3Processor
+        >>> from mindone.transformers.generation.logits_process import (
+        >>>     LogitsProcessorList,
+        >>>     PrefixConstrainedLogitsProcessor,
+        >>>     UnbatchedClassifierFreeGuidanceLogitsProcessor
+        >>> )
         >>> from PIL import Image
         >>> from mindspore import Tensor
 
         >>> model = Emu3ForCausalLM.from_pretrained(PATH_TO_CONVERTED_EMU3_WEIGHTS)
-        >>> tokenizer = AutoTokenizer.from_pretrained(PATH_TO_CONVERTED_TOKENIZER)
-        >>> image_processor = AutoImageProcessor.from_pretrained(PATH_TO_CONVERTED_IMAGE_PROCESSER)
-        >>> image_tokenizer = AutoModel.from_pretrained(PATH_TO_CONVERTED_TOKENIZER_WEIGHTS).eval()
+        >>> tokenizer = Emu3Tokenizer.from_pretrained(PATH_TO_CONVERTED_TOKENIZER)
+        >>> image_processor = Emu3VisionVQImageProcessor.from_pretrained(PATH_TO_CONVERTED_IMAGE_PROCESSER)
+        >>> image_tokenizer = Emu3VisionVQModel.from_pretrained(PATH_TO_CONVERTED_TOKENIZER_WEIGHTS).set_train(False)
         >>> processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
         >>> # Generation
@@ -1194,7 +1194,6 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         >>> )
 
         >>> outputs = model.generate(input_ids, GENERATION_CONFIG, max_new_tokens=100)
-        >>> outputs = outputs[:, input_ids.shape[-1]:]
         >>> answer = processor.batch_decode(outputs, skip_special_tokens=True)
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions

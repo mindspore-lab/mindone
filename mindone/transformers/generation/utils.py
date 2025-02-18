@@ -13,7 +13,7 @@ from transformers.utils.generic import ModelOutput
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import ops, mint
+from mindspore import mint, ops
 
 from mindone.transformers.cache_utils import (
     Cache,
@@ -872,7 +872,7 @@ class GenerationMixin:
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
 
-                if not self._supports_default_dynamic_cache: # use tuple cache
+                if not self._supports_default_dynamic_cache:  # use tuple cache
                     cur_lens = attention_mask.sum(-1)
                     for batch_idx in range(attention_mask.shape[0]):
                         cur_len = int(cur_lens[batch_idx])
@@ -882,7 +882,7 @@ class GenerationMixin:
                             attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
                             attention_mask[batch_idx, -1:] = 1
                     model_kwargs["attention_mask"] = attention_mask
-                else: # use Cache class
+                else:  # use Cache class
                     model_kwargs["attention_mask"] = ops.cat(
                         [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
                     )
@@ -1673,7 +1673,7 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        if not self._supports_default_dynamic_cache: # if tuple cache
+        if not self._supports_default_dynamic_cache:  # if tuple cache
             (
                 padded_input_ids,
                 padded_inputs_embeds,
