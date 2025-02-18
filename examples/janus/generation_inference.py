@@ -142,6 +142,12 @@ if __name__ == "__main__":
     vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
 
+    if args.ms_mode == 0 and not args.use_cache:
+        bs = args.parallel_size * 2
+        hidden_size = vl_gpt.language_model.model.layers[0].hidden_size
+        input_dyn = Tensor(shape=[bs, None, hidden_size], dtype=dtype)
+        vl_gpt.language_model.model.set_inputs(inputs_embeds=input_dyn)
+
     conversation = [
         {
             "role": "<|User|>",
