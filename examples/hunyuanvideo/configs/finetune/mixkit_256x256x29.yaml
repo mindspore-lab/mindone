@@ -2,13 +2,13 @@ env:
   mode: 0
   jit_level: O0
   seed: 42
-  distributed: False
+  distributed: True
   debug: False
 
 model:
   name: "HYVideo-T/2-cfgdistill"
   in_channels: 16
-  pretrained_model_path: # use random initialization
+  pretrained_model_path: ../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt # the path is relative to this config
   text_states_dim: 4096
   text_states_dim_2: 768
   enable_ms_amp: True
@@ -27,10 +27,10 @@ vae:
   trainable: False
 
 dataset:
-  csv_path: CSV_PATH
-  video_folder: VIDEO_FOLDER
-  text_emb_folder: TEXT_EMB_FOLDER
-  empty_text_emb: EMPTY_TEXT_EMB_PATH
+  csv_path: datasets/mixkit-100videos/video_caption_test.csv
+  video_folder: datasets/mixkit-100videos/mixkit
+  text_emb_folder: datasets/mixkit-100videos/text_embed
+  empty_text_emb: datasets/mixkit-100videos/empty_string_text_embeddings.npz
   deterministic_sample: False
   text_drop_prob: 0.2
   target_size: [ 256, 256 ]
@@ -45,8 +45,8 @@ dataloader:
   num_workers_dataset: 4
 
 train:
-  steps: 30000
-  output_path: ../../output/stage1_t2v_256px  # the path is relative to this config
+  steps: 10000
+  output_path: ../../output/finetune_t2v_256px  # the path is relative to this config
 
   sequence_parallel:
     shards: 1
@@ -67,7 +67,7 @@ train:
     name: adamw_re
     eps: 1e-15
     betas: [ 0.9, 0.999 ]
-    weight_decay: 0.0001
+    weight_decay: 0.0
 
   loss_scaler:
     class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
@@ -86,27 +86,8 @@ train:
 
   save:
     ckpt_save_policy: latest_k
-    monitor_metric: "eval_loss_smoothed"
     ckpt_save_interval: &save_interval 1000
     ckpt_max_keep: 10
     log_interval: 1
     save_ema_only: False
     record_lr: False
-
-valid:
-  sampling_steps: 10
-  frequency: *save_interval  # train.save.ckpt_save_interval should be divisible by the frequency
-
-  dataset:
-    csv_path: CSV_PATH
-    video_folder: VIDEO_FOLDER
-    text_emb_folder: TEXT_EMB_FOLDER
-    target_size: [ 256, 256 ]
-    apply_transforms_dataset: True
-    vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
-    output_columns:  [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2" ]
-
-  dataloader:
-    batch_size: 1
-    shuffle: False
-    num_workers_dataset: 4
