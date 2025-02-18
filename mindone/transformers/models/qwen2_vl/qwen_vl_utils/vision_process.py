@@ -1,4 +1,5 @@
 # Adapted from https://github.com/QwenLM/Qwen2-VL/blob/main/qwen-vl-utils/src/qwen_vl_utils/vision_process.py
+# This script read images/videos into a list of Pillow Image
 
 from __future__ import annotations
 
@@ -17,13 +18,10 @@ from packaging import version
 from PIL import Image
 import numpy as np
 
-# import torch => mindspore
-# import torchvision =>? dataset.vision
-# from torchvision import io, transforms => Nope => dataset.transforms
-# from torchvision.transforms import InterpolationMode => dataset.vision.Inter
+
 import mindspore
 from mindspore import ops
-from mindspore.dataset import vision, transforms
+from mindspore.dataset import vision
 from mindspore.dataset.vision import Inter
 
 logger = logging.getLogger(__name__)
@@ -184,13 +182,6 @@ def _read_video_mindspore(
     """
     video_path = ele["video"]
 
-    # TODO: further test version
-    # if version.parse(vision.__version__) < version.parse("0.19.0"):
-    #     if "http://" in video_path or "https://" in video_path:
-    #         warnings.warn("torchvision < 0.19.0 does not support http/https video path, please upgrade to 0.19.0.")
-    #     if "file://" in video_path:
-    #         video_path = video_path[7:]
-    
     st = time.time()
     video, audio, info = vision.read_video(
         video_path,
@@ -199,10 +190,8 @@ def _read_video_mindspore(
         pts_unit="sec",
     )
     # video in [T, H, W, C] numpy, audio in [C, L], info is dict{"video_fps", "audio_fps"}
-    # video = video.transpose(0, 3, 1, 2) # [T, H, W, C] to [T, C, H, W]
     total_frames, video_fps = video.shape[0], info["video_fps"]
     logger.info(f"mindspore vision:  {video_path=}, {total_frames=}, {video_fps=}, time={time.time() - st:.3f}s")
-    print(f"mindspore vision:  {video_path=}, {total_frames=}, {video_fps=}, time={time.time() - st:.3f}s")
     nframes = smart_nframes(ele, total_frames=total_frames, video_fps=video_fps)
     idx = np.linspace(0, total_frames - 1, nframes).round().astype(np.int32)
     video = video[idx]
@@ -214,7 +203,6 @@ def is_decord_available() -> bool:
 
     return importlib.util.find_spec("decord") is not None
 
-# Comment: torch => mindspore
 def _read_video_decord(
     ele: dict,
 ):
@@ -241,10 +229,8 @@ def _read_video_decord(
     nframes = smart_nframes(ele, total_frames=total_frames, video_fps=video_fps)
     idx = ops.linspace(0, total_frames - 1, nframes).round().long().tolist()
     video = vr.get_batch(idx).asnumpy()
-    # video = mindspore.Tensor(video).permute(0, 3, 1, 2)  # Convert to TCHW format
     return video
 
-# Comment: torchvision => mindspore
 VIDEO_READER_BACKENDS = {
     "decord": _read_video_decord,
     "mindspore": _read_video_mindspore,
@@ -264,8 +250,8 @@ def get_video_reader_backend() -> str:
     print(f"qwen-vl-utils using {video_reader_backend} to read video.", file=sys.stderr)
     return video_reader_backend
 
-# Comment: torch => mindspore
-def fetch_video(ele: dict, image_factor: int = IMAGE_FACTOR) -> list[Image.Image]: #|mindspore.Tensor  
+
+def fetch_video(ele: dict, image_factor: int = IMAGE_FACTOR) -> list[Image.Image]:
     if isinstance(ele["video"], str):
         video_reader_backend = get_video_reader_backend()
         video = VIDEO_READER_BACKENDS[video_reader_backend](ele)
@@ -289,16 +275,8 @@ def fetch_video(ele: dict, image_factor: int = IMAGE_FACTOR) -> list[Image.Image
                 min_pixels=min_pixels,
                 max_pixels=max_pixels,
             )
-        print("video.shape", video.shape)
-        print("resize.size", resized_height, resized_width)
-        # resize_op = vision.Resize(size=[resized_height, resized_width], interpolation=Inter.BICUBIC).device("Ascend")  # use Ascend for accelaration
-        # video = vision.Resize(
-        #     size=[resized_height, resized_width],
-        #     interpolation=Inter.BICUBIC,
-        # )(video).float()
-        # video = ops.ResizeBicubic()(video, size=[resized_height, resized_width])
-        # return video
-
+        logger.info("video.shape (frames, h, w, channel)=%s"%(str(video.shape)))
+        logger.info("resize to (h, w)=(%d, %d)"%(resized_height, resized_width))
         images = [
             vision.Resize(
                 size=[resized_height, resized_width],
@@ -341,7 +319,7 @@ def extract_vision_info(conversations: list[dict] | list[list[dict]]) -> list[di
                         vision_infos.append(ele)
     return vision_infos
 
-# Comment: torch => mindspore
+
 def process_vision_info(
     conversations: list[dict] | list[list[dict]],
 ) -> tuple[list[Image.Image] | None, list[mindspore.Tensor | list[Image.Image]] | None]:

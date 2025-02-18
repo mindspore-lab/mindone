@@ -1,23 +1,35 @@
-# Qwen2-VL
-Qwen2-VL is a multimodal vision-language model series based on Qwen2, which supports inputs of text, arbitrary-resolution image, long video (20min+) and multiple languages. 
+# Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution
+[Paper](https://arxiv.org/abs/2409.12191) | [HF Model Card](https://huggingface.co/collections/Qwen/qwen2-vl-66cee7455501d7126940800d)
 
-# Quick Start
+> **Qwen2-VL** is a multimodal vision-language model series based on Qwen2, which supports inputs of text, arbitrary-resolution image, long video (20min+) and multiple languages.
 
-Tested requirements:
-- python==3.9.19
-- mindspore==2.3.1
-- transformers=4.45.2
+# Get Started
+
+## Requirements:
+|mindspore |	ascend driver | firmware | cann tookit/kernel|
+|--- | --- | --- | --- |
+|2.43.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC2.beta1|
+
+Tested with:
+- python==3.10.16
+- mindspore==2.4.1
+- transformers=4.46.3
 - tokenizers==0.20.0
+- mindone
 
-Tested retrained weights from huggingface hub:
-- [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-- 
+Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+
+## Quick Start
+
+
+`examples/transformers/qwen2-vl/vqa_test.py` provides examples of image and video VQA. Here is an usage example of image understanding:
 
 ```python
 from transformers import AutoTokenizer, AutoProcessor
-from mindone.transformers import Qwen2VLForConditionalGeneration, Qwen2VLProcessor
+from mindone.transformers import Qwen2VLForConditionalGeneration
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
 from mindspore import Tensor
+import numpy as np
 
 model = Qwen2VLForConditionalGeneration.from_pretrained("Qwen2/Qwen2-VL-7B-Instruct", mindspore_dtype=ms.float32)
 processor = AutoProcessor.from_pretrained("Qwen2/Qwen2-VL-7B-Instruct")
@@ -28,7 +40,7 @@ messages = [
         "content": [
             {
                 "type": "image",
-                "image": "demo.jpeg",
+                "image": "demo.jpeg", # REPLACE with your own image
             },
             {"type": "text", "text": "Describe this image."},
         ],
@@ -46,16 +58,13 @@ inputs = processor(
     padding=True,
     return_tensors="np",
 )
-generated_ids = model.generate(Tensor(inputs.input_ids, dtype=ms.int32), max_new_tokens=128)
-generated_ids_trimmed = 
-    [out_ids[len(in_ids) :] for in_ids, out_ids 
-    in zip(inputs.input_ids, generated_ids)
-]
+generated_ids = model.generate(**inputs, max_new_tokens=128)
 output_text = processor.batch_decode(
-    generated_ids_trimmed, 
+    generated_ids,
     skip_special_tokens=True,
     clean_up_tokenization_spaces=False
 )
+print(output_text)
 ```
 
 # Tutorial of Qwen2-VL

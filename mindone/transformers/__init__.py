@@ -70,3 +70,8 @@ from .models.umt5 import (
     UMT5PreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .models.qwen2_vl import (
+    Qwen2VLForConditionalGeneration,
+    Qwen2VLModel,
+    Qwen2VLPreTrainedModel,
+)
