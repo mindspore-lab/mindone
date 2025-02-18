@@ -6,7 +6,7 @@ import mindspore.mint.nn.functional as F
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 
-from models.helpers import DropPath, drop_path
+from .helpers import DropPath, drop_path
 
 # this file only provides the 3 blocks used in VAR transformer
 __all__ = ['FFN', 'AdaLNSelfAttn', 'AdaLNBeforeHead']
@@ -19,7 +19,7 @@ class FFN(nn.Cell):
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
         self.fc1 = mint.nn.Linear(in_features, hidden_features)
-        self.act = mint.nn.GELU(approximate='tanh')
+        self.act = nn.GELU(approximate=True)
         self.fc2 = mint.nn.Linear(hidden_features, out_features)
         self.drop = mint.nn.Dropout(drop, inplace=True) if drop > 0 else mint.nn.Identity()
 
@@ -59,7 +59,7 @@ class SelfAttention(nn.Cell):
         self.attention = FlashAttentionScore(1, scale_value=self.scale, input_layout="BNSD", keep_prob=1-self.attn_drop)
 
     def register_buffer(self, name, attr):
-        setattr(self, name, attr)
+        setattr(self, name, Parameter(default_input=attr, requires_grad=False))
 
     def kv_caching(self, enable: bool):
         self.caching, self.cached_k, self.cached_v = enable, None, None
@@ -136,7 +136,7 @@ class AdaLNSelfAttn(nn.Cell):
             self.ada_gss = Parameter(mint.randn(1, 1, 6, embed_dim) / embed_dim ** 0.5)
         else:
             lin = mint.nn.Linear(cond_dim, 6 * embed_dim)
-            self.ada_lin = nn.SequentialCell(mint.nn.SiLU(inplace=False), lin)
+            self.ada_lin = nn.SequentialCell(mint.nn.SiLU(), lin)
 
         self.fused_add_norm_fn = None
 
@@ -162,8 +162,8 @@ class AdaLNBeforeHead(nn.Cell):
         super().__init__()
         self.C, self.D = C, D
         self.ln_wo_grad = norm_layer(C, elementwise_affine=False)
-        self.ada_lin = nn.SequentialCell(mint.nn.SiLU(inplace=False), mint.nn.Linear(D, 2 * C))
+        self.ada_lin = nn.SequentialCell(mint.nn.SiLU(), mint.nn.Linear(D, 2 * C))
 
-    def construct(self, x_BLC: torch.Tensor, cond_BD: torch.Tensor):
+    def construct(self, x_BLC: ms.Tensor, cond_BD: ms.Tensor):
         scale, shift = self.ada_lin(cond_BD).view(-1, 1, 2, self.C).unbind(2)
         return self.ln_wo_grad(x_BLC).mul(scale.add(1)).add(shift)

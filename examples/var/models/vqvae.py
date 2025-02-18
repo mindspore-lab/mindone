@@ -52,8 +52,8 @@ class VQVAE(nn.Cell):
                                                padding=quant_conv_ks // 2)
 
         if self.test_mode:
-            self.eval()
-            [p.requires_grad(False) for p in self.parameters()]
+            self.set_train(False)
+            # [p.requires_grad(False) for p in self.parameters()]
 
     # # ===================== `forward` is only used in VAE training =====================
     def construct(self, inp, ret_usages=False):  # -> rec_B3HW, idx_N, loss

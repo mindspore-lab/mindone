@@ -7,10 +7,9 @@ from mindspore import nn, mint, Parameter, ops
 from mindspore.common.initializer import Normal, TruncatedNormal, initializer, XavierNormal
 
 
-import dist
-from models.basic_var import AdaLNBeforeHead, AdaLNSelfAttn
-from models.helpers import gumbel_softmax_with_rng, sample_with_top_k_top_p_
-from models.vqvae import VQVAE, VectorQuantizer2
+from .basic_var import AdaLNBeforeHead, AdaLNSelfAttn
+from .helpers import gumbel_softmax_with_rng, sample_with_top_k_top_p_
+from .vqvae import VQVAE, VectorQuantizer2
 
 
 class SharedAdaLin(mint.nn.Linear):
@@ -67,8 +66,7 @@ class VAR(nn.Cell):
         pos_1LC = []
         for i, pn in enumerate(self.patch_nums):
             pe = mint.empty(1, pn * pn, self.C)
-            weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), pe.shape)
-            pe.set_data(weight)
+            ops.assign(pe, initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), pe.shape))
             pos_1LC.append(pe)
         pos_1LC = mint.cat(pos_1LC, dim=1)  # 1, L, C
         assert tuple(pos_1LC.shape) == (1, self.L, self.C)
@@ -95,11 +93,8 @@ class VAR(nn.Cell):
             for block_idx in range(depth)
         ])
 
-        fused_add_norm_fns = [b.fused_add_norm_fn is not None for b in self.blocks]
-        self.using_fused_add_norm_fn = any(fused_add_norm_fns)
         print(
-            f'\n[constructor]  ====  ({sum(b.attn.using_flash for b in self.blocks)}/{self.depth}), (fusing_add_ln={sum(fused_add_norm_fns)}/{self.depth}, fusing_mlp={sum(b.ffn.fused_mlp_func is not None for b in self.blocks)}/{self.depth}) ==== \n'
-            f'    [VAR config ] embed_dim={embed_dim}, num_heads={num_heads}, depth={depth}, mlp_ratio={mlp_ratio}\n'
+            f'  \n[VAR config ] embed_dim={embed_dim}, num_heads={num_heads}, depth={depth}, mlp_ratio={mlp_ratio}\n'
             f'    [drop ratios ] drop_rate={drop_rate}, attn_drop_rate={attn_drop_rate}, drop_path_rate={drop_path_rate:g} ({mint.linspace(0, drop_path_rate, depth)})',
             end='\n\n', flush=True
         )
@@ -119,15 +114,15 @@ class VAR(nn.Cell):
         self.init_weight()
 
     def register_buffer(self, name, attr):
-        setattr(self, name, attr)
+        setattr(self, name, Parameter(default_input=attr, requires_grad=False))
 
     def init_weight(self):
-        weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), self.class_emb.shape)
-        self.class_emb.set_data(weight)
+        weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), self.class_emb.weight.shape)
+        self.class_emb.weight.set_data(weight)
         weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), self.pos_start.shape)
         self.pos_start.set_data(weight)
-        weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), self.lvl_embed.shape)
-        self.lvl_embed.set_data(weight)
+        weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), self.lvl_embed.weight.shape)
+        self.lvl_embed.weight.set_data(weight)
 
 
     def get_logits(self, h_or_h_and_residual: Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor]],
@@ -275,7 +270,7 @@ class VAR(nn.Cell):
             elif isinstance(cell, nn.Embedding):
                 cell.weight.set_data(initializer(TruncatedNormal(sigma=init_std), cell.weight.shape, cell.weight.dtype))
                 if cell.padding_idx is not None:
-                    ops.assign(cell.weight.data[cell.padding_idx], mint.zeros_like(cell.weight.data[cell.padding_idx]))
+                    cell.weight[cell.padding_idx] = 0
             elif isinstance(cell, (
             mint.nn.LayerNorm, mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d, mint.nn.SyncBatchNorm, mint.nn.GroupNorm,
             nn.InstanceNorm1d, nn.InstanceNorm2d, nn.InstanceNorm3d)):
@@ -285,7 +280,7 @@ class VAR(nn.Cell):
                     cell.bias.set_data(initializer("zeros", cell.bias.shape, cell.bias.dtype))
             # conv: VAR has no conv, only VQVAE has conv
             elif isinstance(cell, (
-            nn.Conv1d, mint.nn.Conv2d, mint.nn.Conv3d, nn.ConvTranspose1d, mint.nn.ConvTranspose2d, mint.nn.ConvTranspose3d)):
+            nn.Conv1d, mint.nn.Conv2d, mint.nn.Conv3d, nn.Conv1dTranspose, mint.nn.ConvTranspose2d, nn.Conv3dTranspose)):
                 if conv_std_or_gain > 0:
                     cell.weight.set_data(
                         initializer(TruncatedNormal(sigma=conv_std_or_gain), cell.weight.shape, cell.weight.dtype))
@@ -315,8 +310,8 @@ class VAR(nn.Cell):
         depth = len(self.blocks)
         for block_idx, sab in enumerate(self.blocks):
             # sab: AdaLNSelfAttn
-            sab.attn.proj.weight.data.div(math.sqrt(2 * depth))
-            sab.ffn.fc2.weight.data.div(math.sqrt(2 * depth))
+            ops.assign(sab.attn.proj.weight.data, sab.attn.proj.weight.data.div(math.sqrt(2 * depth)))
+            ops.assign(sab.ffn.fc2.weight.data, sab.ffn.fc2.weight.data.div(math.sqrt(2 * depth)))
             if hasattr(sab.ffn, 'fcg') and sab.ffn.fcg is not None:
                 sab.ffn.fcg.bias.set_data(initializer("ones", sab.ffn.fcg.bias.shape, sab.ffn.fcg.bias.dtype))
                 sab.ffn.fcg.weight.set_data(

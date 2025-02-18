@@ -2,7 +2,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import nn, mint, Parameter
 from mindspore.mint.nn import functional as F
 
 
@@ -44,7 +44,7 @@ class VectorQuantizer2(nn.Cell):
         self.prog_si = -1  # progressive training: not supported yet, prog_si always -1
 
     def register_buffer(self, name, attr):
-        setattr(self, name, attr)
+        setattr(self, name, Parameter(default_input=attr, requires_grad=False))
 
     # def eini(self, eini):
     #     if eini > 0:
