@@ -34,6 +34,7 @@ from mindone.transformers.generation.stopping_criteria import (
     StoppingCriteriaList,
 )
 from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
+from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op 
 
 if TYPE_CHECKING:
     from transformers.generation.streamers import BaseStreamer
@@ -1656,7 +1657,8 @@ class GenerationMixin:
         this_peer_finished = False
         unfinished_sequences = ops.ones(batch_size, dtype=ms.int32)
         model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
-
+        
+        multinomal = get_multinomial_op()
         step = 0
         s_time = time.time()
 
@@ -1730,7 +1732,7 @@ class GenerationMixin:
             # token selection
             if do_sample:
                 probs = ops.softmax(next_token_scores, axis=-1, dtype=ms.float32).to(next_token_scores.dtype)
-                next_tokens = ops.multinomial(probs, num_samples=1).squeeze(1)
+                next_tokens = multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = ops.argmax(next_token_scores, dim=-1)
 
