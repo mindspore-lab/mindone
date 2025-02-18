@@ -13,7 +13,7 @@ from transformers.utils.generic import ModelOutput
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import ops
+from mindspore import ops, mint
 
 from mindone.transformers.cache_utils import (
     Cache,
@@ -872,19 +872,20 @@ class GenerationMixin:
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
 
-                cur_lens = attention_mask.sum(-1)
-                for batch_idx in range(attention_mask.shape[0]):
-                    cur_len = int(cur_lens[batch_idx])
-                    if cur_len < attention_mask.shape[-1]:
-                        attention_mask[batch_idx, cur_len] = 1
-                    else:
-                        attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
-                        attention_mask[batch_idx, -1:] = 1
-                model_kwargs["attention_mask"] = attention_mask
-
-                # model_kwargs["attention_mask"] = ops.cat(
-                #     [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
-                # )
+                if not self._supports_default_dynamic_cache: # use tuple cache
+                    cur_lens = attention_mask.sum(-1)
+                    for batch_idx in range(attention_mask.shape[0]):
+                        cur_len = int(cur_lens[batch_idx])
+                        if cur_len < attention_mask.shape[-1]:
+                            attention_mask[batch_idx, cur_len] = 1
+                        else:
+                            attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
+                            attention_mask[batch_idx, -1:] = 1
+                    model_kwargs["attention_mask"] = attention_mask
+                else: # use Cache class
+                    model_kwargs["attention_mask"] = ops.cat(
+                        [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
+                    )
         else:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
@@ -1569,9 +1570,8 @@ class GenerationMixin:
         # Convert to legacy cache if needed
         if use_dynamic_cache_by_default and generation_config.return_legacy_cache:
             if isinstance(result, ModelOutput) and hasattr(result, "past_key_values"):
-                if isinstance(result.past_key_values, DynamicCache):
+                if isinstance(result.past_key_values, DynamicCache):  # TODO: add EncoderDecoderCache
                     result.past_key_values = result.past_key_values.to_legacy_cache()
-            raise NotImplementedError
 
         return result
 
@@ -1733,7 +1733,8 @@ class GenerationMixin:
                     past_key_values=outputs[1] if model_inputs.get("use_cache", False) else None,
                 )
 
-            if model_kwargs.get("attention_mask", None) is not None:
+            # Tuple static cache
+            if (not self._supports_default_dynamic_cache) and (model_kwargs.get("attention_mask", None) is not None):
                 attention_mask = model_kwargs["attention_mask"]
                 cur_idx = int(attention_mask.sum(-1).max()) - 1
 
@@ -1775,7 +1776,7 @@ class GenerationMixin:
             # token selection
             if do_sample:
                 probs = ops.softmax(next_token_scores, axis=-1, dtype=ms.float32).to(next_token_scores.dtype)
-                next_tokens = ops.multinomial(probs, num_samples=1).squeeze(1)
+                next_tokens = mint.multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = ops.argmax(next_token_scores, dim=-1)
 
