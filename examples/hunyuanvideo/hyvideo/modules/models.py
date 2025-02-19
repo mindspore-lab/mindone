@@ -14,7 +14,7 @@ from .embed_layers import PatchEmbed, TextProjection, TimestepEmbedder
 from .mlp_layers import MLP, FinalLayer, MLPEmbedder
 from .modulate_layers import ModulateDiT, apply_gate, modulate
 from .norm_layers import LayerNorm, get_norm_layer
-from .posemb_layers import apply_rotary_emb
+from .posemb_layers import RoPE
 from .token_refiner import SingleTokenRefiner, rearrange_qkv
 
 logger = logging.getLogger(__name__)
@@ -180,9 +180,9 @@ class MMDoubleStreamBlock(nn.Cell):
         # Apply RoPE if needed.
         if freqs_cis is not None:
             # AMP: img_q, img_k cast to fp32 inside, cast back in output, out bf16
-            img_qq, img_kk = apply_rotary_emb(img_q, img_k, freqs_cis, head_first=False)
+            img_qq, img_kk = RoPE(img_q, img_k, freqs_cis, head_first=False)
 
-            img_q, img_k = img_qq, img_kk
+            img_q, img_k = img_qq.to(img_q.dtype), img_kk.to(img_k.dtype)
 
         # Prepare txt for attention.
         # AMP: txt bf16, norm fp32, out bf16
@@ -342,11 +342,11 @@ class MMSingleStreamBlock(nn.Cell):
         if freqs_cis is not None:
             img_q, txt_q = q[:, :-txt_len, :, :], q[:, -txt_len:, :, :]
             img_k, txt_k = k[:, :-txt_len, :, :], k[:, -txt_len:, :, :]
-            img_qq, img_kk = apply_rotary_emb(img_q, img_k, freqs_cis, head_first=False)
+            img_qq, img_kk = RoPE(img_q, img_k, freqs_cis, head_first=False)
             # assert (
             #    img_qq.shape == img_q.shape and img_kk.shape == img_k.shape
             # ), f"img_kk: {img_qq.shape}, img_q: {img_q.shape}, img_kk: {img_kk.shape}, img_k: {img_k.shape}"
-            img_q, img_k = img_qq, img_kk
+            img_q, img_k = img_qq.to(img_q.dtype), img_kk.to(img_k.dtype)
             q = ops.concat((img_q, txt_q), axis=1)
             k = ops.concat((img_k, txt_k), axis=1)
 

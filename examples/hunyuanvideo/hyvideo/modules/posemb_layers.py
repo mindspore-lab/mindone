@@ -3,7 +3,7 @@ from typing import List, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import nn, ops
 
 #################################################################################
 #                   Rotary Positional Embedding Functions                       #
@@ -130,6 +130,14 @@ def apply_rotary_emb(
         xk_out = ops.view_as_real(xk_ * freqs_cis).flatten(start_dim=3).to(xk_dtype)
 
     return xq_out, xk_out
+
+
+class RoPE(nn.Cell):
+    def __init__(self):
+        super().__init__()
+
+    def construct(self, xq, xk, freqs_cis, head_first):
+        return apply_rotary_emb(xq, xk, freqs_cis, head_first)
 
 
 def _to_tuple(x, dim=2):
