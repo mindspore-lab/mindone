@@ -28,7 +28,7 @@ from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 
 from ...activations import ACT2FN
-from ...cache_utils import get_max_length, get_seq_length, update, reset, init_static_cache
+from ...cache_utils import get_max_length, get_seq_length, update, init_static_cache
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
@@ -787,7 +787,7 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 

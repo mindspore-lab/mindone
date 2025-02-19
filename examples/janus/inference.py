@@ -55,7 +55,8 @@ def multimodal_understanding(image: str, question: str, seed: int, top_p: float,
     )
     
     time_cost = time() - st
-    print("Time cost (s): {:.4f}, est. throughput (tokens/s): {:4f}".format(time_cost, outputs[0].shape[-1]/time_cost))
+    print("Time cost (s): {:.4f}, step time (s): {:.4f}\nEst. throughput (tokens/s): {:.4f}\n"
+          .format(time_cost, time_cost/outputs[0].shape[-1], outputs[0].shape[-1]/time_cost))
 
     answer = tokenizer.decode(outputs[0].asnumpy().tolist(), skip_special_tokens=True)
 
