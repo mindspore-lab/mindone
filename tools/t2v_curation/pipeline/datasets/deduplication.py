@@ -18,14 +18,13 @@ class VideoTextDataset:
 
         # extract the middle frame
         if not is_video(path):
-            images = [pil_loader(path)]
+            image = [pil_loader(path)]
         else:
             num_frames = sample["num_frames"] if "num_frames" in sample else None
             # extract the first frame of every video
-            images = extract_frames(path, frame_inds=[0], backend="opencv", num_frames=num_frames)
-            images = [np.array(img) for img in images]
+            image = extract_frames(path, frame_inds=[0], backend="opencv", num_frames=num_frames)
 
-        return path, images[0]  # Return the first (and the only) image
+        return path, np.array(image)[0]  # Return the first (and the only) image
 
     def __len__(self):
         return len(self.meta)
