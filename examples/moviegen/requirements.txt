@@ -6,3 +6,4 @@ matplotlib
 imageio
 av
 transformers
+plotly[express]
