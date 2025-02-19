@@ -180,7 +180,7 @@ class MMDoubleStreamBlock(nn.Cell):
         # Apply RoPE if needed.
         if freqs_cis is not None:
             # AMP: img_q, img_k cast to fp32 inside, cast back in output, out bf16
-            img_qq, img_kk = RoPE(img_q, img_k, freqs_cis, head_first=False)
+            img_qq, img_kk = RoPE()(img_q, img_k, freqs_cis, head_first=False)
 
             img_q, img_k = img_qq.to(img_q.dtype), img_kk.to(img_k.dtype)
 
@@ -342,7 +342,7 @@ class MMSingleStreamBlock(nn.Cell):
         if freqs_cis is not None:
             img_q, txt_q = q[:, :-txt_len, :, :], q[:, -txt_len:, :, :]
             img_k, txt_k = k[:, :-txt_len, :, :], k[:, -txt_len:, :, :]
-            img_qq, img_kk = RoPE(img_q, img_k, freqs_cis, head_first=False)
+            img_qq, img_kk = RoPE()(img_q, img_k, freqs_cis, head_first=False)
             # assert (
             #    img_qq.shape == img_q.shape and img_kk.shape == img_k.shape
             # ), f"img_kk: {img_qq.shape}, img_q: {img_q.shape}, img_kk: {img_kk.shape}, img_k: {img_k.shape}"
