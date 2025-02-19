@@ -58,7 +58,7 @@ def main(args):
         var = auto_mixed_precision(
             var,
             amp_level="O2",
-            dtype=dtype_map[args.var_dtype],
+            dtype=dtype_map[args.dtype],
         )
 
     # sample

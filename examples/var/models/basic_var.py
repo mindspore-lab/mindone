@@ -69,8 +69,8 @@ class SelfAttention(nn.Cell):
         B, L, C = x.shape
 
         qkv = F.linear(input=x, weight=self.mat_qkv.weight,
-                       bias=mint.cat((self.q_bias, self.zero_k_bias, self.v_bias))).view(B, L, 3, self.num_heads,
-                                                                                          self.head_dim)
+                       bias=mint.cat((self.q_bias, self.zero_k_bias, self.v_bias))).view((B, L, 3, self.num_heads,
+                                                                                          self.head_dim))
         main_type = qkv.dtype
         # qkv: BL3Hc
 
@@ -108,7 +108,7 @@ class SelfAttention(nn.Cell):
             None,
             None,
             None,
-            attention_mask)[3].swapaxes(1, 2).view(B, L, C)
+            attention_mask)[3].swapaxes(1, 2).view((B, L, C))
 
         return self.proj_drop(self.proj(out))
 
@@ -143,7 +143,7 @@ class AdaLNSelfAttn(nn.Cell):
             gamma1, gamma2, scale1, scale2, shift1, shift2 = (self.ada_gss + cond_BD).unbind(
                 2)  # 116C + B16C =unbind(2)=> 6 B1C
         else:
-            gamma1, gamma2, scale1, scale2, shift1, shift2 = self.ada_lin(cond_BD).view(-1, 1, 6, self.C).unbind(2)
+            gamma1, gamma2, scale1, scale2, shift1, shift2 = self.ada_lin(cond_BD).view((-1, 1, 6, self.C)).unbind(2)
         x = x + self.drop_path(
             self.attn(self.ln_wo_grad(x).mul(scale1.add(1)).add(shift1), attn_bias=attn_bias).mul(gamma1))
         x = x + self.drop_path(self.ffn(self.ln_wo_grad(x).mul(scale2.add(1)).add(shift2)).mul(
@@ -162,5 +162,5 @@ class AdaLNBeforeHead(nn.Cell):
         self.ada_lin = nn.SequentialCell(mint.nn.SiLU(), mint.nn.Linear(D, 2 * C))
 
     def construct(self, x_BLC: ms.Tensor, cond_BD: ms.Tensor):
-        scale, shift = self.ada_lin(cond_BD).view(-1, 1, 2, self.C).unbind(2)
+        scale, shift = self.ada_lin(cond_BD).view((-1, 1, 2, self.C)).unbind(2)
         return self.ln_wo_grad(x_BLC).mul(scale.add(1)).add(shift)
