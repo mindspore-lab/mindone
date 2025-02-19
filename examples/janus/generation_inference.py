@@ -122,7 +122,7 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=1, help="Temperature value for controlling randomness in sampling. 0 - no randomness in sampling. default 1.0")
     parser.add_argument("--parallel_size", type=int, default=1, help="number of images to generate in parallel, i.e. number of images in a batch")
     parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder")
-    parser.add_argument("--use_cache", type=str2bool, default=False, help="use kv cache or not")
+    parser.add_argument("--use_cache", type=str2bool, default=True, help="use kv cache or not")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_new_tokens", type=int, default=1024)
     args = parser.parse_args()

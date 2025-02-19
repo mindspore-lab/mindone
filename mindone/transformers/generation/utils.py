@@ -1658,7 +1658,7 @@ class GenerationMixin:
         unfinished_sequences = ops.ones(batch_size, dtype=ms.int32)
         model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
         
-        multinomal = get_multinomial_op()
+        multinomial = get_multinomial_op()
         step = 0
         s_time = time.time()
 
