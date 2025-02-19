@@ -169,9 +169,11 @@ class GenerationMixin:
             # 2) the generation config must have seen no modification since its creation (the hash is the same);
             # 3) the user must have set generation parameters in the model config.
             if (
-                self.generation_config._from_model_config
-                and self.generation_config._original_object_hash == hash(self.generation_config)
-                and self.config._has_non_default_generation_parameters()
+                self.generation_config._from_model_config  # 1)
+                and self.generation_config._original_object_hash == hash(self.generation_config)  # 2)
+                and len(self.config._get_non_default_generation_parameters())
+                > 0  # 3) NOTE: requires transformers >= 4.45.0
+                # and self.config._has_non_default_generation_parameters() # no this function in transformers
             ):
                 new_generation_config = GenerationConfig.from_model_config(self.config)
                 if new_generation_config != self.generation_config:
@@ -355,7 +357,7 @@ class GenerationMixin:
             for argument, value in model_kwargs.items()
             if not any(argument.startswith(p) for p in irrelevant_prefix)
         }
-        encoder_signature = set(inspect.signature(encoder.forward).parameters)
+        encoder_signature = set(inspect.signature(encoder.construct).parameters)
         encoder_accepts_wildcard = "kwargs" in encoder_signature or "model_kwargs" in encoder_signature
         if not encoder_accepts_wildcard:
             encoder_kwargs = {
@@ -438,8 +440,10 @@ class GenerationMixin:
             cache = model_kwargs["past_key_values"]
             if isinstance(cache, Tuple):
                 past_length = get_seq_length(cache)
+            elif hasattr(cache, "get_seq_length") and cache.get_seq_length() is not None:
+                past_length = cache.get_seq_length()
 
-        if model_kwargs.get("attention_mask", None) is not None:
+        if isinstance(cache, Tuple) and (model_kwargs.get("attention_mask", None) is not None):
             attention_mask = model_kwargs["attention_mask"]
             if "inputs_embeds" in model_kwargs:
                 max_len = model_kwargs["inputs_embeds"].shape[1]
@@ -456,7 +460,7 @@ class GenerationMixin:
             else:
                 cur_len = input_ids.shape[-1]
 
-            cache_position = ops.arange(past_length, cur_len, ms.int32)
+            cache_position = ops.arange(past_length, cur_len, dtype=ms.int32)
 
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
@@ -1132,6 +1136,8 @@ class GenerationMixin:
         **model_kwargs,
     ) -> Tuple[ms.Tensor, Dict[str, Any]]:
         """Expands tensors from [batch_size, ...] to [batch_size * expand_size, ...]"""
+        if expand_size == 1:
+            return input_ids, model_kwargs
 
         def _expand_dict_for_generation(dict_to_expand):
             for key in dict_to_expand:
@@ -1414,6 +1420,10 @@ class GenerationMixin:
             input_ids_length=input_ids_length,
         )
 
+        # 7. Prepare the cache.
+        # - `model_kwargs` may be updated in place with a cache as defined by the parameters in `generation_config`.
+        # - different models have a different cache name expected by the model (default = "past_key_values")
+        # - `max_length`, prepared above, is used to determine the maximum cache length
         use_dynamic_cache_by_default = False
         if "mamba" in self.__class__.__name__.lower():
             cache_name = "cache_params"  # TODO: support MambaCache
@@ -1503,7 +1513,7 @@ class GenerationMixin:
 
         self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
 
-        # 7. determine generation mode
+        # 8. determine generation mode
         generation_mode = generation_config.get_generation_mode(assistant_model)
 
         if streamer is not None and (generation_config.num_beams > 1):
@@ -1511,7 +1521,7 @@ class GenerationMixin:
                 "`streamer` cannot be used with beam search (yet!). Make sure that `num_beams` is set to 1."
             )
 
-        # 8. prepare distribution pre_processing samplers
+        # 9. prepare logits processors and stopping criteria
         prepared_logits_processor = self._get_logits_processor(
             generation_config=generation_config,
             input_ids_seq_length=input_ids_length,
@@ -1523,7 +1533,6 @@ class GenerationMixin:
             negative_prompt_attention_mask=negative_prompt_attention_mask,
         )
 
-        # 9. prepare stopping criteria
         prepared_stopping_criteria = self._get_stopping_criteria(
             generation_config=generation_config, stopping_criteria=stopping_criteria, tokenizer=tokenizer, **kwargs
         )

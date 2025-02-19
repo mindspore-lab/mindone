@@ -1,21 +1,17 @@
-<div align='center'>
-<h1>Emu3: Next-Token Prediction is All You Need</h1h1>
-<h3></h3>
+# Emu3: Next-Token Prediction is All You Need
 
 <!-- [Emu3 Team, BAAI](https://www.baai.ac.cn/english.html) -->
 
 | [Project Page](https://emu.baai.ac.cn) | [Paper](https://arxiv.org/pdf/2409.18869) | [🤗HF Models](https://huggingface.co/collections/BAAI/emu3-66f4e64f70850ff358a2e60f) | [Modelscope](https://modelscope.cn/collections/Emu3-9eacc8668b1043) |
-<!-- [Demo](https://huggingface.co/spaces/BAAI/Emu3) | -->
-
-
-</div>
 
 <!-- <div align='center'>
 <img src="./assets/arch.png" class="interpolation-image" alt="arch." height="80%" width="70%" />
 </div> -->
 
 ## Introduction
-**Emu3** is a new suite of state-of-the-art multimodal models trained solely with **<i>next-token prediction</i>**. By tokenizing images, text, and videos into a discrete space, we train a single transformer from scratch on a mixture of multimodal sequences.
+**Emu3** is a new suite of state-of-the-art multimodal models trained solely with **<i>next-token prediction</i>**. By tokenizing images, text, and videos into a discrete space, a single transformer is trained from scratch on a mixture of multimodal sequences.
+
+As a multimodal LLM, Emu3 uses vector quantization to tokenize images into discrete tokens. Discretized image tokens are later fused with text token ids for image and text generation. The model can additionally generate images by predicting image token ids.
 
 <!-- ### Emu3 excels in both generation and perception -->
 **Emu3** outperforms several well-established task-specific models in both ***generation*** and ***perception*** tasks, surpassing flagship open models such as SDXL, LLaVA-1.6 and OpenSora-1.2, while eliminating the need for diffusion or compositional architectures.
@@ -32,7 +28,7 @@
 
 ### Features
 
-- Model weights of tokenizer, Emu3-Chat and Emu3-Gen
+- Model weights of Vision Tokenizer, Emu3-Stage1, Emu3-Chat and Emu3-Gen.
 - Inference code.
 - Training scripts for sft.
 
@@ -60,16 +56,20 @@ pip install -r requirements.txt
 | **Emu3-Gen**             | [🤗 HF link](https://huggingface.co/BAAI/Emu3-Gen)             | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-Gen)             | [Wisemodel link](https://wisemodel.cn/models/BAAI/Emu3-Gen)             |
 | **Emu3-VisionTokenizer** | [🤗 HF link](https://huggingface.co/BAAI/Emu3-VisionTokenizer) | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-VisionTokenizer) | [Wisemodel link](https://wisemodel.cn/models/BAAI/Emu3-VisionTokenizer) |
 
-Weight conversion:
+#### Weight conversion:
 
-For some incompatible network layer variable names are not auto converted, we need to convert some weight names in advanved before loading the pre-trained weights:
+For some incompatible network layer variable names that cannot be automatically converted, we need to convert some weight names in advanved before loading the pre-trained weights:
 ```
-python python convert_model.py --safetensor_path PYTORCH.safetensors --ms_safetensor_path MINDSPORE.savetensors
+python python convert_weights.py --safetensor_path ORIGINAL_MODEL.safetensors --target_safetensor_path model.safetensors
 ```
 
-### Quickstart
+## Inference
 
 #### Use 🤗mindone.transformers to run Emu3-Gen/Stage1 for image generation
+An inference script is provided in `scripts/infer_img_gen.sh`.<br>
+An example to generate image is as follows:
+<details>
+
 ```python
 from PIL import Image
 from transformers import AutoTokenizer, AutoModel, AutoImageProcessor, AutoModelForCausalLM
@@ -87,10 +87,9 @@ VQ_HUB = "BAAI/Emu3-VisionTokenizer"
 # prepare model and processor
 model = AutoModelForCausalLM.from_pretrained(
     EMU_HUB,
-    device_map="cuda:0",
-    torch_dtype=torch.bfloat16,
+    mindspore_dtype=torch.bfloat16,
     attn_implementation="flash_attention_2",
-    trust_remote_code=True,
+    # trust_remote_code=True,
 )
 
 tokenizer = AutoTokenizer.from_pretrained(EMU_HUB, trust_remote_code=True, padding_side="left")
@@ -155,8 +154,12 @@ for idx, im in enumerate(mm_list):
         continue
     im.save(f"result_{idx}.png")
 ```
+</details>
 
 #### Use 🤗Transformers to run Emu3-Chat/Stage1 for vision-language understanding
+An inference script is provided in `scripts/infer_vqa.sh`.<br>
+An example is as follows:
+<details>
 
 ```python
 from PIL import Image
@@ -215,65 +218,72 @@ GENERATION_CONFIG = GenerationConfig(
 
 # generate
 outputs = model.generate(
-    inputs.input_ids.to("cuda:0"),
+    Tensor(inputs.input_ids),
     GENERATION_CONFIG,
-    attention_mask=inputs.attention_mask.to("cuda:0"),
+    attention_mask=inputs.attention_mask,
 )
 
 outputs = outputs[:, inputs.input_ids.shape[-1]:]
 print(processor.batch_decode(outputs, skip_special_tokens=True)[0])
 ```
+</details>
 
 #### Use 🤗Transformers to run Emu3-VisionTokenzier for vision encoding and decoding
+An inference script is provided in `scripts/infer_img_rec.sh`.<br>
+An example to reconstruct image/video is as follows:
+
+<details>
+
 ```python
 import os
-import os.path as osp
-
 from PIL import Image
-import torch
-from transformers import AutoModel, AutoImageProcessor
+import mindspore as ms
+from mindspore import Tensor, nn
+from mindone.utils.amp import auto_mixed_precision
+from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 
+# TODO: you need to modify the path here
 MODEL_HUB = "BAAI/Emu3-VisionTokenizer"
-
-model = AutoModel.from_pretrained(MODEL_HUB, trust_remote_code=True).eval().cuda()
-processor = AutoImageProcessor.from_pretrained(MODEL_HUB, trust_remote_code=True)
+MS_DTYPE = ms.bfloat16
+model = Emu3VisionVQModel.from_pretrained(
+        MODEL_HUB,
+        use_safetensors=True,
+        mindspore_dtype=MS_DTYPE
+    ).set_train(False)
+model = auto_mixed_precision(
+    model, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+)
+processor = Emu3VisionVQImageProcessor.from_pretrained(MODEL_HUB)
 
 # TODO: you need to modify the path here
 VIDEO_FRAMES_PATH = "YOUR_VIDEO_FRAMES_PATH"
 
 video = os.listdir(VIDEO_FRAMES_PATH)
 video.sort()
-video = [Image.open(osp.join(VIDEO_FRAMES_PATH, v)) for v in video]
+video = [Image.open(os.path.join(VIDEO_FRAMES_PATH, v)) for v in video]
 
-images = processor(video, return_tensors="pt")["pixel_values"]
-images = images.unsqueeze(0).cuda()
+images = processor(video, return_tensors="np")["pixel_values"]
+images = Tensor(images).unsqueeze(0)
 
 # image autoencode
 image = images[:, 0]
 print(image.shape)
-with no_grad():
-    # encode
-    codes = model.encode(image)
-    # decode
-    recon = model.decode(codes)
+codes = model.encode(image)
+recon = model.decode(codes)
 
 recon = recon.view(-1, *recon.shape[2:])
 recon_image = processor.postprocess(recon)["pixel_values"][0]
 recon_image.save("recon_image.png")
 
 # video autoencode
+# NOTE: number of frames must be multiple of `model.config.temporal_downsample_factor`
 images = images.view(
-    -1,
+    -1, # if OOM, reduce batch size
     model.config.temporal_downsample_factor,
     *images.shape[2:],
 )
-
-print(images.shape)
-with no_grad():
-    # encode
-    codes = model.encode(images)
-    # decode
-    recon = model.decode(codes)
+codes = model.encode(images)
+recon = model.decode(codes)
 
 recon = recon.view(-1, *recon.shape[2:])
 recon_images = processor.postprocess(recon)["pixel_values"]
@@ -281,19 +291,8 @@ for idx, im in enumerate(recon_images):
     im.save(f"recon_video_{idx}.png")
 ```
 
-## Acknowledgement
+</details>
 
-We thank the great work from [Emu Series](https://github.com/baaivision/Emu), [QWen2-VL](https://github.com/QwenLM/Qwen2-VL) and [MoVQGAN](https://github.com/ai-forever/MoVQGAN)
+## Training
 
-## Citation
-
-If you find Emu3 useful for your research and applications, please consider starring this repository and citing:
-
-```
-@article{wang2024emu3,
-  title={Emu3: Next-Token Prediction is All You Need},
-  author={Wang, Xinlong and Zhang, Xiaosong and Luo, Zhengxiong and Sun, Quan and Cui, Yufeng and Wang, Jinsheng and Zhang, Fan and Wang, Yueze and Li, Zhen and Yu, Qiying and others},
-  journal={arXiv preprint arXiv:2409.18869},
-  year={2024}
-}
-```
+## Performance
