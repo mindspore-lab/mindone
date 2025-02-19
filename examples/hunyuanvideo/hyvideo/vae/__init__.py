@@ -17,6 +17,7 @@ def load_vae(
     precision: str = None,
     sample_size: tuple = None,
     tiling: bool = False,
+    slicing: bool = False,
     path: str = None,
     logger: Any = None,
     checkpoint: str = None,
@@ -29,6 +30,7 @@ def load_vae(
         precision (str, optional): the precision to load vae. Defaults to None.
         sample_size (tuple, optional): the tiling size. Defaults to None.
         tiling (bool, optional): the tiling mode. Defaults to False.
+        slicing (bool, optional): whether to slice the vae input at the first dimension. Defaults to False.
         path (str, optional): the path to vae. Defaults to None.
         logger (_type_, optional): logger. Defaults to None.
         checkpoint (str, optional): the checkpoint to load vae. Defaults to None and use default path.
@@ -38,7 +40,9 @@ def load_vae(
         path = VAE_PATH[type]
 
     if logger is not None:
-        logger.info(f"Loading 3D VAE model ({type}) (trainable={trainable}, tiling={tiling}) from: {path}")
+        logger.info(
+            f"Loading 3D VAE model ({type}) (trainable={trainable}, tiling={tiling}, slicing={slicing}) from: {path}"
+        )
     config = AutoencoderKLCausal3D.load_config(path)
     if sample_size:
         vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)
@@ -105,6 +109,9 @@ def load_vae(
 
     if tiling:
         vae.enable_tiling()
+
+    if slicing:
+        vae.enable_slicing()
 
     return vae, path, spatial_compression_ratio, time_compression_ratio
 
