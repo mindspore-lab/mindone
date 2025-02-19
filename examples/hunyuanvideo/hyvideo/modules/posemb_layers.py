@@ -136,8 +136,8 @@ class RoPE(nn.Cell):
     def __init__(self):
         super().__init__()
 
-    def construct(self, xq, xk, freqs_cis, head_first):
-        return apply_rotary_emb(xq, xk, freqs_cis, head_first)
+    def construct(self, xq, xk, freqs_cos, freqs_sin, head_first):
+        return apply_rotary_emb(xq, xk, (freqs_cos, freqs_sin), head_first)
 
 
 def _to_tuple(x, dim=2):

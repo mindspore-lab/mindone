@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 import mindspore as ms
 from mindspore import mint, nn, ops
@@ -125,7 +125,8 @@ class MMDoubleStreamBlock(nn.Cell):
         vec: ms.Tensor,
         actual_seq_qlen: ms.Tensor = None,
         actual_seq_kvlen: ms.Tensor = None,
-        freqs_cis: tuple = None,
+        freqs_cos: ms.Tensor = None,
+        freqs_sin: ms.Tensor = None,
         attn_mask: ms.Tensor = None,
     ):
         """
@@ -178,9 +179,9 @@ class MMDoubleStreamBlock(nn.Cell):
         img_k = self.img_attn_k_norm(img_k)  # .to(img_v)
 
         # Apply RoPE if needed.
-        if freqs_cis is not None:
+        if freqs_cos is not None:
             # AMP: img_q, img_k cast to fp32 inside, cast back in output, out bf16
-            img_qq, img_kk = RoPE()(img_q, img_k, freqs_cis, head_first=False)
+            img_qq, img_kk = RoPE()(img_q, img_k, freqs_cos, freqs_sin, head_first=False)
 
             img_q, img_k = img_qq.to(img_q.dtype), img_kk.to(img_k.dtype)
 
@@ -321,7 +322,8 @@ class MMSingleStreamBlock(nn.Cell):
         txt_len: int,
         actual_seq_qlen: ms.Tensor = None,
         actual_seq_kvlen: ms.Tensor = None,
-        freqs_cis: Tuple[ms.Tensor, ms.Tensor] = None,
+        freqs_cos: ms.Tensor = None,
+        freqs_sin: ms.Tensor = None,
         attn_mask: ms.Tensor = None,
     ) -> ms.Tensor:
         """
@@ -339,10 +341,10 @@ class MMSingleStreamBlock(nn.Cell):
         k = self.k_norm(k)  # .to(v)
 
         # Apply RoPE if needed.
-        if freqs_cis is not None:
+        if freqs_cos is not None:
             img_q, txt_q = q[:, :-txt_len, :, :], q[:, -txt_len:, :, :]
             img_k, txt_k = k[:, :-txt_len, :, :], k[:, -txt_len:, :, :]
-            img_qq, img_kk = RoPE()(img_q, img_k, freqs_cis, head_first=False)
+            img_qq, img_kk = RoPE()(img_q, img_k, freqs_cos, freqs_sin, head_first=False)
             # assert (
             #    img_qq.shape == img_q.shape and img_kk.shape == img_k.shape
             # ), f"img_kk: {img_qq.shape}, img_q: {img_q.shape}, img_kk: {img_kk.shape}, img_k: {img_k.shape}"
@@ -680,8 +682,6 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             valid_seq_len = valid_text_len[i] + img_seq_len
             actual_seq_len[2 * i] = i * max_seq_len + valid_seq_len
             actual_seq_len[2 * i + 1] = (i + 1) * max_seq_len
-
-        freqs_cis = (freqs_cos, freqs_sin) if freqs_cos is not None else None
         # --------------------- Pass through DiT blocks ------------------------
         for _, block in enumerate(self.double_blocks):
             # AMP: img bf16, txt bf16, vec bf16, freqs fp32
@@ -689,7 +689,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 img,
                 txt,
                 vec,
-                freqs_cis=freqs_cis,
+                freqs_cos=freqs_cos,
+                freqs_sin=freqs_sin,
                 actual_seq_qlen=actual_seq_len,
                 actual_seq_kvlen=actual_seq_len,
                 # attn_mask=mask,
@@ -703,7 +704,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     x,
                     vec,
                     txt_seq_len,
-                    freqs_cis=freqs_cis,
+                    freqs_cos=freqs_cos,
+                    freqs_sin=freqs_sin,
                     actual_seq_qlen=actual_seq_len,
                     actual_seq_kvlen=actual_seq_len,
                     # attn_mask=mask,
