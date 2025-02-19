@@ -88,6 +88,10 @@ print("Processed input, time elapsed: %.4fs" % (time.time() - start_time))
 start_time = time.time()
 
 generated_ids = model.generate(**inputs, max_new_tokens=128)
+print(f"generated_ids length / #steps: {len(generated_ids[0])}")
+elapsed = time.time() - start_time
+print("Average speed %.4fs/step" % (elapsed / len(generated_ids[0])))
+
 output_text = processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
 
 print("Generated response, time elapsed: %.4fs" % (time.time() - start_time))
