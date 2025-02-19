@@ -25,7 +25,7 @@ class Upsample2x(nn.Cell):
         self.conv = mint.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
 
     def construct(self, x):
-        return self.conv(F.interpolate(x, scale_factor=2, mode='nearest'))
+        return self.conv(F.interpolate(x, scale_factor=2.0, mode='nearest'))
 
 
 class Downsample2x(nn.Cell):
@@ -56,8 +56,8 @@ class ResnetBlock(nn.Cell):
             self.nin_shortcut = mint.nn.Identity()
 
     def construct(self, x):
-        h = self.conv1(F.silu(self.norm1(x), inplace=True))
-        h = self.conv2(self.dropout(F.silu(self.norm2(h), inplace=True)))
+        h = self.conv1(F.silu(self.norm1(x)))
+        h = self.conv2(self.dropout(F.silu(self.norm2(h))))
         return self.nin_shortcut(x) + h
 
 
@@ -158,7 +158,7 @@ class Encoder(nn.Cell):
         h = self.mid.block_2(self.mid.attn_1(self.mid.block_1(h)))
 
         # end
-        h = self.conv_out(F.silu(self.norm_out(h), inplace=True))
+        h = self.conv_out(F.silu(self.norm_out(h)))
         return h
 
 
@@ -224,5 +224,5 @@ class Decoder(nn.Cell):
                 h = self.up[i_level].upsample(h)
 
         # end
-        h = self.conv_out(F.silu(self.norm_out(h), inplace=True))
+        h = self.conv_out(F.silu(self.norm_out(h)))
         return h

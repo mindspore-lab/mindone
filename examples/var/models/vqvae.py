@@ -64,7 +64,7 @@ class VQVAE(nn.Cell):
     # # ===================== `forward` is only used in VAE training =====================
 
     def fhat_to_img(self, f_hat: ms.Tensor):
-        return self.decoder(self.post_quant_conv(f_hat)).clamp_(-1, 1)
+        return self.decoder(self.post_quant_conv(f_hat)).clamp(-1, 1)
 
     def img_to_idxBl(self, inp_img_no_grad: ms.Tensor,
                      v_patch_nums: Optional[Sequence[Union[int, Tuple[int, int]]]] = None) -> List[

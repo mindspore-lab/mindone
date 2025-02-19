@@ -69,7 +69,7 @@ def main(args):
     more_smooth = False  # True for more smooth output
 
     B = len(class_labels)
-    label_B = ms.Tensor(class_labels, dtype=ms.float32)
+    label_B = ms.Tensor(class_labels)
     reconB3HW = var.autoregressive_infer_cfg(B=B, label_B=label_B, cfg=cfg, top_k=900, top_p=0.95, g_seed=args.seed, more_smooth=more_smooth)
 
     print(reconB3HW)

@@ -8,20 +8,20 @@ def sample_with_top_k_top_p_(logits_BlV: ms.Tensor, top_k: int = 0, top_p: float
                              num_samples=1) -> ms.Tensor:  # return idx, shaped (B, l)
     B, l, V = logits_BlV.shape
     if top_k > 0:
-        idx_to_remove = logits_BlV < logits_BlV.topk(top_k, largest=True, sorted=False, dim=-1)[0].amin(dim=-1,
-                                                                                                        keepdim=True)
+        idx_to_remove = logits_BlV < mint.amin(logits_BlV.topk(top_k, largest=True, sorted=False, dim=-1)[0], -1, keepdim=True)
+
         logits_BlV.masked_fill(idx_to_remove, -ms.numpy.inf)
     if top_p > 0:
         sorted_logits, sorted_idx = logits_BlV.sort(dim=-1, descending=False)
-        sorted_idx_to_remove = sorted_logits.softmax(dim=-1).cumsum_(dim=-1) <= (1 - top_p)
+        sorted_idx_to_remove = mint.softmax(sorted_logits, dim=-1).cumsum(dim=-1) <= (1 - top_p)
         sorted_idx_to_remove[..., -1:] = False
         logits_BlV.masked_fill(sorted_idx_to_remove.scatter(sorted_idx.ndim - 1, sorted_idx, sorted_idx_to_remove),
                                 -ms.numpy.inf)
     # sample (have to squeeze cuz torch.multinomial can only be used for 2D tensor)
     replacement = num_samples >= 0
     num_samples = abs(num_samples)
-    return mint.multinomial(logits_BlV.softmax(dim=-1).view(-1, V), num_samples=num_samples, replacement=replacement,
-                             generator=rng).view(B, l, num_samples)
+    return mint.multinomial(mint.softmax(logits_BlV, dim=-1).view((-1, V)), num_samples=num_samples, replacement=replacement,
+                             generator=rng).view((B, l, num_samples))
 
 
 def gumbel_softmax_with_rng(logits: ms.Tensor, tau: float = 1, hard: bool = False, dim: int = -1,
@@ -63,7 +63,7 @@ class DropPath(nn.Cell):  # taken from timm
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
 
-    def forward(self, x):
+    def construct(self, x):
         return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
 
     def extra_repr(self):

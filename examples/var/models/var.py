@@ -165,12 +165,12 @@ class VAR(nn.Cell):
             mint.cat((label_B, mint.full_like(label_B, fill_value=self.num_classes)), dim=0))
 
         lvl_pos = self.lvl_embed(self.lvl_1L) + self.pos_1LC
-        next_token_map = sos.unsqueeze(1).expand(2 * B, self.first_l, -1) + self.pos_start.expand(2 * B, self.first_l,
-                                                                                                  -1) + lvl_pos[:,
+        next_token_map = sos.unsqueeze(1).expand((2 * B, self.first_l, -1)) + self.pos_start.expand((2 * B, self.first_l,
+                                                                                                  -1)) + lvl_pos[:,
                                                                                                         :self.first_l]
 
         cur_L = 0
-        f_hat = sos.new_zeros(B, self.Cvae, self.patch_nums[-1], self.patch_nums[-1])
+        f_hat = sos.new_zeros((B, self.Cvae, self.patch_nums[-1], self.patch_nums[-1]))
 
         for b in self.blocks:
             b.attn.kv_caching(True)
@@ -197,14 +197,14 @@ class VAR(nn.Cell):
                 h_BChw = gumbel_softmax_with_rng(logits_BlV.mul(1 + ratio), tau=gum_t, hard=False, dim=-1, rng=rng) @ \
                          self.vae_quant_proxy[0].embedding.weight.unsqueeze(0)
 
-            h_BChw = h_BChw.transpose_(1, 2).reshape(B, self.Cvae, pn, pn)
+            h_BChw = h_BChw.transpose(1, 2).reshape(B, self.Cvae, pn, pn)
             f_hat, next_token_map = self.vae_quant_proxy[0].get_next_autoregressive_input(si, len(self.patch_nums),
                                                                                           f_hat, h_BChw)
             if si != self.num_stages_minus_1:  # prepare for next stage
                 next_token_map = next_token_map.view(B, self.Cvae, -1).transpose(1, 2)
                 next_token_map = self.word_embed(next_token_map) + lvl_pos[:,
                                                                    cur_L:cur_L + self.patch_nums[si + 1] ** 2]
-                next_token_map = next_token_map.repeat(2, 1, 1)  # double the batch sizes due to CFG
+                next_token_map = next_token_map.tile((2, 1, 1))  # double the batch sizes due to CFG
 
         for b in self.blocks:
             b.attn.kv_caching(False)
@@ -221,19 +221,19 @@ class VAR(nn.Cell):
 
         label_B = mint.where(mint.rand(B) < self.cond_drop_rate, self.num_classes, label_B)
         sos = cond_BD = self.class_emb(label_B)
-        sos = sos.unsqueeze(1).expand(B, self.first_l, -1) + self.pos_start.expand(B, self.first_l, -1)
+        sos = sos.unsqueeze(1).expand(*B, self.first_l, -1) + self.pos_start.expand((B, self.first_l, -1))
 
         if self.prog_si == 0:
             x_BLC = sos
         else:
             x_BLC = mint.cat((sos, self.word_embed(x_BLCv_wo_first_l.float())), dim=1)
-        x_BLC += self.lvl_embed(self.lvl_1L[:, :ed].expand(B, -1)) + self.pos_1LC[:, :ed]  # lvl: BLC;  pos: 1LC
+        x_BLC += self.lvl_embed(self.lvl_1L[:, :ed].expand((B, -1))) + self.pos_1LC[:, :ed]  # lvl: BLC;  pos: 1LC
 
         attn_bias = self.attn_bias_for_masking[:, :, :ed, :ed]
         cond_BD_or_gss = self.shared_ada_lin(cond_BD)
 
         # hack: get the dtype if mixed precision is used
-        temp = x_BLC.new_ones(8, 8)
+        temp = x_BLC.new_ones((8, 8))
         main_type = mint.matmul(temp, temp).dtype
 
         x_BLC = x_BLC.to(dtype=main_type)

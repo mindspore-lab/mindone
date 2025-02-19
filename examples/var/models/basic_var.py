@@ -39,7 +39,7 @@ class SelfAttention(nn.Cell):
         self.block_idx, self.num_heads, self.head_dim = block_idx, num_heads, embed_dim // num_heads  # =64
         self.attn_l2_norm = attn_l2_norm
         if self.attn_l2_norm:
-            self.scale = 1
+            self.scale = 1.0
             self.scale_mul_1H11 = Parameter(mint.full(size=(1, self.num_heads, 1, 1), fill_value=4.0).log(),
                                                requires_grad=True)
             self.max_scale_mul = mint.log(ms.tensor(100)).item()
@@ -56,7 +56,7 @@ class SelfAttention(nn.Cell):
 
         # only used during inference
         self.caching, self.cached_k, self.cached_v = False, None, None
-        self.attention = FlashAttentionScore(1, scale_value=self.scale, input_layout="BNSD", keep_prob=1-self.attn_drop)
+        self.attention = FlashAttentionScore(head_num=self.num_heads, scale_value=self.scale, input_layout="BNSD", keep_prob=1-self.attn_drop)
 
     def register_buffer(self, name, attr):
         setattr(self, name, Parameter(default_input=attr, requires_grad=False))
@@ -83,7 +83,7 @@ class SelfAttention(nn.Cell):
         #     dim_cat = 2
 
         if self.attn_l2_norm:
-            scale_mul = self.scale_mul_1H11.clamp_max(self.max_scale_mul).exp()
+            scale_mul = self.scale_mul_1H11.clamp(max=self.max_scale_mul).exp()
             # if using_flash:
             scale_mul = scale_mul.transpose(1, 2)  # 1H11 to 11H1
             q = F.normalize(q, dim=-1).mul(scale_mul)
@@ -100,21 +100,18 @@ class SelfAttention(nn.Cell):
         # dropout_p = self.attn_drop if self.training else 0.0
         q = q.swapaxes(1, 2)
         k = k.swapaxes(1, 2)
-        k = k.swapaxes(1, 2)
-        _, _, _, oup = self.attention(
+        v = v.swapaxes(1, 2)
+        out = self.attention(
             q.to(dtype=main_type),
             k.to(dtype=main_type),
             v.to(dtype=main_type),
             None,
             None,
             None,
-            attention_mask).view(B, L, C)
+            attention_mask)[3].swapaxes(1, 2).view(B, L, C)
 
-        return self.proj_drop(self.proj(oup))
+        return self.proj_drop(self.proj(out))
 
-
-    def extra_repr(self) -> str:
-        return f'using_flash={self.using_flash}, using_xform={self.using_xform}, attn_l2_norm={self.attn_l2_norm}'
 
 
 class AdaLNSelfAttn(nn.Cell):

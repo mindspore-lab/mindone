@@ -2,7 +2,7 @@ from typing import List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import mindspore as ms
-from mindspore import nn, mint, Parameter
+from mindspore import nn, mint, Parameter, ops
 from mindspore.mint.nn import functional as F
 
 
@@ -71,12 +71,12 @@ class VectorQuantizer2(nn.Cell):
         for si, pn in enumerate(self.v_patch_nums):  # from small to large
             # find the nearest embedding
             if self.using_znorm:
-                rest_NC = F.interpolate(f_rest, size=(pn, pn), mode='area').permute(0, 2, 3, 1).reshape(-1, C) if (
+                rest_NC = ops.interpolate(f_rest, size=(pn, pn), mode='area').permute(0, 2, 3, 1).reshape(-1, C) if (
                             si != SN - 1) else f_rest.permute(0, 2, 3, 1).reshape(-1, C)
                 rest_NC = F.normalize(rest_NC, dim=-1)
                 idx_N = mint.argmax(rest_NC @ F.normalize(self.embedding.weight.data.T, dim=0), dim=1)
             else:
-                rest_NC = F.interpolate(f_rest, size=(pn, pn), mode='area').permute(0, 2, 3, 1).reshape(-1, C) if (
+                rest_NC = ops.interpolate(f_rest, size=(pn, pn), mode='area').permute(0, 2, 3, 1).reshape(-1, C) if (
                             si != SN - 1) else f_rest.permute(0, 2, 3, 1).reshape(-1, C)
                 d_no_grad = mint.sum(rest_NC.square(), dim=1, keepdim=True) + mint.sum(
                     self.embedding.weight.data.square(), dim=1, keepdim=False)
@@ -88,7 +88,7 @@ class VectorQuantizer2(nn.Cell):
             #     if dist.initialized(): handler = mint.distributed.all_reduce(hit_V)
 
             # calc loss
-            idx_Bhw = idx_N.view(B, pn, pn)
+            idx_Bhw = idx_N.view((B, pn, pn))
             h_BChw = F.interpolate(self.embedding(idx_Bhw).permute(0, 3, 1, 2), size=(H, W),
                                    mode='bicubic').contiguous() if (si != SN - 1) else self.embedding(
                 idx_Bhw).permute(0, 3, 1, 2).contiguous()
@@ -185,7 +185,7 @@ class VectorQuantizer2(nn.Cell):
                 d_no_grad = mint.addmm(d_no_grad, z_NC, self.embedding.weight.data.T, alpha=-2, beta=1)  # (B*h*w, vocab_size)
                 idx_N = mint.argmin(d_no_grad, dim=1)
 
-            idx_Bhw = idx_N.view(B, ph, pw)
+            idx_Bhw = idx_N.view((B, ph, pw))
             h_BChw = F.interpolate(self.embedding(idx_Bhw).permute(0, 3, 1, 2), size=(H, W),
                                    mode='bicubic').contiguous() if (si != SN - 1) else self.embedding(idx_Bhw).permute(
                 0, 3, 1, 2).contiguous()
@@ -209,12 +209,12 @@ class VectorQuantizer2(nn.Cell):
         for si in range(SN - 1):
             if self.prog_si == 0 or (
                     0 <= self.prog_si - 1 < si): break  # progressive training: not supported yet, prog_si always -1
-            h_BChw = F.interpolate(self.embedding(gt_ms_idx_Bl[si]).transpose_(1, 2).view(B, C, pn_next, pn_next),
+            h_BChw = F.interpolate(self.embedding(gt_ms_idx_Bl[si]).transpose(1, 2).view((B, C, pn_next, pn_next)),
                                    size=(H, W), mode='bicubic')
             f_hat = mint.add(f_hat, self.quant_resi[si / (SN - 1)](h_BChw))
             pn_next = self.v_patch_nums[si + 1]
             next_scales.append(
-                F.interpolate(f_hat, size=(pn_next, pn_next), mode='area').view(B, C, -1).transpose(1, 2))
+                ops.interpolate(f_hat, size=(pn_next, pn_next), mode='area').view((B, C, -1)).transpose(1, 2))
         return mint.cat(next_scales, dim=1) if len(next_scales) else None  # cat BlCs to BLC, this should be float32
 
     # ===================== get_next_autoregressive_input: only used in VAR inference, for getting next step's input =====================
@@ -225,7 +225,7 @@ class VectorQuantizer2(nn.Cell):
             h = self.quant_resi[si / (SN - 1)](
                 F.interpolate(h_BChw, size=(HW, HW), mode='bicubic'))  # conv after upsample
             f_hat = mint.add(f_hat, h)
-            return f_hat, F.interpolate(f_hat, size=(self.v_patch_nums[si + 1], self.v_patch_nums[si + 1]), mode='area')
+            return f_hat, ops.interpolate(f_hat, size=(self.v_patch_nums[si + 1], self.v_patch_nums[si + 1]), mode='area')
         else:
             h = self.quant_resi[si / (SN - 1)](h_BChw)
             f_hat = mint.add(f_hat, h)
