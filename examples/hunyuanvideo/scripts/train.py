@@ -191,18 +191,19 @@ def main(args):
     # 5.4 callbacks
     callbacks = [OverflowMonitor()]
     if val_dataloader is not None:
-        callbacks.extend(
-            [
-                ValidationCallback(
-                    network=eval_diffusion_with_loss,
-                    dataset=val_dataloader,
-                    alpha_smooth=0.01,  # FIXME
-                    valid_frequency=args.valid.frequency,
-                    ema=ema,
-                ),
-                ReduceLROnPlateauByStep(optimizer, **args.train.lr_reduce_on_plateau),
-            ]
+        callbacks.append(
+            ValidationCallback(
+                network=eval_diffusion_with_loss,
+                dataset=val_dataloader,
+                alpha_smooth=0.01,  # FIXME
+                valid_frequency=args.valid.frequency,
+                ema=ema,
+            )
         )
+        if args.train.lr_reduce_on_plateau is not None:
+            callbacks.append(
+                ReduceLROnPlateauByStep(optimizer, **args.train.lr_reduce_on_plateau),
+            )
 
     if args.train.settings.zero_stage == 3 or rank_id == 0:
         ckpt_save_dir = (
