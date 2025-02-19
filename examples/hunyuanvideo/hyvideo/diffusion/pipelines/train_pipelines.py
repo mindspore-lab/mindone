@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from hyvideo.utils.ms_utils import no_grad
 
@@ -77,6 +78,8 @@ class DiffusionWithLoss(nn.Cell):
         text_tokens: Tensor,
         encoder_attention_mask: Tensor = None,
         text_tokens_2: Tensor = None,
+        freqs_cos: Optional[ms.Tensor] = None,
+        freqs_sin: Optional[ms.Tensor] = None,
         encoder_attention_mask_2: Tensor = None,
     ):
         """
@@ -87,6 +90,8 @@ class DiffusionWithLoss(nn.Cell):
             text_tokens: (B, L, D)
             encoder_attention_mask: (B, L)
             text_tokens_2: (B, D')
+            freqs_cos: (S attn_head_dim), S - seq len of the patchified video latent (T * H //2 * W//2)
+            freqs_sin: (S attn_head_dim)
             encoder_attention_mask_2: (B, L')
         Returns:
             loss: (B,)
@@ -113,7 +118,7 @@ class DiffusionWithLoss(nn.Cell):
                     text_embed_2 = text_tokens_2
                 else:
                     text_embed_2 = None
-        loss = self.compute_loss(x, text_embed, encoder_attention_mask, text_embed_2)
+        loss = self.compute_loss(x, text_embed, encoder_attention_mask, text_embed_2, freqs_cos, freqs_sin)
         return loss
 
     def compute_loss(
@@ -122,6 +127,8 @@ class DiffusionWithLoss(nn.Cell):
         text_embed,
         encoder_attention_mask,
         text_embed_2,
+        freqs_cos,
+        freqs_sin,
     ):
         bsz = x.shape[0]
         guidance_expand = (
@@ -138,6 +145,8 @@ class DiffusionWithLoss(nn.Cell):
             text_states=text_embed,
             text_mask=encoder_attention_mask,
             text_states_2=text_embed_2,
+            freqs_cos=freqs_cos,
+            freqs_sin=freqs_sin,
             guidance=guidance_expand,
         )
         return loss

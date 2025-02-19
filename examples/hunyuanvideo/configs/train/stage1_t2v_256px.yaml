@@ -37,7 +37,7 @@ dataset:
   sample_n_frames: 29
   apply_transforms_dataset: True
   vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
-  output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2" ]
+  output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin" ]
 
 dataloader:
   batch_size: 1
@@ -104,7 +104,7 @@ valid:
     target_size: [ 256, 256 ]
     apply_transforms_dataset: True
     vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
-    output_columns:  [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2" ]
+    output_columns:  [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin"]
 
   dataloader:
     batch_size: 1

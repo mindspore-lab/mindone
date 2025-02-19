@@ -8,6 +8,8 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import cv2
 import numpy as np
+from hyvideo.constants import VAE_PATH
+from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
 from tqdm import tqdm
 
 from mindone.data import BaseDataset
@@ -67,6 +69,14 @@ class ImageVideoDataset(BaseDataset):
         apply_transforms_dataset: bool = False,
         *,
         output_columns: List[str],
+        # VAE
+        vae_type: str = "884-16c-hy",
+        # Hyvideo
+        model_patch_size: list = [1, 2, 2],
+        model_hidden_size: int = 3072,
+        model_heads_num: int = 24,
+        model_rope_dim_list: List[int] = [16, 56, 56],
+        rope_theta: int = 256,
     ):
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder, filter_data)
         self._frames = sample_n_frames
@@ -94,10 +104,59 @@ class ImageVideoDataset(BaseDataset):
         self._transforms = (
             self.train_transforms(target_size, interpolation=cv2.INTER_AREA) if apply_transforms_dataset else None
         )
+        self.vae_type = vae_type
+        self.model_patch_size = model_patch_size
+        self.model_hidden_size = model_hidden_size
+        self.model_heads_num = model_heads_num
+        self.model_rope_dim_list = model_rope_dim_list
+        assert self.vae_type in VAE_PATH, f"Expected vae_type to be one of {VAE_PATH.keys()}"
+        self.rope_theta = rope_theta
+        self.freqs_cos, self.freqs_sin = self.get_rotary_pos_embed(sample_n_frames, target_size[0], target_size[1])
 
         # prepare replacement data in case the loading of a sample fails
         self._prev_ok_sample = self._get_replacement()
         self._require_update_prev = False
+
+    def get_rotary_pos_embed(self, video_length, height, width):
+        target_ndim = 3
+        ndim = 5 - 2
+        # 884
+        if "884" in self.vae_type:
+            latents_size = [(video_length - 1) // 4 + 1, height // 8, width // 8]
+        elif "888" in self.vae_type:
+            latents_size = [(video_length - 1) // 8 + 1, height // 8, width // 8]
+        else:
+            latents_size = [video_length, height // 8, width // 8]
+
+        if isinstance(self.model_patch_size, int):
+            assert all(s % self.model_patch_size == 0 for s in latents_size), (
+                f"Latent size(last {ndim} dimensions) should be divisible by patch size({self.model_patch_size}), "
+                f"but got {latents_size}."
+            )
+            rope_sizes = [s // self.model_patch_size for s in latents_size]
+        elif isinstance(self.model_patch_size, list):
+            assert all(s % self.model_patch_size[idx] == 0 for idx, s in enumerate(latents_size)), (
+                f"Latent size(last {ndim} dimensions) should be divisible by patch size({self.model_patch_size}), "
+                f"but got {latents_size}."
+            )
+            rope_sizes = [s // self.model_patch_size[idx] for idx, s in enumerate(latents_size)]
+
+        if len(rope_sizes) != target_ndim:
+            rope_sizes = [1] * (target_ndim - len(rope_sizes)) + rope_sizes  # time axis
+        head_dim = self.model_hidden_size // self.model_heads_num
+        rope_dim_list = self.model_rope_dim_list
+        if rope_dim_list is None:
+            rope_dim_list = [head_dim // target_ndim for _ in range(target_ndim)]
+        assert sum(rope_dim_list) == head_dim, "sum(rope_dim_list) should equal to head_dim of attention layer"
+
+        freqs_cos, freqs_sin = get_nd_rotary_pos_embed(
+            rope_dim_list,
+            rope_sizes,
+            theta=self.rope_theta,
+            use_real=True,
+            theta_rescale_factor=1,
+        )
+        return freqs_cos.asnumpy(), freqs_sin.asnumpy()
 
     @staticmethod
     def _read_data(
@@ -215,6 +274,10 @@ class ImageVideoDataset(BaseDataset):
 
         if self._transforms:
             data = self._apply_transforms(data)
+
+        # rope frequencies
+        data["freqs_cos"] = self.freqs_cos
+        data["freqs_sin"] = self.freqs_sin
 
         return tuple(data[c] for c in self.output_columns)
 

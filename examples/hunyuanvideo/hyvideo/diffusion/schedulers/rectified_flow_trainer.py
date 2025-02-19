@@ -128,6 +128,7 @@ class RFlowLossWrapper(nn.Cell):
         text_states_2: Tensor,
         guidance: Optional[Tensor] = None,
         timestep: Optional[Tensor] = None,
+        **kwargs,
     ) -> Tensor:
         """
         Calculate the training loss for the corresponding timestep.
@@ -153,6 +154,7 @@ class RFlowLossWrapper(nn.Cell):
             text_mask=text_mask,
             text_states_2=text_states_2,
             guidance=guidance,
+            **kwargs,
         ).to(mstype.float32)
         v_t = noise - x
 
@@ -189,6 +191,7 @@ class RFlowEvalLoss(nn.Cell):
         text_states_2: Tensor,
         guidance: Optional[Tensor] = None,
         timestep: Optional[Tensor] = None,
+        **kwargs,
     ) -> Tensor:
         loss = Tensor(0, dtype=mstype.float32)
         timesteps = mint.tile(self.timesteps, (1, x.shape[0]))
@@ -200,6 +203,7 @@ class RFlowEvalLoss(nn.Cell):
                 text_mask=text_mask,
                 text_states_2=text_states_2,
                 guidance=guidance,
+                **kwargs,
             )
 
         return loss / len(self.timesteps)
