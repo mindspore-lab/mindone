@@ -85,7 +85,7 @@ class SelfAttention(nn.Cell):
         if self.attn_l2_norm:
             scale_mul = self.scale_mul_1H11.clamp(max=self.max_scale_mul).exp()
             # if using_flash:
-            scale_mul = scale_mul.transpose(1, 2)  # 1H11 to 11H1
+            scale_mul = mint.transpose(scale_mul, 1, 2)  # 1H11 to 11H1
             q = F.normalize(q, dim=-1).mul(scale_mul)
             k = F.normalize(k, dim=-1)
 
