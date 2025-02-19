@@ -22,10 +22,10 @@ Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingf
 ## Quick Start
 
 
-`examples/transformers/qwen2-vl/vqa_test.py` provides examples of image and video VQA. Here is an usage example of image understanding:
+`test_vqa.py` and `video_understanding.py` provides examples of image and video VQA. Here is an usage example of image understanding:
 
 ```python
-from transformers import AutoTokenizer, AutoProcessor
+from transformers import AutoProcessor
 from mindone.transformers import Qwen2VLForConditionalGeneration
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
 from mindspore import Tensor
@@ -58,6 +58,14 @@ inputs = processor(
     padding=True,
     return_tensors="np",
 )
+# convert input to Tensor
+for key, value in inputs.items():
+    if isinstance(value, np.ndarray):
+        inputs[key] = ms.Tensor(value)
+    elif isinstance(value, list):
+        inputs[key] = ms.Tensor(value)
+    if inputs[key].dtype == ms.int64:
+        inputs[key] = inputs[key].to(ms.int32)
 generated_ids = model.generate(**inputs, max_new_tokens=128)
 output_text = processor.batch_decode(
     generated_ids,

@@ -539,6 +539,7 @@ class DynamicCache(Cache):
             self.key_cache[layer_idx] = self.key_cache[layer_idx][indices, ...]
             self.value_cache[layer_idx] = self.value_cache[layer_idx][indices, ...]
 
+
 class EncoderDecoderCache(Cache):
     def __init__(self):
         raise NotImplementedError

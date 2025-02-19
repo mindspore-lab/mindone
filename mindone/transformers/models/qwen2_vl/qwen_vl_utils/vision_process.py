@@ -9,15 +9,12 @@ import math
 import os
 import sys
 import time
-import warnings
 from functools import lru_cache
 from io import BytesIO
 
-import requests
-from packaging import version
-from PIL import Image
 import numpy as np
-
+import requests
+from PIL import Image
 
 import mindspore
 from mindspore import ops
@@ -39,6 +36,7 @@ FPS = 2.0
 FPS_MIN_FRAMES = 4
 FPS_MAX_FRAMES = 768
 
+
 def round_by_factor(number: int, factor: int) -> int:
     """Returns the closest integer to 'number' that is divisible by 'factor'."""
     return round(number / factor) * factor
@@ -52,6 +50,7 @@ def ceil_by_factor(number: int, factor: int) -> int:
 def floor_by_factor(number: int, factor: int) -> int:
     """Returns the largest integer less than or equal to 'number' that is divisible by 'factor'."""
     return math.floor(number / factor) * factor
+
 
 def smart_resize(
     height: int, width: int, factor: int = IMAGE_FACTOR, min_pixels: int = MIN_PIXELS, max_pixels: int = MAX_PIXELS
@@ -82,7 +81,6 @@ def smart_resize(
     return h_bar, w_bar
 
 
-
 def fetch_image(ele: dict[str, str | Image.Image], size_factor: int = IMAGE_FACTOR) -> Image.Image:
     if "image" in ele:
         image = ele["image"]
@@ -105,7 +103,7 @@ def fetch_image(ele: dict[str, str | Image.Image], size_factor: int = IMAGE_FACT
     if image_obj is None:
         raise ValueError(f"Unrecognized image input, support local path, http url, base64 and PIL.Image, got {image}")
     image = image_obj.convert("RGB")
-    ## resize
+    # resize
     if "resized_height" in ele and "resized_width" in ele:
         resized_height, resized_width = smart_resize(
             ele["resized_height"],
@@ -165,6 +163,7 @@ def smart_nframes(
         raise ValueError(f"nframes should in interval [{FRAME_FACTOR}, {total_frames}], but got {nframes}.")
     return nframes
 
+
 # Comment: _read_video_torchvision to _read_video_mindspore
 def _read_video_mindspore(
     ele: dict,
@@ -203,6 +202,7 @@ def is_decord_available() -> bool:
 
     return importlib.util.find_spec("decord") is not None
 
+
 def _read_video_decord(
     ele: dict,
 ):
@@ -218,11 +218,12 @@ def _read_video_decord(
         numpy array: the video tensor with shape (T, C, H, W).
     """
     import decord
+
     video_path = ele["video"]
     st = time.time()
     vr = decord.VideoReader(video_path)
     # TODO: support start_pts and end_pts
-    if 'video_start' in ele or 'video_end' in ele:
+    if "video_start" in ele or "video_end" in ele:
         raise NotImplementedError("not support start_pts and end_pts in decord for now.")
     total_frames, video_fps = len(vr), vr.get_avg_fps()
     logger.info(f"decord:  {video_path=}, {total_frames=}, {video_fps=}, time={time.time() - st:.3f}s")
@@ -230,6 +231,7 @@ def _read_video_decord(
     idx = ops.linspace(0, total_frames - 1, nframes).round().long().tolist()
     video = vr.get_batch(idx).asnumpy()
     return video
+
 
 VIDEO_READER_BACKENDS = {
     "decord": _read_video_decord,
@@ -255,7 +257,12 @@ def fetch_video(ele: dict, image_factor: int = IMAGE_FACTOR) -> list[Image.Image
     if isinstance(ele["video"], str):
         video_reader_backend = get_video_reader_backend()
         video = VIDEO_READER_BACKENDS[video_reader_backend](ele)
-        nframes, height, width, _, = video.shape
+        (
+            nframes,
+            height,
+            width,
+            _,
+        ) = video.shape
 
         min_pixels = ele.get("min_pixels", VIDEO_MIN_PIXELS)
         total_pixels = ele.get("total_pixels", VIDEO_TOTAL_PIXELS)
@@ -275,13 +282,15 @@ def fetch_video(ele: dict, image_factor: int = IMAGE_FACTOR) -> list[Image.Image
                 min_pixels=min_pixels,
                 max_pixels=max_pixels,
             )
-        logger.info("video.shape (frames, h, w, channel)=%s"%(str(video.shape)))
-        logger.info("resize to (h, w)=(%d, %d)"%(resized_height, resized_width))
+        logger.info("video.shape (frames, h, w, channel)=%s" % (str(video.shape)))
+        logger.info("resize to (h, w)=(%d, %d)" % (resized_height, resized_width))
         images = [
             vision.Resize(
                 size=[resized_height, resized_width],
                 interpolation=Inter.BICUBIC,
-            )(image).astype(np.uint8)
+            )(
+                image
+            ).astype(np.uint8)
             for image in video
         ]
         images = [Image.fromarray(image) for image in images]
@@ -324,7 +333,7 @@ def process_vision_info(
     conversations: list[dict] | list[list[dict]],
 ) -> tuple[list[Image.Image] | None, list[mindspore.Tensor | list[Image.Image]] | None]:
     vision_infos = extract_vision_info(conversations)
-    ## Read images or videos
+    # Read images or videos
     image_inputs = []
     video_inputs = []
     for vision_info in vision_infos:

@@ -169,9 +169,10 @@ class GenerationMixin:
             # 2) the generation config must have seen no modification since its creation (the hash is the same);
             # 3) the user must have set generation parameters in the model config.
             if (
-                self.generation_config._from_model_config # 1)
-                and self.generation_config._original_object_hash == hash(self.generation_config) # 2)
-                and len(self.config._get_non_default_generation_parameters()) > 0  # 3) NOTE: requires transformers >= 4.45.0
+                self.generation_config._from_model_config  # 1)
+                and self.generation_config._original_object_hash == hash(self.generation_config)  # 2)
+                and len(self.config._get_non_default_generation_parameters())
+                > 0  # 3) NOTE: requires transformers >= 4.45.0
                 # and self.config._has_non_default_generation_parameters() # no this function in transformers
             ):
                 new_generation_config = GenerationConfig.from_model_config(self.config)

@@ -24,14 +24,14 @@ _Qwen2-VL architecture. Taken from [original paper](https://arxiv.org/abs/2409.1
 
 </div>
 
-### Tasks 
+### Tasks
 Qwen2-VL can support multimodal input for vision understanding.....
 
 ## 2. Model Architecture and Modules
 ### 2.1. Model Architecture
 Here shows the components and architecture of the Qwen2-VL processor including image processor and tokenizer, as well as  the Qwen2-VL vision-and-text conditional generation model including vision encoder and LM decoder.
 
-Taking "Qwen2-VL-7B-Instruct" as an example, Qwen2-VL contains the following components: 
+Taking "Qwen2-VL-7B-Instruct" as an example, Qwen2-VL contains the following components:
 
 
 <details>
@@ -44,7 +44,7 @@ For example:
 from transformers import AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
 messages=[{
-            "role": "user", 
+            "role": "user",
             "content": [
                 {
                     "type": "image",
@@ -73,7 +73,7 @@ Preprocess input visual inputs into specific format that model can handle.
 <summary>Model (visual: vision encoder; model: LM decoder)</summary>
 
 - ``Qwen2VisionTransformerPretrainedModel``: vision model, with vision input embeddings
-- ``Qwen2VLModel``: language model, generate response 
+- ``Qwen2VLModel``: language model, generate response
 
 ```python
 Qwen2VLForConditionalGeneration<
@@ -200,7 +200,7 @@ Qwen2VLProcessor:
 
 <br>
 
-The Qwen2-VL model (Qwen2VLForConditionalGeneration) include a ViT encoder (Qwen2VisionTransformerPretrainedModel) and LM decoder (Qwen2VLModel). 
+The Qwen2-VL model (Qwen2VLForConditionalGeneration) include a ViT encoder (Qwen2VisionTransformerPretrainedModel) and LM decoder (Qwen2VLModel).
 <br>
 Refer to [Position IDs](#position-ids) for details of ```get_rope_index()```.
 <br>
@@ -222,12 +222,12 @@ class Qwen2VLForConditionalGeneration():
         self.model = Qwen2VLModel(config) # Decoder
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
-        self.padding_side = "left" 
+        self.padding_side = "left"
 
     ...
 
     # Hightlight! To get 3D ROPE index for multimodal input (image, video or text)
-    def get_rope_index():        
+    def get_rope_index():  
         ...
         return position_ids, mrope_position_deltas
     def prepare_inputs_for_generation(...):
@@ -247,8 +247,8 @@ class Qwen2VLForConditionalGeneration():
         )
         return model_inputs
 
-   def construct(self, input_ids, attention_mask, position_ids, past_key_values, inputs_embeds, 
-        labels, use_cache, output_attentions,  output_hidden_states, return_dict, 
+   def construct(self, input_ids, attention_mask, position_ids, past_key_values, inputs_embeds,
+        labels, use_cache, output_attentions,  output_hidden_states, return_dict,
         pixel_values, pixel_values_videos, image_grid_thw, video_grid_thw, rope_deltas,
     ) -> Union[Tuple, Qwen2VLCausalLMOutputWithPast]:
 
@@ -256,10 +256,10 @@ class Qwen2VLForConditionalGeneration():
         if inputs_embeds is None:
             inputs_embeds = self.model.embed_tokens(input_ids)
             if pixel_values is not None:
-                pixel_values = pixel_values.type(self.visual.dtype) 
+                pixel_values = pixel_values.type(self.visual.dtype)
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
                 image_mask = (input_ids == self.config.image_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                image_embeds = image_embeds.to(inputs_embeds.dtype) 
+                image_embeds = image_embeds.to(inputs_embeds.dtype)
                 inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
 
             if pixel_values_videos is not None:
@@ -286,7 +286,7 @@ class Qwen2VLForConditionalGeneration():
         logits = self.lm_head(hidden_states)
         logits = logits.float()
 
-        # Training 
+        # Training
         loss = None
         if labels is not None:
             # Shift so that tokens < n predict n
@@ -333,14 +333,14 @@ Text token generation (``generation_output``), e.g.: please refer to "mindone.tr
 # mindone.transformers.MSGenerationMixin.generate()
 from mindspore import Tensor
 model = Qwen2VLForConditionalGeneration.from_pretrained("Qwen/Qwen2-VL-2B-Instruct")
-inputs = tokenizer("Hello world", return_tensors="np") 
+inputs = tokenizer("Hello world", return_tensors="np")
 # {'input_ids': array([[9707, 1879]]), 'attention_mask': array([[1,1]])}
 generation_output = model.generate(Tensor(inputs.input_ids)) # generated sequences of tokens
 # Tensor(shape=[1, 20], dtype=Int64, value=[[9707, 1879, 0 ... 8405, 315, 279]])
 ```
 
 ### Naive Dynamic Resolution
-Qwen2-VL can handle arbitrary image resolutions, mapping them into a dynamic number of visual tokens, offering a more human-like visual processing experience. 
+Qwen2-VL can handle arbitrary image resolutions, mapping them into a dynamic number of visual tokens, offering a more human-like visual processing experience.
 
 TODO: explain more
 
@@ -349,7 +349,7 @@ Decomposes positional embedding into parts to capture 1D textual, 2D visual, and
 
 ![M-ROPE](https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-VL/mrope.png)
 
-#### Position IDs 
+#### Position IDs
 Explanation:
 
     Each embedding sequence contains vision embedding and text embedding or just contains text embedding.
@@ -392,9 +392,9 @@ class Qwen2VLForConditionalGeneration():
             input_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`): Long
                 Indices of input sequence tokens in the vocabulary. Padding will be ignored by default should you provide
                 it.
-            image_grid_thw (`ms.Tensor` of shape `(num_images, 3)`, *optional*): 
+            image_grid_thw (`ms.Tensor` of shape `(num_images, 3)`, *optional*):
                 The temporal, height and width of feature shape of each image in LLM.
-            video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*): 
+            video_grid_thw (`ms.Tensor` of shape `(num_videos, 3)`, *optional*):
                 The temporal, height and width of feature shape of each video in LLM.
             attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
@@ -414,7 +414,7 @@ class Qwen2VLForConditionalGeneration():
             total_input_ids = input_ids
             position_ids = ops.ones(
                 (3, input_ids.shape[0], input_ids.shape[1]), dtype=input_ids.dtype
-            ) 
+            )
             image_index, video_index = 0, 0
             for i, input_ids in enumerate(total_input_ids):
                 if attention_mask is not None:
@@ -477,30 +477,30 @@ class Qwen2VLForConditionalGeneration():
                     llm_pos_ids_list.append(ops.arange(text_len).view((1, -1)).broadcast_to((3, -1)) + st_idx)
 
                 llm_positions = ops.cat(llm_pos_ids_list, axis=1).reshape(3, -1)
-                position_ids[..., i, attention_mask[i] == 1] = llm_positions 
+                position_ids[..., i, attention_mask[i] == 1] = llm_positions
                 mrope_position_deltas.append(llm_positions.max() + 1 - len(total_input_ids[i]))
-            mrope_position_deltas = ms.Tensor(mrope_position_deltas).unsqueeze(1) 
+            mrope_position_deltas = ms.Tensor(mrope_position_deltas).unsqueeze(1)
             return position_ids, mrope_position_deltas
         else:
             if attention_mask is not None:
                 position_ids = attention_mask.int().cumsum(-1) - 1
                 position_ids = ops.masked_fill(position_ids.long(), attention_mask == 0, 1)
-                position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1)) 
+                position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1))
                 max_position_ids = position_ids.max(0, keepdims=False)[0].max(-1, keepdims=True)[0]
                 mrope_position_deltas = max_position_ids + 1 - attention_mask.shape[-1]
             else:
                 position_ids = (
-                    ops.arange(input_ids.shape[1]) 
+                    ops.arange(input_ids.shape[1])
                     .view((1, 1, -1))
                     .broadcast_to((3, input_ids.shape[0], -1))
                 )
                 mrope_position_deltas = ops.zeros(
                     [input_ids.shape[0], 1],
                     dtype=input_ids.dtype,
-                ) 
+                )
 
             return position_ids, mrope_position_deltas
-    
+
     def prepare_inputs_for_generation(
         self,
         input_ids,
@@ -536,7 +536,7 @@ class Qwen2VLForConditionalGeneration():
                 delta = (
                     cache_position[0] + rope_deltas if cache_position is not None and rope_deltas is not None else 0
                 )
-                position_ids = ops.arange(seq_length) 
+                position_ids = ops.arange(seq_length)
                 position_ids = position_ids.view((1, -1)).broadcast_to((batch_size, -1))
                 position_ids = position_ids.add(delta)
                 position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1))
@@ -553,7 +553,7 @@ class Qwen2VLForConditionalGeneration():
 
         if isinstance(past_key_values, StaticCache) and attention_mask.ndim == 2:
             if model_inputs["inputs_embeds"] is not None:
-                batch_size, sequence_length, _ = inputs_embeds.shape              
+                batch_size, sequence_length, _ = inputs_embeds.shape  
             else:
                 batch_size, sequence_length = input_ids.shape
 
@@ -568,7 +568,7 @@ class Qwen2VLForConditionalGeneration():
                 min_dtype=min_dtype,
                 cache_position=cache_position,
                 batch_size=batch_size,
-            ) 
+            )
 
         model_inputs.update(
             {
@@ -753,7 +753,7 @@ class Qwen2VisionTransformerPretrainedModel():
         super().__init__(config)
         self.spatial_merge_size = config.spatial_merge_size
 
-        self.patch_embed = PatchEmbed( 
+        self.patch_embed = PatchEmbed(
             patch_size=config.patch_size,
             temporal_patch_size=config.temporal_patch_size,
             in_channels=config.in_channels,
@@ -881,11 +881,11 @@ class Qwen2VLAttention(nn.Cell):
         self,
         hidden_states,
         attention_mask = None,
-        position_ids = None, 
+        position_ids = None,
         past_key_value = None,
         output_attentions = False,
         use_cache = False,
-        cache_position = None, 
+        cache_position = None,
         position_embeddings: = None,  
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         bsz, q_len, _ = hidden_states.shape
@@ -1029,7 +1029,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.rotary_emb = Qwen2VLRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
-    
+
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1041,7 +1041,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[ms.Tensor] = None, 
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -1056,7 +1056,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = ops.arange(
                 past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            ) 
+            )
         # the hard coded `3` is for temporal, height and width.
         if position_ids is None:
             position_ids = cache_position.view((1, 1, -1)).broadcast_to((3, inputs_embeds.shape[0], -1))
@@ -1128,7 +1128,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
-        
+
 ```
 ```python
 # Copied from transformers.models.qwen2.modeling_qwen2.Qwen2MLP
@@ -1203,14 +1203,14 @@ class Qwen2VLDecoderLayer(nn.Cell):
 
 ### 2.4. [Optional] Vision Preprocessing
 Convert all images or video frames into a list of Pillow Image.
-Can downsample total frames by setting smaller FPS (i.e., 'fps' in config). 
-For example, for a video with 24FPS, total 1200 frame, with new 1 FPS. We can get a list of 
+Can downsample total frames by setting smaller FPS (i.e., 'fps' in config).
+For example, for a video with 24FPS, total 1200 frame, with new 1 FPS. We can get a list of
 
 Refer to qwen_vl_utils.
 
 
 ## 3. Inference Pipelines
-### Single Media inference 
+### Single Media inference
 The model can accept both images and videos as input.  Here is an example without using qwen_vl_utils.
 
 ```python
@@ -1249,7 +1249,7 @@ messages = [
 
 # Prepraration for inference
 text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-# Excepted output: 
+# Excepted output:
 # '<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>Describe this image.<|im_end|>\n<|im_start|>assistant\n'
 url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
 image_inputs = [Image.open(requests.get(url, stream=True).raw)]
@@ -1293,7 +1293,7 @@ def fetch_video(ele: Dict, nframe_factor=2):
         else:
             fps = ele.get("fps", 1.0)
             nframes = round_by_factor(video.size(0) / info["video_fps"] * fps, nframe_factor)
-        
+
         idx = np.linspace(0, total_frames - 1, nframes).round().astype(np.int32)
         video = video[idx] #video in [T, H, W, C] numpy
 
@@ -1336,5 +1336,5 @@ print(output_text[0])
 ### Multiple Media inference
 TODO: add another example
 
-## 4. Finetune 
+## 4. Finetune
 TODO
