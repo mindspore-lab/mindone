@@ -8,7 +8,7 @@
 ## Requirements:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
-|2.43.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC2.beta1|
+|2.4.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC2.beta1|
 
 Tested with:
 - python==3.10.16
@@ -71,7 +71,7 @@ output_text = processor.batch_decode(
     generated_ids,
     skip_special_tokens=True,
     clean_up_tokenization_spaces=False
-)
+)[0]
 print(output_text)
 ```
 
