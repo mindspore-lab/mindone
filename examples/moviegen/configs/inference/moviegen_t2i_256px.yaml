@@ -9,7 +9,7 @@ model:
   name: llama-5B
   pretrained_model_path:
   enable_flash_attention: True
-  max_length: [1, 24, 24]
+  max_length: [ 1, 24, 24 ]
   dtype: bf16
 
 tae:

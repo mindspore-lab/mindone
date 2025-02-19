@@ -41,15 +41,11 @@ class RFLOW:
     ) -> None:
         self.num_sampling_steps = num_sampling_steps
         self.num_timesteps = num_timesteps
-        self.sample_method = sample_method
+        self.timesteps = self._generate_timesteps(sample_method)
 
-    def __call__(self, model: nn.Cell, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor) -> Tensor:
-        """
-        x: (N, T, C, H, W) tensor of inputs (latent representations of video)
-        text_embedding: (N, L, C') tensor of the text embedding
-        """
+    def _generate_timesteps(self, sample_method: Literal["linear", "linear-quadratic"] = "linear") -> np.ndarray:
         # prepare timesteps
-        if self.sample_method == "linear":
+        if sample_method == "linear":
             timesteps = (1.0 - np.arange(self.num_sampling_steps) / self.num_sampling_steps) * self.num_timesteps
         else:
             first_half = ceil(self.num_sampling_steps / 2)
@@ -59,8 +55,14 @@ class RFLOW:
             quadratic = (self.num_timesteps - (first_half - 1)) * quadratic + (first_half - 1)  # scale and shift
             quadratic = self.num_timesteps - quadratic
             timesteps = np.concatenate([linear, quadratic])
+        return timesteps[..., None]
 
-        timesteps = np.tile(timesteps[..., None], (1, x.shape[0]))
+    def __call__(self, model: nn.Cell, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor) -> Tensor:
+        """
+        x: (N, T, C, H, W) tensor of inputs (latent representations of video)
+        text_embedding: (N, L, C') tensor of the text embedding
+        """
+        timesteps = np.tile(self.timesteps, (1, x.shape[0]))
         timesteps = Tensor(timesteps, dtype=mstype.float32)  # FIXME: avoid calculations on tensors outside `construct`
 
         for i, timestep in tqdm(enumerate(timesteps), total=self.num_sampling_steps):
@@ -138,7 +140,8 @@ class RFlowLossWrapper(nn.Cell):
         x = x.to(mstype.float32)
 
         if timestep is None:
-            timestep = self._broadcast(self._sample_func(x.shape[0]))
+            timestep = self._sample_func(x.shape[0])
+        timestep = self._broadcast(timestep)
 
         noise = self._broadcast(ops.randn_like(x))
         x_t = self.add_noise(x, noise, timestep)
@@ -174,7 +177,7 @@ class RFlowEvalLoss(nn.Cell):
         super().__init__()
         self.network = network
         self.timesteps = Tensor(
-            np.linspace(0, network.num_timesteps, num_sampling_steps + 2)[1:-1].reshape(-1, 1), dtype=mstype.float32
+            np.linspace(0, network.num_timesteps, num_sampling_steps + 1)[1:].reshape(-1, 1), dtype=mstype.float32
         )
 
     def construct(self, x: Tensor, ul2_emb: Tensor, metaclip_emb: Tensor, byt5_emb: Tensor, **kwargs) -> Tensor:

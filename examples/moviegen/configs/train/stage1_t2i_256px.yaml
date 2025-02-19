@@ -11,7 +11,7 @@ model:
   enable_flash_attention: True
   recompute_every_nth_block: 1
   not_recompute_fa: False
-  max_length: [1, 24, 24]
+  max_length: [ 1, 24, 24 ]
   dtype: bf16
 
 tae:
@@ -83,7 +83,8 @@ train:
 
   save:
     ckpt_save_policy: top_k
-    monitor_metric: eval_loss_smoothed
+    monitor_metric: val_loss
+    prefer_low_perf: True  # monitor loss -> the lower, the better
     ckpt_save_interval: &save_interval 500
     ckpt_max_keep: 10
     log_interval: 1
@@ -100,7 +101,8 @@ valid:
     text_emb_folder:
       ul2: UL2_FOLDER
       byt5: BYT5_FOLDER
-    target_size: [ 256, 256 ]
+    deterministic_sample: True
+    target_size: 256px
     apply_transforms_dataset: True
     output_columns: [ "video", "ul2_caption", "byt5_caption" ]
 

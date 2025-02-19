@@ -188,7 +188,6 @@ def main(args):
                 ValidationCallback(
                     network=eval_diffusion_with_loss,
                     dataset=val_dataloader,
-                    alpha_smooth=0.01,  # FIXME
                     valid_frequency=args.valid.frequency,
                     ema=ema,
                 ),
@@ -220,9 +219,7 @@ def main(args):
 
     if rank_id == 0:
         callbacks.append(
-            PerfRecorderCallback(
-                args.train.output_path, file_name="result_val.log", metric_names=["eval_loss", "eval_loss_smoothed"]
-            )
+            PerfRecorderCallback(args.train.output_path, file_name="result_val.log", metric_names=["val_loss"])
         )
 
     callbacks.append(StopAtStepCallback(train_steps=args.train.steps, global_step=global_step))
