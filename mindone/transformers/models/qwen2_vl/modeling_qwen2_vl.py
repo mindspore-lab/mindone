@@ -27,10 +27,13 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import nn, ops, mint, _no_grad, jit_class
 from mindspore.nn import CrossEntropyLoss, LayerNorm
-from mindspore.common.initializer import Normal, initializer
+from mindspore.common.initializer import Normal, Initializer
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache, StaticCache, DynamicCache # TODO: SlidingWindowCache
+from mindone.transformers.cache_utils import (
+    Cache, StaticCache, DynamicCache, # TODO: SlidingWindowCache
+    get_max_length, get_seq_length, update
+)
 from mindone.transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from mindone.transformers.modeling_utils import MSPreTrainedModel
@@ -41,8 +44,11 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers.models.qwen2_vl import Qwen2VLConfig, Qwen2VLVisionConfig
-
+from transformers.models.qwen2_vl import Qwen2VLConfig
+try:
+    from transformers.models.qwen2_vl import Qwen2VLVisionConfig # transformers >= 4.48.0
+except:
+    from transformers.models.qwen2_vl.configuration_qwen2_vl import Qwen2VLVisionConfig
 from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
 from mindone.utils.version_control import check_valid_flash_attention
 
@@ -1212,7 +1218,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
         past_seen_tokens = 0
-        if if past_key_values is not None:
+        if past_key_values is not None:
             past_seen_tokens = get_seq_length(past_key_values) if isinstance(past_key_values, Tuple) else past_key_values.get_seq_length()
         using_static_cache = isinstance(past_key_values, Tuple)
 
@@ -1246,8 +1252,6 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             dtype=dtype,
             cache_position=cache_position,
             batch_size=input_tensor.shape[0],
-            config=self.config,
-            past_key_values=past_key_values,
         )
 
         if (
@@ -1395,7 +1399,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
-        self.visual = Qwen2VisionTransformerPretrainedModel.(config.vision_config)
+        self.visual = Qwen2VisionTransformerPretrainedModel(config.vision_config)
         self.model = Qwen2VLModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
@@ -1770,7 +1774,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                 input_ids = input_ids[:, cache_position]
 
         past_length = 0
-        if past_key_values is not None:
+        if past_key_values is not None and isinstance(past_key_values, Tuple):
             # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
             past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
             max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
@@ -1822,8 +1826,6 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                 dtype=self.lm_head.weight.dtype,
                 cache_position=cache_position,
                 batch_size=batch_size,
-                config=self.config,
-                past_key_values=past_key_values,
             )
 
         model_inputs.update(
@@ -1842,5 +1844,165 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
         return model_inputs
 
 
-# if __name__ == "__main__":
-    ## Debug and testing use only
+if __name__ == "__main__":
+    # Debug and testing use only
+
+    from PIL import Image
+    import time
+    ms.set_context(
+        mode = ms.PYNATIVE_MODE,
+        pynative_synchronize = True
+    )
+    # ms.set_context(mode = ms.GRAPH_MODE)
+
+    # Qwen2-VL-7B-Instruct config.json
+    config_json = {
+        "architectures": [
+            "Qwen2VLForConditionalGeneration"
+        ],
+        "attention_dropout": 0.0,
+        "bos_token_id": 151643,
+        "eos_token_id": 151645,
+        "vision_start_token_id": 151652,
+        "vision_end_token_id": 151653,
+        "vision_token_id": 151654,
+        "image_token_id": 151655,
+        "video_token_id": 151656,
+        "hidden_act": "silu",
+        "hidden_size": 3584,
+        "initializer_range": 0.02,
+        "intermediate_size": 18944,
+        "max_position_embeddings": 32768,
+        "max_window_layers": 28,
+        "model_type": "qwen2_vl",
+        "num_attention_heads": 28,
+        "num_hidden_layers": 28,
+        "num_key_value_heads": 4,
+        "rms_norm_eps": 1e-06,
+        "rope_theta": 1000000.0,
+        "sliding_window": 32768,
+        "tie_word_embeddings": False,
+        "torch_dtype": "bfloat16",
+        "transformers_version": "4.41.2",
+        "use_cache": true,
+        "use_sliding_window": False,
+        "vision_config": {
+            "depth": 32,
+            "embed_dim": 1280,
+            "mlp_ratio": 4,
+            "num_heads": 16,
+            "in_chans": 3,
+            "hidden_size": 3584,
+            "patch_size": 14,
+            "spatial_merge_size": 2,
+            "spatial_patch_size": 14,
+            "temporal_patch_size": 2
+        },
+        "rope_scaling": {
+            "type": "mrope",
+            "mrope_section": [
+            16,
+            24,
+            24
+            ]
+        },
+        "vocab_size": 152064
+    }
+
+    # TEST: loading model
+    start_time = time.time()
+    config = Qwen2VLConfig(config_json)
+    try:
+        model = Qwen2VLForConditionalGeneration(config)
+        print("*"*100)
+        print("Test passed: Sucessfully loaded Qwen2VLForConditionalGeneration")
+        print("Time elapsed: %.4fs"%(time.time() - start_time))
+        print("*"*100)
+    except:
+        raise RuntimeError("Load Qwen2VLForConditionalGeneration Error.")
+
+    # TEST: load processor
+    start_time = time.time()
+    from transformers import Qwen2VLProcessor #Qwen2VLImageProcessor, Qwen2TokenizerFast
+    try:
+        # processor = Qwen2VLProcessor(image_processor=Qwen2VLImageProcessor(), tokenizer=Qwen2TokenizerFast(), chat_template=None)
+        processor = Qwen2VLProcessor.from_pretrained("Qwen2-VL/Qwen2-VL-7B-Instruct")
+        print("*"*100)
+        print("Test passed: Sucessfully loaded Qwen2VLProcessor")
+        print("Time elapsed: %.4fs"%(time.time() - start_time))
+        print("*"*100)
+    except:
+        raise RuntimeError("Load Qwen2VLProcessor Error.")
+
+    # TEST: process input
+    start_time = time.time()
+
+    # messages = [
+    #     {
+    #         "role": "user",
+    #         "content": [
+    #             {
+    #                 "type": "image",
+    #                 "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg", # REPLACE_WITH_YOUR_IMAGE_PATH
+    #             },
+    #             {"type": "text", "text": "Describe this image."},
+    #         ],
+    #     }
+    # ]
+    # # prepare text inuput
+    # text = processor.apply_chat_template(
+    #     messages, tokenize=False, add_generation_prompt=True
+    # )
+    # prepare vision input
+    # image_inputs, video_inputs = process_vision_info(messages) # a list of PIL Images
+    text = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n<|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>Describe this image.<|im_end|>\n<|im_start|>assistant"
+    image_path = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
+    w, h = 1024, 512
+    image_inputs = [Image.open(image_path).convert("RGB").resize(w,h)]
+    # image = np.uint8(np.random.rand(h, w, 3) * 255)
+    # image_inputs = [Image.fromarray(image).convert("RGB")]
+    video_inputs = None
+    inputs = processor(
+        text=[text],
+        images=image_inputs,
+        videos=video_inputs,
+        padding=True,
+        return_tensors="np",
+    )
+    # convert input to Tensor
+    for key, value in inputs.items(): # by default input numpy array or list
+        if isinstance(value, np.ndarray):
+            inputs[key] = ms.Tensor(value)
+        elif isinstance(value, list):
+            inputs[key] = ms.Tensor(value)
+        if inputs[key].dtype == ms.int64:
+            inputs[key] = inputs[key].to(ms.int32) # "input_ids", "attention_mask", "image_grid_thw"
+
+    print("*"*100)
+    print("Test passed: Sucessfully processed input data using Qwen2VLProcessor")
+    print("Time elapsed: %.4fs"%(time.time() - start_time))
+    print("*"*100)
+
+    # TEST: dummy inference
+    start_time = time.time()
+    try:
+        generated_ids = model.generate(**inputs, max_new_tokens=128)
+        print("*"*100)
+        print("Test passed: Sucessfully generated tokens using Qwen2VLForConditionalGeneration")
+        print(f"generated_ids length / #steps: {len(generated_ids[0])}")
+        elapsed = time.time() - start_time
+        print("Time elapsed: %.4fs"%(elapsed))
+        print("Average speed %.4fs/step"%(elapsed / len(generated_ids[0]))
+        print("*"*100)
+    except:
+        raise RuntimeError("Run generate() Error.")
+
+    start_time = time.time()
+    try:
+        output_text = processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+        print("*"*100)
+        print("Test passed: Sucessfully detokenize generated tokens")
+        print("Time elapsed: %.4fs"%(time.time() - start_time))
+        print("*"*100)
+    except:
+        raise RuntimeError("Run Qwen2VLProcessor.decode() Error.")

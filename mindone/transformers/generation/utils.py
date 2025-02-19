@@ -459,7 +459,7 @@ class GenerationMixin:
             else:
                 cur_len = input_ids.shape[-1]
 
-            cache_position = ops.arange(past_length, cur_len, ms.int32)
+            cache_position = ops.arange(past_length, cur_len, dtype=ms.int32)
 
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
