@@ -15,7 +15,7 @@ from .vqvae import VQVAE, VectorQuantizer2
 class SharedAdaLin(mint.nn.Linear):
     def construct(self, cond_BD):
         C = self.weight.shape[0] // 6
-        return super().construct(cond_BD).view(-1, 1, 6, C)  # B16C
+        return super().construct(cond_BD).view((-1, 1, 6, C))  # B16C
 
 
 class VAR(nn.Cell):
@@ -101,7 +101,7 @@ class VAR(nn.Cell):
 
         # 5. attention mask used in training (for masking out the future)
         #    it won't be used in inference, since kv cache is enabled
-        d = mint.cat([mint.full((pn * pn,), i) for i, pn in enumerate(self.patch_nums)]).view(1, self.L, 1)
+        d = mint.cat([mint.full((pn * pn,), i) for i, pn in enumerate(self.patch_nums)]).view((1, self.L, 1))
         dT = d.transpose(1, 2)  # dT: 11L
         lvl_1L = dT[:, 0].contiguous()
         self.register_buffer('lvl_1L', lvl_1L)
@@ -201,7 +201,7 @@ class VAR(nn.Cell):
             f_hat, next_token_map = self.vae_quant_proxy[0].get_next_autoregressive_input(si, len(self.patch_nums),
                                                                                           f_hat, h_BChw)
             if si != self.num_stages_minus_1:  # prepare for next stage
-                next_token_map = next_token_map.view(B, self.Cvae, -1).transpose(1, 2)
+                next_token_map = next_token_map.view((B, self.Cvae, -1)).transpose(1, 2)
                 next_token_map = self.word_embed(next_token_map) + lvl_pos[:,
                                                                    cur_L:cur_L + self.patch_nums[si + 1] ** 2]
                 next_token_map = next_token_map.tile((2, 1, 1))  # double the batch sizes due to CFG
@@ -251,7 +251,7 @@ class VAR(nn.Cell):
                 s = 0
                 for p in self.word_embed.parameters():
                     if p.requires_grad:
-                        s += p.view(-1)[0] * 0
+                        s += p.view((-1))[0] * 0
                 x_BLC[0, 0, 0] += s
         return x_BLC  # logits BLV, V is vocab_size
 

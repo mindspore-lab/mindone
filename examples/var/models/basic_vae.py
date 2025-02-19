@@ -78,17 +78,17 @@ class AttnBlock(nn.Cell):
         q, k, v = qkv.reshape(B, 3, C, H, W).unbind(1)
 
         # compute attention
-        q = q.view(B, C, H * W).contiguous()
+        q = q.view((B, C, H * W)).contiguous()
         q = q.permute(0, 2, 1).contiguous()  # B,HW,C
-        k = k.view(B, C, H * W).contiguous()  # B,C,HW
+        k = k.view((B, C, H * W)).contiguous()  # B,C,HW
         w = mint.mul(mint.bmm(q, k), self.w_ratio)  # B,HW,HW    w[B,i,j]=sum_c q[B,i,C]k[B,C,j]
         w = F.softmax(w, dim=2)
 
         # attend to values
-        v = v.view(B, C, H * W).contiguous()
+        v = v.view((B, C, H * W)).contiguous()
         w = w.permute(0, 2, 1).contiguous()  # B,HW,HW (first HW of k, second of q)
         h = mint.bmm(v, w)  # B, C,HW (HW of q) h[B,C,j] = sum_i v[B,C,i] w[B,i,j]
-        h = h.view(B, C, H, W).contiguous()
+        h = h.view((B, C, H, W)).contiguous()
 
         return x + self.proj_out(h)
 
