@@ -46,7 +46,7 @@ def parse_args():
     parser.add_argument("--bs", type=int, default=1, help="Batch size")
     parser.add_argument("--skip_if_existing", action="store_true",
                         help="Skip processing if output CSV already exists.")
-    parser.add_argument("--max_new_tokens", type=int, default=128, help="Max tokens to generate")
+    parser.add_argument("--max_new_tokens", type=int, default=200, help="Max tokens to generate")
     args = parser.parse_args()
     return args
 
@@ -95,7 +95,6 @@ def main():
         indices = batch["index"]
 
         for video_path, idx in zip(video_paths, indices):
-            # Construct message with video and text; incorporate args.height, args.width and args.fps
             messages = [
                 {
                     "role": "user",
@@ -121,7 +120,7 @@ def main():
                     padding=True,
                     return_tensors="np",
                 )
-                # Convert numpy arrays/lists to MindSpore Tensors and adjust types if needed
+
                 for key, value in inputs.items():
                     if isinstance(value, np.ndarray):
                         inputs[key] = ms.Tensor(value)
@@ -130,7 +129,6 @@ def main():
                     if inputs[key].dtype == ms.int64:
                         inputs[key] = inputs[key].to(ms.int32)
 
-                # Inference: Generate caption tokens and decode
                 generated_ids = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
                 output_text = processor.batch_decode(generated_ids, skip_special_tokens=True,
                                                      clean_up_tokenization_spaces=False)[0]
@@ -142,7 +140,7 @@ def main():
             indices_list.append(idx)
 
     if rank_size > 1:
-        indices_tensor = ms.Tensor(indices_list, dtype=ms.int64)
+        indices_tensor = ms.Tensor(indices_list, dtype=np.int64)
         indices_all = [ms.Tensor(np.zeros(indices_tensor.shape, dtype=ms.int64)) for _ in range(rank_size)]
         all_gather(indices_all, indices_tensor)
         indices_list_all = ops.Concat(axis=0)(indices_all).asnumpy().tolist()
@@ -151,14 +149,16 @@ def main():
         all_gather_object(captions_all, caption_list)
         caption_list_all = sum(captions_all, [])
 
-        meta_local = merge_scores([(indices_list_all, caption_list_all)], raw_dataset.meta, column="text")
-    else:
+        if rank_id == 0:
+            meta_local = merge_scores([(indices_list_all, caption_list_all)], raw_dataset.meta, column="text")
+    elif rank_size == 1:
         meta_local = raw_dataset.meta.copy()
         meta_local['text'] = caption_list
 
-    meta_local.to_csv(out_path, index=False)
-    print(meta_local.head())
-    print(f"New meta with captions saved to '{out_path}'.")
+    if rank_id == 0:
+        meta_local.to_csv(out_path, index=False)
+        print(meta_local.head())
+        print(f"New meta with captions saved to '{out_path}'.")
 
 if __name__ == "__main__":
     main()

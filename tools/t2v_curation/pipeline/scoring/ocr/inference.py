@@ -205,16 +205,18 @@ def main():
         # Flatten the list-of-lists from each process into a single list
         ocr_results_list_all = sum(ocr_results_list_all, [])
 
-        meta_local = merge_scores([(indices_list_all, ocr_results_list_all)], raw_dataset.meta, column="ocr")
-        if compute_num_boxes:
-            meta_local = merge_scores([(indices_list_all, num_boxes_list_all)], meta_local, column="num_boxes")
-        if compute_max_single_text_box_area_percentage:
-            meta_local = merge_scores([(indices_list_all, max_single_percentage_list_all)], meta_local,
-                                      column="max_single_percentage")
-        if compute_total_text_area_percentage:
-            meta_local = merge_scores([(indices_list_all, total_text_percentage_list_all)], meta_local,
-                                      column="total_text_percentage")
-    else: # store directly without gathering
+        if rank_id == 0:
+            meta_local = merge_scores([(indices_list_all, ocr_results_list_all)], raw_dataset.meta, column="ocr")
+            if compute_num_boxes:
+                meta_local = merge_scores([(indices_list_all, num_boxes_list_all)], meta_local, column="num_boxes")
+            if compute_max_single_text_box_area_percentage:
+                meta_local = merge_scores([(indices_list_all, max_single_percentage_list_all)], meta_local,
+                                          column="max_single_percentage")
+            if compute_total_text_area_percentage:
+                meta_local = merge_scores([(indices_list_all, total_text_percentage_list_all)], meta_local,
+                                          column="total_text_percentage")
+
+    elif rank_size == 1: # store directly without gathering
         meta_local = raw_dataset.meta.copy()
         meta_local['ocr'] = ocr_results_list
         if compute_num_boxes:
@@ -224,9 +226,10 @@ def main():
         if compute_total_text_area_percentage:
             meta_local['total_text_percentage'] = total_text_percentage_list
 
-    meta_local.to_csv(out_path, index=False)
-    print(meta_local)
-    print(f"New meta with OCR results saved to '{out_path}'.")
+    if rank_id == 0:
+        meta_local.to_csv(out_path, index=False)
+        print(meta_local)
+        print(f"New meta with OCR results saved to '{out_path}'.")
 
 if __name__ == "__main__":
     main()
