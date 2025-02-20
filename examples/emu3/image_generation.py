@@ -66,13 +66,16 @@ NEGATIVE_PROMPT = "lowres, bad anatomy, bad hands, text, error, missing fingers,
      fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry."
 
 classifier_free_guidance = 3.0
-prompt = ["a portrait of young girl.", "a shiba inu"]
+prompt = [
+    "a portrait of young girl.",
+    "a shiba inu",
+]  # NOTE: if OOM, reduce to batch=1, e.g. ["a portrait of young girl."]
 prompt = [p + POSITIVE_PROMPT for p in prompt]
 
 kwargs = dict(
     mode="G",
-    ratio=["1:1", "16:9"],
-    image_area=model.config.image_area,
+    ratio=["1:1", "16:9"],  # NOTE: if OOM, reduce to batch=1, e.g. ["1:1"]
+    image_area=model.config.image_area,  # 720*720, NOTE: if OOM, reduce it to 512*512
     return_tensors="np",
     padding="longest",
 )

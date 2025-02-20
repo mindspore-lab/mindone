@@ -25,7 +25,7 @@ import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
-from transformers.utils import (  # is_flash_attn_2_available,; is_flash_attn_greater_or_equal_2_10,
+from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
     logging,
@@ -592,6 +592,23 @@ class Emu3FlashAttention2(Emu3Attention):
 
         return attn_output, attn_weights, past_key_value
 
+    def convert_mask_to_fa_format(self, attention_mask):
+        if attention_mask is not None:
+            if attention_mask.dtype == ms.bool_:
+                # flip mask, since ms FA treats 1 as discard, 0 as retain.
+                attention_mask = 1 - attention_mask
+                attention_mask = attention_mask.to(ms.uint8)
+            else:
+                # attention_mask has beed inverted before in _prepare_4d_causal_mask: 0: retain, -inf: discard
+                attention_mask = attention_mask.to(ms.float16)
+                attention_mask = ops.select(
+                    ops.equal(attention_mask, _MIN_FP16),
+                    ops.ones((), ms.uint8),
+                    ops.zeros((), ms.uint8),
+                )
+
+        return attention_mask
+
     def _flash_attention_forward(self, query_states, key_states, value_states, attention_mask):
         """
         Calls the forward method of Flash Attention - if the input hidden states contain at least one padding token
@@ -608,11 +625,8 @@ class Emu3FlashAttention2(Emu3Attention):
                 The padding mask - corresponds to a tensor of size `(batch_size, seq_len)` where 0 stands for the
                 position of padding tokens and 1 for the position of non-padding tokens.
         """
-        # causal = self.is_causal
         if attention_mask is not None:
-            attention_mask = ~attention_mask if attention_mask.dtype == ms.bool_ else 1 - attention_mask
-            k_len = key_states.shape[-2]
-            attention_mask = ops.tile(attention_mask[:, None, :, None], (1, 1, 1, k_len))  # (b, 1, q_len, k_len)
+            attention_mask = self.convert_mask_to_fa_format(attention_mask)
         attn_output = self.flash_attention(query_states, key_states, value_states, mask=attention_mask)
 
         return attn_output
@@ -995,8 +1009,10 @@ class Emu3Model(Emu3PreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         if self._use_flash_attention_2:
-            # 2d mask is passed through the layers
-            attention_mask = attention_mask if (attention_mask is not None and 0 in attention_mask.flatten()) else None
+            # 4d mask is passed through the layers
+            attention_mask = _prepare_4d_causal_attention_mask(
+                attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
+            )  # inverted 4D mask (0 retain, -inf discard)
         # TODO
         elif self._use_sdpa and not output_attentions:
             # output_attentions=True can not be supported when using SDPA, and we fall back on

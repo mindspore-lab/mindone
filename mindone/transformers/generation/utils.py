@@ -171,9 +171,18 @@ class GenerationMixin:
             if (
                 self.generation_config._from_model_config  # 1)
                 and self.generation_config._original_object_hash == hash(self.generation_config)  # 2)
-                and len(self.config._get_non_default_generation_parameters())
-                > 0  # 3) NOTE: requires transformers >= 4.45.0
-                # and self.config._has_non_default_generation_parameters() # no this function in transformers
+                and (
+                    (
+                        hasattr(
+                            self.config, "_get_non_default_generation_parameters"
+                        )  # NOTE: requires transformers >= 4.45.0
+                        and len(self.config._get_non_default_generation_parameters()) > 0
+                    )
+                    or (
+                        hasattr(self.config, "_has_non_default_generation_parameters")
+                        and self.config._has_non_default_generation_parameters()
+                    )
+                )  # 3)
             ):
                 new_generation_config = GenerationConfig.from_model_config(self.config)
                 if new_generation_config != self.generation_config:
