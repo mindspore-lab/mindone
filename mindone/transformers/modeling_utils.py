@@ -296,7 +296,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, prefix,
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         prefix_k = prefix + "." + k
-        wo_prefix_k = k[len(prefix)+1:]
+        wo_prefix_k = k[len(prefix) + 1 :]
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
         elif wo_prefix_k in local_state:
