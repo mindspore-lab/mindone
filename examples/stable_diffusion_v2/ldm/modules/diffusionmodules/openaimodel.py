@@ -27,6 +27,7 @@ from ldm.modules.diffusionmodules.util import (
 from ldm.util import is_old_ms_version
 
 import mindspore as ms
+import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 
@@ -56,9 +57,9 @@ class Upsample(nn.Cell):
 
     def construct(self, x, emb=None, context=None):
         if self.dims == 3:
-            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))(x)
+            x = mint.nn.functional.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2), mode="nearest")
         else:
-            x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
+            x = mint.nn.functional.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
         if self.use_conv:
             x = self.conv(x)
         return x
@@ -140,7 +141,7 @@ class ResBlock(nn.Cell):
         self.split = ops.Split(1, 2)
 
         self.in_layers_norm = normalization(channels)
-        self.in_layers_silu = nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU()
+        self.in_layers_silu = mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU()
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
@@ -155,19 +156,19 @@ class ResBlock(nn.Cell):
             self.h_upd = self.x_upd = self.identity
 
         self.emb_layers = nn.SequentialCell(
-            nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
+            mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU(),
             linear(
                 emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels, dtype=self.dtype
             ),
         )
 
         self.out_layers_norm = normalization(self.out_channels)
-        self.out_layers_silu = nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU()
+        self.out_layers_silu = mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU()
 
         if is_old_ms_version():
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
         else:
-            self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout)
+            self.out_layers_drop = mint.nn.Dropout(p=1.0 - self.dropout)
 
         self.out_layers_conv = zero_module(
             conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
@@ -379,7 +380,7 @@ class UNetModel(nn.Cell):
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
+            mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU(),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
 
@@ -391,7 +392,7 @@ class UNetModel(nn.Cell):
                 self.label_emb = nn.SequentialCell(
                     nn.SequentialCell(
                         linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
-                        nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
+                        mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU(),
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
@@ -638,7 +639,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             normalization(ch),
-            nn.SiLU().to_float(ms.float32) if upcast_sigmoid else nn.SiLU(),
+            mint.nn.SiLU().to_float(ms.float32) if upcast_sigmoid else mint.nn.SiLU(),
             zero_module(
                 conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
                     self.dtype
@@ -651,7 +652,7 @@ class UNetModel(nn.Cell):
                 normalization(ch),
                 conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode="pad").to_float(self.dtype),
             )
-        self.cat = ops.Concat(axis=1)
+        self.cat = mint.concat(dim=1)
 
         # recompute to save NPU mem
         if use_recompute:
@@ -685,7 +686,7 @@ class UNetModel(nn.Cell):
         h = x
 
         if append_to_context is not None:
-            context = ops.cat([context, append_to_context], axis=1)
+            context = mint.cat([context, append_to_context], dim=1)
 
         adapter_idx = 0
         for i, celllist in enumerate(self.input_blocks, 1):

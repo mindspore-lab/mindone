@@ -99,8 +99,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     src_pt_ckpt = args.src
-    torch_names_txt = "./torch_mm_params.txt"
-    ms_names_txt = "./ms_mm_params.txt"
+    torch_names_txt = "tools/torch_mm_params.txt"
+    ms_names_txt = "tools/ms_mm_params.txt"
 
     output_dir = args.target
 

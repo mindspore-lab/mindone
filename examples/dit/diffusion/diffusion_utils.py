@@ -8,7 +8,7 @@ import math
 import numpy as np
 
 import mindspore as ms
-from mindspore import Tensor, ops
+from mindspore import Tensor, mint
 
 
 def _extract_into_tensor(a, t, x_shape):
@@ -21,7 +21,7 @@ def _extract_into_tensor(a, t, x_shape):
     :return: a tensor of shape [batch_size, 1, ...] where the shape has K dims.
     """
     b = t.shape[0]
-    out = ops.GatherD()(a, -1, t)
+    out = mint.gather(a, -1, t)
     return out.reshape(b, *((1,) * (len(x_shape) - 1)))
 
 
@@ -163,10 +163,10 @@ def normal_kl(mean1, logvar1, mean2, logvar2):
     assert tensor is not None, "at least one argument must be a Tensor"
 
     # Force variances to be Tensors. Broadcasting helps convert scalars to
-    # Tensors, but it does not work for ops.exp().
+    # Tensors, but it does not work for mint.exp().
     logvar1, logvar2 = [x if isinstance(x, ms.Tensor) else ms.Tensor(x) for x in (logvar1, logvar2)]
 
-    return 0.5 * (-1.0 + logvar2 - logvar1 + ops.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * ops.exp(-logvar2))
+    return 0.5 * (-1.0 + logvar2 - logvar1 + mint.exp(logvar1 - logvar2) + ((mean1 - mean2) ** 2) * mint.exp(-logvar2))
 
 
 def approx_standard_normal_cdf(x):
@@ -174,7 +174,7 @@ def approx_standard_normal_cdf(x):
     A fast approximation of the cumulative distribution function of the
     standard normal.
     """
-    return 0.5 * (1.0 + ops.tanh(ms.numpy.sqrt(2.0 / ms.numpy.pi) * (x + 0.044715 * ops.pow(x, 3))))
+    return 0.5 * (1.0 + mint.tanh(ms.numpy.sqrt(2.0 / ms.numpy.pi) * (x + 0.044715 * mint.pow(x, 3))))
 
 
 def continuous_gaussian_log_likelihood(x, *, means, log_scales):
@@ -186,9 +186,9 @@ def continuous_gaussian_log_likelihood(x, *, means, log_scales):
     :return: a tensor like x of log probabilities (in nats).
     """
     centered_x = x - means
-    inv_stdv = ops.exp(-log_scales)
+    inv_stdv = mint.exp(-log_scales)
     normalized_x = centered_x * inv_stdv
-    log_probs = ms.nn.probability.Normal(ops.zeros_like(x), ops.ones_like(x)).log_prob(normalized_x)
+    log_probs = ms.nn.probability.Normal(mint.zeros_like(x), mint.ones_like(x)).log_prob(normalized_x)
     return log_probs
 
 
@@ -204,18 +204,18 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     """
     assert x.shape == means.shape and means.shape == log_scales.shape
     centered_x = x - means
-    inv_stdv = ops.exp(-log_scales)
+    inv_stdv = mint.exp(-log_scales)
     plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
     cdf_plus = approx_standard_normal_cdf(plus_in)
     min_in = inv_stdv * (centered_x - 1.0 / 255.0)
     cdf_min = approx_standard_normal_cdf(min_in)
-    log_cdf_plus = ops.log(cdf_plus.clamp(min=1e-12))
-    log_one_minus_cdf_min = ops.log((1.0 - cdf_min).clamp(min=1e-12))
+    log_cdf_plus = mint.log(cdf_plus.clamp(min=1e-12))
+    log_one_minus_cdf_min = mint.log((1.0 - cdf_min).clamp(min=1e-12))
     cdf_delta = cdf_plus - cdf_min
-    log_probs = ops.where(
+    log_probs = mint.where(
         x < -0.999,
         log_cdf_plus,
-        ops.where(x > 0.999, log_one_minus_cdf_min, ops.log(cdf_delta.clamp(min=1e-12))),
+        mint.where(x > 0.999, log_one_minus_cdf_min, mint.log(cdf_delta.clamp(min=1e-12))),
     )
     assert log_probs.shape == x.shape
     return log_probs
