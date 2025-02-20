@@ -124,13 +124,11 @@ def init_model(
         else:
             from hyvideo.modules.embed_layers import SinusoidalEmbedding
             from hyvideo.modules.norm_layers import LayerNorm, RMSNorm
-            from hyvideo.modules.posemb_layers import RoPE
 
             whitelist_ops = [
                 LayerNorm,
                 RMSNorm,
                 SinusoidalEmbedding,
-                RoPE,
             ]
             logger.info(f"custom fp32 cell for dit: {whitelist_ops}")
             model = auto_mixed_precision(model, amp_level=amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
