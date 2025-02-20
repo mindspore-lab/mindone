@@ -273,9 +273,10 @@ class VectorQuantizer(nn.Cell):
         vq_loss = None
         commit_loss = None
         entropy_loss = None
-
+        
         # compute loss for embedding
         if self.training:
+            raise NotImplementedError
             vq_loss = ops.mean((z_q - ops.stop_gradient(z)) ** 2)
             commit_loss = self.beta * ops.mean((ops.stop_gradient(z_q) - z) ** 2)
             entropy_loss = self.entropy_loss_ratio * compute_entropy_loss(-d)

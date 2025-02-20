@@ -2,6 +2,7 @@ import argparse
 import mindspore as ms
 from time import time
 from mindspore import mint, ops, Tensor
+from mindspore.nn.utils import no_init_parameters
 from transformers import AutoModelForCausalLM
 import numpy as np
 import os
@@ -16,6 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindo
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
 from janus.models import MultiModalityCausalLM, VLChatProcessor
+from janus.models.modeling_vlm import MultiModalityConfig
 from janus.utils.io import set_model_param_dtype
 from janus.models.compat import get_multinomial_op
 import numpy as np
@@ -116,6 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=1, help="Temperature value for controlling randomness in sampling. 0 - no randomness in sampling. default 1.0")
     parser.add_argument("--parallel_size", type=int, default=1, help="number of images to generate in parallel, i.e. number of images in a batch")
     parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to model weight folder")
+    parser.add_argument("--ckpt_path", type=str, default=None, help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path")
     parser.add_argument("--use_cache", type=str2bool, default=False, help="use kv cache or not")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     # parser.add_argument("--jit_level", type=str, default="O0", choices=["O0", "O1", "O2"], help="graph optimization level")
@@ -131,9 +134,21 @@ if __name__ == "__main__":
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
     tokenizer = vl_chat_processor.tokenizer
 
-    vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path)
-    dtype = ms.bfloat16
-    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+    config =  MultiModalityConfig.from_pretrained(args.model_path)
+    if args.ckpt_path is not None: 
+        with no_init_parameters():
+            vl_gpt = MultiModalityCausalLM(config=config)
+        dtype = ms.bfloat16
+        vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+
+        parameter_dict = ms.load_checkpoint(args.ckpt_path)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(vl_gpt, parameter_dict, strict_load=True)
+        print("net param not load: ".format(param_not_load))
+        print("ckpt param not load: ".format(ckpt_not_load))
+    else:
+        vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
+        dtype = ms.bfloat16
+        vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
 
     if args.ms_mode == 0:

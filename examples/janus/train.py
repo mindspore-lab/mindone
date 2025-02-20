@@ -34,6 +34,8 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.zero import prepare_train_network
+from mindone.trainers.train_step import TrainOneStepWrapper
+# from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper, auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -127,6 +129,8 @@ def main(args):
         frozen_modules = set([vl_gpt.gen_vision_model])
     else:
         raise NotImplementedError
+    # VQ encoder doesn't need grad
+    vl_gpt.gen_vision_model.set_grad(requires_grad=False)
     trainable_modules = all_modules - frozen_modules
     
     for module in frozen_modules:
@@ -140,142 +144,101 @@ def main(args):
         for param in module.get_parameters():
             param.requires_grad = True 
             num_train_params += 1
+
     tot_params = len(list(vl_gpt.get_parameters()))
     print(f'tot params: {tot_params}, trainable params: {num_train_params}, frozen params: {num_frozen_params}')
     assert num_frozen_params + num_train_params == tot_params, 'All params should be set to trainable or frozen.'
+    # 1.2  prepare dataset
+    # FIXME: add dataset and loader. this is a toy data sample for i2v debug
+    from tests.test_toy_data import  gen_t2i_train_sample
+    input_ids, labels, attention_masks, image_seq_masks, image = gen_t2i_train_sample(max_length=args.max_length)
     
     # 1.3 save the model config
     config.save_pretrained(args.output_path)
-
-    # 2 model with loss
-    # integarte in vl_gpt, modeling_vlm
-
-    # 3. create dataset
-
-    # 4. build training utils: lr, optim, callbacks, trainer
-    # build learning rate scheduler
-
-    set_all_reduce_fusion(
-        latent_diffusion_with_loss.trainable_params(),
-        split_num=7,
-        distributed=args.use_parallel,
-        parallel_mode=args.parallel_mode,
-    )
-
-    # build optimizer
-    optimizer = create_optimizer(
-        vl_gpt.trainable_params(),
-        name="adamw_re",  # FIXME
-        group_strategy=None,  # FIXME
-        weight_decay=None, # FIXME
-        lr=args.learning_rate,
-    )
     
+    '''
+    lr = create_scheduler(
+        steps_per_epoch=-1,
+        name="cosine_decay",
+        lr=1e-5,
+        end_lr=1e-6,
+        warmup_steps=30,
+        # decay_steps=args.decay_steps,
+        total_steps=args.train_steps,
+    )
     loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # FIXME
+    '''
+    
+    # 3
+    # hyper params refer to emu3 sft.
+    # FIXME:  use cosine_with_min_lr w/ lr=1e-5 min=1e-6, but mint adamw don't support lr list.
+    optimizer = ms.mint.optim.AdamW(vl_gpt.trainable_params(),
+        lr=args.learning_rate,
+        betas=(0.9, 0.95),
+        weight_decay=0.1,
+        eps=1e-6,
+        )
 
-    # resume ckpt
-    ckpt_dir = os.path.join(args.output_path, "ckpt")
-    start_epoch = 0
-    cur_iter = 0
-    if args.resume:
-        resume_ckpt = get_resume_ckpt(args.resume, args.output_path)
-        if resume_ckpt is not None:
-            start_epoch, cur_iter, loss_scale = get_resume_states(resume_ckpt)
-            loss_scaler.loss_scale_value = loss_scale
-            logger.info(f"Resumed loss_scaler, prev epoch: {start_epoch}, global step {cur_iter}")
-
-    # train one step (standalone and distributed)
-    net_with_grads = prepare_train_network(
+    train_step = TrainOneStepWrapper(
         vl_gpt,
         optimizer=optimizer,
-        scale_sense=loss_scaler,
-        drop_overflow_update=True,  # FIXME
-        clip_grad=False,  # FIXME
+        scale_sense=ms.Tensor(1.0),
+        clip_grad=True,  # FIXME
         clip_norm=1.0,    # FIXME
         # ema=ema,
         # zero_stage=args.zero_stage,
     )
-
-    # resume train net states
-    # if args.resume and resume_ckpt is not None:
-    #    resume_train_net(net_with_grads, resume_ckpt)
-
-    # 5. log and save config
+     
+    # FIXME: for sequence parallel, save ckpt for other ranks
+    ckpt_dir = os.path.join(args.output_path, "ckpt")
+    # TODO: suppor training resume 
+    start_epoch = 0
     if rank_id == 0:
-        logger.info("Start training...")
-
-        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
-            yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
-
-    # 6. train
-    global_step = cur_iter  # index start from 1 (after first-step network update)
-
-    if rank_id == 0:
-        ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
+        ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=2)
         if not os.path.exists(ckpt_dir):
             os.makedirs(ckpt_dir)
-        perf_columns = ["step", "loss", "train_time(s)", "shape"]
+        perf_columns = ["step", "loss", "train_time(s)"]
         output_dir = ckpt_dir.replace("/ckpt", "")
         if start_epoch == 0:
             record = PerfRecorder(output_dir, metric_names=perf_columns)
         else:
             record = PerfRecorder(output_dir, resume=True)
 
-    # ds_iter = dataloader.create_tuple_iterator(num_epochs=num_epochs - start_epoch)
-    # ds_iter = dataloader.create_tuple_iterator(num_epochs=-1) # infinite
+        with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
+            yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
 
-    from tests.test_toy_data import  gen_t2i_train_sample
-    input_ids, labels, attention_masks, image, image_seq_masks = gen_t2i_train_sample(max_length=1024)
-    sample = (ms.Tensor(input_ids), ms.Tensor(labels), ms.Tensor(attention_masks), ms.Tensor(image), ms.Tensor(image_seq_masks))
+        logger.info("Start training...")
 
-    end_train = False
-    num_epochs = args.train_steps
-    for epoch in range(start_epoch + 1, num_epochs + 1):
-        if (args.train_steps > 0) and (global_step >= args.train_steps):
-            logger.warning("resumed steps >= train_steps, will end training")
-            break
-
-        start_time_s = time.time()
-        # for step, data in enumerate(ds_iter, 1):
-        for step in range(3):
-            loss, overflow, scaling_sens = net_with_grads(*sample)
-            global_step += 1
-            step_time = time.time() - start_time_s
-
-            loss_val = float(loss.asnumpy())
-            logger.info(
-                f"Epoch {epoch}, Step {step}, loss {loss_val:.5f}, Global step {global_step},"
-                + f" Shape: {tuple(data[0].shape)}, Step time {step_time*1000:.2f}ms"
+    # training loop
+    start_time_s = time.time()
+    for step in range(args.train_steps): 
+        data = (ms.Tensor(input_ids, dtype=ms.int32),
+            ms.Tensor(labels, dtype=ms.int32),
+            ms.Tensor(attention_masks, dtype=ms.bool_),
+            ms.Tensor(image_seq_masks, dtype=ms.bool_),
+            ms.Tensor(image, dtype=dtype),
             )
-            if overflow:
-                logger.warning("overflow detected")
 
-            if rank_id == 0:
-                step_pref_value = [global_step, loss_val, step_time, tuple(data[0].shape)]
-                record.add(*step_pref_value)
-            # save and eval in step
-            if save_by_step and rank_id == 0:
-                if (global_step % args.ckpt_save_steps == 0) or (global_step == args.train_steps):
-                    ckpt_name = f"model-s{global_step}.ckpt"
-                    # save model ckpt and ema ckpt
-                    save_ema_ckpts(latent_diffusion_with_loss.network, ema, ckpt_manager, ckpt_name)
-                    # save train state for resume
-                    save_train_net(net_with_grads, ckpt_dir, epoch - 1, global_step)
-            if (args.train_steps > 0) and (global_step >= args.train_steps):
-                end_train = True
-                break
+        # loss = train_step(data)
+        loss, overflow, scaling_sens = train_step(*data) 
 
-            start_time_s = time.time()
+        step_time = time.time() - start_time_s
+        loss_val = float(loss.asnumpy())
+        logger.info(
+            f"Step {step}, loss {loss_val:.5f}, step time {step_time*1000:.2f}ms"
+        )
+        if rank_id == 0:
+            step_pref_value = [step, loss_val, step_time]
+            record.add(*step_pref_value)
 
-        # dataloader.reset()
-        flush_from_cache(net_with_grads)
-
-        if end_train:
-            break
-
+        if (step > 0) and (step  % 500 == 0): 
+            # ms.save_checkpoint(vl_gpt, os.path.join(args.output_path, "janus_ft.ckpt"))
+            ckpt_name = f"model-s{step}.ckpt"
+            ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
+        start_time_s = time.time()
+    
     logger.info("Finished training. Ending process...")
     reset_op_id()
-    # time.sleep(60)
     logger.info("End")
 
 
@@ -283,21 +246,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
     # TODO: support model_name "deepseek-ai/Janus-Pro-1B" for simplicity
-    # FIXME: change to deepseek-ai/Janus-Pro-1B after debug
-    parser.add_argument("--model_path", type=str, default="ckpts/lite", help="path to Janus model")
+    parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to Janus model")
     parser.add_argument("--training_stage", type=int, default=3, choices=[1, 2, 3], help="model training stage, can be 1, 2, or 3")
     parser.add_argument("--ckpt_path", type=str, default=None, help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path")
-    # FIXME: change to False after debug
-    parser.add_argument("--load_weight", type=str2bool, default=False, help="if True, will not load pretrained weight in model_path")
+    parser.add_argument("--load_weight", type=str2bool, default=True, help="if True, will not load pretrained weight in model_path")
     parser.add_argument("--dtype", type=str, default='bfloat16', choices=['bfloat16', 'float16', 'float32'], help="model dtype")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
-    parser.add_argument("--output_path", default="output/", type=str, help="output directory to save training results")
+    parser.add_argument("--output_path", default="outputs/janus-sft", type=str, help="output directory to save training results")
 
     # training hyperparms
-    parser.add_argument("--learning_rate", default=1e-5, type=float, help="learning rate")
+    parser.add_argument("--learning_rate", default=5e-6, type=float, help="learning rate")
     parser.add_argument("--train_steps", default=5000, type=int, help="training step")
     parser.add_argument("--ckpt_save_steps", default=100, type=int, help="save ckpt every this step")
+    parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded to this max length")
 
     args = parser.parse_args()
 

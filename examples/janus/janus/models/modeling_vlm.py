@@ -221,10 +221,11 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         )
 
         language_config = config.language_config
-        # FIXME: allow set attn impl in from_pretrained, or  default FA (current default eager)
-        # language_config._attn_implementation = "flash_attention_2"
-        # print("Set _attn_implementation = \"flash_attention_2\"")
         self.language_model = LlamaForCausalLM(language_config)
+
+        # add for training
+        self.text_vocab_size = language_config.vocab_size # 102400
+        self.vision_vocab_size = gen_head_config.params.image_token_size # 16384
 
         self.cross_entropy_loss = nn.CrossEntropyLoss()  # TODO: allow setting ignore_idex, default is -100
 
@@ -258,13 +259,11 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         images_embeds = self.aligner(self.vision_model(images))
 
         # [b x n, T2, D] -> [b, n x T2, D]
-        # (b n) t d -> b n t d -> b (n t) d
         bn, T, D = images_embeds.shape
         images_embeds = ops.reshape(images_embeds, (bs, n, T, D))
         images_embeds = ops.reshape(images_embeds, (bs, n*T, D))
 
         # [b, n, T2] -> [b, n x T2]
-        # images_emb_mask = rearrange(images_emb_mask, "b n t -> b (n t)")
         _, Nm, Tm = images_emb_mask.shape
         images_emb_mask = ops.reshape(images_emb_mask, (bs, Nm * Tm)) 
 
@@ -283,7 +282,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
     # TODO: image_seq_masks can be extracted from labels != -100 or input_ids == img_placeholder_token
     def gen_with_loss(self,
         input_ids: Tensor = None,
-        labels: Tensor = None,
+        # labels: Tensor = None,  # since image tokens are the label and is not available without pre-computing VQ16
         attention_masks: Optional[Tensor] = None,
         image_seq_masks: Optional[Tensor] = None, 
         pixel_values: Optional[Tensor] = None,
@@ -303,50 +302,71 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         Note: pre-compute VQ encoded tokens for efficiency
         """
-        # prepare inputs
+        # 1. prepare text and image embeddings
         # TODO: consider remove n_images dimension unless we need to generate videos for extension
+        
+        bs = input_ids.shape[0]
         if image_tokens is None:
-            bs, n, c, h, w = pixel_values.shape
+            _, n, c, h, w = pixel_values.shape
             pixel_values = ops.reshape(pixel_values, (bs*n, c, h, w))
-            image_tokens = self.gen_vision_model.encode(pixel_values)[0] 
-            bs = image_tokens.shape[0]
-            image_tokens = image_tokens.reshape(bs, -1)
+            # VQ16 is always frozen, no graident back there
+            z_q, _, token_info = ops.stop_gradient(self.gen_vision_model.encode(pixel_values))
+            image_tokens = token_info[-1]
+            image_tokens = image_tokens.reshape(bs, n, -1) 
 
-        image_embed = self.gen_aligner(self.gen_embed(image_tokens))
+        _, n, T = image_tokens.shape 
+        image_tokens = image_tokens.reshape(bs*n, T)
+        image_embeds = self.gen_aligner(self.gen_embed(image_tokens))
         # [b x n, T2, D] -> [b, n x T2, D]
-        bn, T, D = image_embeds.shape
-        image_embeds = ops.reshape(image_embeds, (bs, n, T, D))
+        _, _, D = image_embeds.shape
+        image_embeds = ops.reshape(image_embeds, (bs, n, T, D))  # TODO: may remove it
         image_embeds = ops.reshape(image_embeds, (bs, n*T, D))
 
-        # TODO: set image (placeholder) tokens to 0? avoid being larger than lm vocab size  
+        # TODO: set image (placeholder) tokens to 0? avoid being larger than lm vocab size
         inputs_embeds = self.language_model.get_input_embeddings()(input_ids)
-        inputs_embeds[image_seq_masks] = image_embeds
+        
+        # 2. merge text and image embedding
+        B, S, _ = inputs_embeds.shape 
+        # these reshape ops is to solve the wierd error in InferShape in MS
+        inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D) 
+        image_seq_masks = image_seq_masks.reshape(-1) # (B, S) -> (B * S)
+        image_embeds = image_embeds.reshape(-1, D) # (B, S, D) -> (B * S, D)
+        
+        # another way: inputs_embeds = inputs_embeds * (1 - image_seq_masks) + ops.stop_gradient(image_embeds) * image_seq_masks.to(ms.int)
+        # FIXME: this inplace op doens't support in graph mode 
+        # FIXME: check whether need to bprop the graident from image_embedding to LlamModel.embed_tokens (nn.Embedding)
+        inputs_embeds[image_seq_masks] = ops.stop_gradient(image_embeds)
 
-        # LlamaModel forward
-        outputs = self.lanugage_model.model(
+        inputs_embeds = inputs_embeds.reshape(B, S, D) 
+        image_seq_masks = image_seq_masks.reshape(B, S)
+         
+        # 3. LlamaModel forward
+        outputs = self.language_model.model(
             attention_mask=attention_masks,
             inputs_embeds=inputs_embeds,
             return_dict=False,
         )
         hidden_states = outputs[0]
 
-        # gen head
+        # 4. gen head projection
         # since Janus use decouple heads for image and text, only image seq is meaningful input to gen head. mask before linear should save compute cost. 
         # TODO: tbc influence on gradient ?
-        logits = self.gen_head(hidden_states[image_seq_masks])
-        labels = labels[image_seq_masks]  # if so, can just output masked labels in dataloader
+        image_hidden_states = hidden_states[image_seq_masks].reshape(B, -1, D)
+        logits = self.gen_head(image_hidden_states)
 
-        loss = None
-        if labels is not None:
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :]
-            shift_labels = labels[..., 1:]
-            # Flatten the tokens
-            shift_logits = shift_logits.view(-1, self.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            # Enable model parallelism
-            loss = self.cross_entropy_loss(shift_logits, shift_labels)
+        # 5. loss compute
+        labels = image_tokens   # TODO: if image tokens are pre-computed, labels can be from input args
 
+        # Shift so that tokens < n predict n
+        shift_logits = logits[..., :-1, :]
+        shift_labels = labels[..., 1:]
+        # Flatten the tokens
+        shift_logits = shift_logits.view(-1, self.vision_vocab_size)
+        shift_labels = shift_labels.view(-1)
+        # Enable model parallelism
+        loss = self.cross_entropy_loss(shift_logits.float(), shift_labels)
+    
+        return loss
     
     def und_with_loss(self,
         input_ids: Tensor = None,
@@ -412,7 +432,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
     def construct(
         self,
         input_ids: Tensor,
-        labels: Optional[Tensor],
+        labels: Optional[Tensor] = None,
         attention_masks: Optional[Tensor] = None,
         image_seq_masks: Optional[Tensor] = None, 
         pixel_values: Optional[Tensor] = None,
@@ -429,13 +449,14 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         if is_gen_task:
             loss = self.gen_with_loss(
                     input_ids,
-                    labels,
+                    # labels,
                     attention_masks,
                     image_seq_masks, 
                     pixel_values,
                     image_tokens,
                     )
         else:
+            '''
             loss = self.und_with_loss(
                 input_ids,
                 labels,
@@ -443,6 +464,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                 image_seq_masks, 
                 pixel_values,
                 )
+            '''
+
+            raise NotImplementedError
 
         return loss
             

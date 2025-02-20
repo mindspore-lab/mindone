@@ -8,12 +8,14 @@ from janus.models import MultiModalityCausalLM, VLChatProcessor
 from PIL import Image
 import mindspore as ms
 from mindspore.dataset.vision import Inter
+from janus.models.modeling_vlm import MultiModalityConfig
 
 def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 512+576
     vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
     tokenizer = vl_chat_processor.tokenizer
 
-    prompt = "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair" 
+    # prompt = "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair" 
+    prompt = "two dogs" 
     conversation = [
         {
             "role": "<|User|>",
@@ -28,14 +30,14 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
     )
     prompt = sft_format + vl_chat_processor.image_start_tag
 
+    # import pdb; pdb.set_trace()
     input_ids = vl_chat_processor.tokenizer.encode(prompt)
     #                padding="max_length", 
     #                max_length=max_length,
     #                trucation=True,  # FIXME
     #                )
     input_ids = input_ids + [vl_chat_processor.image_id] * vl_chat_processor.num_image_tokens
-    input_ids = input_ids + [vl_chat_processor.image_end_id + vl_chat_processor.tokenizer.eos_token_id]  # TODO need EOS token?
-
+    input_ids = input_ids + [vl_chat_processor.image_end_id, vl_chat_processor.tokenizer.eos_token_id]  # TODO need EOS token?
     assert len(input_ids) <= max_length
     valid_seq_len = len(input_ids) 
     # attention mask
@@ -73,7 +75,12 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
 
     # image seq mask 
     image_seq_masks = (input_ids ==  vl_chat_processor.image_id)
+    
+    # data check
+    config =  MultiModalityConfig.from_pretrained(model_path)
+    assert input_ids.max() < config.language_config.vocab_size, "input token should be smaller than vocab size of mllm"
     assert image_seq_masks.sum() ==  vl_chat_processor.num_image_tokens
+
     return input_ids, labels, attention_masks, image_seq_masks, image
 
 def gen_vqa_train_sample():
