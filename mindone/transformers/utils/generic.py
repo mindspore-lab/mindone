@@ -160,7 +160,7 @@ def to_py_obj(obj):
     """
 
     framework_to_py_obj = {
-        "ms": lambda obj: obj.detach().cpu().tolist(),
+        "ms": lambda obj: obj.tolist(),
         "np": lambda obj: obj.tolist(),
     }
 

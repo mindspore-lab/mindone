@@ -69,7 +69,7 @@ class BatchFeature(UserDict):
             Dictionary of lists/arrays/tensors returned by the __call__/pad methods ('input_values', 'attention_mask',
             etc.).
         tensor_type (`Union[None, str, TensorType]`, *optional*):
-            You can give a tensor_type here to convert the lists of integers in PyTorch/TensorFlow/Numpy Tensors at
+            You can give a tensor_type here to convert the lists of integers in MindSpore/Numpy Tensors at
             initialization.
     """
 
@@ -188,9 +188,6 @@ class BatchFeature(UserDict):
 
     def to(self, *args, **kwargs) -> "BatchFeature":
         """
-        Send all values to device by calling `v.to(*args, **kwargs)` (PyTorch only). This should support casting in
-        different `dtypes` and sending the `BatchFeature` to a different `device`.
-
         Args:
             args (`Tuple`):
                 Will be passed to the `to(...)` function of the tensors.

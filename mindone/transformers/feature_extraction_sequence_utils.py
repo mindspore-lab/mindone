@@ -75,9 +75,9 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
 
         <Tip>
 
-        If the `processed_features` passed are dictionary of numpy arrays, PyTorch tensors or TensorFlow tensors, the
+        If the `processed_features` passed are dictionary of numpy arrays, MindSpore tensors, the
         result will use the same type unless you provide a different tensor type with `return_tensors`. In the case of
-        PyTorch tensors, you will lose the specific device of your tensors however.
+        MindSpore tensors, you will lose the specific device of your tensors however.
 
         </Tip>
 
@@ -86,10 +86,10 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
                 `Dict[str, List[List[float]]` or `List[Dict[str, List[float]]]`):
                 Processed inputs. Can represent one input ([`BatchFeature`] or `Dict[str, List[float]]`) or a batch of
                 input values / vectors (list of [`BatchFeature`], *Dict[str, List[List[float]]]* or *List[Dict[str,
-                List[float]]]*) so you can use this method during preprocessing as well as in a PyTorch Dataloader
+                List[float]]]*) so you can use this method during preprocessing as well as in a MindSpore Dataloader
                 collate function.
 
-                Instead of `List[float]` you can have tensors (numpy arrays, PyTorch tensors or TensorFlow tensors),
+                Instead of `List[float]` you can have tensors (numpy arrays, MindSpore tensors or TensorFlow tensors),
                 see the note above for the return type.
             padding (`bool`, `str` or [`~utils.PaddingStrategy`], *optional*, defaults to `True`):
                 Select a strategy to pad the returned sequences (according to the model's padding side and padding
@@ -119,11 +119,11 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
                 If set, will return tensors instead of list of python integers. Acceptable values are:
 
                 - `'tf'`: Return TensorFlow `tf.constant` objects.
-                - `'pt'`: Return PyTorch `torch.Tensor` objects.
+                - `'ms'`: Return MindSpore `ms.Tensor` objects.
                 - `'np'`: Return Numpy `np.ndarray` objects.
         """
         # If we have a list of dicts, let's convert it in a dict of lists
-        # We do this to allow using this method as a collate_fn function in PyTorch Dataloader
+        # We do this to allow using this method as a collate_fn function in MindSpore Dataloader
         if isinstance(processed_features, (list, tuple)) and isinstance(processed_features[0], (dict, BatchFeature)):
             processed_features = {
                 key: [example[key] for example in processed_features] for key in processed_features[0].keys()
@@ -147,9 +147,9 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
                 processed_features["attention_mask"] = []
             return processed_features
 
-        # If we have PyTorch/TF tensors or lists as inputs, we cast them as Numpy arrays
+        # If we have MindSpore tensors or lists as inputs, we cast them as Numpy arrays
         # and rebuild them afterwards if no return_tensors is specified
-        # Note that we lose the specific device the tensor may be on for PyTorch
+        # Note that we lose the specific device the tensor may be on for MindSpore
 
         first_element = required_input[0]
         if isinstance(first_element, (list, tuple)):
@@ -168,7 +168,7 @@ class SequenceFeatureExtractor(FeatureExtractionMixin):
             else:
                 raise ValueError(
                     f"type of {first_element} unknown: {type(first_element)}. "
-                    "Should be one of a python, numpy, pytorch or tensorflow object."
+                    "Should be one of a python, numpy, mindspore object."
                 )
 
         for key, value in processed_features.items():

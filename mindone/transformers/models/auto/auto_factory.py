@@ -62,9 +62,8 @@ FROM_CONFIG_DOCSTRING = """
                 List options
             attn_implementation (`str`, *optional*):
                 The attention implementation to use in the model (if relevant). Can be any of `"eager"` (manual implementation of the attention),
-                `"sdpa"` ([`F.scaled_dot_product_attention`](https://pytorch.org/docs/master/generated/torch.nn.functional.scaled_dot_product_attention.html)),
+                `"sdpa"` ([`F.scaled_dot_product_attention`],
                 or `"flash_attention_2"` (using [Dao-AILab/flash-attention](https://github.com/Dao-AILab/flash-attention)).
-                By default, if available, SDPA will be used for torch>=2.1.1. The default is otherwise the manual `"eager"` implementation.
 
         Examples:
 
@@ -77,7 +76,7 @@ FROM_CONFIG_DOCSTRING = """
         ```
 """
 
-FROM_PRETRAINED_TORCH_DOCSTRING = """
+FROM_PRETRAINED_MINDSPORE_DOCSTRING = """
         Instantiate one of the model classes of the library from a pretrained model.
 
         The model class to instantiate is selected based on the `model_type` property of the config object (either
@@ -99,7 +98,7 @@ FROM_PRETRAINED_TORCH_DOCSTRING = """
                     - A path or url to a *tensorflow index checkpoint file* (e.g, `./tf_model/model.ckpt.index`). In
                       this case, `from_tf` should be set to `True` and a configuration object should be provided as
                       `config` argument. This loading path is slower than converting the TensorFlow checkpoint in a
-                      PyTorch model using the provided conversion scripts and loading the PyTorch model afterwards.
+                      MindSpore model using the provided conversion scripts and loading the MindSpore model afterwards.
             model_args (additional positional arguments, *optional*):
                 Will be passed along to the underlying model `__init__()` method.
             config ([`PretrainedConfig`], *optional*):
@@ -112,7 +111,7 @@ FROM_PRETRAINED_TORCH_DOCSTRING = """
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (*Dict[str, torch.Tensor]*, *optional*):
+            state_dict (*Dict[str, ms.Tensor]*, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -177,7 +176,7 @@ FROM_PRETRAINED_TORCH_DOCSTRING = """
         >>> model.config.output_attentions
         True
 
-        >>> # Loading from a TF checkpoint file instead of a PyTorch model (slower)
+        >>> # Loading from a TF checkpoint file instead of a MindSpore model (slower)
         >>> config = AutoConfig.from_pretrained("./tf_model/shortcut_placeholder_tf_model_config.json")
         >>> model = BaseAutoModelClass.from_pretrained(
         ...     "./tf_model/shortcut_placeholder_tf_checkpoint.ckpt.index", from_tf=True, config=config
@@ -201,9 +200,9 @@ FROM_PRETRAINED_TF_DOCSTRING = """
                     - A string, the *model id* of a pretrained model hosted inside a model repo on huggingface.co.
                     - A path to a *directory* containing model weights saved using
                       [`~PreTrainedModel.save_pretrained`], e.g., `./my_model_directory/`.
-                    - A path or url to a *PyTorch state_dict save file* (e.g, `./pt_model/pytorch_model.bin`). In this
+                    - A path or url to a *MindSpore state_dict save file* (e.g, `./pt_model/mindspore_model.bin`). In this
                       case, `from_pt` should be set to `True` and a configuration object should be provided as `config`
-                      argument. This loading path is slower than converting the PyTorch model in a TensorFlow model
+                      argument. This loading path is slower than converting the MindSpore model in a TensorFlow model
                       using the provided conversion scripts and loading the TensorFlow model afterwards.
             model_args (additional positional arguments, *optional*):
                 Will be passed along to the underlying model `__init__()` method.
@@ -221,7 +220,7 @@ FROM_PRETRAINED_TF_DOCSTRING = """
                 Path to a directory in which a downloaded pretrained model configuration should be cached if the
                 standard cache should not be used.
             from_pt (`bool`, *optional*, defaults to `False`):
-                Load the model weights from a PyTorch checkpoint save file (see docstring of
+                Load the model weights from a MindSpore checkpoint save file (see docstring of
                 `pretrained_model_name_or_path` argument).
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -276,7 +275,7 @@ FROM_PRETRAINED_TF_DOCSTRING = """
         >>> model.config.output_attentions
         True
 
-        >>> # Loading from a PyTorch checkpoint file instead of a TensorFlow model (slower)
+        >>> # Loading from a MindSpore checkpoint file instead of a TensorFlow model (slower)
         >>> config = AutoConfig.from_pretrained("./pt_model/shortcut_placeholder_pt_model_config.json")
         >>> model = BaseAutoModelClass.from_pretrained(
         ...     "./pt_model/shortcut_placeholder_pytorch_model.bin", from_pt=True, config=config
@@ -300,9 +299,9 @@ FROM_PRETRAINED_FLAX_DOCSTRING = """
                     - A string, the *model id* of a pretrained model hosted inside a model repo on huggingface.co.
                     - A path to a *directory* containing model weights saved using
                       [`~PreTrainedModel.save_pretrained`], e.g., `./my_model_directory/`.
-                    - A path or url to a *PyTorch state_dict save file* (e.g, `./pt_model/pytorch_model.bin`). In this
+                    - A path or url to a *MindSpore state_dict save file* (e.g, `./pt_model/mindspore_model.bin`). In this
                       case, `from_pt` should be set to `True` and a configuration object should be provided as `config`
-                      argument. This loading path is slower than converting the PyTorch model in a TensorFlow model
+                      argument. This loading path is slower than converting the MindSpore model in a TensorFlow model
                       using the provided conversion scripts and loading the TensorFlow model afterwards.
             model_args (additional positional arguments, *optional*):
                 Will be passed along to the underlying model `__init__()` method.
@@ -320,7 +319,7 @@ FROM_PRETRAINED_FLAX_DOCSTRING = """
                 Path to a directory in which a downloaded pretrained model configuration should be cached if the
                 standard cache should not be used.
             from_pt (`bool`, *optional*, defaults to `False`):
-                Load the model weights from a PyTorch checkpoint save file (see docstring of
+                Load the model weights from a MindSpore checkpoint save file (see docstring of
                 `pretrained_model_name_or_path` argument).
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
@@ -375,7 +374,7 @@ FROM_PRETRAINED_FLAX_DOCSTRING = """
         >>> model.config.output_attentions
         True
 
-        >>> # Loading from a PyTorch checkpoint file instead of a TensorFlow model (slower)
+        >>> # Loading from a MindSpore checkpoint file instead of a TensorFlow model (slower)
         >>> config = AutoConfig.from_pretrained("./pt_model/shortcut_placeholder_pt_model_config.json")
         >>> model = BaseAutoModelClass.from_pretrained(
         ...     "./pt_model/shortcut_placeholder_pytorch_model.bin", from_pt=True, config=config
@@ -516,10 +515,10 @@ class _BaseAutoModelClass:
 
         if not isinstance(config, PretrainedConfig):
             kwargs_orig = copy.deepcopy(kwargs)
-            # ensure not to pollute the config object with torch_dtype="auto" - since it's
-            # meaningless in the context of the config object - torch.dtype values are acceptable
-            if kwargs.get("torch_dtype", None) == "auto":
-                _ = kwargs.pop("torch_dtype")
+            # ensure not to pollute the config object with mindspore_dtype="auto" - since it's
+            # meaningless in the context of the config object
+            if kwargs.get("mindspore_dtype", None) == "auto":
+                _ = kwargs.pop("mindspore_dtype")
             # to not overwrite the quantization_config if config has a quantization_config
             if kwargs.get("quantization_config", None) is not None:
                 _ = kwargs.pop("quantization_config")
@@ -534,9 +533,9 @@ class _BaseAutoModelClass:
                 **kwargs,
             )
 
-            # if torch_dtype=auto was passed here, ensure to pass it on
-            if kwargs_orig.get("torch_dtype", None) == "auto":
-                kwargs["torch_dtype"] = "auto"
+            # if mindspore_dtype=auto was passed here, ensure to pass it on
+            if kwargs_orig.get("mindspore_dtype", None) == "auto":
+                kwargs["mindspore_dtype"] = "auto"
             if kwargs_orig.get("quantization_config", None) is not None:
                 kwargs["quantization_config"] = kwargs_orig["quantization_config"]
 
@@ -660,7 +659,7 @@ def auto_class_update(cls, checkpoint_for_example="google-bert/bert-base-cased",
     elif name.startswith("Flax"):
         from_pretrained_docstring = FROM_PRETRAINED_FLAX_DOCSTRING
     else:
-        from_pretrained_docstring = FROM_PRETRAINED_TORCH_DOCSTRING
+        from_pretrained_docstring = FROM_PRETRAINED_MINDSPORE_DOCSTRING
     from_pretrained = copy_func(_BaseAutoModelClass.from_pretrained)
     from_pretrained_docstring = insert_head_doc(from_pretrained_docstring, head_doc=head_doc)
     from_pretrained_docstring = from_pretrained_docstring.replace("BaseAutoModelClass", name)
@@ -706,14 +705,14 @@ def getattribute_from_module(module, attr):
 
 def add_generation_mixin_to_remote_model(model_class):
     """
-    Adds `GenerationMixin` to the inheritance of `model_class`, if `model_class` is a PyTorch model.
+    Adds `GenerationMixin` to the inheritance of `model_class`, if `model_class` is a MindSpore model.
 
     This function is used for backwards compatibility purposes: in v4.45, we've started a deprecation cycle to make
     `PreTrainedModel` stop inheriting from `GenerationMixin`. Without this function, older models dynamically loaded
     from the Hub may not have the `generate` method after we remove the inheritance.
     """
     # 1. If it is not a PT model (i.e. doesn't inherit Module), do nothing
-    if "torch.nn.modules.module.Module" not in str(model_class.__mro__):
+    if "mindspore.nn.Cell" not in str(model_class.__mro__):
         return model_class
 
     # 2. If it already **directly** inherits from GenerationMixin, do nothing

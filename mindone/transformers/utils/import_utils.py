@@ -40,7 +40,6 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
             # Primary method to get the package version
             package_version = importlib.metadata.version(pkg_name)
         except importlib.metadata.PackageNotFoundError:
-            # Fallback method: Only for "torch" and versions containing "dev"
             if pkg_name == "mindspore":
                 try:
                     package = importlib.import_module(pkg_name)
@@ -55,7 +54,6 @@ def _is_package_available(pkg_name: str, return_version: bool = False) -> Union[
                     # If the package can't be imported, it's not available
                     package_exists = False
             else:
-                # For packages other than "torch", don't attempt the fallback and set as not available
                 package_exists = False
         logger.debug(f"Detected {pkg_name} version: {package_version}")
     if return_version:
@@ -97,15 +95,11 @@ def is_vision_available():
 
 
 MINDSPORE_IMPORT_ERROR_WITH_TF = """
-{0} requires the PyTorch library but it was not found in your environment.
+{0} requires the MindSpore library but it was not found in your environment.
 However, we were able to find a TensorFlow installation. TensorFlow classes begin
-with "TF", but are otherwise identically named to our PyTorch classes. This
+with "TF", but are otherwise identically named to our MindSpore classes. This
 means that the TF equivalent of the class you tried to import would be "TF{0}".
 If you want to use TensorFlow, please use TF classes instead!
-
-If you really do want to use PyTorch please go to
-https://pytorch.org/get-started/locally/ and follow the instructions that
-match your environment.
 """
 
 # docstyle-ignore

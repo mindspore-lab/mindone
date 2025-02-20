@@ -195,8 +195,6 @@ def to_pil_image(
     return PIL.Image.fromarray(image, mode=image_mode)
 
 
-# Logic adapted from torchvision resizing logic:
-# https://github.com/pytorch/vision/blob/511924c1ced4ce0461197e5caa64ce5b9e558aab/torchvision/transforms/functional.py#L366
 def get_resize_output_image_size(
     input_image: np.ndarray,
     size: Union[int, Tuple[int, int], List[int], Tuple[int]],
@@ -220,8 +218,7 @@ def get_resize_output_image_size(
             number. i.e, if height > width, then image will be rescaled to (size * height / width, size).
         default_to_square (`bool`, *optional*, defaults to `True`):
             How to convert `size` when it is a single int. If set to `True`, the `size` will be converted to a square
-            (`size`,`size`). If set to `False`, will replicate
-            [`torchvision.transforms.Resize`](https://pytorch.org/vision/stable/transforms.html#torchvision.transforms.Resize)
+            (`size`,`size`).
             with support for resizing only the smallest edge and providing an optional `max_size`.
         max_size (`int`, *optional*):
             The maximum allowed for the longer edge of the resized image: if the longer edge of the image is greater
@@ -493,7 +490,7 @@ def center_crop(
     return new_image
 
 
-def _center_to_corners_format_torch(bboxes_center: "ms.Tensor") -> "ms.Tensor":
+def _center_to_corners_format_mindspore(bboxes_center: "ms.Tensor") -> "ms.Tensor":
     center_x, center_y, width, height = bboxes_center.unbind(-1)
     bbox_corners = ops.stack(
         # top left x, top left y, bottom right x, bottom right y
@@ -526,14 +523,14 @@ def center_to_corners_format(bboxes_center: TensorType) -> TensorType:
     # Function is used during model forward pass, so we use the input framework if possible, without
     # converting to numpy
     if is_mindspore_tensor(bboxes_center):
-        return _center_to_corners_format_torch(bboxes_center)
+        return _center_to_corners_format_mindspore(bboxes_center)
     elif isinstance(bboxes_center, np.ndarray):
         return _center_to_corners_format_numpy(bboxes_center)
 
     raise ValueError(f"Unsupported input type {type(bboxes_center)}")
 
 
-def _corners_to_center_format_torch(bboxes_corners: "ms.Tensor") -> "ms.Tensor":
+def _corners_to_center_format_mindspore(bboxes_corners: "ms.Tensor") -> "ms.Tensor":
     top_left_x, top_left_y, bottom_right_x, bottom_right_y = bboxes_corners.unbind(-1)
     b = [
         (top_left_x + bottom_right_x) / 2,  # center x
@@ -569,7 +566,7 @@ def corners_to_center_format(bboxes_corners: TensorType) -> TensorType:
     """
     # Inverse function accepts different input types so implemented here too
     if is_mindspore_tensor(bboxes_corners):
-        return _corners_to_center_format_torch(bboxes_corners)
+        return _corners_to_center_format_mindspore(bboxes_corners)
     elif isinstance(bboxes_corners, np.ndarray):
         return _corners_to_center_format_numpy(bboxes_corners)
 
@@ -801,10 +798,8 @@ class Rescale:
 
 class NumpyToTensor:
     """
-    Convert a numpy array to a PyTorch tensor.
+    Convert a numpy array to a MindSpore tensor.
     """
 
     def __call__(self, image: np.ndarray):
-        # Same as in PyTorch, we assume incoming numpy images are in HWC format
-        # c.f. https://github.com/pytorch/vision/blob/61d97f41bc209e1407dcfbd685d2ee2da9c1cdad/torchvision/transforms/functional.py#L154
         return ms.tensor(image.transpose(2, 0, 1))
