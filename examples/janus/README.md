@@ -134,7 +134,7 @@ Measured upon running the script [`inference.py`](./inference.py).
 |---|---|---|---|---|---|
 | Janus-Pro-1B | 1 | PyNative| 384x384 | Eager | 5.88 |
 | Janus-Pro-1B | 1 | Graph   | 384x384 | Eager | 16.6|
-| Janus-Pro-7B | 1 | PyNative| 384x384 | Eager | 13.7|
+| Janus-Pro-7B | 1 | PyNative| 384x384 | Eager | 3.30|
 | Janus-Pro-7B | 1 | Graph   | 384x384 | Eager | 12.2|
 
 ### Visual Generation
