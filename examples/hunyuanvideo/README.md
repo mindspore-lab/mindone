@@ -19,9 +19,6 @@ Here is the development plan of the project:
     - [ ] LoRA finetune
 
 
-## 🎥 Demo
-
-
 
 ## 📦 Requirements
 
@@ -30,12 +27,12 @@ Here is the development plan of the project:
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.4.1   |    |   |  8.0.RC3 |
+|   2.4.1   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
 
 </div>
 
 1. Install
-   [CANN 8.0.RC3.20.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.20.beta1)
+   [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell
@@ -99,11 +96,13 @@ python scripts/run_text_encoder.py \
 
 ### Distributed Training
 
-To train HunyuanVideo (13B) on multiple NPUs, we use ZeRO3 and data parallelism with the following script:
+To run stage 1 (256px) trainig with HunyuanVideo (13B) on multiple NPUs, we use ZeRO3 and data parallelism with the following script:
 
 ```bash
-bash scripts/train_t2v_zero3.sh
+bash scripts/hyvideo/train_t2v_zero3.sh
 ```
+
+For the finetuning experiment with a small dataset, please refer to `scripts/hyvideo/train_t2v_256x256x29_finetune.sh`.
 
 ## 📈 Evaluation
 
@@ -115,11 +114,28 @@ To evaluate the PSNR score between the real and the reconsturcted videos, you ma
 
 ### Text-to-Video Evalution
 
-After training, the checkpoint will be saved under `output/experiment_dir/ckpts/`. To run Text-to-Video evaluation with the saved checkpoint, please refer to `scripts/hyvideo/run_t2v_sample_multi.sh`. You need to change the `--dit-weight` to the saved checkpoint directory, for example:
+After training, the checkpoint shards will be saved under `output/experiment_dir/`. The folder structure is as follows:
 ```bash
---dit-weight output/experiment_dir/ckpts/
+output/experiment_dir/
+├───rank_0
+│   └───ckpt/
+│       └───HYVideo-T-2-cfgdistill-s10000.ckpt
+├───rank_1
+│   └───ckpt/
+│       └───HYVideo-T-2-cfgdistill-s10000.ckpt
+...
+└───rank_7
+    └───ckpt/
+        └───HYVideo-T-2-cfgdistill-s10000.ckpt
 ```
 
+
+To run Text-to-Video evaluation with the saved checkpoint shards, please refer to `scripts/hyvideo/run_t2v_sample_multi.sh`. You need to change the `--dit-weight` to the saved checkpoint path, for example:
+```bash
+--dit-weight "output/experiment_dir/rank_*/ckpt/HYVideo-T-2-cfgdistill-s10000.ckpt"
+```
+
+A wildcard pattern `*` is needed to match any rank ids of the checkpoint shards.
 
 ### 3D-VAE Training
 
