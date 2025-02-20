@@ -125,13 +125,34 @@ On local terminal, run `ssh -L 37906:localhost:37906 user_name@server_ip`, then 
 
 Have Fun!
 
+## 4. Performance
+
+### Multimodal Understanding
+Measured upon running the script [`inference.py`](./inference.py).
+
+| Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
+|---|---|---|---|---|---|
+| Janus-Pro-1B | 1 | PyNative| 384x384 | Eager | 5.88 |
+| Janus-Pro-1B | 1 | Graph   | 384x384 | Eager | 16.6|
+| Janus-Pro-7B | 1 | PyNative| 384x384 | Eager | 13.7|
+| Janus-Pro-7B | 1 | Graph   | 384x384 | Eager | 12.2|
+
+### Visual Generation
+Measured upon running the script [`generation_inference.py`](./generation_inference.py).
+
+| Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
+|---|---|---|---|---|---|
+| Janus-Pro-1B | 1 | PyNative| 384x384 | Eager | 4.52 |
+| Janus-Pro-1B | 1 | Graph   | 384x384 | Eager | 16.2|
+| Janus-Pro-7B | 1 | PyNative| 384x384 | Eager | 3.56|
+| Janus-Pro-7B | 1 | Graph   | 384x384 | Eager | 11.9|
 
 
-## 4. License
+## 5. License
 
 This code repository is licensed under [the MIT License](https://github.com/deepseek-ai/DeepSeek-LLM/blob/HEAD/LICENSE-CODE). The use of Janus models is subject to [DeepSeek Model License](https://github.com/deepseek-ai/DeepSeek-LLM/blob/HEAD/LICENSE-MODEL).
 
-## 5. Citation
+## 6. Citation
 
 ```bibtex
 @article{chen2025janus,
