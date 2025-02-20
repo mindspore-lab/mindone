@@ -22,7 +22,8 @@ def _get_resolutions() -> Dict[str, Dict[float, Tuple[int, int]]]:
             wr, hr = [int(a) for a in ar.split(":")]
             x = sqrt(pix_val / wr / hr)
             w, h = int(x * wr), int(x * hr)
-            w, h = w - (w % 2), h - (h % 2)  # make sides even
+            # adjust dimensions to be divisible by 16 (8x TAE downsampling and 2x patch size)
+            w, h = w - (w % 16), h - (h % 16)
             res[name][ar_val] = (h, w)
     return res
 
