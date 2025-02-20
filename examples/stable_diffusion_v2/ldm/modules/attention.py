@@ -20,7 +20,7 @@ from ldm.util import is_old_ms_version
 
 import mindspore as ms
 import mindspore.numpy as msnp
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -49,9 +49,9 @@ def default(val, d):
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
-        self.proj = nn.Dense(dim_in, dim_out * 2).to_float(dtype)
+        self.proj = mint.nn.Linear(dim_in, dim_out * 2).to_float(dtype)
         self.split = ops.Split(-1, 2)
-        self.gelu = ops.GeLU()
+        self.gelu = mint.nn.GeLU()
         # self.gelu = nn.GELU(approximate=False)
 
     def construct(self, x):
@@ -128,7 +128,6 @@ class CrossAttention(nn.Cell):
 
         self.heads = heads
 
-        self.transpose = ops.Transpose()
         self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
         self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
@@ -159,9 +158,9 @@ class CrossAttention(nn.Cell):
         b, n, d = x.shape
         d = d // h
 
-        x = ops.reshape(x, (b, n, h, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b * h, n, d))
+        x = mint.reshape(x, (b, n, h, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b * h, n, d))
         return x
 
     @staticmethod
@@ -170,9 +169,9 @@ class CrossAttention(nn.Cell):
         b, n, d = x.shape
         b = b // h
 
-        x = ops.reshape(x, (b, h, n, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h * d))
+        x = mint.reshape(x, (b, h, n, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b, n, h * d))
         return x
 
     def construct(self, x, context=None, mask=None):
@@ -246,20 +245,20 @@ class CrossFrameAttention(CrossAttention):
             b, n, d = x.shape
             d = d // h
 
-            x = self.reshape(x, (b, n, h, d))
-            x = self.transpose(x, (0, 2, 1, 3))
-            x = self.reshape(x, (b * h, n, d))
+            x = mint.reshape(x, (b, n, h, d))
+            x = mint.permute(x, (0, 2, 1, 3))
+            x = mint.reshape(x, (b * h, n, d))
             return x
 
         def rearange_frame(x, f):
             b, n, d = x.shape
             b = b // f
-            x = self.reshape(x, (b, f, n, d))
+            x = mint.reshape(x, (b, f, n, d))
             return x
 
         def rearange_frame_back(x):
             b, f, n, d = x.shape
-            x = self.reshape(x, (b * f, n, d))
+            x = mint.reshape(x, (b * f, n, d))
             return x
 
         if not is_cross_attention:
@@ -307,16 +306,14 @@ class CrossFrameAttention(CrossAttention):
 class Attention(nn.Cell):
     def __init__(self, dim_head, upcast=False):
         super().__init__()
-        self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
         self.scale = dim_head**-0.5
         self.upcast = upcast
 
     def construct(self, q, k, v, mask):
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+        sim = mint.matmul(q, mint.permute(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
+            mask = mint.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
             else:
@@ -328,11 +325,11 @@ class Attention(nn.Cell):
 
         if self.upcast:
             # use fp32 for exponential inside
-            attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
+            attn = mint.nn.functional.softmax(sim.astype(ms.float32), dim=-1).astype(v.dtype)
         else:
-            attn = self.softmax(sim)
+            attn = mint.nn.functional.softmax(sim, dim=-1)
 
-        out = ops.matmul(attn, v)
+        out = mint.matmul(attn, v)
 
         return out
 
@@ -507,16 +504,16 @@ class SpatialTransformer(nn.Cell):
         x = self.norm(x)
         if not self.use_linear:
             x = self.proj_in(x)
-        x = self.reshape(x, (b, c, h * w))  # (b, c, h*w)
-        x = self.transpose(x, (0, 2, 1))  # (b, h*w, c)
+        x = mint.reshape(x, (b, c, h * w))  # (b, c, h*w)
+        x = mint.permute(x, (0, 2, 1))  # (b, h*w, c)
         if self.use_linear:
             x = self.proj_in(x)
         for block in self.transformer_blocks:
             x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
-        x = self.reshape(x, (b, h, w, c))
-        x = self.transpose(x, (0, 3, 1, 2))
+        x = mint.reshape(x, (b, h, w, c))
+        x = mint.permute(x, (0, 3, 1, 2))
         if not self.use_linear:
             x = self.proj_out(x)
         return x + x_in

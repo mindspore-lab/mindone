@@ -1,10 +1,10 @@
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Tensor, mint
 
 
-class LayerNorm(nn.LayerNorm):
+class LayerNorm(mint.nn.LayerNorm):
     """Subclass torch's LayerNorm to handle fp16."""
 
     def construct(self, x: Tensor):
@@ -15,4 +15,4 @@ class LayerNorm(nn.LayerNorm):
 
 class QuickGELU(nn.Cell):
     def construct(self, x: Tensor):
-        return x * ops.sigmoid(1.702 * x)
+        return x * mint.sigmoid(1.702 * x)

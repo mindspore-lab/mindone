@@ -24,7 +24,7 @@ _logger = logging.getLogger(__name__)
 
 class LoRADenseLayer(nn.Cell):
     """
-    Dense layer with lora injection, used to replace nn.Dense for lora fintuning.
+    Dense layer with lora injection, used to replace mint.nn.Linear for lora fintuning.
     """
 
     def __init__(
@@ -47,16 +47,16 @@ class LoRADenseLayer(nn.Cell):
         self.dtype = dtype
 
         # main/orginal linear layer
-        self.linear = nn.Dense(in_features, out_features, has_bias=has_bias).to_float(dtype)
+        self.linear = ms.mint.nn.Linear(in_features, out_features, bias=has_bias).to_float(dtype)
 
         # side-path/LoRA linear layers, the bias for lora matric should be False
-        self.lora_down = nn.Dense(in_features, rank, has_bias=False).to_float(dtype)
-        self.lora_up = nn.Dense(rank, out_features, has_bias=False).to_float(dtype)
+        self.lora_down = ms.mint.nn.Linear(in_features, rank, bias=False).to_float(dtype)
+        self.lora_up = ms.mint.nn.Linear(rank, out_features, bias=False).to_float(dtype)
 
         if MS_VERSION <= "1.10.1":
             self.dropout = nn.Dropout(keep_prob=1 - dropout_p)
         else:
-            self.dropout = nn.Dropout(p=dropout_p)
+            self.dropout = ms.mint.nn.Dropout(p=dropout_p)
 
         self.activation = get_activation(activation) if isinstance(activation, str) else activation
         if activation is not None and not isinstance(self.activation, (Cell, Primitive)):
@@ -173,13 +173,13 @@ def inject_trainable_lora(
             else:
                 tar_dense = getattr(subcell, layer_name)
 
-            if not isinstance(tar_dense, ms.nn.Dense):
+            if not isinstance(tar_dense, ms.mint.nn.Linear):
                 raise ValueError(
-                    f"{tar_dense} is NOT a nn.Dense layer, currently only support lora injection to Dense layers"
+                    f"{tar_dense} is NOT a mint.nn.Linear layer, currently only support lora injection to Dense layers"
                 )
             has_bias = getattr(tar_dense, "has_bias")
-            in_channels = getattr(tar_dense, "in_channels")
-            out_channels = getattr(tar_dense, "out_channels")
+            in_channels = getattr(tar_dense, "in_features")
+            out_channels = getattr(tar_dense, "out_features")
 
             if verbose:
                 print(f"Create LoRA dense layer, of which linear weight is {tar_dense.weight.name}.")
@@ -333,7 +333,7 @@ def merge_lora_to_model_weights(model: nn.Cell, lora_ckpt_path: str, alpha: floa
             up_weight = lora_pdict[lora_up_pname]
 
             dense_weight = model_pdict[attn_pname].value()
-            merged_weight = dense_weight + alpha * ms.ops.matmul(up_weight, down_weight)
+            merged_weight = dense_weight + alpha * ms.mint.matmul(up_weight, down_weight)
 
             model_pdict[attn_pname].set_data(merged_weight)
 

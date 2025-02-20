@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ============================================================================
-import mindspore.ops as ops
+from mindspore import mint, ops
 
 
 class DiagonalGaussianDistribution(object):
     def __init__(self, parameters, deterministic=False):
-        self.mean, self.logvar = ops.Split(axis=1, output_num=2)(parameters)
-        self.logvar = ops.clip_by_value(self.logvar, -30.0, 20.0)
+        self.mean, self.logvar = mint.split(parameters, parameters.shape[1] // 2, dim=1)
+        self.logvar = mint.clamp(self.logvar, -30.0, 20.0)
         self.deterministic = deterministic
-        self.std = ops.exp(0.5 * self.logvar)
         self.stdnormal = ops.StandardNormal()
+        self.std = mint.exp(0.5 * self.logvar)
 
     def sample(self):
         x = self.mean + self.std * self.stdnormal(self.mean.shape)

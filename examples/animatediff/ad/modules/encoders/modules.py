@@ -8,7 +8,7 @@ import mindspore as ms
 import mindspore.dataset.vision as vision
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Tensor, mint
 from mindspore.dataset.transforms import Compose
 
 from .image_encoder import ImageEncoder
@@ -194,7 +194,7 @@ class CLIPImageEmbedder(nn.Cell):
         out = self.model.encode_image(x)
         out = out.to(x.dtype)
         if self.ucg_rate > 0.0 and not no_dropout:
-            out = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(out.shape[0]))[:, None] * out
+            out = mint.bernoulli((1.0 - self.ucg_rate) * mint.ones(out.shape[0]))[:, None] * out
         return out
 
 
@@ -233,7 +233,7 @@ class CLIPEmbeddingNoiseAugmentation(ImageConcatWithNoiseAugmentation):
         self.dtype = ms.float16 if use_fp16 else ms.float32
 
         if clip_stats_path is None:
-            clip_mean, clip_std = ops.zeros(timestep_dim), ops.ones(timestep_dim)
+            clip_mean, clip_std = mint.zeros(timestep_dim), mint.ones(timestep_dim)
         else:
             clip = ms.load_checkpoint(clip_stats_path)
             clip_mean, clip_std = clip["mean"], clip["std"]
