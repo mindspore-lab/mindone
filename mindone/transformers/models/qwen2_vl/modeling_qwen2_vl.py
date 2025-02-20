@@ -33,10 +33,11 @@ from transformers.utils import (
 )
 
 import mindspore as ms
-from mindspore import _no_grad, jit_class, nn, ops
+from mindspore import _no_grad, jit_class, mint, nn, ops
 from mindspore.common.initializer import Initializer, Normal
 from mindspore.nn import CrossEntropyLoss, LayerNorm
 
+from mindone.diffusers.utils.import_utils import is_mindspore_version
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
     Cache,
@@ -282,9 +283,15 @@ class PatchEmbed(nn.Cell):
             patch_size,
             patch_size,
         )  # For 'Conv3d', the type of 'kernel_size' should be one of '['int', 'tuple']'
-        self.proj = nn.Conv3d(
-            in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, has_bias=False
-        ).to_float(ms.bfloat16)
+
+        if is_mindspore_version(">=", "2.5.0"):
+            self.proj = mint.nn.Conv3d(
+                in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, has_bias=False
+            ).to_float(ms.bfloat16)
+        else:
+            self.proj = nn.Conv3d(
+                in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, has_bias=False
+            ).to_float(ms.bfloat16)
         # nn.Conv3d does not support float32
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -1571,7 +1578,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                     llm_pos_ids_list.append(ops.arange(text_len).view((1, -1)).broadcast_to((3, -1)) + st_idx)
 
                 llm_positions = ops.cat(llm_pos_ids_list, axis=1).reshape(3, -1)
-                position_ids[..., i, attention_mask[i] == 1] = llm_positions
+                position_ids[..., i, attention_mask[i] == 1] = llm_positions.to(input_ids.dtype)
                 mrope_position_deltas.append(llm_positions.max().item() + 1 - len(total_input_ids[i]))
             mrope_position_deltas = ms.Tensor(mrope_position_deltas).unsqueeze(1)
             return position_ids, mrope_position_deltas
