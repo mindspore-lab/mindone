@@ -274,7 +274,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
             )
 
 
-def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
+def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, prefix, is_sharded=False):
     # add prefix to the name of parameters
     if len(start_prefix) > 0:
         for name, param in model_to_load.parameters_and_names():
@@ -295,8 +295,14 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
+        prefix_k = prefix + "." + k
+        wo_prefix_k = k[len(prefix)+1:]
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
+        elif wo_prefix_k in local_state:
+            v.set_dtype(local_state[wo_prefix_k].dtype)
+        elif prefix_k in local_state:
+            v.set_dtype(local_state[prefix_k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -2289,7 +2295,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 remove_prefix_from_model,
                 ignore_mismatched_sizes,
             )
-            error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False)
+            error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, prefix, is_sharded=False)
         else:
             # Sharded checkpoint or whole but low_cpu_mem_usage==True
 
