@@ -308,7 +308,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         if image_tokens is None:
             bs, n, c, h, w = pixel_values.shape
             pixel_values = ops.reshape(pixel_values, (bs*n, c, h, w))
-            image_tokens = self.gen_vision_model(pixel_values) 
+            image_tokens = self.gen_vision_model.encode(pixel_values)[0] 
             bs = image_tokens.shape[0]
             image_tokens = image_tokens.reshape(bs, -1)
 
@@ -382,7 +382,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_embeds = ops.reshape(image_embeds, (bs, n*T, D))
 
         inputs_embeds = self.language_model.get_input_embeddings()(input_ids)
-        inputs_embeds[image_seq_masks] = image_embeds
+        inputs_embeds[image_seq_masks] = image_embeds  # bprop? graph support?
 
         # LlamaModel forward
         outputs = self.language_model.model(
@@ -428,17 +428,19 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         if is_gen_task:
             loss = self.gen_with_loss(
-                input_ids,
-                labels,
-                attention_masks,
-                pixel_values,
-                image_tokens,
-                )
+                    input_ids,
+                    labels,
+                    attention_masks,
+                    image_seq_masks, 
+                    pixel_values,
+                    image_tokens,
+                    )
         else:
             loss = self.und_with_loss(
                 input_ids,
                 labels,
                 attention_masks,
+                image_seq_masks, 
                 pixel_values,
                 )
 

@@ -74,8 +74,7 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
     # image seq mask 
     image_seq_masks = (input_ids ==  vl_chat_processor.image_id)
     assert image_seq_masks.sum() ==  vl_chat_processor.num_image_tokens
-    
-    return input_ids, labels, attention_masks, image, image_seq_masks
+    return input_ids, labels, attention_masks, image_seq_masks, image
 
 def gen_vqa_train_sample():
     pass
