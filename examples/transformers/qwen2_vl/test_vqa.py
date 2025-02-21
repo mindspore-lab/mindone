@@ -50,13 +50,14 @@ print("*************************************************")
 
 # 2. Prepare Inputs
 start_time = time.time()
+# example image: https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg
 messages = [
     {
         "role": "user",
         "content": [
             {
                 "type": "image",
-                "image": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg",  # REPLACE_WITH_YOUR_IMAGE_PATH
+                "image": "demo.jpeg",  # REPLACE_WITH_YOUR_IMAGE_PATH
             },
             {"type": "text", "text": "Describe this image."},
         ],
@@ -108,13 +109,14 @@ print("*************************************************")
 
 # 2. Prepare Inputs
 start_time = time.time()
+# example video: https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/Operate%20a%20Mobile%20Phone.mp4
 messages = [
     {
         "role": "user",
         "content": [
             {
                 "type": "video",
-                "video": "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/Operate%20a%20Mobile%20Phone.mp4",  # REPLACE_WITH_YOUR_VIDEO_PATH
+                "video": "demo.mp4",  # REPLACE_WITH_YOUR_VIDEO_PATH
                 "max_pixels": 360 * 420,
                 "fps": 1.0,
             },

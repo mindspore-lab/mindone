@@ -37,7 +37,6 @@ from mindspore import _no_grad, jit_class, mint, nn, ops
 from mindspore.common.initializer import Initializer, Normal
 from mindspore.nn import CrossEntropyLoss, LayerNorm
 
-from mindone.diffusers.utils.import_utils import is_mindspore_version
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
     Cache,
@@ -46,7 +45,7 @@ from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
     get_seq_length,
     update,
 )
-from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16, AttentionMaskConverter, dtype_to_min
+from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 
@@ -284,7 +283,7 @@ class PatchEmbed(nn.Cell):
             patch_size,
         )  # For 'Conv3d', the type of 'kernel_size' should be one of '['int', 'tuple']'
 
-        if is_mindspore_version(">=", "2.5.0"):
+        if ms.__version__ >= "2.5.0":
             self.proj = mint.nn.Conv3d(
                 in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, has_bias=False
             ).to_float(ms.bfloat16)
@@ -315,7 +314,8 @@ class PatchMerger(nn.Cell):
         )
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
-        x = self.mlp(self.ln_q(x).view((-1, self.hidden_size)))
+        target_dtype = x.dtype  # LayerNorm used fp32
+        x = self.mlp(self.ln_q(x).view((-1, self.hidden_size)).to(target_dtype))
         return x
 
 
@@ -395,73 +395,15 @@ class VisionFlashAttention2(nn.Cell):
         return attn_output
 
 
-# https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html#torch-nn-functional-scaled-dot-product-attention
-# https://github.com/huggingface/transformers/blob/f2c388e3f946862f657acc1e21b272ec946fc66c/src/transformers/models/ctrl/modeling_ctrl.py#L58
-# NEW
-def scaled_dot_product_attention(
-    q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False, dtype=ms.float16
-) -> ms.Tensor:
-    # force fp16 precision calculation
-    origin_dtype = q.dtype
-    dtype = origin_dtype if dtype is None else dtype
-    q, k, v = q.to(dtype), k.to(dtype), v.to(dtype)
-
-    # calculate attention
-    L, S = q.shape[-2], k.shape[-2]
-    scale_factor = 1 / (q.shape[-1] ** 0.5)
-    attn_bias = ops.zeros((L, S), dtype=dtype)
-
-    if is_causal:
-        assert attn_mask is None
-        temp_mask = ops.ones((L, S), dtype=ms.bool_).tril(diagonal=0).to(ms.bool_)  # tril does not support bool/fp32
-        attn_bias = attn_bias.masked_fill(temp_mask.logical_not(), -1e5)  # float("-inf"))
-        attn_bias.to(q.dtype)
-
-    if attn_mask is not None:  # Apply the attention mask
-        if attn_mask.dtype == ms.bool_:
-            attn_bias = attn_bias.masked_fill(attn_mask.logical_not(), -1e5)  # float("-inf"))
-        else:
-            attn_bias += attn_mask
-
-    attn_weight = ops.matmul(q, k.swapaxes(-2, -1)) * scale_factor
-    attn_weight += attn_bias
-    attn_weight = ops.softmax(attn_weight, axis=-1)
-    attn_weight = ops.dropout(attn_weight, dropout_p, training=True)
-    output = ops.matmul(attn_weight, v)
-
-    return output.to(origin_dtype)
-
-
 class VisionSdpaAttention(nn.Cell):
     def __init__(self, dim: int, num_heads: int = 16) -> None:
-        super().__init__()
-        self.num_heads = num_heads
-        self.qkv = nn.Dense(dim, dim * 3, has_bias=True)
-        self.proj = nn.Dense(dim, dim, has_bias=True)
-
-    def construct(self, hidden_states: ms.Tensor, cu_seqlens: ms.Tensor, rotary_pos_emb: ms.Tensor = None) -> ms.Tensor:
-        seq_length = hidden_states.shape[0]
-        q, k, v = self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, -1).permute(1, 0, 2, 3).unbind(0)
-        q = apply_rotary_pos_emb_vision(q.unsqueeze(0), rotary_pos_emb).squeeze(0)
-        k = apply_rotary_pos_emb_vision(k.unsqueeze(0), rotary_pos_emb).squeeze(0)
-
-        attention_mask = ops.zeros([1, seq_length, seq_length], dtype=ms.bool_)
-        for i in range(1, len(cu_seqlens)):
-            attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = True
-        q = q.swapaxes(0, 1)
-        k = k.swapaxes(0, 1)
-        v = v.swapaxes(0, 1)
-        attn_output = scaled_dot_product_attention(q, k, v, attention_mask, dropout_p=0.0)
-        attn_output = attn_output.swapaxes(0, 1)
-        attn_output = attn_output.reshape(seq_length, -1)
-        attn_output = self.proj(attn_output)
-        return attn_output
+        raise NotImplementedError
 
 
 QWEN2_VL_VISION_ATTENTION_CLASSES = {
     "eager": VisionAttention,
     "flash_attention_2": VisionFlashAttention2,
-    "sdpa": VisionAttention,  # TODO：VisionSdpaAttention, not support yet
+    "sdpa": VisionSdpaAttention,  # TODO：VisionSdpaAttention, not support yet
 }
 
 
@@ -670,7 +612,11 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
 
         dropout_rate = 0.0 if not self.training else self.attention_dropout
         self.flash_attention = MSFlashAttention(
-            self.head_dim, self.num_heads, dropout_rate, input_layout="BNSD", dtype=ms.float16
+            head_dim=self.head_dim,
+            head_num=self.num_heads,
+            attention_dropout=dropout_rate,
+            input_layout="BNSD",
+            dtype=ms.float16,
         )
 
     def convert_mask_to_fa_format(self, attention_mask):
@@ -728,31 +674,11 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
-        # therefore the input hidden states gets silently casted in float32. Hence, we need
-        # cast them back in float16 just to be sure everything works as expected.
-        input_dtype = query_states.dtype
-        if input_dtype == ms.float32:
-            if hasattr(self.config, "_pre_quantization_dtype"):
-                target_dtype = self.config._pre_quantization_dtype
-            else:
-                target_dtype = self.q_proj.weight.dtype
-
-            logger.warning_once(
-                f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                f" {target_dtype}."
-            )
-
-            query_states = query_states.to(target_dtype)
-            key_states = key_states.to(target_dtype)
-            value_states = value_states.to(target_dtype)
-
         # Flash Attention
         if attention_mask is not None:  # no matter the length, we just slice it
             attention_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        # if self.is_causal
+
         attn_output = self.flash_attention(
             query_states, key_states, value_states, attention_mask
         )  # BNSD (bsz, self.num_heads, q_len, self.head_dim)
@@ -766,103 +692,14 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
 
 
 class Qwen2VLSdpaAttention(Qwen2VLAttention):
-    """
-    Qwen2 attention module using torch.nn.functional.scaled_dot_product_attention. This module inherits from
-    `Qwen2Attention` as the weights of the module stays untouched. The only changes are on the forward pass to adapt to
-    SDPA API.
-    """
-
-    # Adapted from Qwen2Attention.forward
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Cache] = None,
-        output_attentions: bool = False,
-        use_cache: bool = False,
-        cache_position: Optional[ms.Tensor] = None,
-        position_embeddings: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,  # necessary, but kept here for BC
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        if output_attentions:
-            return super().construct(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-                cache_position=cache_position,
-            )
-
-        bsz, q_len, _ = hidden_states.shape
-
-        query_states = self.q_proj(hidden_states)
-        key_states = self.k_proj(hidden_states)
-        value_states = self.v_proj(hidden_states)
-
-        query_states = query_states.view((bsz, q_len, self.num_heads, self.head_dim)).swapaxes(1, 2)
-        key_states = key_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
-        value_states = value_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
-
-        kv_seq_len = key_states.shape[-2]
-        if past_key_value is not None:
-            if isinstance(past_key_value, Cache):
-                kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
-            else:
-                max_length = get_max_length(past_key_value)
-                previous_seq_length = get_seq_length(past_key_value)
-                if max_length is not None and previous_seq_length + kv_seq_len > max_length:
-                    kv_seq_len += max_length - kv_seq_len
-                else:
-                    kv_seq_len += previous_seq_length
-
-        cos, sin = position_embeddings
-        query_states, key_states = apply_multimodal_rotary_pos_emb(
-            query_states, key_states, cos, sin, self.rope_scaling["mrope_section"]
-        )
-
-        if past_key_value is not None:
-            if isinstance(past_key_value, Cache):
-                cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}  # Specific to RoPE models
-                key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-            else:  # tuple static cache
-                key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
-                past_key_value = (key_states, value_states)
-
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
-
-        causal_mask = attention_mask
-        if attention_mask is not None:  # no matter the length, we just slice it
-            causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-
-        # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
-        # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
-        # The q_len > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not create a causal mask in case q_len == 1.
-        is_causal = True if causal_mask is None and q_len > 1 else False
-
-        attn_output = scaled_dot_product_attention(
-            query_states,
-            key_states,
-            value_states,
-            attn_mask=causal_mask,
-            dropout_p=self.attention_dropout if self.training else 0.0,
-            is_causal=is_causal,
-        )
-
-        attn_output = attn_output.swapaxes(1, 2).contiguous()
-        attn_output = attn_output.view((bsz, q_len, self.hidden_size))
-
-        attn_output = self.o_proj(attn_output)
-
-        return attn_output, None, past_key_value
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 QWEN2_VL_ATTENTION_CLASSES = {
     "eager": Qwen2VLAttention,
     "flash_attention_2": Qwen2VLFlashAttention2,
-    "sdpa": Qwen2VLAttention,  # TOOD: Qwen2VLSdpaAttention, Not support yet
+    "sdpa": Qwen2VLSdpaAttention,  # TOOD: Qwen2VLSdpaAttention, Not support yet
 }
 
 
@@ -1230,9 +1067,6 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
                 return attention_mask
             return None
 
-        # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
-        # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
-        # to infer the attention mask.
         past_seen_tokens = 0
         if past_key_values is not None:
             past_seen_tokens = (
@@ -1242,18 +1076,6 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             )
         using_static_cache = isinstance(past_key_values, Tuple)
 
-        # When output attentions is True, sdpa implementation's forward method calls the eager implementation's forward
-        if self.config._attn_implementation == "sdpa" and not using_static_cache and not output_attentions:
-            if AttentionMaskConverter._ignore_causal_mask_sdpa(  # TODO
-                attention_mask,
-                inputs_embeds=input_tensor,
-                past_key_values_length=past_seen_tokens,
-                is_training=self.training,
-            ):
-                return None
-
-        dtype = input_tensor.dtype
-        min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         if using_static_cache:
             target_length = get_max_length(past_key_values)
@@ -1269,16 +1091,9 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             attention_mask,
             sequence_length=sequence_length,
             target_length=target_length,
-            dtype=dtype,
             cache_position=cache_position,
             batch_size=input_tensor.shape[0],
         )
-
-        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
-            # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
-            # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
-            # Details: https://github.com/pytorch/pytorch/issues/110213
-            causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)  # TODO
 
         return causal_mask
 
@@ -1288,7 +1103,6 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         attention_mask: ms.Tensor,
         sequence_length: int,
         target_length: int,
-        dtype: ms.dtype,
         cache_position: ms.Tensor,
         batch_size: int,
     ):
@@ -1303,9 +1117,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
                 The sequence length being processed.
             target_length (`int`):
                 The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding,
-                the part of the cache that is not filled yet.
-            dtype (`ms.dtype`):
-                The dtype to use for the 4D attention mask.
+                the part of the cache that is not filled yet.                .
             cache_position (`ms.Tensor`):
                 Indices depicting the position of the input sequence tokens in the sequence.
             batch_size (`ms.Tensor`):
@@ -1315,6 +1127,8 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
+            # dtype to use for the 4D attention mask, note FlashAttention supports mask in uint8 or fp16.
+            dtype = ms.float16
             min_dtype = dtype_to_min(dtype)
             causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             diagonal_attend_mask = ops.arange(target_length) > cache_position.reshape(-1, 1)
@@ -1678,8 +1492,10 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                         f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                     )
                 image_mask = (input_ids == self.config.image_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                image_embeds = image_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.masked_scatter(image_mask, image_embeds)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
+                )
+                # masked_scatter does not support bf16
 
             if pixel_values_videos is not None:
                 pixel_values_videos = pixel_values_videos.to(self.visual.get_dtype())
@@ -1691,8 +1507,10 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                         f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
                     )
                 video_mask = (input_ids == self.config.video_token_id).unsqueeze(-1).expand_as(inputs_embeds)
-                video_embeds = video_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
+                )
+                # masked_scatter does not support bf16
 
         # if we get 4D attention mask we cannot calculate rope deltas anymore. TODO fixme
         if position_ids is None and (attention_mask is None or attention_mask.ndim == 2):
@@ -1737,7 +1555,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
         )
 
         hidden_states = outputs[0]
-        logits = self.lm_head(hidden_states)
+        logits = self.lm_head(hidden_states).float()  # some logit warper operations need fp32
 
         loss = None
         if labels is not None:
@@ -1846,7 +1664,6 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                 attention_mask,
                 sequence_length=sequence_length,
                 target_length=past_key_values.get_max_cache_shape(),
-                dtype=self.lm_head.weight.dtype,
                 cache_position=cache_position,
                 batch_size=batch_size,
             )
@@ -1922,6 +1739,7 @@ if __name__ == "__main__":
         },
         "rope_scaling": {"type": "mrope", "mrope_section": [16, 24, 24]},
         "vocab_size": 152064,
+        "attn_implementation": "flash_attention_2",
     }
 
     # TEST: loading model
@@ -1974,7 +1792,7 @@ if __name__ == "__main__":
     w, h = 1024, 512
     text = "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n\
         <|im_start|>user\n<|vision_start|><|image_pad|><|vision_end|>Describe this image.<|im_end|>\n<|im_start|>assistant"
-    image_path = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
+    image_path = "demo.jpeg"  # REPLACE with your image
     image_inputs = [Image.open(image_path).convert("RGB").resize((w, h))]
     # image = np.uint8(np.random.rand(h, w, 3) * 255)
     # image_inputs = [Image.fromarray(image).convert("RGB")]

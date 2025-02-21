@@ -46,15 +46,7 @@ print("********** Start Video Understanding *************")
 print("*************************************************")
 
 # NOTE: REPLACE with your list of video paths
-CLIPS = [
-    "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-VL/space_woaudio.mp4",
-    "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/part1_woaudio.mp4",
-    "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/part2_woaudio.mp4",
-    "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/live_chat.mp4",
-    "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/Operate%20a%20Mobile%20Phone.mp4",
-    "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/Play%20a%20Game.mp4",
-    "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/Operate%20a%20Robotic%20Arm.mp4",
-]
+CLIPS = ["demo1.mp4", "demo2.mp4"]
 
 for video_path in CLIPS:
     # 2. Prepare Inputs
