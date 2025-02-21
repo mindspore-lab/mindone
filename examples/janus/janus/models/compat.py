@@ -1,8 +1,9 @@
-import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore import Tensor, Parameter
-from mindspore.common.initializer import initializer
 from packaging.version import parse
+
+import mindspore as ms
+from mindspore import Parameter, Tensor, mint, nn, ops
+from mindspore.common.initializer import initializer
+
 
 def normalize_l2(
     input: Tensor,
@@ -35,6 +36,7 @@ def normalize_l2(
 # TODO: same accuracy as mint.nn.GroupNorm
 group_norm = ms.mint.nn.functional.group_norm
 
+
 class GroupNorm(nn.Cell):
     # gamma -> weight, beta -> bias
     num_groups: int
@@ -42,7 +44,14 @@ class GroupNorm(nn.Cell):
     eps: float
     affine: bool
 
-    def __init__(self, num_groups: int, num_channels: int, eps: float = 1e-5, affine: bool = True, dtype=ms.float32):
+    def __init__(
+        self,
+        num_groups: int,
+        num_channels: int,
+        eps: float = 1e-5,
+        affine: bool = True,
+        dtype=ms.float32,
+    ):
         super().__init__()
         if num_channels % num_groups != 0:
             raise ValueError("num_channels must be divisible by num_groups")
@@ -62,7 +71,13 @@ class GroupNorm(nn.Cell):
 
     def construct(self, x: Tensor):
         if self.affine:
-            x = group_norm(x, self.num_groups, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps)
+            x = group_norm(
+                x,
+                self.num_groups,
+                self.weight.to(x.dtype),
+                self.bias.to(x.dtype),
+                self.eps,
+            )
         else:
             x = group_norm(x, self.num_groups, self.weight, self.bias, self.eps)
         return x
@@ -72,10 +87,8 @@ def get_multinomial_op():
     if parse(ms.__version__) >= parse("2.5"):
         return mint.multinomial
     else:
-        if ms.get_context("mode")==0:
+        if ms.get_context("mode") == 0:
             return ops.multinomial
         else:
             # before ms2.5, mint multinomial doesn't support graph mode
             return mint.multinomial
-
-

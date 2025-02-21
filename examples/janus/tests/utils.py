@@ -1,5 +1,7 @@
-import mindspore as ms
 import numpy as np
+
+import mindspore as ms
+
 
 def diff_res(ms_val, pt_val, eps=1e-8):
     abs_diff = np.fabs(ms_val - pt_val)
@@ -29,6 +31,8 @@ def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
                 c_num += 1
                 p.set_dtype(dtype)
 
-        print(f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}.")
+        print(
+            f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}."
+        )
 
     return model

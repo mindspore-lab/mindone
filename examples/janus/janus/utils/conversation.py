@@ -304,7 +304,7 @@ register_conv_template(
         sep="\n\n",
         sep2="<｜end▁of▁sentence｜>",
         stop_token_ids=[100001],
-        stop_str=["<|User|>", "<｜end▁of▁sentence｜>"]
+        stop_str=["<|User|>", "<｜end▁of▁sentence｜>"],
     )
 )
 
@@ -363,4 +363,3 @@ if __name__ == "__main__":
     conv.append_message(conv.roles[0], "How are you?")
     conv.append_message(conv.roles[1], None)
     print(conv.get_prompt())
-

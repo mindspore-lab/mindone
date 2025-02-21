@@ -36,10 +36,14 @@ from typing import (
 )
 
 import numpy as np
+
 import mindspore as ms
-from mindspore import mint, nn, ops, Tensor, Parameter
-from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.mint.nn import LayerNorm
+
+from mindone.transformers.mindspore_adapter.attention import (
+    scaled_dot_product_attention,
+)
 
 from .timm import (
     AttentionPoolLatent,
@@ -48,8 +52,8 @@ from .timm import (
     Mlp,
     PatchDropout,
     PatchEmbed,
+    _no_grad_trunc_normal_,
     resample_abs_pos_embed,
-    _no_grad_trunc_normal_
 )
 
 
@@ -304,9 +308,9 @@ class VisionTransformer(nn.Cell):
 
         self.num_classes = num_classes
         self.global_pool = global_pool
-        self.num_features = self.embed_dim = (
-            embed_dim  # num_features for consistency with other models
-        )
+        self.num_features = (
+            self.embed_dim
+        ) = embed_dim  # num_features for consistency with other models
         self.num_prefix_tokens = 1 if class_token else 0
         self.num_prefix_tokens += reg_tokens
         self.num_reg_tokens = reg_tokens
@@ -333,9 +337,7 @@ class VisionTransformer(nn.Cell):
         )
         num_patches = self.patch_embed.num_patches
 
-        self.cls_token = (
-            Parameter(mint.zeros(1, 1, embed_dim)) if class_token else None
-        )
+        self.cls_token = Parameter(mint.zeros(1, 1, embed_dim)) if class_token else None
         self.reg_token = (
             Parameter(mint.zeros(1, reg_tokens, embed_dim)) if reg_tokens else None
         )
@@ -343,7 +345,12 @@ class VisionTransformer(nn.Cell):
             num_patches if no_embed_class else num_patches + self.num_prefix_tokens
         )
         # self.pos_embed = Parameter(mint.randn(1, embed_len, embed_dim) * 0.02) # doesn't support graph mode
-        self.pos_embed = Parameter(ms.Tensor(np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32) * 0.02))
+        self.pos_embed = Parameter(
+            ms.Tensor(
+                np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32)
+                * 0.02
+            )
+        )
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
         if patch_drop_rate > 0:
             self.patch_drop = PatchDropout(
@@ -392,7 +399,9 @@ class VisionTransformer(nn.Cell):
         self.fc_norm = norm_layer([embed_dim]) if use_fc_norm else nn.Identity()
         self.head_drop = nn.Dropout(p=drop_rate)
         self.head = (
-            mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+            mint.nn.Linear(self.embed_dim, num_classes)
+            if num_classes > 0
+            else nn.Identity()
         )
 
         # if weight_init != "skip":
@@ -409,50 +418,63 @@ class VisionTransformer(nn.Cell):
     def load_from_checkpoint(self, ckpt_path):
         # mainly used in unit test
         parameter_dict = dict()
-        if ckpt_path.endswith('.bin'):
+        if ckpt_path.endswith(".bin"):
             import torch
+
             sd = torch.load(ckpt_path, weights_only=True)
             # filter to keep vision_tower params only and remove prefix vision_model.vision_tower
             pnames = [p for p in sd]
             for p in pnames:
-                if not "vision_tower" in p:
+                if "vision_tower" not in p:
                     sd.pop(p)
                 else:
                     # remove prefix
                     new_pname = p.replace("vision_model.vision_tower.", "")
                     # special: weight (pt) - > embedding_table (ms)
                     if "embedding.weight" in p:
-                        new_pname = new_pname.replace("embedding.weight", "embedding.embedding_table")
+                        new_pname = new_pname.replace(
+                            "embedding.weight", "embedding.embedding_table"
+                        )
                     elif "norm" in p:
-                        new_pname = new_pname.replace("weight", "gamma").replace("bias", "beta")
+                        new_pname = new_pname.replace("weight", "gamma").replace(
+                            "bias", "beta"
+                        )
 
                     sd[new_pname] = sd.pop(p)
 
             # get net param dtype
             param_dtype = tuple(self.get_parameters())[0].dtype
-            print('Get siglip param dtype: ', param_dtype)
-            
+            print("Get siglip param dtype: ", param_dtype)
+
             for pname in sd:
                 # print(pname, sd[pname].shape, sd[pname].dtype)
                 np_val = sd[pname].cpu().detach().float().numpy()
                 # TODO: support bf16 param loading
-                parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+                parameter_dict[pname] = ms.Parameter(
+                    ms.Tensor(np_val, dtype=param_dtype)
+                )
 
-        elif ckpt_path.endswith('.ckpt'):
+        elif ckpt_path.endswith(".ckpt"):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
-        
-        param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
+
+        param_not_load, ckpt_not_load = ms.load_param_into_net(
+            self, parameter_dict, strict_load=True
+        )
         if param_not_load:
             print(
-                "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+                "Net params not load: {}, Total net params not loaded: {}".format(
+                    param_not_load, len(param_not_load)
+                )
             )
         if ckpt_not_load:
             print(
-                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(
+                    ckpt_not_load, len(ckpt_not_load)
+                )
             )
-        print('finish loading ckpt siglip')
+        print("finish loading ckpt siglip")
 
     def no_weight_decay(self) -> Set:
         return {"pos_embed", "cls_token", "dist_token"}
@@ -481,7 +503,9 @@ class VisionTransformer(nn.Cell):
                 self.attn_pool = None  # remove attention pooling
             self.global_pool = global_pool
         self.head = (
-            mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+            mint.nn.Linear(self.embed_dim, num_classes)
+            if num_classes > 0
+            else nn.Identity()
         )
 
     def _pos_embed(self, x: Tensor) -> Tensor:
@@ -683,12 +707,11 @@ def create_siglip_vit(
 
 if __name__ == "__main__":
     from mindone.utils.logger import set_logger
-    ms.set_context(device_id=7)
 
-    import numpy as np
+    ms.set_context(device_id=7)
     _debug = True
     # put name as ""
-    logger = set_logger(name="", output_dir=str('.') if not _debug else None)
+    logger = set_logger(name="", output_dir=str(".") if not _debug else None)
 
     jp1b = "/mnt/disk2/fredhong/hf_ckpts/Janus-Pro-1B"
 
@@ -696,12 +719,11 @@ if __name__ == "__main__":
     input_tensor = Tensor(np.load("./image_tensor.npy")).to(ms.bfloat16)
     gt_tensor = np.load("./image_forward_outs.npy")
     print(input_tensor)
-    print(f'gt tensor dtype is {gt_tensor.dtype}')
+    print(f"gt tensor dtype is {gt_tensor.dtype}")
 
     # default setup, unit load hard to load ckpt this way, do entire model loading
-    from transformers import AutoModelForCausalLM
-    from mindone.transformers import LlamaForCausalLM
     from modeling_vlm import MultiModalityCausalLM
+
     vl_gpt: MultiModalityCausalLM = MultiModalityCausalLM.from_pretrained(
         jp1b, local_files_only=True
     )
@@ -712,5 +734,7 @@ if __name__ == "__main__":
     out = vision_tower(input_tensor)
     out = out.to(ms.float32).asnumpy()
 
-    assert np.allclose(out, gt_tensor, rtol=1e-1, atol=1e-1), f"recal result is not closed to gt!, out:{out.shape}\n{out}\ngt:{gt_tensor.shape}\n{gt_tensor}"
-    print('test success')
+    assert np.allclose(
+        out, gt_tensor, rtol=1e-1, atol=1e-1
+    ), f"recal result is not closed to gt!, out:{out.shape}\n{out}\ngt:{gt_tensor.shape}\n{gt_tensor}"
+    print("test success")

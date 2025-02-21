@@ -17,15 +17,16 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import base64
+import io
 import json
 from typing import Dict, List
 
 import PIL.Image
+
 import mindspore as ms
-import base64
-import io
-from transformers import AutoModelForCausalLM
-'''
+
+"""
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 
 
@@ -39,7 +40,8 @@ def load_pretrained_model(model_path: str):
     vl_gpt = vl_gpt.to(torch.bfloat16).cuda().eval()
 
     return tokenizer, vl_chat_processor, vl_gpt
-'''
+"""
+
 
 def load_pil_images(conversations: List[Dict[str, str]]) -> List[PIL.Image.Image]:
     """
@@ -88,6 +90,7 @@ def load_json(filepath):
         data = json.load(f)
         return data
 
+
 def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
     if model is not None:
         assert isinstance(model, ms.nn.Cell)
@@ -104,7 +107,8 @@ def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
                 c_num += 1
                 p.set_dtype(dtype)
 
-        print(f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}.")
+        print(
+            f"Convert `{type(model).__name__}` param to {dtype}, keep/modify num {k_num}/{c_num}."
+        )
 
     return model
-

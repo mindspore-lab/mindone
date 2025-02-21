@@ -22,14 +22,10 @@ from dataclasses import dataclass, field
 from typing import List
 
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore import Tensor, Parameter
-import mindspore.ops.functional as F
-from mindspore.common.initializer import Uniform, Normal
+from mindspore import Parameter, mint, nn, ops
+from mindspore.common.initializer import Uniform
 
-from functools import partial
-
-from .compat import normalize_l2, GroupNorm
+from .compat import GroupNorm, normalize_l2
 
 
 @dataclass
@@ -62,7 +58,9 @@ class Encoder(nn.Cell):
         super().__init__()
         self.num_resolutions = len(ch_mult)
         self.num_res_blocks = num_res_blocks
-        self.conv_in = mint.nn.Conv2d(in_channels, ch, kernel_size=3, stride=1, padding=1)
+        self.conv_in = mint.nn.Conv2d(
+            in_channels, ch, kernel_size=3, stride=1, padding=1
+        )
 
         # downsampling
         in_ch_mult = (1,) + tuple(ch_mult)
@@ -237,11 +235,13 @@ class VectorQuantizer(nn.Cell):
         self.show_usage = show_usage
 
         # TODO: re-write the cell to map panme from ms to torch: embedding_table -> weight.
-        self.embedding = nn.Embedding(self.n_e, self.e_dim, embedding_table=Uniform(scale=1.0 / self.n_e))
+        self.embedding = nn.Embedding(
+            self.n_e, self.e_dim, embedding_table=Uniform(scale=1.0 / self.n_e)
+        )
         if self.l2_norm:
             self.embedding.embedding_table.set_data(
                 normalize_l2(self.embedding.embedding_table.value(), dim=-1)
-                )
+            )
         if self.show_usage:
             self.codebook_used = Parameter(ops.zeros(65536), requires_grad=False)
 
@@ -262,8 +262,11 @@ class VectorQuantizer(nn.Cell):
         d = (
             ops.sum(z_flattened**2, dim=1, keepdim=True)
             + ops.sum(embedding**2, dim=1)
-            - 2 * ops.matmul(z_flattened, ops.transpose(self.embedding.embedding_table, (1, 0)))
-                # "bd,dn->bn", z_flattened, torch.einsum("n d -> d n", embedding)
+            - 2
+            * ops.matmul(
+                z_flattened, ops.transpose(self.embedding.embedding_table, (1, 0))
+            )
+            # "bd,dn->bn", z_flattened, torch.einsum("n d -> d n", embedding)
         )
 
         min_encoding_indices = ops.argmin(d, axis=1)
@@ -369,9 +372,15 @@ class AttnBlock(nn.Cell):
     def __init__(self, in_channels, norm_type="group"):
         super().__init__()
         self.norm = Normalize(in_channels, norm_type)
-        self.q = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
-        self.k = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
-        self.v = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
+        self.q = mint.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.k = mint.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
+        self.v = mint.nn.Conv2d(
+            in_channels, in_channels, kernel_size=1, stride=1, padding=0
+        )
         self.proj_out = mint.nn.Conv2d(
             in_channels, in_channels, kernel_size=1, stride=1, padding=0
         )
@@ -408,16 +417,16 @@ def nonlinearity(x):
     # TODO: maybe cast to fp32
     return x * (ops.sigmoid(x))
 
+
 def Normalize(in_channels, norm_type="group"):
     assert norm_type in ["group", "batch"]
     if norm_type == "group":
         # TODO: check mint GroupNorm accuracy
         # return mint.nn.GroupNorm(
-        return GroupNorm(
-            num_groups=32, num_channels=in_channels, eps=1e-6, affine=True
-        )
+        return GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
     elif norm_type == "batch":
         return nn.SyncBatchNorm(in_channels)
+
 
 class Upsample(nn.Cell):
     def __init__(self, in_channels, with_conv):
@@ -432,12 +441,12 @@ class Upsample(nn.Cell):
         # x = F.interpolate(x.to(ms.float32), scale_factor=2.0, mode="nearest").to(
         # TODO: if use amp, need to ensure interpolation is computed in fp32
         in_dtype = x.dtype
-        in_shape = x.shape[-2:]
-        out_shape = tuple(2 * x for x in in_shape)
         if x.dtype != ms.float32:
             x = x.to(ms.float32)
         # x = ops.ResizeNearestNeighbor(out_shape)(x)
-        x = ops.interpolate(x, scale_factor=2.0, mode="nearest", recompute_scale_factor=True)
+        x = ops.interpolate(
+            x, scale_factor=2.0, mode="nearest", recompute_scale_factor=True
+        )
         if x.dtype != in_dtype:
             x = x.to(in_dtype)
 
@@ -505,7 +514,9 @@ class VQModel(nn.Cell):
             config.codebook_l2_norm,
             config.codebook_show_usage,
         )
-        self.quant_conv = mint.nn.Conv2d(config.z_channels, config.codebook_embed_dim, 1)
+        self.quant_conv = mint.nn.Conv2d(
+            config.z_channels, config.codebook_embed_dim, 1
+        )
         self.post_quant_conv = mint.nn.Conv2d(
             config.codebook_embed_dim, config.z_channels, 1
         )
@@ -534,45 +545,55 @@ class VQModel(nn.Cell):
     def load_from_checkpoint(self, ckpt_path):
         # mainly used in unit test
         parameter_dict = dict()
-        if ckpt_path.endswith('.bin'):
+        if ckpt_path.endswith(".bin"):
             import torch
+
             sd = torch.load(ckpt_path)
             # filter to keep gen_vision_model params only and remove prefix
             pnames = [p for p in sd]
             for p in pnames:
-                if not "gen_vision_model" in p:
+                if "gen_vision_model" not in p:
                     sd.pop(p)
                 else:
                     # remove prefix
                     new_pname = p.replace("gen_vision_model.", "")
                     # special: weight (pt) - > embedding_table (ms)
                     if "embedding.weight" in p:
-                        new_pname = new_pname.replace("embedding.weight", "embedding.embedding_table")
+                        new_pname = new_pname.replace(
+                            "embedding.weight", "embedding.embedding_table"
+                        )
 
                     sd[new_pname] = sd.pop(p)
 
             param_dtype = tuple(self.get_parameters())[0].dtype
-            print('Get vq param dtype: ', param_dtype)
+            print("Get vq param dtype: ", param_dtype)
 
             for pname in sd:
                 # print(pname, sd[pname].shape, sd[pname].dtype)
                 np_val = sd[pname].cpu().detach().float().numpy()
                 # TODO: support bf16 param loading
-                parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+                parameter_dict[pname] = ms.Parameter(
+                    ms.Tensor(np_val, dtype=param_dtype)
+                )
 
-        elif ckpt_path.endswith('.ckpt'):
+        elif ckpt_path.endswith(".ckpt"):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
 
-        param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
-        print(
-            "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+        param_not_load, ckpt_not_load = ms.load_param_into_net(
+            self, parameter_dict, strict_load=True
         )
         print(
-            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+            "Net params not load: {}, Total net params not loaded: {}".format(
+                param_not_load, len(param_not_load)
+            )
         )
-
+        print(
+            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(
+                ckpt_not_load, len(ckpt_not_load)
+            )
+        )
 
 
 #################################################################################

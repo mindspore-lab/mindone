@@ -17,22 +17,16 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-import mindspore as ms
-from mindspore import mint, ops, nn, Tensor
 from addict import Dict
-from transformers import (
-    AutoConfig,
-    AutoModelForCausalLM,
-    LlamaConfig,
-)
-from mindone.transformers import (
-    LlamaForCausalLM,
-)
-from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
-from transformers.configuration_utils import PretrainedConfig
-
 from janus.models.clip_encoder import CLIPVisionTower
 from janus.models.projector import MlpProjector
+from transformers import AutoConfig, AutoModelForCausalLM, LlamaConfig
+from transformers.configuration_utils import PretrainedConfig
+
+from mindspore import Tensor, mint, nn, ops
+
+from mindone.transformers import LlamaForCausalLM
+from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 
 
 class vision_head(nn.Cell):
@@ -247,9 +241,8 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             input_embeds (ms.Tensor): [b, T, D]
         """
 
-
         bs, n, c, h, w = pixel_values.shape
-        images = ops.reshape(pixel_values, (bs*n, c, h, w))
+        images = ops.reshape(pixel_values, (bs * n, c, h, w))
 
         # [b x n, T2, D]
         images_embeds = self.aligner(self.vision_model(images))
@@ -258,12 +251,12 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # (b n) t d -> b n t d -> b (n t) d
         bn, T, D = images_embeds.shape
         images_embeds = ops.reshape(images_embeds, (bs, n, T, D))
-        images_embeds = ops.reshape(images_embeds, (bs, n*T, D))
+        images_embeds = ops.reshape(images_embeds, (bs, n * T, D))
 
         # [b, n, T2] -> [b, n x T2]
         # images_emb_mask = rearrange(images_emb_mask, "b n t -> b (n t)")
         _, Nm, Tm = images_emb_mask.shape
-        images_emb_mask = ops.reshape(images_emb_mask, (bs, Nm * Tm)) 
+        images_emb_mask = ops.reshape(images_emb_mask, (bs, Nm * Tm))
 
         # [b, T, D]
         input_ids[input_ids < 0] = 0  # ignore the image embeddings

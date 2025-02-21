@@ -1,12 +1,14 @@
 import os
+import re
+import time
+
+import numpy as np
 import PIL.Image
+from janus.models import MultiModalityCausalLM, VLChatProcessor
+from transformers import AutoModelForCausalLM
+
 import mindspore as ms
 from mindspore import mint
-import numpy as np
-from transformers import AutoModelForCausalLM
-from janus.models import MultiModalityCausalLM, VLChatProcessor
-import time
-import re
 
 # Specify the path to the model
 model_path = "deepseek-ai/Janus-1.3B"
@@ -60,14 +62,16 @@ def generate(
 
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens)
 
-    generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
+    generated_tokens = mint.zeros(
+        (parallel_size, image_token_num_per_image), dtype=ms.int32
+    )
     outputs = None  # Initialize outputs for use in the loop
 
     for i in range(image_token_num_per_image):
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=True,
-            past_key_values=outputs.past_key_values if i != 0 else None
+            past_key_values=outputs.past_key_values if i != 0 else None,
         )
         hidden_states = outputs.last_hidden_state
 
@@ -81,13 +85,15 @@ def generate(
         next_token = mint.multinomial(probs, num_samples=1)
         generated_tokens[:, i] = next_token.squeeze(dim=-1)
 
-        next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
+        next_token = mint.cat(
+            [next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1
+        ).view(-1)
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
         inputs_embeds = img_embeds.unsqueeze(dim=1)
 
     dec = mmgpt.gen_vision_model.decode_code(
         generated_tokens.to(dtype=ms.int32),
-        shape=[parallel_size, 8, img_size // patch_size, img_size // patch_size]
+        shape=[parallel_size, 8, img_size // patch_size, img_size // patch_size],
     )
     dec = dec.to(ms.float32).asnumpy().transpose(0, 2, 3, 1)
 
@@ -96,17 +102,19 @@ def generate(
     visual_img = np.zeros((parallel_size, img_size, img_size, 3), dtype=np.uint8)
     visual_img[:, :, :] = dec
 
-    os.makedirs('generated_samples', exist_ok=True)
+    os.makedirs("generated_samples", exist_ok=True)
 
     # Create a timestamp
     timestamp = time.strftime("%Y%m%d-%H%M%S")
 
     # Sanitize the short_prompt to ensure it's safe for filenames
-    short_prompt = re.sub(r'\W+', '_', short_prompt)[:50]
+    short_prompt = re.sub(r"\W+", "_", short_prompt)[:50]
 
     # Save images with timestamp and part of the user prompt in the filename
     for i in range(parallel_size):
-        save_path = os.path.join('generated_samples', f"img_{timestamp}_{short_prompt}_{i}.jpg")
+        save_path = os.path.join(
+            "generated_samples", f"img_{timestamp}_{short_prompt}_{i}.jpg"
+        )
         PIL.Image.fromarray(visual_img[i]).save(save_path)
 
 
@@ -115,7 +123,9 @@ def interactive_image_generator():
 
     # Ask for the number of images at the start of the session
     while True:
-        num_images_input = input("How many images would you like to generate per prompt? (Enter a positive integer): ")
+        num_images_input = input(
+            "How many images would you like to generate per prompt? (Enter a positive integer): "
+        )
         if num_images_input.isdigit() and int(num_images_input) > 0:
             parallel_size = int(num_images_input)
             break
@@ -123,16 +133,18 @@ def interactive_image_generator():
             print("Invalid input. Please enter a positive integer.")
 
     while True:
-        user_input = input("Please describe the image you'd like to generate (or type 'exit' to quit): ")
+        user_input = input(
+            "Please describe the image you'd like to generate (or type 'exit' to quit): "
+        )
 
-        if user_input.lower() == 'exit':
+        if user_input.lower() == "exit":
             print("Exiting the image generator. Goodbye!")
             break
 
         prompt = create_prompt(user_input)
 
         # Create a sanitized version of user_input for the filename
-        short_prompt = re.sub(r'\W+', '_', user_input)[:50]
+        short_prompt = re.sub(r"\W+", "_", user_input)[:50]
 
         print(f"Generating {parallel_size} image(s) for: '{user_input}'")
         generate(
@@ -140,10 +152,12 @@ def interactive_image_generator():
             vl_chat_processor=vl_chat_processor,
             prompt=prompt,
             short_prompt=short_prompt,
-            parallel_size=parallel_size  # Pass the user-specified number of images
+            parallel_size=parallel_size,  # Pass the user-specified number of images
         )
 
-        print("Image generation complete! Check the 'generated_samples' folder for the output.\n")
+        print(
+            "Image generation complete! Check the 'generated_samples' folder for the output.\n"
+        )
 
 
 if __name__ == "__main__":

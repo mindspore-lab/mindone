@@ -20,13 +20,15 @@
 from typing import List, Tuple, Union
 
 import numpy as np
-import mindspore as ms
 from PIL import Image
+
 # TODO: replace with mindone.transformers
 from transformers import AutoImageProcessor, PretrainedConfig
 from transformers.image_processing_utils import BaseImageProcessor, BatchFeature
 from transformers.image_utils import to_numpy_array
 from transformers.utils import logging
+
+import mindspore as ms
 
 logger = logging.get_logger(__name__)
 
@@ -144,12 +146,13 @@ class VLMImageProcessor(BaseImageProcessor):
         if width <= 0 or height <= 0 or size[0] <= 0 or size[1] <= 0:
             print(f"orig size = {pil_img.size}, new size = {size}")
             raise ValueError("Invalid size!")
-        
+
         # backend = 'torchvision'  # better precision
-        backend = 'ms'
-        if backend == 'torchvision':
+        backend = "ms"
+        if backend == "torchvision":
             import torchvision
             import torchvision.transforms.functional
+
             pil_img = torchvision.transforms.functional.resize(
                 pil_img,
                 size,
@@ -160,7 +163,10 @@ class VLMImageProcessor(BaseImageProcessor):
         #    pil_img = pil_img.resize(size, Image.Resampling.LANCZOS)
         else:
             from mindspore.dataset.vision import Inter
-            pil_img = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(pil_img)
+
+            pil_img = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(
+                pil_img
+            )
 
         pil_img = expand2square(pil_img, self.background_color)
         x = to_numpy_array(pil_img)
@@ -198,9 +204,9 @@ class VLMImageProcessor(BaseImageProcessor):
             ]
 
         # FIXME: use BatchFeature wrapper after ms transformers support
-        if return_tensors == 'ms':
+        if return_tensors == "ms":
             data = {"pixel_values": ms.Tensor(images)}
-        elif return_tensors == 'np':
+        elif return_tensors == "np":
             data = {"pixel_values": images}
         else:
             raise ValueError(f"supported return_tensors: ms, np. got {return_tensors}")
@@ -222,4 +228,3 @@ if __name__ == "__main__":
         image_std=IMAGENET_INCEPTION_STD,
         do_normalize=True,
     )
-

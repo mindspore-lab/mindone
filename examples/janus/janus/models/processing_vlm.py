@@ -20,14 +20,14 @@
 from dataclasses import dataclass
 from typing import Dict, List
 
-import mindspore as ms
-from mindspore import Tensor, ops, mint
+from janus.models.image_processing_vlm import VLMImageProcessor
+from janus.utils.conversation import get_conv_template
 from PIL.Image import Image
 from transformers import LlamaTokenizerFast
 from transformers.processing_utils import ProcessorMixin
 
-from janus.models.image_processing_vlm import VLMImageProcessor
-from janus.utils.conversation import get_conv_template
+import mindspore as ms
+from mindspore import Tensor, ops
 
 
 class DictOutput(object):
@@ -239,7 +239,7 @@ class VLChatProcessor(ProcessorMixin):
                 end = index
 
             # original text tokens
-            input_slices.append(input_ids[start:end.squeeze()])
+            input_slices.append(input_ids[start : end.squeeze()])
 
             # add boi, image tokens, eoi and set the mask as False
             input_slices.append(self.image_start_id * ops.ones((1), dtype=ms.int64))
@@ -250,11 +250,13 @@ class VLChatProcessor(ProcessorMixin):
             start = index + 1
 
         # the left part
-        input_slices.append(input_ids[start.squeeze():])
+        input_slices.append(input_ids[start.squeeze() :])
 
         # concat all slices
         input_ids = ops.concat(input_slices, axis=0)
-        num_image_tokens = Tensor([self.num_image_tokens] * len(image_indices), dtype=ms.int32)
+        num_image_tokens = Tensor(
+            [self.num_image_tokens] * len(image_indices), dtype=ms.int32
+        )
 
         return input_ids, num_image_tokens
 
@@ -313,7 +315,7 @@ class VLChatProcessor(ProcessorMixin):
         prepare = VLChatProcessorOutput(
             sft_format=sft_format,
             input_ids=input_ids,
-            pixel_values=images_outputs["pixel_values"], # images_outputs.pixel_values,
+            pixel_values=images_outputs["pixel_values"],  # images_outputs.pixel_values,
             num_image_tokens=num_image_tokens,
         )
 
@@ -416,4 +418,3 @@ class VLChatProcessor(ProcessorMixin):
         )
 
         return batched_prepares
-
