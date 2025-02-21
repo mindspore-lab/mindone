@@ -24,7 +24,11 @@ start_time = time.time()
 
 print("Loading Qwen2VLForConditionalGeneration Model")
 MODEL_HUB = "Qwen/Qwen2-VL-2B-Instruct"  # NOTE: REPLACE_WITH_YOUR_MODEL_PATH
-model = Qwen2VLForConditionalGeneration.from_pretrained(MODEL_HUB).set_train(False)
+model = Qwen2VLForConditionalGeneration.from_pretrained(
+    MODEL_HUB,
+    mindspore_dtype=ms.float16,                 # FA supports fp16, bf16; eager supports fp16/bf16/fp32
+    attn_implementation="flash_attention_2",    # optional "eager"
+).set_train(False)
 
 print("Loading AutoProcessor")
 # default processer

@@ -24,13 +24,12 @@ start_time = time.time()
 
 print("Loading Qwen2VLForConditionalGeneration Model")
 MODEL_HUB = "Qwen/Qwen2-VL-2B-Instruct"  # REPLACE_WITH_YOUR_MODEL_PATH
-model = Qwen2VLForConditionalGeneration.from_pretrained(MODEL_HUB).set_train(False)
 # Enable flash_attention_2 for better acceleration and memory saving, especially in multi-image and video scenarios.
-# model = Qwen2VLForConditionalGeneration.from_pretrained(
-#     MODEL_HUB,
-#     mindspore_dtype=ms.bfloat16,
-#     attn_implementation="flash_attention_2",
-# )
+model = Qwen2VLForConditionalGeneration.from_pretrained(
+    MODEL_HUB,
+    mindspore_dtype=ms.float16,                 # FA supports fp16, bf16; eager supports fp16/bf16/fp32
+    attn_implementation="flash_attention_2",    # optional "eager"
+).set_train(False)
 
 print("Loading AutoProcessor")
 # default processer

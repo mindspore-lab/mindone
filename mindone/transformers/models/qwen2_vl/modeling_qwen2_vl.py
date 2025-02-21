@@ -1062,11 +1062,6 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         past_key_values: Cache,
         output_attentions: bool,
     ):
-        if self.config._attn_implementation == "flash_attention_2":
-            if attention_mask is not None and len(attention_mask.shape) == 4:
-                return attention_mask
-            return None
-
         past_seen_tokens = 0
         if past_key_values is not None:
             past_seen_tokens = (
