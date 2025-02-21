@@ -32,7 +32,7 @@ We provide an efficient MindSpore implementation of [JanusPro](https://github.co
 
 ## News
 
-**2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU. 
+**2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU.
 
 
 ## 1. Introduction
@@ -61,11 +61,12 @@ permitted under these terms.
 | Janus-Pro-7B | 4096        | [🤗 Hugging Face](https://huggingface.co/deepseek-ai/Janus-Pro-7B) |
 
 
-You can download by: 
+You can download by:
 
 ```shell
-huggingface-cli download deepseek-ai/Janus-Pro-1B --local-dir ckpts/Janus-Pro-1B
-huggingface-cli download deepseek-ai/Janus-Pro-7B --local-dir ckpts/Janus-Pro-7B
+# with revision .safetensors can be downloaded
+huggingface-cli download deepseek-ai/Janus-Pro-1B --revision refs/pr/6 --local-dir ckpts/Janus-Pro-1B
+huggingface-cli download deepseek-ai/Janus-Pro-7B --revision refs/pr/110 --local-dir ckpts/Janus-Pro-7B
 ```
 
 
@@ -78,7 +79,7 @@ The code is tested in the following environments
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:     |   :---:       | :---:    | :---:              |
-| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3   |
+| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3.beta1   |
 
 
 ### Installation
@@ -97,7 +98,7 @@ pip install -e .
 ```shell
 python inference.py \
     --image images/doge.png  \
-    --question "explain this meme" 
+    --question "explain this meme"
 ```
 
 #### Text-to-Image Generation
@@ -130,22 +131,32 @@ Have Fun!
 ### Multimodal Understanding
 Measured upon running the script [`inference.py`](./inference.py).
 
+#### Graph Mode
 | Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
 |---|---|---|---|---|---|
-| Janus-Pro-1B | 1 | PyNative| 384x384 | Eager | 5.88 |
-| Janus-Pro-1B | 1 | Graph   | 384x384 | Eager | 16.6|
-| Janus-Pro-7B | 1 | PyNative| 384x384 | Eager | 3.30|
-| Janus-Pro-7B | 1 | Graph   | 384x384 | Eager | 12.2|
+| Janus-Pro-1B | 1 | 0   | 384x384 | Eager | 16.6|
+| Janus-Pro-7B | 1 | 0   | 384x384 | Eager | 12.2|
+
+#### PyNative Mode
+| Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
+|---|---|---|---|---|---|
+| Janus-Pro-1B | 1 | 1| 384x384 | Eager | 5.88 |
+| Janus-Pro-7B | 1 | 1| 384x384 | Eager | 3.30|
 
 ### Visual Generation
 Measured upon running the script [`generation_inference.py`](./generation_inference.py).
 
-| Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
-|---|---|---|---|---|---|
-| Janus-Pro-1B | 1 | PyNative| 384x384 | Eager | 4.52 |
-| Janus-Pro-1B | 1 | Graph   | 384x384 | Eager | 16.2|
-| Janus-Pro-7B | 1 | PyNative| 384x384 | Eager | 3.56|
-| Janus-Pro-7B | 1 | Graph   | 384x384 | Eager | 11.9|
+#### Graph Mode
+| Model | # Card(s) | Batch Size | Mode | Image Size | Attn. Type | Speed (token/s)| Per Image <br> Gen. Time|
+|---|---|---|---|---|---|---|---|
+| Janus-Pro-1B | 1 | 1 | 0 | 384x384 | Eager | 16.2 | ~ 40s |
+| Janus-Pro-7B | 1 | 1 | 0 | 384x384 | Eager | 11.9 | ~ 52s |
+
+#### PyNative Mode
+| Model | # Card(s) | Batch Size| Mode | Image Size | Attn. Type | Speed (token/s)| Per Image <br> Gen. Time|
+|---|---|---|---|---|---|---|---|
+| Janus-Pro-1B | 1 | 1 | 1| 384x384 | Eager | 4.52 | ~ 127s|
+| Janus-Pro-7B | 1 | 1 | 1| 384x384 | Eager | 3.56 | ~ 162s|
 
 
 ## 5. License
@@ -163,5 +174,3 @@ This code repository is licensed under [the MIT License](https://github.com/deep
 }
 
 ```
-
-
