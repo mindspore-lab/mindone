@@ -218,7 +218,7 @@ class EvalSaveCallback(Callback):
         if self.ckpt_combine_online:
             new_net_to_save = self._do_ckpt_combine_online()
 
-        if self.self.need_save_network:
+        if self.need_save_network:
             # if data sink, train step callback will not be invokded
             if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
                 ckpt_name = (
@@ -334,7 +334,7 @@ class EvalSaveCallback(Callback):
         if self.ckpt_combine_online:
             new_net_to_save = self._do_ckpt_combine_online()
 
-        if self.self.need_save_network and (not self.step_mode):
+        if self.need_save_network and (not self.step_mode):
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
                 ckpt_name = (
                     f"{self.model_name}-s{cur_step}.ckpt"
