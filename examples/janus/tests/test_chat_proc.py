@@ -29,9 +29,7 @@ def test_chat_proc():
     ]
     pil_images = load_pil_images(conversation)
 
-    prepare_inputs = vl_chat_processor(
-        conversations=conversation, images=pil_images, force_batchify=True
-    )
+    prepare_inputs = vl_chat_processor(conversations=conversation, images=pil_images, force_batchify=True)
 
     print(prepare_inputs)
     print(prepare_inputs.pixel_values)

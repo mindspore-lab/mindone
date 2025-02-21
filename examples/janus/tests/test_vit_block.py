@@ -77,19 +77,9 @@ def load_from_checkpoint(net, ckpt_path):
     else:
         raise ValueError("Unsupported checkpoint format")
 
-    param_not_load, ckpt_not_load = ms.load_param_into_net(
-        net, parameter_dict, strict_load=True
-    )
-    print(
-        "Net params not load: {}, Total net params not loaded: {}".format(
-            param_not_load, len(param_not_load)
-        )
-    )
-    print(
-        "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(
-            ckpt_not_load, len(ckpt_not_load)
-        )
-    )
+    param_not_load, ckpt_not_load = ms.load_param_into_net(net, parameter_dict, strict_load=True)
+    print("Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load)))
+    print("Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load)))
 
     return net
 

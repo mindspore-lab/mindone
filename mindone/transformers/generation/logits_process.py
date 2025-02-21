@@ -7,7 +7,7 @@ from transformers.utils.logging import get_logger
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers.mindspore_adapter.utils import dtype_to_min
 

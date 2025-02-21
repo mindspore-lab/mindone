@@ -10,9 +10,7 @@ from typing import Callable, List, Optional, Tuple, Type, Union
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 
-from mindone.transformers.mindspore_adapter.attention import (
-    scaled_dot_product_attention,
-)
+from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
 
 logger = logging.getLogger("")
 LayerType = Union[str, Callable, Type[nn.Cell]]
@@ -136,9 +134,7 @@ class AttentionPoolLatent(nn.Cell):
         self.proj = mint.nn.Linear(embed_dim, embed_dim)
         self.proj_drop = nn.Dropout(p=drop)
 
-        self.norm = (
-            norm_layer([out_features]) if norm_layer is not None else nn.Identity()
-        )
+        self.norm = norm_layer([out_features]) if norm_layer is not None else nn.Identity()
         self.mlp = Mlp(embed_dim, int(embed_dim * mlp_ratio))
 
         self.init_weights()
@@ -156,17 +152,9 @@ class AttentionPoolLatent(nn.Cell):
             x = x + self.pos_embed.unsqueeze(0).to(x.dtype)
 
         q_latent = self.latent.expand(B, -1, -1)
-        q = (
-            self.q(q_latent)
-            .reshape(B, self.latent_len, self.num_heads, self.head_dim)
-            .transpose(0, 2, 1)
-        )
+        q = self.q(q_latent).reshape(B, self.latent_len, self.num_heads, self.head_dim).transpose(0, 2, 1)
 
-        kv = (
-            self.kv(x)
-            .reshape(B, N, 2, self.num_heads, self.head_dim)
-            .permute(2, 0, 3, 1, 4)
-        )
+        kv = self.kv(x).reshape(B, N, 2, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         k, v = kv.unbind(0)
 
         q, k = self.q_norm(q), self.k_norm(k)
@@ -192,9 +180,7 @@ class AttentionPoolLatent(nn.Cell):
         return x
 
 
-def drop_path(
-    x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True
-):
+def drop_path(x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
     This is the same as the DropConnect impl I created for EfficientNet, etc networks, however,
@@ -207,9 +193,7 @@ def drop_path(
     if drop_prob == 0.0 or not training:
         return x
     keep_prob = 1 - drop_prob
-    shape = (x.shape[0],) + (1,) * (
-        x.ndim - 1
-    )  # work with diff dim tensors, not just 2D ConvNets
+    shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
     random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
     if keep_prob > 0.0 and scale_by_keep:
         random_tensor.div(keep_prob)
@@ -265,16 +249,12 @@ class Mlp(nn.Cell):
         hidden_features = hidden_features or in_features
         bias = to_2tuple(bias)
         drop_probs = to_2tuple(drop)
-        linear_layer = (
-            partial(mint.nn.Conv2d, kernel_size=1) if use_conv else mint.nn.Linear
-        )
+        linear_layer = partial(mint.nn.Conv2d, kernel_size=1) if use_conv else mint.nn.Linear
 
         self.fc1 = linear_layer(in_features, hidden_features, bias=bias[0])
         self.act = act_layer()
         self.drop1 = nn.Dropout(p=drop_probs[0])
-        self.norm = (
-            norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
-        )
+        self.norm = norm_layer(hidden_features) if norm_layer is not None else nn.Identity()
         self.fc2 = linear_layer(hidden_features, out_features, bias=bias[1])
         self.drop2 = nn.Dropout(p=drop_probs[1])
 
@@ -305,9 +285,7 @@ class PatchDropout(nn.Cell):
         super().__init__()
         assert 0 <= prob < 1.0
         self.prob = prob
-        self.num_prefix_tokens = (
-            num_prefix_tokens  # exclude CLS token (or other prefix tokens)
-        )
+        self.num_prefix_tokens = num_prefix_tokens  # exclude CLS token (or other prefix tokens)
         self.ordered = ordered
         self.return_indices = return_indices
 
@@ -393,9 +371,7 @@ class PatchEmbed(nn.Cell):
         self.strict_img_size = strict_img_size
         self.dynamic_img_pad = dynamic_img_pad
 
-        self.proj = mint.nn.Conv2d(
-            in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias
-        )
+        self.proj = mint.nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size, bias=bias)
         self.norm = norm_layer([embed_dim]) if norm_layer else nn.Identity()
 
     def _init_img_size(self, img_size: Union[int, Tuple[int, int]]):
@@ -424,18 +400,14 @@ class PatchEmbed(nn.Cell):
                     stride=new_patch_size,
                     bias=self.proj.bias is not None,
                 )
-                new_proj.weight.copy_(
-                    resample_patch_embed(self.proj.weight, new_patch_size, verbose=True)
-                )
+                new_proj.weight.copy_(resample_patch_embed(self.proj.weight, new_patch_size, verbose=True))
                 if self.proj.bias is not None:
                     new_proj.bias.copy_(self.proj.bias)
                 self.proj = new_proj
             self.patch_size = new_patch_size
         img_size = img_size or self.img_size
         if img_size != self.img_size or new_patch_size is not None:
-            self.img_size, self.grid_size, self.num_patches = self._init_img_size(
-                img_size
-            )
+            self.img_size, self.grid_size, self.num_patches = self._init_img_size(img_size)
 
     def feat_ratio(self, as_scalar=True) -> Union[Tuple[int, int], int]:
         if as_scalar:
@@ -448,9 +420,7 @@ class PatchEmbed(nn.Cell):
         NOTE: must be torchscript compatible so using fixed tuple indexing
         """
         if self.dynamic_img_pad:
-            return math.ceil(img_size[0] / self.patch_size[0]), math.ceil(
-                img_size[1] / self.patch_size[1]
-            )
+            return math.ceil(img_size[0] / self.patch_size[0]), math.ceil(img_size[1] / self.patch_size[1])
         else:
             return img_size[0] // self.patch_size[0], img_size[1] // self.patch_size[1]
 
@@ -458,12 +428,8 @@ class PatchEmbed(nn.Cell):
         B, C, H, W = x.shape
         if self.img_size is not None:
             if self.strict_img_size:
-                assert (
-                    H == self.img_size[0]
-                ), f"Input height ({H}) doesn't match model ({self.img_size[0]})."
-                assert (
-                    W == self.img_size[1]
-                ), f"Input width ({W}) doesn't match model ({self.img_size[1]})."
+                assert H == self.img_size[0], f"Input height ({H}) doesn't match model ({self.img_size[0]})."
+                assert W == self.img_size[1], f"Input width ({W}) doesn't match model ({self.img_size[1]})."
             elif not self.dynamic_img_pad:
                 assert (
                     H % self.patch_size[0] == 0
@@ -571,15 +537,13 @@ def resample_patch_embed(
         return patch_embed
 
     if verbose:
-        logger.info(
-            f"Resize patch embedding {patch_embed.shape} to {new_size}, w/ {interpolation} interpolation."
-        )
+        logger.info(f"Resize patch embedding {patch_embed.shape} to {new_size}, w/ {interpolation} interpolation.")
 
     def resize(x_np, _new_size):
         x_tf = ms.Tensor(x_np)[None, None, ...]
-        x_upsampled = mint.nn.functional.interpolate(
-            x_tf, size=_new_size, mode=interpolation, antialias=antialias
-        )[0, 0, ...].numpy()
+        x_upsampled = mint.nn.functional.interpolate(x_tf, size=_new_size, mode=interpolation, antialias=antialias)[
+            0, 0, ...
+        ].numpy()
         return x_upsampled
 
     def get_resize_mat(_old_size, _new_size):
@@ -637,9 +601,7 @@ def resample_abs_pos_embed(
     orig_dtype = posemb.dtype
     posemb = posemb.float()  # interpolate needs float32
     posemb = posemb.reshape(1, old_size[0], old_size[1], -1).permute(0, 3, 1, 2)
-    posemb = mint.nn.functional.interpolate(
-        posemb, size=new_size, mode=interpolation, antialias=antialias
-    )
+    posemb = mint.nn.functional.interpolate(posemb, size=new_size, mode=interpolation, antialias=antialias)
     posemb = posemb.permute(0, 2, 3, 1).reshape(1, -1, embed_dim)
     posemb = posemb.to(orig_dtype)
 

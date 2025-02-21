@@ -164,9 +164,7 @@ class VLMImageProcessor(BaseImageProcessor):
         else:
             from mindspore.dataset.vision import Inter
 
-            pil_img = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(
-                pil_img
-            )
+            pil_img = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(pil_img)
 
         pil_img = expand2square(pil_img, self.background_color)
         x = to_numpy_array(pil_img)

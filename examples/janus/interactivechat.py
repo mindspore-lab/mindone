@@ -15,9 +15,7 @@ model_path = "deepseek-ai/Janus-1.3B"
 vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(model_path)
 tokenizer = vl_chat_processor.tokenizer
 
-vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
-    model_path, trust_remote_code=True
-)
+vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
 vl_gpt = vl_gpt.to(ms.bfloat16)
 
 
@@ -62,9 +60,7 @@ def generate(
 
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens)
 
-    generated_tokens = mint.zeros(
-        (parallel_size, image_token_num_per_image), dtype=ms.int32
-    )
+    generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
     outputs = None  # Initialize outputs for use in the loop
 
     for i in range(image_token_num_per_image):
@@ -85,9 +81,7 @@ def generate(
         next_token = mint.multinomial(probs, num_samples=1)
         generated_tokens[:, i] = next_token.squeeze(dim=-1)
 
-        next_token = mint.cat(
-            [next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1
-        ).view(-1)
+        next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
         inputs_embeds = img_embeds.unsqueeze(dim=1)
 
@@ -112,9 +106,7 @@ def generate(
 
     # Save images with timestamp and part of the user prompt in the filename
     for i in range(parallel_size):
-        save_path = os.path.join(
-            "generated_samples", f"img_{timestamp}_{short_prompt}_{i}.jpg"
-        )
+        save_path = os.path.join("generated_samples", f"img_{timestamp}_{short_prompt}_{i}.jpg")
         PIL.Image.fromarray(visual_img[i]).save(save_path)
 
 
@@ -123,9 +115,7 @@ def interactive_image_generator():
 
     # Ask for the number of images at the start of the session
     while True:
-        num_images_input = input(
-            "How many images would you like to generate per prompt? (Enter a positive integer): "
-        )
+        num_images_input = input("How many images would you like to generate per prompt? (Enter a positive integer): ")
         if num_images_input.isdigit() and int(num_images_input) > 0:
             parallel_size = int(num_images_input)
             break
@@ -133,9 +123,7 @@ def interactive_image_generator():
             print("Invalid input. Please enter a positive integer.")
 
     while True:
-        user_input = input(
-            "Please describe the image you'd like to generate (or type 'exit' to quit): "
-        )
+        user_input = input("Please describe the image you'd like to generate (or type 'exit' to quit): ")
 
         if user_input.lower() == "exit":
             print("Exiting the image generator. Goodbye!")
@@ -155,9 +143,7 @@ def interactive_image_generator():
             parallel_size=parallel_size,  # Pass the user-specified number of images
         )
 
-        print(
-            "Image generation complete! Check the 'generated_samples' folder for the output.\n"
-        )
+        print("Image generation complete! Check the 'generated_samples' folder for the output.\n")
 
 
 if __name__ == "__main__":

@@ -32,13 +32,9 @@ from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedM
 class vision_head(nn.Cell):
     def __init__(self, params):
         super().__init__()
-        self.output_mlp_projector = mint.nn.Linear(
-            params.n_embed, params.image_token_embed
-        )
+        self.output_mlp_projector = mint.nn.Linear(params.n_embed, params.image_token_embed)
         self.vision_activation = nn.GELU()
-        self.vision_head = mint.nn.Linear(
-            params.image_token_embed, params.image_token_size
-        )
+        self.vision_head = mint.nn.Linear(params.image_token_embed, params.image_token_size)
 
     def construct(self, x):
         x = self.output_mlp_projector(x)
@@ -209,9 +205,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         gen_head_cls = model_name_to_cls(gen_head_config.cls)
         self.gen_head = gen_head_cls(gen_head_config.params)
 
-        self.gen_embed = nn.Embedding(
-            gen_vision_config.params.image_token_size, gen_vision_config.params.n_embed
-        )
+        self.gen_embed = nn.Embedding(gen_vision_config.params.image_token_size, gen_vision_config.params.n_embed)
 
         language_config = config.language_config
         # FIXME: allow set attn impl in from_pretrained, or  default FA (current default eager)

@@ -52,9 +52,7 @@ class CLIPVisionTower(nn.Cell):
             "select_layer": select_layer,
         }
         vision_tower_params.update(kwargs)
-        self.vision_tower, self.forward_kwargs = self.build_vision_tower(
-            vision_tower_params
-        )
+        self.vision_tower, self.forward_kwargs = self.build_vision_tower(vision_tower_params)
 
         if pixel_mean is not None and pixel_std is not None:
             image_norm = vision.transforms.Normalize(mean=pixel_mean, std=pixel_std)
