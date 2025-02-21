@@ -28,7 +28,7 @@ from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 
 from ...activations import ACT2FN
-from ...cache_utils import get_max_length, get_seq_length, update, init_static_cache
+from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
@@ -749,10 +749,7 @@ class LlamaModel(LlamaPreTrainedModel):
             self.dtype,
         )
         past_key_values = init_static_cache(
-            config=self.config, 
-            max_batch_size=max_batch_size, 
-            max_cache_len=max_cache_len, 
-            dtype=cache_dtype
+            config=self.config, max_batch_size=max_batch_size, max_cache_len=max_cache_len, dtype=cache_dtype
         )
         return past_key_values
 

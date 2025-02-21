@@ -10,7 +10,7 @@ import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor, mint
+from mindspore import nn, ops
 
 
 def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
@@ -34,10 +34,11 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
 
     return key_value_cache
 
+
 # TODO backup code for a future implementation of the graph mode static cache
 # _pad_ops = ops.operations.PadV3()
 # _sub_ops = ops.operations.Sub()
-# _concat_ops = ops.operations.Concat(axis=0)  # for setting up arg 
+# _concat_ops = ops.operations.Concat(axis=0)  # for setting up arg
 # _cache_padding_dim_preorder = Tensor([0, 0, 0], ms.int32)
 # _cache_padding_dim_subsequence = Tensor([0, 0, 0, 0, 0], ms.int32)
 

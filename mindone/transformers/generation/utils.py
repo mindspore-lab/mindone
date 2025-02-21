@@ -33,8 +33,8 @@ from mindone.transformers.generation.stopping_criteria import (
     StoppingCriteria,
     StoppingCriteriaList,
 )
+from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op
 from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
-from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op 
 
 if TYPE_CHECKING:
     from transformers.generation.streamers import BaseStreamer
@@ -1680,12 +1680,10 @@ class GenerationMixin:
 
             step_time = time.time() - s_time
             if step < 2:
-                print(
-                    f"==> sampling, step: {step}, time cost: {step_time:.5f}s"
-                )
+                print(f"==> sampling, step: {step}, time cost: {step_time:.5f}s")
             else:
                 graph_compiled_time_buffer.append(step_time)
-                token_speed = len(graph_compiled_time_buffer)/sum(graph_compiled_time_buffer)
+                token_speed = len(graph_compiled_time_buffer) / sum(graph_compiled_time_buffer)
                 print(
                     f"==> sampling, step: {step}, time cost: {step_time:.5f}s, running avg speed: {token_speed:.5f}token/s"
                 )
