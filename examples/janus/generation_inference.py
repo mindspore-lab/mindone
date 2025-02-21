@@ -1,6 +1,4 @@
 import os
-
-os.environ["MS_COMPILER_CACHE_ENABLE"] = "1"
 import sys
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +16,7 @@ from transformers import AutoModelForCausalLM
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.utils.config import str2bool
 from mindone.utils.seed import set_random_seed
@@ -46,10 +45,16 @@ def generate(
 
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
 
-    generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
+    generated_tokens = mint.zeros(
+        (parallel_size, image_token_num_per_image), dtype=ms.int32
+    )
 
     if use_cache:
-        init_kv = ms.mutable(mmgpt.language_model.model.prepare_static_cache(inputs_embeds, args.max_new_tokens))
+        init_kv = ms.mutable(
+            mmgpt.language_model.model.prepare_static_cache(
+                inputs_embeds, args.max_new_tokens
+            )
+        )
         # pad input emb for aligning the shape, meets graph mode
         emb_length = inputs_embeds.shape[-1] if inputs_embeds is not None else 0
         padded_inputs_embeds = ops.zeros(
@@ -57,7 +62,9 @@ def generate(
             inputs_embeds.dtype if inputs_embeds is not None else None,
         )
         for batch_idx in range(inputs_embeds.shape[0]):
-            padded_inputs_embeds[batch_idx, : inputs_embeds.shape[1]] = inputs_embeds[batch_idx][:]
+            padded_inputs_embeds[batch_idx, : inputs_embeds.shape[1]] = inputs_embeds[
+                batch_idx
+            ][:]
         inputs_embeds = padded_inputs_embeds
     else:
         init_kv = None
@@ -70,7 +77,9 @@ def generate(
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=use_cache,
-            past_key_values=ms.mutable(outputs[1]) if (i != 0 and use_cache) else init_kv,
+            past_key_values=ms.mutable(outputs[1])
+            if (i != 0 and use_cache)
+            else init_kv,
             return_dict=False,
         )
         hidden_states = outputs[0]
@@ -89,14 +98,18 @@ def generate(
 
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
 
-        next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
+        next_token = mint.cat(
+            [next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1
+        ).view(-1)
 
         img_embeds = mmgpt.prepare_gen_img_embeds(next_token)
 
         if use_cache:
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
-            inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
+            inputs_embeds = ops.concat(
+                (inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1
+            )
 
     time_cost = time() - st
     print(
@@ -127,7 +140,9 @@ def generate(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
+    parser.add_argument(
+        "--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative"
+    )
     parser.add_argument(
         "--prompt",
         type=str,
@@ -152,7 +167,9 @@ if __name__ == "__main__":
         default="ckpts/Janus-Pro-1B",
         help="path to model weight folder",
     )
-    parser.add_argument("--use_cache", type=str2bool, default=True, help="use kv cache or not")
+    parser.add_argument(
+        "--use_cache", type=str2bool, default=True, help="use kv cache or not"
+    )
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_new_tokens", type=int, default=1024)
     args = parser.parse_args()
@@ -160,14 +177,19 @@ if __name__ == "__main__":
     # ms context
     ms.set_context(mode=args.ms_mode)
     if args.ms_mode == 0:
-        ms.set_context(jit_config={"jit_level": "O0"})
+        ms.set_context(jit_config={"jit_level": "O0"}, enable_compile_cache=True)
     set_random_seed(args.seed)
 
     # specify the path to the model
-    vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
+    vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(
+        args.model_path
+    )
     tokenizer = vl_chat_processor.tokenizer
 
-    vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path)
+    with no_init_parameters():
+        vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
+            args.model_path
+        )
     dtype = ms.bfloat16
     vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)

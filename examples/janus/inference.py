@@ -1,7 +1,5 @@
 import argparse
 import os
-
-os.environ["MS_COMPILER_CACHE_ENABLE"] = "1"
 import sys
 from time import time
 
@@ -14,6 +12,8 @@ sys.path.insert(0, mindone_lib_path)
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images, set_model_param_dtype
 from transformers import AutoConfig, AutoModelForCausalLM
+
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.utils.seed import set_random_seed
 
@@ -44,9 +44,9 @@ def multimodal_understanding(
     tokenizer = vl_chat_processor.tokenizer
 
     pil_images = load_pil_images(conversation)
-    prepare_inputs = vl_chat_processor(conversations=conversation, images=pil_images, force_batchify=True).to(
-        vl_gpt.dtype
-    )
+    prepare_inputs = vl_chat_processor(
+        conversations=conversation, images=pil_images, force_batchify=True
+    ).to(vl_gpt.dtype)
 
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
     st = time()
@@ -81,9 +81,15 @@ def multimodal_understanding(
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
-    parser.add_argument("--image", type=str, default="images/doge.png", help="path to input image")
-    parser.add_argument("--question", type=str, default="explain this meme", help="path to input image")
+    parser.add_argument(
+        "--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative"
+    )
+    parser.add_argument(
+        "--image", type=str, default="images/doge.png", help="path to input image"
+    )
+    parser.add_argument(
+        "--question", type=str, default="explain this meme", help="path to input image"
+    )
     parser.add_argument(
         "--model_path",
         type=str,
@@ -109,18 +115,21 @@ if __name__ == "__main__":
     # ms context
     ms.set_context(mode=args.ms_mode)
     if args.ms_mode == 0:
-        ms.set_context(jit_config={"jit_level": "O0"})
+        ms.set_context(jit_config={"jit_level": "O0"}, enable_compile_cache=True)
 
     # specify the path to the model
-    vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
+    vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(
+        args.model_path
+    )
 
     config = AutoConfig.from_pretrained(args.model_path)
     language_config = config.language_config
     language_config._attn_implementation = "eager"
     # language_config._attn_implementation = 'flash_attention_2'
-    vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
-        args.model_path, language_config=language_config, trust_remote_code=True
-    )
+    with no_init_parameters():
+        vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
+            args.model_path, language_config=language_config, trust_remote_code=True
+        )
     dtype = ms.bfloat16
     vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
