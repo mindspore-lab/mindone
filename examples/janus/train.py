@@ -18,6 +18,8 @@ from mindspore._c_expression import reset_op_id
 from mindspore.communication.management import get_group_size, get_rank, init
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
+from mindspore.experimental import optim
+
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
@@ -129,8 +131,8 @@ def main(args):
         frozen_modules = set([vl_gpt.gen_vision_model])
     else:
         raise NotImplementedError
-    # VQ encoder doesn't need grad
-    vl_gpt.gen_vision_model.set_grad(requires_grad=False)
+
+
     trainable_modules = all_modules - frozen_modules
     
     for module in frozen_modules:
@@ -145,17 +147,27 @@ def main(args):
             param.requires_grad = True 
             num_train_params += 1
 
+    # VQ encoder doesn't need grad
+    vl_gpt.gen_vision_model.set_grad(requires_grad=False)
+
+    # FIXME: DEBUG: set token embedding table for text and image to be non-trainable
+    for module in (vl_gpt.gen_embed, vl_gpt.language_model.model.embed_tokens):
+        module.set_train(False)
+        for param in module.get_parameters():
+            param.requires_grad = False 
+
     tot_params = len(list(vl_gpt.get_parameters()))
     print(f'tot params: {tot_params}, trainable params: {num_train_params}, frozen params: {num_frozen_params}')
     assert num_frozen_params + num_train_params == tot_params, 'All params should be set to trainable or frozen.'
-    # 1.2  prepare dataset
+    # 1.3 save the model config
+    config.save_pretrained(args.output_path)
+
+    # 2. prepare dataset and loader
     # FIXME: add dataset and loader. this is a toy data sample for i2v debug
     from tests.test_toy_data import  gen_t2i_train_sample
     input_ids, labels, attention_masks, image_seq_masks, image = gen_t2i_train_sample(max_length=args.max_length)
     
-    # 1.3 save the model config
-    config.save_pretrained(args.output_path)
-    
+    # 3. setup trainer and config hyper-params 
     '''
     lr = create_scheduler(
         steps_per_epoch=-1,
@@ -168,26 +180,44 @@ def main(args):
     )
     loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # FIXME
     '''
-    
-    # 3
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1) 
+
     # hyper params refer to emu3 sft.
     # FIXME:  use cosine_with_min_lr w/ lr=1e-5 min=1e-6, but mint adamw don't support lr list.
+
     optimizer = ms.mint.optim.AdamW(vl_gpt.trainable_params(),
         lr=args.learning_rate,
         betas=(0.9, 0.95),
-        weight_decay=0.1,
+        weight_decay=args.weight_decay,
         eps=1e-6,
         )
 
-    train_step = TrainOneStepWrapper(
-        vl_gpt,
-        optimizer=optimizer,
-        scale_sense=ms.Tensor(1.0),
-        clip_grad=True,  # FIXME
-        clip_norm=1.0,    # FIXME
-        # ema=ema,
-        # zero_stage=args.zero_stage,
-    )
+    use_value_and_grad = args.use_value_and_grad
+    if use_value_and_grad:
+        def forward_fn(data):
+            loss = vl_gpt(*data)
+            return loss
+
+        grad_fn = ms.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=False)
+        if args.use_parallel:
+            # TODO: haven't used this API. need check
+            grad_reducer = nn.DistributedGradReducer(optimizer.parameters)
+
+        def train_step(data):
+            loss, grads = grad_fn(data)
+            optimizer(grads)
+
+            return loss
+    else:
+        train_step = TrainOneStepWrapper(
+            vl_gpt,
+            optimizer=optimizer,
+            scale_sense=ms.Tensor(1.0),
+            clip_grad=True,  # FIXME
+            clip_norm=1.0,    # FIXME
+            # ema=ema,
+            # zero_stage=args.zero_stage,
+        )
      
     # FIXME: for sequence parallel, save ckpt for other ranks
     ckpt_dir = os.path.join(args.output_path, "ckpt")
@@ -209,7 +239,7 @@ def main(args):
 
         logger.info("Start training...")
 
-    # training loop
+    # 4. training loop
     start_time_s = time.time()
     for step in range(args.train_steps): 
         data = (ms.Tensor(input_ids, dtype=ms.int32),
@@ -219,25 +249,31 @@ def main(args):
             ms.Tensor(image, dtype=dtype),
             )
 
-        # loss = train_step(data)
-        loss, overflow, scaling_sens = train_step(*data) 
+        if use_value_and_grad:
+            loss = train_step(data)
+        else:
+            loss, overflow, scaling_sens = train_step(*data) 
 
         step_time = time.time() - start_time_s
         loss_val = float(loss.asnumpy())
         logger.info(
-            f"Step {step}, loss {loss_val:.5f}, step time {step_time*1000:.2f}ms"
+            f"Step {step}, loss {loss_val:.8f}, step time {step_time*1000:.2f}ms"
         )
+        
+        # TODO: add lr step?
+        # print("lr: ", optimizer.get_lr())
+        # lr_scheduler.step()
+
         if rank_id == 0:
             step_pref_value = [step, loss_val, step_time]
             record.add(*step_pref_value)
 
-        if (step > 0) and (step  % 500 == 0): 
-            # ms.save_checkpoint(vl_gpt, os.path.join(args.output_path, "janus_ft.ckpt"))
+        if (step > 0) and ((step+1)  % 500 == 0): 
             ckpt_name = f"model-s{step}.ckpt"
             ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
         start_time_s = time.time()
     
-    logger.info("Finished training. Ending process...")
+    logger.info(f"Finished training. check results in {args.output_path}")
     reset_op_id()
     logger.info("End")
 
@@ -253,10 +289,12 @@ if __name__ == "__main__":
     parser.add_argument("--dtype", type=str, default='bfloat16', choices=['bfloat16', 'float16', 'float32'], help="model dtype")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument("--use_value_and_grad", default=False, type=str2bool, help="if False, use mindone wrapped trainer. if True, use custom step based on `value_and_grad` api")
     parser.add_argument("--output_path", default="outputs/janus-sft", type=str, help="output directory to save training results")
 
     # training hyperparms
     parser.add_argument("--learning_rate", default=5e-6, type=float, help="learning rate")
+    parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
     parser.add_argument("--train_steps", default=5000, type=int, help="training step")
     parser.add_argument("--ckpt_save_steps", default=100, type=int, help="save ckpt every this step")
     parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded to this max length")
