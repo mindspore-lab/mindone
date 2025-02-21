@@ -129,35 +129,39 @@ Have Fun!
 ## 4. Performance
 
 ### Multimodal Understanding
-Measured upon running the script [`inference.py`](./inference.py).
 
-#### Graph Mode
-| Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
-|---|---|---|---|---|---|
-| Janus-Pro-1B | 1 | 0   | 384x384 | Eager | 16.6|
-| Janus-Pro-7B | 1 | 0   | 384x384 | Eager | 12.2|
+Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
 
-#### PyNative Mode
-| Model | # Card(s) | Mode | Image Size | Attn. Type | Speed (token/s)|
-|---|---|---|---|---|---|
-| Janus-Pro-1B | 1 | 1| 384x384 | Eager | 5.88 |
-| Janus-Pro-7B | 1 | 1| 384x384 | Eager | 3.30|
+| model | # card(s) | image size | attn. type | throughput (token/s)|
+|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 384x384 | Eager | 16.6|
+| Janus-Pro-7B | 1 | 384x384 | Eager | 12.2|
+
+
+Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+
+| model | # card(s) | image size | attn. type | throughput (token/s)|
+|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 384x384 | Eager | 5.88 |
+| Janus-Pro-7B | 1 | 384x384 | Eager | 3.30|
 
 ### Visual Generation
-Measured upon running the script [`generation_inference.py`](./generation_inference.py).
 
-#### Graph Mode
-| Model | # Card(s) | Batch Size | Mode | Image Size | Attn. Type | Speed (token/s)| Per Image <br> Gen. Time|
-|---|---|---|---|---|---|---|---|
-| Janus-Pro-1B | 1 | 1 | 0 | 384x384 | Eager | 16.2 | ~ 40s |
-| Janus-Pro-7B | 1 | 1 | 0 | 384x384 | Eager | 11.9 | ~ 52s |
+Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
 
-#### PyNative Mode
-| Model | # Card(s) | Batch Size| Mode | Image Size | Attn. Type | Speed (token/s)| Per Image <br> Gen. Time|
-|---|---|---|---|---|---|---|---|
-| Janus-Pro-1B | 1 | 1 | 1| 384x384 | Eager | 4.52 | ~ 127s|
-| Janus-Pro-7B | 1 | 1 | 1| 384x384 | Eager | 3.56 | ~ 162s|
+| model | # card(s) | batch Size | image size | attn. type | throughput (token/s)| s/img |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 16.2 | ~ 40 |
+| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 11.9 | ~ 52 |
 
+Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+
+| model | # card(s) | batch size| image size | attn. type | throughput (token/s)| s/img |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 4.52 | ~ 127|
+| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 3.56 | ~ 162|
+
+* All the performances are tested with KV-Cache enabled.
 
 ## 5. License
 
