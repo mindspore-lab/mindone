@@ -68,5 +68,5 @@ OOM（内存不足），因为它需要加载 [VAE](https://huggingface.co/THUDM
 
 填写或修改 `prepare_dataset.sh` 中的参数并执行它以获得预先计算的潜在变量和嵌入（请确保指定 `--save_latents_and_embeddings`
 以保存预计算的工件）。如果准备图像到视频的训练，请确保传递 `--save_image_latents`，它对沙子进行编码，将图像潜在值与视频一起保存。
-在训练期间使用这些工件时，确保指定 `--load_tensors` 标志，否则将直接使用视频并需要加载文本编码器和
+在训练期间使用这些工件时，确保指定 `--embeddings_cache`和`--latents_cache` 标志，否则将直接使用视频并需要加载文本编码器和
 VAE。该脚本还支持 PyTorch DDP，以便可以使用多个 GPU 并行编码大型数据集（修改 `NUM_GPUS` 参数）。

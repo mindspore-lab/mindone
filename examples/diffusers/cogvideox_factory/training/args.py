@@ -1,6 +1,14 @@
 import argparse
 
 
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
+
+
 def _get_model_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pretrained_model_name_or_path",
@@ -81,9 +89,14 @@ def _get_dataset_args(parser: argparse.ArgumentParser) -> None:
         help="CogVideoX1.5 need to guarantee that ((num_frames - 1) // self.vae_scale_factor_temporal + 1) % patch_size_t == 0, such as 53",
     )
     parser.add_argument(
-        "--load_tensors",
+        "--latents_cache",
         action="store_true",
-        help="Whether to use a pre-encoded tensor dataset of latents and prompt embeddings instead of videos and text prompts. The expected format is that saved by running the `prepare_dataset.py` script.",  # noqa: E501
+        help="Whether to use a pre-encoded tensor dataset of latents instead of videos. The expected format is that saved by running the `prepare_dataset.py` script.",
+    )
+    parser.add_argument(
+        "--embeddings_cache",
+        action="store_true",
+        help="Whether to use a pre-encoded tensor dataset of prompt embeddings instead of text prompts. The expected format is that saved by running the `prepare_dataset.py` script.",
     )
     parser.add_argument(
         "--random_flip",
@@ -101,6 +114,17 @@ def _get_dataset_args(parser: argparse.ArgumentParser) -> None:
         "--pin_memory",
         action="store_true",
         help="Whether or not to use the pinned memory setting in pytorch dataloader.",
+    )
+    parser.add_argument(
+        "--dynamic_shape",
+        action="store_true",
+        help="Whether or not to dynamically shape the input images before they are fed to the model.",
+    )
+    parser.add_argument(
+        "--bucket_config",
+        default="",
+        type=str,
+        help="The file path for bucket config.",
     )
 
 
@@ -274,6 +298,12 @@ def _get_training_args(parser: argparse.ArgumentParser) -> None:
         help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
     )
     parser.add_argument(
+        "--fa_gradient_checkpointing",
+        type=str2bool,
+        default=False,
+        help="Whether or not to use Flash Attention gradient checkpointing to save memory at the expense of slower backward pass.",
+    )
+    parser.add_argument(
         "--learning_rate",
         type=float,
         default=1e-4,
@@ -339,6 +369,18 @@ def _get_training_args(parser: argparse.ArgumentParser) -> None:
             "should be used when performing multi-resolution training, because CogVideoX-I2V does not support it "
             "otherwise. Please read the comments in https://github.com/a-r-r-o-w/cogvideox-factory/issues/26 to understand why."
         ),
+    )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        type=str2bool,
+        default=False,
+        help="whether to enable sequence parallelism. Default is False",
+    )
+    parser.add_argument(
+        "--sequence_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in sequence parallel. Default is 1.",
     )
 
 
@@ -536,10 +578,10 @@ def check_args(args):
     if args.push_to_hub:
         raise ValueError("Pushing results to hub is not supported in MindSpore currently.")
 
-    if args.mindspore_mode == 0 and not args.load_tensors:
-        raise ValueError(
-            "Since VAE does not support MindSpore.GRAPH_MODE, you should only use graph_mode when load_tensors."
-        )
+    # if args.mindspore_mode == 0 and not args.latents_cache:
+    #     raise ValueError(
+    #         "Since VAE does not support MindSpore.GRAPH_MODE, you should only use graph_mode when latents_cache."
+    #     )
 
 
 def get_args():

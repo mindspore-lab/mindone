@@ -92,7 +92,7 @@ export_to_video(video, "output.mp4", fps=8)
 > [!TIP]
 > 由于模型和框架的限制，对于训练我们暂时推荐分阶段的训练流程，即先通过[`prepare_dateset.sh`](./prepare_dataset.sh)预处理数据集，然后读取预处理后的数据集通过`train*.sh`进行正式训练。
 >
-> 在正式训练阶段，需要增加`--load_tensors`参数以支持预处理数据集。建议增加参数`--mindspore_mode=0`以进行静态图训练加速，在`train*.sh`里可通过设置参数`MINDSPORE_MODE=0`实现。
+> 在正式训练阶段，需要增加`--embeddings_cache`参数以支持text embeddings预处理。建议增加参数`--mindspore_mode=0`以进行静态图训练加速，在`train*.sh`里可通过设置参数`MINDSPORE_MODE=0`实现。
 >
 > 具体情况参见[与原仓的差异 & 功能限制](#与原仓的差异功能限制)
 
@@ -202,7 +202,6 @@ DTYPE=bf16
             --lr_num_cycles 1 \
             --enable_slicing \
             --enable_tiling \
-            --load_tensors \
             --optimizer $optimizer \
             --beta1 0.9 \
             --beta2 0.95 \
@@ -211,7 +210,7 @@ DTYPE=bf16
             --report_to tensorboard \
             --mindspore_mode $MINDSPORE_MODE \
             --amp_level $AMP_LEVEL \
-            --load_tensors \
+            --embeddings_cache \
             $EXTRA_ARGS"
 
           echo "Running command: $cmd"

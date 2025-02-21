@@ -55,6 +55,7 @@ from .import_utils import (
 )
 from .loading_utils import load_image, load_video
 from .logging import get_logger
+from .mindspore_utils import pynative_context
 from .outputs import BaseOutput
 from .peft_utils import (
     delete_adapter_layers,
