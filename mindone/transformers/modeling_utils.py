@@ -53,7 +53,7 @@ from transformers.utils import (
 from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 import mindspore as ms
-from mindspore import Tensor, Parameter, nn, ops
+from mindspore import Tensor, nn, ops
 
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
@@ -76,7 +76,7 @@ def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: Parameter(
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=x.name
             )
         elif isinstance(cell, nn.Embedding):
@@ -91,15 +91,7 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-PT_MS_DTYPE_MAP = {
-    "torch.bfloat16": ms.bfloat16,
-    "torch.float32": ms.float32
-}
-
-
 def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
-    if value_pt is not None:
-        _pt_dtype = str(value_pt.dtype)
     if key_pt.startswith(prefix):
         key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
         key_ms = prefix + key_ms
@@ -109,11 +101,7 @@ def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
     if value_pt is None:
         return key_ms, None
     else:
-        if isinstance(value_pt, Parameter):
-            return key_ms, value_mapping(value_pt)
-        else:
-            # FIXME precision loss?
-            return key_ms, Parameter(Tensor(value_mapping(value_pt).float().numpy(), dtype=PT_MS_DTYPE_MAP[_pt_dtype]))
+        return key_ms, value_mapping(value_pt)
 
 
 def _convert_state_dict(m, state_dict_pt, prefix=""):
@@ -166,7 +154,7 @@ def get_state_dict_dtype(state_dict):
 
 def dtype_byte_size(dtype):
     """
-    Returns the size (in bytes) occupied by one parameter of type `dtype`.
+    Returns the size (in bytes) occupied by one ms.Parameter of type `dtype`.
 
     Example:
 
@@ -265,9 +253,6 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     "you save your model with the `save_pretrained` method."
                 )
             return safe_load_file(checkpoint_file)
-        elif checkpoint_file.endswith(".bin"):
-            import torch
-            return torch.load(checkpoint_file, map_location="cpu", weights_only=True)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -298,7 +283,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
         for name, param in model_to_load.parameters_and_names():
             if param.name != name:
                 logger.error(
-                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
+                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
                     f"There are several possible reasons for this misalignment:\n"
                     f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
                     f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
@@ -521,7 +506,7 @@ class ModuleUtilsMixin:
                 if isinstance(module_type, nn.Embedding)
             ]
             total_parameters = [
-                parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
+                ms.Parameter for name, ms.Parameter in self.parameters_and_names() if name not in embedding_param_names
             ]
         else:
             total_parameters = list(self.get_parameters())
@@ -619,7 +604,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         super().__init__()
         if not isinstance(config, PretrainedConfig):
             raise ValueError(
-                f"Parameter config in `{self.__class__.__name__}(config)` should be an instance of class "
+                f"ms.Parameter config in `{self.__class__.__name__}(config)` should be an instance of class "
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
@@ -930,7 +915,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             new_num_tokens = ((new_num_tokens + pad_to_multiple_of - 1) // pad_to_multiple_of) * pad_to_multiple_of
         else:
             logger.info(
-                "You are resizing the embedding layer without providing a `pad_to_multiple_of` parameter. This means that the new embedding"
+                "You are resizing the embedding layer without providing a `pad_to_multiple_of` ms.Parameter. This means that the new embedding"
                 f" dimension will be {new_num_tokens}. This might induce some performance reduction as *Tensor Cores* will not be available."
                 " For more details about this, or help on choosing the correct value for resizing, refer to this guide:"
                 " https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc"
@@ -1885,14 +1870,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         # load pt weights early so that we know which dtype to init the model under
         if from_pt:
-            # Time to load the checkpoint
             if not is_sharded and state_dict is None:
-                dir_split_tuple = os.path.splitext(resolved_archive_file)
-                if dir_split_tuple[-1] == '.safetensors':
-                    state_dict = load_state_dict(resolved_archive_file)
-                elif dir_split_tuple[-1] == '.bin':
-                    import torch
-                    state_dict = torch.load(resolved_archive_file, weights_only=True)
+                # Time to load the checkpoint
+                state_dict = load_state_dict(resolved_archive_file)
 
             # set dtype to instantiate the model under:
             # 1. If mindspore_dtype is not None, we use that dtype
