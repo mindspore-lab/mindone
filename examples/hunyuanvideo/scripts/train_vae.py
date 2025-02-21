@@ -20,7 +20,6 @@ from hyvideo.acceleration import create_parallel_group
 from hyvideo.constants import PRECISION_TO_TYPE
 from hyvideo.dataset import BatchTransform, VideoDataset
 from hyvideo.utils import EMA, init_model, resume_train_net
-from hyvideo.utils.callbacks import ReduceLROnPlateauByStep
 from hyvideo.utils.helpers import set_modules_requires_grad, set_train
 from hyvideo.vae import load_vae_train
 from hyvideo.vae.losses import DiscriminatorWithLoss, GeneratorWithLoss, NLayerDiscriminator3D
@@ -455,9 +454,7 @@ if __name__ == "__main__":
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
-    parser.add_class_arguments(
-        ReduceLROnPlateauByStep, "train.lr_reduce_on_plateau", skip={"optimizer"}, instantiate=False
-    )
+
     parser.add_function_arguments(create_optimizer, "train.optimizer_ae", skip={"params", "lr"})
     parser.add_function_arguments(create_optimizer, "train.optimizer_disc", skip={"params", "lr"})
     parser.add_subclass_arguments(

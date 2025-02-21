@@ -54,13 +54,6 @@ train:
     lr: 5.0e-5
     warmup_steps: 1000
 
-  lr_reduce_on_plateau:
-    factor: 0.5
-    patience: 50  # in the number of validation steps, i.e., valid.frequency * patience steps
-    mode: min
-    min_delta: 0.01
-    min_lr: 1.0e-6
-
   optimizer_ae:
     name: adamw_re
     eps: 1e-15

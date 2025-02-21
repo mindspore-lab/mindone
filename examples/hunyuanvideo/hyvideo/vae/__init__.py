@@ -121,6 +121,7 @@ def load_vae_train(
     precision: str = None,
     sample_size: tuple = None,
     tiling: bool = False,
+    slicing: bool = False,
     path: str = None,
     logger: Any = None,
     checkpoint: str = None,
@@ -131,4 +132,14 @@ def load_vae_train(
     if checkpoint is None:
         checkpoint = {}  # empty state dict, use random weight
 
-    return load_vae(type, precision, sample_size, tiling, path, logger, checkpoint, trainable)
+    return load_vae(
+        type=type,
+        precision=precision,
+        sample_size=sample_size,
+        tiling=tiling,
+        slicing=slicing,
+        path=path,
+        logger=logger,
+        checkpoint=checkpoint,
+        trainable=trainable,
+    )
