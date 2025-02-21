@@ -34,11 +34,15 @@ from mindone.utils import count_params, init_train_env, set_logger
 logger = logging.getLogger(__name__)
 
 
-def initialize_dataset(dataset_args, dataloader_args, sampler_args, device_num: int, shard_rank_id: int):
+def initialize_dataset(dataset_args, dataloader_args, device_num: int, shard_rank_id: int):
     dataset = VideoDataset(**dataset_args)
     dataloader_args = dataloader_args.as_dict()
-    transform = BatchTransform(**sampler_args)
-    transform = {"operations": transform, "input_columns": ["video"]}
+    sampler_args = dataloader_args.pop("sampler", None)
+    if sampler_args is not None:
+        transform = BatchTransform(**sampler_args)
+        transform = {"operations": transform, "input_columns": ["video"]}
+    else:
+        transform = None
     dataloader = create_dataloader(
         dataset=dataset,
         batch_transforms=transform,
@@ -120,7 +124,7 @@ def main(args):
         logger.info(
             f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards."
         )
-    dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, args.sampler, device_num, shard_rank_id)
+    dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
 
     dataset_size = dataloader.get_dataset_size()
     logger.info(f"Num batches: {dataset_size}")
@@ -450,7 +454,7 @@ if __name__ == "__main__":
     parser.add_argument(  # FIXME: support bucketing
         "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
     )
-    parser.add_class_arguments(BatchTransform, "sampler", instantiate=False)
+    parser.add_class_arguments(BatchTransform, "dataloader.sampler", instantiate=False)
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})

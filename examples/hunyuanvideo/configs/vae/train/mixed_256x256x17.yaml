@@ -76,10 +76,6 @@ train:
     init_args:
       loss_scale_value: 1
 
-  ema:
-    ema_decay: 0.9999
-    offloading: True
-
   settings:
     zero_stage: 0
     gradient_accumulation_steps: 1
