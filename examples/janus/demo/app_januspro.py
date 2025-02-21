@@ -24,14 +24,18 @@ from mindone.utils.seed import set_random_seed
 
 # args
 parser = argparse.ArgumentParser()
-parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
+parser.add_argument(
+    "--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative"
+)
 parser.add_argument(
     "--model_path",
     type=str,
     default="ckpts/Janus-Pro-7B",
     help="path to model weight folder",
 )
-parser.add_argument("--share", type=str2bool, default=False, help="private or share demo (public)")
+parser.add_argument(
+    "--share", type=str2bool, default=False, help="private or share demo (public)"
+)
 args = parser.parse_args()
 
 # ms init
@@ -44,7 +48,9 @@ if args.ms_mode == 0:
 config = AutoConfig.from_pretrained(args.model_path)
 language_config = config.language_config
 language_config._attn_implementation = "eager"
-vl_gpt = AutoModelForCausalLM.from_pretrained(args.model_path, language_config=language_config, trust_remote_code=True)
+vl_gpt = AutoModelForCausalLM.from_pretrained(
+    args.model_path, language_config=language_config, trust_remote_code=True
+)
 
 vl_gpt = set_model_param_dtype(vl_gpt, ms.bfloat16)
 vl_gpt.set_train(False)
@@ -72,9 +78,9 @@ def multimodal_understanding(image, question, seed, top_p, temperature):
 
     pil_images = [Image.fromarray(image)]
 
-    prepare_inputs = vl_chat_processor(conversations=conversation, images=pil_images, force_batchify=True).to(
-        ms.bfloat16
-    )
+    prepare_inputs = vl_chat_processor(
+        conversations=conversation, images=pil_images, force_batchify=True
+    ).to(ms.bfloat16)
 
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
 
@@ -116,8 +122,12 @@ def generate(
         if i % 2 != 0:
             tokens[i, 1:-1] = vl_chat_processor.pad_id
 
-    inputs_embeds = vl_gpt.language_model.get_input_embeddings()(tokens).to(vl_gpt.dtype)
-    generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
+    inputs_embeds = vl_gpt.language_model.get_input_embeddings()(tokens).to(
+        vl_gpt.dtype
+    )
+    generated_tokens = mint.zeros(
+        (parallel_size, image_token_num_per_image), dtype=ms.int32
+    )
 
     use_cache = False
     outputs = None
@@ -142,14 +152,18 @@ def generate(
             next_token = mint.argmax(logits, dim=-1, keepdim=True)
 
         generated_tokens[:, i] = next_token.squeeze(axis=-1)
-        next_token = mint.cat([next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1).view(-1)
+        next_token = mint.cat(
+            [next_token.unsqueeze(dim=1), next_token.unsqueeze(dim=1)], dim=1
+        ).view(-1)
 
         img_embeds = vl_gpt.prepare_gen_img_embeds(next_token)
 
         if use_cache:
             inputs_embeds = img_embeds.unsqueeze(dim=1)
         else:
-            inputs_embeds = ops.concat((inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1)
+            inputs_embeds = ops.concat(
+                (inputs_embeds, img_embeds.unsqueeze(dim=1)), axis=1
+            )
 
     patches = vl_gpt.gen_vision_model.decode_code(
         generated_tokens.to(dtype=ms.int32),
@@ -202,7 +216,9 @@ def generate_image(prompt, seed=None, guidance=5, t2i_temperature=1.0):
         parallel_size=parallel_size,
         temperature=t2i_temperature,
     )
-    images = unpack(patches, width // 16 * 16, height // 16 * 16, parallel_size=parallel_size)
+    images = unpack(
+        patches, width // 16 * 16, height // 16 * 16, parallel_size=parallel_size
+    )
 
     # return [Image.fromarray(images[i]).resize((768, 768), Image.LANCZOS) for i in range(parallel_size)]
     return [Image.fromarray(images[i]) for i in range(parallel_size)]
@@ -216,8 +232,12 @@ with gr.Blocks() as demo:
         with gr.Column():
             question_input = gr.Textbox(label="Question")
             und_seed_input = gr.Number(label="Seed", precision=0, value=42)
-            top_p = gr.Slider(minimum=0, maximum=1, value=0.95, step=0.05, label="top_p")
-            temperature = gr.Slider(minimum=0, maximum=1, value=0.1, step=0.05, label="temperature")
+            top_p = gr.Slider(
+                minimum=0, maximum=1, value=0.95, step=0.05, label="top_p"
+            )
+            temperature = gr.Slider(
+                minimum=0, maximum=1, value=0.1, step=0.05, label="temperature"
+            )
 
     understanding_button = gr.Button("Chat")
     understanding_output = gr.Textbox(label="Response")
@@ -240,10 +260,16 @@ with gr.Blocks() as demo:
     gr.Markdown(value="# Text-to-Image Generation")
 
     with gr.Row():
-        cfg_weight_input = gr.Slider(minimum=1, maximum=10, value=5, step=0.5, label="CFG Weight")
-        t2i_temperature = gr.Slider(minimum=0, maximum=1, value=1.0, step=0.05, label="temperature")
+        cfg_weight_input = gr.Slider(
+            minimum=1, maximum=10, value=5, step=0.5, label="CFG Weight"
+        )
+        t2i_temperature = gr.Slider(
+            minimum=0, maximum=1, value=1.0, step=0.05, label="temperature"
+        )
 
-    prompt_input = gr.Textbox(label="Prompt. (Prompt in more detail can help produce better images!)")
+    prompt_input = gr.Textbox(
+        label="Prompt. (Prompt in more detail can help produce better images!)"
+    )
     seed_input = gr.Number(label="Seed (Optional)", precision=0, value=12345)
 
     generation_button = gr.Button("Generate Images")
@@ -260,7 +286,17 @@ with gr.Blocks() as demo:
             "A cute and adorable baby fox with big brown eyes,"
             "autumn leaves in the background enchanting,immortal,fluffy, shiny mane,Petals,fairyism,unreal"
             "engine 5 and Octane Render,highly detailed, photorealistic, cinematic, natural colors.",
-            "The image features an intricately designed eye set against a circular backdrop adorned with ornate swirl patterns that evoke both realism and surrealism. At the center of attention is a strikingly vivid blue iris surrounded by delicate veins radiating outward from the pupil to create depth and intensity. The eyelashes are long and dark, casting subtle shadows on the skin around them which appears smooth yet slightly textured as if aged or weathered over time.\n\nAbove the eye, there's a stone-like structure resembling part of classical architecture, adding layers of mystery and timeless elegance to the composition. This architectural element contrasts sharply but harmoniously with the organic curves surrounding it. Below the eye lies another decorative motif reminiscent of baroque artistry, further enhancing the overall sense of eternity encapsulated within each meticulously crafted detail. \n\nOverall, the atmosphere exudes a mysterious aura intertwined seamlessly with elements suggesting timelessness, achieved through the juxtaposition of realistic textures and surreal artistic flourishes. Each component\u2014from the intricate designs framing the eye to the ancient-looking stone piece above\u2014contributes uniquely towards creating a visually captivating tableau imbued with enigmatic allure.",
+            "The image features an intricately designed eye set against a circular backdrop adorned with ornate"
+            "swirl patterns that evoke both realism and surrealism. At the center of attention is a strikingly vivid blue iris surrounded by"
+            "delicate veins radiating outward from the pupil to create depth and intensity. The eyelashes are long and dark, casting subtle"
+            "shadows on the skin around them which appears smooth yet slightly textured as if aged or weathered over time.\n\nAbove the eye,"
+            "there's a stone-like structure resembling part of classical architecture, adding layers of mystery and timeless elegance to the"
+            "composition. This architectural element contrasts sharply but harmoniously with the organic curves surrounding it. Below the eye"
+            "lies another decorative motif reminiscent of baroque artistry, further enhancing the overall sense of eternity encapsulated within"
+            "each meticulously crafted detail. \n\nOverall, the atmosphere exudes a mysterious aura intertwined seamlessly with elements suggesting"
+            " timelessness, achieved through the juxtaposition of realistic textures and surreal artistic flourishes. Each component\u2014from the intricate "
+            "designs framing the eye to the ancient-looking stone piece above\u2014contributes uniquely towards creating a visually captivating tableau imbued "
+            "with enigmatic allure.",
         ],
         inputs=prompt_input,
     )
@@ -280,4 +316,6 @@ with gr.Blocks() as demo:
 if args.share:
     demo.launch(share=True)
 else:
-    demo.queue(concurrency_count=1, max_size=10).launch(server_name="127.0.0.1", server_port=37906, root_path="/path")
+    demo.queue(concurrency_count=1, max_size=10).launch(
+        server_name="127.0.0.1", server_port=37906, root_path="/path"
+    )
