@@ -35,7 +35,7 @@ class _Conv(nn.Cell):
             split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
-            if self.net.bias:
+            if self.net.bias is not None:
                 self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, optimizer_parallel_group, cell_type)
                 if self.param_wrapper_b.need_rewrite:
                     self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])

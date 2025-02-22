@@ -332,7 +332,11 @@ class ZeroHelper:
             _logger.debug(f"Do split with zero_stage {self.zero_stage}")
             if self.zero_stage in [1, 2]:
                 B = param.shape[0]
-                if self.ori_parameters[i] and B >= self.op_group_size and B % self.op_group_size == 0:
+                if (
+                    self.ori_parameters[i].parallel_optimizer
+                    and B >= self.op_group_size
+                    and B % self.op_group_size == 0
+                ):
                     param.parallel_optimizer = True
                 else:
                     param.parallel_optimizer = False
