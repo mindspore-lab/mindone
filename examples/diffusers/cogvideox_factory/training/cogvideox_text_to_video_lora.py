@@ -794,7 +794,9 @@ class TrainStepForCogVideo(nn.Cell):
         logvar = ops.clamp(logvar, -30.0, 20.0)
         std = ops.exp(0.5 * logvar)
 
-        sample = self.broadcast(ops.randn_like(mean, dtype=mean.dtype))
+        sample = ops.randn_like(mean, dtype=mean.dtype)
+        if self.enable_sequence_parallelism:
+            sample = self.broadcast(sample)
         x = mean + std * sample
 
         return x
@@ -816,18 +818,16 @@ class TrainStepForCogVideo(nn.Cell):
             prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
 
         # Sample noise that will be added to the latents
-        noise = self.broadcast(ops.randn_like(model_input, dtype=model_input.dtype))
+        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        if self.enable_sequence_parallelism:
+            noise = self.broadcast(noise)
         batch_size, num_frames, num_channels, height, width = model_input.shape
 
         # Sample a random timestep for each image
-        timesteps = self.broadcast(
-            ops.randint(
-                0,
-                self.scheduler_num_train_timesteps,
-                (batch_size,),
-                dtype=ms.int64,
-            )
-        )
+        timesteps = ops.randint(0, self.scheduler_num_train_timesteps, (batch_size,), dtype=ms.int64)
+
+        if self.enable_sequence_parallelism:
+            timesteps = self.broadcast(timesteps)
 
         # Rotary embeds is Prepared in dataset.
         if self.use_rotary_positional_embeddings:
