@@ -208,6 +208,10 @@ def main(args):
                 f"can not enable enable_sequence_parallelism=True."
             )
             enable_sequence_parallelism = False
+        else:
+            from mindone.acceleration import create_parallel_group
+            create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
+            ms.set_auto_parallel_context(enable_alltoall=True)
 
     # Prepare models and scheduler
     # Loading order changed for MindSpore adaptation
