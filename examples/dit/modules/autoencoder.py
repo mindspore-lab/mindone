@@ -8,7 +8,7 @@ import numpy as np
 from ldm.models.autoencoder import AutoencoderKL as AutoencoderKL_SD
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 __all__ = ["AutoencoderKL", "get_first_stage_encoding"]
 
@@ -49,13 +49,13 @@ class DiagonalGaussianDistribution(nn.Cell):
     def __init__(self, parameters, deterministic=False):
         super().__init__()
         self.parameters = parameters
-        self.mean, self.logvar = ops.chunk(parameters, 2, axis=1)
-        self.logvar = ops.clamp(self.logvar, -30.0, 20.0)
+        self.mean, self.logvar = mint.chunk(parameters, 2, dim=1)
+        self.logvar = mint.clamp(self.logvar, -30.0, 20.0)
         self.deterministic = deterministic
-        self.std = ops.exp(0.5 * self.logvar)
-        self.var = ops.exp(self.logvar)
+        self.std = mint.exp(0.5 * self.logvar)
+        self.var = mint.exp(self.logvar)
         if self.deterministic:
-            self.var = self.std = ops.zeros_like(self.mean)
+            self.var = self.std = mint.zeros_like(self.mean)
 
     def sample(self):
         x = self.mean + self.std * ops.randn(self.mean.shape)
@@ -66,10 +66,10 @@ class DiagonalGaussianDistribution(nn.Cell):
             return ms.Tensor([0.0])
         else:
             if other is None:
-                return 0.5 * ops.sum(ops.pow(self.mean, 2) + self.var - 1.0 - self.logvar, dim=[1, 2, 3])
+                return 0.5 * mint.sum(mint.pow(self.mean, 2) + self.var - 1.0 - self.logvar, dim=[1, 2, 3])
             else:
-                return 0.5 * ops.sum(
-                    ops.pow(self.mean - other.mean, 2) / other.var
+                return 0.5 * mint.sum(
+                    mint.pow(self.mean - other.mean, 2) / other.var
                     + self.var / other.var
                     - 1.0
                     - self.logvar
@@ -81,7 +81,7 @@ class DiagonalGaussianDistribution(nn.Cell):
         if self.deterministic:
             return ms.Tensor([0.0])
         logtwopi = np.log(2.0 * np.pi)
-        return 0.5 * ops.sum(logtwopi + self.logvar + ops.pow(sample - self.mean, 2) / self.var, dim=dims)
+        return 0.5 * mint.sum(logtwopi + self.logvar + mint.pow(sample - self.mean, 2) / self.var, dim=dims)
 
     def mode(self):
         return self.mean

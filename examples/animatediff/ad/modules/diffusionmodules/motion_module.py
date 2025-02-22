@@ -4,7 +4,7 @@ from typing import Optional
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import initializer
 
 from .util import GroupNorm32
@@ -111,9 +111,9 @@ class FeedForward(nn.Cell):
         # project in
         self.net.append(act_fn)
         # project dropout
-        self.net.append(nn.Dropout(p=dropout))
+        self.net.append(nn.Dropout(p=dropout).to_float(ms.float32))
         # project out
-        self.net.append(nn.Dense(inner_dim, dim_out).to_float(dtype))
+        self.net.append(mint.nn.Linear(inner_dim, dim_out).to_float(dtype))
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         # TODO: simple use self.net(x)?
@@ -126,17 +126,16 @@ class FeedForward(nn.Cell):
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, approximate=False, dtype=ms.float32):
         super().__init__()
-        self.proj = nn.Dense(dim_in, dim_out * 2).to_float(dtype)
-        self.split = ops.Split(-1, 2)
+        self.proj = mint.nn.Linear(dim_in, dim_out * 2).to_float(dtype)
         self.gelu = nn.GELU(approximate=approximate)
 
     def construct(self, x):
-        x, gate = self.split(self.proj(x))
+        x, gate = mint.split(self.proj(x), self.proj(x).shape[-1] // 2, dim=-1)
 
         return x * self.gelu(gate.to(ms.float32)).to(x.dtype)  # compute gelu in fp32 to align with torch
 
 
-class LayerNorm32(nn.LayerNorm):
+class LayerNorm32(mint.nn.LayerNorm):
     def construct(self, x, dtype=ms.float32):
         ori_dtype = x.dtype
         out = super().construct(x.astype(dtype))
@@ -173,7 +172,7 @@ class TemporalTransformer3DModel(ms.nn.Cell):
         self.norm = GroupNorm32(
             num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True
         )  # TODO: any diff in beta gamma init?
-        self.proj_in = nn.Dense(in_channels, inner_dim).to_float(dtype)
+        self.proj_in = mint.nn.Linear(in_channels, inner_dim).to_float(dtype)
         # cur
         self.transformer_blocks = nn.CellList(
             [
@@ -196,7 +195,7 @@ class TemporalTransformer3DModel(ms.nn.Cell):
                 for d in range(num_layers)
             ]
         )
-        self.proj_out = nn.Dense(inner_dim, in_channels).to_float(dtype)
+        self.proj_out = mint.nn.Linear(inner_dim, in_channels).to_float(dtype)
 
     def construct(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
         """
@@ -277,14 +276,14 @@ class TemporalTransformerBlock(nn.Cell):
                     dtype=dtype,
                 )
             )
-            norms.append(LayerNorm32([dim], epsilon=1.0e-5))  # TODO: need fp32?
+            norms.append(LayerNorm32([dim], eps=1.0e-5))  # TODO: need fp32?
 
         self.attention_blocks = nn.CellList(attention_blocks)
         self.norms = nn.CellList(norms)
 
         self.ff = FeedForward(dim, dropout=dropout, activation_fn=activation_fn, dtype=dtype)
         # TODO: check correctness
-        self.ff_norm = LayerNorm32([dim], epsilon=1.0e-5)  # TODO: need fp32?
+        self.ff_norm = LayerNorm32([dim], eps=1.0e-5)  # TODO: need fp32?
 
     def construct(self, hidden_states, encoder_hidden_states=None, attention_mask=None, video_length=None):
         for attention_block, norm in zip(self.attention_blocks, self.norms):
@@ -310,7 +309,7 @@ class TemporalTransformerBlock(nn.Cell):
 class PositionalEncoding(ms.nn.Cell):
     def __init__(self, d_model, dropout=0.0, max_len=24):
         super().__init__()
-        self.dropout = ms.nn.Dropout(p=dropout)
+        self.dropout = nn.Dropout(p=dropout).to_float(ms.float32)
         position = np.expand_dims(np.arange(max_len), 1)
 
         div_term = np.exp((np.arange(0, d_model, 2) * (-math.log(10000.0) / d_model)).astype(np.float32))
@@ -379,20 +378,20 @@ class VersatileAttention(ms.nn.Cell):
         else:
             self.group_norm = None
 
-        self.to_q = ms.nn.Dense(query_dim, inner_dim, has_bias=bias).to_float(dtype)
-        self.to_k = ms.nn.Dense(cross_attention_dim, inner_dim, has_bias=bias).to_float(dtype)
-        self.to_v = ms.nn.Dense(cross_attention_dim, inner_dim, has_bias=bias).to_float(dtype)
+        self.to_q = mint.nn.Linear(query_dim, inner_dim, bias=bias).to_float(dtype)
+        self.to_k = mint.nn.Linear(cross_attention_dim, inner_dim, bias=bias).to_float(dtype)
+        self.to_v = mint.nn.Linear(cross_attention_dim, inner_dim, bias=bias).to_float(dtype)
         if self.added_kv_proj_dim is not None:
-            self.add_k_proj = nn.Dense(added_kv_proj_dim, cross_attention_dim).to_float(dtype)
-            self.add_v_proj = nn.Dense(added_kv_proj_dim, cross_attention_dim).to_float(dtype)
+            self.add_k_proj = mint.nn.Linear(added_kv_proj_dim, cross_attention_dim).to_float(dtype)
+            self.add_v_proj = mint.nn.Linear(added_kv_proj_dim, cross_attention_dim).to_float(dtype)
 
         # self.to_out = ms.nn.CellList([])
         # self.to_out.append(nn.Dense(inner_dim, query_dim).to_float(dtype))
         # self.to_out.append(nn.Dropout(p=dropout))
 
-        self.to_out = ms.nn.SequentialCell(
-            nn.Dense(inner_dim, query_dim).to_float(dtype),
-            nn.Dropout(p=dropout),
+        self.to_out = nn.SequentialCell(
+            mint.nn.Linear(inner_dim, query_dim).to_float(dtype),
+            nn.Dropout(p=dropout).to_float(ms.float32),
         )
         self.attention_mode = attention_mode
 
@@ -475,7 +474,7 @@ class VersatileAttention(ms.nn.Cell):
             if attention_mask.shape[-1] != query.shape[1]:
                 target_length = query.shape[1]
                 # TODO:
-                attention_mask = ops.pad(attention_mask, (0, target_length), value=0.0)
+                attention_mask = mint.nn.functional.pad(attention_mask, (0, target_length), value=0.0)
                 attention_mask = attention_mask.repeat_interleave(self.heads, dim=0)
 
         # attention, what we cannot get enough of
@@ -504,7 +503,7 @@ class VersatileAttention(ms.nn.Cell):
             query = query.to_float(ms.float32)
             key = key.to_float(ms.float32)
 
-        attention_scores = ms.ops.matmul(query, ms.ops.transpose(key, (0, 2, 1))) * self.scale
+        attention_scores = mint.matmul(query, mint.permute(key, (0, 2, 1))) * self.scale
 
         if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
@@ -513,13 +512,13 @@ class VersatileAttention(ms.nn.Cell):
         if self.upcast_softmax:
             attention_scores = attention_scores.to(ms.float32)
 
-        attention_probs = ms.ops.softmax(attention_scores, axis=-1)
+        attention_probs = mint.nn.functional.softmax(attention_scores, dim=-1)
 
         # cast back to the original dtype
         attention_probs = attention_probs.to(value.dtype)
 
         # compute attention output
-        hidden_states = ms.ops.matmul(attention_probs, value)  # TODO: torch use bmm
+        hidden_states = mint.matmul(attention_probs, value)  # TODO: torch use bmm
 
         # reshape hidden_states
         # (b*d*num_heads f attn_dim) -> (b*d f attn_dim*num_heads) = (b*d f c)

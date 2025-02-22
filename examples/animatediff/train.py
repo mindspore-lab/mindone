@@ -27,7 +27,7 @@ sys.path.insert(0, mindone_lib_path)
 from ad.data.dataset import create_dataloader
 
 # from ad.data.dataset import check_sanity
-from ad.utils.load_models import load_motion_modules, update_unet2d_params_for_unet3d
+from ad.utils.load_models import convert_weights, load_motion_modules, update_unet2d_params_for_unet3d
 from args_train import parse_args
 
 from mindone.models.lora import inject_trainable_lora, make_only_lora_params_trainable
@@ -100,6 +100,7 @@ def load_pretrained_model(
                     param_dict.pop(pname)
             logger.warning("UNet will be initialized randomly")
 
+        param_dict = convert_weights(param_dict)
         if is_old_ms_version():
             param_not_load = load_param_into_net(net, param_dict, filter=param_dict.keys())
         else:
@@ -126,6 +127,7 @@ def init_env(
     distributed: bool = False,
     max_device_memory: str = None,
     device_target: str = "Ascend",
+    jit_level: str = "O0",
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore environment.
@@ -143,14 +145,15 @@ def init_env(
         ms.set_context(max_device_memory=max_device_memory)
 
     if distributed:
+        init()
         device_id = int(os.getenv("DEVICE_ID"))
         ms.set_context(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
+            jit_config={"jit_level": jit_level},
         )
-        init()
         device_num = get_group_size()
         rank_id = get_rank()
         logger.debug(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
@@ -173,6 +176,7 @@ def init_env(
             device_target=device_target,
             device_id=device_id,
             ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # TODO: tune
+            jit_config={"jit_level": jit_level},
         )
 
     return device_id, rank_id, device_num
@@ -189,6 +193,7 @@ def main(args):
         distributed=args.use_parallel,
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
+        jit_level=args.jit_level,
     )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 

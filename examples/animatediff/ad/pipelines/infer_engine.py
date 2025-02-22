@@ -4,7 +4,7 @@ from ad.modules.diffusionmodules.unet3d import rearrange_in
 from tqdm import tqdm
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 
 class AnimateDiffText2Video(ABC):
@@ -64,11 +64,11 @@ class AnimateDiffText2Video(ABC):
 
         # (b*f 4 64 64) -> (b*f 3 512 512)
         y = self.vae.decode(x / self.scale_factor)
-        y = ops.clip_by_value((y + 1.0) / 2.0, clip_value_min=0.0, clip_value_max=1.0)
+        y = mint.clamp((y + 1.0) / 2.0, min=0.0, max=1.0)
 
         # (b*f 3 H W) -> (b*f H W 3) -> (b f H W 3)
-        y = ops.transpose(y, (0, 2, 3, 1))
-        y = ops.reshape(y, (y.shape[0] // f, f, y.shape[1], y.shape[2], y.shape[3]))
+        y = mint.permute(y, (0, 2, 3, 1))
+        y = mint.reshape(y, (y.shape[0] // f, f, y.shape[1], y.shape[2], y.shape[3]))
 
         return y
 
@@ -76,7 +76,7 @@ class AnimateDiffText2Video(ABC):
     def prompt_embed(self, prompt_data, negative_prompt_data):
         pos_prompt_embeds = self.text_encoder(prompt_data)
         negative_prompt_embeds = self.text_encoder(negative_prompt_data)
-        prompt_embeds = ops.concat([negative_prompt_embeds, pos_prompt_embeds], axis=0)
+        prompt_embeds = mint.concat([negative_prompt_embeds, pos_prompt_embeds], dim=0)
         return prompt_embeds
 
     @ms.jit
@@ -102,11 +102,11 @@ class AnimateDiffText2Video(ABC):
         The noise predicition model function that is used for DPM-Solver.
         """
 
-        t_continuous = ops.tile(t_continuous.reshape(1), (x.shape[0],))
-        x_in = ops.concat([x] * 2, axis=0)
-        t_in = ops.concat([t_continuous] * 2, axis=0)
+        t_continuous = mint.tile(t_continuous.reshape(1), (x.shape[0],))
+        x_in = mint.concat([x] * 2, dim=0)
+        t_in = mint.concat([t_continuous] * 2, dim=0)
         if c_concat is not None:
-            c_concat = ops.concat([c_concat] * 2, axis=0)
+            c_concat = mint.concat([c_concat] * 2, dim=0)
         if controlnet_images is not None:
             # controlnet
             assert (
@@ -123,8 +123,8 @@ class AnimateDiffText2Video(ABC):
             # replace negative index by positive index
             neg_mask = controlnet_image_index < 0
             controlnet_image_index[neg_mask] = controlnet_image_index[neg_mask] + video_length
-            controlnet_cond = ops.zeros((b, c, video_length, h, w), dtype=controlnet_images.dtype)
-            controlnet_conditioning_mask = ops.zeros((b, 1, video_length, h, w), dtype=controlnet_images.dtype)
+            controlnet_cond = mint.zeros((b, c, video_length, h, w), dtype=controlnet_images.dtype)
+            controlnet_conditioning_mask = mint.zeros((b, 1, video_length, h, w), dtype=controlnet_images.dtype)
 
             controlnet_cond[:, :, controlnet_image_index] = controlnet_images[:, :, : len(controlnet_image_index)]
             controlnet_conditioning_mask[:, :, controlnet_image_index] = 1
@@ -134,7 +134,7 @@ class AnimateDiffText2Video(ABC):
         else:
             noise_pred = self.unet(x_in, t_in, c_concat=c_concat, c_crossattn=c_crossattn)
         # print("D--: noise pred shape: ", noise_pred.shape, noise_pred.dtype)
-        noise_pred_uncond, noise_pred_text = ops.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
+        noise_pred_uncond, noise_pred_text = mint.split(noise_pred, split_size_or_sections=noise_pred.shape[0] // 2)
         noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
         if self.guidance_rescale > 0:
             noise_pred = self.rescale_noise_cfg(noise_pred, noise_pred_text)
