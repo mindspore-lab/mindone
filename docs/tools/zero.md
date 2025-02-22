@@ -124,7 +124,8 @@ Inference need complete model parameters when use zero3. There are two ways(onli
 def do_ckpt_combine_online(net_to_save, optimizer_parallel_group):
     new_net_to_save = []
     all_gather_op = ops.AllGather(optimizer_parallel_group)
-    for param in net_to_save:
+    for item in net_to_save:
+        param = item["data"]
         if param.parallel_optimizer:
             new_data = ms.Tensor(all_gather_op(param).asnumpy())
         else:
