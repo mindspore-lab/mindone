@@ -33,7 +33,12 @@ from ..utils import (
     scale_lora_layers,
 )
 from .lora_base import LoraBaseMixin
-from .lora_conversion_utils import _convert_non_diffusers_lora_to_diffusers, _maybe_map_sgm_blocks_to_diffusers
+from .lora_conversion_utils import (
+    _convert_kohya_flux_lora_to_diffusers,
+    _convert_non_diffusers_lora_to_diffusers,
+    _convert_xlabs_flux_lora_to_diffusers,
+    _maybe_map_sgm_blocks_to_diffusers,
+)
 
 logger = logging.get_logger(__name__)
 
@@ -104,11 +109,11 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
         Parameters:
             pretrained_model_name_or_path_or_dict (`str` or `os.PathLike` or `dict`):
                 See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
-            kwargs (`dict`, *optional*):
-                See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            kwargs (`dict`, *optional*):
+                See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
         """
         # if a dict is passed, copy it instead of modifying it inplace
         if isinstance(pretrained_model_name_or_path_or_dict, dict):
@@ -117,7 +122,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
         # First, ensure that the checkpoint is a compatible one and can be successfully loaded.
         state_dict, network_alphas = self.lora_state_dict(pretrained_model_name_or_path_or_dict, **kwargs)
 
-        is_correct_format = all("lora" in key or "dora_scale" in key for key in state_dict.keys())
+        is_correct_format = all("lora" in key for key in state_dict.keys())
         if not is_correct_format:
             raise ValueError("Invalid LoRA checkpoint.")
 
@@ -228,6 +233,11 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
             user_agent=user_agent,
             allow_pickle=allow_pickle,
         )
+        is_dora_scale_present = any("dora_scale" in k for k in state_dict)
+        if is_dora_scale_present:
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            logger.warning(warn_msg)
+            state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
         network_alphas = None
         # TODO: replace it with a method from `state_dict_utils`
@@ -299,7 +309,9 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
                 A standard state dict containing the lora layer parameters. The key should be prefixed with an
                 additional `text_encoder` to distinguish between unet lora layers.
             network_alphas (`Dict[str, float]`):
-                See `LoRALinearLayer` for more details.
+                The value of the network alpha used for stable learning and preventing underflow. This value has the
+                same meaning as the `--network_alpha` option in the kohya-ss trainer script. Refer to [this
+                link](https://github.com/darkstorm2150/sd-scripts/blob/main/docs/train_network_README-en.md#execute-learning).
             text_encoder (`CLIPTextModel`):
                 The text encoder model to load the LoRA layers into.
             prefix (`str`):
@@ -310,6 +322,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -542,6 +555,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
             kwargs (`dict`, *optional*):
                 See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
         """
@@ -559,7 +573,8 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             unet_config=self.unet.config,
             **kwargs,
         )
-        is_correct_format = all("lora" in key or "dora_scale" in key for key in state_dict.keys())
+
+        is_correct_format = all("lora" in key for key in state_dict.keys())
         if not is_correct_format:
             raise ValueError("Invalid LoRA checkpoint.")
 
@@ -680,6 +695,11 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             user_agent=user_agent,
             allow_pickle=allow_pickle,
         )
+        is_dora_scale_present = any("dora_scale" in k for k in state_dict)
+        if is_dora_scale_present:
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            logger.warning(warn_msg)
+            state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
         network_alphas = None
         # TODO: replace it with a method from `state_dict_utils`
@@ -720,6 +740,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading only loading the pretrained LoRA weights and not initializing the random weights.
         """
         # If the serialization format is new (introduced in https://github.com/huggingface/diffusers/pull/2918),
         # then the `state_dict` keys should have `cls.unet_name` and/or `cls.text_encoder_name` as
@@ -753,7 +774,9 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
                 A standard state dict containing the lora layer parameters. The key should be prefixed with an
                 additional `text_encoder` to distinguish between unet lora layers.
             network_alphas (`Dict[str, float]`):
-                See `LoRALinearLayer` for more details.
+                The value of the network alpha used for stable learning and preventing underflow. This value has the
+                same meaning as the `--network_alpha` option in the kohya-ss trainer script. Refer to [this
+                link](https://github.com/darkstorm2150/sd-scripts/blob/main/docs/train_network_README-en.md#execute-learning).
             text_encoder (`CLIPTextModel`):
                 The text encoder model to load the LoRA layers into.
             prefix (`str`):
@@ -764,6 +787,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -1067,6 +1091,12 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             allow_pickle=allow_pickle,
         )
 
+        is_dora_scale_present = any("dora_scale" in k for k in state_dict)
+        if is_dora_scale_present:
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            logger.warning(warn_msg)
+            state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
+
         return state_dict
 
     def load_lora_weights(
@@ -1087,11 +1117,12 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
         Parameters:
             pretrained_model_name_or_path_or_dict (`str` or `os.PathLike` or `dict`):
                 See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
-            kwargs (`dict`, *optional*):
-                See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
+            kwargs (`dict`, *optional*):
+                See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
         """
         # if a dict is passed, copy it instead of modifying it inplace
         if isinstance(pretrained_model_name_or_path_or_dict, dict):
@@ -1100,7 +1131,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
         # First, ensure that the checkpoint is a compatible one and can be successfully loaded.
         state_dict = self.lora_state_dict(pretrained_model_name_or_path_or_dict, **kwargs)
 
-        is_correct_format = all("lora" in key or "dora_scale" in key for key in state_dict.keys())
+        is_correct_format = all("lora" in key for key in state_dict.keys())
         if not is_correct_format:
             raise ValueError("Invalid LoRA checkpoint.")
 
@@ -1150,6 +1181,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
 
@@ -1193,14 +1225,30 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             inject_adapter_in_model(lora_config, transformer, adapter_name=adapter_name)
             incompatible_keys = set_peft_model_state_dict(transformer, state_dict, adapter_name)
 
+            warn_msg = ""
             if incompatible_keys is not None:
-                # check only for unexpected keys
+                # Check only for unexpected keys.
                 unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
                 if unexpected_keys:
-                    logger.warning(
-                        f"Loading adapter weights from state_dict led to unexpected keys not found in the model: "
-                        f" {unexpected_keys}. "
-                    )
+                    lora_unexpected_keys = [k for k in unexpected_keys if "lora_" in k and adapter_name in k]
+                    if lora_unexpected_keys:
+                        warn_msg = (
+                            f"Loading adapter weights from state_dict led to unexpected keys found in the model:"
+                            f" {', '.join(lora_unexpected_keys)}. "
+                        )
+
+                # Filter missing keys specific to the current adapter.
+                missing_keys = getattr(incompatible_keys, "missing_keys", None)
+                if missing_keys:
+                    lora_missing_keys = [k for k in missing_keys if "lora_" in k and adapter_name in k]
+                    if lora_missing_keys:
+                        warn_msg += (
+                            f"Loading adapter weights from state_dict led to missing keys in the model:"
+                            f" {', '.join(lora_missing_keys)}."
+                        )
+
+            if warn_msg:
+                logger.warning(warn_msg)
 
     @classmethod
     # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
@@ -1222,7 +1270,9 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
                 A standard state dict containing the lora layer parameters. The key should be prefixed with an
                 additional `text_encoder` to distinguish between unet lora layers.
             network_alphas (`Dict[str, float]`):
-                See `LoRALinearLayer` for more details.
+                The value of the network alpha used for stable learning and preventing underflow. This value has the
+                same meaning as the `--network_alpha` option in the kohya-ss trainer script. Refer to [this
+                link](https://github.com/darkstorm2150/sd-scripts/blob/main/docs/train_network_README-en.md#execute-learning).
             text_encoder (`CLIPTextModel`):
                 The text encoder model to load the LoRA layers into.
             prefix (`str`):
@@ -1233,6 +1283,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -1536,6 +1587,24 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             user_agent=user_agent,
             allow_pickle=allow_pickle,
         )
+        is_dora_scale_present = any("dora_scale" in k for k in state_dict)
+        if is_dora_scale_present:
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa: E501
+            logger.warning(warn_msg)
+            state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
+
+        # TODO (sayakpaul): to a follow-up to clean and try to unify the conditions.
+        is_kohya = any(".lora_down.weight" in k for k in state_dict)
+        if is_kohya:
+            state_dict = _convert_kohya_flux_lora_to_diffusers(state_dict)
+            # Kohya already takes care of scaling the LoRA parameters with alpha.
+            return (state_dict, None) if return_alphas else state_dict
+
+        is_xlabs = any("processor" in k for k in state_dict)
+        if is_xlabs:
+            state_dict = _convert_xlabs_flux_lora_to_diffusers(state_dict)
+            # xlabs doesn't use `alpha`.
+            return (state_dict, None) if return_alphas else state_dict
 
         # For state dicts like
         # https://huggingface.co/TheLastBen/Jon_Snow_Flux_LoRA
@@ -1581,6 +1650,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         # if a dict is passed, copy it instead of modifying it inplace
         if isinstance(pretrained_model_name_or_path_or_dict, dict):
@@ -1591,7 +1661,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             pretrained_model_name_or_path_or_dict, return_alphas=True, **kwargs
         )
 
-        is_correct_format = all("lora" in key or "dora_scale" in key for key in state_dict.keys())
+        is_correct_format = all("lora" in key for key in state_dict.keys())
         if not is_correct_format:
             raise ValueError("Invalid LoRA checkpoint.")
 
@@ -1634,6 +1704,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig, inject_adapter_in_model, set_peft_model_state_dict
 
@@ -1682,14 +1753,30 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             inject_adapter_in_model(lora_config, transformer, adapter_name=adapter_name)
             incompatible_keys = set_peft_model_state_dict(transformer, state_dict, adapter_name)
 
+            warn_msg = ""
             if incompatible_keys is not None:
-                # check only for unexpected keys
+                # Check only for unexpected keys.
                 unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
                 if unexpected_keys:
-                    logger.warning(
-                        f"Loading adapter weights from state_dict led to unexpected keys not found in the model: "
-                        f" {unexpected_keys}. "
-                    )
+                    lora_unexpected_keys = [k for k in unexpected_keys if "lora_" in k and adapter_name in k]
+                    if lora_unexpected_keys:
+                        warn_msg = (
+                            f"Loading adapter weights from state_dict led to unexpected keys found in the model:"
+                            f" {', '.join(lora_unexpected_keys)}. "
+                        )
+
+                # Filter missing keys specific to the current adapter.
+                missing_keys = getattr(incompatible_keys, "missing_keys", None)
+                if missing_keys:
+                    lora_missing_keys = [k for k in missing_keys if "lora_" in k and adapter_name in k]
+                    if lora_missing_keys:
+                        warn_msg += (
+                            f"Loading adapter weights from state_dict led to missing keys in the model:"
+                            f" {', '.join(lora_missing_keys)}."
+                        )
+
+            if warn_msg:
+                logger.warning(warn_msg)
 
     @classmethod
     # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
@@ -1711,7 +1798,9 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                 A standard state dict containing the lora layer parameters. The key should be prefixed with an
                 additional `text_encoder` to distinguish between unet lora layers.
             network_alphas (`Dict[str, float]`):
-                See `LoRALinearLayer` for more details.
+                The value of the network alpha used for stable learning and preventing underflow. This value has the
+                same meaning as the `--network_alpha` option in the kohya-ss trainer script. Refer to [this
+                link](https://github.com/darkstorm2150/sd-scripts/blob/main/docs/train_network_README-en.md#execute-learning).
             text_encoder (`CLIPTextModel`):
                 The text encoder model to load the LoRA layers into.
             prefix (`str`):
@@ -1722,6 +1811,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -1932,7 +2022,9 @@ class AmusedLoraLoaderMixin(StableDiffusionLoraLoaderMixin):
                 into the unet or prefixed with an additional `unet` which can be used to distinguish between text
                 encoder lora layers.
             network_alphas (`Dict[str, float]`):
-                See `LoRALinearLayer` for more details.
+                The value of the network alpha used for stable learning and preventing underflow. This value has the
+                same meaning as the `--network_alpha` option in the kohya-ss trainer script. Refer to [this
+                link](https://github.com/darkstorm2150/sd-scripts/blob/main/docs/train_network_README-en.md#execute-learning).
             unet (`UNet2DConditionModel`):
                 The UNet model to load the LoRA layers into.
             adapter_name (`str`, *optional*):
@@ -1982,14 +2074,30 @@ class AmusedLoraLoaderMixin(StableDiffusionLoraLoaderMixin):
             inject_adapter_in_model(lora_config, transformer, adapter_name=adapter_name)
             incompatible_keys = set_peft_model_state_dict(transformer, state_dict, adapter_name)
 
+            warn_msg = ""
             if incompatible_keys is not None:
-                # check only for unexpected keys
+                # Check only for unexpected keys.
                 unexpected_keys = getattr(incompatible_keys, "unexpected_keys", None)
                 if unexpected_keys:
-                    logger.warning(
-                        f"Loading adapter weights from state_dict led to unexpected keys not found in the model: "
-                        f" {unexpected_keys}. "
-                    )
+                    lora_unexpected_keys = [k for k in unexpected_keys if "lora_" in k and adapter_name in k]
+                    if lora_unexpected_keys:
+                        warn_msg = (
+                            f"Loading adapter weights from state_dict led to unexpected keys found in the model:"
+                            f" {', '.join(lora_unexpected_keys)}. "
+                        )
+
+                # Filter missing keys specific to the current adapter.
+                missing_keys = getattr(incompatible_keys, "missing_keys", None)
+                if missing_keys:
+                    lora_missing_keys = [k for k in missing_keys if "lora_" in k and adapter_name in k]
+                    if lora_missing_keys:
+                        warn_msg += (
+                            f"Loading adapter weights from state_dict led to missing keys in the model:"
+                            f" {', '.join(lora_missing_keys)}."
+                        )
+
+            if warn_msg:
+                logger.warning(warn_msg)
 
     @classmethod
     # Copied from diffusers.loaders.lora_pipeline.StableDiffusionLoraLoaderMixin.load_lora_into_text_encoder
@@ -2011,7 +2119,9 @@ class AmusedLoraLoaderMixin(StableDiffusionLoraLoaderMixin):
                 A standard state dict containing the lora layer parameters. The key should be prefixed with an
                 additional `text_encoder` to distinguish between unet lora layers.
             network_alphas (`Dict[str, float]`):
-                See `LoRALinearLayer` for more details.
+                The value of the network alpha used for stable learning and preventing underflow. This value has the
+                same meaning as the `--network_alpha` option in the kohya-ss trainer script. Refer to [this
+                link](https://github.com/darkstorm2150/sd-scripts/blob/main/docs/train_network_README-en.md#execute-learning).
             text_encoder (`CLIPTextModel`):
                 The text encoder model to load the LoRA layers into.
             prefix (`str`):
@@ -2022,6 +2132,7 @@ class AmusedLoraLoaderMixin(StableDiffusionLoraLoaderMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 

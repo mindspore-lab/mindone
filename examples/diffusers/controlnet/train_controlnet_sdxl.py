@@ -1126,7 +1126,9 @@ class TrainStepForControlNet(TrainStep):
 
         # Add noise to the latents according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
+        noisy_latents = self.noise_scheduler.add_noise(latents.float(), noise.float(), timesteps).to(
+            dtype=self.weight_dtype
+        )
 
         prompt_ids = prompt_ids.to(self.weight_dtype)
         unet_added_conditions = {

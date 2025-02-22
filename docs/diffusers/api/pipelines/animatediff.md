@@ -29,6 +29,7 @@ The abstract of the paper is the following:
 | [AnimateDiffSparseControlNetPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_sparsectrl.py) | *Controlled Video-to-Video Generation with AnimateDiff using SparseCtrl*  |
 | [AnimateDiffSDXLPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_sdxl.py)                   | *Video-to-Video Generation with AnimateDiff*                              |
 | [AnimateDiffVideoToVideoPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_video2video.py)    | *Video-to-Video Generation with AnimateDiff*                              |
+| [AnimateDiffVideoToVideoControlNetPipeline](https://github.com/mindspore-lab/mindone/blob/master/mindone/diffusers/pipelines/animatediff/pipeline_animatediff_video2video_controlnet.py) | *Video-to-Video Generation with AnimateDiff using ControlNet* |
 
 ## Available checkpoints
 
@@ -507,6 +508,96 @@ Here are some sample outputs:
     </tr>
 </table>
 
+### AnimateDiffVideoToVideoControlNetPipeline
+
+!!! warning
+
+    ⚠️ MindONE currently does not support the full process for condition frames generating, as MindONE does not yet support `OpenposeDetector` from controlnet_aux. Therefore, you need to prepare the `conditioning_video` in advance to continue the process.
+
+AnimateDiff can be used together with ControlNets to enhance video-to-video generation by allowing for precise control over the output. ControlNet was introduced in [Adding Conditional Control to Text-to-Image Diffusion Models](https://huggingface.co/papers/2302.05543) by Lvmin Zhang, Anyi Rao, and Maneesh Agrawala, and allows you to condition Stable Diffusion with an additional control image to ensure that the spatial information is preserved throughout the video.
+
+This pipeline allows you to condition your generation both on the original video and on a sequence of control images.
+
+```python
+import numpy as np
+import mindspore as ms
+from PIL import Image
+
+from mindone.diffusers import AnimateDiffVideoToVideoControlNetPipeline
+from mindone.diffusers.utils import export_to_gif, load_video
+from mindone.diffusers import AutoencoderKL, ControlNetModel, MotionAdapter, LCMScheduler
+
+# Load the ControlNet
+controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", mindspore_dtype=ms.float16)
+# Load the motion adapter
+motion_adapter = MotionAdapter.from_pretrained("wangfuyun/AnimateLCM")
+# Load SD 1.5 based finetuned model
+vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=ms.float16)
+pipe = AnimateDiffVideoToVideoControlNetPipeline.from_pretrained(
+    "SG161222/Realistic_Vision_V5.1_noVAE",
+    motion_adapter=motion_adapter,
+    controlnet=controlnet,
+    vae=vae,
+).to(dtype=ms.float16)
+
+# Enable LCM to speed up inference
+pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config, beta_schedule="linear")
+pipe.load_lora_weights("wangfuyun/AnimateLCM", weight_name="AnimateLCM_sd15_t2v_lora.safetensors", adapter_name="lcm-lora")
+pipe.set_adapters(["lcm-lora"], [0.8])
+
+video = load_video("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/dance.gif")
+video = [frame.convert("RGB") for frame in video]
+
+prompt = "astronaut in space, dancing"
+negative_prompt = "bad quality, worst quality, jpeg artifacts, ugly"
+
+# Create controlnet preprocessor
+conditioning_video = load_video("path/to/conditioning_video")
+
+# Preprocess controlnet images
+conditioning_frames = []
+for frame in conditioning_video:
+    conditioning_frames.append(frame)
+
+strength = 0.8
+video = pipe(
+    video=video,
+    prompt=prompt,
+    negative_prompt=negative_prompt,
+    num_inference_steps=10,
+    guidance_scale=2.0,
+    controlnet_conditioning_scale=0.75,
+    conditioning_frames=conditioning_frames,
+    strength=strength,
+    generator=np.random.Generator(np.random.PCG64(seed=42)),
+)[0][0]
+
+video = [frame.resize(conditioning_frames[0].size) for frame in video]
+export_to_gif(video, f"animatediff_vid2vid_controlnet.gif", fps=8)
+```
+
+Here are some sample outputs:
+
+<table align="center">
+    <tr>
+      <th align="center">Source Video</th>
+      <th align="center">Output Video</th>
+    </tr>
+    <tr>
+        <td align="center">
+          anime girl, dancing
+          <br />
+          <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/dance.gif" alt="anime girl, dancing" />
+        </td>
+        <td align="center">
+          astronaut in space, dancing
+          <br/>
+          <img src="https://github.com/user-attachments/assets/a29ee94f-efaf-4063-a903-c1af66bfff07" alt="astronaut in space, dancing" />
+        </td>
+    </tr>
+</table>
+
+**The lights and composition were transferred from the Source Video.**
 
 ## Using Motion LoRAs
 
@@ -721,5 +812,7 @@ export_to_gif(frames, "animatelcm-motion-lora.gif")
 ::: mindone.diffusers.pipelines.AnimateDiffSDXLPipeline
 
 ::: mindone.diffusers.pipelines.AnimateDiffVideoToVideoPipeline
+
+::: mindone.diffusers.pipelines.AnimateDiffVideoToVideoControlNetPipeline
 
 ::: mindone.diffusers.pipelines.animatediff.AnimateDiffPipelineOutput

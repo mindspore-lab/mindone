@@ -97,7 +97,9 @@ class PAGMixin:
         else:
             return self.pag_scale
 
-    def _apply_perturbed_attention_guidance(self, noise_pred, do_classifier_free_guidance, guidance_scale, t):
+    def _apply_perturbed_attention_guidance(
+        self, noise_pred, do_classifier_free_guidance, guidance_scale, t, return_pred_text=False
+    ):
         r"""
         Apply perturbed attention guidance to the noise prediction.
 
@@ -106,9 +108,11 @@ class PAGMixin:
             do_classifier_free_guidance (bool): Whether to apply classifier-free guidance.
             guidance_scale (float): The scale factor for the guidance term.
             t (int): The current time step.
+            return_pred_text (bool): Whether to return the text noise prediction.
 
         Returns:
-            ms.Tensor: The updated noise prediction tensor after applying perturbed attention guidance.
+            Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor]]: The updated noise prediction tensor after applying
+            perturbed attention guidance and the text noise prediction.
         """
         pag_scale = self._get_pag_scale(t)
         if do_classifier_free_guidance:
@@ -121,6 +125,8 @@ class PAGMixin:
         else:
             noise_pred_text, noise_pred_perturb = noise_pred.chunk(2)
             noise_pred = noise_pred_text + pag_scale * (noise_pred_text - noise_pred_perturb)
+        if return_pred_text:
+            return noise_pred, noise_pred_text
         return noise_pred
 
     def _prepare_perturbed_attention_guidance(self, cond, uncond, do_classifier_free_guidance):
