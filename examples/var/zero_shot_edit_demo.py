@@ -1,12 +1,12 @@
 import argparse
 import os
-import yaml
-import random
+
 import numpy as np
-from typing import List, Optional, Union
+from typing import List
 from PIL import Image
+from time import time
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint
 
 
 from models import VQVAE, build_vae_var
@@ -79,6 +79,7 @@ def main(args):
             amp_level="O2",
             dtype=dtype_map[args.dtype],
         )
+    print("prepare finished")
 
     # sample
     # set args
@@ -104,6 +105,7 @@ def main(args):
     B = 1
     label_B = ms.tensor([class_label])
 
+    start = time()
     recon_B3HW = var.autoregressive_infer_cfg(
         var,
         B=B, label_B=label_B, cfg=3, top_k=900, top_p=0.95, g_seed=0, more_smooth=True,
@@ -114,6 +116,7 @@ def main(args):
     img = img.permute(1, 2, 0).mul(255).asnumpy()
     img = Image.fromarray(img.astype(np.uint8))
     img.save(args.output_path)
+    print(f"inference time is {time() - start}s")
 
 
 
@@ -158,7 +161,7 @@ def parse_args():
         help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
     )
     parser.add_argument(
-        "--output_path", default="samples/image", type=str, help="output directory to save inference results"
+        "--output_path", default="image.png", type=str, help="output path to save inference results"
     )
     parser.add_argument(
         "--input_image_path", default=None, type=str, help="input image path for edit."

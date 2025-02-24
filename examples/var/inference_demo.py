@@ -4,6 +4,7 @@ import os
 import numpy as np
 from PIL import Image
 import mindspore as ms
+from time import time
 
 from models import VQVAE, build_vae_var
 from utils.utils import make_grid
@@ -60,9 +61,8 @@ def main(args):
             amp_level="O2",
             dtype=dtype_map[args.dtype],
         )
-
+    print("prepare finished")
     # sample
-
 
     cfg = 4  # @param {type:"slider", min:1, max:10, step:0.1}
     class_labels = (980, 980, 437, 437, 22, 22, 562, 562)  # @param {type:"raw"}
@@ -70,12 +70,14 @@ def main(args):
 
     B = len(class_labels)
     label_B = ms.Tensor(class_labels)
+    start = time()
     recon_B3HW = var.autoregressive_infer_cfg(B=B, label_B=label_B, cfg=cfg, top_k=900, top_p=0.95, g_seed=args.seed, more_smooth=more_smooth)
 
     img = make_grid(recon_B3HW, nrow=8, padding=0, pad_value=1.0)
     img = img.permute(1, 2, 0).mul(255).asnumpy()
     img = Image.fromarray(img.astype(np.uint8))
     img.save(args.output_path)
+    print(f"inference time is {time()-start}s")
 
 
 def parse_args():
@@ -119,7 +121,7 @@ def parse_args():
         help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
     )
     parser.add_argument(
-        "--output_path", default="samples/image", type=str, help="output directory to save inference results"
+        "--output_path", default="image.png", type=str, help="output path to save inference results"
     )
 
     args = parser.parse_args()
