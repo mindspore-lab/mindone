@@ -685,6 +685,7 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
         attn_output = attn_output.swapaxes(1, 2).reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
+        attn_weights = None # FA always does not output attn_weights
         if not output_attentions:
             attn_weights = None
 
@@ -969,14 +970,17 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
                 use_cache = False
 
         if use_cache and past_key_values is None:
-            past_key_values = DynamicCache()
+            if self._supports_cache_class:
+                past_key_values = DynamicCache()
+            else:
+                use_cache = False
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        if cache_position is None:
+        if use_cache and (cache_position is None):
             past_seen_tokens = 0
-            if past_key_values is not None and (isinstance(past_key_values, Tuple)):
+            if past_key_values is not None and (isinstance(past_key_values, tuple)):
                 past_seen_tokens = get_seq_length(past_key_values)
             else:
                 past_seen_tokens = past_key_values.get_seq_length()
@@ -1012,7 +1016,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             #         hidden_states,
             #         causal_mask,
             #         position_ids,
-            #         past_key_values[layer_idx] if isinstance(past_key_values, Tuple) else past_key_values,
+            #         past_key_values[layer_idx] if isinstance(past_key_values, tuple) else past_key_values,
             #         output_attentions,
             #         use_cache,
             #         cache_position,
@@ -1023,7 +1027,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
                 hidden_states,
                 attention_mask=causal_mask,
                 position_ids=position_ids,
-                past_key_value=past_key_values[layer_idx] if isinstance(past_key_values, Tuple) else past_key_values,
+                past_key_value=past_key_values[layer_idx] if isinstance(past_key_values, tuple) else past_key_values,
                 output_attentions=output_attentions,
                 use_cache=use_cache,
                 cache_position=cache_position,
@@ -1066,10 +1070,10 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         if past_key_values is not None:
             past_seen_tokens = (
                 get_seq_length(past_key_values)
-                if isinstance(past_key_values, Tuple)
+                if isinstance(past_key_values, tuple)
                 else past_key_values.get_seq_length()
             )
-        using_static_cache = isinstance(past_key_values, Tuple)
+        using_static_cache = isinstance(past_key_values, tuple)
 
         sequence_length = input_tensor.shape[1]
         if using_static_cache:
@@ -1514,7 +1518,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
             if past_key_values is not None:
                 past_seen_tokens = (
                     get_seq_length(past_key_values)
-                    if isinstance(past_key_values, Tuple)
+                    if isinstance(past_key_values, tuple)
                     else past_key_values.get_seq_length()
                 )
             if (
@@ -1610,7 +1614,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
                 input_ids = input_ids[:, cache_position]
 
         past_length = 0
-        if past_key_values is not None and isinstance(past_key_values, Tuple):
+        if past_key_values is not None and isinstance(past_key_values, tuple):
             # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
             past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
             max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
@@ -1639,17 +1643,13 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
             pixel_values = None
             pixel_values_videos = None
 
-        if cache_position[0] != 0:
-            pixel_values = None
-            pixel_values_videos = None
-
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
         if inputs_embeds is not None and len(cache_position) == inputs_embeds.shape[1]:
             model_inputs = {"inputs_embeds": inputs_embeds, "input_ids": None}
         else:
             model_inputs = {"input_ids": input_ids, "inputs_embeds": None}
 
-        if isinstance(past_key_values, Tuple) and attention_mask.ndim == 2:
+        if isinstance(past_key_values, tuple) and attention_mask.ndim == 2:
             if model_inputs["inputs_embeds"] is not None:
                 batch_size, sequence_length, _ = inputs_embeds.shape
             else:
@@ -1667,7 +1667,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
             {
                 "position_ids": position_ids,
                 "past_key_values": ms.mutable(past_key_values)
-                if isinstance(past_key_values, Tuple)
+                if isinstance(past_key_values, tuple)
                 else past_key_values,
                 "use_cache": use_cache,
                 "attention_mask": attention_mask,
@@ -1689,7 +1689,7 @@ if __name__ == "__main__":
     from PIL import Image
 
     ms.set_context(mode=ms.PYNATIVE_MODE, pynative_synchronize=True)
-    # ms.set_context(mode = ms.GRAPH_MODE)
+    # ms.set_context(mode = ms.GRAPH_MODE) # NOT SUPPORTED YET
 
     # Qwen2-VL-7B-Instruct config.json
     config_json = {
