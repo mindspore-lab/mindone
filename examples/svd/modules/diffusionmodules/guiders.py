@@ -29,7 +29,7 @@ class LinearPredictionGuider(nn.Cell):
         x_c = x_c.reshape(-1, num_frames, *x_c.shape[1:])
 
         scale = ops.linspace(self.min_scale, self.max_scale, num_frames)[None, :]
-        scale = scale.repeat(x_u.shape[0], axis=0)  # 1 t -> b t
+        scale = scale.repeat_interleave(x_u.shape[0], dim=0)  # 1 t -> b t
         scale = append_dims(scale, x_u.ndim)
 
         out = x_u + scale * (x_c - x_u)
