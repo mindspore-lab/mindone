@@ -1,8 +1,8 @@
 import math
-from typing import Any, Dict, Optional, Union, Tuple
+from typing import Dict, Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter, mint
+from mindspore import Parameter, Tensor, mint, nn
 
 
 class RMSNorm(nn.Cell):
@@ -27,7 +27,7 @@ class RMSNorm(nn.Cell):
         """
         super().__init__()
         self.eps = eps
-        
+
         self.weight = None
         if elementwise_affine:
             self.weight = Parameter(mint.ones(dim, dtype=dtype))
@@ -61,7 +61,7 @@ class RMSNorm(nn.Cell):
         if self.weight is not None:
             output = output * self.weight
         return output
-    
+
 
 ACTIVATION_FUNCTIONS = {
     "swish": mint.nn.SiLU(),
@@ -89,7 +89,6 @@ def get_activation(act_fn: str) -> nn.Cell:
         raise ValueError(f"Unsupported activation function: {act_fn}")
 
 
-
 def get_timestep_embedding(
     timesteps: Tensor,
     embedding_dim: int,
@@ -109,9 +108,7 @@ def get_timestep_embedding(
     assert len(timesteps.shape) == 1, "Timesteps should be a 1d-array"
 
     half_dim = embedding_dim // 2
-    exponent = -math.log(max_period) * mint.arange(
-        start=0, end=half_dim, dtype=ms.float32
-    )
+    exponent = -math.log(max_period) * mint.arange(start=0, end=half_dim, dtype=ms.float32)
     exponent = exponent / (half_dim - downscale_freq_shift)
 
     emb = mint.exp(exponent)
@@ -133,7 +130,6 @@ def get_timestep_embedding(
     return emb
 
 
-
 class Timesteps(nn.Cell):
     def __init__(self, num_channels: int, flip_sin_to_cos: bool, downscale_freq_shift: float):
         super().__init__()
@@ -151,7 +147,6 @@ class Timesteps(nn.Cell):
         return t_emb
 
 
-
 class TimestepEmbedding(nn.Cell):
     def __init__(
         self,
@@ -161,23 +156,23 @@ class TimestepEmbedding(nn.Cell):
         out_dim: int = None,
         post_act_fn: Optional[str] = None,
         cond_proj_dim=None,
-        sample_proj_bias=True
+        sample_proj_bias=True,
     ):
         super().__init__()
         linear_cls = mint.nn.Linear
 
         self.linear_1 = linear_cls(
-                in_channels, 
-                time_embed_dim, 
-                bias=sample_proj_bias,
-            )
+            in_channels,
+            time_embed_dim,
+            bias=sample_proj_bias,
+        )
 
         if cond_proj_dim is not None:
             self.cond_proj = linear_cls(
-                    cond_proj_dim, 
-                    in_channels, 
-                    bias=False,
-                )
+                cond_proj_dim,
+                in_channels,
+                bias=False,
+            )
         else:
             self.cond_proj = None
 
@@ -187,12 +182,12 @@ class TimestepEmbedding(nn.Cell):
             time_embed_dim_out = out_dim
         else:
             time_embed_dim_out = time_embed_dim
-            
+
         self.linear_2 = linear_cls(
-                time_embed_dim, 
-                time_embed_dim_out, 
-                bias=sample_proj_bias, 
-            )
+            time_embed_dim,
+            time_embed_dim_out,
+            bias=sample_proj_bias,
+        )
 
         if post_act_fn is None:
             self.post_act = None
@@ -212,7 +207,6 @@ class TimestepEmbedding(nn.Cell):
         if self.post_act is not None:
             sample = self.post_act(sample)
         return sample
-
 
 
 class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
@@ -255,17 +249,17 @@ class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
         return conditioning
 
 
-
 class AdaLayerNormSingle(nn.Cell):
     r"""
-        Norm layer adaptive layer norm single (adaLN-single).
+    Norm layer adaptive layer norm single (adaLN-single).
 
-        As proposed in PixArt-Alpha (see: https://arxiv.org/abs/2310.00426; Section 2.3).
+    As proposed in PixArt-Alpha (see: https://arxiv.org/abs/2310.00426; Section 2.3).
 
-        Parameters:
-            embedding_dim (`int`): The size of each embedding vector.
-            use_additional_conditions (`bool`): To use additional conditions for normalization or not.
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+        use_additional_conditions (`bool`): To use additional conditions for normalization or not.
     """
+
     def __init__(self, embedding_dim: int, use_additional_conditions: bool = False, time_step_rescale=1000):
         super().__init__()
 
@@ -276,19 +270,21 @@ class AdaLayerNormSingle(nn.Cell):
         self.silu = mint.nn.SiLU()
         self.linear = mint.nn.Linear(embedding_dim, 6 * embedding_dim, bias=True)
 
-        self.time_step_rescale = time_step_rescale  ## timestep usually in [0, 1], we rescale it to [0,1000] for stability
+        self.time_step_rescale = (
+            time_step_rescale  # timestep usually in [0, 1], we rescale it to [0,1000] for stability
+        )
 
     def construct(
         self,
         timestep: Tensor,
         added_cond_kwargs: Dict[str, Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
-        embedded_timestep = self.emb(timestep*self.time_step_rescale, **added_cond_kwargs)
+        embedded_timestep = self.emb(timestep * self.time_step_rescale, **added_cond_kwargs)
 
         out = self.linear(self.silu(embedded_timestep))
 
         return out, embedded_timestep
-    
+
 
 class PixArtAlphaTextProjection(nn.Cell):
     """
@@ -300,20 +296,19 @@ class PixArtAlphaTextProjection(nn.Cell):
     def __init__(self, in_features, hidden_size):
         super().__init__()
         self.linear_1 = mint.nn.Linear(
-                in_features, 
-                hidden_size, 
-                bias=True, 
-            )
+            in_features,
+            hidden_size,
+            bias=True,
+        )
         # self.act_1 = nn.GELU(approximate="tanh")
         self.linear_2 = mint.nn.Linear(
-                hidden_size, 
-                hidden_size, 
-                bias=True, 
-            )
+            hidden_size,
+            hidden_size,
+            bias=True,
+        )
 
     def construct(self, caption):
         hidden_states = self.linear_1(caption)
-        hidden_states = mint.nn.functional.gelu(hidden_states, approximate="tanh") # act_1
+        hidden_states = mint.nn.functional.gelu(hidden_states, approximate="tanh")  # act_1
         hidden_states = self.linear_2(hidden_states)
         return hidden_states
-

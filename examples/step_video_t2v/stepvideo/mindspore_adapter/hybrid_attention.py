@@ -1,12 +1,10 @@
-from typing import Any, Tuple
+from stepvideo.mindspore_adapter.all_to_all import SeqAllToAll4D
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter, mint
+from mindspore import Tensor, mint, nn
 from mindspore.communication.management import get_group_size
 
 from mindone.transformers.mindspore_adapter.attention import FlashAttention2
-
-from stepvideo.mindspore_adapter.all_to_all import SeqAllToAll4D
 
 
 class LongContextAttention(nn.Cell):
@@ -29,7 +27,6 @@ class LongContextAttention(nn.Cell):
         head_dim: int = None,
         head_num: int = None,
     ) -> None:
-
         super(LongContextAttention, self).__init__()
         self.ring_pg = ring_pg
         self.ulysses_pg = ulysses_pg
@@ -42,18 +39,26 @@ class LongContextAttention(nn.Cell):
 
         if ring_pg is not None:
             raise NotImplementedError
-        if attn_type not in ["fa",]:
+        if attn_type not in [
+            "fa",
+        ]:
             raise NotImplementedError
 
         if attn_type == "fa":
-            self.fa_attn_fn = FlashAttention2(head_dim=head_dim, head_num=head_num//sp_size, attention_dropout=0.0, input_layout="BNSD", dtype=ms.bfloat16)
+            self.fa_attn_fn = FlashAttention2(
+                head_dim=head_dim,
+                head_num=head_num // sp_size,
+                attention_dropout=0.0,
+                input_layout="BNSD",
+                dtype=ms.bfloat16,
+            )
         else:
             raise NotImplementedError
 
         # assert (
         #     self.ulysses_pg is not None or self.ring_pg is not None
         # ), f"use set_seq_parallel_pg() first. Now ulysses pg {self.ulysses_pg} and ring pg {self.ring_pg}"
-        
+
         # if self.ulysses_pg is None and self.ring_pg is None:
         #     print("warning: ulysses pg and ring sp both is None.")
 
@@ -80,12 +85,12 @@ class LongContextAttention(nn.Cell):
             * output (Tensor): context output
         """
 
-        # 3 X (bs, seq_len/N, head_cnt, head_size) -> 3 X (bs, seq_len, head_cnt/N, head_size)  
+        # 3 X (bs, seq_len/N, head_cnt, head_size) -> 3 X (bs, seq_len, head_cnt/N, head_size)
         # scatter 2, gather 1
         query_layer = self.seq_alltoall_4d(query, self.scatter_idx, self.gather_idx)
         key_layer = self.seq_alltoall_4d(key, self.scatter_idx, self.gather_idx)
         value_layer = self.seq_alltoall_4d(value, self.scatter_idx, self.gather_idx)
-        
+
         # BSND -> BNSD, for fa
         query_layer = mint.swapaxes(query_layer, 1, 2)
         key_layer = mint.swapaxes(key_layer, 1, 2)

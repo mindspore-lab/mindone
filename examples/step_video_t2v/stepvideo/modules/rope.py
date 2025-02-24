@@ -1,7 +1,6 @@
-import mindspore as ms
-from mindspore import mint, ops, nn, Tensor, Parameter
+from stepvideo.parallel import get_sequence_parallel_rank, get_sequence_parallel_world_size
 
-from stepvideo.parallel import get_sequence_parallel_world_size, get_sequence_parallel_rank
+from mindspore import mint, ops
 
 
 class RoPE1D:
@@ -36,7 +35,7 @@ class RoPE1D:
 
     @staticmethod
     def rotate_half(x):
-        x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2:]
+        x1, x2 = x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :]
         return mint.cat((-x2, x1), dim=-1)
 
     def apply_rope1d(self, tokens, pos1d, cos, sin):
@@ -60,7 +59,6 @@ class RoPE1D:
         return tokens
 
 
-
 class RoPE3D(RoPE1D):
     def __init__(self, freq=1e4, F0=1.0, scaling_factor=1.0):
         super(RoPE3D, self).__init__(freq, F0, scaling_factor)
@@ -76,12 +74,14 @@ class RoPE3D(RoPE1D):
         #     z = torch.arange(w)
         #     self.position_cache[f"{f}-{h}-{w}"] = torch.cartesian_prod(x, y, z).view(1, f*h*w, 3).expand(bsz, -1, 3)
         # return self.position_cache[f"{f}-{h}-{w}"]
-     
+
         # w/o cache
         x = mint.arange(f)
         y = mint.arange(h)
         z = mint.arange(w)
-        return mint.broadcast_to(ops.cartesian_prod(x, y, z).view(1, f*h*w, 3), (bsz, -1, 3))  # FIXME: ops.cartesian_prod
+        return mint.broadcast_to(
+            ops.cartesian_prod(x, y, z).view(1, f * h * w, 3), (bsz, -1, 3)
+        )  # FIXME: ops.cartesian_prod
 
     def __call__(self, tokens, rope_positions, ch_split, parallel=False):
         """
@@ -91,20 +91,21 @@ class RoPE3D(RoPE1D):
         output:
             * tokens after appplying RoPE2D (batch_size x ntokens x nheads x dim)
         """
-        assert sum(ch_split) == tokens.shape[-1]; 
+        assert sum(ch_split) == tokens.shape[-1]
 
         mesh_grid = self.get_mesh_3d(rope_positions, bsz=tokens.shape[0])
         out = []
         for i, (D, x) in enumerate(zip(ch_split, mint.split(tokens, ch_split, dim=-1))):
-            
             cos, sin = self.get_cos_sin(D, int(mesh_grid.max()) + 1, tokens.dtype)
 
             if parallel:
-                mesh = mint.chunk(mesh_grid[:, :, i], get_sequence_parallel_world_size(), dim=1)[get_sequence_parallel_rank()]
+                mesh = mint.chunk(mesh_grid[:, :, i], get_sequence_parallel_world_size(), dim=1)[
+                    get_sequence_parallel_rank()
+                ]
             else:
                 mesh = mesh_grid[:, :, i]
             x = self.apply_rope1d(x, mesh, cos, sin)
             out.append(x)
-            
+
         tokens = mint.cat(out, dim=-1)
         return tokens

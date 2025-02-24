@@ -1,8 +1,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore.ops.operations.nn_ops import FlashAttentionScore as _FlashAttention
+from mindspore import mint, ops
 
 DTYPE_FP16_MIN = float(np.finfo(np.float16).min)
 
@@ -20,7 +19,9 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
         attn_mask = attn_mask.to(query.dtype)
 
         attn_weight = mint.nn.functional.softmax(
-            mint.matmul(query, mint.swapaxes(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_mask, dim=-1, dtype=ms.float32
+            mint.matmul(query, mint.swapaxes(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_mask,
+            dim=-1,
+            dtype=ms.float32,
         ).astype(query.dtype)
     else:
         L, S = query.shape[-2], key.shape[-2]
@@ -32,7 +33,9 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
             attn_bias = attn_bias.to(query.dtype)
 
         attn_weight = mint.nn.functional.softmax(
-            mint.matmul(query, mint.swapaxes(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_bias, dim=-1, dtype=ms.float32
+            mint.matmul(query, mint.swapaxes(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_bias,
+            dim=-1,
+            dtype=ms.float32,
         ).astype(query.dtype)
 
     attn_weight = mint.nn.Dropout(p=dropout_p)(attn_weight)

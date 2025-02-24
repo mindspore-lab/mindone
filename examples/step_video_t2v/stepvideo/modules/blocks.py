@@ -1,5 +1,5 @@
 # Copyright 2025 StepFun Inc. All Rights Reserved.
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -10,134 +10,121 @@
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
 # ==============================================================================
-import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter, mint
+from typing import Optional
 
 import numpy as np
-from typing import Optional
-from stepvideo.modules.rope import RoPE3D
 from stepvideo.modules.attentions import Attention
 from stepvideo.modules.normalization import RMSNorm
+from stepvideo.modules.rope import RoPE3D
+
+from mindspore import Parameter, Tensor, mint, nn, ops
 
 
 class SelfAttention(Attention):
-    def __init__(self, hidden_dim, head_dim, bias=False, with_rope=True, with_qk_norm=True, attn_type='mindspore', sp_group: str = None):
+    def __init__(
+        self,
+        hidden_dim,
+        head_dim,
+        bias=False,
+        with_rope=True,
+        with_qk_norm=True,
+        attn_type="mindspore",
+        sp_group: str = None,
+    ):
         self.head_dim = head_dim
         self.n_heads = hidden_dim // head_dim
-        
+
         super().__init__(sp_group=sp_group, head_dim=self.head_dim, head_num=self.n_heads)
 
-        self.wqkv = mint.nn.Linear(hidden_dim, hidden_dim*3, bias=bias)
+        self.wqkv = mint.nn.Linear(hidden_dim, hidden_dim * 3, bias=bias)
         self.wo = mint.nn.Linear(hidden_dim, hidden_dim, bias=bias)
-        
+
         self.with_rope = with_rope
         self.with_qk_norm = with_qk_norm
         if self.with_qk_norm:
             self.q_norm = RMSNorm(head_dim, elementwise_affine=True)
             self.k_norm = RMSNorm(head_dim, elementwise_affine=True)
-        
+
         if self.with_rope:
             self.rope_3d = RoPE3D(freq=1e4, F0=1.0, scaling_factor=1.0)
             self.rope_ch_split = [64, 32, 32]
-        
+
         self.core_attention = self.attn_processor(attn_type=attn_type)
-        self.parallel = attn_type=='parallel'
-        
+        self.parallel = attn_type == "parallel"
+
     def apply_rope3d(self, x, fhw_positions, rope_ch_split, parallel=True):
         x = self.rope_3d(x, fhw_positions, rope_ch_split, parallel)
         return x
-        
-    def construct(
-        self, 
-        x,
-        cu_seqlens=None,
-        max_seqlen=None,
-        rope_positions=None,
-        attn_mask=None
-    ):
-        xqkv = self.wqkv(x) 
-        xqkv = xqkv.view(*x.shape[:-1], self.n_heads, 3*self.head_dim)
 
-        xq, xk, xv = mint.split(xqkv, [self.head_dim]*3, dim=-1)  ## seq_len, n, dim
-    
+    def construct(self, x, cu_seqlens=None, max_seqlen=None, rope_positions=None, attn_mask=None):
+        xqkv = self.wqkv(x)
+        xqkv = xqkv.view(*x.shape[:-1], self.n_heads, 3 * self.head_dim)
+
+        xq, xk, xv = mint.split(xqkv, [self.head_dim] * 3, dim=-1)  # seq_len, n, dim
+
         if self.with_qk_norm:
             xq = self.q_norm(xq)
             xk = self.k_norm(xk)
-    
+
         if self.with_rope:
             xq = self.apply_rope3d(xq, rope_positions, self.rope_ch_split, parallel=self.parallel)
             xk = self.apply_rope3d(xk, rope_positions, self.rope_ch_split, parallel=self.parallel)
-            
-        output = self.core_attention(
-                    xq,
-                    xk,
-                    xv,
-                    cu_seqlens=cu_seqlens,
-                    max_seqlen=max_seqlen,
-                    attn_mask=attn_mask
-                )
-        
+
+        output = self.core_attention(xq, xk, xv, cu_seqlens=cu_seqlens, max_seqlen=max_seqlen, attn_mask=attn_mask)
+
         # output = rearrange(output, 'b s h d -> b s (h d)')
         b, s, h, d = output.shape
-        output = output.view(b, s, h*d)
+        output = output.view(b, s, h * d)
 
         output = self.wo(output)
-        
+
         return output
-    
-    
+
+
 class CrossAttention(Attention):
-    def __init__(self, hidden_dim, head_dim, bias=False, with_qk_norm=True, attn_type='mindspore', sp_group: str = None):
+    def __init__(
+        self, hidden_dim, head_dim, bias=False, with_qk_norm=True, attn_type="mindspore", sp_group: str = None
+    ):
         self.head_dim = head_dim
         self.n_heads = hidden_dim // head_dim
-        
+
         super().__init__(sp_group=sp_group, head_dim=self.head_dim, head_num=self.n_heads)
 
         self.wq = mint.nn.Linear(hidden_dim, hidden_dim, bias=bias)
-        self.wkv = mint.nn.Linear(hidden_dim, hidden_dim*2, bias=bias)
+        self.wkv = mint.nn.Linear(hidden_dim, hidden_dim * 2, bias=bias)
         self.wo = mint.nn.Linear(hidden_dim, hidden_dim, bias=bias)
-        
+
         self.with_qk_norm = with_qk_norm
         if self.with_qk_norm:
             self.q_norm = RMSNorm(head_dim, elementwise_affine=True)
             self.k_norm = RMSNorm(head_dim, elementwise_affine=True)
-        
+
         self.core_attention = self.attn_processor(attn_type=attn_type)
 
-    def construct(
-            self, 
-            x: Tensor,
-            encoder_hidden_states: Tensor,
-            attn_mask=None
-        ):
-        xq = self.wq(x) 
+    def construct(self, x: Tensor, encoder_hidden_states: Tensor, attn_mask=None):
+        xq = self.wq(x)
         xq = xq.view(*xq.shape[:-1], self.n_heads, self.head_dim)
-        
-        xkv = self.wkv(encoder_hidden_states)
-        xkv = xkv.view(*xkv.shape[:-1], self.n_heads, 2*self.head_dim)
 
-        xk, xv = mint.split(xkv, [self.head_dim]*2, dim=-1)  ## seq_len, n, dim
-    
+        xkv = self.wkv(encoder_hidden_states)
+        xkv = xkv.view(*xkv.shape[:-1], self.n_heads, 2 * self.head_dim)
+
+        xk, xv = mint.split(xkv, [self.head_dim] * 2, dim=-1)  # seq_len, n, dim
+
         if self.with_qk_norm:
             xq = self.q_norm(xq)
             xk = self.k_norm(xk)
 
-        output = self.core_attention(
-                    xq,
-                    xk,
-                    xv,
-                    attn_mask=attn_mask
-                )
-        
+        output = self.core_attention(xq, xk, xv, attn_mask=attn_mask)
+
         # output = rearrange(output, 'b s h d -> b s (h d)')
         b, s, h, d = output.shape
-        output = output.view(b, s, h*d)
+        output = output.view(b, s, h * d)
 
         output = self.wo(output)
-        
+
         return output
 
-    
+
 class GELU(nn.Cell):
     r"""
     GELU activation function with tanh approximation support with `approximate="tanh"`.
@@ -161,11 +148,11 @@ class GELU(nn.Cell):
         hidden_states = self.proj(hidden_states)
         hidden_states = self.gelu(hidden_states)
         return hidden_states
-    
-    
+
+
 class FeedForward(nn.Cell):
     def __init__(
-        self, 
+        self,
         dim: int,
         inner_dim: Optional[int] = None,
         dim_out: Optional[int] = None,
@@ -173,23 +160,26 @@ class FeedForward(nn.Cell):
         bias: bool = False,
     ):
         super().__init__()
-        inner_dim = dim*mult if inner_dim is None else inner_dim
+        inner_dim = dim * mult if inner_dim is None else inner_dim
         dim_out = dim if dim_out is None else dim_out
-        self.net = nn.CellList([
-            GELU(dim, inner_dim, approximate="tanh", bias=bias),
-            mint.nn.Identity(),
-            mint.nn.Linear(inner_dim, dim_out, bias=bias)
-        ])
+        self.net = nn.CellList(
+            [
+                GELU(dim, inner_dim, approximate="tanh", bias=bias),
+                mint.nn.Identity(),
+                mint.nn.Linear(inner_dim, dim_out, bias=bias),
+            ]
+        )
 
     def construct(self, hidden_states: Tensor, *args, **kwargs) -> Tensor:
         for module in self.net:
             hidden_states = module(hidden_states)
         return hidden_states
-    
+
 
 def modulate(x, scale, shift):
     x = x * (1 + scale) + shift
     return x
+
 
 def gate(x, gate):
     x = gate * x
@@ -238,59 +228,63 @@ class StepVideoTransformerBlock(nn.Cell):
         norm_eps: float = 1e-5,
         ff_inner_dim: Optional[int] = None,
         ff_bias: bool = False,
-        attention_type: str = 'parallel',
+        attention_type: str = "parallel",
         sp_group: str = None,
     ):
         super().__init__()
         self.dim = dim
         self.norm1 = mint.nn.LayerNorm([dim], eps=norm_eps)
-        self.attn1 = SelfAttention(dim, attention_head_dim, bias=False, with_rope=True, with_qk_norm=True, attn_type=attention_type, sp_group=sp_group)
-        
+        self.attn1 = SelfAttention(
+            dim,
+            attention_head_dim,
+            bias=False,
+            with_rope=True,
+            with_qk_norm=True,
+            attn_type=attention_type,
+            sp_group=sp_group,
+        )
+
         self.norm2 = mint.nn.LayerNorm([dim], eps=norm_eps)
-        self.attn2 = CrossAttention(dim, attention_head_dim, bias=False, with_qk_norm=True, attn_type='mindspore', sp_group=sp_group)
+        self.attn2 = CrossAttention(
+            dim, attention_head_dim, bias=False, with_qk_norm=True, attn_type="mindspore", sp_group=sp_group
+        )
 
         self.ff = FeedForward(dim=dim, inner_dim=ff_inner_dim, dim_out=dim, bias=ff_bias)
 
-        self.scale_shift_table = Parameter(np.random.randn(6, dim) /dim**0.5)
+        self.scale_shift_table = Parameter(np.random.randn(6, dim) / dim**0.5)
 
     def construct(
         self,
         q: Tensor,
         kv: Optional[Tensor] = None,
-        timestep: Optional[Tensor] =  None,
-        attn_mask = None,
-        rope_positions: list = None, 
+        timestep: Optional[Tensor] = None,
+        attn_mask=None,
+        rope_positions: list = None,
     ) -> Tensor:
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            Tensor(chunk) for chunk in (self.scale_shift_table[None] + timestep.reshape(-1, 6, self.dim)).chunk(6, axis=1)
+            Tensor(chunk)
+            for chunk in (self.scale_shift_table[None] + timestep.reshape(-1, 6, self.dim)).chunk(6, axis=1)
         )
 
         scale_shift_q = modulate(self.norm1(q), scale_msa, shift_msa)
 
-        attn_q = self.attn1(
-            scale_shift_q,
-            rope_positions=rope_positions
-        )
+        attn_q = self.attn1(scale_shift_q, rope_positions=rope_positions)
 
         q = gate(attn_q, gate_msa) + q
-        
-        attn_q = self.attn2(
-                q,
-                kv,
-                attn_mask
-            )
+
+        attn_q = self.attn2(q, kv, attn_mask)
 
         q = attn_q + q
 
         scale_shift_q = modulate(self.norm2(q), scale_mlp, shift_mlp)
 
         ff_output = self.ff(scale_shift_q)
-        
+
         q = gate(ff_output, gate_mlp) + q
 
         return ops.stop_gradient(q)
-    
-    
+
+
 class PatchEmbed(nn.Cell):
     """2D Image to Patch Embedding"""
 
@@ -309,11 +303,15 @@ class PatchEmbed(nn.Cell):
         self.layer_norm = layer_norm
 
         self.proj = mint.nn.Conv2d(
-            in_channels, embed_dim, kernel_size=(patch_size, patch_size), stride=patch_size, bias=bias,
+            in_channels,
+            embed_dim,
+            kernel_size=(patch_size, patch_size),
+            stride=patch_size,
+            bias=bias,
         )
 
     def construct(self, latent):
-        latent = self.proj(latent).to(latent.dtype)   
+        latent = self.proj(latent).to(latent.dtype)
         if self.flatten:
             latent = mint.swapaxes(latent.flatten(start_dim=2), 1, 2)  # BCHW -> BNC
         if self.layer_norm:

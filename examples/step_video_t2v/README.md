@@ -17,7 +17,7 @@ pip install git+https://github.com/zhanghuiyao/mindone.git@step_video
 ## inference
 
 
-### step 1: (option but recommend) download weights
+### step 1: (option but recommend) manually download weights
 
 link: https://huggingface.co/stepfun-ai/stepvideo-t2v
 
@@ -69,4 +69,3 @@ run_parallel.py --model_dir $model_dir --vae_url $vae_url --caption_url $caption
 |:------------:|:------------:|:------------:|:------------:|
 | Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~52 min |
 | Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~35 min |
-

@@ -1,5 +1,5 @@
 # Copyright 2025 StepFun Inc. All Rights Reserved.
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -11,11 +11,12 @@
 # copies or substantial portions of the Software.
 # ==============================================================================
 
-import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter, mint
+from typing import List
 
 import numpy as np
-from typing import List
+
+import mindspore as ms
+from mindspore import mint, nn
 
 
 class LLaMaEmbedding(nn.Cell):
@@ -32,16 +33,18 @@ class LLaMaEmbedding(nn.Cell):
                         will ignore this embedding
     """
 
-    def __init__(self,
-                 cfg,
-                 ):
+    def __init__(
+        self,
+        cfg,
+    ):
         super().__init__()
         self.hidden_size = cfg.hidden_size
         self.params_dtype = cfg.params_dtype
-        self.fp32_residual_connection = cfg.fp32_residual_connection 
+        self.fp32_residual_connection = cfg.fp32_residual_connection
         self.embedding_weights_in_fp32 = cfg.embedding_weights_in_fp32
         self.word_embeddings = mint.nn.Embedding(
-            cfg.padded_vocab_size, self.hidden_size,
+            cfg.padded_vocab_size,
+            self.hidden_size,
         )
         self.embedding_dropout = mint.nn.Dropout(p=cfg.hidden_dropout)
 
@@ -67,20 +70,21 @@ class LLaMaEmbedding(nn.Cell):
         return embeddings
 
 
-
 class StepChatTokenizer:
     """Step Chat Tokenizer"""
 
     def __init__(
-        self, model_file, name="StepChatTokenizer",
+        self,
+        model_file,
+        name="StepChatTokenizer",
         bot_token="<|BOT|>",  # Begin of Turn
         eot_token="<|EOT|>",  # End of Turn
-        call_start_token="<|CALL_START|>",      # Call Start
-        call_end_token="<|CALL_END|>",          # Call End
-        think_start_token="<|THINK_START|>",    # Think Start
-        think_end_token="<|THINK_END|>",        # Think End
-        mask_start_token="<|MASK_1e69f|>",      # Mask start
-        mask_end_token="<|UNMASK_1e69f|>",      # Mask end
+        call_start_token="<|CALL_START|>",  # Call Start
+        call_end_token="<|CALL_END|>",  # Call End
+        think_start_token="<|THINK_START|>",  # Think Start
+        think_end_token="<|THINK_END|>",  # Think End
+        mask_start_token="<|MASK_1e69f|>",  # Mask start
+        mask_end_token="<|UNMASK_1e69f|>",  # Mask end
     ):
         import sentencepiece
 
@@ -107,10 +111,7 @@ class StepChatTokenizer:
         self._bos_id = self._tokenizer.bos_id()
         self._eos_id = self._tokenizer.eos_id()
 
-        for token in [
-            bot_token, eot_token, call_start_token, call_end_token,
-            think_start_token, think_end_token
-        ]:
+        for token in [bot_token, eot_token, call_start_token, call_end_token, think_start_token, think_end_token]:
             assert token in self._vocab, f"Token '{token}' not found in tokenizer"
             assert token in self._special_tokens, f"Token '{token}' is not a special token"
 
@@ -127,7 +128,7 @@ class StepChatTokenizer:
         self._mask_end_id = self._tokenizer.piece_to_id(mask_end_token)
 
         self._underline_id = self._tokenizer.piece_to_id("\u2581")
-        
+
     @property
     def vocab(self):
         return self._vocab
@@ -146,7 +147,7 @@ class StepChatTokenizer:
     def detokenize(self, token_ids: List[int]) -> str:
         return self._tokenizer.decode_ids(token_ids)
 
-    
+
 class Tokens:
     def __init__(self, input_ids, cu_input_ids, attention_mask, cu_seqlens, max_seq_len) -> None:
         self.input_ids = input_ids
@@ -154,7 +155,7 @@ class Tokens:
         self.cu_input_ids = cu_input_ids
         self.cu_seqlens = cu_seqlens
         self.max_seq_len = max_seq_len
-    
+
 
 class Wrapped_StepChatTokenizer(StepChatTokenizer):
     def __call__(self, text, max_length=320, padding="max_length", truncation=True, return_tensors="np"):
@@ -170,20 +171,19 @@ class Wrapped_StepChatTokenizer(StepChatTokenizer):
             if len(part_tokens) < max_length:
                 part_tokens += [self.PAD] * (max_length - valid_size)
             out_tokens.append(part_tokens)
-            attn_mask.append([1]*valid_size+[0]*(max_length-valid_size))
+            attn_mask.append([1] * valid_size + [0] * (max_length - valid_size))
         else:
             for part in text:
                 part_tokens = self.tokenize(part)
-                part_tokens = part_tokens[:(max_length - 2)] # leave 2 space for bos and eos
+                part_tokens = part_tokens[: (max_length - 2)]  # leave 2 space for bos and eos
                 part_tokens = [self.BOS] + part_tokens + [self.EOS]
                 valid_size = len(part_tokens)
                 if len(part_tokens) < max_length:
                     part_tokens += [self.PAD] * (max_length - valid_size)
                 out_tokens.append(part_tokens)
-                attn_mask.append([1]*valid_size+[0]*(max_length-valid_size))
+                attn_mask.append([1] * valid_size + [0] * (max_length - valid_size))
 
         if return_tensors == "np":
-
             out_tokens = np.array(out_tokens, dtype=np.int32)
             attn_mask = np.array(attn_mask, dtype=np.int32)
 
@@ -192,7 +192,7 @@ class Wrapped_StepChatTokenizer(StepChatTokenizer):
             padded_flag = True if padded_len > 0 else False
             if padded_flag:
                 pad_tokens = np.array([[self.PAD] * max_length])
-                pad_attn_mask = np.array([[1]*padded_len+[0]*(max_length-padded_len)])
+                pad_attn_mask = np.array([[1] * padded_len + [0] * (max_length - padded_len)])
                 out_tokens = np.concatenate([out_tokens, pad_tokens], axis=0)
                 attn_mask = np.concatenate([attn_mask, pad_attn_mask], axis=0)
 
@@ -201,10 +201,10 @@ class Wrapped_StepChatTokenizer(StepChatTokenizer):
             cu_out_tokens = out_tokens[attn_mask != 0].reshape((1, -1))
 
             seqlen = attn_mask.sum(axis=1).tolist()
-            cu_seqlens = np.cumsum(np.array([0]+seqlen), 0).astype(dtype=np.int32)
+            cu_seqlens = np.cumsum(np.array([0] + seqlen), 0).astype(dtype=np.int32)
             max_seq_len = max(seqlen)
-            
+
             return Tokens(out_tokens, cu_out_tokens, attn_mask, cu_seqlens, max_seq_len)
-        
+
         else:
             raise NotImplementedError

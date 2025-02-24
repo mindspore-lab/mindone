@@ -1,5 +1,5 @@
 # Copyright 2025 StepFun Inc. All Rights Reserved.
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -12,40 +12,39 @@
 # ==============================================================================
 
 import math
-import mindspore as ms
-from mindspore import nn, ops, Tensor, Parameter, mint
 
-from mindone.transformers.mindspore_adapter.attention import FlashAttention2, DTYPE_FP16_MIN
 from stepvideo.mindspore_adapter.scaled_dot_product_attn import scaled_dot_product_attention
+
+import mindspore as ms
+from mindspore import nn, ops
+
+from mindone.transformers.mindspore_adapter.attention import DTYPE_FP16_MIN
 
 
 class FlashSelfAttention(nn.Cell):
     def __init__(self, *args, **kwargs):
         raise NotImplementedError("mindspore fa do not support custom-flaot mask.")
-        
 
 
 # refer to:
 # https://huggingface.co/stepfun-ai/Step-Audio-Chat/commit/aa82b184aa5ec627ef94545daa7a661711e83596#d2h-542184
 # https://huggingface.co/stepfun-ai/Step-Audio-TTS-3B/blob/main/modeling_step1.py
 
-class StepAttention(nn.Cell):
 
+class StepAttention(nn.Cell):
     def construct(self, q, k, v, cu_seqlens=None, max_seq_len=None):
         # b s h d
         _mask = self.build_alibi_cache(k.shape[1], q.shape[2], q.dtype)[:, :, -q.shape[1] :, :]
-        
+
         # b s h d -> b h s d
-        q = q.swapaxes(1, 2)  
+        q = q.swapaxes(1, 2)
         k = k.swapaxes(1, 2)
         v = v.swapaxes(1, 2)
-        
-        attn_output = scaled_dot_product_attention(
-            q, k, v, attn_mask=_mask
-        )
+
+        attn_output = scaled_dot_product_attention(q, k, v, attn_mask=_mask)
 
         # b h s d -> b s h d
-        attn_output = attn_output.swapaxes(1, 2)   
+        attn_output = attn_output.swapaxes(1, 2)
 
         return attn_output
 
