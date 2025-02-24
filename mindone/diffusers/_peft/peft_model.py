@@ -328,8 +328,10 @@ class PeftModel(PushToHubMixin, nn.Cell):
     def __getattr__(self, name: str):
         """Forward missing attributes to the wrapped module."""
         try:
-            return super().__getattr__(name)  # defer to nn.Cell's logic
+            return super().__getattr__(name)  # defer to nn.Module's logic
         except AttributeError:
+            if name == "base_model":  # prevent infinite recursion if class is not initialized
+                raise
             return getattr(self.base_model, name)
 
     def construct(self, *args: Any, **kwargs: Any):

@@ -22,9 +22,16 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -181,4 +188,57 @@ class KandinskyV22ControlnetPipelineFastTests(PipelineTesterMixin, unittest.Test
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KandinskyV22ControlnetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_kandinsky_controlnet(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        hint = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "hint_image_cat.png",
+            subfolder="kandinskyv22",
+        )
+        hint = ms.Tensor(np.array(hint)).float() / 255.0
+        hint = hint.permute(2, 0, 1).unsqueeze(0)
+
+        pipe_prior_cls = get_module("mindone.diffusers.pipelines.kandinsky2_2.KandinskyV22PriorPipeline")
+        pipe_prior = pipe_prior_cls.from_pretrained("kandinsky-community/kandinsky-2-2-prior", mindspore_dtype=ms_dtype)
+
+        pipeline_cls = get_module("mindone.diffusers.pipelines.kandinsky2_2.KandinskyV22ControlnetPipeline")
+        pipeline = pipeline_cls.from_pretrained(
+            "kandinsky-community/kandinsky-2-2-controlnet-depth", revision="refs/pr/7", mindspore_dtype=ms_dtype
+        )
+        pipeline.set_progress_bar_config(disable=None)
+
+        prompt = "A robot, 4k photo"
+
+        torch.manual_seed(0)
+        image_emb, zero_image_emb = pipe_prior(
+            prompt,
+            num_inference_steps=2,
+            negative_prompt="",
+        )
+
+        torch.manual_seed(0)
+        output = pipeline(
+            image_embeds=image_emb,
+            negative_image_embeds=zero_image_emb,
+            hint=hint,
+            num_inference_steps=2,
+        )
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"controlnet_t2i_{dtype}.npy",
+            subfolder="kandinsky2_2",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

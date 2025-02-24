@@ -23,9 +23,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -211,4 +218,82 @@ class ControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class ControlNetPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_canny(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet = controlnet_cls.from_pretrained("lllyasviel/sd-controlnet-canny", mindspore_dtype=ms_dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionControlNetPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stable-diffusion-v1-5/stable-diffusion-v1-5",
+            safety_checker=None,
+            controlnet=controlnet,
+            mindspore_dtype=ms_dtype,
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        prompt = "bird"
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "bird_canny.png",
+            subfolder="sd_controlnet",
+        )
+
+        torch.manual_seed(0)
+        output = pipe(prompt, image, num_inference_steps=3)
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_canny_{dtype}.npy",
+            subfolder="controlnet",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
+
+    @data(*test_cases)
+    @unpack
+    def test_depth(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet = controlnet_cls.from_pretrained("lllyasviel/sd-controlnet-depth", mindspore_dtype=ms_dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionControlNetPipeline")
+        pipe = pipe_cls.from_pretrained(
+            "stable-diffusion-v1-5/stable-diffusion-v1-5",
+            safety_checker=None,
+            controlnet=controlnet,
+            mindspore_dtype=ms_dtype,
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        prompt = "Stormtrooper's lecture"
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "stormtrooper_depth.png",
+            subfolder="sd_controlnet",
+        )
+
+        torch.manual_seed(0)
+        output = pipe(prompt, image, num_inference_steps=3)
+
+        image = output[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_depth_{dtype}.npy",
+            subfolder="controlnet",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

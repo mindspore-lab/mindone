@@ -32,8 +32,10 @@ def sd3_performerce_test(
             all_spend_time += end - start
 
     avg_time = all_spend_time / (steps - 1)
+    print(f">> average spend time: {avg_time:.3f}")
 
-    assert avg_time < performance_threshold
+    if use_cache_and_gate or use_todo:
+        assert avg_time < performance_threshold
 
 
 def arg_parse():

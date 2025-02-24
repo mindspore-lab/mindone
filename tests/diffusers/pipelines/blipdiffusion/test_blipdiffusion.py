@@ -23,9 +23,16 @@ from transformers import Blip2Config, CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -220,4 +227,56 @@ class BlipDiffusionPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ms_image_slice = ms_image[0][0, -3:, -3:, 0]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class BlipDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_blipdiffusion(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.blip_diffusion.BlipDiffusionPipeline")
+        blip_diffusion_pipe = pipe_cls.from_pretrained(
+            "salesforce/blipdiffusion-controlnet", revision="refs/pr/1", mindspore_dtype=ms_dtype
+        )
+
+        cond_subject = "dog"
+        tgt_subject = "dog"
+        text_prompt_input = "swimming underwater"
+
+        cond_image = load_downloaded_image_from_hf_hub(
+            "ayushtues/blipdiffusion_images",
+            "dog.jpg",
+            subfolder=None,
+        )
+        guidance_scale = 7.5
+        num_inference_steps = 25
+        negative_prompt = (
+            "over-exposure, under-exposure, saturated, duplicate, out of frame, lowres, cropped, "
+            "worst quality, low quality, jpeg artifacts, morbid, mutilated, out of frame, ugly, "
+            "bad anatomy, bad proportions, deformed, blurry, duplicate"
+        )
+
+        torch.manual_seed(0)
+        image = blip_diffusion_pipe(
+            text_prompt_input,
+            cond_image,
+            cond_subject,
+            tgt_subject,
+            guidance_scale=guidance_scale,
+            num_inference_steps=num_inference_steps,
+            neg_prompt=negative_prompt,
+            height=512,
+            width=512,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"blipdiffusion_{dtype}.npy",
+            subfolder="blipdiffusion",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
