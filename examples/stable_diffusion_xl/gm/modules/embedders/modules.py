@@ -19,7 +19,7 @@ from omegaconf import ListConfig
 from transformers import BertTokenizer, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn, ops
 
 
 class AbstractEmbModel(nn.Cell):
@@ -659,11 +659,11 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
         # take features from the eot embedding (eot_token is the highest number in each sequence)
         _dtype = x.dtype
 
-        # x = x[ops.arange(x.shape[0]), tokens.argmax(axis=-1)]
-        indices = ops.stack((ops.arange(x.shape[0]), tokens.argmax(axis=-1)), axis=-1)
+        # x = x[mint.arange(x.shape[0]), tokens.argmax(axis=-1)]
+        indices = mint.stack((mint.arange(x.shape[0]), tokens.argmax(axis=-1)), dim=-1)
         x = ops.gather_nd(x, indices)
 
-        x = ops.matmul(x, ops.cast(self.model.text_projection, x.dtype)).astype(_dtype)
+        x = mint.matmul(x, ops.cast(self.model.text_projection, x.dtype)).astype(_dtype)
 
         return x
 
@@ -718,9 +718,9 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
             tokens_embeds_all.append(tokens_embeds)
             if self.return_pooled and not self.legacy:
                 last_embeds_all.append(last_embeds)
-        tokens_embeds = ops.concat(tokens_embeds_all, axis=1)
+        tokens_embeds = mint.cat(tokens_embeds_all, dim=1)
         if self.return_pooled and not self.legacy:
-            last_embeds = ops.concat(last_embeds_all, axis=1)
+            last_embeds = mint.cat(last_embeds_all, dim=1)
             pooled = self.pool(last_embeds, tokens)
             return tokens_embeds, pooled
         return tokens_embeds
@@ -745,7 +745,7 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
 
             # last_embeds = z[0]
             # last_embeds = self.model.ln_final(last_embeds)
-            # # last_embeds = ops.concat(last_embeds_all, axis=1)
+            # # last_embeds = mint.cat(last_embeds_all, dim=1)
             # pooled = self.pool(last_embeds, tokens)
 
             # no_boseos_middle: True
@@ -767,33 +767,33 @@ class FrozenOpenCLIPEmbedder2(AbstractEmbModel):
 
             if i == 0:
                 text_embeddings = pooled
-                max_ids = ops.max(text_input_chunk, axis=1, keepdims=True)[0].view(-1, 1)
+                max_ids = mint.max(text_input_chunk, dim=1, keepdims=True)[0].view(-1, 1)
             else:
-                now_max_ids = ops.max(text_input_chunk, axis=1, keepdims=True)[0].view(-1, 1)
-                text_embeddings = ops.where(ops.cast(max_ids > now_max_ids, ms.bool_), text_embeddings, pooled)
+                now_max_ids = mint.max(text_input_chunk, dim=1, keepdims=True)[0].view(-1, 1)
+                text_embeddings = mint.where(ops.cast(max_ids > now_max_ids, ms.bool_), text_embeddings, pooled)
 
             # [[499, ...], [40970, ..., 0, 0, 0],]
             # [[0, 0,...], [0, 0, ..., 1, 1, 1],]
             # [0, 60]
             # indices = [75, 60]
-            indices = ops.argmax(ops.eq(text_input_chunk, 0).astype(ms.int32), dim=1)
-            indices = ops.where(ops.cast(indices == 0, ms.bool_), 75 * ops.ones_like(indices), indices)
+            indices = mint.argmax(mint.eq(text_input_chunk, 0).astype(ms.int32), dim=1)
+            indices = mint.where(ops.cast(indices == 0, ms.bool_), 75 * mint.ones_like(indices), indices)
 
             weight_all.append(indices.unsqueeze(1))
             # shape: (bs, 1, 77)
             text_embeddings_all.append(text_embeddings.unsqueeze(1))
             tokens_embeds_all.append(tokens_embeds)
 
-        tokens_embeds = ops.concat(tokens_embeds_all, axis=1)
+        tokens_embeds = mint.cat(tokens_embeds_all, dim=1)
 
         # [[75, 75], [75, 60]]
-        weight = ops.concat(weight_all, axis=1).astype(text_embeddings.dtype)
+        weight = mint.cat(weight_all, dim=1).astype(text_embeddings.dtype)
         # [[0.5, 0.5], [0.55, 0.44]]
-        weight = weight / ops.sum(weight, dim=-1).unsqueeze(1)
+        weight = weight / mint.sum(weight, dim=-1).unsqueeze(1)
         # shape: (bs, n_chunk, 77)
-        text_embeddings_all = ops.concat(text_embeddings_all, axis=1)
+        text_embeddings_all = mint.cat(text_embeddings_all, dim=1)
         # shape: (bs, 77)
-        pooled = ops.sum(weight.unsqueeze(-1) * text_embeddings_all, dim=1)
+        pooled = mint.sum(weight.unsqueeze(-1) * text_embeddings_all, dim=1)
 
         return tokens_embeds, pooled
 
@@ -879,7 +879,7 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
 
     def preprocess(self, x):
         # FIXME: antialias is not supported
-        x = ops.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
+        x = mint.nn.functional.interpolate(x, (224, 224), mode="bicubic", align_corners=True)
         # normalize to [0,1]
         x = (x + 1.0) / 2.0
         # renormalize according to clip
@@ -895,11 +895,11 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
         z = z.to(image.dtype)
 
         if self.ucg_rate > 0.0 and not no_dropout and not (self.max_crops > 0):
-            z = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(z.shape[0], dtype=z.dtype)).expand_dims(-1) * z
+            z = mint.bernoulli((1.0 - self.ucg_rate) * mint.ones(z.shape[0], dtype=z.dtype)).expand_dims(-1) * z
             if tokens is not None:
                 tokens = (
                     expand_dims_like(
-                        ops.bernoulli((1.0 - self.ucg_rate) * ops.ones(tokens.shape[0], dtype=tokens.dtype)), tokens
+                        mint.bernoulli((1.0 - self.ucg_rate) * mint.ones(tokens.shape[0], dtype=tokens.dtype)), tokens
                     )
                     * tokens
                 )
@@ -918,8 +918,8 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
 
         elif self.pad_to_max_len:
             assert z.ndim == 3
-            z_pad = ops.cat(
-                (z, ops.zeros((z.shape[0], self.max_length - z.shape[1], z.shape[2]), dtype=z.dtype)), axis=1
+            z_pad = mint.cat(
+                (z, mint.zeros((z.shape[0], self.max_length - z.shape[1], z.shape[2]), dtype=z.dtype)), dim=1
             )
             return z_pad, z_pad[:, 0, ...]
 
@@ -940,7 +940,7 @@ class FrozenOpenCLIPImageEmbedder(AbstractEmbModel):
         if self.max_crops > 0:
             x = x.reshape(-1, self.max_crops, x.shape[-1])  # (b n) d -> b n d
             # drop out between 0 and all along the sequence axis
-            x = ops.bernoulli((1.0 - self.ucg_rate) * ops.ones((x.shape[0], x.shape[1], 1), dtype=x.dtype)) * x
+            x = mint.bernoulli((1.0 - self.ucg_rate) * mint.ones((x.shape[0], x.shape[1], 1), dtype=x.dtype)) * x
             if tokens is not None:
                 tokens = tokens.reshape(-1, self.max_crops, *tokens.shape[1:]).swapaxes(1, 2)  # (b n) t d -> b t n d
                 tokens = tokens.reshape(tokens.shape[0], tokens.shape[1], -1)  # b t n d -> b t (n d)
