@@ -2,7 +2,7 @@
 
 <!-- [Emu3 Team, BAAI](https://www.baai.ac.cn/english.html) -->
 
-| [Project Page](https://emu.baai.ac.cn) | [Paper](https://arxiv.org/pdf/2409.18869) | [🤗HF Models](https://huggingface.co/collections/BAAI/emu3-66f4e64f70850ff358a2e60f) | [Modelscope](https://modelscope.cn/collections/Emu3-9eacc8668b1043) |
+ [Paper](https://arxiv.org/pdf/2409.18869) | [🤗HF Models](https://huggingface.co/collections/BAAI/emu3-66f4e64f70850ff358a2e60f) | [Modelscope](https://modelscope.cn/collections/Emu3-9eacc8668b1043) |
 
 <!-- <div align='center'>
 <img src="./assets/arch.png" class="interpolation-image" alt="arch." height="80%" width="70%" />
@@ -49,6 +49,8 @@ pip install -r requirements.txt
 
 ### Model Weights
 
+<details>
+
 | Model name | HF Weight | Modelscope | Wisemodel |
 | --- | --- | --- | --- |
 | **Emu3-Stage1**          | [🤗 HF link](https://huggingface.co/BAAI/Emu3-Stage1)          | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-Stage1)          |  |
@@ -56,45 +58,59 @@ pip install -r requirements.txt
 | **Emu3-Gen**             | [🤗 HF link](https://huggingface.co/BAAI/Emu3-Gen)             | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-Gen)             | [Wisemodel link](https://wisemodel.cn/models/BAAI/Emu3-Gen)             |
 | **Emu3-VisionTokenizer** | [🤗 HF link](https://huggingface.co/BAAI/Emu3-VisionTokenizer) | [Modelscope link](https://modelscope.cn/models/BAAI/Emu3-VisionTokenizer) | [Wisemodel link](https://wisemodel.cn/models/BAAI/Emu3-VisionTokenizer) |
 
+</details>
+
 #### Weight conversion:
 
-For some incompatible network layer variable names that cannot be automatically converted, we need to convert some weight names in advanved before loading the pre-trained weights:
+For model **Emu3-VisionTokenizer**, there are some incompatible network layer variable names that cannot be automatically converted, we need to convert some weight names in advanved before loading the pre-trained weights:
 ```
 python python convert_weights.py --safetensor_path ORIGINAL_MODEL.safetensors --target_safetensor_path model.safetensors
 ```
 
 ## Inference
 
-#### Use 🤗mindone.transformers to run Emu3-Gen/Stage1 for image generation
+#### Run Emu3-Gen/Stage1 for image generation
 An inference script is provided in `scripts/infer_img_gen.sh`.<br>
 An example to generate image is as follows:
 <details>
 
 ```python
+from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
+from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
-from transformers import AutoTokenizer, AutoModel, AutoImageProcessor, AutoModelForCausalLM
 from transformers.generation.configuration_utils import GenerationConfig
-from transformers.generation import LogitsProcessorList, PrefixConstrainedLogitsProcessor, UnbatchedClassifierFreeGuidanceLogitsProcessor
-import torch
-
-from emu3.mllm.processing_emu3 import Emu3Processor
-
-
-# model path
-EMU_HUB = "BAAI/Emu3-Gen"
-VQ_HUB = "BAAI/Emu3-VisionTokenizer"
+import mindspore as ms
+from mindspore import Tensor, nn
+from mindone.transformers.generation.logits_process import (
+    LogitsProcessorList,
+    PrefixConstrainedLogitsProcessor,
+    UnbatchedClassifierFreeGuidanceLogitsProcessor,
+)
+from mindone.utils.amp import auto_mixed_precision
 
 # prepare model and processor
-model = AutoModelForCausalLM.from_pretrained(
-    EMU_HUB,
-    mindspore_dtype=torch.bfloat16,
-    attn_implementation="flash_attention_2",
-    # trust_remote_code=True,
-)
+EMU_HUB = "BAAI/Emu3-Gen"
+VQ_HUB = "BAAI/Emu3-VisionTokenizer"
+EMU_DTYPE = ms.bfloat16
+VQ_DTYPE = ms.bfloat16
 
-tokenizer = AutoTokenizer.from_pretrained(EMU_HUB, trust_remote_code=True, padding_side="left")
-image_processor = AutoImageProcessor.from_pretrained(VQ_HUB, trust_remote_code=True)
-image_tokenizer = AutoModel.from_pretrained(VQ_HUB, device_map="cuda:0", trust_remote_code=True).eval()
+# prepare model and processor
+model = Emu3ForCausalLM.from_pretrained(
+    EMU_HUB,
+    mindspore_dtype=EMU_DTYPE,
+    use_safetensors=True,
+    attn_implementation="flash_attention_2",
+).set_train(False)
+tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
+image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
+image_tokenizer = Emu3VisionVQModel.from_pretrained(
+    VQ_HUB,
+    use_safetensors=True,
+    mindspore_dtype=VQ_DTYPE
+).set_train(False)
+image_tokenizer = auto_mixed_precision(
+    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+)
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
 # prepare input
@@ -109,7 +125,7 @@ kwargs = dict(
     mode='G',
     ratio="1:1",
     image_area=model.config.image_area,
-    return_tensors="pt",
+    return_tensors="np",
     padding="longest",
 )
 pos_inputs = processor(text=prompt, **kwargs)
@@ -118,6 +134,7 @@ neg_inputs = processor(text=NEGATIVE_PROMPT, **kwargs)
 # prepare hyper parameters
 GENERATION_CONFIG = GenerationConfig(
     use_cache=True,
+    bos_token_id=model.config.bos_token_id,
     eos_token_id=model.config.eos_token_id,
     pad_token_id=model.config.pad_token_id,
     max_new_tokens=40960,
@@ -142,13 +159,15 @@ logits_processor = LogitsProcessorList([
 
 # generate
 outputs = model.generate(
-    pos_inputs.input_ids.to("cuda:0"),
+    Tensor(pos_inputs.input_ids, dtype=ms.int32),
     GENERATION_CONFIG,
     logits_processor=logits_processor,
-    attention_mask=pos_inputs.attention_mask.to("cuda:0"),
+    attention_mask=Tensor(pos_inputs.attention_mask),
 )
-
-mm_list = processor.decode(outputs[0])
+out = outputs[0]
+if not model.config.img_token_id in out:  # img_token_id was deleted in generate() output
+    out = ops.cat(Tensor([model.config.img_token_id], out))
+mm_list = processor.decode(out)
 for idx, im in enumerate(mm_list):
     if not isinstance(im, Image.Image):
         continue
@@ -156,79 +175,79 @@ for idx, im in enumerate(mm_list):
 ```
 </details>
 
-#### Use 🤗Transformers to run Emu3-Chat/Stage1 for vision-language understanding
+#### Run Emu3-Chat/Stage1 for vision-language understanding
 An inference script is provided in `scripts/infer_vqa.sh`.<br>
 An example is as follows:
 <details>
 
 ```python
-from PIL import Image
-from transformers import AutoTokenizer, AutoModel, AutoImageProcessor, AutoModelForCausalLM
-from transformers.generation.configuration_utils import GenerationConfig
-import torch
-
+from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.processing_emu3 import Emu3Processor
-
+from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
+from PIL import Image
+from transformers.generation.configuration_utils import GenerationConfig
+import mindspore as ms
+from mindspore import Tensor, nn
+from mindone.utils.amp import auto_mixed_precision
 
 # model path
 EMU_HUB = "BAAI/Emu3-Chat"
-VQ_HUB = "BAAI/Emu3-VisionTokenier"
+VQ_HUB = "BAAI/Emu3-VisionTokenizer"
+EMU_DTYPE = ms.bfloat16
+VQ_DTYPE = ms.bfloat16
 
 # prepare model and processor
-model = AutoModelForCausalLM.from_pretrained(
+model = Emu3ForCausalLM.from_pretrained(
     EMU_HUB,
-    device_map="cuda:0",
-    torch_dtype=torch.bfloat16,
-    attn_implementation="flash_attention_2",
-    trust_remote_code=True,
+    mindspore_dtype=EMU_DTYPE,
+    use_safetensors=True,
+    attn_implementation="flash_attention_2",  # optional: "eager"
+).set_train(False)
+tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
+image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
+image_tokenizer = Emu3VisionVQModel.from_pretrained(
+    VQ_HUB,
+    use_safetensors=True,
+    mindspore_dtype=VQ_DTYPE
+).set_train(False)
+image_tokenizer = auto_mixed_precision(
+    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
 )
-
-# used for Emu3-Chat
-tokenizer = AutoTokenizer.from_pretrained(EMU_HUB, trust_remote_code=True, padding_side="left")
-# used for Emu3-Stage1
-# tokenizer = AutoTokenizer.from_pretrained(
-#     EMU_HUB,
-#     trust_remote_code=True,
-#     chat_template="{image_prompt}{text_prompt}",
-#     padding_side="left",
-# )
-image_processor = AutoImageProcessor.from_pretrained(VQ_HUB, trust_remote_code=True)
-image_tokenizer = AutoModel.from_pretrained(VQ_HUB, device_map="cuda:0", trust_remote_code=True).eval()
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 
 # prepare input
-text = "Please describe the image"
-image = Image.open("assets/demo.png")
-
+text = ["Please describe the image", "请描述该图片"]
+image = Image.open("assets/demo.png") # TODO: you need to modify the path here
+image = [image, image]
 inputs = processor(
     text=text,
     image=image,
-    mode='U',
-    return_tensors="pt",
+    mode="U",
+    padding_image=True,
     padding="longest",
+    return_tensors="np",
 )
 
 # prepare hyper parameters
 GENERATION_CONFIG = GenerationConfig(
     pad_token_id=tokenizer.pad_token_id,
     bos_token_id=tokenizer.bos_token_id,
-    eos_token_id=tokenizer.eos_token_id,
-    max_new_tokens=1024,
+    eos_token_id=tokenizer.eos_token_id
 )
-
 # generate
 outputs = model.generate(
-    Tensor(inputs.input_ids),
+    Tensor(inputs.input_ids, dtype=ms.int32),
     GENERATION_CONFIG,
-    attention_mask=inputs.attention_mask,
+    max_new_tokens=1024,
+    attention_mask=Tensor(inputs.attention_mask),
 )
-
-outputs = outputs[:, inputs.input_ids.shape[-1]:]
-print(processor.batch_decode(outputs, skip_special_tokens=True)[0])
+answers = processor.batch_decode(outputs, skip_special_tokens=True)
+for ans in answers:
+    print(ans)
 ```
 </details>
 
-#### Use 🤗Transformers to run Emu3-VisionTokenzier for vision encoding and decoding
+#### Run Emu3-VisionTokenzier for vision encoding and decoding
 An inference script is provided in `scripts/infer_img_rec.sh`.<br>
 An example to reconstruct image/video is as follows:
 
@@ -294,5 +313,57 @@ for idx, im in enumerate(recon_images):
 </details>
 
 ## Training
+### Supervised Fine-tuning (SFT)
 
 ## Performance
+### Inference
+#### Image Reconstruction
+
+
+Input an image or a clip of video frames, outout the reconstructed image(s).
+<br>
+Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
+<br>
+*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` fp16.
+
+| model name	| precision* | cards | batch size| resolution |	s/step | img/s |
+| --- | --- | --- | --- | --- | --- | --- |
+| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 2.93 | 0.34 |
+| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 0.97 | 4.13 |
+
+<br>
+Input an image or a clip of video frames, outout the reconstructed image(s).
+<br>
+Experiments are tested on ascend 910* with mindspore 2.4.1 graph mode.
+<br>
+
+*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` fp16.
+
+| model name | precision* | cards | batch size| resolution | graph compile |	s/step | img/s |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 15.23 | 3.20 | 0.31 |
+| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 15.23 | 5.14 | 0.78 |
+
+
+
+#### Text-to-Image Generation
+Input a text prompt, output an image. <br>
+Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
+
+|model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | img/s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF | 1.27 | 8192 | 9.57e-5 |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  | 0.54 | 8192 | 2.27e-4 |
+
+*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` fp16, `FlashAttention` fp16.
+
+#### VQA
+Input an image and a text prompt, output textual response. <br>
+Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
+
+|model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | response/s |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Emu3-Chat | bfloat16 | 1 | 1 | 720x720 | OFF | 0.24 | 577 | 0.007 |
+| Emu3-Chat | bfloat16 | 1 | 1 | 720x720 | ON  | 0.28 | 654 | 0.005 |
+
+*note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` fp16, `FlashAttention` fp16.
