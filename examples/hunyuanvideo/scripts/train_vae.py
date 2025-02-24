@@ -454,7 +454,7 @@ if __name__ == "__main__":
     parser.add_argument(  # FIXME: support bucketing
         "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
     )
-    parser.add_class_arguments(BatchTransform, "dataloader.sampler", instantiate=False)
+    parser.add_subclass_arguments(BatchTransform, "dataloader.sampler", required=False, instantiate=False)
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
@@ -476,7 +476,7 @@ if __name__ == "__main__":
     parser.add_function_arguments(
         prepare_train_network, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}
     )
-    parser.add_class_arguments(EMA, "train.ema", skip={"network"}, instantiate=False)
+    parser.add_subclass_arguments(EMA, "train.ema", skip={"network"}, required=False, instantiate=False)
     parser.add_class_arguments(
         GeneratorWithLoss, "train.losses", skip={"autoencoder", "discriminator"}, instantiate=False
     )
