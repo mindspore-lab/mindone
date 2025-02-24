@@ -5,6 +5,7 @@ import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
 from mindspore.communication import GlobalComm, get_group_size, get_rank
+from mindspore.ops.auto_generate.gen_ops_prim import slice_ext_op
 
 try:
     from typing import Literal
@@ -14,8 +15,11 @@ except ImportError:
 
 def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
     dim_size = x.shape[dim]
-    tensor_list = x.split(dim_size // world_size, axis=dim)
-    x = tensor_list[rank]
+    start_idx = (dim_size // world_size) * rank
+    end_idx = (dim_size // world_size) * (rank + 1)
+    x = slice_ext_op(x, dim, start_idx, end_idx, 1)
+    # tensor_list = x.split(dim_size // world_size, axis=dim)
+    # x = tensor_list[rank]
     return x
 
 
