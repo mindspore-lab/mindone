@@ -1,3 +1,4 @@
+import inspect
 import logging
 import math
 import os
@@ -531,11 +532,18 @@ def main(args):
                 "reduce_scatter": {"openstate": True, "bucket_size": 5e8},
                 "allgather": {"openstate": False, "bucket_size": 5e8},
             }
+
+        params_func = inspect.signature(prepare_train_network).parameters
+        if "optimizer_parallel_group" in params_func:
+            kwargs = {"optimizer_parallel_group": GlobalComm.WORLD_COMM_GROUP}
+        elif "op_group" in params_func:
+            kwargs = {"op_group": GlobalComm.WORLD_COMM_GROUP}
+        else:
+            kwargs = {}
         net_with_grads = prepare_train_network(
             latent_diffusion_with_loss,
             optimizer,
             zero_stage=args.zero_stage,
-            optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP,
             comm_fusion=comm_fusion_dict,
             scale_sense=loss_scaler,
             drop_overflow_update=args.drop_overflow_update,
@@ -543,6 +551,7 @@ def main(args):
             clip_grad=args.clip_grad,
             clip_norm=args.max_grad_norm,
             ema=ema,
+            **kwargs,
         )
     else:
         net_with_grads = TrainOneStepWrapper(
