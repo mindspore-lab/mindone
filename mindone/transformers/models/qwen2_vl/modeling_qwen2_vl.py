@@ -285,7 +285,7 @@ class PatchEmbed(nn.Cell):
 
         if ms.__version__ >= "2.5.0":
             self.proj = mint.nn.Conv3d(
-                in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, has_bias=False
+                in_channels, embed_dim, kernel_size=kernel_size, stride=kernel_size, bias=False
             ).to_float(ms.bfloat16)
         else:
             self.proj = nn.Conv3d(
@@ -956,7 +956,7 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is not None) and (inputs_embeds is not None):
             raise ValueError(
                 "You cannot specify both input_ids and inputs_embeds at the same time, and must specify either one"
             )
