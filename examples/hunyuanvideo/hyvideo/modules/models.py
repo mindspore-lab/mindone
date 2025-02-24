@@ -27,6 +27,7 @@ class MMDoubleStreamBlock(nn.Cell):
                                      (Flux.1): https://github.com/black-forest-labs/flux
     """
 
+    @ms.lazy_inline(policy="front")
     def __init__(
         self,
         hidden_size: int,
@@ -249,6 +250,7 @@ class MMSingleStreamBlock(nn.Cell):
                   (Flux.1): https://github.com/black-forest-labs/flux
     """
 
+    @ms.lazy_inline(policy="front")
     def __init__(
         self,
         hidden_size: int,
