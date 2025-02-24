@@ -33,7 +33,7 @@ def trans(x):
 def calculate_lpips(videos1, videos2):
     # image should be RGB, IMPORTANT: normalized to [-1,1]
 
-    assert videos1.shape == videos2.shape
+    # assert videos1.shape == videos2.shape
 
     # videos [batch_size, timestamps, channel, h, w]
 
@@ -53,7 +53,8 @@ def calculate_lpips(videos1, videos2):
         video2 = ms.Tensor(video2, dtype=ms.float32)
 
         lpips_results_of_a_video = []
-        for clip_timestamp in range(len(video1)):
+        length = min(len(video1), len(video2))
+        for clip_timestamp in range(length):
             # get a img
             # img [timestamps[x], channel, h, w]
             # img [channel, h, w] tensor

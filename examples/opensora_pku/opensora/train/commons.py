@@ -34,7 +34,7 @@ def parse_train_args(parser):
     #################################################################################
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
-    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--jit_syntax_level", default="strict", type=str, help="Specify syntax level for graph mode: strict or lax"
     )
@@ -112,7 +112,7 @@ def parse_train_args(parser):
         "--end_learning_rate", default=1e-7, type=float, help="The end learning rate for the optimizer."
     )
     parser.add_argument("--lr_decay_steps", default=0, type=int, help="lr decay steps.")
-    parser.add_argument("--lr_scheduler", default="cosine_decay", type=str, help="scheduler.")
+    parser.add_argument("--lr_scheduler", default="constant", type=str, help="scheduler.")
     parser.add_argument(
         "--scale_lr",
         default=False,
@@ -158,9 +158,6 @@ def parse_train_args(parser):
     )
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
-    parser.add_argument(
-        "--global_bf16", action="store_true", help="whether to enable gloabal bf16 for diffusion model training."
-    )
     #################################################################################
     #                                 Model Optimization                            #
     #################################################################################
@@ -198,13 +195,20 @@ def parse_train_args(parser):
         help="whether save ckpt by steps. If False, save ckpt by epochs.",
     )
     parser.add_argument(
+        "--save_ema_only",
+        default=False,
+        type=str2bool,
+        help="whether save ema ckpt only. If False, and when ema during training is enabled, it will save both ema and non-ema.ckpt",
+    )
+    parser.add_argument(
         "--validate",
         default=False,
         type=str2bool,
         help="whether to compute the validation set loss during training",
     )
     parser.add_argument("--val_interval", default=1, type=int, help="Validation frequency in epochs")
-    parser.add_argument("--profile", default=False, type=str2bool, help="Profile or not")
+    parser.add_argument("--profile", default=False, type=str2bool, help="Profile time analysis or not")
+    parser.add_argument("--profile_memory", default=False, type=str2bool, help="Profile memory analysis or not")
     parser.add_argument(
         "--log_level",
         type=str,
