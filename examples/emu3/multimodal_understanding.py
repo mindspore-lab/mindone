@@ -14,6 +14,7 @@ from mindspore import Tensor, nn
 from mindone.utils.amp import auto_mixed_precision
 
 ms.set_context(mode=ms.PYNATIVE_MODE)  # only support PYNATIVE using DynamicCache
+# ms.set_context(mode=ms.GRAPH_MODE)      # GRAPH. Not supported yet with kv cache yet
 
 # 1. Load Models and Processor
 start_time = time.time()
@@ -21,23 +22,24 @@ start_time = time.time()
 # model path
 EMU_HUB = "BAAI/Emu3-Chat"
 VQ_HUB = "BAAI/Emu3-VisionTokenizer"
-MS_DTYPE = ms.bfloat16
+EMU_DTYPE = ms.bfloat16
+VQ_DTYPE = ms.bfloat16
 
 # prepare model and processor
 model = Emu3ForCausalLM.from_pretrained(
     EMU_HUB,
-    mindspore_dtype=ms.bfloat16,
+    mindspore_dtype=EMU_DTYPE,
     use_safetensors=True,
-    attn_implementation="eager",  # optional: "flash_attention_2"
+    attn_implementation="flash_attention_2",  # optional: "eager"
 ).set_train(False)
 
 tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
 image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
-image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, use_safetensors=True, mindspore_dtype=MS_DTYPE).set_train(
+image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE).set_train(
     False
 )
 image_tokenizer = auto_mixed_precision(
-    image_tokenizer, amp_level="O2", dtype=MS_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+    image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
 )
 processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
 print("Loaded all models, time elapsed: %.4fs" % (time.time() - start_time))
@@ -75,6 +77,9 @@ outputs = model.generate(
     max_new_tokens=1024,
     attention_mask=Tensor(inputs.attention_mask),
 )
+print(f"generated_ids length / #steps: {len(outputs[0])}")
+elapsed = time.time() - start_time
+print("Average speed %.4fs/step" % (elapsed / len(outputs[0])))
 print("Finish generation, time elapsed: %.4fs" % (time.time() - start_time))
 
 # detokenization

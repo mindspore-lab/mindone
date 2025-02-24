@@ -25,6 +25,7 @@ import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
+from emu3.mllm.configuration_emu3 import Emu3Config
 from transformers.utils import (
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -40,8 +41,8 @@ from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, DynamicCache
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
-from mindone.transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask_for_sdpa  # NEW
 from mindone.transformers.modeling_attn_mask_utils import (
+    _MIN_FP16,
     AttentionMaskConverter,
     _prepare_4d_attention_mask,
     _prepare_4d_causal_attention_mask,
@@ -51,8 +52,6 @@ from mindone.transformers.modeling_outputs import (  # SequenceClassifierOutputW
     CausalLMOutputWithPast,
 )
 from mindone.transformers.modeling_utils import MSPreTrainedModel
-
-from .configuration_emu3 import Emu3Config
 
 logger = logging.get_logger(__name__)
 
@@ -95,42 +94,6 @@ def _make_causal_mask(input_ids_shape, dtype: ms.dtype, past_key_values_length: 
     return AttentionMaskConverter._make_causal_mask(
         input_ids_shape=input_ids_shape, dtype=dtype, past_key_values_length=past_key_values_length
     )
-
-
-# https://pytorch.org/docs/stable/generated/torch.nn.functional.scaled_dot_product_attention.html#torch-nn-functional-scaled-dot-product-attention
-# https://github.com/huggingface/transformers/blob/f2c388e3f946862f657acc1e21b272ec946fc66c/src/transformers/models/ctrl/modeling_ctrl.py#L58
-def scaled_dot_product_attention(
-    q, k, v, attn_mask=None, dropout_p=0.0, is_causal=False, dtype=ms.float16
-) -> ms.Tensor:
-    # force fp16 precision calculation
-    origin_dtype = q.dtype
-    dtype = origin_dtype if dtype is None else dtype
-    q, k, v = q.to(dtype), k.to(dtype), v.to(dtype)
-
-    # calculate attention
-    L, S = q.shape[-2], k.shape[-2]
-    scale_factor = 1 / (q.shape[-1] ** 0.5)
-    attn_bias = ops.zeros((L, S), dtype=dtype)
-
-    if is_causal:
-        assert attn_mask is None
-        temp_mask = ops.ones((L, S), dtype=ms.bool_).tril(diagonal=0).to(ms.bool_)  # tril does not support bool/fp32
-        attn_bias = attn_bias.masked_fill(temp_mask.logical_not(), -1e5)  # float("-inf"))
-        attn_bias.to(q.dtype)
-
-    if attn_mask is not None:  # Apply the attention mask
-        if attn_mask.dtype == ms.bool_:
-            attn_bias = attn_bias.masked_fill(attn_mask.logical_not(), -1e5)  # float("-inf"))
-        else:
-            attn_bias += attn_mask
-
-    attn_weight = ops.matmul(q, k.swapaxes(-2, -1)) * scale_factor
-    attn_weight += attn_bias
-    attn_weight = ops.softmax(attn_weight, axis=-1)
-    attn_weight = ops.dropout(attn_weight, dropout_p, training=True)
-    output = ops.matmul(attn_weight, v)
-
-    return output.to(origin_dtype)
 
 
 class Emu3RMSNorm(nn.Cell):
@@ -504,6 +467,7 @@ class Emu3FlashAttention2(Emu3Attention):
                 head_num=self.num_heads,
                 attention_dropout=dropout_rate,
                 input_layout="BNSD",  # BSH or BNSD
+                dtype=ms.float16,
             )
         else:
             self.flash_attention = None
@@ -519,14 +483,6 @@ class Emu3FlashAttention2(Emu3Attention):
         **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         # Emu3FlashAttention2 attention does not support output_attentions
-        if "padding_mask" in kwargs:
-            warnings.warn(
-                "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
-            )
-
-            # overwrite attention_mask with padding_mask
-            attention_mask = kwargs.pop("padding_mask")
-
         output_attentions = False
 
         bsz, q_len, _ = hidden_states.shape
@@ -553,40 +509,15 @@ class Emu3FlashAttention2(Emu3Attention):
             cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        # In PEFT, usually we cast the layer norms in float32 for training stability reasons
-        # therefore the input hidden states gets silently casted in float32. Hence, we need
-        # cast them back in the correct dtype just to be sure everything works as expected.
-        # This might slowdown training & inference so it is recommended to not cast the LayerNorms
-        # in fp32. (Emu3RMSNorm handles it correctly)
+        if attention_mask is not None:
+            attention_mask = self.convert_mask_to_fa_format(attention_mask)
+        attn_output = self.flash_attention(query_states, key_states, value_states, mask=attention_mask)
 
-        input_dtype = query_states.dtype
-        if input_dtype == ms.float32:
-            # Handle the case where the model is quantized
-            if hasattr(self.config, "_pre_quantization_dtype"):
-                target_dtype = self.config._pre_quantization_dtype
-            else:
-                target_dtype = self.q_proj.weight.dtype
-
-            logger.warning_once(
-                f"The input hidden states seems to be silently casted in float32, this might be related to"
-                f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-                f" {target_dtype}."
-            )
-
-            query_states = query_states.to(target_dtype)
-            key_states = key_states.to(target_dtype)
-            value_states = value_states.to(target_dtype)
-
-        attn_output = self._flash_attention_forward(
-            query_states,
-            key_states,
-            value_states,
-            attention_mask=attention_mask,
-        )
         attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
+        attn_weights = None
         if not output_attentions:
             attn_weights = None
 
@@ -609,122 +540,16 @@ class Emu3FlashAttention2(Emu3Attention):
 
         return attention_mask
 
-    def _flash_attention_forward(self, query_states, key_states, value_states, attention_mask):
-        """
-        Calls the forward method of Flash Attention - if the input hidden states contain at least one padding token
-        first unpad the input, then computes the attention scores and pad the final attention scores.
-
-        Args:
-            query_states (`ms.Tensor`):
-                Input query states to be passed to Flash Attention API
-            key_states (`ms.Tensor`):
-                Input key states to be passed to Flash Attention API
-            value_states (`ms.Tensor`):
-                Input value states to be passed to Flash Attention API
-            attention_mask (`ms.Tensor`):
-                The padding mask - corresponds to a tensor of size `(batch_size, seq_len)` where 0 stands for the
-                position of padding tokens and 1 for the position of non-padding tokens.
-        """
-        if attention_mask is not None:
-            attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        attn_output = self.flash_attention(query_states, key_states, value_states, mask=attention_mask)
-
-        return attn_output
-
 
 class Emu3SdpaAttention(Emu3Attention):
-    """
-    Emu3 attention module using torch.nn.functional.scaled_dot_product_attention. This module inherits from
-    `Emu3Attention` as the weights of the module stays untouched. The only changes are on the forward pass to adapt to
-    SDPA API.
-    """
-
-    # Adapted from Emu3Attention.construct
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        attention_mask: Optional[ms.Tensor] = None,
-        position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[Cache] = None,
-        output_attentions: bool = False,
-        use_cache: bool = False,
-    ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        if output_attentions:
-            # TODO: Improve this warning with e.g. `model.config.attn_implementation = "manual"` once this is implemented.
-            logger.warning_once(
-                "Emu3Model is using Emu3SdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`."
-                "Falling back to the manual attention implementation, "
-                "but specifying the manual implementation will be required from Transformers version v5.0.0 onwards."
-                'This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
-            )
-            return super().construct(
-                hidden_states=hidden_states,
-                attention_mask=attention_mask,
-                position_ids=position_ids,
-                past_key_value=past_key_value,
-                output_attentions=output_attentions,
-                use_cache=use_cache,
-            )
-
-        bsz, q_len, _ = hidden_states.shape
-
-        query_states = self.q_proj(hidden_states)
-        key_states = self.k_proj(hidden_states)
-        value_states = self.v_proj(hidden_states)
-
-        query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
-        key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
-
-        kv_seq_len = key_states.shape[-2]
-        if past_key_value is not None:
-            kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
-        cos, sin = self.rotary_emb(value_states, seq_len=kv_seq_len)
-
-        query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
-
-        if past_key_value is not None:
-            cache_kwargs = {"sin": sin, "cos": cos}  # Specific to RoPE models
-            key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
-
-        key_states = repeat_kv(key_states, self.num_key_value_groups)
-        value_states = repeat_kv(value_states, self.num_key_value_groups)
-
-        if attention_mask is not None:
-            if attention_mask.shape != (bsz, 1, q_len, kv_seq_len):
-                raise ValueError(
-                    f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.shape}"
-                )
-
-        # SDPA with memory-efficient backend is currently (torch==2.1.2) bugged with non-contiguous inputs with custom attn_mask,
-        # Reference: https://github.com/pytorch/pytorch/issues/112577.
-        if attention_mask is not None:
-            query_states = query_states.contiguous()
-            key_states = key_states.contiguous()
-            value_states = value_states.contiguous()
-
-        attn_output = scaled_dot_product_attention(
-            query_states,
-            key_states,
-            value_states,
-            attn_mask=attention_mask,
-            dropout_p=self.attention_dropout if self.training else 0.0,
-            # The q_len > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not create a causal mask in case q_len == 1.
-            is_causal=self.is_causal and attention_mask is None and q_len > 1,
-        )
-
-        attn_output = attn_output.swapaxes(1, 2).contiguous()
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
-
-        attn_output = self.o_proj(attn_output)
-
-        return attn_output, None, past_key_value
+    def __init__(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 EMU3_ATTENTION_CLASSES = {
     "eager": Emu3Attention,
     "flash_attention_2": Emu3FlashAttention2,
-    "sdpa": Emu3SdpaAttention,
+    "sdpa": Emu3SdpaAttention,  # Not supported
 }
 
 
@@ -829,7 +654,7 @@ class Emu3PreTrainedModel(MSPreTrainedModel):
     _no_split_modules = ["Emu3DecoderLayer"]
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
     _supports_cache_class = True  # support Cache Classes
     # True: use DynamicCache by default, if cache_implementation=="static", use StaticCache;
     # False: use default Tuple static cache
@@ -996,10 +821,10 @@ class Emu3Model(Emu3PreTrainedModel):
         past_key_values_length = 0
         use_legacy_cache = False
         if use_cache:
-            use_legacy_cache = not isinstance(past_key_values, Cache)
+            use_legacy_cache = not isinstance(past_key_values, Cache) and self._supports_cache_class
             if use_legacy_cache:
                 past_key_values = DynamicCache.from_legacy_cache(past_key_values)
-            past_key_values_length = past_key_values.get_usable_length(seq_length)
+                past_key_values_length = past_key_values.get_usable_length(seq_length)
 
         if position_ids is None:
             position_ids = ops.arange(past_key_values_length, seq_length + past_key_values_length, dtype=ms.int32)
@@ -1011,19 +836,9 @@ class Emu3Model(Emu3PreTrainedModel):
         if self._use_flash_attention_2:
             # 4d mask is passed through the layers
             attention_mask = _prepare_4d_causal_attention_mask(
-                attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
+                attention_mask, (batch_size, seq_length), inputs_embeds.to(ms.float16), past_key_values_length
             )  # inverted 4D mask (0 retain, -inf discard)
-        # TODO
-        elif self._use_sdpa and not output_attentions:
-            # output_attentions=True can not be supported when using SDPA, and we fall back on
-            # the manual implementation that requires a 4D causal mask in all cases.
-            attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
-                attention_mask,
-                (batch_size, seq_length),
-                inputs_embeds,
-                past_key_values_length,
-            )
-        else:
+        else:  # eager
             # 4d mask is passed through the layers
             attention_mask = _prepare_4d_causal_attention_mask(
                 attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
@@ -1326,3 +1141,149 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         for layer_past in past_key_values:
             reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
+
+
+if __name__ == "__main__":
+    # Debug and testing use only
+
+    import time
+
+    from PIL import Image
+
+    ms.set_context(mode=ms.PYNATIVE_MODE, pynative_synchronize=True)
+    # ms.set_context(mode = ms.GRAPH_MODE) # NOT SUPPORTED YET
+
+    # config.json
+    config_json = {
+        "architectures": ["Emu3ForCausalLM"],
+        "attention_dropout": 0.1,
+        "auto_map": {
+            "AutoConfig": "configuration_emu3.Emu3Config",
+            "AutoModelForCausalLM": "modeling_emu3.Emu3ForCausalLM",
+        },
+        "boi_token_id": 151852,
+        "bos_token_id": 151849,
+        "eof_token_id": 151847,
+        "eoi_token_id": 151853,
+        "eol_token_id": 151846,
+        "eos_token_id": 151850,
+        "hidden_act": "silu",
+        "hidden_size": 4096,
+        "image_area": 262144,
+        "img_token_id": 151851,
+        "initializer_range": 0.02,
+        "intermediate_size": 14336,
+        "max_position_embeddings": 5120,
+        "model_type": "Emu3",
+        "num_attention_heads": 32,
+        "num_hidden_layers": 32,
+        "num_key_value_heads": 8,
+        "pad_token_id": 151643,
+        "pretraining_tp": 1,
+        "rms_norm_eps": 1e-05,
+        "rope_scaling": None,
+        "rope_theta": 1000000.0,
+        "tie_word_embeddings": False,
+        "torch_dtype": "float32",
+        "transformers_version": "4.44.0",
+        "use_cache": True,
+        "vocab_size": 184622,
+        "attn_implementation": "flash_attention_2",
+    }
+
+    # TEST: loading model
+    start_time = time.time()
+    config = Emu3Config(**config_json)
+    try:
+        model = Emu3ForCausalLM(config).set_train(False)
+        print("*" * 100)
+        print("Test passed: Sucessfully loaded Emu3ForCausalLM")
+        print("Time elapsed: %.4fs" % (time.time() - start_time))
+        print("*" * 100)
+    except RuntimeError:
+        raise RuntimeError("Load Emu3ForCausalLM Error.")
+
+    # TEST: load processor
+    start_time = time.time()
+    from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer
+    from emu3.mllm.processing_emu3 import Emu3Processor
+    from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
+
+    from mindone.utils.amp import auto_mixed_precision
+
+    EMU_HUB = "BAAI/Emu3-Gen"
+    VQ_HUB = "BAAI/Emu3-VisionTokenizer"
+    VQ_DTYPE = ms.bfloat16
+    try:
+        tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
+        image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
+        image_tokenizer = Emu3VisionVQModel.from_pretrained(
+            VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE
+        ).set_train(False)
+        image_tokenizer = auto_mixed_precision(
+            image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
+        )
+        processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
+        print("*" * 100)
+        print("Test passed: Sucessfully loaded Emu3Processor")
+        print("Time elapsed: %.4fs" % (time.time() - start_time))
+        print("*" * 100)
+    except RuntimeError:
+        raise RuntimeError("Load Emu3Processor Error.")
+
+    # TEST: process input
+    start_time = time.time()
+    text = ["Describe this image."]
+    w, h = 1024, 512
+    image_path = "demo.jpeg"  # REPLACE with your image
+    image_inputs = [Image.open(image_path).convert("RGB").resize((w, h))]
+    # image = np.uint8(np.random.rand(h, w, 3) * 255)
+    # image_inputs = [Image.fromarray(image).convert("RGB")]
+    inputs = processor(
+        text=text,
+        image=image_inputs,
+        mode="U",
+        padding_image=True,
+        padding="longest",
+        return_tensors="np",
+    )
+    print("*" * 100)
+    print("Test passed: Sucessfully processed input data using Emu3Processor")
+    print("Time elapsed: %.4fs" % (time.time() - start_time))
+    print("*" * 100)
+
+    # TEST: dummy inference
+    from transformers.generation.configuration_utils import GenerationConfig
+
+    GENERATION_CONFIG = GenerationConfig(
+        pad_token_id=tokenizer.pad_token_id, bos_token_id=tokenizer.bos_token_id, eos_token_id=tokenizer.eos_token_id
+    )
+    start_time = time.time()
+    try:
+        generated_ids = model.generate(
+            ms.Tensor(inputs.input_ids, dtype=ms.int32),
+            GENERATION_CONFIG,
+            max_new_tokens=128,
+            attention_mask=ms.Tensor(inputs.attention_mask),
+        )
+        print("*" * 100)
+        print("Test passed: Sucessfully generated tokens using Emu3ForCausalLM")
+        print(f"generated_ids length / #steps: {len(generated_ids[0])}")
+        elapsed = time.time() - start_time
+        print("Time elapsed: %.4fs" % (elapsed))
+        print("Average speed %.4fs/step" % (elapsed / len(generated_ids[0])))
+        print("*" * 100)
+    except RuntimeError:
+        raise RuntimeError("Run generate() Error.")
+
+    start_time = time.time()
+    try:
+        answers = processor.batch_decode(generated_ids, skip_special_tokens=True)
+        for ans in answers:
+            print(ans)
+        print("*" * 100)
+        print("Test passed: Sucessfully detokenize generated tokens")
+        print("Time elapsed: %.4fs" % (time.time() - start_time))
+        print("*" * 100)
+    except RuntimeError:
+        raise RuntimeError("Run Qwen2VLProcessor.decode() Error.")
