@@ -9,7 +9,7 @@
 <br>
 The model architecture has been optimized for handling arbitrary image resolutions through [Naive Dynamic Resolution](#naive-dynamic-resolution) support and utilizes [Multimodal Rotary Position Embedding (M-ROPE)](#multimodal-rotary-position-embedding-m-rope) to effectively process both 1D textual and multi-dimensional visual data. This updated model demonstrates competitive performance against leading AI systems like GPT-4o and Claude 3.5 Sonnet in vision-related tasks and ranks highly among open-source models in text capabilities. These advancements make Qwen2-VL a versatile tool for various applications requiring robust multimodal processing and reasoning abilities.
 
-**Environment requirements:** Python, Mindspore, Mindone (todo), Transformers (latest)
+**Environment requirements:** Python, Mindspore, Mindone, Transformers (>=4.45.0)
 
 ## 1. Framework Overview 流程概览
 Qwen2-VL adapted [ViT](https://github.com/google-research/vision_transformer#vision-transformer)'s encoder as Vision Encoder, and LLM [Qwen2](https://github.com/QwenLM/Qwen2)'s decoder as Decoder.
@@ -269,6 +269,36 @@ class Qwen2VLForConditionalGeneration():
                 video_embeds = video_embeds.to(inputs_embeds.dtype)
                 inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
 
+        # if we get 4D attention mask we cannot calculate rope deltas anymore. 
+        if position_ids is None and (attention_mask is None or attention_mask.ndim == 2):
+            # calculate RoPE index once per generation in the pre-fill stage only
+            past_seen_tokens = 0
+            if past_key_values is not None:
+                past_seen_tokens = (
+                    get_seq_length(past_key_values)
+                    if isinstance(past_key_values, tuple)
+                    else past_key_values.get_seq_length()
+                )
+            if (
+                (cache_position is not None and cache_position[0] == 0)
+                or self.rope_deltas is None
+                or (past_seen_tokens == 0)
+            ):
+                position_ids, rope_deltas = self.get_rope_index(
+                    input_ids, image_grid_thw, video_grid_thw, attention_mask
+                )
+                self.rope_deltas = rope_deltas
+            # then use the prev pre-calculated rope-deltas to get the correct position ids
+            else:
+                batch_size, seq_length, _ = inputs_embeds.shape
+                delta = cache_position[0] + self.rope_deltas if cache_position is not None else 0
+                position_ids = ops.arange(seq_length)
+                position_ids = position_ids.view(1, -1).broadcast_to((batch_size, -1))
+                if cache_position is not None:  # otherwise `deltas` is an int `0`
+                    delta = delta.repeat_interleave(batch_size // delta.shape[0], dim=0)
+                position_ids = position_ids.add(delta)
+                position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1))
+
         # Decode embeddings
         outputs = self.model(
             input_ids=None,
@@ -281,28 +311,12 @@ class Qwen2VLForConditionalGeneration():
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-
         hidden_states = outputs[0]
         logits = self.lm_head(hidden_states)
         logits = logits.float()
 
-        # Training
-        loss = None
-        if labels is not None:
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :].contiguous()
-            shift_labels = labels[..., 1:].contiguous()
-            # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
-            shift_logits = shift_logits.view((-1, self.config.vocab_size))
-            shift_labels = shift_labels.view((-1))
-            loss = loss_fct(shift_logits, shift_labels)
+        ...
 
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
-
-        # TODO simplify
         return Qwen2VLCausalLMOutputWithPast(
             loss=loss,
             logits=logits,
@@ -342,7 +356,6 @@ generation_output = model.generate(Tensor(inputs.input_ids)) # generated sequenc
 ### Naive Dynamic Resolution
 Qwen2-VL can handle arbitrary image resolutions, mapping them into a dynamic number of visual tokens, offering a more human-like visual processing experience.
 
-TODO: explain more
 
 ### Multimodal Rotary Position Embedding (M-ROPE)
 Decomposes positional embedding into parts to capture 1D textual, 2D visual, and 3D video positional information, enhancing its multimodal processing capabilities.
@@ -373,6 +386,8 @@ Explanation:
         text height position_ids: [3, 4, 5, 6, 7]
         text width position_ids: [3, 4, 5, 6, 7]
         Here we calculate the text start position_ids as the max vision position_ids plus 1.
+
+<details>
 
 ```python
 class Qwen2VLForConditionalGeneration():
@@ -410,15 +425,14 @@ class Qwen2VLForConditionalGeneration():
         video_token_id = self.config.video_token_id
         vision_start_token_id = self.config.vision_start_token_id
         mrope_position_deltas = []
-        if image_grid_thw is not None or video_grid_thw is not None: # For vision input
+        if input_ids is not None and (image_grid_thw is not None or video_grid_thw is not None):
             total_input_ids = input_ids
-            position_ids = ops.ones(
-                (3, input_ids.shape[0], input_ids.shape[1]), dtype=input_ids.dtype
-            )
+            if attention_mask is None:
+                attention_mask = ops.ones_like(total_input_ids)
+            position_ids = ops.ones((3, input_ids.shape[0], input_ids.shape[1]), dtype=input_ids.dtype)
             image_index, video_index = 0, 0
             for i, input_ids in enumerate(total_input_ids):
-                if attention_mask is not None:
-                    input_ids = input_ids[attention_mask[i] == 1]
+                input_ids = input_ids[attention_mask[i] == 1]
                 image_nums, video_nums = 0, 0
                 vision_start_indices = ops.argwhere(input_ids == vision_start_token_id).squeeze(1)
                 vision_tokens = input_ids[vision_start_indices + 1]
@@ -465,9 +479,24 @@ class Qwen2VLForConditionalGeneration():
                     st_idx = llm_pos_ids_list[-1].max() + 1 if len(llm_pos_ids_list) > 0 else 0
                     llm_pos_ids_list.append(ops.arange(text_len).view(1, -1).broadcast_to((3, -1)) + st_idx)
 
-                    t_index = ops.arange(llm_grid_t).view((-1, 1)).broadcast_to((-1, llm_grid_h * llm_grid_w)).flatten()
-                    h_index = ops.arange(llm_grid_h).view((1, -1, 1)).broadcast_to((llm_grid_t, -1, llm_grid_w)).flatten()
-                    w_index = ops.arange(llm_grid_w).view((1, 1, -1)).broadcast_to((llm_grid_t, llm_grid_h, -1)).flatten()
+                    t_index = (
+                        ops.arange(llm_grid_t)
+                        .view((-1, 1))
+                        .broadcast_to((-1, llm_grid_h * llm_grid_w))
+                        .flatten(start_dim=0)
+                    )
+                    h_index = (
+                        ops.arange(llm_grid_h)
+                        .view((1, -1, 1))
+                        .broadcast_to((llm_grid_t, -1, llm_grid_w))
+                        .flatten(start_dim=0)
+                    )
+                    w_index = (
+                        ops.arange(llm_grid_w)
+                        .view((1, 1, -1))
+                        .broadcast_to((llm_grid_t, llm_grid_h, -1))
+                        .flatten(start_dim=0)
+                    )
                     llm_pos_ids_list.append(ops.stack([t_index, h_index, w_index]) + text_len + st_idx)
                     st = ed + llm_grid_t * llm_grid_h * llm_grid_w
 
@@ -477,8 +506,8 @@ class Qwen2VLForConditionalGeneration():
                     llm_pos_ids_list.append(ops.arange(text_len).view((1, -1)).broadcast_to((3, -1)) + st_idx)
 
                 llm_positions = ops.cat(llm_pos_ids_list, axis=1).reshape(3, -1)
-                position_ids[..., i, attention_mask[i] == 1] = llm_positions
-                mrope_position_deltas.append(llm_positions.max() + 1 - len(total_input_ids[i]))
+                position_ids[..., i, attention_mask[i] == 1] = llm_positions.to(input_ids.dtype)
+                mrope_position_deltas.append(llm_positions.max().item() + 1 - len(total_input_ids[i]))
             mrope_position_deltas = ms.Tensor(mrope_position_deltas).unsqueeze(1)
             return position_ids, mrope_position_deltas
         else:
@@ -489,126 +518,22 @@ class Qwen2VLForConditionalGeneration():
                 max_position_ids = position_ids.max(0, keepdims=False)[0].max(-1, keepdims=True)[0]
                 mrope_position_deltas = max_position_ids + 1 - attention_mask.shape[-1]
             else:
-                position_ids = (
-                    ops.arange(input_ids.shape[1])
-                    .view((1, 1, -1))
-                    .broadcast_to((3, input_ids.shape[0], -1))
-                )
+                position_ids = ops.arange(input_ids.shape[1]).view((1, 1, -1)).broadcast_to((3, input_ids.shape[0], -1))
                 mrope_position_deltas = ops.zeros(
                     [input_ids.shape[0], 1],
                     dtype=input_ids.dtype,
                 )
 
             return position_ids, mrope_position_deltas
-
-    def prepare_inputs_for_generation(
-        self,
-        input_ids,
-        past_key_values=None,
-        attention_mask=None,
-        inputs_embeds=None,
-        cache_position=None,
-        position_ids=None,
-        use_cache=True,
-        pixel_values=None,
-        pixel_values_videos=None,
-        image_grid_thw=None,
-        video_grid_thw=None,
-        **kwargs,
-    ):
-        # If we have cache: let's slice `input_ids` through `cache_position`, to keep only the unprocessed tokens
-        # Exception 1: when passing input_embeds, input_ids may be missing entries
-        # Exception 2: some generation methods do special slicing of input_ids, so we don't need to do it here
-        if past_key_values is not None:
-            if inputs_embeds is not None:  # Exception 1
-                input_ids = input_ids[:, -cache_position.shape[0] :]
-            elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
-                input_ids = input_ids[:, cache_position]
-
-        rope_deltas = kwargs.get("rope_deltas", None)
-        if attention_mask is not None and position_ids is None:
-            if cache_position is None or (cache_position is not None and cache_position[0] == 0):
-                position_ids, rope_deltas = self.get_rope_index(
-                    input_ids, image_grid_thw, video_grid_thw, attention_mask
-                )
-            else:
-                batch_size, seq_length = input_ids.shape
-                delta = (
-                    cache_position[0] + rope_deltas if cache_position is not None and rope_deltas is not None else 0
-                )
-                position_ids = ops.arange(seq_length)
-                position_ids = position_ids.view((1, -1)).broadcast_to((batch_size, -1))
-                position_ids = position_ids.add(delta)
-                position_ids = position_ids.unsqueeze(0).broadcast_to((3, -1, -1))
-
-        if cache_position[0] != 0:
-            pixel_values = None
-            pixel_values_videos = None
-
-        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
-        if inputs_embeds is not None and cache_position[0] == 0:
-            model_inputs = {"inputs_embeds": inputs_embeds, "input_ids": None}
-        else:
-            model_inputs = {"input_ids": input_ids, "inputs_embeds": None}
-
-        if isinstance(past_key_values, StaticCache) and attention_mask.ndim == 2:
-            if model_inputs["inputs_embeds"] is not None:
-                batch_size, sequence_length, _ = inputs_embeds.shape  
-            else:
-                batch_size, sequence_length = input_ids.shape
-
-            dtype = self.lm_head.weight.dtype
-            min_dtype = dtype_to_min(dtype) # a function to get minimal value of the dtype
-
-            attention_mask = _prepare_4d_causal_attention_mask_with_cache_position(
-                attention_mask,
-                sequence_length=sequence_length,
-                target_length=past_key_values.get_max_length(),
-                dtype=dtype,
-                min_dtype=min_dtype,
-                cache_position=cache_position,
-                batch_size=batch_size,
-            )
-
-        model_inputs.update(
-            {
-                "position_ids": position_ids,
-                "past_key_values": past_key_values,
-                "use_cache": use_cache,
-                "attention_mask": attention_mask,
-                "pixel_values": pixel_values,
-                "pixel_values_videos": pixel_values_videos,
-                "image_grid_thw": image_grid_thw,
-                "video_grid_thw": video_grid_thw,
-                "rope_deltas": rope_deltas,
-            }
-        )
-        return model_inputs
 ```
 
-<!-- #### Revisit: Rotary Position Embedding (1D-ROPE) -->
-
+</details>
 
 #### M-ROPE
-```python
-def _compute_default_rope_parameters(
-    config = None
-) -> Tuple["ms.Tensor", float]:
-    """
-    Computes the inverse frequencies according to the original RoPE implementation
-    Returns:
-        Tuple of (`mindspore.Tensor`, `float`), containing the inverse frequencies for the RoPE embeddings and the
-        post-processing scaling factor applied to the computed cos/sin (unused in this type of RoPE).
-    """
-    base = config.rope_theta
-    partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
-    dim = int((config.hidden_size // config.num_attention_heads) * partial_rotary_factor)
-    attention_factor = 1.0  # Unused in this type of RoPE
-    # Compute the inverse frequencies
-    inv_freq = 1.0 / (base ** (ops.arange(0, dim, 2, dtype=ms.int64).float() / dim))
-    return inv_freq, attention_factor
 
-# Hightlight !
+<details>
+
+```python
 class Qwen2VLRotaryEmbedding(nn.Cell):
     def __init__(
         self,
@@ -620,37 +545,20 @@ class Qwen2VLRotaryEmbedding(nn.Cell):
         config = None,
     ):
         super().__init__()
-        self.rope_kwargs = {}
-        self.rope_type = rope_type
         self.max_seq_len_cached = config.max_position_embeddings
         self.original_max_seq_len = config.max_position_embeddings
         self.config = config
 
-        self.rope_init_fn = _compute_default_rope_parameters
-        self.inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
+        # Use "default" rope type
+        # Compute the inverse frequencies
+        base = config.rope_theta  # Qwen2-VL used 1000,000.0
+        partial_rotary_factor = config.partial_rotary_factor if hasattr(config, "partial_rotary_factor") else 1.0
+        dim = int((config.hidden_size // config.num_attention_heads) * partial_rotary_factor)
+        self.inv_freq = 1.0 / (base ** (ops.arange(0, dim, 2, dtype=ms.int32).float() / dim))
         self.original_inv_freq = self.inv_freq
-
-    def _dynamic_frequency_update(self, position_ids):
-        """
-        dynamic RoPE layers should recompute `inv_freq` in the following situations:
-        1 - growing beyond the cached sequence length (allow scaling)
-        2 - the current sequence length is in the original scale (avoid losing precision with small sequences)
-        """
-        seq_len = ops.max(position_ids) + 1
-        if seq_len > self.max_seq_len_cached:  # growth
-            self.inv_freq, self.attention_scaling = self.rope_init_fn(
-                self.config, seq_len=seq_len, **self.rope_kwargs
-            )
-            self.max_seq_len_cached = seq_len
-
-        if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:  # reset
-            self.inv_freq = self.original_inv_freq
-            self.max_seq_len_cached = self.original_max_seq_len
+        self.attention_scaling = 1.0  # Unused in this type of RoPE
 
     def construct(self, x, position_ids):
-        if "dynamic" in self.rope_type:
-            self._dynamic_frequency_update(position_ids)
-
         # Core RoPE block. In contrast to other models, Qwen2_VL has different position ids for thw grids
         # So we expand the inv_freq to shape (3, ...)
         inv_freq_expanded = self.inv_freq[None, None, :, None].float().broadcast_to((3, position_ids.shape[1], -1, 1))
@@ -725,24 +633,15 @@ class Qwen2VisionTransformerPretrainedModel:
         return rotary_pos_emb
 ```
 
+</details>
+
 ### 2.2. Visual Encoder
-<!-- #### Revisit Vision Transformer (ViT)
 
-<div style="display: block; margin-left: auto;  margin-right: auto; width:80%" >
-<img src="https://github.com/google-research/vision_transformer/raw/main/vit_figure.png" alt="ViT architecture" width="100%"/>
-
-<br> _ViT architecture. Taken from [original paper](https://arxiv.org/abs/2010.11929)._
-</div>
-
-```python
-To supplement
-``` -->
 
 #### Qwen2-VL ViT
-Architecture: TODO: descrption + figure
-- Conv3D => RotaryEmbedding => ViTEnocder
 
-TODO: simplify code
+<details>
+
 ```python
 import mindspore as ms
 from mindspore import nn
@@ -940,31 +839,31 @@ class Qwen2VLAttention(nn.Cell):
 
         return attn_output, attn_weights, past_key_value
 
-def scaled_dot_product_attention():
-    ...
-
-class VisionSdpaAttention(nn.Cell):
+class VisionAttention(nn.Cell):
     def __init__(self, dim: int, num_heads: int = 16) -> None:
         super().__init__()
         self.num_heads = num_heads
-        self.qkv = nn.Linear(dim, dim * 3, bias=True)
-        self.proj = nn.Linear(dim, dim)
+        self.head_dim = dim // num_heads
+        self.qkv = nn.Dense(dim, dim * 3, has_bias=True)
+        self.proj = nn.Dense(dim, dim, has_bias=True)
 
-    def construct(
-        self, hidden_states: ms.Tensor, cu_seqlens: ms.Tensor, rotary_pos_emb: ms.Tensor = None
-    ) -> ms.Tensor:
+    def construct(self, hidden_states: ms.Tensor, cu_seqlens: ms.Tensor, rotary_pos_emb: ms.Tensor = None) -> ms.Tensor:
         seq_length = hidden_states.shape[0]
         q, k, v = self.qkv(hidden_states).reshape(seq_length, 3, self.num_heads, -1).permute(1, 0, 2, 3).unbind(0)
         q = apply_rotary_pos_emb_vision(q.unsqueeze(0), rotary_pos_emb).squeeze(0)
         k = apply_rotary_pos_emb_vision(k.unsqueeze(0), rotary_pos_emb).squeeze(0)
 
-        attention_mask = ops.zeros([1, seq_length, seq_length], dtype=ms.bool)
+        attention_mask = ops.full([1, seq_length, seq_length], dtype_to_min(q.dtype), dtype=q.dtype)
         for i in range(1, len(cu_seqlens)):
-            attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = True
+            attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = 0
+
         q = q.swapaxes(0, 1)
         k = k.swapaxes(0, 1)
         v = v.swapaxes(0, 1)
-        attn_output = scaled_dot_product_attention(q, k, v, attention_mask, dropout_p=0.0)
+        attn_weights = ops.matmul(q, k.swapaxes(1, 2)) / math.sqrt(self.head_dim)
+        attn_weights = attn_weights + attention_mask
+        attn_weights = ops.softmax(attn_weights, axis=-1).to(q.dtype)
+        attn_output = ops.matmul(attn_weights, v)
         attn_output = attn_output.swapaxes(0, 1)
         attn_output = attn_output.reshape(seq_length, -1)
         attn_output = self.proj(attn_output)
@@ -985,7 +884,7 @@ class Qwen2VLVisionBlock(nn.Cell):
         self.norm1 = LayerNorm((config.embed_dim,), epsilon=1e-6)
         self.norm2 = LayerNorm((config.embed_dim,), epsilon=1e-6)
         mlp_hidden_dim = int(config.embed_dim * config.mlp_ratio)
-        self.attn = VisionSdpaAttention(config.embed_dim, num_heads=config.num_heads)
+        self.attn = VisionAttention(config.embed_dim, num_heads=config.num_heads)
         self.mlp = VisionMlp(dim=config.embed_dim, hidden_dim=mlp_hidden_dim, hidden_act=config.hidden_act)
 
     def construct(self, hidden_states, cu_seqlens, rotary_pos_emb) -> ms.Tensor:
@@ -1011,8 +910,11 @@ class PatchMerger(nn.Cell):
         return x
 ```
 
+</details>
 
 ### 2.3. LM Decoder
+<details>
+
 ```python
 class Qwen2VLModel(Qwen2VLPreTrainedModel):
     def __init__(self, config: Qwen2VLConfig):
@@ -1201,12 +1103,14 @@ class Qwen2VLDecoderLayer(nn.Cell):
         return outputs
 ```
 
+</details>
+
 ### 2.4. [Optional] Vision Preprocessing
 Convert all images or video frames into a list of Pillow Image.
 Can downsample total frames by setting smaller FPS (i.e., 'fps' in config).
 For example, for a video with 24FPS, total 1200 frame, with new 1 FPS. We can get a list of
 
-Refer to qwen_vl_utils.
+Refer to `mindone/transformers/models/qwen2-vl/qwen_vl_utils`.
 
 
 ## 3. Inference Pipelines
@@ -1223,7 +1127,11 @@ from transformers import AutoProcessor
 from mindone.transformers import Qwen2VLForConditionalGeneration
 
 # Load the model and processor
-model = Qwen2VLForConditionalGeneration.from_pretrained("Qwen/Qwen2-VL-7B-Instruct")
+model = Qwen2VLForConditionalGeneration.from_pretrained(
+    "Qwen/Qwen2-VL-7B-Instruct",
+    mindspore_dtype=ms.float16,
+    attn_implementation="flash_attention_2"
+).set_train(False)
 processor = AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct") # Qwen2VLProcessor
 
 
@@ -1255,14 +1163,18 @@ url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen-VL/assets/demo.jpeg"
 image_inputs = [Image.open(requests.get(url, stream=True).raw)]
 video_inputs = None
 inputs = processor(text=[text_prompt], images=image_inputs, videos=video_inputs, padding=True, return_tensors="np")
+# convert input to Tensor
+for key, value in inputs.items():
+    if isinstance(value, np.ndarray):
+        inputs[key] = ms.Tensor(value)
+    elif isinstance(value, list):
+        inputs[key] = ms.Tensor(value)
+    if inputs[key].dtype == ms.int64:
+        inputs[key] = inputs[key].to(ms.int32)
 
 # Inference: Generation of the output
-output_ids = model.generate(Tensor(inputs.input_ids), max_new_tokens=128)
-generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in zip(inputs.input_ids, output_ids)]
-generated_ids_trimmed = [
-    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-]
-output_text = processor.batch_decode(generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+generated_ids = model.generate(**inputs, max_new_tokens=128)
+output_text = processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
 print(output_text[0])
 # Expected output:
 # 'The image depicts a serene beach scene at sunset. A woman and her dog are sitting on the sand, enjoying each other's company. The woman is wearing a plaid shirt and dark pants, and she is sitting cross-legged with her dog. The dog, which appears to be a large breed, is wearing a colorful harness and is giving a high-five to the woman. The beach is relatively empty, with gentle waves in the background. The lighting is warm and golden, indicating that the photo was taken during the golden hour, just before sunset. The overall atmosphere of the image is peaceful and joyful.'
@@ -1323,18 +1235,22 @@ video_info = {"type": "video", "video": "/path/to/video.mp4", "fps": 1.0}
 video_inputs = fetch_video(video_info)
 image_inputs = None
 inputs = processor(text=[text_prompt], images=image_inputs, videos=video_inputs, padding=True, return_tensors="np")
-output_ids = model.generate(Tensor(inputs.input_ids), max_new_tokens=128)
-generated_ids = [output_ids[len(input_ids):] for input_ids, output_ids in zip(inputs.input_ids, output_ids)]
-generated_ids_trimmed = [
-    out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-]
-output_text = processor.batch_decode(generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+# convert input to Tensor
+for key, value in inputs.items():
+    if isinstance(value, np.ndarray):
+        inputs[key] = ms.Tensor(value)
+    elif isinstance(value, list):
+        inputs[key] = ms.Tensor(value)
+    if inputs[key].dtype == ms.int64:
+        inputs[key] = inputs[key].to(ms.int32)
+generated_ids = model.generate(**inputs, max_new_tokens=128)
+output_text = processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)
 print(output_text[0])
 
 ```
 
-### Multiple Media inference
+<!-- ### Multiple Media inference
 TODO: add another example
 
 ## 4. Finetune
-TODO
+TODO -->
