@@ -24,11 +24,13 @@ from mindspore.experimental import optim
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+# sys.path.insert(0, ".")
 
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.models.modeling_vlm import MultiModalityConfig
 from janus.utils.io import set_model_param_dtype
+from janus.train.lr_schedule import WarmupCosineDecayLR
+from janus.train.utils import  gen_t2i_train_sample
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import CheckpointManager
@@ -151,10 +153,12 @@ def main(args):
     vl_gpt.gen_vision_model.set_grad(requires_grad=False)
 
     # FIXME: DEBUG: set token embedding table for text and image to be non-trainable
-    for module in (vl_gpt.gen_embed, vl_gpt.language_model.model.embed_tokens):
-        module.set_train(False)
-        for param in module.get_parameters():
-            param.requires_grad = False 
+    freeze_embed_tables = args.freeze_embedding 
+    if freeze_embed_tables:
+        for module in (vl_gpt.gen_embed, vl_gpt.language_model.model.embed_tokens):
+            module.set_train(False)
+            for param in module.get_parameters():
+                param.requires_grad = False 
 
     tot_params = len(list(vl_gpt.get_parameters()))
     print(f'tot params: {tot_params}, trainable params: {num_train_params}, frozen params: {num_frozen_params}')
@@ -164,32 +168,26 @@ def main(args):
 
     # 2. prepare dataset and loader
     # FIXME: add dataset and loader. this is a toy data sample for i2v debug
-    from tests.test_toy_data import  gen_t2i_train_sample
     input_ids, labels, attention_masks, image_seq_masks, image = gen_t2i_train_sample(max_length=args.max_length)
     
     # 3. setup trainer and config hyper-params 
-    '''
-    lr = create_scheduler(
-        steps_per_epoch=-1,
-        name="cosine_decay",
-        lr=1e-5,
-        end_lr=1e-6,
-        warmup_steps=30,
-        # decay_steps=args.decay_steps,
-        total_steps=args.train_steps,
-    )
-    loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # FIXME
-    '''
-    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1) 
-
+    # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # FIXME
     # hyper params refer to emu3 sft.
     # FIXME:  use cosine_with_min_lr w/ lr=1e-5 min=1e-6, but mint adamw don't support lr list.
-
     optimizer = ms.mint.optim.AdamW(vl_gpt.trainable_params(),
         lr=args.learning_rate,
         betas=(0.9, 0.95),
         weight_decay=args.weight_decay,
         eps=1e-6,
+        )
+    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1) 
+    assert args.warmup_steps < args.train_steps
+    # FIXME: allow setting min lr
+    scheduler = WarmupCosineDecayLR(optimizer,
+        lr_max=args.learning_rate,
+        lr_min=args.learning_rate * 0.1,
+        warmup_steps=args.warmup_steps,
+        decay_steps=args.train_steps - args.warmup_steps,
         )
 
     use_value_and_grad = args.use_value_and_grad
@@ -200,11 +198,12 @@ def main(args):
 
         grad_fn = ms.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=False)
         if args.use_parallel:
-            # TODO: haven't used this API. need check
             grad_reducer = nn.DistributedGradReducer(optimizer.parameters)
 
         def train_step(data):
             loss, grads = grad_fn(data)
+            if args.use_parallel:
+                grads = grad_reducer(grads)
             optimizer(grads)
 
             return loss
@@ -224,7 +223,7 @@ def main(args):
     # TODO: suppor training resume 
     start_epoch = 0
     if rank_id == 0:
-        ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=2)
+        ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
         if not os.path.exists(ckpt_dir):
             os.makedirs(ckpt_dir)
         perf_columns = ["step", "loss", "train_time(s)"]
@@ -261,14 +260,15 @@ def main(args):
         )
         
         # TODO: add lr step?
-        # print("lr: ", optimizer.get_lr())
-        # lr_scheduler.step()
+        scheduler.step()
+        # print("lr", [lr for lr in optimizer.lrs])
+        print("current lr: ", scheduler.get_last_lr())
 
         if rank_id == 0:
             step_pref_value = [step, loss_val, step_time]
             record.add(*step_pref_value)
 
-        if (step > 0) and ((step+1)  % 500 == 0): 
+        if (step > 0) and ((step+1)  % args.ckpt_save_steps == 0): 
             ckpt_name = f"model-s{step}.ckpt"
             ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
         start_time_s = time.time()
@@ -290,13 +290,16 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--use_value_and_grad", default=False, type=str2bool, help="if False, use mindone wrapped trainer. if True, use custom step based on `value_and_grad` api")
+    parser.add_argument("--freeze_embedding", default=False, type=str2bool, help="if Ture, freeze llm embedding table and gen embedding table (nn.Embedding)")
     parser.add_argument("--output_path", default="outputs/janus-sft", type=str, help="output directory to save training results")
 
     # training hyperparms
     parser.add_argument("--learning_rate", default=5e-6, type=float, help="learning rate")
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
-    parser.add_argument("--train_steps", default=5000, type=int, help="training step")
-    parser.add_argument("--ckpt_save_steps", default=100, type=int, help="save ckpt every this step")
+    parser.add_argument("--train_steps", default=5000, type=int, help="training steps")
+    parser.add_argument("--warmup_steps", default=100, type=int, help="lr warmup steps")
+    parser.add_argument("--ckpt_save_steps", default=500, type=int, help="save ckpt every this step")
+    parser.add_argument("--ckpt_max_keep", default=3, type=int, help="")
     parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded to this max length")
 
     args = parser.parse_args()
