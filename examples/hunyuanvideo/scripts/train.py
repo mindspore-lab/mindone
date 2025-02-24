@@ -267,6 +267,7 @@ def main(args):
                 f"JIT level: {args.env.jit_level}",
                 f"Distributed mode: {args.env.distributed}",
                 f"Data path: {args.dataset.csv_path}",
+                f"Data sink mode: {args.train.data_sink_mode}",
                 f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {model_dtype}",
@@ -295,7 +296,14 @@ def main(args):
     # 6. train
     logger.info("Start training...")
     # train() uses epochs, so the training will be terminated by the StopAtStepCallback
-    model.train(args.train.steps, dataloader, callbacks=callbacks, initial_epoch=start_epoch)
+    model.train(
+        args.train.steps,
+        dataloader,
+        callbacks=callbacks,
+        initial_epoch=start_epoch,
+        dataset_sink_mode=args.train.data_sink_mode,
+        sink_size=args.train.data_sink_size,
+    )
 
 
 if __name__ == "__main__":
@@ -345,6 +353,8 @@ if __name__ == "__main__":
         help="Output directory to save training results.",
     )
     parser.add_argument("--train.steps", default=100, type=int, help="Number of steps to train. Default: 100.")
+    parser.add_argument("--train.data_sink_mode", default=False, type=bool, help="Whether to turn on data sink mode.")
+    parser.add_argument("--train.data_sink_size", default=-1, type=int, help="The data sink size when sink mode is ON.")
     parser.link_arguments("train.steps", "train.lr_scheduler.total_steps", apply_on="parse")
     parser.add_class_arguments(
         EvalSaveCallback,
