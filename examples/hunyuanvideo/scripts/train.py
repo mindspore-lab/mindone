@@ -263,7 +263,7 @@ def main(args):
                 f"JIT level: {args.env.jit_level}",
                 f"Distributed mode: {args.env.distributed}",
                 f"Data path: {args.dataset.csv_path}",
-                f"Data sink mode: {args.train.data_sink_mode}",
+                f"Data sink mode (sink size): {args.train.data_sink_mode} ({args.train.data_sink_size})",
                 f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {model_dtype}",
