@@ -37,16 +37,12 @@ def initialize_dataset(
     dataset_args, dataloader_args, device_num: int, shard_rank_id: int
 ) -> Tuple[Union[ds.BatchDataset, ds.BucketBatchByLengthDataset], int]:
     dataset = ImageVideoDataset(**dataset_args)
-    transforms = (
-        dataset.train_transforms(dataset_args.target_size) if not dataset_args.apply_transforms_dataset else None
-    )
 
     dataloader_args = dataloader_args.as_dict()
     batch_size = dataloader_args.pop("batch_size")
     dataloader = create_dataloader(
         dataset,
         batch_size=batch_size if isinstance(batch_size, int) else 0,  # Turn off batching if using buckets
-        transforms=transforms,
         device_num=device_num,
         rank_id=shard_rank_id,
         **dataloader_args,

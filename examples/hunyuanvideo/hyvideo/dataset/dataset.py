@@ -10,12 +10,8 @@ import cv2
 import numpy as np
 from hyvideo.constants import VAE_PATH
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
-from hyvideo.utils.dataset_utils import DecordDecoder
+from hyvideo.utils.dataset_utils import DecordDecoder, create_video_transforms
 from tqdm import tqdm
-
-from mindone.data import BaseDataset
-
-from .transforms import ResizeCrop
 
 _logger = logging.getLogger(__name__)
 
@@ -23,7 +19,7 @@ _logger = logging.getLogger(__name__)
 IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 
 
-class ImageVideoDataset(BaseDataset):
+class ImageVideoDataset:
     """
     A dataset for loading image and video data from a CSV file.
 
@@ -44,8 +40,6 @@ class ImageVideoDataset(BaseDataset):
         frames_mask_generator: The mask generator for frames. Default: None.
         t_compress_func: The function that returns the number of frames in the compressed (latent) space. Default: None.
         filter_data: Whether to filter out samples that are not found. Default: False.
-        apply_transforms_dataset: Whether to apply the transformations to the dataset immediately during loading.
-                                  Default: False.
         output_columns: The list of column names to output.
     """
 
@@ -66,7 +60,7 @@ class ImageVideoDataset(BaseDataset):
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
         t_compress_func: Optional[Callable[[int], int]] = None,
         filter_data: bool = False,
-        apply_transforms_dataset: bool = False,
+        tokenizer: Optional[Callable[[str], np.ndarray]] = None,
         *,
         output_columns: List[str],
         # VAE
@@ -100,10 +94,16 @@ class ImageVideoDataset(BaseDataset):
         self._t_compress_func = t_compress_func or (lambda x: x)
 
         self.output_columns = output_columns
+        self.tokenizer = tokenizer
 
-        self._transforms = (
-            self.train_transforms(target_size, interpolation=cv2.INTER_AREA) if apply_transforms_dataset else None
+        self.pixel_transforms = create_video_transforms(
+            size=target_size,
+            crop_size=target_size,
+            random_crop=False,
+            disable_flip=False,
+            num_frames=sample_n_frames,
         )
+
         self.vae_type = vae_type
         self.model_patch_size = model_patch_size
         self.model_hidden_size = model_hidden_size
@@ -251,7 +251,9 @@ class ImageVideoDataset(BaseDataset):
             if data["video"].lower().endswith(IMAGE_EXT):
                 num_frames = 1
                 data["fps"] = np.array(120, dtype=np.float32)  # FIXME: extract as IMG_FPS
-                data["video"] = cv2.cvtColor(cv2.imread(data["video"]), cv2.COLOR_BGR2RGB)
+                data["video"] = np.array(cv2.cvtColor(cv2.imread(data["video"]), cv2.COLOR_BGR2RGB))[
+                    None, ...
+                ]  # (1, H, W, 3)
             else:
                 decord_vr = DecordDecoder(data["video"])
                 min_length = self._min_length
@@ -273,13 +275,26 @@ class ImageVideoDataset(BaseDataset):
         if self._fmask_gen is not None:
             # return frames mask with respect to the vae's latent temporal compression
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
+        # video/image transforms: resize, crop, normalize, reshape
+        pixel_values = data["video"]
+        inputs = {"image": pixel_values[0]}
+        for i in range(num_frames - 1):
+            inputs[f"image{i}"] = pixel_values[i + 1]
 
-        if self._transforms:
-            data = self._apply_transforms(data)
+        output = self.pixel_transforms(**inputs)
+        pixel_values = np.stack(list(output.values()), axis=0)
+        # (t h w c) -> (c t h w)
+        pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
+        data["video"] = pixel_values / 127.5 - 1.0
 
         # rope frequencies
         data["freqs_cos"] = self.freqs_cos
         data["freqs_sin"] = self.freqs_sin
+
+        if "caption" in self.output_columns and not self._text_emb_folder:
+            if self.tokenizer is None:
+                raise RuntimeError("Please provide a tokenizer for text data.")
+            data["caption"] = self.tokenizer(data["caption"])
 
         return tuple(data[c] for c in self.output_columns)
 
@@ -302,40 +317,3 @@ class ImageVideoDataset(BaseDataset):
 
     def __len__(self):
         return len(self._data)
-
-    def _apply_transforms(self, data: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
-        for transform in self._transforms:
-            input_data = tuple(data[column] for column in transform["input_columns"])
-            for op in transform["operations"]:
-                input_data = op(*input_data)
-                if not isinstance(input_data, tuple):  # wrap numpy array in a tuple
-                    input_data = (input_data,)
-            data.update(zip(transform.get("output_columns", transform["input_columns"]), input_data))
-        return data
-
-    def train_transforms(
-        self,
-        target_size: Tuple[int, int],
-        interpolation: int = cv2.INTER_LINEAR,
-        tokenizer: Optional[Callable[[str], np.ndarray]] = None,
-    ) -> List[dict]:
-        transforms = []
-        if not self._vae_latent_folder:
-            transforms.append(
-                {
-                    "operations": [
-                        ResizeCrop(target_size, interpolation=interpolation),
-                        lambda x: x.astype(np.float32) / 127.5 - 1,
-                        lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
-                        lambda x: np.transpose(x, (3, 0, 1, 2)),  # T H W C -> C T H W
-                    ],
-                    "input_columns": ["video"],
-                }
-            )
-
-        if "caption" in self.output_columns and not self._text_emb_folder:
-            if tokenizer is None:
-                raise RuntimeError("Please provide a tokenizer for text data in `train_transforms()`.")
-            transforms.append({"operations": [tokenizer], "input_columns": ["caption"]})
-
-        return transforms
