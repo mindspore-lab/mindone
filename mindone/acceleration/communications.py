@@ -50,8 +50,11 @@ class SplitFowardGatherBackward(nn.Cell):
 
     def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
         dout = dout * self.scale
-        dout = _communicate_along_dim(dout, self.dim, self.gather)
-        return (dout,)
+        # dout = _communicate_along_dim(dout, self.dim, self.gather)
+        x = mint.transpose(x, 0, self.dim)
+        x = self.gather(x)
+        x = mint.transpose(x, self.dim, 0)
+        return (x,)
 
 
 class GatherFowardSplitBackward(nn.Cell):
@@ -70,7 +73,10 @@ class GatherFowardSplitBackward(nn.Cell):
             self.scale = 1 / self.world_size
 
     def construct(self, x: Tensor) -> Tensor:
-        x = _communicate_along_dim(x, self.dim, self.gather)
+        # x = _communicate_along_dim(x, self.dim, self.gather)
+        x = mint.transpose(x, 0, self.dim)
+        x = self.gather(x)
+        x = mint.transpose(x, self.dim, 0)
         return x
 
     def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
