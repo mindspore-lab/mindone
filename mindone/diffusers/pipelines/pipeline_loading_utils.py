@@ -299,6 +299,7 @@ def get_class_obj_and_candidates(
         else:
             # we just import it from the library.
             import importlib
+
             library = importlib.import_module(library_name)
             class_obj = getattr(library, class_name)
             class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
