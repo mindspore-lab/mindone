@@ -885,7 +885,7 @@ class GenerationMixin:
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
 
-                if not self._supports_default_dynamic_cache:  # use tuple cache
+                if not self._supports_default_dynamic_cache():  # use tuple cache
                     cur_lens = attention_mask.sum(-1)
                     for batch_idx in range(attention_mask.shape[0]):
                         cur_len = int(cur_lens[batch_idx])
@@ -1691,7 +1691,7 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        if not self._supports_default_dynamic_cache:  # if tuple cache
+        if not self._supports_default_dynamic_cache():  # if tuple cache
             (
                 padded_input_ids,
                 padded_inputs_embeds,
@@ -1754,7 +1754,7 @@ class GenerationMixin:
                 )
 
             # Tuple static cache
-            if (not self._supports_default_dynamic_cache) and (model_kwargs.get("attention_mask", None) is not None):
+            if (not self._supports_default_dynamic_cache()) and (model_kwargs.get("attention_mask", None) is not None):
                 attention_mask = model_kwargs["attention_mask"]
                 cur_idx = int(attention_mask.sum(-1).max()) - 1
 
