@@ -107,7 +107,6 @@ def main(args):
 
     start = time()
     recon_B3HW = var.autoregressive_infer_cfg(
-        var,
         B=B, label_B=label_B, cfg=3, top_k=900, top_p=0.95, g_seed=0, more_smooth=True,
         input_img_tokens=input_img_tokens, edit_mask=edit_mask
     )

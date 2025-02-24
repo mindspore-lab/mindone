@@ -160,7 +160,7 @@ class VectorQuantizer2(nn.Cell):
                            v_patch_nums: Optional[Sequence[Union[int, Tuple[int, int]]]] = None) -> List[
         Union[ms.Tensor]]:  # z_BChw is the feature from inp_img_no_grad
         B, C, H, W = f_BChw.shape
-        f_no_grad = f_BChw.detach()
+        f_no_grad = f_BChw
         f_rest = f_no_grad.clone()
         f_hat = mint.zeros_like(f_rest)
 
@@ -174,7 +174,7 @@ class VectorQuantizer2(nn.Cell):
         for si, (ph, pw) in enumerate(patch_hws):  # from small to large
             if 0 <= self.prog_si < si: break  # progressive training: not supported yet, prog_si always -1
             # find the nearest embedding
-            z_NC = F.interpolate(f_rest, size=(ph, pw), mode='area').permute(0, 2, 3, 1).reshape(-1, C) if (
+            z_NC = ops.interpolate(f_rest, size=(ph, pw), mode='area').permute(0, 2, 3, 1).reshape(-1, C) if (
                         si != SN - 1) else f_rest.permute(0, 2, 3, 1).reshape(-1, C)
             if self.using_znorm:
                 z_NC = F.normalize(z_NC, dim=-1)
