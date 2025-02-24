@@ -20,7 +20,7 @@ ray, and computes pixel colors using the volume rendering equation.
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from ..utils import no_grad
+from ....util import no_grad
 from . import math_utils
 from .ray_marcher import MipRayMarcher2
 
