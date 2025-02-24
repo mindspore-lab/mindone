@@ -1,11 +1,16 @@
 import argparse
 import os
-
+import yaml
+import random
 import numpy as np
+from typing import List, Optional, Union
 from PIL import Image
 import mindspore as ms
+from mindspore import mint, nn, ops
+
 
 from models import VQVAE, build_vae_var
+from utils.data import pil_loader, normalize_01_into_pm1
 from utils.utils import make_grid
 from mindone.utils.env import init_train_env
 from mindone.utils.seed import set_random_seed
@@ -21,6 +26,14 @@ def load_from_checkpoint(model, ckpt_fp):
     print("ckpt param not load: ", u, len(u))
 
 
+def get_edit_mask(patch_nums: List[int], y0: float, x0: float, y1: float, x1: float, inpainting: bool = True) -> ms.Tensor:
+    ph, pw = patch_nums[-1], patch_nums[-1]
+    edit_mask = mint.zeros((ph, pw))
+    edit_mask[round(y0 * ph):round(y1 * ph), round(x0 * pw):round(x1 * pw)] = 1 # outpainting mode: center would be gt
+    if inpainting:
+        edit_mask = 1 - edit_mask   # inpainting mode: center would be model pred
+    return edit_mask    # a binary mask, 1 for keeping the tokens of the image to be edited; 0 for generating new tokens (by VAR)
+
 
 def main(args):
     # init
@@ -31,13 +44,19 @@ def main(args):
     )
     set_random_seed(args.seed)
 
-    patch_nums = (1, 2, 3, 4, 5, 6, 8, 10, 13, 16)
     model_depth = 16
-    assert model_depth in {16, 20, 24, 30}
+    assert model_depth in {16, 20, 24, 30, 36}
+
+    FOR_512_px = model_depth == 36
+    if FOR_512_px:
+        patch_nums = (1, 2, 3, 4, 6, 9, 13, 18, 24, 32)
+    else:
+        patch_nums = (1, 2, 3, 4, 5, 6, 8, 10, 13, 16)
+
     vae, var = build_vae_var(
         V=4096, Cvae=32, ch=160, share_quant_resi=4,  # hard-coded VQVAE hyperparameters
         patch_nums=patch_nums,
-        num_classes=1000, depth=model_depth, shared_aln=False,
+        num_classes=1000, depth=model_depth, shared_aln=FOR_512_px,
     )
 
     if args.vae_checkpoint:
@@ -62,20 +81,40 @@ def main(args):
         )
 
     # sample
+    # set args
+    img_to_be_edited = args.input_image_path
 
+    # edit to class label, if it was set to 0-999, it's an class condition editing task
+    # if it was set to 1000, it's an in-painting task
+    class_label = 1000  # @param {type:"raw"}
 
-    cfg = 4  # @param {type:"slider", min:1, max:10, step:0.1}
-    class_labels = (980, 980, 437, 437, 22, 22, 562, 562)  # @param {type:"raw"}
-    more_smooth = False  # True for more smooth output
+    # load the image to be edited
 
-    B = len(class_labels)
-    label_B = ms.Tensor(class_labels)
-    recon_B3HW = var.autoregressive_infer_cfg(B=B, label_B=label_B, cfg=cfg, top_k=900, top_p=0.95, g_seed=args.seed, more_smooth=more_smooth)
+    input_img = normalize_01_into_pm1(ms.Tensor(ms.dataset.vision.ToTensor()(pil_loader(img_to_be_edited)))).unsqueeze(0)
+    input_img_tokens = vae.img_to_idxBl(input_img, var.patch_nums)
+
+    # zero-shot edit
+    # The inpainting parameter controls whether the task is inpainting or outpainting
+    edit_mask = get_edit_mask(
+        var.patch_nums,
+        y0=0.1, x0=0.1,
+        y1=0.8, x1=0.8,
+        inpainting=True,
+    )
+    B = 1
+    label_B = ms.tensor([class_label])
+
+    recon_B3HW = var.autoregressive_infer_cfg(
+        var,
+        B=B, label_B=label_B, cfg=3, top_k=900, top_p=0.95, g_seed=0, more_smooth=True,
+        input_img_tokens=input_img_tokens, edit_mask=edit_mask
+    )
 
     img = make_grid(recon_B3HW, nrow=8, padding=0, pad_value=1.0)
     img = img.permute(1, 2, 0).mul(255).asnumpy()
     img = Image.fromarray(img.astype(np.uint8))
     img.save(args.output_path)
+
 
 
 def parse_args():
@@ -120,6 +159,9 @@ def parse_args():
     )
     parser.add_argument(
         "--output_path", default="samples/image", type=str, help="output directory to save inference results"
+    )
+    parser.add_argument(
+        "--input_image_path", default=None, type=str, help="input image path for edit."
     )
 
     args = parser.parse_args()

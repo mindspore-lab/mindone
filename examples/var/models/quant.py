@@ -55,7 +55,7 @@ class VectorQuantizer2(nn.Cell):
     def extra_repr(self) -> str:
         return f'{self.v_patch_nums}, znorm={self.using_znorm}, beta={self.beta}  |  S={len(self.v_patch_nums)}, quant_resi={self.quant_resi_ratio}'
 
-    # # ===================== `forward` is only used in VAE training =====================
+    # # ===================== `construct` is only used in VAE training =====================
     def construct(self, f_BChw: ms.Tensor, ret_usages=False) -> Tuple[ms.Tensor, List[float], ms.Tensor]:
         dtype = f_BChw.dtype
         if dtype != ms.float32: f_BChw = f_BChw.float()
@@ -120,7 +120,7 @@ class VectorQuantizer2(nn.Cell):
             usages = None
         return f_hat, usages, mean_vq_loss
     #
-    # # ===================== `forward` is only used in VAE training =====================
+    # # ===================== `construct` is only used in VAE training =====================
 
     def embed_to_fhat(self, ms_h_BChw: List[ms.Tensor], all_to_max_scale=True, last_one=False) -> Union[
         List[ms.Tensor], ms.Tensor]:
@@ -238,8 +238,8 @@ class Phi(mint.nn.Conv2d):
         super().__init__(in_channels=embed_dim, out_channels=embed_dim, kernel_size=ks, stride=1, padding=ks // 2)
         self.resi_ratio = abs(quant_resi)
 
-    def forward(self, h_BChw):
-        return h_BChw.mul(1 - self.resi_ratio) + super().forward(h_BChw).mul(self.resi_ratio)
+    def construct(self, h_BChw):
+        return h_BChw.mul(1 - self.resi_ratio) + super().construct(h_BChw).mul(self.resi_ratio)
 
 
 class PhiShared(nn.Cell):

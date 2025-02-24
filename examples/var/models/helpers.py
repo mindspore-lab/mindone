@@ -10,12 +10,12 @@ def sample_with_top_k_top_p_(logits_BlV: ms.Tensor, top_k: int = 0, top_p: float
     if top_k > 0:
         idx_to_remove = logits_BlV < mint.amin(logits_BlV.topk(top_k, largest=True, sorted=False, dim=-1)[0], -1, keepdim=True)
 
-        logits_BlV.masked_fill(idx_to_remove, -ms.numpy.inf)
+        logits_BlV.masked_fill_(idx_to_remove, -ms.numpy.inf)
     if top_p > 0:
         sorted_logits, sorted_idx = logits_BlV.sort(dim=-1, descending=False)
         sorted_idx_to_remove = mint.softmax(sorted_logits, dim=-1).cumsum(dim=-1) <= (1 - top_p)
         sorted_idx_to_remove[..., -1:] = False
-        logits_BlV.masked_fill(sorted_idx_to_remove.scatter(sorted_idx.ndim - 1, sorted_idx, sorted_idx_to_remove),
+        logits_BlV.masked_fill_(sorted_idx_to_remove.scatter(sorted_idx.ndim - 1, sorted_idx, sorted_idx_to_remove),
                                 -ms.numpy.inf)
     # sample (have to squeeze cuz torch.multinomial can only be used for 2D tensor)
     replacement = num_samples >= 0

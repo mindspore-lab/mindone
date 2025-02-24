@@ -1,11 +1,10 @@
 import math
 from functools import partial
-from typing import Optional, Tuple, Union
-
+from typing import List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import nn, mint, Parameter, ops
 from mindspore.common.initializer import Normal, TruncatedNormal, initializer, XavierNormal
-
+import mindspore.mint.nn.functional as F
 
 from .basic_var import AdaLNBeforeHead, AdaLNSelfAttn
 from .helpers import gumbel_softmax_with_rng, sample_with_top_k_top_p_
@@ -16,6 +15,7 @@ class SharedAdaLin(mint.nn.Linear):
     def construct(self, cond_BD):
         C = self.weight.shape[0] // 6
         return super().construct(cond_BD).view((-1, 1, 6, C))  # B16C
+
 
 
 class VAR(nn.Cell):
@@ -134,10 +134,23 @@ class VAR(nn.Cell):
             h = h_or_h_and_residual
         return self.head(self.head_nm(h.float(), cond_BD).float()).float()
 
+    def replace_embedding(self, edit_mask: ms.Tensor, h_BChw: ms.Tensor, gt_BChw: ms.Tensor, ph: int, pw: int) -> ms.Tensor:
+        B = h_BChw.shape[0]
+        h, w = edit_mask.shape[-2:]
+        if edit_mask.ndim == 2:
+            edit_mask = edit_mask.unsqueeze(0).expand((B, h, w))
+
+        force_gt_B1hw = F.interpolate(edit_mask.unsqueeze(1).to(dtype=ms.float32), size=(ph, pw), mode='bilinear',
+                                      align_corners=False).gt(0.5).int()
+        if ph * pw <= 3:
+            force_gt_B1hw.fill_(1)
+        return gt_BChw * force_gt_B1hw + h_BChw * (1 - force_gt_B1hw)
+
     def autoregressive_infer_cfg(
             self, B: int, label_B: Optional[Union[int, ms.Tensor]],
             g_seed: Optional[int] = None, cfg=1.5, top_k=0, top_p=0.0,
             more_smooth=False,
+            input_img_tokens: Optional[List[ms.Tensor]] = None, edit_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:  # returns reconstructed image (B, 3, H, W) in [0, 1]
         """
         only used for inference, on autoregressive mode
@@ -198,6 +211,11 @@ class VAR(nn.Cell):
                          self.vae_quant_proxy[0].embedding.weight.unsqueeze(0)
 
             h_BChw = h_BChw.transpose(1, 2).reshape(B, self.Cvae, pn, pn)
+            if edit_mask is not None:
+                gt_BChw = self.vae_quant_proxy[0].embedding(input_img_tokens[si]).transpose(1, 2).reshape(B, self.Cvae,
+                                                                                                          pn, pn)
+                h_BChw = self.replace_embedding(edit_mask, h_BChw, gt_BChw, pn, pn)
+
             f_hat, next_token_map = self.vae_quant_proxy[0].get_next_autoregressive_input(si, len(self.patch_nums),
                                                                                           f_hat, h_BChw)
             if si != self.num_stages_minus_1:  # prepare for next stage

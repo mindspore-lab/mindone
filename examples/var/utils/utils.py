@@ -37,11 +37,11 @@ def make_grid(
     if tensor.dim() == 2:  # single image H x W
         tensor = tensor.unsqueeze(0)
     if tensor.dim() == 3:  # single image
-        if tensor.size(0) == 1:  # if single-channel, convert to 3-channel
+        if tensor.shape[0] == 1:  # if single-channel, convert to 3-channel
             tensor = mint.cat((tensor, tensor, tensor), 0)
         tensor = tensor.unsqueeze(0)
 
-    if tensor.dim() == 4 and tensor.size(1) == 1:  # single-channel images
+    if tensor.dim() == 4 and tensor.shape[1] == 1:  # single-channel images
         tensor = mint.cat((tensor, tensor, tensor), 1)
 
 
@@ -52,7 +52,7 @@ def make_grid(
     nmaps = tensor.shape[0]
     xmaps = min(nrow, nmaps)
     ymaps = int(math.ceil(float(nmaps) / xmaps))
-    height, width = int(tensor.size(2) + padding), int(tensor.size(3) + padding)
+    height, width = int(tensor.shape[2] + padding), int(tensor.shape[3] + padding)
     num_channels = tensor.shape[1]
     grid = mint.full((num_channels, height * ymaps + padding, width * xmaps + padding), pad_value, dtype=tensor.dtype)
     k = 0
