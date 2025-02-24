@@ -3,12 +3,41 @@ import logging
 import os
 from pathlib import Path
 
+import decord
 import numpy as np
-from decord import VideoReader
 
 import mindspore as ms
 
 logger = logging.getLogger(__name__)
+
+
+class DecordDecoder(object):
+    def __init__(self, url, num_threads=1):
+        self.num_threads = num_threads
+        self.ctx = decord.cpu(0)
+        self.reader = decord.VideoReader(url, ctx=self.ctx, num_threads=self.num_threads)
+
+    def get_avg_fps(self):
+        return self.reader.get_avg_fps() if self.reader.get_avg_fps() > 0 else 30.0
+
+    def get_num_frames(self):
+        return len(self.reader)
+
+    def get_height(self):
+        return self.reader[0].shape[0] if self.get_num_frames() > 0 else 0
+
+    def get_width(self):
+        return self.reader[0].shape[1] if self.get_num_frames() > 0 else 0
+
+    # output shape [T, H, W, C]
+    def get_batch(self, frame_indices):
+        try:
+            # frame_indices[0] = 1000
+            video_data = self.reader.get_batch(frame_indices).asnumpy()
+            return video_data
+        except Exception as e:
+            print("get_batch execption:", e)
+            return None
 
 
 def create_video_transforms(
@@ -178,9 +207,7 @@ class VideoPairDataset:
     def _load_video(self, video_path):
         num_frames = self.num_frames
         sample_rate = self.sample_rate
-        decord_vr = VideoReader(
-            video_path,
-        )
+        decord_vr = DecordDecoder(video_path)
         total_frames = len(decord_vr)
         sample_frames_len = sample_rate * num_frames
 

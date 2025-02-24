@@ -10,10 +10,10 @@ import cv2
 import numpy as np
 from hyvideo.constants import VAE_PATH
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
+from hyvideo.utils.dataset_utils import DecordDecoder
 from tqdm import tqdm
 
 from mindone.data import BaseDataset
-from mindone.data.video_reader import VideoReader
 
 from .transforms import ResizeCrop
 
@@ -253,18 +253,20 @@ class ImageVideoDataset(BaseDataset):
                 data["fps"] = np.array(120, dtype=np.float32)  # FIXME: extract as IMG_FPS
                 data["video"] = cv2.cvtColor(cv2.imread(data["video"]), cv2.COLOR_BGR2RGB)
             else:
-                with VideoReader(data["video"]) as reader:
-                    min_length = self._min_length
-                    if thw is not None:
-                        num_frames, *data["size"] = thw
-                        min_length = (num_frames - 1) * self._stride + 1
-                    if len(reader) < min_length:
-                        raise ValueError(f"Video is too short: {data['video']}")
-                    start_pos = 0 if self._deterministic else random.randint(0, len(reader) - min_length)
-                    data["video"] = reader.fetch_frames(
-                        num=num_frames, start_pos=start_pos, step=self._stride
-                    )  # T H W C
-                    data["fps"] = np.array(reader.fps / self._stride, dtype=np.float32)
+                decord_vr = DecordDecoder(data["video"])
+                min_length = self._min_length
+                if thw is not None:
+                    num_frames, *data["size"] = thw
+                    min_length = (num_frames - 1) * self._stride + 1
+                if decord_vr.get_num_frames() < min_length:
+                    raise ValueError(f"Video is too short: {data['video']}")
+                start_pos = 0 if self._deterministic else random.randint(0, decord_vr.get_num_frames() - min_length)
+                frame_indices = np.arange(start_pos, decord_vr.get_num_frames())[:: self._stride]
+                if len(frame_indices) < num_frames:
+                    print(f"The number of frames of video {data['video']} is less than the number of frames required.")
+                frame_indices = frame_indices[:num_frames]
+                data["video"] = decord_vr.get_batch(frame_indices)  # T H W C
+                data["fps"] = np.array(decord_vr.get_avg_fps() / self._stride, dtype=np.float32)
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
