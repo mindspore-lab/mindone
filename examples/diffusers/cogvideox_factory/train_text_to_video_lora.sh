@@ -1,6 +1,6 @@
-export MS_ENABLE_NUMA=1
-
+# export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 # Num of NPUs for training
+# export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_NPUS=8
 
 # Training Configurations
@@ -9,10 +9,17 @@ LEARNING_RATES=("1e-4" "1e-3")
 LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw" "adam")
 MAX_TRAIN_STEPS=("3000")
+SP=False
+SP_SIZE=$NUM_NPUS
+FA_RCP=False
+ENABLE_DYNAMIC_SHAPE=0
+LATENTS_CACHE=0
+EMBEDDINGS_CACHE=1
+OUTPUT_ROOT_DIR=./output_sp
 
 # MindSpore settings
-MINDSPORE_MODE=1
-JIT_LEVEL=O0
+MINDSPORE_MODE=0
+JIT_LEVEL=O1
 AMP_LEVEL=O2
 DEEPSPEED_ZERO_STAGE=2
 
@@ -20,23 +27,37 @@ DEEPSPEED_ZERO_STAGE=2
 if [ "$NUM_NPUS" -eq 1 ]; then
     LAUNCHER="python"
     EXTRA_ARGS=""
+    SP=False
 else
-    LAUNCHER="msrun --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS"
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph""
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
+fi
+if [ "$ENABLE_DYNAMIC_SHAPE" -eq 1 ]; then
+  # Enable kernel backoff to support the Python floor operation at line 444 in mindone/mindone/diffusers/models/embeddings.py.
+  # Otherwise, a "RuntimeError" will be raised: "The current operator needs to be supplemented with an adapter, please
+  # check in `transform` directory. node is Default/network-TrainStepForCogVideo/transformer-CogVideoTransformer3DModel_SP/patch_embed-CogVideoXPatchEmbed/ScalarFloorDiv-op1".
+  # Additionally, it is not feasible to replace the Python floor operation with `ms.mint.floor`. The reason is that
+  # `ms.mint.floor` does not accept scalar input, the scalar input must be converted to an `ms.Tensor` first. However,
+  # `ms.Tensor` does not support non-constant input in graph mode.
+  export MS_DISABLE_KERNEL_BACKOFF=0
+  EXTRA_ARGS="$EXTRA_ARGS --dynamic_shape --bucket_config=training/bucket.yaml"
+fi
+if [ "$LATENTS_CACHE" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --latents_cache"
+fi
+if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
 fi
 
 # Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
 # This example assumes you downloaded an already prepared dataset from HF CLI as follows:
-#   huggingface-cli download --repo-type dataset Wild-Heart/Disney-VideoGeneration-Dataset --local-dir /path/to/my/datasets/disney-dataset
-DATA_ROOT="/path/to/my/datasets/disney-dataset"
-
-CAPTION_COLUMN="prompt.txt"
+#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
+DATA_ROOT="preprocessed-dataset"
+CAPTION_COLUMN="prompts.txt"
 VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX-5b"
+MODEL_PATH="THUDM/CogVideoX1.5-5b"
 
-# Set ` --load_tensors ` to load tensors from disk instead of recomputing the encoder process.
 # Launch experiments with different hyperparameters
-
 for learning_rate in "${LEARNING_RATES[@]}"; do
   for lr_schedule in "${LR_SCHEDULES[@]}"; do
     for optimizer in "${OPTIMIZERS[@]}"; do
@@ -48,33 +69,29 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
           --video_column $VIDEO_COLUMN \
-          --id_token BW_STYLE \
-          --height_buckets 480 \
-          --width_buckets 720 \
-          --frame_buckets 49 \
+          --height_buckets 1360 \
+          --width_buckets 768 \
+          --frame_buckets 77 \
+          --max_num_frames 77 \
+          --gradient_accumulation_steps 1 \
           --dataloader_num_workers 2 \
-          --validation_prompt \"BW_STYLE A black and white animated scene unfolds with an anthropomorphic goat surrounded by musical notes and symbols, suggesting a playful environment. Mickey Mouse appears, leaning forward in curiosity as the goat remains still. The goat then engages with Mickey, who bends down to converse or react. The dynamics shift as Mickey grabs the goat, potentially in surprise or playfulness, amidst a minimalistic background. The scene captures the evolving relationship between the two characters in a whimsical, animated setting, emphasizing their interactions and emotions:::BW_STYLE A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance\" \
           --validation_prompt_separator ::: \
           --num_validation_videos 1 \
-          --validation_epochs 10 \
+          --validation_epochs 1 \
           --seed 42 \
-          --lora_rank 128 \
-          --lora_alpha 128 \
           --mixed_precision bf16 \
           --output_dir $output_dir \
-          --max_num_frames 49 \
           --train_batch_size 1 \
           --max_train_steps $steps \
-          --checkpointing_steps 1000 \
-          --gradient_accumulation_steps 1 \
+          --checkpointing_steps 2000 \
           --gradient_checkpointing \
+          --fa_gradient_checkpointing=$FA_RCP \
           --learning_rate $learning_rate \
           --lr_scheduler $lr_schedule \
-          --lr_warmup_steps 400 \
+          --lr_warmup_steps 800 \
           --lr_num_cycles 1 \
           --enable_slicing \
           --enable_tiling \
-          --load_tensors \
           --optimizer $optimizer \
           --beta1 0.9 \
           --beta2 0.95 \
@@ -82,7 +99,10 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --max_grad_norm 1.0 \
           --report_to tensorboard \
           --mindspore_mode $MINDSPORE_MODE \
+          --jit_level $JIT_LEVEL \
           --amp_level $AMP_LEVEL \
+          --enable_sequence_parallelism $SP \
+          --sequence_parallel_shards $SP_SIZE \
           $EXTRA_ARGS"
 
         echo "Running command: $cmd"
