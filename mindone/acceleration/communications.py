@@ -24,9 +24,9 @@ def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
 
 
 def _communicate_along_dim(x: Tensor, dim: int, func: Callable[[Tensor], Tensor]) -> Tensor:
-    x = x.swapaxes(0, dim)
+    x = mint.transpose(x, 0, dim)
     x = func(x)
-    x = x.swapaxes(dim, 0)
+    x = mint.transpose(x, dim, 0)
     return x
 
 
@@ -98,5 +98,5 @@ class AlltoAll(nn.Cell):
         x = self.alltoall(x)
 
         if concat_pad > 0:
-            x = x.narrow(self.concat_dim, 0, x.shape[self.concat_dim] - concat_pad)
+            x = mint.narrow(x, self.concat_dim, 0, x.shape[self.concat_dim] - concat_pad)
         return x
