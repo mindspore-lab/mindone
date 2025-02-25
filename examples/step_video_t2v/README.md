@@ -49,8 +49,8 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 |     Model    |  height/width/frame |  Peak NPU Memory | 50 steps |
 |:------------:|:------------:|:------------:|:------------:|
 | Step-Video-T2V   |        768px768px204f      |  testing | testing |
-| Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~52 min |
-| Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~35 min |
+| Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~3120 s |
+| Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~2100 s |
 
 * An Ascend 910* NPU with CANN support is required.
   * The model is tested on four NPUs. (Excluding two additional NPUs used to provide prompt encoding and VAE video decoding services.)
@@ -86,9 +86,9 @@ python convert.py --pt_filename /path_to/stepfun-ai/stepvideo-t2v/hunyuan_clip/c
 
 ###  🚀 3.4 Inference Scripts
 
-#### Multi-GPU Parallel Deployment
+#### Multi-NPU Parallel Deployment
 
-- We employed a decoupling strategy for the text encoder, VAE decoding, and DiT to optimize GPU resource utilization by DiT. As a result, a dedicated GPU is needed to handle the API services for the text encoder's embeddings and VAE decoding.
+- We employed a decoupling strategy for the text encoder, VAE decoding, and DiT to optimize NPU resource utilization by DiT. As a result, a dedicated NPU is needed to handle the API services for the text encoder's embeddings and VAE decoding.
 
 ```shell
 model_dir=where_you_download_dir
