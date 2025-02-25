@@ -37,12 +37,58 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
     return mask
 
 
-class MSPad(nn.Cell):
-    def construct(self, x, pad, mode="constant", value=None):
-        if value is not None:
-            return F.pad(x, pad, mode=mode, value=value)
+class MSReplicattionPad5D(nn.Cell):
+    def __init__(self, padding):
+        super().__init__()
+        self.padding = padding
+
+    def construct(self, input_tensor):
+        """
+        Pads the last three dimensions of a 5D tensor using replicate padding.
+        self.padding (Tuple[int, int, int, int, int, int]): The padding size in the form (pad_left, pad_right, pad_up, pad_down, pad_front, pad_back).
+
+        Args:
+            input_tensor (Tensor): The input tensor of shape (N, C, D, H, W).
+
+        Returns:
+            Tensor: The padded tensor.
+        """
+        pad_left, pad_right, pad_up, pad_down, pad_front, pad_back = self.padding
+
+        # Pad width (W)
+        if pad_left > 0:
+            left_pad = mint.repeat_interleave(input_tensor[:, :, :, :, :1], repeats=pad_left, dim=4)
+            padded_width = mint.cat((left_pad, input_tensor), dim=4)
         else:
-            return F.pad(x, pad, mode=mode)
+            padded_width = input_tensor
+
+        if pad_right > 0:
+            right_pad = mint.repeat_interleave(input_tensor[:, :, :, :, -1:], repeats=pad_right, dim=4)
+            padded_width = mint.cat((padded_width, right_pad), dim=4)
+
+        # Pad height (H)
+        if pad_up > 0:
+            up_pad = mint.repeat_interleave(padded_width[:, :, :, :1, :], repeats=pad_up, dim=3)
+            padded_height = mint.cat((up_pad, padded_width), dim=3)
+        else:
+            padded_height = padded_width
+
+        if pad_down > 0:
+            down_pad = mint.repeat_interleave(padded_width[:, :, :, -1:, :], repeats=pad_down, dim=3)
+            padded_height = mint.cat((padded_height, down_pad), dim=3)
+
+        # Pad depth (D)
+        if pad_front > 0:
+            front_pad = mint.repeat_interleave(padded_height[:, :, :1, :, :], repeats=pad_front, dim=2)
+            padded_depth = mint.cat((front_pad, padded_height), dim=2)
+        else:
+            padded_depth = padded_height
+
+        if pad_back > 0:
+            back_pad = mint.repeat_interleave(padded_height[:, :, -1:, :, :], repeats=pad_back, dim=2)
+            padded_depth = mint.cat((padded_depth, back_pad), dim=2)
+
+        return padded_depth
 
 
 class CausalConv3d(nn.Cell):
@@ -81,10 +127,10 @@ class CausalConv3d(nn.Cell):
         ).to_float(dtype)
         self.dtype = dtype
         assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
-        self.pad = MSPad()
+        self.pad = MSReplicattionPad5D(self.time_causal_padding)
 
     def construct(self, x):
-        x = self.pad(x, self.time_causal_padding, mode=self.pad_mode)
+        x = self.pad(x)
         if x.dtype == ms.float32:
             return self.conv(x).to(ms.float32)
         else:

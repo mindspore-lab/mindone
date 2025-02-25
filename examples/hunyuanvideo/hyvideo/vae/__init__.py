@@ -9,7 +9,7 @@ from mindone.utils.amp import auto_mixed_precision
 from ..constants import PRECISION_TO_TYPE, VAE_PATH
 from ..utils.helpers import set_model_param_dtype
 from .autoencoder_kl_causal_3d import AutoencoderKLCausal3D
-from .unet_causal_3d_blocks import GroupNorm, MSInterpolate, MSPad
+from .unet_causal_3d_blocks import GroupNorm, MSInterpolate
 
 
 def load_vae(
@@ -85,7 +85,7 @@ def load_vae(
             if dtype == ms.float16:
                 custom_fp32_cells = [GroupNorm]
             elif dtype == ms.bfloat16:
-                custom_fp32_cells = [MSPad, MSInterpolate]
+                custom_fp32_cells = [MSInterpolate]
             else:
                 raise ValueError
 
