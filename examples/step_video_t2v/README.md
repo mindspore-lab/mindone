@@ -1,29 +1,81 @@
 
 
-## installation
+# Step-Video-T2V on MindSpore
 
-```shell
-pip install git+https://github.com/zhanghuiyao/mindone.git@step_video
+## 🔥🔥🔥 News!!
+* Feb 17, 2025: 👋 We have reproduced the inference of the excellent work Step-Video-T2V, which was open-sourced by Step-Fun, on MindSpore. 
+
+
+## Video Demos
+
+<table border="0" style="width: 100%; text-align: center; margin-top: 1px;">
+  <tr>
+    <td><video src="-" width="100%" controls autoplay loop muted></video></td>
+  </tr>
+</table>
+
+
+
+## Table of Contents
+
+1. [Introduction](#1-introduction)
+2. [Model Download](#3-model-download)
+3. [Model Usage](#4-model-usage)
+4. [Benchmark](#5-benchmark)
+5. [Citation](#7-citation)
+6. [Acknowledgement](#8-ackownledgement)
+
+
+
+## 1. Introduction
+
+We have reproduced the excellent work of Step-Fun, **Step-Video-T2V**, on [MindSpore](https://www.mindspore.cn/).
+
+**Step-Video-T2V**, a state-of-the-art (SoTA) text-to-video pre-trained model with 30 billion parameters and the capability to generate videos up to 204 frames. To enhance efficiency, stepfun-ai propose a deep compression VAE for videos, achieving 16x16 spatial and 8x temporal compression ratios. Direct Preference Optimization (DPO) is applied in the final stage to further enhance the visual quality of the generated videos. Step-Video-T2V's performance is evaluated on a novel video generation benchmark, **Step-Video-T2V-Eval**, demonstrating its SoTA text-to-video quality compared to both open-source and commercial engines.
+
+
+## 2. Model Download
+| Models   | 🤗Huggingface    |  🤖Modelscope |
+|:-------:|:-------:|:-------:|
+| Step-Video-T2V | [download](https://huggingface.co/stepfun-ai/stepvideo-t2v) | [download](https://www.modelscope.cn/models/stepfun-ai/stepvideo-t2v)
+| Step-Video-T2V-Turbo (Inference Step Distillation) | [download](https://huggingface.co/stepfun-ai/stepvideo-t2v-turbo) | [download](https://www.modelscope.cn/models/stepfun-ai/stepvideo-t2v-turbo)
+
+
+## 3. Model Usage
+### 📜 3.1  Requirements
+
+The following table shows the requirements for running Step-Video-T2V model (batch size = 1, w/o cfg distillation) to generate videos:
+
+|     Model    |  height/width/frame |  Peak NPU Memory | 50 steps |
+|:------------:|:------------:|:------------:|:------------:|
+| Step-Video-T2V   |        768px768px204f      |  testing | testing |
+| Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~52 min |
+| Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~35 min |
+
+* An Ascend 910* NPU with CANN support is required. 
+  * The model is tested on four NPUs. (Excluding two additional NPUs used to provide prompt encoding and VAE video decoding services.)
+* Tested operating system: EulerOS
+
+
+### 🔧 3.2 Dependencies and Installation
+
+- [MindONE](https://github.com/mindspore-lab/mindone)
+- [FFmpeg](https://www.ffmpeg.org/) 
+```bash
+git clone https://github.com/mindspore-lab/mindone.git
+
+# install mindone
+cd mindone
+pip install -e .
+
+# install stepvideo
+cd examples/step_video_t2v
+pip install -e .
 ```
 
+### 🔧 3.3. Prepare Weight Format
 
-## todo list
-
-- speed-up
-- ...
-
-
-
-## inference
-
-
-### step 1: (option but recommend) manually download weights
-
-link: https://huggingface.co/stepfun-ai/stepvideo-t2v
-
-
-
-### step 2: convert a `.bin` weight (hunyuan-clip) format from `pytorch_model.bin` to `model.safetensors`
+convert `.bin` weight (hunyuan-clip) format from `pytorch_model.bin` to `model.safetensors`
 
 ```shell
 python convert.py --pt_filename where_bin_file --sf_filename where_safetensors_file --config_path where_{config.json}_file
@@ -32,8 +84,11 @@ python convert.py --pt_filename where_bin_file --sf_filename where_safetensors_f
 python convert.py --pt_filename /path_to/stepfun-ai/stepvideo-t2v/hunyuan_clip/clip_text_encoder/pytorch_model.bin --sf_filename /path_to/stepfun-ai/stepvideo-t2v/hunyuan_clip/clip_text_encoder/model.safetensors --config_path /path_to/stepfun-ai/stepvideo-t2v/hunyuan_clip/clip_text_encoder/config.json
 ```
 
+###  🚀 3.4 Inference Scripts
 
-### step 3: running
+#### Multi-GPU Parallel Deployment
+
+- We employed a decoupling strategy for the text encoder, VAE decoding, and DiT to optimize GPU resource utilization by DiT. As a result, a dedicated GPU is needed to handle the API services for the text encoder's embeddings and VAE decoding.
 
 ```shell
 model_dir=where_you_download_dir
@@ -43,11 +98,7 @@ model_dir=where_you_download_dir
 ASCEND_RT_VISIBLE_DEVICES=0 python api/call_remote_server.py --model_dir $model_dir --enable_vae True &
 ASCEND_RT_VISIBLE_DEVICES=1 python api/call_remote_server.py --model_dir $model_dir --enable_llm True &
 
-
-
 # !!! wait...a moment, vae/llm is loading...
-
-
 
 # (2) setting and replace the `url` from before command print
 parallel=4
@@ -56,16 +107,24 @@ pp=2
 vae_url='127.0.0.1'
 caption_url='127.0.0.1'
 
-
 # (3) run parallel dit model on 4-cards (Ascend910*)
 ASCEND_RT_VISIBLE_DEVICES=4,5,6,7 msrun --bind_core=True --worker_num=$parallel --local_worker_num=$parallel --master_port=9000 --log_dir=outputs/parallel_logs python -u \
 run_parallel.py --model_dir $model_dir --vae_url $vae_url --caption_url $caption_url  --ulysses_degree $sp --pp_degree $pp --prompt "一名宇航员在月球上发现一块石碑，上面印有“stepfun”字样，闪闪发光" --infer_steps 30  --cfg_scale 9.0 --time_shift 13.0 --num_frames 136 --height 544 --width 992
 ```
 
 
-## performence
+###  🚀 4.4 Best-of-Practice Inference settings
+Step-Video-T2V exhibits robust performance in inference settings, consistently generating high-fidelity and dynamic videos. However, our experiments reveal that variations in inference hyperparameters can have a substantial effect on the trade-off between video fidelity and dynamics. To achieve optimal results, we recommend the following best practices for tuning inference parameters:
 
-|     Model    |  height/width/frame |  Peak Memory | 50 steps |
-|:------------:|:------------:|:------------:|:------------:|
-| Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~52 min |
-| Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~35 min |
+| Models   | infer_steps   | cfg_scale  | time_shift | num_frames |
+|:-------:|:-------:|:-------:|:-------:|:-------:|
+| Step-Video-T2V | 30-50 | 9.0 |  13.0 | 204
+| Step-Video-T2V-Turbo (Inference Step Distillation) | 10-15 | 5.0 | 17.0 | 204 |
+
+
+## 5. Benchmark
+We are releasing [Step-Video-T2V Eval](https://github.com/stepfun-ai/Step-Video-T2V/blob/main/benchmark/Step-Video-T2V-Eval) as a new benchmark, featuring 128 Chinese prompts sourced from real users. This benchmark is designed to evaluate the quality of generated videos across 11 distinct categories: Sports, Food, Scenery, Animals, Festivals, Combination Concepts, Surreal, People, 3D Animation, Cinematography, and Style.
+
+
+## 6. Acknowledgement
+This project uses code from [stepfun-ai/Step-Video-T2V](https://github.com/stepfun-ai/Step-Video-T2V), thanks to the **stepfun-ai** team for their contribution.
