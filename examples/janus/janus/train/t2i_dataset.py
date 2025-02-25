@@ -44,6 +44,9 @@ class TextImageDataset:
         if image_size != 384:
             logger.warning(f"JanusPro should be trained using fixed image size of 384, but get {image_size}")
 
+        assert (image_size / 16)**2 == self.vl_chat_processor.num_image_tokens, "(image_size / vq_downsample_rate)^2 should be equal to number of image tokens set in vl chat processor"
+
+
     def __len__(self) -> int:
         return self.length
 

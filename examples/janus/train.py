@@ -40,7 +40,6 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.zero import prepare_train_network
 from mindone.trainers.train_step import TrainOneStepWrapper
-# from mindone.transformers.mindspore_adapter import HF2MSDataset, TrainOneStepWrapper, auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -153,7 +152,7 @@ def main(args):
     # VQ encoder doesn't need grad
     vl_gpt.gen_vision_model.set_grad(requires_grad=False)
 
-    # FIXME: DEBUG: set token embedding table for text and image to be non-trainable
+    # debug to check gradient influence: set token embedding table for text and image to be non-trainable
     freeze_embed_tables = args.freeze_embedding 
     if freeze_embed_tables:
         for module in (vl_gpt.gen_embed, vl_gpt.language_model.model.embed_tokens):
@@ -168,37 +167,30 @@ def main(args):
     config.save_pretrained(args.output_path)
 
     # 2. prepare dataset and loader
-    # FIXME: add dataset and loader. this is a toy data sample for i2v debug
-    # input_ids, labels, attention_masks, image_seq_masks, image = gen_t2i_train_sample(max_length=args.max_length)
-
     dataloader = create_dataloader_t2i(
-        csv_path='datasets/data_demo/jade/csvfile/image_text_en.csv',
-        data_dir='datasets/data_demo',
+        csv_path=args.csv_path,
+        data_dir=args.data_dir,
         vl_chat_processor=vl_chat_processor,
-        max_token_length=1024,
-        # image_size=384,  # TODO: read from config
-        # null_prompt_prob: float = 0.0, # TODO: tune 0.01, 0.05
-        batch_size=1,
-        shuffle=False,  # FIXME: debug
-        num_samples=20, # FIXME: debug
+        max_token_length=args.max_length,
+        image_size=args.image_size,
+        null_prompt_prob=args.null_prompt_prob, # TODO: tune 0.01, 0.05
+        batch_size=args.batch_size,
+        shuffle=args.shuffle,
+        num_samples=args.num_samples,
     )
     
     # 3. setup trainer and config hyper-params 
-    # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # FIXME
-    # hyper params refer to emu3 sft.
-    # FIXME:  use cosine_with_min_lr w/ lr=1e-5 min=1e-6, but mint adamw don't support lr list.
+    # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # tune
     optimizer = ms.mint.optim.AdamW(vl_gpt.trainable_params(),
         lr=args.learning_rate,
         betas=(0.9, 0.95),
         weight_decay=args.weight_decay,
         eps=1e-6,
         )
-    # scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1) 
     assert args.warmup_steps < args.train_steps
-    # FIXME: allow setting min lr
     scheduler = WarmupCosineDecayLR(optimizer,
         lr_max=args.learning_rate,
-        lr_min=args.learning_rate * 0.1,
+        lr_min=args.end_learning_rate,
         warmup_steps=args.warmup_steps,
         decay_steps=args.train_steps - args.warmup_steps,
         )
@@ -224,14 +216,14 @@ def main(args):
         train_step = TrainOneStepWrapper(
             vl_gpt,
             optimizer=optimizer,
-            scale_sense=ms.Tensor(1.0),
-            clip_grad=True,  # FIXME
-            clip_norm=1.0,    # FIXME
+            scale_sense=ms.Tensor(1.0),  # tune
+            clip_grad=True,  # tune
+            clip_norm=1.0,    # tune
             # ema=ema,
             # zero_stage=args.zero_stage,
         )
      
-    # FIXME: for sequence parallel, save ckpt for other ranks
+    # TODO: for sequence parallel, save ckpt for other ranks
     ckpt_dir = os.path.join(args.output_path, "ckpt")
     # TODO: suppor training resume 
     start_epoch = 0
@@ -323,14 +315,23 @@ if __name__ == "__main__":
     parser.add_argument("--output_path", default="outputs/janus-sft", type=str, help="output directory to save training results")
 
     # training hyperparms
-    parser.add_argument("--learning_rate", default=5e-6, type=float, help="learning rate")
+    parser.add_argument("--learning_rate", default=1e-4, type=float, help="learning rate")
+    parser.add_argument("--end_learning_rate", default=1e-5, type=float, help="end learning rate for cosine decay")
+    parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
+    parser.add_argument("--null_prompt_prob", default=0.0, type=float, help="probability of replace text caption with empty str for condition-free guidance training in t2i task")
     parser.add_argument("--train_steps", default=5000, type=int, help="training steps")
     parser.add_argument("--warmup_steps", default=30, type=int, help="lr warmup steps")
     parser.add_argument("--ckpt_save_steps", default=500, type=int, help="save ckpt every this step")
-    parser.add_argument("--ckpt_max_keep", default=3, type=int, help="")
-    parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded to this max length")
+    parser.add_argument("--ckpt_max_keep", default=3, type=int, help="num of checkpoints to keep during training")
+    parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded (left pad) and truncated to this max length")
+
+    # training data config
+    parser.add_argument("--csv_path", default="", type=str, help="path to csv annotation, contain `image_path` and `text_en` column for image path and caption respectively")
+    parser.add_argument("--data_dir", default='datasets/', type=str, help="dataset directory contatining the images specified by `image_path` in csv_path")
+    parser.add_argument("--num_samples", default=-1, type=int, help="if -1, train on the whole dataset; if not -1, will pick this number of samples for training.")
+    parser.add_argument("--image_size", default=384, type=int, help="image resize and crop to to size. Be cautious to change as Janus is trained using a fix image size of 384")
+    parser.add_argument("--shuffle", default=True, type=str2bool, help="shuffle dataset or not")
 
     args = parser.parse_args()
-
     main(args)
