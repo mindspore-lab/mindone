@@ -14,8 +14,8 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
     vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
     tokenizer = vl_chat_processor.tokenizer
 
-    # prompt = "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair" 
-    prompt = "two dogs" 
+    # prompt = "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair"
+    prompt = "two dogs"
     conversation = [
         {
             "role": "<|User|>",
@@ -28,60 +28,38 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
         sft_format=vl_chat_processor.sft_format,
         system_prompt="",
     )
-    prompt = sft_format + vl_chat_processor.image_start_tag
 
-    # import pdb; pdb.set_trace()
-    input_ids = vl_chat_processor.tokenizer.encode(prompt)
-    #                padding="max_length", 
-    #                max_length=max_length,
-    #                trucation=True,  # FIXME
-    #                )
-    input_ids = input_ids + [vl_chat_processor.image_id] * vl_chat_processor.num_image_tokens
-    input_ids = input_ids + [vl_chat_processor.image_end_id, vl_chat_processor.tokenizer.eos_token_id]  # TODO need EOS token?
-    assert len(input_ids) <= max_length
-    valid_seq_len = len(input_ids) 
-    # attention mask
-    attention_masks = np.zeros(shape=[1, max_length])
-    attention_masks[0, :len(input_ids)] =  1
+    vlcp = vl_chat_processor
+    prompt = sft_format + vlcp.image_start_tag \
+            + (vlcp.image_tag * vlcp.num_image_tokens) \
+            + vlcp.image_end_tag \
 
-    # pad and truncate
-    num_pad = max_length - len(input_ids)
-    if num_pad > 0:
-        input_ids = input_ids + [vl_chat_processor.pad_id] * num_pad
+    input_ids = vlcp.tokenizer.encode(prompt, add_special_tokens=True, padding="max_length", max_length=max_length, padding_side='left', truncation=True)
+    input_ids = np.array(input_ids, np.int32)
 
-    input_ids = input_ids[:max_length]
-    input_ids = np.array(input_ids, np.int64)[None, ...]
-    print(input_ids)
+    assert (input_ids == vlcp.image_id).sum() == vlcp.num_image_tokens, "text + image tokens exceeds max token length, please adjust max_length or num image token"
+
+    attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
+    attention_mask[input_ids==vlcp.pad_id] = 0
+
+    image_seq_mask = np.zeros(shape=[len(input_ids)], dtype=np.bool)
+    image_seq_mask[input_ids==vlcp.image_id] = 1
 
     # label, only train on vision seq
     ignore_index = -100  # TODO: read from config? but CE Loss didn't accept setting ignore_index
     labels = input_ids
-    labels = np.where((np.array(input_ids) == vl_chat_processor.image_id),
+    labels = np.where((input_ids == vlcp.image_id),
                 labels,
                 ignore_index,
                 )
-    labels = np.array(labels, np.int64)
+    labels = np.array(labels, np.int32)
 
-    # image pixels
-    # TODO: need to align to the image precoessing protocal for VQ16: resize to 384x384 (interp ?), norm to [-1, 1] 
-    image_path = 'images/doge.png'
-    size = (384, 384)
-    image = Image.open(image_path).convert("RGB")
-    image = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(image)
-    image = np.array(image)
-    image = (image / 255.0) * 2  - 1
-    image = np.transpose(image, (2, 0, 1))
-    image = image[None, None, ...]  # add bs, n_images dimension 
-
-    # image seq mask 
-    image_seq_masks = (input_ids ==  vl_chat_processor.image_id)
-    
     # data check
     config =  MultiModalityConfig.from_pretrained(model_path)
     assert input_ids.max() < config.language_config.vocab_size, "input token should be smaller than vocab size of mllm"
-    assert image_seq_masks.sum() ==  vl_chat_processor.num_image_tokens
+    assert image_seq_mask.sum() ==  vl_chat_processor.num_image_tokens
 
-    return input_ids, labels, attention_masks, image_seq_masks, image
+    return input_ids[None, ...], labels[None, ...], attention_masks[None, ...], image_seq_masks[None, ...], image[None, ...]
 
 def gen_vqa_train_sample():
     pass
