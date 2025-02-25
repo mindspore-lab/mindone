@@ -122,9 +122,5 @@ Step-Video-T2V exhibits robust performance in inference settings, consistently g
 | Step-Video-T2V-Turbo (Inference Step Distillation) | 10-15 | 5.0 | 17.0 | 204 |
 
 
-## 5. Benchmark
-We are releasing [Step-Video-T2V Eval](https://github.com/stepfun-ai/Step-Video-T2V/blob/main/benchmark/Step-Video-T2V-Eval) as a new benchmark, featuring 128 Chinese prompts sourced from real users. This benchmark is designed to evaluate the quality of generated videos across 11 distinct categories: Sports, Food, Scenery, Animals, Festivals, Combination Concepts, Surreal, People, 3D Animation, Cinematography, and Style.
-
-
-## 6. Acknowledgement
+## 5. Acknowledgement
 This project uses code from [stepfun-ai/Step-Video-T2V](https://github.com/stepfun-ai/Step-Video-T2V), thanks to the **stepfun-ai** team for their contribution.
