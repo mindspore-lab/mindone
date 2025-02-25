@@ -166,7 +166,7 @@ if __name__ == "__main__":
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
     tokenizer = vl_chat_processor.tokenizer
-
+    
     config =  MultiModalityConfig.from_pretrained(args.model_path)
     if args.ckpt_path is not None:
         with no_init_parameters():

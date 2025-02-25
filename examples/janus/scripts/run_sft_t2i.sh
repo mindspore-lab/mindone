@@ -14,8 +14,9 @@ python train.py \
     --weight_decay $wd \
     --freeze_embedding $fe \
     --train_steps 5000 \
+    --warmup_steps 50 \
     --ckpt_save_steps 500 \
     --ckpt_max_keep 10 \
     --use_value_and_grad True \
-    --output_path outputs/stage${stage}_t2i_lr${lr}_wd{$wd} \
-    --num_samples 20 \
+    --output_path outputs/stage${stage}_t2i_lr${lr}_wd${wd} \
+    --num_samples 20 --shuffle=False \
