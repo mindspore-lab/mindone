@@ -3,7 +3,7 @@
 # Step-Video-T2V on MindSpore
 
 ## 🔥🔥🔥 News!!
-* Feb 17, 2025: 👋 We have reproduced the inference of the excellent work Step-Video-T2V, which was open-sourced by Step-Fun, on MindSpore.
+* Feb 22, 2025: 👋 We have reproduced the inference of the excellent work Step-Video-T2V, which was open-sourced by Step-Fun, on MindSpore.
 
 
 ## Video Demos
