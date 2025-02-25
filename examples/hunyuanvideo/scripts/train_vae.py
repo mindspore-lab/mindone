@@ -273,14 +273,6 @@ def main(args):
 
     callbacks.append(StopAtStepCallback(train_steps=args.train.steps, global_step=global_step))
 
-    if mode == GRAPH_MODE:
-        _bs = ms.Symbol(unique=True)
-        video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
-        training_step_ae.set_inputs(video)
-        if disc_with_loss is not None:
-            training_step_disc.set_inputs(video)
-        logger.info("Dynamic inputs are initialized for training!")
-
     # 6. train
     logger.info("Start training...")
     # 6. training process
