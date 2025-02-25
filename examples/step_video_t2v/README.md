@@ -48,7 +48,7 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 
 |     Model    |  height/width/frame |  Peak NPU Memory | 50 steps |
 |:------------:|:------------:|:------------:|:------------:|
-| Step-Video-T2V   |        768px768px204f      |  46.72 | ~4377 s |
+| Step-Video-T2V   |        768px768px204f      |  46.72 GB | ~4377 s |
 | Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~3847 s |
 | Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~2163 s |
 
