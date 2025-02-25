@@ -10,7 +10,7 @@
 
 <table border="0" style="width: 100%; text-align: center; margin-top: 1px;">
   <tr>
-    <td><video src="-" width="100%" controls autoplay loop muted></video></td>
+    <td><video src="https://github.com/user-attachments/assets/07dcec30-7f43-4751-adf2-9b09e93127e7" width="100%" controls autoplay loop muted></video></td>
   </tr>
 </table>
 
@@ -48,9 +48,9 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 
 |     Model    |  height/width/frame |  Peak NPU Memory | 50 steps |
 |:------------:|:------------:|:------------:|:------------:|
-| Step-Video-T2V   |        768px768px204f      |  testing | testing |
-| Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~3120 s |
-| Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~2100 s |
+| Step-Video-T2V   |        768px768px204f      |  46.72 | ~4377 s |
+| Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~3847 s |
+| Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~2163 s |
 
 * An Ascend 910* NPU with CANN support is required.
   * The model is tested on four NPUs. (Excluding two additional NPUs used to provide prompt encoding and VAE video decoding services.)
