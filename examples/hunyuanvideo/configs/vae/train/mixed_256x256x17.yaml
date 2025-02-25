@@ -31,8 +31,7 @@ dataloader:
 train:
   steps: 30000
   output_path: ../../output/stage1_t2v_256px  # the path is relative to this config
-  data_sink_mode: True
-  data_sink_size: -1 # sink size same to dataset size
+
 
   losses:
     lpips_ckpt_path: "pretrained/lpips_vgg-426bf45c.ckpt"
