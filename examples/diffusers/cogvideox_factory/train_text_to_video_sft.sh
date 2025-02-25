@@ -1,3 +1,4 @@
+set -e
 # export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 # Num of NPUs for training
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -29,7 +30,7 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     EXTRA_ARGS=""
     SP=False
 else
-    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph""
+    LAUNCHER="msrun --bind_core=True --join=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph""
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
 fi
 if [ "$ENABLE_DYNAMIC_SHAPE" -eq 1 ]; then
@@ -55,7 +56,7 @@ fi
 DATA_ROOT="preprocessed-dataset"
 CAPTION_COLUMN="prompts.txt"
 VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX1.5-5b"
+MODEL_PATH="THUDM/CogVideoX1.5-5B"
 
 # Launch experiments with different hyperparameters
 for learning_rate in "${LEARNING_RATES[@]}"; do

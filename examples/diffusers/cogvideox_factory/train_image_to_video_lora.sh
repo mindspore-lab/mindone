@@ -56,7 +56,7 @@ fi
 DATA_ROOT="preprocessed-dataset"
 CAPTION_COLUMN="prompts.txt"
 VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX1.5-5B"
+MODEL_PATH="THUDM/CogVideoX1.5-5B-I2V"
 
 # Launch experiments with different hyperparameters
 for learning_rate in "${LEARNING_RATES[@]}"; do
@@ -65,7 +65,7 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
       for steps in "${MAX_TRAIN_STEPS[@]}"; do
         output_dir="./cogvideox-lora__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
 
-        cmd="$LAUNCHER training/cogvideox_text_to_video_lora.py \
+        cmd="$LAUNCHER training/cogvideox_image_to_video_lora.py \
           --pretrained_model_name_or_path $MODEL_PATH \
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
@@ -93,6 +93,7 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --lr_num_cycles 1 \
           --enable_slicing \
           --enable_tiling \
+          --noised_image_dropout 0.05 \
           --optimizer $optimizer \
           --beta1 0.9 \
           --beta2 0.95 \
