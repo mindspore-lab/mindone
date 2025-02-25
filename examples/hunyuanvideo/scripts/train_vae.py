@@ -18,7 +18,7 @@ sys.path.append(mindone_lib_path)
 sys.path.append(os.path.join(__dir__, ".."))
 from hyvideo.acceleration import create_parallel_group
 from hyvideo.constants import PRECISION_TO_TYPE
-from hyvideo.dataset import BatchTransform, VideoDataset
+from hyvideo.dataset import VideoDataset
 from hyvideo.utils import EMA, init_model, resume_train_net
 from hyvideo.utils.helpers import set_modules_requires_grad, set_train
 from hyvideo.vae import load_vae_train
@@ -37,15 +37,9 @@ logger = logging.getLogger(__name__)
 def initialize_dataset(dataset_args, dataloader_args, device_num: int, shard_rank_id: int):
     dataset = VideoDataset(**dataset_args)
     dataloader_args = dataloader_args.as_dict()
-    sampler_args = dataloader_args.pop("sampler", None)
-    if sampler_args is not None:
-        transform = BatchTransform(**sampler_args)
-        transform = {"operations": transform, "input_columns": ["video"]}
-    else:
-        transform = None
+
     dataloader = create_dataloader(
         dataset=dataset,
-        batch_transforms=transform,
         device_num=device_num,
         rank_id=shard_rank_id,
         **dataloader_args,
@@ -279,6 +273,14 @@ def main(args):
 
     callbacks.append(StopAtStepCallback(train_steps=args.train.steps, global_step=global_step))
 
+    if mode == GRAPH_MODE:
+        _bs = ms.Symbol(unique=True)
+        video = ms.Tensor(shape=[_bs, 3, None, None, None], dtype=ms.float32)  # (b, c, f, h, w)
+        training_step_ae.set_inputs(video)
+        if disc_with_loss is not None:
+            training_step_disc.set_inputs(video)
+        logger.info("Dynamic inputs are initialized for training!")
+
     # 6. train
     logger.info("Start training...")
     # 6. training process
@@ -492,7 +494,6 @@ if __name__ == "__main__":
     parser.add_argument(  # FIXME: support bucketing
         "--dataloader.batch_size", default=1, type=Union[int, Dict[str, int]], help="Number of samples per batch"
     )
-    parser.add_subclass_arguments(BatchTransform, "dataloader.sampler", required=False, instantiate=False)
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})

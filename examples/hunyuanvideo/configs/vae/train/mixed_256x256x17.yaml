@@ -27,10 +27,6 @@ dataloader:
   shuffle: True
   num_workers_dataset: 4
 
-sampler:
-  mixed_strategy: "mixed_video_image"
-  mixed_image_ratio: 0.2
-
 
 train:
   steps: 30000
