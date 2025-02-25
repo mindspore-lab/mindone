@@ -121,6 +121,9 @@ def main(args):
     # 3. build training network
     ae_with_loss, disc_with_loss = create_train_network(vae, args, dtype=vae_dtype)
 
+    if disc_with_loss is not None and args.train.data_sink_mode:
+        logger.info("Data sink is not supported when training with discriminator. `data_sink_mode` is set to False")
+        args.train.data_sink_mode = False
     # 4. build train & val datasets
     if args.train.sequence_parallel.shards > 1:
         logger.info(
@@ -243,6 +246,21 @@ def main(args):
             if args.train.settings.zero_stage == 3
             else os.path.join(args.train.output_path, "ckpt")
         )
+        save_kwargs = args.train.save.as_dict()
+        log_interval = save_kwargs.get("log_interval", 1)
+        if args.train.data_sink_mode:
+            if args.train.data_sink_size == -1:
+                sink_size = len(dataloader)
+            else:
+                sink_size = args.train.data_sink_size
+            new_log_interval = sink_size * log_interval
+            if new_log_interval != log_interval:
+                logger.info(
+                    f"Because of data sink mode ON and sink size {sink_size}, log_interval is changed from {log_interval} to {new_log_interval}"
+                )
+            log_interval = new_log_interval
+        save_kwargs["log_interval"] = log_interval
+
         callbacks.append(
             EvalSaveCallback(
                 network=ae_with_loss.autoencoder,
@@ -255,7 +273,7 @@ def main(args):
                 start_epoch=start_epoch,
                 resume_prefix_blacklist=("vae.", "swap."),
                 train_steps=args.train.steps,
-                **args.train.save,
+                **save_kwargs,
             )
         )
 
@@ -266,7 +284,14 @@ def main(args):
     # 6. training process
     if disc_with_loss is None:
         model = Model(training_step_ae)
-        model.train(args.train.steps, dataloader, callbacks=callbacks, initial_epoch=start_epoch)
+        model.train(
+            args.train.steps,
+            dataloader,
+            callbacks=callbacks,
+            initial_epoch=start_epoch,
+            dataset_sink_mode=args.train.data_sink_mode,
+            sink_size=args.train.data_sink_size,
+        )
     else:
         step_mode = True
         disc_start = args.train.losses.disc_start
@@ -502,6 +527,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--train.steps", default=100, type=int, help="Number of steps to train. Default: 100.")
     parser.link_arguments("train.steps", "train.lr_scheduler.total_steps", apply_on="parse")
+    parser.add_argument("--train.data_sink_mode", default=False, type=bool, help="Whether to turn on data sink mode.")
+    parser.add_argument("--train.data_sink_size", default=-1, type=int, help="The data sink size when sink mode is ON.")
     parser.add_class_arguments(
         EvalSaveCallback,
         "train.save",
