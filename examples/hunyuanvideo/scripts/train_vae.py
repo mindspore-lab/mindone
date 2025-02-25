@@ -128,6 +128,17 @@ def main(args):
         )
     dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
 
+    # batch loading time
+    # start_time = time.time()
+    # for i, batch in enumerate(dataloader):
+    #     if i < 5:
+    #         logger.info(f"Batch {i} loading time: {time.time() - start_time:.2f}s")
+    #         for item in batch:
+    #             logger.info(f"{batch[item].shape}")
+    #     else:
+    #         break
+    #     start_time = time.time()
+
     dataset_size = dataloader.get_dataset_size()
     logger.info(f"Num batches: {dataset_size}")
 
