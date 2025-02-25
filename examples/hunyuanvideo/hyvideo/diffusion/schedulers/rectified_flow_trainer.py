@@ -98,6 +98,7 @@ class RFlowLossWrapper(nn.Cell):
 
         self.model = model
         self.criteria = nn.MSELoss(reduction="mean")
+        self._timesteps = Tensor(np.linspace(1, num_timesteps, num_timesteps, dtype=np.float32))
 
         self.broadcast = None
         if get_sequence_parallel_state() and (sp_group := hccl_info.world_size) is not None:
@@ -142,7 +143,10 @@ class RFlowLossWrapper(nn.Cell):
         x = x.to(mstype.float32)
 
         if timestep is None:
-            timestep = self._broadcast(self._sample_func(x.shape[0]))
+            u = self._sample_func(x.shape[0]).to(mstype.int32)
+            timestep = self._timesteps[u]
+
+        timestep = self._broadcast(timestep)
 
         noise = self._broadcast(ops.randn_like(x))
         x_t = self.add_noise(x, noise, timestep)
