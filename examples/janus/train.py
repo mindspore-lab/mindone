@@ -31,6 +31,7 @@ from janus.models.modeling_vlm import MultiModalityConfig
 from janus.utils.io import set_model_param_dtype
 from janus.train.lr_schedule import WarmupCosineDecayLR
 from janus.train.utils import  gen_t2i_train_sample
+from janus.train.t2i_dataset import TextImageDataset, create_dataloader_t2i
 
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallbackEpoch, StopAtStepCallback
 from mindone.trainers.checkpoint import CheckpointManager
@@ -168,7 +169,19 @@ def main(args):
 
     # 2. prepare dataset and loader
     # FIXME: add dataset and loader. this is a toy data sample for i2v debug
-    input_ids, labels, attention_masks, image_seq_masks, image = gen_t2i_train_sample(max_length=args.max_length)
+    # input_ids, labels, attention_masks, image_seq_masks, image = gen_t2i_train_sample(max_length=args.max_length)
+
+    dataloader = create_dataloader_t2i(
+        csv_path='datasets/data_demo/jade/csvfile/image_text_en.csv',
+        data_dir='datasets/data_demo',
+        vl_chat_processor=vl_chat_processor,
+        max_token_length=1024,
+        # image_size=384,  # TODO: read from config
+        # null_prompt_prob: float = 0.0, # TODO: tune 0.01, 0.05
+        batch_size=1,
+        shuffle=False,  # FIXME: debug
+        num_samples=20, # FIXME: debug
+    )
     
     # 3. setup trainer and config hyper-params 
     # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # FIXME
@@ -222,6 +235,7 @@ def main(args):
     ckpt_dir = os.path.join(args.output_path, "ckpt")
     # TODO: suppor training resume 
     start_epoch = 0
+    start_global_step = 0
     if rank_id == 0:
         ckpt_manager = CheckpointManager(ckpt_dir, "latest_k", k=args.ckpt_max_keep)
         if not os.path.exists(ckpt_dir):
@@ -240,38 +254,53 @@ def main(args):
 
     # 4. training loop
     start_time_s = time.time()
-    for step in range(args.train_steps): 
-        data = (ms.Tensor(input_ids, dtype=ms.int32),
-            ms.Tensor(labels, dtype=ms.int32),
-            ms.Tensor(attention_masks, dtype=ms.bool_),
-            ms.Tensor(image_seq_masks, dtype=ms.bool_),
-            ms.Tensor(image, dtype=dtype),
+
+    # ds_iter = dataloader.create_tuple_iterator(num_epochs=num_epochs - start_epoch)
+    ds_iter = dataloader.create_tuple_iterator(num_epochs=-1)
+    num_batches = dataloader.get_dataset_size() 
+    num_epochs = math.floor(args.train_steps / num_batches)
+    global_step = start_global_step
+    
+    for epoch in range(start_epoch + 1, num_epochs + 1):
+        # for step in range(args.train_steps): 
+        for step, data in enumerate(ds_iter, 1):
+            '''
+            data = (ms.Tensor(input_ids, dtype=ms.int32),
+                ms.Tensor(labels, dtype=ms.int32),
+                ms.Tensor(attention_masks, dtype=ms.bool_),
+                ms.Tensor(image_seq_masks, dtype=ms.bool_),
+                ms.Tensor(image, dtype=dtype),
+                )
+            '''
+            data[-1] = data[-1].to(dtype)  # image pixel values cast to bfloat16
+
+            if use_value_and_grad:
+                loss = train_step(data)
+            else:
+                loss, overflow, scaling_sens = train_step(*data) 
+
+            step_time = time.time() - start_time_s
+            global_step += 1
+            loss_val = float(loss.asnumpy())
+            
+            scheduler.step()
+            cur_lr = scheduler.get_last_lr()[0].asnumpy()
+            # print("lr", [lr for lr in optimizer.lrs])
+
+            logger.info(
+                f"epoch {epoch}, step {step}, loss {loss_val:.8f}, lr {cur_lr:.7f}, step time {step_time*1000:.2f}ms"
             )
 
-        if use_value_and_grad:
-            loss = train_step(data)
-        else:
-            loss, overflow, scaling_sens = train_step(*data) 
+            if rank_id == 0:
+                step_pref_value = [global_step, loss_val, step_time]
+                record.add(*step_pref_value)
 
-        step_time = time.time() - start_time_s
-        loss_val = float(loss.asnumpy())
-        logger.info(
-            f"Step {step}, loss {loss_val:.8f}, step time {step_time*1000:.2f}ms"
-        )
-        
-        # TODO: add lr step?
-        scheduler.step()
-        # print("lr", [lr for lr in optimizer.lrs])
-        print("current lr: ", scheduler.get_last_lr())
+            if (global_step > 0) and (global_step  % args.ckpt_save_steps == 0): 
+                ckpt_name = f"model-s{global_step}.ckpt"
+                ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
+            start_time_s = time.time()
 
-        if rank_id == 0:
-            step_pref_value = [step, loss_val, step_time]
-            record.add(*step_pref_value)
-
-        if (step > 0) and ((step+1)  % args.ckpt_save_steps == 0): 
-            ckpt_name = f"model-s{step}.ckpt"
-            ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
-        start_time_s = time.time()
+            # TODO: allow stop at the last step
     
     logger.info(f"Finished training. check results in {args.output_path}")
     reset_op_id()
@@ -297,7 +326,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning_rate", default=5e-6, type=float, help="learning rate")
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
     parser.add_argument("--train_steps", default=5000, type=int, help="training steps")
-    parser.add_argument("--warmup_steps", default=100, type=int, help="lr warmup steps")
+    parser.add_argument("--warmup_steps", default=30, type=int, help="lr warmup steps")
     parser.add_argument("--ckpt_save_steps", default=500, type=int, help="save ckpt every this step")
     parser.add_argument("--ckpt_max_keep", default=3, type=int, help="")
     parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded to this max length")

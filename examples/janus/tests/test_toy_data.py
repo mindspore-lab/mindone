@@ -16,6 +16,16 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
 
     # prompt = "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair"
     prompt = "two dogs"
+    # image pixels
+    image_path = 'images/doge.png'
+    size = (384, 384)
+    image = Image.open(image_path).convert("RGB")
+    image = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(image)
+    image = np.array(image)
+    image = (image / 255.0) * 2  - 1
+    image = np.transpose(image, (2, 0, 1))
+    image = image[None, ...]  # add bs, n_images dimension 
+
     conversation = [
         {
             "role": "<|User|>",
@@ -34,7 +44,12 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
             + (vlcp.image_tag * vlcp.num_image_tokens) \
             + vlcp.image_end_tag \
 
-    input_ids = vlcp.tokenizer.encode(prompt, add_special_tokens=True, padding="max_length", max_length=max_length, padding_side='left', truncation=True)
+    input_ids = vlcp.tokenizer.encode(prompt, 
+            add_special_tokens=True,
+            padding="max_length",
+            max_length=max_length,
+            # padding_side='left',
+            truncation=True)
     input_ids = np.array(input_ids, np.int32)
 
     assert (input_ids == vlcp.image_id).sum() == vlcp.num_image_tokens, "text + image tokens exceeds max token length, please adjust max_length or num image token"
@@ -59,7 +74,10 @@ def gen_t2i_train_sample(model_path='ckpts/Janus-Pro-1B', max_length=1088):  # 5
     assert input_ids.max() < config.language_config.vocab_size, "input token should be smaller than vocab size of mllm"
     assert image_seq_mask.sum() ==  vl_chat_processor.num_image_tokens
 
-    return input_ids[None, ...], labels[None, ...], attention_masks[None, ...], image_seq_masks[None, ...], image[None, ...]
+    
+    print('toy data: ', input_ids.tolist())
+    print('image size', image.shape)
+    return input_ids[None, ...], labels[None, ...], attention_mask[None, ...], image_seq_mask[None, ...], image[None, ...]
 
 def gen_vqa_train_sample():
     pass

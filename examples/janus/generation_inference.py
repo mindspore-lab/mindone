@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import mindspore as ms
 from time import time
 from mindspore import mint, ops, Tensor
@@ -105,8 +106,9 @@ def generate(
     visual_img[:, :, :] = dec
 
     os.makedirs('generated_samples', exist_ok=True)
+    time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     for i in range(parallel_size):
-        save_path = os.path.join('generated_samples', "img_{}.jpg".format(i))
+        save_path = os.path.join('generated_samples', "img_{}-{}.jpg".format(i, time_str))
         PIL.Image.fromarray(visual_img[i]).save(save_path)
         print('Image saved in', save_path)
 

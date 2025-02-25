@@ -84,8 +84,8 @@ if __name__ == "__main__":
 
     config = AutoConfig.from_pretrained(args.model_path)
     language_config = config.language_config
-    language_config._attn_implementation = 'eager'
-    # language_config._attn_implementation = 'flash_attention_2'
+    # language_config._attn_implementation = 'eager'
+    language_config._attn_implementation = 'flash_attention_2'
     vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(args.model_path,
                                                  language_config=language_config,
                                                  trust_remote_code=True)

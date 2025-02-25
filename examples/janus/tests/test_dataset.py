@@ -9,7 +9,7 @@ from janus.models import MultiModalityCausalLM, VLChatProcessor
 from PIL import Image
 import mindspore as ms
 from mindspore.dataset.vision import Inter
-from janus.train_pipeline.t2i_dataset import TextImageDataset, create_dataloader_t2i
+from janus.train.t2i_dataset import TextImageDataset, create_dataloader_t2i
 
 
 def test():
@@ -35,6 +35,7 @@ def test_dataloader():
                     data_dir='datasets/data_demo',
                     vl_chat_processor=vl_chat_processor,
                     batch_size=2,
+                    num_samples=20,
                     )
 
     iterator = dl.create_dict_iterator(100)
@@ -48,5 +49,5 @@ def test_dataloader():
 
 
 if __name__ == "__main__":
-    # test()
-    test_dataloader()
+    test()
+    # test_dataloader()

@@ -23,10 +23,14 @@ class TextImageDataset:
         max_token_length: int = 1024,
         image_size: int = 384,
         null_prompt_prob: float = 0.0,
+        num_samples: int = -1,
     ) -> None:
         logger.info(f"loading annotations from `{csv_path}`.")
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))
+        if num_samples > 0:
+            logger.info(f'sequential slice dataset samples to {num_samples}')
+            self.dataset = self.dataset[:num_samples]
 
         self.length = len(self.dataset)
 
@@ -58,6 +62,7 @@ class TextImageDataset:
         # process image
         image = Image.open(image_path).convert("RGB")
         image = self.transform(image)[0]
+        image = image[None, ...]  # add temporal axis
 
         return input_ids, labels, attention_mask, image_seq_mask, image
 
@@ -95,7 +100,12 @@ class TextImageDataset:
 
         # add image placeholder tokens and padding to max length
         # left padding (default), same as inference. eos will be added
-        input_ids = vlcp.tokenizer.encode(prompt, add_special_tokens=True, padding="max_length", max_length=self.max_token_length, padding_side='left', truncation=True)
+        input_ids = vlcp.tokenizer.encode(prompt,
+                add_special_tokens=True,
+                padding="max_length",
+                max_length=self.max_token_length,
+                # padding_side='left',
+                truncation=True)
         input_ids = np.array(input_ids, np.int32)
 
         assert (input_ids == vlcp.image_id).sum() == vlcp.num_image_tokens, "text + image tokens exceeds max token length, please adjust max_length or num image token"
@@ -140,6 +150,7 @@ def create_dataloader_t2i(
         max_token_length: int = 1024,
         image_size: int = 384,
         null_prompt_prob: float = 0.0,
+        num_samples: int = -1,
         batch_size: int = 1,
         shuffle: bool = True,
         num_parallel_workers: int = 8,
@@ -154,6 +165,7 @@ def create_dataloader_t2i(
         max_token_length=max_token_length,
         image_size=image_size,
         null_prompt_prob=null_prompt_prob,
+        num_samples=num_samples,
     )
 
     dataloader = ms.dataset.GeneratorDataset(
