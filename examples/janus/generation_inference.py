@@ -8,7 +8,9 @@ from time import time
 
 import numpy as np
 import PIL.Image
+import datetime
 from janus.models import MultiModalityCausalLM, VLChatProcessor
+from janus.models.modeling_vlm import MultiModalityConfig
 from janus.models.compat import get_multinomial_op
 from janus.utils.io import set_model_param_dtype
 from tqdm import tqdm
@@ -153,6 +155,7 @@ if __name__ == "__main__":
         help="path to model weight folder",
     )
     parser.add_argument("--use_cache", type=str2bool, default=True, help="use kv cache or not")
+    parser.add_argument("--ckpt_path", type=str, default=None, help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path")
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_new_tokens", type=int, default=1024)
     args = parser.parse_args()
