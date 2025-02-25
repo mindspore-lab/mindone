@@ -3,7 +3,7 @@
 # Step-Video-T2V on MindSpore
 
 ## 🔥🔥🔥 News!!
-* Feb 17, 2025: 👋 We have reproduced the inference of the excellent work Step-Video-T2V, which was open-sourced by Step-Fun, on MindSpore. 
+* Feb 17, 2025: 👋 We have reproduced the inference of the excellent work Step-Video-T2V, which was open-sourced by Step-Fun, on MindSpore.
 
 
 ## Video Demos
@@ -52,7 +52,7 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 | Step-Video-T2V   |        544px992px204f      |  45.83 GB | ~52 min |
 | Step-Video-T2V   |        544px992px136f      |  40.48 GB | ~35 min |
 
-* An Ascend 910* NPU with CANN support is required. 
+* An Ascend 910* NPU with CANN support is required.
   * The model is tested on four NPUs. (Excluding two additional NPUs used to provide prompt encoding and VAE video decoding services.)
 * Tested operating system: EulerOS
 
@@ -60,7 +60,7 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 ### 🔧 3.2 Dependencies and Installation
 
 - [MindONE](https://github.com/mindspore-lab/mindone)
-- [FFmpeg](https://www.ffmpeg.org/) 
+- [FFmpeg](https://www.ffmpeg.org/)
 ```bash
 git clone https://github.com/mindspore-lab/mindone.git
 
