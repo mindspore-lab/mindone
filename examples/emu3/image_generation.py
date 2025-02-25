@@ -128,10 +128,11 @@ elapsed = time.time() - start_time
 print("Average speed %.4fs/step" % (elapsed / len(outputs[0])))
 print("Finish generation, time elapsed: %.4fs" % (time.time() - start_time))
 
+# since input_ids are deleted in generate() output
+# need to add input_ids back ahead, which contains visual boi/eoi tokens and meta data for image detokenization
+outputs = ops.cat((Tensor(pos_inputs.input_ids, dtype=outputs.dtype), outputs), axis=1)
 start_time = time.time()
 for idx_i, out in enumerate(outputs):
-    if model.config.img_token_id not in out:  # img_token_id was deleted in generate() output
-        out = [model.config.img_token_id] + out
     mm_list = processor.decode(out)
     for idx_j, im in enumerate(mm_list):
         if not isinstance(im, Image.Image):
