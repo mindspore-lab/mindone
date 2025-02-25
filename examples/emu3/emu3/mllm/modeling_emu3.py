@@ -769,7 +769,7 @@ class Emu3Model(Emu3PreTrainedModel):
         self._use_sdpa = config._attn_implementation == "sdpa"
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
         self.norm = Emu3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.gradient_checkpointing = False
+        # self.gradient_checkpointing = False
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -779,6 +779,26 @@ class Emu3Model(Emu3PreTrainedModel):
 
     def set_input_embeddings(self, value):
         self.embed_tokens = value
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        if gradient_checkpointing_kwargs is None:
+            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
+            gradient_checkpointing_kwargs = {}
+
+        # llama layers
+        for decoder_layer in self.layers:
+            assert isinstance(decoder_layer, LlamaDecoderLayer)
+            for name, cell in decoder_layer.name_cells().items():
+                if "output_identity" in name:
+                    assert isinstance(cell, nn.Identity)
+                    pass
+                else:
+                    # cell._recompute()
+                    recompute_except_output(cell, **gradient_checkpointing_kwargs)
+        recompute_except_output(self.embed_tokens, **gradient_checkpointing_kwargs)
+        recompute_except_output(self.norm, **gradient_checkpointing_kwargs)
+
+        logger.info(f"{self.__class__.__name__}: enable recompute.")
 
     @add_start_docstrings_to_model_forward(EMU3_INPUTS_DOCSTRING)
     def construct(
@@ -811,12 +831,12 @@ class Emu3Model(Emu3PreTrainedModel):
         else:
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
-        if self.gradient_checkpointing and self.training:
-            if use_cache:
-                logger.warning_once(
-                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
-                )
-                use_cache = False
+        # if self.gradient_checkpointing and self.training:
+        #     if use_cache:
+        #         logger.warning_once(
+        #             "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
+        #         )
+        #         use_cache = False
 
         past_key_values_length = 0
         use_legacy_cache = False
@@ -824,7 +844,7 @@ class Emu3Model(Emu3PreTrainedModel):
             use_legacy_cache = not isinstance(past_key_values, Cache) and self._supports_cache_class
             if use_legacy_cache:
                 past_key_values = DynamicCache.from_legacy_cache(past_key_values)
-                past_key_values_length = past_key_values.get_usable_length(seq_length)
+            past_key_values_length = past_key_values.get_usable_length(seq_length) if isinstance(past_key_values, Cache) else get_max_length(past_key_values)
 
         if position_ids is None:
             position_ids = ops.arange(past_key_values_length, seq_length + past_key_values_length, dtype=ms.int32)
@@ -856,17 +876,6 @@ class Emu3Model(Emu3PreTrainedModel):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
-            # if self.gradient_checkpointing and self.training:
-            #     layer_outputs = self._gradient_checkpointing_func(
-            #         decoder_layer.__call__,
-            #         hidden_states,
-            #         attention_mask,
-            #         position_ids,
-            #         past_key_values,
-            #         output_attentions,
-            #         use_cache,
-            #     )
-            # else:
             layer_outputs = decoder_layer(
                 hidden_states,
                 attention_mask=attention_mask,
@@ -1141,6 +1150,9 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         for layer_past in past_key_values:
             reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
 
 
 if __name__ == "__main__":

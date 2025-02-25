@@ -6,36 +6,44 @@ import pathlib
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-import torch
 import transformers as tf
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.train.datasets import Emu3FeatureDataset
 
+from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
+from mindone.transformers.trainer import Trainer
+from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
+
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="BAAI/Emu3-Gen")
+    model_name_or_path: Optional[str] = field(default="BAAI/Emu3-Stage1") # Emu3-Gen/Chat/Stage1
 
 
 @dataclass
 class DataArguments:
-    data_path: Optional[str] = field(default=None)
+    train_data_path: Optional[str] = field(default=None)
+    eval_data_path: Optional[str] = field(default=None)
     null_prompt_prob: float = field(default=0.05)
     apply_loss_on_only_vision: bool = field(default=True)
     apply_loss_on_only_text: bool = field(default=False)
     ignore_index: int = field(default=-100)
     visual_token_pattern: str = field(default="<|visual token {token_id:0>6d}|>")
+    special_token_ids: list = field(default=[151643,151849,151850,151851,151852,151853,151846,151847]) # Emu3Config
     codebook_size: Optional[int] = field(default=32768)
 
 
 @dataclass
-class TrainingArguments(tf.TrainingArguments):
+class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     report_to: List[str] = field(default_factory=list)
     remove_unused_columns: bool = field(default=False)
     min_learning_rate: Optional[float] = field(default=None)
-    attn_type: Optional[str] = field(default="fa2")
-    image_area: Optional[int] = field(default=None)
+    image_area: Optional[int] = field(default=None)         # image max resolution, e.g. 720*720, 512*512
     max_position_embeddings: Optional[int] = field(default=None)
+    output_dir: str = field(default="./outputs")            # output directory for checkpoints
+    enable_flash_attention: bool = field(default=True)      # enable flash_attention_2
+    gradient_checkpointing: bool = field(default=True)      # activate gradient checkpointing
+    is_distribute: bool = field(default=False)              # use data parallel
 
 
 def update_configs(model_config, args, fields):
@@ -53,18 +61,21 @@ def train():
     parser = tf.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    # init training env
+    init_environment(training_args)
+
+    # load pre-trained model and tokenizer (usually Emu3-Stage1)
     model_config = Emu3Config.from_pretrained(model_args.model_name_or_path)
     update_configs(model_config, training_args, ["image_area", "max_position_embeddings"])
     if training_args.min_learning_rate is not None:
         training_args.lr_scheduler_kwargs["min_lr"] = training_args.min_learning_rate
 
-    os.environ["WANDB_DIR"] = osp.join(training_args.output_dir, "wandb")
-
     model = Emu3ForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=model_config,
-        attn_implementation="flash_attention_2" if training_args.attn_type == "fa2" else None,
-        torch_dtype=torch.bfloat16 if training_args.bf16 else None,
+        attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
+        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None),
+        use_safetensors=True,
     )
 
     tokenizer = Emu3Tokenizer.from_pretrained(
@@ -74,23 +85,32 @@ def train():
         use_fast=False,
     )
 
-    train_dataset = Emu3FeatureDataset(data_args, tokenizer=tokenizer)
+    # load data
+    train_dataset = Emu3FeatureDataset(data_args, tokenizer=tokenizer, split="train")
+    eval_dataset = None
+    if (data_args.eval_data_path is not None) and training_args.do_eval:
+        eval_dataset = Emu3FeatureDataset(data_args, tokenizer=tokenizer, split="test")
 
-    trainer = tf.Trainer(
+    # training configs
+    if training_args.do_eval:
+        metric = evaluate.load("accuracy")
+        def compute_metrics(eval_pred):
+            logits, labels = eval_pred
+            predictions = np.argmax(logits, axis=-1)
+            return metric.compute(predictions=predictions, references=labels)
+    else:
+        compute_metrics = None
+
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
+        eval_dataset=eval_dataset,
+        compute_metrics=compute_metrics,
     )
+    # by default, use AdamW, linear lr scheduler
 
-    if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
-        trainer.train(resume_from_checkpoint=True)
-    else:
-        trainer.train()
-    trainer.save_state()
-
-    torch.cuda.synchronize()
-    trainer.save_model(training_args.output_dir)
-
+    trainer.train()
 
 if __name__ == "__main__":
     train()

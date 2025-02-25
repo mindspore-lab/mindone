@@ -10,10 +10,10 @@ LOG_DIR=outputs/parallel_logs/${EXP_NAME}
 msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_port=${MASTER_PORT} --log_dir=${LOG_DIR} \
 python emu3/train/train.py \
     --model_name_or_path BAAI/Emu3-Gen \
-    --precision bf16 \
-    --zero_stage 3 \
+    --bf16 True \
+    --optim adamw_zero2_mindspore \
     --is_distribute True \
-    --data_path ${DATAPATH} \
+    --train_data_path ${DATAPATH} \
     --dataloader_num_workers 4 \
     --null_prompt_prob 0.05 \
     --apply_loss_on_only_vision True \
@@ -24,8 +24,6 @@ python emu3/train/train.py \
     --num_train_epochs 4 \
     --per_device_train_batch_size 2 \
     --gradient_accumulation_steps 4 \
-    --eval_strategy no \
-    --save_strategy steps \
     --save_steps 500 \
     --save_total_limit 10 \
     --learning_rate 1e-5 \
@@ -38,8 +36,10 @@ python emu3/train/train.py \
     --warmup_steps 30 \
     --lr_scheduler_type "cosine_with_min_lr" \
     --logging_steps 1 \
+    --gradient_checkpointing True \
+    # --eval_strategy no \
+    # --save_strategy steps \
     # --run_name ${EXP_NAME}
     # --report_to wandb tensorboard \
     # --deepspeed scripts/zero3.json \
     # --tf32 True \
-    # --gradient_checkpointing True \ #???

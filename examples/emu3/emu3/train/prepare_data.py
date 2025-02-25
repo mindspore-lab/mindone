@@ -1,4 +1,34 @@
-# -*- coding: utf-8 -*-
+'''
+This script is to prepare image generation dataset.
+
+Input example data json format:
+{
+[
+    "name": "data1"，
+    "text": "text prompt #1",
+    "image": "image_1.jpg"
+],
+[
+    "name": "data2"，
+    "text": "text prompt #2",
+    "image": "image_2.jpg"
+],
+...
+}
+
+Output dataset
+- output_path/list/train.json:
+    {
+        "prefix": output_path/feature,
+        "path_list": ["data1.ckpt", "data2.ckpt", ...]
+    }
+- /output_path/feature/data1.ckpt:
+    {"name": name, "images": token_ids, "texts": prompt}
+- /output_path/feature/data2.ckpt:
+    {"name": name, "images": token_ids, "texts": prompt}
+...
+
+'''
 
 import argparse
 import json
@@ -36,6 +66,7 @@ def prepare_args():
     parser.add_argument("--data-path", type=str, help="data path")
     parser.add_argument("--output-path", type=str, help="tokenized data save path")
     parser.add_argument("--image-area", type=int, default=720 * 720)
+    parser.add_argument("--split", type=str, default="train", help="split to train to test set")
 
     args = parser.parse_args()
     return args
@@ -68,6 +99,7 @@ def main():
     with open(args.data_path) as f:
         input_data = json.load(f)
 
+    cnt = 0
     for inp in input_data:
         name = inp["name"]
         prompt = inp["text"]
@@ -77,7 +109,7 @@ def main():
 
         image = image_processor(image, return_tensors="np")["pixel_values"]
         with no_grad():
-            image = ms.Tensor(image)
+            image = ms.Tensor(image, dtype=image_tokenizer.dtype)
             token_ids = image_tokenizer.encode(image)
 
         token_ids = token_ids.squeeze(0).asnumpy()
@@ -85,9 +117,12 @@ def main():
 
         ms.save_checkpoint(data, f"{args.output_path}/feature/{name}.ckpt")
         datalist["path_list"].append(f"{name}.ckpt")
+        cnt += 1
 
-    with open(f"{args.output_path}/list/train.json", "w") as f:
+    json_file = f"{args.output_path}/list/{args.split}.json"
+    with open(json_file, "w") as f:
         json.dump(datalist, f)
+    print(f"Generated {json_file} with {cnt} data items.")
 
 
 if __name__ == "__main__":
