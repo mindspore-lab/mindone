@@ -19,11 +19,9 @@
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-2. [Model Download](#3-model-download)
-3. [Model Usage](#4-model-usage)
-4. [Benchmark](#5-benchmark)
-5. [Citation](#7-citation)
-6. [Acknowledgement](#8-ackownledgement)
+2. [Model Download](#2-model-download)
+3. [Model Usage](#3-model-usage)
+4. [Acknowledgement](#4-ackownledgement)
 
 
 
@@ -113,7 +111,7 @@ run_parallel.py --model_dir $model_dir --vae_url $vae_url --caption_url $caption
 ```
 
 
-###  🚀 4.4 Best-of-Practice Inference settings
+###  🚀 3.4 Best-of-Practice Inference settings
 Step-Video-T2V exhibits robust performance in inference settings, consistently generating high-fidelity and dynamic videos. However, our experiments reveal that variations in inference hyperparameters can have a substantial effect on the trade-off between video fidelity and dynamics. To achieve optimal results, we recommend the following best practices for tuning inference parameters:
 
 | Models   | infer_steps   | cfg_scale  | time_shift | num_frames |
@@ -122,5 +120,5 @@ Step-Video-T2V exhibits robust performance in inference settings, consistently g
 | Step-Video-T2V-Turbo (Inference Step Distillation) | 10-15 | 5.0 | 17.0 | 204 |
 
 
-## 5. Acknowledgement
+## 4. Acknowledgement
 This project uses code from [stepfun-ai/Step-Video-T2V](https://github.com/stepfun-ai/Step-Video-T2V), thanks to the **stepfun-ai** team for their contribution.
