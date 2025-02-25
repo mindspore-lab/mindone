@@ -9,7 +9,7 @@ from jsonargparse.typing import path_type
 
 import mindspore as ms
 import mindspore.dataset as ds
-from mindspore import Model, get_context, nn, set_seed
+from mindspore import GRAPH_MODE, Model, get_context, nn, set_context, set_seed
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +85,9 @@ def main(args):
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
     mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
-
+    # if graph mode and vae tiling is ON, uise dfs exec order
+    if mode == GRAPH_MODE and args.vae.tiling:
+        set_context(exec_order="dfs")
     # 1.1 init model parallel
     shard_rank_id = rank_id
     if args.train.sequence_parallel.shards > 1:

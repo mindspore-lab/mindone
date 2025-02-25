@@ -69,6 +69,9 @@ def main(args):
     # if bucketing is used in Graph mode, activate dynamic mode
     if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
         set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
+    # if graph mode and vae tiling is ON, uise dfs exec order
+    if mode == GRAPH_MODE and args.vae.tiling:
+        set_context(exec_order="dfs")
 
     # 1.1 init model parallel
     shard_rank_id = rank_id

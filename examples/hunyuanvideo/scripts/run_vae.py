@@ -8,6 +8,7 @@ from PIL import Image
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore import GRAPH_MODE, get_context, set_context
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
@@ -169,7 +170,10 @@ def main(args):
         seed=args.seed,
         distributed=args.use_parallel,
     )
-
+    mode = get_context("mode")
+    # if graph mode and vae tiling is ON, uise dfs exec order
+    if mode == GRAPH_MODE and args.vae_tiling:
+        set_context(exec_order="dfs")
     set_logger(name="", output_dir=args.output_path, rank=0)
 
     vae, _, s_ratio, t_ratio = load_vae(
