@@ -321,7 +321,7 @@ if __name__ == "__main__":
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
     parser.add_argument("--null_prompt_prob", default=0.0, type=float, help="probability of replace text caption with empty str for condition-free guidance training in t2i task")
     parser.add_argument("--train_steps", default=5000, type=int, help="training steps")
-    parser.add_argument("--warmup_steps", default=30, type=int, help="lr warmup steps")
+    parser.add_argument("--warmup_steps", default=50, type=int, help="lr warmup steps")
     parser.add_argument("--ckpt_save_steps", default=500, type=int, help="save ckpt every this step")
     parser.add_argument("--ckpt_max_keep", default=3, type=int, help="num of checkpoints to keep during training")
     parser.add_argument("--max_length", default=1024, type=int, help="sequence max length, input sequence will be padded (left pad) and truncated to this max length")

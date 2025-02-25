@@ -135,7 +135,7 @@ if __name__ == "__main__":
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
     tokenizer = vl_chat_processor.tokenizer
-
+    
     config =  MultiModalityConfig.from_pretrained(args.model_path)
     if args.ckpt_path is not None: 
         with no_init_parameters():
@@ -148,7 +148,8 @@ if __name__ == "__main__":
         print("net param not load: ".format(param_not_load))
         print("ckpt param not load: ".format(ckpt_not_load))
     else:
-        vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
+        with no_init_parameters():
+            vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
         dtype = ms.bfloat16
         vl_gpt = set_model_param_dtype(vl_gpt, dtype)
     vl_gpt.set_train(False)
