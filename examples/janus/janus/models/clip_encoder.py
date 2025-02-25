@@ -17,11 +17,12 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
-from mindspore import nn, Tensor
-from mindspore.dataset import vision
 from janus.models.siglip_vit import create_siglip_vit
+
+from mindspore import Tensor, nn
+from mindspore.dataset import vision
 
 
 class CLIPVisionTower(nn.Cell):
@@ -51,14 +52,10 @@ class CLIPVisionTower(nn.Cell):
             "select_layer": select_layer,
         }
         vision_tower_params.update(kwargs)
-        self.vision_tower, self.forward_kwargs = self.build_vision_tower(
-            vision_tower_params
-        )
+        self.vision_tower, self.forward_kwargs = self.build_vision_tower(vision_tower_params)
 
         if pixel_mean is not None and pixel_std is not None:
-            image_norm = vision.transforms.Normalize(
-                mean=pixel_mean, std=pixel_std
-            )
+            image_norm = vision.transforms.Normalize(mean=pixel_mean, std=pixel_std)
         else:
             image_norm = None
 

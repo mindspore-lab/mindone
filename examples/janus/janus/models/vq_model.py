@@ -22,14 +22,10 @@ from dataclasses import dataclass, field
 from typing import List
 
 import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore import Tensor, Parameter
-import mindspore.ops.functional as F
-from mindspore.common.initializer import Uniform, Normal
+from mindspore import Parameter, mint, nn, ops
+from mindspore.common.initializer import Uniform
 
-from functools import partial
-
-from .compat import normalize_l2, GroupNorm
+from .compat import GroupNorm, normalize_l2
 
 
 @dataclass
@@ -75,11 +71,7 @@ class Encoder(nn.Cell):
             block_in = ch * in_ch_mult[i_level]
             block_out = ch * ch_mult[i_level]
             for _ in range(self.num_res_blocks):
-                res_block.append(
-                    ResnetBlock(
-                        block_in, block_out, dropout=dropout, norm_type=norm_type
-                    )
-                )
+                res_block.append(ResnetBlock(block_in, block_out, dropout=dropout, norm_type=norm_type))
                 block_in = block_out
                 if i_level == self.num_resolutions - 1:
                     attn_block.append(AttnBlock(block_in, norm_type))
@@ -96,19 +88,13 @@ class Encoder(nn.Cell):
 
         # middle
         self.mid = nn.CellList()
-        self.mid.append(
-            ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type)
-        )
+        self.mid.append(ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type))
         self.mid.append(AttnBlock(block_in, norm_type=norm_type))
-        self.mid.append(
-            ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type)
-        )
+        self.mid.append(ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type))
 
         # end
         self.norm_out = Normalize(block_in, norm_type)
-        self.conv_out = mint.nn.Conv2d(
-            block_in, z_channels, kernel_size=3, stride=1, padding=1
-        )
+        self.conv_out = mint.nn.Conv2d(block_in, z_channels, kernel_size=3, stride=1, padding=1)
 
     def construct(self, x):
         h = self.conv_in(x)
@@ -150,19 +136,13 @@ class Decoder(nn.Cell):
 
         block_in = ch * ch_mult[self.num_resolutions - 1]
         # z to block_in
-        self.conv_in = mint.nn.Conv2d(
-            z_channels, block_in, kernel_size=3, stride=1, padding=1
-        )
+        self.conv_in = mint.nn.Conv2d(z_channels, block_in, kernel_size=3, stride=1, padding=1)
 
         # middle
         self.mid = nn.CellList()
-        self.mid.append(
-            ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type)
-        )
+        self.mid.append(ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type))
         self.mid.append(AttnBlock(block_in, norm_type=norm_type))
-        self.mid.append(
-            ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type)
-        )
+        self.mid.append(ResnetBlock(block_in, block_in, dropout=dropout, norm_type=norm_type))
 
         # upsampling
         self.conv_blocks = nn.CellList()
@@ -173,11 +153,7 @@ class Decoder(nn.Cell):
             attn_block = nn.CellList()
             block_out = ch * ch_mult[i_level]
             for _ in range(self.num_res_blocks + 1):
-                res_block.append(
-                    ResnetBlock(
-                        block_in, block_out, dropout=dropout, norm_type=norm_type
-                    )
-                )
+                res_block.append(ResnetBlock(block_in, block_out, dropout=dropout, norm_type=norm_type))
                 block_in = block_out
                 if i_level == self.num_resolutions - 1:
                     attn_block.append(AttnBlock(block_in, norm_type))
@@ -194,9 +170,7 @@ class Decoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in, norm_type)
-        self.conv_out = mint.nn.Conv2d(
-            block_in, out_channels, kernel_size=3, stride=1, padding=1
-        )
+        self.conv_out = mint.nn.Conv2d(block_in, out_channels, kernel_size=3, stride=1, padding=1)
 
     @property
     def last_layer(self):
@@ -239,9 +213,7 @@ class VectorQuantizer(nn.Cell):
         # TODO: re-write the cell to map panme from ms to torch: embedding_table -> weight.
         self.embedding = nn.Embedding(self.n_e, self.e_dim, embedding_table=Uniform(scale=1.0 / self.n_e))
         if self.l2_norm:
-            self.embedding.embedding_table.set_data(
-                normalize_l2(self.embedding.embedding_table.value(), dim=-1)
-                )
+            self.embedding.embedding_table.set_data(normalize_l2(self.embedding.embedding_table.value(), dim=-1))
         if self.show_usage:
             self.codebook_used = Parameter(ops.zeros(65536), requires_grad=False)
 
@@ -263,7 +235,7 @@ class VectorQuantizer(nn.Cell):
             ops.sum(z_flattened**2, dim=1, keepdim=True)
             + ops.sum(embedding**2, dim=1)
             - 2 * ops.matmul(z_flattened, ops.transpose(self.embedding.embedding_table, (1, 0)))
-                # "bd,dn->bn", z_flattened, torch.einsum("n d -> d n", embedding)
+            # "bd,dn->bn", z_flattened, torch.einsum("n d -> d n", embedding)
         )
 
         min_encoding_indices = ops.argmin(d, axis=1)
@@ -329,24 +301,16 @@ class ResnetBlock(nn.Cell):
         self.use_conv_shortcut = conv_shortcut
 
         self.norm1 = Normalize(in_channels, norm_type)
-        self.conv1 = mint.nn.Conv2d(
-            in_channels, out_channels, kernel_size=3, stride=1, padding=1
-        )
+        self.conv1 = mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
         self.norm2 = Normalize(out_channels, norm_type)
         self.dropout = nn.Dropout(p=dropout)
-        self.conv2 = mint.nn.Conv2d(
-            out_channels, out_channels, kernel_size=3, stride=1, padding=1
-        )
+        self.conv2 = mint.nn.Conv2d(out_channels, out_channels, kernel_size=3, stride=1, padding=1)
 
         if self.in_channels != self.out_channels:
             if self.use_conv_shortcut:
-                self.conv_shortcut = mint.nn.Conv2d(
-                    in_channels, out_channels, kernel_size=3, stride=1, padding=1
-                )
+                self.conv_shortcut = mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
             else:
-                self.nin_shortcut = mint.nn.Conv2d(
-                    in_channels, out_channels, kernel_size=1, stride=1, padding=0
-                )
+                self.nin_shortcut = mint.nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=1, padding=0)
 
     def construct(self, x):
         h = x
@@ -373,9 +337,7 @@ class AttnBlock(nn.Cell):
         self.q = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
         self.k = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
         self.v = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
-        self.proj_out = mint.nn.Conv2d(
-            in_channels, in_channels, kernel_size=1, stride=1, padding=0
-        )
+        self.proj_out = mint.nn.Conv2d(in_channels, in_channels, kernel_size=1, stride=1, padding=0)
 
     def construct(self, x):
         h_ = x
@@ -409,32 +371,28 @@ def nonlinearity(x):
     # TODO: maybe cast to fp32
     return x * (ops.sigmoid(x))
 
+
 def Normalize(in_channels, norm_type="group"):
     assert norm_type in ["group", "batch"]
     if norm_type == "group":
         # TODO: check mint GroupNorm accuracy
         # return mint.nn.GroupNorm(
-        return GroupNorm(
-            num_groups=32, num_channels=in_channels, eps=1e-6, affine=True
-        )
+        return GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
     elif norm_type == "batch":
         return nn.SyncBatchNorm(in_channels)
+
 
 class Upsample(nn.Cell):
     def __init__(self, in_channels, with_conv):
         super().__init__()
         self.with_conv = with_conv
         if self.with_conv:
-            self.conv = mint.nn.Conv2d(
-                in_channels, in_channels, kernel_size=3, stride=1, padding=1
-            )
+            self.conv = mint.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
 
     def construct(self, x):
         # x = F.interpolate(x.to(ms.float32), scale_factor=2.0, mode="nearest").to(
         # TODO: if use amp, need to ensure interpolation is computed in fp32
         in_dtype = x.dtype
-        in_shape = x.shape[-2:]
-        out_shape = tuple(2 * x for x in in_shape)
         if x.dtype != ms.float32:
             x = x.to(ms.float32)
         # x = ops.ResizeNearestNeighbor(out_shape)(x)
@@ -453,9 +411,7 @@ class Downsample(nn.Cell):
         self.with_conv = with_conv
         if self.with_conv:
             # no asymmetric padding in torch conv, must do it ourselves
-            self.conv = mint.nn.Conv2d(
-                in_channels, in_channels, kernel_size=3, stride=2, padding=0
-            )
+            self.conv = mint.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=0)
 
     def construct(self, x):
         if self.with_conv:
@@ -507,9 +463,7 @@ class VQModel(nn.Cell):
             config.codebook_show_usage,
         )
         self.quant_conv = mint.nn.Conv2d(config.z_channels, config.codebook_embed_dim, 1)
-        self.post_quant_conv = mint.nn.Conv2d(
-            config.codebook_embed_dim, config.z_channels, 1
-        )
+        self.post_quant_conv = mint.nn.Conv2d(config.codebook_embed_dim, config.z_channels, 1)
 
     def encode(self, x):
         h = self.encoder(x)
@@ -535,13 +489,14 @@ class VQModel(nn.Cell):
     def load_from_checkpoint(self, ckpt_path):
         # mainly used in unit test
         parameter_dict = dict()
-        if ckpt_path.endswith('.bin'):
+        if ckpt_path.endswith(".bin"):
             import torch
+
             sd = torch.load(ckpt_path)
             # filter to keep gen_vision_model params only and remove prefix
             pnames = [p for p in sd]
             for p in pnames:
-                if not "gen_vision_model" in p:
+                if "gen_vision_model" not in p:
                     sd.pop(p)
                 else:
                     # remove prefix
@@ -553,7 +508,7 @@ class VQModel(nn.Cell):
                     sd[new_pname] = sd.pop(p)
 
             param_dtype = tuple(self.get_parameters())[0].dtype
-            print('Get vq param dtype: ', param_dtype)
+            print("Get vq param dtype: ", param_dtype)
 
             for pname in sd:
                 # print(pname, sd[pname].shape, sd[pname].dtype)
@@ -561,30 +516,21 @@ class VQModel(nn.Cell):
                 # TODO: support bf16 param loading
                 parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
 
-        elif ckpt_path.endswith('.ckpt'):
+        elif ckpt_path.endswith(".ckpt"):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
 
         param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
-        print(
-            "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
-        )
-        print(
-            "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
-        )
-
+        print("Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load)))
+        print("Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load)))
 
 
 #################################################################################
 #                              VQ Model Configs                                 #
 #################################################################################
 def VQ_16(**kwargs):
-    return VQModel(
-        ModelArgs(
-            encoder_ch_mult=[1, 1, 2, 2, 4], decoder_ch_mult=[1, 1, 2, 2, 4], **kwargs
-        )
-    )
+    return VQModel(ModelArgs(encoder_ch_mult=[1, 1, 2, 2, 4], decoder_ch_mult=[1, 1, 2, 2, 4], **kwargs))
 
 
 VQ_models = {"VQ-16": VQ_16}

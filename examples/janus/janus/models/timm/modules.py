@@ -1,14 +1,16 @@
+import collections.abc
 import logging
-from enum import Enum
-from typing import Optional, Union, Callable, Type, Tuple, List
 import math
 import warnings
-import mindspore as ms
-from mindspore import mint, nn, ops, Parameter, Tensor
-from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
-import collections.abc
+from enum import Enum
 from functools import partial
 from itertools import repeat
+from typing import Callable, List, Optional, Tuple, Type, Union
+
+import mindspore as ms
+from mindspore import Parameter, Tensor, mint, nn, ops
+
+from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
 
 logger = logging.getLogger("")
 LayerType = Union[str, Callable, Type[nn.Cell]]
@@ -49,12 +51,12 @@ def _no_grad_trunc_normal_(tensor, mean, std, a, b):
 
     # Clamp to ensure it's in the proper range
     tensor.clamp(min=a, max=b)
-    
+
     ops.stop_gradient(tensor)
     return tensor
 
 
-def trunc_normal_tf_(tensor, mean=0., std=1., a=-2., b=2.):
+def trunc_normal_tf_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
     # type: (Tensor, float, float, float, float) -> Tensor
     r"""Fills the input Tensor with values drawn from a truncated
     normal distribution. The values are effectively drawn from the
@@ -84,24 +86,24 @@ def trunc_normal_tf_(tensor, mean=0., std=1., a=-2., b=2.):
 
 
 class AttentionPoolLatent(nn.Cell):
-    """ Attention pooling w/ latent query
-    """
+    """Attention pooling w/ latent query"""
+
     def __init__(
-            self,
-            in_features: int,
-            out_features: int = None,
-            embed_dim: int = None,
-            num_heads: int = 8,
-            feat_size: Optional[int] = None,
-            mlp_ratio: float = 4.0,
-            qkv_bias: bool = True,
-            qk_norm: bool = False,
-            latent_len: int = 1,
-            latent_dim: int = None,
-            pos_embed: str = '',
-            pool_type: str = 'token',
-            norm_layer: Optional[nn.Cell] = None,
-            drop: float = 0.0,
+        self,
+        in_features: int,
+        out_features: int = None,
+        embed_dim: int = None,
+        num_heads: int = 8,
+        feat_size: Optional[int] = None,
+        mlp_ratio: float = 4.0,
+        qkv_bias: bool = True,
+        qk_norm: bool = False,
+        latent_len: int = 1,
+        latent_dim: int = None,
+        pos_embed: str = "",
+        pool_type: str = "token",
+        norm_layer: Optional[nn.Cell] = None,
+        drop: float = 0.0,
     ):
         super().__init__()
         embed_dim = embed_dim or in_features
@@ -110,12 +112,12 @@ class AttentionPoolLatent(nn.Cell):
         self.num_heads = num_heads
         self.head_dim = embed_dim // num_heads
         self.feat_size = feat_size
-        self.scale = self.head_dim ** -0.5
+        self.scale = self.head_dim**-0.5
         self.pool = pool_type
         # self.fused_attn = use_fused_attn()
-        self.fused_attn = True   # for janus, hardcoded as true for now
+        self.fused_attn = True  # for janus, hardcoded as true for now
 
-        if pos_embed == 'abs':
+        if pos_embed == "abs":
             assert feat_size is not None
             self.pos_embed = Parameter(mint.zeros(feat_size, in_features))
         else:
@@ -140,7 +142,7 @@ class AttentionPoolLatent(nn.Cell):
     def init_weights(self):
         if self.pos_embed is not None:
             trunc_normal_tf_(self.pos_embed, std=self.pos_embed.shape[1] ** -0.5)
-        trunc_normal_tf_(self.latent, std=self.latent_dim ** -0.5)
+        trunc_normal_tf_(self.latent, std=self.latent_dim**-0.5)
 
     def construct(self, x):
         B, N, C = x.shape
@@ -171,14 +173,14 @@ class AttentionPoolLatent(nn.Cell):
         x = x + self.mlp(self.norm(x))
 
         # optional pool if latent seq_len > 1 and pooled output is desired
-        if self.pool == 'token':
+        if self.pool == "token":
             x = x[:, 0]
-        elif self.pool == 'avg':
+        elif self.pool == "avg":
             x = x.mean(1)
         return x
 
 
-def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: bool = True):
+def drop_path(x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
     This is the same as the DropConnect impl I created for EfficientNet, etc networks, however,
@@ -188,7 +190,7 @@ def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: b
     'survival rate' as the argument.
 
     """
-    if drop_prob == 0. or not training:
+    if drop_prob == 0.0 or not training:
         return x
     keep_prob = 1 - drop_prob
     shape = (x.shape[0],) + (1,) * (x.ndim - 1)  # work with diff dim tensors, not just 2D ConvNets
@@ -199,9 +201,9 @@ def drop_path(x, drop_prob: float = 0., training: bool = False, scale_by_keep: b
 
 
 class DropPath(nn.Cell):
-    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
-    """
-    def __init__(self, drop_prob: float = 0., scale_by_keep: bool = True):
+    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks)."""
+
+    def __init__(self, drop_prob: float = 0.0, scale_by_keep: bool = True):
         super(DropPath, self).__init__()
         self.drop_prob = drop_prob
         self.scale_by_keep = scale_by_keep
@@ -210,7 +212,7 @@ class DropPath(nn.Cell):
         return drop_path(x, self.drop_prob, self.training, self.scale_by_keep)
 
     def extra_repr(self):
-        return f'drop_prob={round(self.drop_prob,3):0.3f}'
+        return f"drop_prob={round(self.drop_prob,3):0.3f}"
 
 
 def _ntuple(n):
@@ -218,6 +220,7 @@ def _ntuple(n):
         if isinstance(x, collections.abc.Iterable) and not isinstance(x, str):
             return tuple(x)
         return tuple(repeat(x, n))
+
     return parse
 
 
@@ -225,20 +228,21 @@ to_2tuple = _ntuple(2)
 
 
 class Mlp(nn.Cell):
-    """ MLP as used in Vision Transformer, MLP-Mixer and related networks
+    """MLP as used in Vision Transformer, MLP-Mixer and related networks
 
     NOTE: When use_conv=True, expects 2D NCHW tensors, otherwise N*C expected.
     """
+
     def __init__(
-            self,
-            in_features,
-            hidden_features=None,
-            out_features=None,
-            act_layer=nn.GELU,
-            norm_layer=None,
-            bias=True,
-            drop=0.,
-            use_conv=False,
+        self,
+        in_features,
+        hidden_features=None,
+        out_features=None,
+        act_layer=nn.GELU,
+        norm_layer=None,
+        bias=True,
+        drop=0.0,
+        use_conv=False,
     ):
         super().__init__()
         out_features = out_features or in_features
@@ -255,7 +259,6 @@ class Mlp(nn.Cell):
         self.drop2 = nn.Dropout(p=drop_probs[1])
 
     def construct(self, x):
-        
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop1(x)
@@ -269,36 +272,40 @@ class PatchDropout(nn.Cell):
     """
     https://arxiv.org/abs/2212.00794 and https://arxiv.org/pdf/2208.07220
     """
+
     return_indices: ms.bool_
 
     def __init__(
-            self,
-            prob: float = 0.5,
-            num_prefix_tokens: int = 1,
-            ordered: bool = False,
-            return_indices: bool = False,
+        self,
+        prob: float = 0.5,
+        num_prefix_tokens: int = 1,
+        ordered: bool = False,
+        return_indices: bool = False,
     ):
         super().__init__()
-        assert 0 <= prob < 1.
+        assert 0 <= prob < 1.0
         self.prob = prob
         self.num_prefix_tokens = num_prefix_tokens  # exclude CLS token (or other prefix tokens)
         self.ordered = ordered
         self.return_indices = return_indices
 
     def construct(self, x) -> Union[ms.Tensor, Tuple[ms.Tensor, Optional[ms.Tensor]]]:
-        if not self.training or self.prob == 0.:
+        if not self.training or self.prob == 0.0:
             if self.return_indices:
                 return x, None
             return x
 
         if self.num_prefix_tokens:
-            prefix_tokens, x = x[:, :self.num_prefix_tokens], x[:, self.num_prefix_tokens:]
+            prefix_tokens, x = (
+                x[:, : self.num_prefix_tokens],
+                x[:, self.num_prefix_tokens :],
+            )
         else:
             prefix_tokens = None
 
         B = x.shape[0]
         L = x.shape[1]
-        num_keep = max(1, int(L * (1. - self.prob)))
+        num_keep = max(1, int(L * (1.0 - self.prob)))
         keep_indices = mint.argsort(mint.randn(B, L), dim=-1)[:, :num_keep]
         if self.ordered:
             # NOTE does not need to maintain patch order in typical transformer use,
@@ -315,10 +322,10 @@ class PatchDropout(nn.Cell):
 
 
 class Format(str, Enum):
-    NCHW = 'NCHW'
-    NHWC = 'NHWC'
-    NCL = 'NCL'
-    NLC = 'NLC'
+    NCHW = "NCHW"
+    NHWC = "NHWC"
+    NCL = "NCL"
+    NLC = "NLC"
 
 
 def nchw_to(x: Tensor, fmt: Format):
@@ -332,23 +339,23 @@ def nchw_to(x: Tensor, fmt: Format):
 
 
 class PatchEmbed(nn.Cell):
-    """ 2D Image to Patch Embedding
-    """
+    """2D Image to Patch Embedding"""
+
     output_fmt: Format
     dynamic_img_pad: ms.bool_
 
     def __init__(
-            self,
-            img_size: Optional[int] = 224,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            norm_layer: Optional[Callable] = None,
-            flatten: bool = True,
-            output_fmt: Optional[str] = None,
-            bias: bool = True,
-            strict_img_size: bool = True,
-            dynamic_img_pad: bool = False,
+        self,
+        img_size: Optional[int] = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        norm_layer: Optional[Callable] = None,
+        flatten: bool = True,
+        output_fmt: Optional[str] = None,
+        bias: bool = True,
+        strict_img_size: bool = True,
+        dynamic_img_pad: bool = False,
     ):
         super().__init__()
         self.patch_size = to_2tuple(patch_size)
@@ -377,9 +384,9 @@ class PatchEmbed(nn.Cell):
         return img_size, grid_size, num_patches
 
     def set_input_size(
-            self,
-            img_size: Optional[Union[int, Tuple[int, int]]] = None,
-            patch_size: Optional[Union[int, Tuple[int, int]]] = None,
+        self,
+        img_size: Optional[Union[int, Tuple[int, int]]] = None,
+        patch_size: Optional[Union[int, Tuple[int, int]]] = None,
     ):
         new_patch_size = None
         if patch_size is not None:
@@ -409,7 +416,7 @@ class PatchEmbed(nn.Cell):
             return self.patch_size
 
     def dynamic_feat_size(self, img_size: Tuple[int, int]) -> Tuple[int, int]:
-        """ Get grid (feature) size for given image size taking account of dynamic padding.
+        """Get grid (feature) size for given image size taking account of dynamic padding.
         NOTE: must be torchscript compatible so using fixed tuple indexing
         """
         if self.dynamic_img_pad:
@@ -424,8 +431,12 @@ class PatchEmbed(nn.Cell):
                 assert H == self.img_size[0], f"Input height ({H}) doesn't match model ({self.img_size[0]})."
                 assert W == self.img_size[1], f"Input width ({W}) doesn't match model ({self.img_size[1]})."
             elif not self.dynamic_img_pad:
-                assert H % self.patch_size[0] == 0, f"Input height ({H}) should be divisible by patch size ({self.patch_size[0]})."
-                assert W % self.patch_size[1] == 0, f"Input width ({W}) should be divisible by patch size ({self.patch_size[1]})."
+                assert (
+                    H % self.patch_size[0] == 0
+                ), f"Input height ({H}) should be divisible by patch size ({self.patch_size[0]})."
+                assert (
+                    W % self.patch_size[1] == 0
+                ), f"Input width ({W}) should be divisible by patch size ({self.patch_size[1]})."
         if self.dynamic_img_pad:
             pad_h = (self.patch_size[0] - H % self.patch_size[0]) % self.patch_size[0]
             pad_w = (self.patch_size[1] - W % self.patch_size[1]) % self.patch_size[1]
@@ -440,20 +451,20 @@ class PatchEmbed(nn.Cell):
 
 
 class PatchEmbedWithSize(PatchEmbed):
-    """ 2D Image to Patch Embedding
-    """
+    """2D Image to Patch Embedding"""
+
     output_fmt: Format
 
     def __init__(
-            self,
-            img_size: Optional[int] = 224,
-            patch_size: int = 16,
-            in_chans: int = 3,
-            embed_dim: int = 768,
-            norm_layer: Optional[Callable] = None,
-            flatten: bool = True,
-            output_fmt: Optional[str] = None,
-            bias: bool = True,
+        self,
+        img_size: Optional[int] = 224,
+        patch_size: int = 16,
+        in_chans: int = 3,
+        embed_dim: int = 768,
+        norm_layer: Optional[Callable] = None,
+        flatten: bool = True,
+        output_fmt: Optional[str] = None,
+        bias: bool = True,
     ):
         super().__init__(
             img_size=img_size,
@@ -469,8 +480,12 @@ class PatchEmbedWithSize(PatchEmbed):
     def construct(self, x) -> Tuple[ms.Tensor, List[int]]:
         B, C, H, W = x.shape
         if self.img_size is not None:
-            assert H % self.patch_size[0] == 0, f"Input image height ({H}) must be divisible by patch size ({self.patch_size[0]})."
-            assert W % self.patch_size[1] == 0, f"Input image width ({W}) must be divisible by patch size ({self.patch_size[1]})."
+            assert (
+                H % self.patch_size[0] == 0
+            ), f"Input image height ({H}) must be divisible by patch size ({self.patch_size[0]})."
+            assert (
+                W % self.patch_size[1] == 0
+            ), f"Input image width ({W}) must be divisible by patch size ({self.patch_size[1]})."
 
         x = self.proj(x)
         feat_size = x.shape[-2:]
@@ -483,11 +498,11 @@ class PatchEmbedWithSize(PatchEmbed):
 
 
 def resample_patch_embed(
-        patch_embed,
-        new_size: List[int],
-        interpolation: str = 'bicubic',
-        antialias: bool = True,
-        verbose: bool = False,
+    patch_embed,
+    new_size: List[int],
+    interpolation: str = "bicubic",
+    antialias: bool = True,
+    verbose: bool = False,
 ):
     """Resample the weights of the patch embedding kernel to target resolution.
     We resample the patch embedding kernel by approximately inverting the effect
@@ -509,6 +524,7 @@ def resample_patch_embed(
         Resized patch embedding kernel.
     """
     import numpy as np
+
     try:
         from torch import vmap
     except ImportError:
@@ -525,15 +541,16 @@ def resample_patch_embed(
 
     def resize(x_np, _new_size):
         x_tf = ms.Tensor(x_np)[None, None, ...]
-        x_upsampled = mint.nn.functional.interpolate(
-            x_tf, size=_new_size, mode=interpolation, antialias=antialias)[0, 0, ...].numpy()
+        x_upsampled = mint.nn.functional.interpolate(x_tf, size=_new_size, mode=interpolation, antialias=antialias)[
+            0, 0, ...
+        ].numpy()
         return x_upsampled
 
     def get_resize_mat(_old_size, _new_size):
         mat = []
         for i in range(np.prod(_old_size)):
             basis_vec = np.zeros(_old_size)
-            basis_vec[np.unravel_index(i, _old_size)] = 1.
+            basis_vec[np.unravel_index(i, _old_size)] = 1.0
             mat.append(resize(basis_vec, _new_size).reshape(-1))
         return np.stack(mat).T
 
@@ -553,13 +570,13 @@ def resample_patch_embed(
 
 
 def resample_abs_pos_embed(
-        posemb: ms.Tensor,
-        new_size: List[int],
-        old_size: Optional[List[int]] = None,
-        num_prefix_tokens: int = 1,
-        interpolation: str = 'bicubic',
-        antialias: bool = True,
-        verbose: bool = False,
+    posemb: ms.Tensor,
+    new_size: List[int],
+    old_size: Optional[List[int]] = None,
+    num_prefix_tokens: int = 1,
+    interpolation: str = "bicubic",
+    antialias: bool = True,
+    verbose: bool = False,
 ):
     # sort out sizes, assume square if old size not provided
     num_pos_tokens = posemb.shape[1]
@@ -572,7 +589,10 @@ def resample_abs_pos_embed(
         old_size = hw, hw
 
     if num_prefix_tokens:
-        posemb_prefix, posemb = posemb[:, :num_prefix_tokens], posemb[:, num_prefix_tokens:]
+        posemb_prefix, posemb = (
+            posemb[:, :num_prefix_tokens],
+            posemb[:, num_prefix_tokens:],
+        )
     else:
         posemb_prefix, posemb = None, posemb
 
@@ -590,6 +610,6 @@ def resample_abs_pos_embed(
         posemb = mint.cat([posemb_prefix, posemb], dim=1)
 
     if not mint.jit.is_scripting() and verbose:
-        logger.info(f'Resized position embedding: {old_size} to {new_size}.')
+        logger.info(f"Resized position embedding: {old_size} to {new_size}.")
 
     return posemb

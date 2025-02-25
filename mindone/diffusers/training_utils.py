@@ -861,7 +861,7 @@ def prepare_train_network(
     verbose: bool = False,
     zero_stage: int = 0,
     optimizer_offload: bool = False,
-    op_group: str = None,
+    optimizer_parallel_group: str = None,
     dp_group: str = None,
     comm_fusion: dict = None,
     parallel_modules=None,
@@ -878,7 +878,7 @@ def prepare_train_network(
             the shape should be :math:`()` or :math:`(1,)`.
         zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
         optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
-        op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+        optimizer_parallel_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
         dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
         comm_fusion (`dict`, *optional*): A dict contains the types and configurations
             for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
@@ -891,19 +891,23 @@ def prepare_train_network(
     """
     if zero_stage not in [0, 1, 2, 3]:
         raise ValueError("Not support zero_stage {zero_stage}")
-    if op_group is None:
+    if optimizer_parallel_group is None:
         logger.warning("Not set zero group, set it WORLD_COMM_GROUP.")
-        op_group = GlobalComm.WORLD_COMM_GROUP
-    if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
-        raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
+        optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+    if optimizer_parallel_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
+        raise ValueError(
+            "optimizer_parallel_group {optimizer_parallel_group} and dp_group {dp_group} not full network hccl group coverage"
+        )
 
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
         logger.info("No need prepare train_network with zero.")
         zero_helper = None
     else:
-        network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
-        zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+        network = prepare_network(network, zero_stage, optimizer_parallel_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(
+            optimizer, zero_stage, optimizer_parallel_group, dp_group, optimizer_offload, comm_fusion
+        )
 
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
@@ -931,7 +935,7 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
         return self.zero_helper is not None and self.zero_stage != 0
 
     def need_save_optimizer(self, args):
-        # TODO: Now we save optimizer in every process, try to save depend on self.zero_helper.op_group
+        # TODO: Now we save optimizer in every process, try to save depend on self.zero_helper.optimizer_parallel_group
         return True if self.use_zero else is_local_master(args)
 
     def save_state(self, args, output_dir, optimizer_state_filter=lambda x: True):

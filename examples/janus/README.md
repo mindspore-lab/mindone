@@ -32,7 +32,7 @@ We provide an efficient MindSpore implementation of [JanusPro](https://github.co
 
 ## News
 
-**2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU. 
+**2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU.
 
 
 ## 1. Introduction
@@ -61,11 +61,12 @@ permitted under these terms.
 | Janus-Pro-7B | 4096        | [🤗 Hugging Face](https://huggingface.co/deepseek-ai/Janus-Pro-7B) |
 
 
-You can download by: 
+You can download by:
 
 ```shell
-huggingface-cli download deepseek-ai/Janus-Pro-1B --local-dir ckpts/Janus-Pro-1B
-huggingface-cli download deepseek-ai/Janus-Pro-7B --local-dir ckpts/Janus-Pro-7B
+# with revision .safetensors can be downloaded
+huggingface-cli download deepseek-ai/Janus-Pro-1B --revision refs/pr/6 --local-dir ckpts/Janus-Pro-1B
+huggingface-cli download deepseek-ai/Janus-Pro-7B --revision refs/pr/110 --local-dir ckpts/Janus-Pro-7B
 ```
 
 
@@ -78,7 +79,7 @@ The code is tested in the following environments
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:     |   :---:       | :---:    | :---:              |
-| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3   |
+| 2.5.0     |  24.1.0     |7.35.23    |   8.0.RC3.beta1   |
 
 
 ### Installation
@@ -97,7 +98,7 @@ pip install -e .
 ```shell
 python inference.py \
     --image images/doge.png  \
-    --question "explain this meme" 
+    --question "explain this meme"
 ```
 
 #### Text-to-Image Generation
@@ -125,13 +126,48 @@ On local terminal, run `ssh -L 37906:localhost:37906 user_name@server_ip`, then 
 
 Have Fun!
 
+## 4. Performance
+
+### Multimodal Understanding
+
+Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
+
+| model | # card(s) | image size | attn. type | throughput (token/s)|
+|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 384x384 | Eager | 16.6|
+| Janus-Pro-7B | 1 | 384x384 | Eager | 12.2|
 
 
-## 4. License
+Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+
+| model | # card(s) | image size | attn. type | throughput (token/s)|
+|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 384x384 | Eager | 5.88 |
+| Janus-Pro-7B | 1 | 384x384 | Eager | 3.30|
+
+### Visual Generation
+
+Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
+
+| model | # card(s) | batch Size | image size | attn. type | throughput (token/s)| s/img |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 16.2 | ~ 40 |
+| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 11.9 | ~ 52 |
+
+Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+
+| model | # card(s) | batch size| image size | attn. type | throughput (token/s)| s/img |
+|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 4.52 | ~ 127|
+| Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 3.56 | ~ 162|
+
+* All the performances are tested with KV-Cache enabled.
+
+## 5. License
 
 This code repository is licensed under [the MIT License](https://github.com/deepseek-ai/DeepSeek-LLM/blob/HEAD/LICENSE-CODE). The use of Janus models is subject to [DeepSeek Model License](https://github.com/deepseek-ai/DeepSeek-LLM/blob/HEAD/LICENSE-MODEL).
 
-## 5. Citation
+## 6. Citation
 
 ```bibtex
 @article{chen2025janus,
@@ -142,5 +178,3 @@ This code repository is licensed under [the MIT License](https://github.com/deep
 }
 
 ```
-
-

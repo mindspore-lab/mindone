@@ -19,10 +19,10 @@
 
 from typing import Tuple, Union
 
-import mindspore as ms
-from mindspore import mint, ops, nn
-from mindspore import Tensor
 from addict import Dict
+
+import mindspore as ms
+from mindspore import Tensor, mint, nn
 
 
 class MlpProjector(nn.Cell):
@@ -62,9 +62,7 @@ class MlpProjector(nn.Cell):
 
         self.layers = modules
 
-    def construct(
-        self, x_or_tuple: Union[Tuple[Tensor, Tensor], Tensor]
-    ):
+    def construct(self, x_or_tuple: Union[Tuple[Tensor, Tensor], Tensor]):
         """
 
         Args:
@@ -90,14 +88,17 @@ class MlpProjector(nn.Cell):
 
 if __name__ == "__main__":
     import numpy as np
+
     cfg = Dict(
         input_dim=1024,
         n_embed=2048,
         depth=2,
         projector_type="low_high_hybrid_split_mlp_gelu",
     )
-    inputs = (ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)),
-         ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)))
+    inputs = (
+        ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)),
+        ms.Tensor(np.random.normal(size=(4, 576, 1024)).astype(np.float32)),
+    )
 
     m = MlpProjector(cfg)
     out = m(inputs)

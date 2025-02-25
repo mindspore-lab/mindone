@@ -30,7 +30,7 @@ from mindspore.common import initializer as init
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...activations import ACT2FN
-from ...cache_utils import get_max_length, get_seq_length, update, reset, init_static_cache
+from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
@@ -282,7 +282,7 @@ class LlamaAttention(nn.Cell):
         hidden_states: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_value: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
@@ -317,7 +317,7 @@ class LlamaAttention(nn.Cell):
         cos, sin = self.rotary_emb(value_states, position_ids)
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
 
-        if past_key_value is not None:
+        if past_key_value is not None and use_cache:
             key_states, value_states = update(past_key_value, key_states, value_states, cache_position)
             past_key_value = (key_states, value_states)
 
@@ -747,18 +747,14 @@ class LlamaModel(LlamaPreTrainedModel):
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
-    def prepare_static_cache(self, input_embeds):
+    def prepare_static_cache(self, input_embeds, max_cache_len):
         bs = input_embeds.shape[0]
-        max_batch_size, max_cache_len, cache_dtype = (
+        max_batch_size, cache_dtype = (
             getattr(self.config, "num_beams", 1) * bs,
-            self.config.max_position_embeddings,
             self.dtype,
         )
         past_key_values = init_static_cache(
-            config=self.config, 
-            max_batch_size=max_batch_size, 
-            max_cache_len=max_cache_len, 
-            dtype=cache_dtype
+            config=self.config, max_batch_size=max_batch_size, max_cache_len=max_cache_len, dtype=cache_dtype
         )
         return past_key_values
 
@@ -791,35 +787,9 @@ class LlamaModel(LlamaPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        # FIXME setup static cache, but self(input_embeds) output tokens still not correct
-        if use_cache and (past_key_values is None or past_key_values[0] is None):
-            bs, cache_len = inputs_embeds.shape[:2]
-            max_batch_size, max_cache_len, cache_dtype = (
-                getattr(self.config, "num_beams", 1) * bs,
-                cache_len,
-                self.dtype,
-            )
-            need_new_cache = (
-                past_key_values is None
-                or (not isinstance(past_key_values, tuple))
-                or (not isinstance(past_key_values[0][0], ms.Tensor))
-                or past_key_values[0][0].shape[0] != max_batch_size
-                or past_key_values[0][0].shape[2] < max_cache_len
-            )
-
-            if need_new_cache:
-                past_key_values = init_static_cache(
-                    config=self.config,
-                    max_batch_size=max_batch_size,
-                    max_cache_len=max_cache_len,
-                    dtype=cache_dtype,
-                )
-            else:
-                past_key_values = reset(past_key_values)
-
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 

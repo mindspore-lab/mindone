@@ -10,7 +10,7 @@ import numpy as np
 from transformers.configuration_utils import PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops, Tensor
+from mindspore import nn, ops
 
 
 def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None):
@@ -35,25 +35,26 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
     return key_value_cache
 
 
-_pad_ops = ops.operations.PadV3()
-_sub_ops = ops.operations.Sub()
-_concat_ops = ops.operations.Concat(axis=0)  # for setting up arg 
-_cache_padding_dim_preorder = Tensor([0, 0, 0], ms.int32)
-_cache_padding_dim_subsequence = Tensor([0, 0, 0, 0, 0], ms.int32)
+# TODO backup code for a future implementation of the graph mode static cache
+# _pad_ops = ops.operations.PadV3()
+# _sub_ops = ops.operations.Sub()
+# _concat_ops = ops.operations.Concat(axis=0)  # for setting up arg
+# _cache_padding_dim_preorder = Tensor([0, 0, 0], ms.int32)
+# _cache_padding_dim_subsequence = Tensor([0, 0, 0, 0, 0], ms.int32)
 
 
-def kv_padding_subsequence(cache_length, state_seq_length, key, value, cache_position, dtype):
-    _pad_zero = Tensor([0,], dtype)
-    pad_length = _sub_ops(cache_length, state_seq_length)[None].to(ms.int32)
-    pad_config = _concat_ops((_cache_padding_dim_preorder, pad_length, _cache_padding_dim_subsequence))
-    key_padded = _pad_ops(key, pad_config, _pad_zero)
-    value_padded = _pad_ops(value, pad_config, _pad_zero)
-    cache_position_padded = _pad_ops(
-        cache_position,
-        _concat_ops((Tensor([0,], ms.int32), pad_length)),
-        Tensor([0,], ms.int32)
-    )
-    return key_padded, value_padded, cache_position_padded
+# def kv_padding_subsequence(cache_length, state_seq_length, key, value, cache_position, dtype):
+#     _pad_zero = Tensor([0,], dtype)
+#     pad_length = _sub_ops(cache_length, state_seq_length)[None].to(ms.int32)
+#     pad_config = _concat_ops((_cache_padding_dim_preorder, pad_length, _cache_padding_dim_subsequence))
+#     key_padded = _pad_ops(key, pad_config, _pad_zero)
+#     value_padded = _pad_ops(value, pad_config, _pad_zero)
+#     cache_position_padded = _pad_ops(
+#         cache_position,
+#         _concat_ops((Tensor([0,], ms.int32), pad_length)),
+#         Tensor([0,], ms.int32)
+#     )
+#     return key_padded, value_padded, cache_position_padded
 
 
 # Notes: Only return the updated value, do not modify the original `past_key_value` in-place !
@@ -84,26 +85,16 @@ def update(
     """
     k_out, v_out = past_key_value[0], past_key_value[1]
 
-    if cache_position.shape[0] == 1 or k_out.shape[2] != key_states.shape[2]:
-        k_out[:, :, cache_position] = key_states
-        v_out[:, :, cache_position] = value_states
-    else:
-        # pad kv seq and cache pos if they do not match with  the $ size
-        if cache_position.shape[0] != k_out.shape[2]:
-            key_states, value_states, cache_position = kv_padding_subsequence(
-                k_out.shape[2], cache_position.shape[0], key_states, value_states, cache_position, dtype=key_states.dtype
-            )
-
-        k_out = ops.select(
-            (ops.arange(k_out.shape[2]) == cache_position)[None, None, :, None],
-            key_states,
-            k_out,
-        )
-        v_out = ops.select(
-            (ops.arange(v_out.shape[2]) == cache_position)[None, None, :, None],
-            value_states,
-            v_out,
-        )
+    k_out = ops.select(
+        (ops.arange(k_out.shape[2]) == cache_position)[None, None, :, None],
+        key_states,
+        k_out,
+    )
+    v_out = ops.select(
+        (ops.arange(v_out.shape[2]) == cache_position)[None, None, :, None],
+        value_states,
+        v_out,
+    )
 
     return k_out, v_out
 

@@ -20,14 +20,14 @@
 from dataclasses import dataclass
 from typing import Dict, List
 
-import mindspore as ms
-from mindspore import Tensor, ops, mint
+from janus.models.image_processing_vlm import VLMImageProcessor
+from janus.utils.conversation import get_conv_template
 from PIL.Image import Image
 from transformers import LlamaTokenizerFast
 from transformers.processing_utils import ProcessorMixin
 
-from janus.models.image_processing_vlm import VLMImageProcessor
-from janus.utils.conversation import get_conv_template
+import mindspore as ms
+from mindspore import Tensor, ops
 
 
 class DictOutput(object):
@@ -239,18 +239,16 @@ class VLChatProcessor(ProcessorMixin):
                 end = index
 
             # original text tokens
-            input_slices.append(input_ids[start:end.squeeze()])
+            input_slices.append(input_ids[start : end.squeeze()])
 
             # add boi, image tokens, eoi and set the mask as False
             input_slices.append(self.image_start_id * ops.ones((1), dtype=ms.int64))
-            input_slices.append(
-                self.image_id * ops.ones((self.num_image_tokens,), dtype=ms.int64)
-            )
+            input_slices.append(self.image_id * ops.ones((self.num_image_tokens,), dtype=ms.int64))
             input_slices.append(self.image_end_id * ops.ones((1), dtype=ms.int64))
             start = index + 1
 
         # the left part
-        input_slices.append(input_ids[start.squeeze():])
+        input_slices.append(input_ids[start.squeeze() :])
 
         # concat all slices
         input_ids = ops.concat(input_slices, axis=0)
@@ -282,9 +280,7 @@ class VLChatProcessor(ProcessorMixin):
                 - num_image_tokens (List[int]): the number of image tokens
         """
 
-        assert (
-            prompt is None or conversations is None
-        ), "prompt and conversations cannot be used at the same time."
+        assert prompt is None or conversations is None, "prompt and conversations cannot be used at the same time."
 
         if prompt is None:
             # apply sft format
@@ -313,7 +309,7 @@ class VLChatProcessor(ProcessorMixin):
         prepare = VLChatProcessorOutput(
             sft_format=sft_format,
             input_ids=input_ids,
-            pixel_values=images_outputs["pixel_values"], # images_outputs.pixel_values,
+            pixel_values=images_outputs["pixel_values"],  # images_outputs.pixel_values,
             num_image_tokens=num_image_tokens,
         )
 
@@ -345,18 +341,14 @@ class VLChatProcessor(ProcessorMixin):
                 - num_image_tokens (List[int]): the number of image tokens
         """
 
-        prepare = self.process_one(
-            prompt=prompt, conversations=conversations, images=images
-        )
+        prepare = self.process_one(prompt=prompt, conversations=conversations, images=images)
 
         if force_batchify:
             prepare = self.batchify([prepare])
 
         return prepare
 
-    def batchify(
-        self, prepare_list: List[VLChatProcessorOutput]
-    ) -> BatchedVLChatProcessorOutput:
+    def batchify(self, prepare_list: List[VLChatProcessorOutput]) -> BatchedVLChatProcessorOutput:
         """
         Preprocesses the inputs for multimodal inference.
 
@@ -377,18 +369,12 @@ class VLChatProcessor(ProcessorMixin):
 
         input_token_max_len = max(seq_lens)
         max_n_images = max(1, max(n_images))
-        batched_input_ids = ops.full(
-            (batch_size, input_token_max_len), self.pad_id
-        ).long()  # FIXME
+        batched_input_ids = ops.full((batch_size, input_token_max_len), self.pad_id).long()  # FIXME
 
         batched_attention_mask = ops.zeros((batch_size, input_token_max_len)).long()
-        batched_pixel_values = ops.zeros(
-            (batch_size, max_n_images, *self.image_processor.default_shape)
-        ).float()
+        batched_pixel_values = ops.zeros((batch_size, max_n_images, *self.image_processor.default_shape)).float()
         batched_images_seq_mask = ops.zeros((batch_size, input_token_max_len)).bool()
-        batched_images_emb_mask = ops.zeros(
-            (batch_size, max_n_images, self.num_image_tokens)
-        ).bool()
+        batched_images_emb_mask = ops.zeros((batch_size, max_n_images, self.num_image_tokens)).bool()
 
         for i, prepare in enumerate(prepare_list):
             input_ids = prepare.input_ids
@@ -416,4 +402,3 @@ class VLChatProcessor(ProcessorMixin):
         )
 
         return batched_prepares
-

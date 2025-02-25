@@ -1,21 +1,21 @@
 import os
+import re
+import time
+
+import numpy as np
 import PIL.Image
+from janus.models import MultiModalityCausalLM, VLChatProcessor
+from transformers import AutoModelForCausalLM
+
 import mindspore as ms
 from mindspore import mint
-import numpy as np
-from transformers import AutoModelForCausalLM
-from janus.models import MultiModalityCausalLM, VLChatProcessor
-import time
-import re
 
 # Specify the path to the model
 model_path = "deepseek-ai/Janus-1.3B"
 vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(model_path)
 tokenizer = vl_chat_processor.tokenizer
 
-vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
-    model_path, trust_remote_code=True
-)
+vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True)
 vl_gpt = vl_gpt.to(ms.bfloat16)
 
 
@@ -67,7 +67,7 @@ def generate(
         outputs = mmgpt.language_model.model(
             inputs_embeds=inputs_embeds,
             use_cache=True,
-            past_key_values=outputs.past_key_values if i != 0 else None
+            past_key_values=outputs.past_key_values if i != 0 else None,
         )
         hidden_states = outputs.last_hidden_state
 
@@ -87,7 +87,7 @@ def generate(
 
     dec = mmgpt.gen_vision_model.decode_code(
         generated_tokens.to(dtype=ms.int32),
-        shape=[parallel_size, 8, img_size // patch_size, img_size // patch_size]
+        shape=[parallel_size, 8, img_size // patch_size, img_size // patch_size],
     )
     dec = dec.to(ms.float32).asnumpy().transpose(0, 2, 3, 1)
 
@@ -96,17 +96,17 @@ def generate(
     visual_img = np.zeros((parallel_size, img_size, img_size, 3), dtype=np.uint8)
     visual_img[:, :, :] = dec
 
-    os.makedirs('generated_samples', exist_ok=True)
+    os.makedirs("generated_samples", exist_ok=True)
 
     # Create a timestamp
     timestamp = time.strftime("%Y%m%d-%H%M%S")
 
     # Sanitize the short_prompt to ensure it's safe for filenames
-    short_prompt = re.sub(r'\W+', '_', short_prompt)[:50]
+    short_prompt = re.sub(r"\W+", "_", short_prompt)[:50]
 
     # Save images with timestamp and part of the user prompt in the filename
     for i in range(parallel_size):
-        save_path = os.path.join('generated_samples', f"img_{timestamp}_{short_prompt}_{i}.jpg")
+        save_path = os.path.join("generated_samples", f"img_{timestamp}_{short_prompt}_{i}.jpg")
         PIL.Image.fromarray(visual_img[i]).save(save_path)
 
 
@@ -125,14 +125,14 @@ def interactive_image_generator():
     while True:
         user_input = input("Please describe the image you'd like to generate (or type 'exit' to quit): ")
 
-        if user_input.lower() == 'exit':
+        if user_input.lower() == "exit":
             print("Exiting the image generator. Goodbye!")
             break
 
         prompt = create_prompt(user_input)
 
         # Create a sanitized version of user_input for the filename
-        short_prompt = re.sub(r'\W+', '_', user_input)[:50]
+        short_prompt = re.sub(r"\W+", "_", user_input)[:50]
 
         print(f"Generating {parallel_size} image(s) for: '{user_input}'")
         generate(
@@ -140,7 +140,7 @@ def interactive_image_generator():
             vl_chat_processor=vl_chat_processor,
             prompt=prompt,
             short_prompt=short_prompt,
-            parallel_size=parallel_size  # Pass the user-specified number of images
+            parallel_size=parallel_size,  # Pass the user-specified number of images
         )
 
         print("Image generation complete! Check the 'generated_samples' folder for the output.\n")
