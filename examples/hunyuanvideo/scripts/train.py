@@ -224,6 +224,21 @@ def main(args):
             if args.train.settings.zero_stage == 3
             else os.path.join(args.train.output_path, "ckpt")
         )
+        save_kwargs = args.train.save.as_dict()
+        log_interval = save_kwargs.get("log_interval", 1)
+        if args.train.data_sink_mode:
+            if args.train.data_sink_size == -1:
+                sink_size = len(dataloader)
+            else:
+                sink_size = args.train.data_sink_size
+            new_log_interval = sink_size * log_interval
+            if new_log_interval != log_interval:
+                logger.info(
+                    f"Because of data sink mode ON and sink size {sink_size}, log_interval is changed from {log_interval} to {new_log_interval}"
+                )
+            log_interval = new_log_interval
+        save_kwargs["log_interval"] = log_interval
+
         callbacks.append(
             EvalSaveCallback(
                 network=latent_diffusion_with_loss.network,
@@ -236,7 +251,7 @@ def main(args):
                 start_epoch=start_epoch,
                 resume_prefix_blacklist=("vae.", "swap."),
                 train_steps=args.train.steps,
-                **args.train.save,
+                **save_kwargs,
             )
         )
 
