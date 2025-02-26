@@ -17,7 +17,8 @@ vae:
 dataset:
   data_file_path: "datasets/ucf101_train.csv"
   data_folder: "datasets/UCF-101"
-  sample_stride: 1
+  dynamic_sample: True # randomly sample stride from 1 to 8
+  sample_stride: 8
   sample_n_frames: 49
   size: 512
   crop_size: 512
