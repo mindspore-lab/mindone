@@ -70,7 +70,7 @@ def split_np(x, num, idx):
     return ms.Tensor(x.asnumpy()[start:end])
 
 
-@ms.ms_class
+@ms.jit_class
 class ZeroHelper:
     """
     Zero redundancy optimizer(ZeRO) build helper.
