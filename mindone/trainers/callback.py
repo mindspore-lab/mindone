@@ -3,8 +3,10 @@ import os
 import time
 from typing import List, Literal, Optional, Tuple, Union
 
-from mindspore import Profiler, Tensor, nn, save_checkpoint
+import mindspore as ms
+from mindspore import Profiler, Tensor, nn, ops, save_checkpoint
 from mindspore.communication import get_rank
+from mindspore.communication.management import GlobalComm
 from mindspore.train.callback._callback import Callback, _handle_loss
 
 from .checkpoint import CheckpointManager
@@ -65,6 +67,9 @@ class EvalSaveCallback(Callback):
         save_training_resume: bool = True,
         train_steps: int = -1,
         prefer_low_perf: bool = False,
+        zero_stage: int = 0,
+        optimizer_parallel_group: str = None,
+        ckpt_combine_online: bool = False,
     ):
         """
         Args:
@@ -73,9 +78,29 @@ class EvalSaveCallback(Callback):
                 Otherwise, only params that contain one of the keyword in param_save_filter list will be saved.
             resume_prefix_blacklist: exclude parameters with one of these prefixes to be saved in resume checkpoint,
                                      e.g. ('swap.', 'vae.').
+            zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
+            optimizer_parallel_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+            ckpt_combine_online (`bool`, *optional*): combining trainable parameters for saving checkpoint when zero_stage=3, \
+                using allgather ops to combile the checkpoint online if `ckpt_combine_online=True`, \
+                saving all device parameters if `ckpt_combine_online=False`, \
+                and need to use `convert_checkpoints` to combile the checkpoint offline. default is False.
         """
         self.rank_id = rank_id
         self.is_main_device = rank_id in [0, None]
+        self.use_zero = zero_stage in [1, 2, 3]
+        self.ckpt_combine_online = (zero_stage == 3) and ckpt_combine_online
+        if self.ckpt_combine_online and self.ema is not None:
+            _logger.warning("Can not enable ckpt_combine_online when use ema, set `ckpt_combine_online=False`.")
+            self.ckpt_combine_online = False
+
+        self.need_save_network = self.is_main_device or (zero_stage == 3 and not self.ckpt_combine_online)
+        self.need_save_optimizer = self.is_main_device or self.use_zero
+        if self.use_zero:
+            if optimizer_parallel_group is None:
+                _logger.warning("EvalSaveCallback not set zero group, set it WORLD_COMM_GROUP.")
+                optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+            self.optimizer_parallel_group = optimizer_parallel_group
+            self.op_rank_id = get_rank(optimizer_parallel_group)
         self.ema = ema
         if output_dir is not None:
             self.output_dir = output_dir
@@ -97,7 +122,7 @@ class EvalSaveCallback(Callback):
         self.record_lr = record_lr
         self.save_ema_only = save_ema_only
 
-        if self.is_main_device:
+        if self.need_save_network:
             self.ckpt_save_policy = ckpt_save_policy
             self.monitor_metric = monitor_metric
             self.ckpt_manager = CheckpointManager(
@@ -143,6 +168,17 @@ class EvalSaveCallback(Callback):
                 resume_prefix_blacklist = (resume_prefix_blacklist,)
             self.choice_func = lambda x: not x.startswith(resume_prefix_blacklist)
 
+    def _do_ckpt_combine_online(self):
+        new_net_to_save = []
+        all_gather_op = ops.AllGather(self.optimizer_parallel_group)
+        for param in self.net_to_save:
+            if param.parallel_optimizer:
+                new_data = ms.Tensor(all_gather_op(param).asnumpy())
+            else:
+                new_data = ms.Tensor(param.asnumpy())
+            new_net_to_save.append({"name": param.name, "data": new_data})
+        return new_net_to_save
+
     def on_train_step_end(self, run_context):
         cb_params = run_context.original_args()
         loss = _handle_loss(cb_params.net_outputs)
@@ -158,7 +194,31 @@ class EvalSaveCallback(Callback):
         else:
             cur_epoch = cb_params.cur_epoch_num - 1
 
-        if self.is_main_device:
+        if self.save_training_resume and self.need_save_optimizer:
+            # TODO: resume training for step.
+            ckpt_name = f"train_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "train_resume.ckpt"
+            save_checkpoint(
+                cb_params.train_network,
+                os.path.join(self.ckpt_save_dir, ckpt_name),
+                choice_func=self.choice_func,
+                append_dict={
+                    "epoch_num": cur_epoch,
+                    "cur_step": cur_step,
+                    "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                },
+            )
+            if self.ema is not None:
+                ckpt_name = f"ema_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "ema_resume.ckpt"
+                save_checkpoint(
+                    self.ema,
+                    os.path.join(self.ckpt_save_dir, ckpt_name),
+                    choice_func=self.choice_func,
+                )
+
+        if self.ckpt_combine_online:
+            new_net_to_save = self._do_ckpt_combine_online()
+
+        if self.need_save_network:
             # if data sink, train step callback will not be invokded
             if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
                 ckpt_name = (
@@ -166,9 +226,13 @@ class EvalSaveCallback(Callback):
                     if self.use_step_unit
                     else f"{self.model_name}-e{cur_epoch}.ckpt"
                 )
+                if self.use_zero and not self.ckpt_combine_online:
+                    file_extension = os.path.splitext(ckpt_name)
+                    ckpt_name = f"{file_extension[0]}_op_rank_{self.op_rank_id}{file_extension[1]}"
 
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
                 perf = cb_params.get("eval_results")
+                net_to_save = new_net_to_save if self.ckpt_combine_online else self.net_to_save
                 if perf or self.ckpt_save_policy != "top_k":
                     if perf:
                         perf = perf[self.monitor_metric]
@@ -184,20 +248,7 @@ class EvalSaveCallback(Callback):
                         self.ema.swap_before_eval()
 
                     # save history checkpoints
-                    self.ckpt_manager.save(self.net_to_save, perf, ckpt_name=ckpt_name, append_dict=append_dict)
-
-                if self.save_training_resume:
-                    # TODO: resume training for step.
-                    save_checkpoint(
-                        cb_params.train_network,
-                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                        choice_func=self.choice_func,
-                        append_dict={
-                            "epoch_num": cur_epoch,
-                            "cur_step": cur_step,
-                            "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                        },
-                    )
+                    self.ckpt_manager.save(net_to_save, perf, ckpt_name=ckpt_name, append_dict=append_dict)
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:
@@ -260,15 +311,42 @@ class EvalSaveCallback(Callback):
         opt = self._get_optimizer_from_cbp(cb_params)
         cur_step = int(opt.global_step.asnumpy().item())
 
-        if self.is_main_device and (not self.step_mode):
+        if self.save_training_resume and self.need_save_optimizer:
+            # TODO: resume training for step.
+            ckpt_name = f"train_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "train_resume.ckpt"
+            save_checkpoint(
+                cb_params.train_network,
+                os.path.join(self.ckpt_save_dir, ckpt_name),
+                choice_func=self.choice_func,
+                append_dict={
+                    "epoch_num": cur_epoch,
+                    "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                },
+            )
+            if self.ema is not None:
+                ckpt_name = f"ema_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "ema_resume.ckpt"
+                save_checkpoint(
+                    self.ema,
+                    os.path.join(self.ckpt_save_dir, ckpt_name),
+                    choice_func=self.choice_func,
+                )
+
+        if self.ckpt_combine_online:
+            new_net_to_save = self._do_ckpt_combine_online()
+
+        if self.need_save_network and (not self.step_mode):
             if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
                 ckpt_name = (
                     f"{self.model_name}-s{cur_step}.ckpt"
                     if self.use_step_unit
                     else f"{self.model_name}-e{cur_epoch}.ckpt"
                 )
+                if self.use_zero and not self.ckpt_combine_online:
+                    file_extension = os.path.splitext(ckpt_name)
+                    ckpt_name = f"{file_extension[0]}_op_rank_{self.op_rank_id}{file_extension[1]}"
 
                 append_dict = {"lora_rank": self.lora_rank} if self.use_lora else None
+                net_to_save = new_net_to_save if self.ckpt_combine_online else self.net_to_save
                 if self.ema is not None:
                     if not self.save_ema_only:
                         self.ckpt_manager.save(
@@ -282,19 +360,8 @@ class EvalSaveCallback(Callback):
 
                 # save history checkpoints
                 self.ckpt_manager.save(
-                    self.net_to_save, perf=cb_params["net_outputs"], ckpt_name=ckpt_name, append_dict=append_dict
+                    net_to_save, perf=cb_params["net_outputs"], ckpt_name=ckpt_name, append_dict=append_dict
                 )
-
-                if self.save_training_resume:
-                    save_checkpoint(
-                        cb_params.train_network,
-                        os.path.join(self.ckpt_save_dir, "train_resume.ckpt"),
-                        choice_func=self.choice_func,
-                        append_dict={
-                            "epoch_num": cur_epoch,
-                            "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                        },
-                    )
 
                 # swap back network weight and ema weight. MUST execute after model saving and before next-step training
                 if self.ema is not None:

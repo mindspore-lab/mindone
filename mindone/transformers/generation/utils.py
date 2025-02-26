@@ -33,6 +33,7 @@ from mindone.transformers.generation.stopping_criteria import (
     StoppingCriteria,
     StoppingCriteriaList,
 )
+from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op
 from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
 
 if TYPE_CHECKING:
@@ -1657,8 +1658,10 @@ class GenerationMixin:
         unfinished_sequences = ops.ones(batch_size, dtype=ms.int32)
         model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
 
+        multinomial = get_multinomial_op()
         step = 0
         s_time = time.time()
+        graph_compiled_time_buffer = []
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
@@ -1675,10 +1678,15 @@ class GenerationMixin:
             if synced_gpus and this_peer_finished:
                 continue  # don't waste resources running the code we don't need
 
-            print(
-                f"======> sampling, step: {step}, sample outputs shape: "
-                f"{[o.shape for o in outputs if isinstance(o, ms.Tensor)]}, time cost: {time.time() - s_time:.3f}s"
-            )
+            step_time = time.time() - s_time
+            if step < 2:
+                print(f"==> sampling, step: {step}, time cost: {step_time:.5f}s")
+            else:
+                graph_compiled_time_buffer.append(step_time)
+                token_speed = len(graph_compiled_time_buffer) / sum(graph_compiled_time_buffer)
+                print(
+                    f"==> sampling, step: {step}, time cost: {step_time:.5f}s, running avg speed: {token_speed:.5f}token/s"
+                )
             s_time = time.time()
             step += 1
 
@@ -1731,7 +1739,7 @@ class GenerationMixin:
             # token selection
             if do_sample:
                 probs = ops.softmax(next_token_scores, axis=-1, dtype=ms.float32).to(next_token_scores.dtype)
-                next_tokens = ops.multinomial(probs, num_samples=1).squeeze(1)
+                next_tokens = multinomial(probs, num_samples=1).squeeze(1)
             else:
                 next_tokens = ops.argmax(next_token_scores, dim=-1)
 
