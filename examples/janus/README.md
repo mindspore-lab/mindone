@@ -126,6 +126,7 @@ On local terminal, run `ssh -L 37906:localhost:37906 user_name@server_ip`, then 
 
 Have Fun!
 
+
 ### Training 
 
 We reproduce the training pipline referring to the [JanusPro](https://arxiv.org/abs/2501.17811) paper. Here we provide an example for i2v sft. 
@@ -139,7 +140,6 @@ We reproduce the training pipline referring to the [JanusPro](https://arxiv.org/
 ```
 bash scripts/run_sft_t2i.sh
 ```
-
 
 ## 4. Performance
 

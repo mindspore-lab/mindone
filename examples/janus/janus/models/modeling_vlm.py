@@ -17,8 +17,8 @@
 # IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+
 import mindspore as ms
-from mindspore import mint, ops, nn, Tensor
 from typing import Optional
 from addict import Dict
 from janus.models.clip_encoder import CLIPVisionTower
@@ -268,6 +268,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
     def prepare_gen_img_embeds(self, image_ids: Tensor):
         return self.gen_aligner(self.gen_embed(image_ids))
 
+
     # TODO: image_seq_masks can be extracted from labels != -100 or input_ids == img_placeholder_token
     def gen_with_loss(self,
         input_ids: Tensor = None,
@@ -458,7 +459,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             raise NotImplementedError
 
         return loss
-            
+
 
 AutoConfig.register("vision", VisionConfig)
 AutoConfig.register("aligner", AlignerConfig)

@@ -10,7 +10,6 @@ from mindspore import Tensor
 sys.path.append(".")
 from janus.models.vq_model import VQ_16
 from PIL import Image
-import mindspore as ms
 from mindspore.dataset.vision import Inter
 
 
@@ -61,6 +60,7 @@ def test_decode(pt_ckpt=None, pt_np=None, dtype=ms.float32, visualize=False):
         z = np.random.normal(size=(B, C, H, W)).astype(np.float32)
         code = np.random.randint(10000, size=(1, B * H * W))  # 576
     decode_from_code = True
+
     with no_init_parameters():
         vq = VQ_16()
     vq.set_train(False)
@@ -115,17 +115,6 @@ def test_encode(pt_ckpt=None, amp=False):
 
     return out.asnumpy()
 
-def get_image():
-    image_path = 'images/doge.png'
-    size = (384, 384)
-    image = Image.open(image_path).convert("RGB")
-    image = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(image)
-    image = np.array(image)
-    image = (image / 255.0) * 2  - 1
-    image = np.transpose(image, (2, 0, 1))
-    image = image[None, None, ...]  # add bs, n_images dimension
-
-    return image
 
 def get_image():
     image_path = 'images/doge.png'

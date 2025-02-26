@@ -48,7 +48,7 @@ def generate(
     inputs_embeds = mmgpt.language_model.get_input_embeddings()(tokens).to(mmgpt.dtype)
 
     generated_tokens = mint.zeros((parallel_size, image_token_num_per_image), dtype=ms.int32)
-    
+
     if use_cache:
         init_kv = ms.mutable(mmgpt.language_model.model.prepare_static_cache(inputs_embeds, args.max_new_tokens))
         # pad input emb for aligning the shape, meets graph mode
@@ -65,7 +65,7 @@ def generate(
     outputs = []
     # FIXME: use mint multinomial after ms2.5 adaptation
     multinomial = get_multinomial_op()
-    
+
     st = time()
     for i in tqdm(range(image_token_num_per_image)):
         outputs = mmgpt.language_model.model(
