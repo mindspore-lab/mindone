@@ -8,7 +8,7 @@ import numpy as np
 from gm.modules.util import normalize as normalize_func
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn
 
 from .modified_resnet import ModifiedResNet
 from .transformer import LayerNormFp32, TextTransformer, VisionTransformer
@@ -154,9 +154,9 @@ class CLIP(nn.Cell):
         x = self.ln_final(x)  # [batch_size, n_ctx, transformer.width]
         # take features from the eot embedding (eot_token is the highest number in each sequence)
 
-        # x = x[ops.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection
-        x = x[ops.arange(x.shape[0]), text.argmax(dim=-1)]
-        x = ops.matmul(x, self.text_projection)
+        # x = x[mint.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection
+        x = x[mint.arange(x.shape[0]), text.argmax(dim=-1)]
+        x = mint.matmul(x, self.text_projection)
 
         if normalize:
             x = normalize_func(x, dim=-1)

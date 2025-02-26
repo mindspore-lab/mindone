@@ -9,34 +9,34 @@ model.diffusion_model.fps_embedding.2.weight:(1280, 1280):float32
 model.diffusion_model.fps_embedding.2.bias:(1280,):float32
 model.diffusion_model.input_blocks.0.0.conv.weight:(320, 8, 3, 3):float32
 model.diffusion_model.input_blocks.0.0.conv.bias:(320,):float32
-model.diffusion_model.input_blocks.1.0.in_layers_norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.0.in_layers_norm.beta:(320,):float32
+model.diffusion_model.input_blocks.1.0.in_layers_norm.weight:(320,):float32
+model.diffusion_model.input_blocks.1.0.in_layers_norm.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.in_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.input_blocks.1.0.in_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.emb_layers.1.weight:(320, 1280):float32
 model.diffusion_model.input_blocks.1.0.emb_layers.1.bias:(320,):float32
-model.diffusion_model.input_blocks.1.0.out_layers_norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.0.out_layers_norm.beta:(320,):float32
+model.diffusion_model.input_blocks.1.0.out_layers_norm.weight:(320,):float32
+model.diffusion_model.input_blocks.1.0.out_layers_norm.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.out_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.input_blocks.1.0.out_layers_conv.conv.bias:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv1.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv1.0.beta:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv1.0.weight:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv1.0.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv1.2.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv1.2.bias:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv2.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv2.0.beta:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv2.0.weight:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv2.0.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv2.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv2.3.bias:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv3.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv3.0.beta:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv3.0.weight:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv3.0.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv3.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv3.3.bias:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv4.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.0.temopral_conv.conv4.0.beta:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv4.0.weight:(320,):float32
+model.diffusion_model.input_blocks.1.0.temopral_conv.conv4.0.bias:(320,):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv4.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.1.0.temopral_conv.conv4.3.bias:(320,):float32
-model.diffusion_model.input_blocks.1.1.norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.1.norm.beta:(320,):float32
+model.diffusion_model.input_blocks.1.1.norm.weight:(320,):float32
+model.diffusion_model.input_blocks.1.1.norm.bias:(320,):float32
 model.diffusion_model.input_blocks.1.1.proj_in.weight:(320, 320):float32
 model.diffusion_model.input_blocks.1.1.proj_in.bias:(320,):float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -55,16 +55,16 @@ model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_out.0.weigh
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_k_ip.weight:(320, 1024):float32
 model.diffusion_model.input_blocks.1.1.transformer_blocks.0.attn2.to_v_ip.weight:(320, 1024):float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.input_blocks.1.1.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.input_blocks.1.1.proj_out.weight:(320, 320):float32
 model.diffusion_model.input_blocks.1.1.proj_out.bias:(320,):float32
-model.diffusion_model.input_blocks.1.2.norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.2.norm.beta:(320,):float32
+model.diffusion_model.input_blocks.1.2.norm.weight:(320,):float32
+model.diffusion_model.input_blocks.1.2.norm.bias:(320,):float32
 model.diffusion_model.input_blocks.1.2.proj_in.weight:(320, 320):float32
 model.diffusion_model.input_blocks.1.2.proj_in.bias:(320,):float32
 model.diffusion_model.input_blocks.1.2.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -81,42 +81,42 @@ model.diffusion_model.input_blocks.1.2.transformer_blocks.0.attn2.to_k.weight:(3
 model.diffusion_model.input_blocks.1.2.transformer_blocks.0.attn2.to_v.weight:(320, 320):float32
 model.diffusion_model.input_blocks.1.2.transformer_blocks.0.attn2.to_out.0.weight:(320, 320):float32
 model.diffusion_model.input_blocks.1.2.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
-model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.input_blocks.1.2.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.input_blocks.1.2.proj_out.weight:(320, 320):float32
 model.diffusion_model.input_blocks.1.2.proj_out.bias:(320,):float32
-model.diffusion_model.input_blocks.2.0.in_layers_norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.0.in_layers_norm.beta:(320,):float32
+model.diffusion_model.input_blocks.2.0.in_layers_norm.weight:(320,):float32
+model.diffusion_model.input_blocks.2.0.in_layers_norm.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.in_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.input_blocks.2.0.in_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.emb_layers.1.weight:(320, 1280):float32
 model.diffusion_model.input_blocks.2.0.emb_layers.1.bias:(320,):float32
-model.diffusion_model.input_blocks.2.0.out_layers_norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.0.out_layers_norm.beta:(320,):float32
+model.diffusion_model.input_blocks.2.0.out_layers_norm.weight:(320,):float32
+model.diffusion_model.input_blocks.2.0.out_layers_norm.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.out_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.input_blocks.2.0.out_layers_conv.conv.bias:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv1.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv1.0.beta:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv1.0.weight:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv1.0.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv1.2.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv1.2.bias:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv2.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv2.0.beta:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv2.0.weight:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv2.0.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv2.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv2.3.bias:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv3.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv3.0.beta:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv3.0.weight:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv3.0.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv3.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv3.3.bias:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv4.0.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.0.temopral_conv.conv4.0.beta:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv4.0.weight:(320,):float32
+model.diffusion_model.input_blocks.2.0.temopral_conv.conv4.0.bias:(320,):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv4.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.input_blocks.2.0.temopral_conv.conv4.3.bias:(320,):float32
-model.diffusion_model.input_blocks.2.1.norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.1.norm.beta:(320,):float32
+model.diffusion_model.input_blocks.2.1.norm.weight:(320,):float32
+model.diffusion_model.input_blocks.2.1.norm.bias:(320,):float32
 model.diffusion_model.input_blocks.2.1.proj_in.weight:(320, 320):float32
 model.diffusion_model.input_blocks.2.1.proj_in.bias:(320,):float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -135,16 +135,16 @@ model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_out.0.weigh
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_k_ip.weight:(320, 1024):float32
 model.diffusion_model.input_blocks.2.1.transformer_blocks.0.attn2.to_v_ip.weight:(320, 1024):float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.input_blocks.2.1.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.input_blocks.2.1.proj_out.weight:(320, 320):float32
 model.diffusion_model.input_blocks.2.1.proj_out.bias:(320,):float32
-model.diffusion_model.input_blocks.2.2.norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.2.norm.beta:(320,):float32
+model.diffusion_model.input_blocks.2.2.norm.weight:(320,):float32
+model.diffusion_model.input_blocks.2.2.norm.bias:(320,):float32
 model.diffusion_model.input_blocks.2.2.proj_in.weight:(320, 320):float32
 model.diffusion_model.input_blocks.2.2.proj_in.bias:(320,):float32
 model.diffusion_model.input_blocks.2.2.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -161,46 +161,46 @@ model.diffusion_model.input_blocks.2.2.transformer_blocks.0.attn2.to_k.weight:(3
 model.diffusion_model.input_blocks.2.2.transformer_blocks.0.attn2.to_v.weight:(320, 320):float32
 model.diffusion_model.input_blocks.2.2.transformer_blocks.0.attn2.to_out.0.weight:(320, 320):float32
 model.diffusion_model.input_blocks.2.2.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
-model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.input_blocks.2.2.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.input_blocks.2.2.proj_out.weight:(320, 320):float32
 model.diffusion_model.input_blocks.2.2.proj_out.bias:(320,):float32
 model.diffusion_model.input_blocks.3.0.op.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.input_blocks.3.0.op.conv.bias:(320,):float32
-model.diffusion_model.input_blocks.4.0.in_layers_norm.gamma:(320,):float32
-model.diffusion_model.input_blocks.4.0.in_layers_norm.beta:(320,):float32
+model.diffusion_model.input_blocks.4.0.in_layers_norm.weight:(320,):float32
+model.diffusion_model.input_blocks.4.0.in_layers_norm.bias:(320,):float32
 model.diffusion_model.input_blocks.4.0.in_layers_conv.conv.weight:(640, 320, 3, 3):float32
 model.diffusion_model.input_blocks.4.0.in_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.emb_layers.1.weight:(640, 1280):float32
 model.diffusion_model.input_blocks.4.0.emb_layers.1.bias:(640,):float32
-model.diffusion_model.input_blocks.4.0.out_layers_norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.0.out_layers_norm.beta:(640,):float32
+model.diffusion_model.input_blocks.4.0.out_layers_norm.weight:(640,):float32
+model.diffusion_model.input_blocks.4.0.out_layers_norm.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.out_layers_conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.input_blocks.4.0.out_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.skip_connection.conv.weight:(640, 320, 1, 1):float32
 model.diffusion_model.input_blocks.4.0.skip_connection.conv.bias:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv1.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv1.0.beta:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv1.0.weight:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv1.0.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv1.2.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv1.2.bias:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv2.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv2.0.beta:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv2.0.weight:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv2.0.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv2.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv2.3.bias:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv3.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv3.0.beta:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv3.0.weight:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv3.0.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv3.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv3.3.bias:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv4.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.0.temopral_conv.conv4.0.beta:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv4.0.weight:(640,):float32
+model.diffusion_model.input_blocks.4.0.temopral_conv.conv4.0.bias:(640,):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv4.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.4.0.temopral_conv.conv4.3.bias:(640,):float32
-model.diffusion_model.input_blocks.4.1.norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.1.norm.beta:(640,):float32
+model.diffusion_model.input_blocks.4.1.norm.weight:(640,):float32
+model.diffusion_model.input_blocks.4.1.norm.bias:(640,):float32
 model.diffusion_model.input_blocks.4.1.proj_in.weight:(640, 640):float32
 model.diffusion_model.input_blocks.4.1.proj_in.bias:(640,):float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -219,16 +219,16 @@ model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_out.0.weigh
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_k_ip.weight:(640, 1024):float32
 model.diffusion_model.input_blocks.4.1.transformer_blocks.0.attn2.to_v_ip.weight:(640, 1024):float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.input_blocks.4.1.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.input_blocks.4.1.proj_out.weight:(640, 640):float32
 model.diffusion_model.input_blocks.4.1.proj_out.bias:(640,):float32
-model.diffusion_model.input_blocks.4.2.norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.2.norm.beta:(640,):float32
+model.diffusion_model.input_blocks.4.2.norm.weight:(640,):float32
+model.diffusion_model.input_blocks.4.2.norm.bias:(640,):float32
 model.diffusion_model.input_blocks.4.2.proj_in.weight:(640, 640):float32
 model.diffusion_model.input_blocks.4.2.proj_in.bias:(640,):float32
 model.diffusion_model.input_blocks.4.2.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -245,42 +245,42 @@ model.diffusion_model.input_blocks.4.2.transformer_blocks.0.attn2.to_k.weight:(6
 model.diffusion_model.input_blocks.4.2.transformer_blocks.0.attn2.to_v.weight:(640, 640):float32
 model.diffusion_model.input_blocks.4.2.transformer_blocks.0.attn2.to_out.0.weight:(640, 640):float32
 model.diffusion_model.input_blocks.4.2.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
-model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.input_blocks.4.2.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.input_blocks.4.2.proj_out.weight:(640, 640):float32
 model.diffusion_model.input_blocks.4.2.proj_out.bias:(640,):float32
-model.diffusion_model.input_blocks.5.0.in_layers_norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.0.in_layers_norm.beta:(640,):float32
+model.diffusion_model.input_blocks.5.0.in_layers_norm.weight:(640,):float32
+model.diffusion_model.input_blocks.5.0.in_layers_norm.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.in_layers_conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.input_blocks.5.0.in_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.emb_layers.1.weight:(640, 1280):float32
 model.diffusion_model.input_blocks.5.0.emb_layers.1.bias:(640,):float32
-model.diffusion_model.input_blocks.5.0.out_layers_norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.0.out_layers_norm.beta:(640,):float32
+model.diffusion_model.input_blocks.5.0.out_layers_norm.weight:(640,):float32
+model.diffusion_model.input_blocks.5.0.out_layers_norm.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.out_layers_conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.input_blocks.5.0.out_layers_conv.conv.bias:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv1.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv1.0.beta:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv1.0.weight:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv1.0.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv1.2.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv1.2.bias:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv2.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv2.0.beta:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv2.0.weight:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv2.0.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv2.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv2.3.bias:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv3.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv3.0.beta:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv3.0.weight:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv3.0.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv3.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv3.3.bias:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv4.0.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.0.temopral_conv.conv4.0.beta:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv4.0.weight:(640,):float32
+model.diffusion_model.input_blocks.5.0.temopral_conv.conv4.0.bias:(640,):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv4.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.input_blocks.5.0.temopral_conv.conv4.3.bias:(640,):float32
-model.diffusion_model.input_blocks.5.1.norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.1.norm.beta:(640,):float32
+model.diffusion_model.input_blocks.5.1.norm.weight:(640,):float32
+model.diffusion_model.input_blocks.5.1.norm.bias:(640,):float32
 model.diffusion_model.input_blocks.5.1.proj_in.weight:(640, 640):float32
 model.diffusion_model.input_blocks.5.1.proj_in.bias:(640,):float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -299,16 +299,16 @@ model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_out.0.weigh
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_k_ip.weight:(640, 1024):float32
 model.diffusion_model.input_blocks.5.1.transformer_blocks.0.attn2.to_v_ip.weight:(640, 1024):float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.input_blocks.5.1.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.input_blocks.5.1.proj_out.weight:(640, 640):float32
 model.diffusion_model.input_blocks.5.1.proj_out.bias:(640,):float32
-model.diffusion_model.input_blocks.5.2.norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.2.norm.beta:(640,):float32
+model.diffusion_model.input_blocks.5.2.norm.weight:(640,):float32
+model.diffusion_model.input_blocks.5.2.norm.bias:(640,):float32
 model.diffusion_model.input_blocks.5.2.proj_in.weight:(640, 640):float32
 model.diffusion_model.input_blocks.5.2.proj_in.bias:(640,):float32
 model.diffusion_model.input_blocks.5.2.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -325,46 +325,46 @@ model.diffusion_model.input_blocks.5.2.transformer_blocks.0.attn2.to_k.weight:(6
 model.diffusion_model.input_blocks.5.2.transformer_blocks.0.attn2.to_v.weight:(640, 640):float32
 model.diffusion_model.input_blocks.5.2.transformer_blocks.0.attn2.to_out.0.weight:(640, 640):float32
 model.diffusion_model.input_blocks.5.2.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
-model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.input_blocks.5.2.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.input_blocks.5.2.proj_out.weight:(640, 640):float32
 model.diffusion_model.input_blocks.5.2.proj_out.bias:(640,):float32
 model.diffusion_model.input_blocks.6.0.op.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.input_blocks.6.0.op.conv.bias:(640,):float32
-model.diffusion_model.input_blocks.7.0.in_layers_norm.gamma:(640,):float32
-model.diffusion_model.input_blocks.7.0.in_layers_norm.beta:(640,):float32
+model.diffusion_model.input_blocks.7.0.in_layers_norm.weight:(640,):float32
+model.diffusion_model.input_blocks.7.0.in_layers_norm.bias:(640,):float32
 model.diffusion_model.input_blocks.7.0.in_layers_conv.conv.weight:(1280, 640, 3, 3):float32
 model.diffusion_model.input_blocks.7.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.7.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.skip_connection.conv.weight:(1280, 640, 1, 1):float32
 model.diffusion_model.input_blocks.7.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.7.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.1.norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.1.norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.1.norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.1.norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.1.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.1.proj_in.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -383,16 +383,16 @@ model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_out.0.weigh
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_k_ip.weight:(1280, 1024):float32
 model.diffusion_model.input_blocks.7.1.transformer_blocks.0.attn2.to_v_ip.weight:(1280, 1024):float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.1.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.1.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.1.proj_out.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.2.norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.2.norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.2.norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.2.norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.2.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.2.proj_in.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.2.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -409,42 +409,42 @@ model.diffusion_model.input_blocks.7.2.transformer_blocks.0.attn2.to_k.weight:(1
 model.diffusion_model.input_blocks.7.2.transformer_blocks.0.attn2.to_v.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.2.transformer_blocks.0.attn2.to_out.0.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.2.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
-model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.input_blocks.7.2.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.input_blocks.7.2.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.7.2.proj_out.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.0.in_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.0.in_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.0.in_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.0.in_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.in_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.8.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.8.0.out_layers_conv.conv.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.8.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.1.norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.1.norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.1.norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.1.norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.1.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.1.proj_in.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -463,16 +463,16 @@ model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_out.0.weigh
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_k_ip.weight:(1280, 1024):float32
 model.diffusion_model.input_blocks.8.1.transformer_blocks.0.attn2.to_v_ip.weight:(1280, 1024):float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.1.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.1.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.1.proj_out.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.2.norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.2.norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.2.norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.2.norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.2.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.2.proj_in.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.2.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -489,70 +489,70 @@ model.diffusion_model.input_blocks.8.2.transformer_blocks.0.attn2.to_k.weight:(1
 model.diffusion_model.input_blocks.8.2.transformer_blocks.0.attn2.to_v.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.2.transformer_blocks.0.attn2.to_out.0.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.2.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
-model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.input_blocks.8.2.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.input_blocks.8.2.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.8.2.proj_out.bias:(1280,):float32
 model.diffusion_model.input_blocks.9.0.op.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.9.0.op.conv.bias:(1280,):float32
-model.diffusion_model.input_blocks.10.0.in_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.10.0.in_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.10.0.in_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.10.0.in_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.in_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.10.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.10.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.input_blocks.10.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.10.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.10.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.10.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.10.0.out_layers_conv.conv.bias:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.10.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.10.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.10.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.11.0.in_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.11.0.in_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.11.0.in_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.11.0.in_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.in_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.11.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.input_blocks.11.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.input_blocks.11.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.input_blocks.11.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.input_blocks.11.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.input_blocks.11.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.input_blocks.11.0.out_layers_conv.conv.bias:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.input_blocks.11.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.input_blocks.11.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.input_blocks.11.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.init_attn.0.norm.gamma:(320,):float32
-model.diffusion_model.init_attn.0.norm.beta:(320,):float32
+model.diffusion_model.init_attn.0.norm.weight:(320,):float32
+model.diffusion_model.init_attn.0.norm.bias:(320,):float32
 model.diffusion_model.init_attn.0.proj_in.weight:(512, 320, 1, 1):float32
 model.diffusion_model.init_attn.0.proj_in.bias:(512,):float32
 model.diffusion_model.init_attn.0.transformer_blocks.0.attn1.to_q.weight:(512, 512):float32
@@ -569,42 +569,42 @@ model.diffusion_model.init_attn.0.transformer_blocks.0.attn2.to_k.weight:(512, 5
 model.diffusion_model.init_attn.0.transformer_blocks.0.attn2.to_v.weight:(512, 512):float32
 model.diffusion_model.init_attn.0.transformer_blocks.0.attn2.to_out.0.weight:(512, 512):float32
 model.diffusion_model.init_attn.0.transformer_blocks.0.attn2.to_out.0.bias:(512,):float32
-model.diffusion_model.init_attn.0.transformer_blocks.0.norm1.gamma:(512,):float32
-model.diffusion_model.init_attn.0.transformer_blocks.0.norm1.beta:(512,):float32
-model.diffusion_model.init_attn.0.transformer_blocks.0.norm2.gamma:(512,):float32
-model.diffusion_model.init_attn.0.transformer_blocks.0.norm2.beta:(512,):float32
-model.diffusion_model.init_attn.0.transformer_blocks.0.norm3.gamma:(512,):float32
-model.diffusion_model.init_attn.0.transformer_blocks.0.norm3.beta:(512,):float32
+model.diffusion_model.init_attn.0.transformer_blocks.0.norm1.weight:(512,):float32
+model.diffusion_model.init_attn.0.transformer_blocks.0.norm1.bias:(512,):float32
+model.diffusion_model.init_attn.0.transformer_blocks.0.norm2.weight:(512,):float32
+model.diffusion_model.init_attn.0.transformer_blocks.0.norm2.bias:(512,):float32
+model.diffusion_model.init_attn.0.transformer_blocks.0.norm3.weight:(512,):float32
+model.diffusion_model.init_attn.0.transformer_blocks.0.norm3.bias:(512,):float32
 model.diffusion_model.init_attn.0.proj_out.weight:(320, 512, 1, 1):float32
 model.diffusion_model.init_attn.0.proj_out.bias:(320,):float32
-model.diffusion_model.middle_block.0.in_layers_norm.gamma:(1280,):float32
-model.diffusion_model.middle_block.0.in_layers_norm.beta:(1280,):float32
+model.diffusion_model.middle_block.0.in_layers_norm.weight:(1280,):float32
+model.diffusion_model.middle_block.0.in_layers_norm.bias:(1280,):float32
 model.diffusion_model.middle_block.0.in_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.middle_block.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.middle_block.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.middle_block.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.middle_block.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.middle_block.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.middle_block.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.middle_block.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.middle_block.0.out_layers_conv.conv.bias:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.middle_block.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.middle_block.1.norm.gamma:(1280,):float32
-model.diffusion_model.middle_block.1.norm.beta:(1280,):float32
+model.diffusion_model.middle_block.1.norm.weight:(1280,):float32
+model.diffusion_model.middle_block.1.norm.bias:(1280,):float32
 model.diffusion_model.middle_block.1.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.1.proj_in.bias:(1280,):float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -623,16 +623,16 @@ model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_out.0.weight:
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_k_ip.weight:(1280, 1024):float32
 model.diffusion_model.middle_block.1.transformer_blocks.0.attn2.to_v_ip.weight:(1280, 1024):float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.middle_block.1.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.middle_block.1.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.1.proj_out.bias:(1280,):float32
-model.diffusion_model.middle_block.2.norm.gamma:(1280,):float32
-model.diffusion_model.middle_block.2.norm.beta:(1280,):float32
+model.diffusion_model.middle_block.2.norm.weight:(1280,):float32
+model.diffusion_model.middle_block.2.norm.bias:(1280,):float32
 model.diffusion_model.middle_block.2.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.2.proj_in.bias:(1280,):float32
 model.diffusion_model.middle_block.2.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -649,156 +649,156 @@ model.diffusion_model.middle_block.2.transformer_blocks.0.attn2.to_k.weight:(128
 model.diffusion_model.middle_block.2.transformer_blocks.0.attn2.to_v.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.2.transformer_blocks.0.attn2.to_out.0.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.2.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
-model.diffusion_model.middle_block.2.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.middle_block.2.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.middle_block.2.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.middle_block.2.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.middle_block.2.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.middle_block.2.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.middle_block.2.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.middle_block.2.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.middle_block.2.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.middle_block.2.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.middle_block.2.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.middle_block.2.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.middle_block.2.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.2.proj_out.bias:(1280,):float32
-model.diffusion_model.middle_block.3.in_layers_norm.gamma:(1280,):float32
-model.diffusion_model.middle_block.3.in_layers_norm.beta:(1280,):float32
+model.diffusion_model.middle_block.3.in_layers_norm.weight:(1280,):float32
+model.diffusion_model.middle_block.3.in_layers_norm.bias:(1280,):float32
 model.diffusion_model.middle_block.3.in_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.middle_block.3.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.middle_block.3.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.middle_block.3.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.middle_block.3.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.middle_block.3.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.middle_block.3.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.middle_block.3.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.middle_block.3.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.middle_block.3.out_layers_conv.conv.bias:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.middle_block.3.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.middle_block.3.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.middle_block.3.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.0.0.in_layers_norm.gamma:(2560,):float32
-model.diffusion_model.output_blocks.0.0.in_layers_norm.beta:(2560,):float32
+model.diffusion_model.output_blocks.0.0.in_layers_norm.weight:(2560,):float32
+model.diffusion_model.output_blocks.0.0.in_layers_norm.bias:(2560,):float32
 model.diffusion_model.output_blocks.0.0.in_layers_conv.conv.weight:(1280, 2560, 3, 3):float32
 model.diffusion_model.output_blocks.0.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.0.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.output_blocks.0.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.0.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.0.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.0.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.0.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.skip_connection.conv.weight:(1280, 2560, 1, 1):float32
 model.diffusion_model.output_blocks.0.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.0.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.0.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.0.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.1.0.in_layers_norm.gamma:(2560,):float32
-model.diffusion_model.output_blocks.1.0.in_layers_norm.beta:(2560,):float32
+model.diffusion_model.output_blocks.1.0.in_layers_norm.weight:(2560,):float32
+model.diffusion_model.output_blocks.1.0.in_layers_norm.bias:(2560,):float32
 model.diffusion_model.output_blocks.1.0.in_layers_conv.conv.weight:(1280, 2560, 3, 3):float32
 model.diffusion_model.output_blocks.1.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.1.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.output_blocks.1.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.1.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.1.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.1.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.1.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.skip_connection.conv.weight:(1280, 2560, 1, 1):float32
 model.diffusion_model.output_blocks.1.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.1.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.1.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.1.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.2.0.in_layers_norm.gamma:(2560,):float32
-model.diffusion_model.output_blocks.2.0.in_layers_norm.beta:(2560,):float32
+model.diffusion_model.output_blocks.2.0.in_layers_norm.weight:(2560,):float32
+model.diffusion_model.output_blocks.2.0.in_layers_norm.bias:(2560,):float32
 model.diffusion_model.output_blocks.2.0.in_layers_conv.conv.weight:(1280, 2560, 3, 3):float32
 model.diffusion_model.output_blocks.2.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.2.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.output_blocks.2.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.2.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.2.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.2.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.2.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.skip_connection.conv.weight:(1280, 2560, 1, 1):float32
 model.diffusion_model.output_blocks.2.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.2.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.2.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.2.0.temopral_conv.conv4.3.bias:(1280,):float32
 model.diffusion_model.output_blocks.2.1.conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.2.1.conv.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.0.in_layers_norm.gamma:(2560,):float32
-model.diffusion_model.output_blocks.3.0.in_layers_norm.beta:(2560,):float32
+model.diffusion_model.output_blocks.3.0.in_layers_norm.weight:(2560,):float32
+model.diffusion_model.output_blocks.3.0.in_layers_norm.bias:(2560,):float32
 model.diffusion_model.output_blocks.3.0.in_layers_conv.conv.weight:(1280, 2560, 3, 3):float32
 model.diffusion_model.output_blocks.3.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.3.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.skip_connection.conv.weight:(1280, 2560, 1, 1):float32
 model.diffusion_model.output_blocks.3.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.3.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.1.norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.1.norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.1.norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.1.norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.1.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.1.proj_in.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -817,16 +817,16 @@ model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_k_ip.weight:(1280, 1024):float32
 model.diffusion_model.output_blocks.3.1.transformer_blocks.0.attn2.to_v_ip.weight:(1280, 1024):float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.1.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.1.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.1.proj_out.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.2.norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.2.norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.2.norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.2.norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.2.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.2.proj_in.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.2.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -843,44 +843,44 @@ model.diffusion_model.output_blocks.3.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.3.2.transformer_blocks.0.attn2.to_v.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.2.transformer_blocks.0.attn2.to_out.0.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.2.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
-model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.output_blocks.3.2.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.output_blocks.3.2.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.3.2.proj_out.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.0.in_layers_norm.gamma:(2560,):float32
-model.diffusion_model.output_blocks.4.0.in_layers_norm.beta:(2560,):float32
+model.diffusion_model.output_blocks.4.0.in_layers_norm.weight:(2560,):float32
+model.diffusion_model.output_blocks.4.0.in_layers_norm.bias:(2560,):float32
 model.diffusion_model.output_blocks.4.0.in_layers_conv.conv.weight:(1280, 2560, 3, 3):float32
 model.diffusion_model.output_blocks.4.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.4.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.skip_connection.conv.weight:(1280, 2560, 1, 1):float32
 model.diffusion_model.output_blocks.4.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.4.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.1.norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.1.norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.1.norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.1.norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.1.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.1.proj_in.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -899,16 +899,16 @@ model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_k_ip.weight:(1280, 1024):float32
 model.diffusion_model.output_blocks.4.1.transformer_blocks.0.attn2.to_v_ip.weight:(1280, 1024):float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.1.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.1.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.1.proj_out.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.2.norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.2.norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.2.norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.2.norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.2.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.2.proj_in.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.2.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -925,44 +925,44 @@ model.diffusion_model.output_blocks.4.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.4.2.transformer_blocks.0.attn2.to_v.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.2.transformer_blocks.0.attn2.to_out.0.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.2.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
-model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.output_blocks.4.2.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.output_blocks.4.2.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.4.2.proj_out.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.0.in_layers_norm.gamma:(1920,):float32
-model.diffusion_model.output_blocks.5.0.in_layers_norm.beta:(1920,):float32
+model.diffusion_model.output_blocks.5.0.in_layers_norm.weight:(1920,):float32
+model.diffusion_model.output_blocks.5.0.in_layers_norm.bias:(1920,):float32
 model.diffusion_model.output_blocks.5.0.in_layers_conv.conv.weight:(1280, 1920, 3, 3):float32
 model.diffusion_model.output_blocks.5.0.in_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.emb_layers.1.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.0.emb_layers.1.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.0.out_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.0.out_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.0.out_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.0.out_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.out_layers_conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.5.0.out_layers_conv.conv.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.skip_connection.conv.weight:(1280, 1920, 1, 1):float32
 model.diffusion_model.output_blocks.5.0.skip_connection.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv1.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv1.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv1.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv1.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv1.2.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv1.2.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv2.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv2.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv2.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv2.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv2.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv2.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv3.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv3.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv3.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv3.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv3.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv3.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv4.0.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.0.temopral_conv.conv4.0.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv4.0.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.0.temopral_conv.conv4.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv4.3.weight:(1280, 1280, 3, 1, 1):float32
 model.diffusion_model.output_blocks.5.0.temopral_conv.conv4.3.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.1.norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.1.norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.1.norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.1.norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.1.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.1.proj_in.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -981,16 +981,16 @@ model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_k_ip.weight:(1280, 1024):float32
 model.diffusion_model.output_blocks.5.1.transformer_blocks.0.attn2.to_v_ip.weight:(1280, 1024):float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.1.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.1.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.1.proj_out.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.2.norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.2.norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.2.norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.2.norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.2.proj_in.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.2.proj_in.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.2.transformer_blocks.0.attn1.to_q.weight:(1280, 1280):float32
@@ -1007,46 +1007,46 @@ model.diffusion_model.output_blocks.5.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.5.2.transformer_blocks.0.attn2.to_v.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.2.transformer_blocks.0.attn2.to_out.0.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.2.transformer_blocks.0.attn2.to_out.0.bias:(1280,):float32
-model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm1.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm1.beta:(1280,):float32
-model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm2.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm2.beta:(1280,):float32
-model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm3.gamma:(1280,):float32
-model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm3.beta:(1280,):float32
+model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm1.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm1.bias:(1280,):float32
+model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm2.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm2.bias:(1280,):float32
+model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm3.weight:(1280,):float32
+model.diffusion_model.output_blocks.5.2.transformer_blocks.0.norm3.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.2.proj_out.weight:(1280, 1280):float32
 model.diffusion_model.output_blocks.5.2.proj_out.bias:(1280,):float32
 model.diffusion_model.output_blocks.5.3.conv.conv.weight:(1280, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.5.3.conv.conv.bias:(1280,):float32
-model.diffusion_model.output_blocks.6.0.in_layers_norm.gamma:(1920,):float32
-model.diffusion_model.output_blocks.6.0.in_layers_norm.beta:(1920,):float32
+model.diffusion_model.output_blocks.6.0.in_layers_norm.weight:(1920,):float32
+model.diffusion_model.output_blocks.6.0.in_layers_norm.bias:(1920,):float32
 model.diffusion_model.output_blocks.6.0.in_layers_conv.conv.weight:(640, 1920, 3, 3):float32
 model.diffusion_model.output_blocks.6.0.in_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.emb_layers.1.weight:(640, 1280):float32
 model.diffusion_model.output_blocks.6.0.emb_layers.1.bias:(640,):float32
-model.diffusion_model.output_blocks.6.0.out_layers_norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.0.out_layers_norm.beta:(640,):float32
+model.diffusion_model.output_blocks.6.0.out_layers_norm.weight:(640,):float32
+model.diffusion_model.output_blocks.6.0.out_layers_norm.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.out_layers_conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.output_blocks.6.0.out_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.skip_connection.conv.weight:(640, 1920, 1, 1):float32
 model.diffusion_model.output_blocks.6.0.skip_connection.conv.bias:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv1.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv1.0.beta:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv1.0.weight:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv1.0.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv1.2.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv1.2.bias:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv2.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv2.0.beta:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv2.0.weight:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv2.0.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv2.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv2.3.bias:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv3.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv3.0.beta:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv3.0.weight:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv3.0.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv3.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv3.3.bias:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv4.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.0.temopral_conv.conv4.0.beta:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv4.0.weight:(640,):float32
+model.diffusion_model.output_blocks.6.0.temopral_conv.conv4.0.bias:(640,):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv4.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.6.0.temopral_conv.conv4.3.bias:(640,):float32
-model.diffusion_model.output_blocks.6.1.norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.1.norm.beta:(640,):float32
+model.diffusion_model.output_blocks.6.1.norm.weight:(640,):float32
+model.diffusion_model.output_blocks.6.1.norm.bias:(640,):float32
 model.diffusion_model.output_blocks.6.1.proj_in.weight:(640, 640):float32
 model.diffusion_model.output_blocks.6.1.proj_in.bias:(640,):float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -1065,16 +1065,16 @@ model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_k_ip.weight:(640, 1024):float32
 model.diffusion_model.output_blocks.6.1.transformer_blocks.0.attn2.to_v_ip.weight:(640, 1024):float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.output_blocks.6.1.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.output_blocks.6.1.proj_out.weight:(640, 640):float32
 model.diffusion_model.output_blocks.6.1.proj_out.bias:(640,):float32
-model.diffusion_model.output_blocks.6.2.norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.2.norm.beta:(640,):float32
+model.diffusion_model.output_blocks.6.2.norm.weight:(640,):float32
+model.diffusion_model.output_blocks.6.2.norm.bias:(640,):float32
 model.diffusion_model.output_blocks.6.2.proj_in.weight:(640, 640):float32
 model.diffusion_model.output_blocks.6.2.proj_in.bias:(640,):float32
 model.diffusion_model.output_blocks.6.2.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -1091,44 +1091,44 @@ model.diffusion_model.output_blocks.6.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.6.2.transformer_blocks.0.attn2.to_v.weight:(640, 640):float32
 model.diffusion_model.output_blocks.6.2.transformer_blocks.0.attn2.to_out.0.weight:(640, 640):float32
 model.diffusion_model.output_blocks.6.2.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
-model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.output_blocks.6.2.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.output_blocks.6.2.proj_out.weight:(640, 640):float32
 model.diffusion_model.output_blocks.6.2.proj_out.bias:(640,):float32
-model.diffusion_model.output_blocks.7.0.in_layers_norm.gamma:(1280,):float32
-model.diffusion_model.output_blocks.7.0.in_layers_norm.beta:(1280,):float32
+model.diffusion_model.output_blocks.7.0.in_layers_norm.weight:(1280,):float32
+model.diffusion_model.output_blocks.7.0.in_layers_norm.bias:(1280,):float32
 model.diffusion_model.output_blocks.7.0.in_layers_conv.conv.weight:(640, 1280, 3, 3):float32
 model.diffusion_model.output_blocks.7.0.in_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.emb_layers.1.weight:(640, 1280):float32
 model.diffusion_model.output_blocks.7.0.emb_layers.1.bias:(640,):float32
-model.diffusion_model.output_blocks.7.0.out_layers_norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.0.out_layers_norm.beta:(640,):float32
+model.diffusion_model.output_blocks.7.0.out_layers_norm.weight:(640,):float32
+model.diffusion_model.output_blocks.7.0.out_layers_norm.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.out_layers_conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.output_blocks.7.0.out_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.skip_connection.conv.weight:(640, 1280, 1, 1):float32
 model.diffusion_model.output_blocks.7.0.skip_connection.conv.bias:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv1.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv1.0.beta:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv1.0.weight:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv1.0.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv1.2.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv1.2.bias:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv2.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv2.0.beta:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv2.0.weight:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv2.0.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv2.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv2.3.bias:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv3.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv3.0.beta:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv3.0.weight:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv3.0.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv3.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv3.3.bias:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv4.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.0.temopral_conv.conv4.0.beta:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv4.0.weight:(640,):float32
+model.diffusion_model.output_blocks.7.0.temopral_conv.conv4.0.bias:(640,):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv4.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.7.0.temopral_conv.conv4.3.bias:(640,):float32
-model.diffusion_model.output_blocks.7.1.norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.1.norm.beta:(640,):float32
+model.diffusion_model.output_blocks.7.1.norm.weight:(640,):float32
+model.diffusion_model.output_blocks.7.1.norm.bias:(640,):float32
 model.diffusion_model.output_blocks.7.1.proj_in.weight:(640, 640):float32
 model.diffusion_model.output_blocks.7.1.proj_in.bias:(640,):float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -1147,16 +1147,16 @@ model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_k_ip.weight:(640, 1024):float32
 model.diffusion_model.output_blocks.7.1.transformer_blocks.0.attn2.to_v_ip.weight:(640, 1024):float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.output_blocks.7.1.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.output_blocks.7.1.proj_out.weight:(640, 640):float32
 model.diffusion_model.output_blocks.7.1.proj_out.bias:(640,):float32
-model.diffusion_model.output_blocks.7.2.norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.2.norm.beta:(640,):float32
+model.diffusion_model.output_blocks.7.2.norm.weight:(640,):float32
+model.diffusion_model.output_blocks.7.2.norm.bias:(640,):float32
 model.diffusion_model.output_blocks.7.2.proj_in.weight:(640, 640):float32
 model.diffusion_model.output_blocks.7.2.proj_in.bias:(640,):float32
 model.diffusion_model.output_blocks.7.2.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -1173,44 +1173,44 @@ model.diffusion_model.output_blocks.7.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.7.2.transformer_blocks.0.attn2.to_v.weight:(640, 640):float32
 model.diffusion_model.output_blocks.7.2.transformer_blocks.0.attn2.to_out.0.weight:(640, 640):float32
 model.diffusion_model.output_blocks.7.2.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
-model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.output_blocks.7.2.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.output_blocks.7.2.proj_out.weight:(640, 640):float32
 model.diffusion_model.output_blocks.7.2.proj_out.bias:(640,):float32
-model.diffusion_model.output_blocks.8.0.in_layers_norm.gamma:(960,):float32
-model.diffusion_model.output_blocks.8.0.in_layers_norm.beta:(960,):float32
+model.diffusion_model.output_blocks.8.0.in_layers_norm.weight:(960,):float32
+model.diffusion_model.output_blocks.8.0.in_layers_norm.bias:(960,):float32
 model.diffusion_model.output_blocks.8.0.in_layers_conv.conv.weight:(640, 960, 3, 3):float32
 model.diffusion_model.output_blocks.8.0.in_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.emb_layers.1.weight:(640, 1280):float32
 model.diffusion_model.output_blocks.8.0.emb_layers.1.bias:(640,):float32
-model.diffusion_model.output_blocks.8.0.out_layers_norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.0.out_layers_norm.beta:(640,):float32
+model.diffusion_model.output_blocks.8.0.out_layers_norm.weight:(640,):float32
+model.diffusion_model.output_blocks.8.0.out_layers_norm.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.out_layers_conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.output_blocks.8.0.out_layers_conv.conv.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.skip_connection.conv.weight:(640, 960, 1, 1):float32
 model.diffusion_model.output_blocks.8.0.skip_connection.conv.bias:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv1.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv1.0.beta:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv1.0.weight:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv1.0.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv1.2.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv1.2.bias:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv2.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv2.0.beta:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv2.0.weight:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv2.0.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv2.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv2.3.bias:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv3.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv3.0.beta:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv3.0.weight:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv3.0.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv3.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv3.3.bias:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv4.0.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.0.temopral_conv.conv4.0.beta:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv4.0.weight:(640,):float32
+model.diffusion_model.output_blocks.8.0.temopral_conv.conv4.0.bias:(640,):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv4.3.weight:(640, 640, 3, 1, 1):float32
 model.diffusion_model.output_blocks.8.0.temopral_conv.conv4.3.bias:(640,):float32
-model.diffusion_model.output_blocks.8.1.norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.1.norm.beta:(640,):float32
+model.diffusion_model.output_blocks.8.1.norm.weight:(640,):float32
+model.diffusion_model.output_blocks.8.1.norm.bias:(640,):float32
 model.diffusion_model.output_blocks.8.1.proj_in.weight:(640, 640):float32
 model.diffusion_model.output_blocks.8.1.proj_in.bias:(640,):float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -1229,16 +1229,16 @@ model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_k_ip.weight:(640, 1024):float32
 model.diffusion_model.output_blocks.8.1.transformer_blocks.0.attn2.to_v_ip.weight:(640, 1024):float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.output_blocks.8.1.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.output_blocks.8.1.proj_out.weight:(640, 640):float32
 model.diffusion_model.output_blocks.8.1.proj_out.bias:(640,):float32
-model.diffusion_model.output_blocks.8.2.norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.2.norm.beta:(640,):float32
+model.diffusion_model.output_blocks.8.2.norm.weight:(640,):float32
+model.diffusion_model.output_blocks.8.2.norm.bias:(640,):float32
 model.diffusion_model.output_blocks.8.2.proj_in.weight:(640, 640):float32
 model.diffusion_model.output_blocks.8.2.proj_in.bias:(640,):float32
 model.diffusion_model.output_blocks.8.2.transformer_blocks.0.attn1.to_q.weight:(640, 640):float32
@@ -1255,46 +1255,46 @@ model.diffusion_model.output_blocks.8.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.8.2.transformer_blocks.0.attn2.to_v.weight:(640, 640):float32
 model.diffusion_model.output_blocks.8.2.transformer_blocks.0.attn2.to_out.0.weight:(640, 640):float32
 model.diffusion_model.output_blocks.8.2.transformer_blocks.0.attn2.to_out.0.bias:(640,):float32
-model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm1.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm1.beta:(640,):float32
-model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm2.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm2.beta:(640,):float32
-model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm3.gamma:(640,):float32
-model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm3.beta:(640,):float32
+model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm1.weight:(640,):float32
+model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm1.bias:(640,):float32
+model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm2.weight:(640,):float32
+model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm2.bias:(640,):float32
+model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm3.weight:(640,):float32
+model.diffusion_model.output_blocks.8.2.transformer_blocks.0.norm3.bias:(640,):float32
 model.diffusion_model.output_blocks.8.2.proj_out.weight:(640, 640):float32
 model.diffusion_model.output_blocks.8.2.proj_out.bias:(640,):float32
 model.diffusion_model.output_blocks.8.3.conv.conv.weight:(640, 640, 3, 3):float32
 model.diffusion_model.output_blocks.8.3.conv.conv.bias:(640,):float32
-model.diffusion_model.output_blocks.9.0.in_layers_norm.gamma:(960,):float32
-model.diffusion_model.output_blocks.9.0.in_layers_norm.beta:(960,):float32
+model.diffusion_model.output_blocks.9.0.in_layers_norm.weight:(960,):float32
+model.diffusion_model.output_blocks.9.0.in_layers_norm.bias:(960,):float32
 model.diffusion_model.output_blocks.9.0.in_layers_conv.conv.weight:(320, 960, 3, 3):float32
 model.diffusion_model.output_blocks.9.0.in_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.emb_layers.1.weight:(320, 1280):float32
 model.diffusion_model.output_blocks.9.0.emb_layers.1.bias:(320,):float32
-model.diffusion_model.output_blocks.9.0.out_layers_norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.0.out_layers_norm.beta:(320,):float32
+model.diffusion_model.output_blocks.9.0.out_layers_norm.weight:(320,):float32
+model.diffusion_model.output_blocks.9.0.out_layers_norm.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.out_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.output_blocks.9.0.out_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.skip_connection.conv.weight:(320, 960, 1, 1):float32
 model.diffusion_model.output_blocks.9.0.skip_connection.conv.bias:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv1.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv1.0.beta:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv1.0.weight:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv1.0.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv1.2.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv1.2.bias:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv2.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv2.0.beta:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv2.0.weight:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv2.0.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv2.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv2.3.bias:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv3.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv3.0.beta:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv3.0.weight:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv3.0.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv3.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv3.3.bias:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv4.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.0.temopral_conv.conv4.0.beta:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv4.0.weight:(320,):float32
+model.diffusion_model.output_blocks.9.0.temopral_conv.conv4.0.bias:(320,):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv4.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.9.0.temopral_conv.conv4.3.bias:(320,):float32
-model.diffusion_model.output_blocks.9.1.norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.1.norm.beta:(320,):float32
+model.diffusion_model.output_blocks.9.1.norm.weight:(320,):float32
+model.diffusion_model.output_blocks.9.1.norm.bias:(320,):float32
 model.diffusion_model.output_blocks.9.1.proj_in.weight:(320, 320):float32
 model.diffusion_model.output_blocks.9.1.proj_in.bias:(320,):float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -1313,16 +1313,16 @@ model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_out.0.weig
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_k_ip.weight:(320, 1024):float32
 model.diffusion_model.output_blocks.9.1.transformer_blocks.0.attn2.to_v_ip.weight:(320, 1024):float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.output_blocks.9.1.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.output_blocks.9.1.proj_out.weight:(320, 320):float32
 model.diffusion_model.output_blocks.9.1.proj_out.bias:(320,):float32
-model.diffusion_model.output_blocks.9.2.norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.2.norm.beta:(320,):float32
+model.diffusion_model.output_blocks.9.2.norm.weight:(320,):float32
+model.diffusion_model.output_blocks.9.2.norm.bias:(320,):float32
 model.diffusion_model.output_blocks.9.2.proj_in.weight:(320, 320):float32
 model.diffusion_model.output_blocks.9.2.proj_in.bias:(320,):float32
 model.diffusion_model.output_blocks.9.2.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -1339,44 +1339,44 @@ model.diffusion_model.output_blocks.9.2.transformer_blocks.0.attn2.to_k.weight:(
 model.diffusion_model.output_blocks.9.2.transformer_blocks.0.attn2.to_v.weight:(320, 320):float32
 model.diffusion_model.output_blocks.9.2.transformer_blocks.0.attn2.to_out.0.weight:(320, 320):float32
 model.diffusion_model.output_blocks.9.2.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
-model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.output_blocks.9.2.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.output_blocks.9.2.proj_out.weight:(320, 320):float32
 model.diffusion_model.output_blocks.9.2.proj_out.bias:(320,):float32
-model.diffusion_model.output_blocks.10.0.in_layers_norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.10.0.in_layers_norm.beta:(640,):float32
+model.diffusion_model.output_blocks.10.0.in_layers_norm.weight:(640,):float32
+model.diffusion_model.output_blocks.10.0.in_layers_norm.bias:(640,):float32
 model.diffusion_model.output_blocks.10.0.in_layers_conv.conv.weight:(320, 640, 3, 3):float32
 model.diffusion_model.output_blocks.10.0.in_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.emb_layers.1.weight:(320, 1280):float32
 model.diffusion_model.output_blocks.10.0.emb_layers.1.bias:(320,):float32
-model.diffusion_model.output_blocks.10.0.out_layers_norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.0.out_layers_norm.beta:(320,):float32
+model.diffusion_model.output_blocks.10.0.out_layers_norm.weight:(320,):float32
+model.diffusion_model.output_blocks.10.0.out_layers_norm.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.out_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.output_blocks.10.0.out_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.skip_connection.conv.weight:(320, 640, 1, 1):float32
 model.diffusion_model.output_blocks.10.0.skip_connection.conv.bias:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv1.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv1.0.beta:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv1.0.weight:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv1.0.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv1.2.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv1.2.bias:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv2.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv2.0.beta:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv2.0.weight:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv2.0.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv2.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv2.3.bias:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv3.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv3.0.beta:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv3.0.weight:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv3.0.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv3.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv3.3.bias:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv4.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.0.temopral_conv.conv4.0.beta:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv4.0.weight:(320,):float32
+model.diffusion_model.output_blocks.10.0.temopral_conv.conv4.0.bias:(320,):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv4.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.10.0.temopral_conv.conv4.3.bias:(320,):float32
-model.diffusion_model.output_blocks.10.1.norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.1.norm.beta:(320,):float32
+model.diffusion_model.output_blocks.10.1.norm.weight:(320,):float32
+model.diffusion_model.output_blocks.10.1.norm.bias:(320,):float32
 model.diffusion_model.output_blocks.10.1.proj_in.weight:(320, 320):float32
 model.diffusion_model.output_blocks.10.1.proj_in.bias:(320,):float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -1395,16 +1395,16 @@ model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_out.0.wei
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_k_ip.weight:(320, 1024):float32
 model.diffusion_model.output_blocks.10.1.transformer_blocks.0.attn2.to_v_ip.weight:(320, 1024):float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.output_blocks.10.1.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.output_blocks.10.1.proj_out.weight:(320, 320):float32
 model.diffusion_model.output_blocks.10.1.proj_out.bias:(320,):float32
-model.diffusion_model.output_blocks.10.2.norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.2.norm.beta:(320,):float32
+model.diffusion_model.output_blocks.10.2.norm.weight:(320,):float32
+model.diffusion_model.output_blocks.10.2.norm.bias:(320,):float32
 model.diffusion_model.output_blocks.10.2.proj_in.weight:(320, 320):float32
 model.diffusion_model.output_blocks.10.2.proj_in.bias:(320,):float32
 model.diffusion_model.output_blocks.10.2.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -1421,44 +1421,44 @@ model.diffusion_model.output_blocks.10.2.transformer_blocks.0.attn2.to_k.weight:
 model.diffusion_model.output_blocks.10.2.transformer_blocks.0.attn2.to_v.weight:(320, 320):float32
 model.diffusion_model.output_blocks.10.2.transformer_blocks.0.attn2.to_out.0.weight:(320, 320):float32
 model.diffusion_model.output_blocks.10.2.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
-model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.output_blocks.10.2.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.output_blocks.10.2.proj_out.weight:(320, 320):float32
 model.diffusion_model.output_blocks.10.2.proj_out.bias:(320,):float32
-model.diffusion_model.output_blocks.11.0.in_layers_norm.gamma:(640,):float32
-model.diffusion_model.output_blocks.11.0.in_layers_norm.beta:(640,):float32
+model.diffusion_model.output_blocks.11.0.in_layers_norm.weight:(640,):float32
+model.diffusion_model.output_blocks.11.0.in_layers_norm.bias:(640,):float32
 model.diffusion_model.output_blocks.11.0.in_layers_conv.conv.weight:(320, 640, 3, 3):float32
 model.diffusion_model.output_blocks.11.0.in_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.emb_layers.1.weight:(320, 1280):float32
 model.diffusion_model.output_blocks.11.0.emb_layers.1.bias:(320,):float32
-model.diffusion_model.output_blocks.11.0.out_layers_norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.0.out_layers_norm.beta:(320,):float32
+model.diffusion_model.output_blocks.11.0.out_layers_norm.weight:(320,):float32
+model.diffusion_model.output_blocks.11.0.out_layers_norm.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.out_layers_conv.conv.weight:(320, 320, 3, 3):float32
 model.diffusion_model.output_blocks.11.0.out_layers_conv.conv.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.skip_connection.conv.weight:(320, 640, 1, 1):float32
 model.diffusion_model.output_blocks.11.0.skip_connection.conv.bias:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv1.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv1.0.beta:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv1.0.weight:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv1.0.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv1.2.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv1.2.bias:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv2.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv2.0.beta:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv2.0.weight:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv2.0.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv2.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv2.3.bias:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv3.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv3.0.beta:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv3.0.weight:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv3.0.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv3.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv3.3.bias:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv4.0.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.0.temopral_conv.conv4.0.beta:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv4.0.weight:(320,):float32
+model.diffusion_model.output_blocks.11.0.temopral_conv.conv4.0.bias:(320,):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv4.3.weight:(320, 320, 3, 1, 1):float32
 model.diffusion_model.output_blocks.11.0.temopral_conv.conv4.3.bias:(320,):float32
-model.diffusion_model.output_blocks.11.1.norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.1.norm.beta:(320,):float32
+model.diffusion_model.output_blocks.11.1.norm.weight:(320,):float32
+model.diffusion_model.output_blocks.11.1.norm.bias:(320,):float32
 model.diffusion_model.output_blocks.11.1.proj_in.weight:(320, 320):float32
 model.diffusion_model.output_blocks.11.1.proj_in.bias:(320,):float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -1477,16 +1477,16 @@ model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_out.0.wei
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_k_ip.weight:(320, 1024):float32
 model.diffusion_model.output_blocks.11.1.transformer_blocks.0.attn2.to_v_ip.weight:(320, 1024):float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.output_blocks.11.1.proj_out.weight:(320, 320):float32
 model.diffusion_model.output_blocks.11.1.proj_out.bias:(320,):float32
-model.diffusion_model.output_blocks.11.2.norm.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.2.norm.beta:(320,):float32
+model.diffusion_model.output_blocks.11.2.norm.weight:(320,):float32
+model.diffusion_model.output_blocks.11.2.norm.bias:(320,):float32
 model.diffusion_model.output_blocks.11.2.proj_in.weight:(320, 320):float32
 model.diffusion_model.output_blocks.11.2.proj_in.bias:(320,):float32
 model.diffusion_model.output_blocks.11.2.transformer_blocks.0.attn1.to_q.weight:(320, 320):float32
@@ -1503,16 +1503,16 @@ model.diffusion_model.output_blocks.11.2.transformer_blocks.0.attn2.to_k.weight:
 model.diffusion_model.output_blocks.11.2.transformer_blocks.0.attn2.to_v.weight:(320, 320):float32
 model.diffusion_model.output_blocks.11.2.transformer_blocks.0.attn2.to_out.0.weight:(320, 320):float32
 model.diffusion_model.output_blocks.11.2.transformer_blocks.0.attn2.to_out.0.bias:(320,):float32
-model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm1.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm1.beta:(320,):float32
-model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm2.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm2.beta:(320,):float32
-model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm3.gamma:(320,):float32
-model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm3.beta:(320,):float32
+model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm1.weight:(320,):float32
+model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm1.bias:(320,):float32
+model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm2.weight:(320,):float32
+model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm2.bias:(320,):float32
+model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm3.weight:(320,):float32
+model.diffusion_model.output_blocks.11.2.transformer_blocks.0.norm3.bias:(320,):float32
 model.diffusion_model.output_blocks.11.2.proj_out.weight:(320, 320):float32
 model.diffusion_model.output_blocks.11.2.proj_out.bias:(320,):float32
-model.diffusion_model.out.0.gamma:(320,):float32
-model.diffusion_model.out.0.beta:(320,):float32
+model.diffusion_model.out.0.weight:(320,):float32
+model.diffusion_model.out.0.bias:(320,):float32
 model.diffusion_model.out.2.conv.weight:(4, 320, 3, 3):float32
 model.diffusion_model.out.2.conv.bias:(4,):float32
 first_stage_model.encoder.conv_in.weight:(128, 3, 3, 3):float32
@@ -2460,49 +2460,49 @@ image_proj_model.proj_in.weight:(1024, 1280):float32
 image_proj_model.proj_in.bias:(1024,):float32
 image_proj_model.proj_out.weight:(1024, 1024):float32
 image_proj_model.proj_out.bias:(1024,):float32
-image_proj_model.norm_out.gamma:(1024,):float32
-image_proj_model.norm_out.beta:(1024,):float32
-image_proj_model.layers.0.0.norm1.gamma:(1024,):float32
-image_proj_model.layers.0.0.norm1.beta:(1024,):float32
-image_proj_model.layers.0.0.norm2.gamma:(1024,):float32
-image_proj_model.layers.0.0.norm2.beta:(1024,):float32
+image_proj_model.norm_out.weight:(1024,):float32
+image_proj_model.norm_out.bias:(1024,):float32
+image_proj_model.layers.0.0.norm1.weight:(1024,):float32
+image_proj_model.layers.0.0.norm1.bias:(1024,):float32
+image_proj_model.layers.0.0.norm2.weight:(1024,):float32
+image_proj_model.layers.0.0.norm2.bias:(1024,):float32
 image_proj_model.layers.0.0.to_q.weight:(768, 1024):float32
 image_proj_model.layers.0.0.to_kv.weight:(1536, 1024):float32
 image_proj_model.layers.0.0.to_out.weight:(1024, 768):float32
-image_proj_model.layers.0.1.0.gamma:(1024,):float32
-image_proj_model.layers.0.1.0.beta:(1024,):float32
+image_proj_model.layers.0.1.0.weight:(1024,):float32
+image_proj_model.layers.0.1.0.bias:(1024,):float32
 image_proj_model.layers.0.1.1.weight:(4096, 1024):float32
 image_proj_model.layers.0.1.3.weight:(1024, 4096):float32
-image_proj_model.layers.1.0.norm1.gamma:(1024,):float32
-image_proj_model.layers.1.0.norm1.beta:(1024,):float32
-image_proj_model.layers.1.0.norm2.gamma:(1024,):float32
-image_proj_model.layers.1.0.norm2.beta:(1024,):float32
+image_proj_model.layers.1.0.norm1.weight:(1024,):float32
+image_proj_model.layers.1.0.norm1.bias:(1024,):float32
+image_proj_model.layers.1.0.norm2.weight:(1024,):float32
+image_proj_model.layers.1.0.norm2.bias:(1024,):float32
 image_proj_model.layers.1.0.to_q.weight:(768, 1024):float32
 image_proj_model.layers.1.0.to_kv.weight:(1536, 1024):float32
 image_proj_model.layers.1.0.to_out.weight:(1024, 768):float32
-image_proj_model.layers.1.1.0.gamma:(1024,):float32
-image_proj_model.layers.1.1.0.beta:(1024,):float32
+image_proj_model.layers.1.1.0.weight:(1024,):float32
+image_proj_model.layers.1.1.0.bias:(1024,):float32
 image_proj_model.layers.1.1.1.weight:(4096, 1024):float32
 image_proj_model.layers.1.1.3.weight:(1024, 4096):float32
-image_proj_model.layers.2.0.norm1.gamma:(1024,):float32
-image_proj_model.layers.2.0.norm1.beta:(1024,):float32
-image_proj_model.layers.2.0.norm2.gamma:(1024,):float32
-image_proj_model.layers.2.0.norm2.beta:(1024,):float32
+image_proj_model.layers.2.0.norm1.weight:(1024,):float32
+image_proj_model.layers.2.0.norm1.bias:(1024,):float32
+image_proj_model.layers.2.0.norm2.weight:(1024,):float32
+image_proj_model.layers.2.0.norm2.bias:(1024,):float32
 image_proj_model.layers.2.0.to_q.weight:(768, 1024):float32
 image_proj_model.layers.2.0.to_kv.weight:(1536, 1024):float32
 image_proj_model.layers.2.0.to_out.weight:(1024, 768):float32
-image_proj_model.layers.2.1.0.gamma:(1024,):float32
-image_proj_model.layers.2.1.0.beta:(1024,):float32
+image_proj_model.layers.2.1.0.weight:(1024,):float32
+image_proj_model.layers.2.1.0.bias:(1024,):float32
 image_proj_model.layers.2.1.1.weight:(4096, 1024):float32
 image_proj_model.layers.2.1.3.weight:(1024, 4096):float32
-image_proj_model.layers.3.0.norm1.gamma:(1024,):float32
-image_proj_model.layers.3.0.norm1.beta:(1024,):float32
-image_proj_model.layers.3.0.norm2.gamma:(1024,):float32
-image_proj_model.layers.3.0.norm2.beta:(1024,):float32
+image_proj_model.layers.3.0.norm1.weight:(1024,):float32
+image_proj_model.layers.3.0.norm1.bias:(1024,):float32
+image_proj_model.layers.3.0.norm2.weight:(1024,):float32
+image_proj_model.layers.3.0.norm2.bias:(1024,):float32
 image_proj_model.layers.3.0.to_q.weight:(768, 1024):float32
 image_proj_model.layers.3.0.to_kv.weight:(1536, 1024):float32
 image_proj_model.layers.3.0.to_out.weight:(1024, 768):float32
-image_proj_model.layers.3.1.0.gamma:(1024,):float32
-image_proj_model.layers.3.1.0.beta:(1024,):float32
+image_proj_model.layers.3.1.0.weight:(1024,):float32
+image_proj_model.layers.3.1.0.bias:(1024,):float32
 image_proj_model.layers.3.1.1.weight:(4096, 1024):float32
 image_proj_model.layers.3.1.3.weight:(1024, 4096):float32
