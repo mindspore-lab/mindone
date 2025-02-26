@@ -289,6 +289,8 @@ def save_intermediates(output_queue: queue.Queue) -> None:
 def main():
     args = get_args()
     set_seed(args.seed)
+    # Initialize distributed processing
+    init_distributed_device(args)
 
     output_dir = pathlib.Path(args.output_dir)
     tmp_dir = output_dir.joinpath("tmp")
@@ -300,9 +302,6 @@ def main():
     output_queue = queue.Queue()
     save_thread = ThreadPoolExecutor(max_workers=args.num_artifact_workers)
     save_future = save_thread.submit(save_intermediates, output_queue)
-
-    # Initialize distributed processing
-    init_distributed_device(args)
 
     # Create folders where intermediate tensors from each rank will be saved
     images_dir = tmp_dir.joinpath(f"images/{args.rank}")
@@ -323,8 +322,8 @@ def main():
     target_fps = args.target_fps
 
     # 1. Prepare models
+    tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
     if args.save_embeddings:
-        tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
         text_encoder = T5EncoderModel.from_pretrained(
             args.model_id, subfolder="text_encoder", mindspore_dtype=weight_dtype
         )
@@ -414,12 +413,9 @@ def main():
     dataloader_iter = dataloader.create_tuple_iterator()
 
     # 4. Compute latents and embeddings and save
-    if args.rank == 0:
-        iterator = tqdm(
-            dataloader_iter, desc="Encoding", total=(rank_dataset_size + args.batch_size - 1) // args.batch_size
-        )
-    else:
-        iterator = dataloader_iter
+    iterator = tqdm(
+        dataloader_iter, desc="Encoding", total=(rank_dataset_size + args.batch_size - 1) // args.batch_size
+    )
 
     for step, batch in enumerate(iterator):
         try:
@@ -510,7 +506,9 @@ def main():
     save_future.result()
 
     if args.world_size > 1:
-        ops.AllGather()(ops.ones((1,), dtype=ms.float32))
+        y = ops.AllGather()(ops.ones((1,), dtype=ms.float32))
+        if y.shape[0] != args.world_size:
+            print(f"[WARNING] Not all device done!")
 
     # 6. Combine results from each rank
     if is_master(args):

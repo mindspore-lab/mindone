@@ -612,7 +612,9 @@ def main(args):
                     videos = vae.encode(videos)[0]
             videos = videos.to(weight_dtype)
             # videos B, C, F, H, W: (1, 32, 20, 96, 170)
-            loss, _, _ = train_step(videos, text_input_ids, rotary_positional_embeddings)
+            loss, overflow, scale_sense = train_step(videos, text_input_ids, rotary_positional_embeddings)
+            if overflow:
+                logger.warning(f"Step {step} overflow!, scale_sense is {scale_sense}")
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if train_step.accum_steps == 1 or train_step.cur_accum_step.item() == 0:

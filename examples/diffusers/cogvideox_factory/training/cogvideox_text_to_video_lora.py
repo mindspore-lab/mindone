@@ -583,7 +583,9 @@ def main(args):
                 with pynative_context(), pynative_no_grad():
                     videos = videos.permute(0, 2, 1, 3, 4).to(vae.dtype)  # [B, C, F, H, W]
                     videos = vae.encode(videos)[0]
-            loss, _, _ = train_step(videos, text_input_ids, rotary_positional_embeddings)
+            loss, overflow, scale_sense = train_step(videos, text_input_ids, rotary_positional_embeddings)
+            if overflow:
+                logger.warning(f"Step {step} overflow!, scale_sense is {scale_sense}")
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if train_step.accum_steps == 1 or train_step.cur_accum_step.item() == 0:
