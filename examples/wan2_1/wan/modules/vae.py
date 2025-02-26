@@ -11,6 +11,7 @@ import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.models.utils import zeros_
 
@@ -544,12 +545,14 @@ def _video_vae(pretrained_path: Optional[str] = None, z_dim: Optional[int] = Non
     cfg.update(**kwargs)
 
     # init model
-    model = WanVAE_(**cfg)
+    with no_init_parameters():
+        model = WanVAE_(**cfg)
 
     # load checkpoint
     if pretrained_path is not None:
         logging.info(f"loading {pretrained_path}")
         ms.load_checkpoint(pretrained_path, model)
+    model.init_parameters_data()
     return model
 
 

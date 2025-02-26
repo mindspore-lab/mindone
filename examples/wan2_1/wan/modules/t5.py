@@ -11,6 +11,7 @@ import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 from mindspore import Parameter, Tensor
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.models.utils import normal_, ones_
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
@@ -522,7 +523,8 @@ class T5EncoderModel:
         self.tokenizer_path = tokenizer_path
 
         # init model
-        model = umt5_xxl(encoder_only=True, return_tokenizer=False, dtype=dtype)
+        with no_init_parameters():
+            model = umt5_xxl(encoder_only=True, return_tokenizer=False, dtype=dtype)
         model.set_train(False)
         for param in self.model.trainable_params():
             param.requires_grad = False
@@ -530,6 +532,7 @@ class T5EncoderModel:
         if checkpoint_path is not None:
             logging.info(f"loading {checkpoint_path}")
             ms.load_checkpoint(checkpoint_path, model)
+        model.init_parameters_data()
 
         self.model = model
         if shard_fn is not None:
