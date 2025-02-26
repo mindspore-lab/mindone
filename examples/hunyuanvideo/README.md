@@ -73,6 +73,8 @@ Coming Soon.
 
 ## 🔑 Training
 
+In this section, we provide instructions on how to train the HunyuanVideo model. For training instructions for 3D-VAE, please refer to [this document](docs/3d_vae_docs.md).
+
 ### Dataset Preparation
 
 To prepare the dataset for training HuyuanVideo, please refer to the [dataset format](./docs/dataset_docs.md).

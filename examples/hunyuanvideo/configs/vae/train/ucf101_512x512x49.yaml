@@ -2,7 +2,7 @@ env:
   mode: 0
   jit_level: O0
   seed: 42
-  distributed: False
+  distributed: True
   debug: False
 
 vae:
@@ -10,15 +10,15 @@ vae:
   precision: bf16
   tiling: False
   trainable: True
-  checkpoint:
+  checkpoint: # if you want to load a checkpoint
 
 dataset:
-  data_file_path: "../videocomposer/datasets/webvid5_copy.csv"
-  data_folder: "../videocomposer/datasets/webvid5"
+  data_file_path: "datasets/ucf101_train.csv"
+  data_folder: "datasets/UCF-101"
   sample_stride: 1
-  sample_n_frames: 17
-  size: 256
-  crop_size: 256
+  sample_n_frames: 49
+  size: 512
+  crop_size: 512
   output_columns: [ "video"]
   disable_flip: False
 
@@ -30,7 +30,7 @@ dataloader:
 
 train:
   steps: 30000
-  output_path: ../../output/stage1_t2v_256px  # the path is relative to this config
+  output_path: ../../../output/ucf101_512px  # the path is relative to this config
 
 
   losses:
