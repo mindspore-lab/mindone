@@ -110,8 +110,30 @@ Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 Input an image or a list of video frames, and a text prompt (English, Chinese or other lanugage), output textual response.
 
 #### Image VQA
+Input: 
+
+*resolution: 1372x2044
+<br>
+<img src="https://github.com/user-attachments/assets/0520288b-2e21-4b10-b506-1c8b54a1737f" width="512px">
+
+text prompt: `Describe this image.`
+<br>
+Response: 'This image depicts a serene beach scene at sunset. A woman and her dog are sitting on the sand, enjoying each other's company. The woman is wearing a plaid shirt and dark pants, and she is sitting cross-legged with her dog. The dog which appears to be a large breed, is wearing a harness and is giving a high-five to the woman. The beach is relatively empty, with gentle waves in the background. The lighting is warm and golden, indicating that the photo was taken during the golden hour, just before sunset. The overall atmosphere of the image is peaceful and joyful.'
+
+text prompt: `请描述该图片。`<br>
+Response: "图中是一个女人和一只狗在沙滩上玩耍。女人穿着格子衬衫，坐在沙滩上，她的狗是一只拉布拉多犬，穿着狗绳，伸出前爪和女人击掌。女人和狗都面带微笑，看起来非常开心。背景是广阔的海洋和天空，阳光洒在沙滩上，整个场景显得非常温馨和愉快。"
 
 #### Video VQA
+Input:
+*resolution: 12x308x476
+<br>
+<a href="https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/Operate%20a%20Mobile%20Phone.mp4"><img src="https://github.com/user-attachments/assets/0b4afe5d-021d-45be-8877-75b9a39b1ccb" width="512px"></a>
+
+text prompt: `Describe this video.`<br>
+Response: 'The video shows a computer screen with a web browser open to a search engine. The search bar at the top of the screen displays the text "What's a good restaurant in San Diego?" The search results are displayed below the search bar, with the top result being a map of San Diego with several restaurant locations marked. The screen also shows a list of search suggestions, including "What's a good restaurant in San Diego?" and "What's a good restaurant in San Diego for families?" The video ends with the search results still displayed on the screen.'
+
+text prompt: `请描述该视频。`<br>
+Response: "视频中显示了一个电脑屏幕，上面有两个窗口。左边的窗口显示了一个网页，上面有一个搜索框和一些搜索建议。右边的窗口显示了一个命令行界面，显示了一些文本。"
 
 <!-- # Tutorial of Qwen2-VL
 [Qwen2-VL Implementation Tutorial (MindSpore Version)](tutorial.md) -->
