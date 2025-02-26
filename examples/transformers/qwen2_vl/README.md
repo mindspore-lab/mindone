@@ -110,7 +110,7 @@ Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 Input an image or a list of video frames, and a text prompt (English, Chinese or other lanugage), output textual response.
 
 #### Image VQA
-Input: 
+Input:
 
 *resolution: 1372x2044
 <br>
