@@ -20,8 +20,8 @@ dataset:
   dynamic_sample: True # randomly sample stride from 1 to 8
   sample_stride: 8
   sample_n_frames: 49
-  size: 512
-  crop_size: 512
+  size: 256
+  crop_size: 256
   output_columns: [ "video"]
   disable_flip: False
 
@@ -33,7 +33,7 @@ dataloader:
 
 train:
   steps: 30000
-  output_path: ../../../output/ucf101_512px  # the path is relative to this config
+  output_path: ../../../output/ucf101_256px  # the path is relative to this config
 
 
   losses:

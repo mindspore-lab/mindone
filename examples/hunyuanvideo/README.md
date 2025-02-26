@@ -10,7 +10,7 @@ Here is the development plan of the project:
 - CausalVAE:
     - [x] Inference
     - [x] Evalution
-    - [ ] Training
+    - [x] Training
 - HunyuanVideo (13B):
     - [x] Inference
     - [x] Training stage 1: T2I 256px

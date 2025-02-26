@@ -25,7 +25,7 @@ To train with LIPIPS loss, please download the [lpips_vgg-426bf45c.ckpt](https:/
 
 # Training Parameters
 
-In configuration file, such as `configs/vae/train/ucf101_512x512x49.yaml`, you can set the following parameters respective to the training losses:
+In configuration file, such as `configs/vae/train/ucf101_256x256x49.yaml`, you can set the following parameters respective to the training losses:
 ```yaml
   losses:
     lpips_ckpt_path: "pretrained/lpips_vgg-426bf45c.ckpt"
@@ -41,8 +41,8 @@ This indicates that the LPIPS loss is used and weight is 0.1. The discriminator 
 
 $Loss = L_1  + 0.1 L_{lpips} + 0.05 L_{adv} + 10^{-6} L_{kl}$
 
-# Distributed Training
+# Training scripts
 
-To train stage 1 (256px), we provide a toy example: `scripts/vae/train_webvid5.sh`.
+For standalone training, we provide a toy example: `scripts/vae/train_webvid5.sh`.
 
-To train stage 2 (512px), we provide a data parallel training script: `scripts/vae/train_ucf101.sh`. The configuration file is `configs/vae/train/ucf101_512x512x49.yaml`
+For parallel training, we provide a data parallel training script: `scripts/vae/train_ucf101.sh`. The configuration file is `configs/vae/train/ucf101_256x256x49.yaml`
