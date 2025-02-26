@@ -269,7 +269,7 @@ class Qwen2VLForConditionalGeneration():
                 video_embeds = video_embeds.to(inputs_embeds.dtype)
                 inputs_embeds = inputs_embeds.masked_scatter(video_mask, video_embeds)
 
-        # if we get 4D attention mask we cannot calculate rope deltas anymore. 
+        # if we get 4D attention mask we cannot calculate rope deltas anymore.
         if position_ids is None and (attention_mask is None or attention_mask.ndim == 2):
             # calculate RoPE index once per generation in the pre-fill stage only
             past_seen_tokens = 0

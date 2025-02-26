@@ -54,7 +54,7 @@ try:
 except ImportError:
     from transformers.models.qwen2_vl.configuration_qwen2_vl import Qwen2VLVisionConfig
 
-from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
+from mindone.transformers.utils import is_flash_attn_2_available
 from mindone.utils.version_control import check_valid_flash_attention
 
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
@@ -685,7 +685,7 @@ class Qwen2VLFlashAttention2(Qwen2VLAttention):
         attn_output = attn_output.swapaxes(1, 2).reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
-        attn_weights = None # FA always does not output attn_weights
+        attn_weights = None  # FA always does not output attn_weights
         if not output_attentions:
             attn_weights = None
 
@@ -1658,7 +1658,7 @@ class Qwen2VLForConditionalGeneration(Qwen2VLPreTrainedModel):
             attention_mask = self.model._prepare_4d_causal_attention_mask_with_cache_position(
                 attention_mask,
                 sequence_length=sequence_length,
-                target_length=past_key_values.get_max_cache_shape(),
+                target_length=get_max_length(past_key_values),
                 cache_position=cache_position,
                 batch_size=batch_size,
             )

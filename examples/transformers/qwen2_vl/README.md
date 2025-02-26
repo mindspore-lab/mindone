@@ -93,14 +93,16 @@ Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 
 Input an image or a list of video frames, and a text prompt, output textual response.
 
-|model name	| precicion | cards	| batch size| resolution | FA |	s/step	| step | response/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Qwen2-VL-7B-Instruct |  float16 | 1 | 1 | 1372x2044 (image) | OFF | 0.80 | 128 | 0.01 |
-| Qwen2-VL-7B-Instruct |  float16 | 1 | 1 | 12x308x476(video) | OFF | 0.67 | 97  | 0.02 |
-| Qwen2-VL-7B-Instruct |  float16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 127 | 0.02 |
-| Qwen2-VL-7B-Instruct |  float16 | 1 | 1 | 12x308x476(video) | ON  | 0.25 | 128 | 0.03 |
-| Qwen2-VL-7B-Instruct | bfloat16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 121 | 0.02 |
-| Qwen2-VL-7B-Instruct | bfloat16 | 1 | 1 | 12x308x476(video) | ON  | 0.29 | 128 | 0.03 |
+|model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 0.80 | 128 | 0.01 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.67 | 97  | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 127 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.25 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.35 | 121 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.29 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+
+*note: use mixed precision, `Conv3d` uses bf16, `flash attention` fp16, `LayerNorm` fp32.
 
 ### Inference Results
 Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.

@@ -1576,7 +1576,7 @@ class GenerationMixin:
             )
 
             # 14. unlike the original transformers, need delete the length of the input
-            # result = result[:, inputs_tensor.shape[1] :]
+            result = result[:, inputs_tensor.shape[1] :]
 
         elif generation_mode in (GenerationMode.BEAM_SAMPLE, GenerationMode.BEAM_SEARCH):
             raise NotImplementedError
