@@ -1,0 +1,11 @@
+transformers>=4.39.1
+diffusers>=0.31.0
+sentencepiece>=0.1.99
+imageio>=2.37.0
+numpy
+aiohttp
+asyncio
+flask
+flask_restful
+ffmpeg-python
+requests

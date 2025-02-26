@@ -57,8 +57,11 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 
 ### 🔧 3.2 Dependencies and Installation
 
-- [MindONE](https://github.com/mindspore-lab/mindone)
-- [FFmpeg](https://www.ffmpeg.org/)
+| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
+|:----------:|:--------------:|:-----------:|:------------------:|
+|   2.5.0    |    24.1.RC2    | 7.3.0.1.231 |   8.0.0.beta1    |
+
+To install other dependent packages:
 ```bash
 git clone https://github.com/mindspore-lab/mindone.git
 
@@ -66,9 +69,9 @@ git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
 
-# install stepvideo
+# install requirements
 cd examples/step_video_t2v
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ### 🔧 3.3. Prepare Weight Format
