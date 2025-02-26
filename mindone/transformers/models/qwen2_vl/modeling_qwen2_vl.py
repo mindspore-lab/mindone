@@ -126,19 +126,9 @@ class Qwen2VLCausalLMOutputWithPast(ModelOutput):
 class Qwen2VLRotaryEmbedding(nn.Cell):
     def __init__(self, config: Qwen2VLConfig):
         super().__init__()
-        # BC: "rope_type" was originally "type",
-        # NOTE: No Use, uncomment it in future feature
-        # if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
-        #     self.rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type")) # mrope => default
-        # else:
-        #     self.rope_type = "default"
         self.max_seq_len_cached = config.max_position_embeddings
         self.original_max_seq_len = config.max_position_embeddings
-
         self.config = config
-
-        # self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type] # TODO: add it when use dynamic rope
-        # inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
 
         # Use "default" rope type
         # Compute the inverse frequencies
@@ -700,7 +690,7 @@ class Qwen2VLSdpaAttention(Qwen2VLAttention):
 QWEN2_VL_ATTENTION_CLASSES = {
     "eager": Qwen2VLAttention,
     "flash_attention_2": Qwen2VLFlashAttention2,
-    "sdpa": Qwen2VLSdpaAttention,  # TOOD: Qwen2VLSdpaAttention, Not support yet
+    "sdpa": Qwen2VLSdpaAttention,  # TODO: Qwen2VLSdpaAttention, Not support yet
 }
 
 
@@ -1010,19 +1000,6 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
             if output_hidden_states:
                 all_hidden_states += (hidden_states,)
 
-            # if self.gradient_checkpointing and self.training:
-            #     layer_outputs = self._gradient_checkpointing_func(
-            #         decoder_layer.__call__,
-            #         hidden_states,
-            #         causal_mask,
-            #         position_ids,
-            #         past_key_values[layer_idx] if isinstance(past_key_values, tuple) else past_key_values,
-            #         output_attentions,
-            #         use_cache,
-            #         cache_position,
-            #         position_embeddings,
-            #     )
-            # else:
             layer_outputs = decoder_layer(
                 hidden_states,
                 attention_mask=causal_mask,

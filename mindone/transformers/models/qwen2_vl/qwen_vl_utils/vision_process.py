@@ -164,7 +164,6 @@ def smart_nframes(
     return nframes
 
 
-# Comment: _read_video_torchvision to _read_video_mindspore
 def _read_video_mindspore(
     ele: dict,
 ):
