@@ -304,11 +304,6 @@ class StepVideoPipeline(DiffusionPipeline):
             if not output_type == "latent":
                 video = self.decode_vae(latents)  # np.ndarray, fp32
 
-                # # zhy_test, numpy video save
-                # _np_path = "./results/video.npy"
-                # np.save(_np_path, video)
-                # print(f"save video as numpy on {_np_path=}")
-
                 # save video
                 self.video_processor.postprocess_video(
                     video, output_file_name=output_file_name, output_type=output_type
