@@ -13,7 +13,7 @@ from transformers.utils.generic import ModelOutput
 
 import mindspore as ms
 import mindspore.numpy as mnp
-from mindspore import mint, ops
+from mindspore import ops
 
 from mindone.transformers.cache_utils import (
     Cache,
