@@ -338,6 +338,7 @@ def parse_train_args(parser):
         type=int,
         help="The number of shards in sequence parallel. Default is 1.",
     )
+    parser.add_argument("--dsp", default=False, type=str2bool, help="Use DSP instead of SP in sequence parallel.")
     parser.add_argument("--drop_overflow_update", default=True, type=str2bool, help="drop overflow update")
     parser.add_argument("--loss_scaler_type", default="dynamic", type=str, help="dynamic or static")
     parser.add_argument(

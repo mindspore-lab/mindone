@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=40.6.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "janus"
+version = "1.0.0"
+description = "Janus"
+authors = [{name = "DeepSeek-AI"}]
+license = {file = "LICENSE-CODE"}
+urls = {homepage = "https://github.com/deepseek-ai/Janus"}
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "mindspore>=2.4.1",
+    "transformers==4.42.4",
+    "sentencepiece",
+    "addict",
+]
+
+[project.optional-dependencies]
+gradio = [
+    "gradio==3.48.0",
+    "gradio-client==0.6.1",
+    "mdtex2html==1.3.0",
+    "pypinyin==0.50.0",
+    "tiktoken==0.5.2",
+    "tqdm==4.64.0",
+    "colorama==0.4.5",
+    "Pygments==2.12.0",
+    "markdown==3.4.1",
+    "SentencePiece==0.1.96"
+]
+lint = [
+    "isort",
+    "black[jupyter] >= 22.6.0",
+    "pylint[spelling] >= 2.15.0",
+    "flake8",
+    "flake8-bugbear",
+    "flake8-comprehensions",
+    "flake8-docstrings",
+    "flake8-pyi",
+    "flake8-simplify",
+    "ruff",
+    "pyenchant",
+    "pre-commit",
+]
+
+[tool.setuptools]
+packages = {find = {exclude = ["images"]}}

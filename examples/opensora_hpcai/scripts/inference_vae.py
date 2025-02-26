@@ -11,12 +11,6 @@ import time
 import imageio
 import numpy as np
 
-from mindspore import nn, ops
-
-# mindone_dir = '/home/mindocr/yx/mindone'
-mindone_dir = "/home_host/yx/mindone"
-sys.path.insert(0, mindone_dir)
-
 # from ae.models.lpips import LPIPS
 from omegaconf import OmegaConf
 from PIL import Image
@@ -25,6 +19,7 @@ from skimage.metrics import structural_similarity as calc_ssim
 from tqdm import tqdm
 
 import mindspore as ms
+from mindspore import nn, ops
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
@@ -189,6 +184,9 @@ def main(args):
             mean_psnr += sum(psnr_cur)
             mean_ssim += sum(ssim_cur)
             num_samples += x_rgb.shape[0]
+
+            logger.info(f"cur psnr: {psnr_cur[-1]:.4f}, mean psnr:{mean_psnr/num_samples:.4f}")
+            logger.info(f"cur ssim: {ssim_cur[-1]:.4f}, mean ssim:{mean_ssim/num_samples:.4f}")
 
             if args.eval_loss:
                 recon_loss = np.abs((x - recons).asnumpy())
