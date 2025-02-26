@@ -63,7 +63,7 @@ class BF16AdamW(AdamW):
         validator.check_positive_float(eps, "eps", prim_name)
         for x in self.parameters:
             if x.dtype != ms.bfloat16:
-                _logger.warning(f"model parameters should be `bfloat16`, but get `{x.dtype}`.")
+                _logger.warning(f"model parameter {x.name} should be `bfloat16`, but got `{x.dtype}`.")
 
     def construct(self, gradients):
         gradients = self.flatten_gradients(gradients)
