@@ -157,6 +157,56 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         if self._supports_gradient_checkpointing:
             self.apply(partial(self._set_gradient_checkpointing, value=False))
 
+    def enable_flash_sdp(self, enabled: bool):
+        r"""
+        .. warning:: This flag is beta and subject to change.
+
+        Enables or disables flash scaled dot product attention.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the enable_flash_sdp method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "enable_flash_sdp"):
+                module.enable_flash_sdp(enabled)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        for module in self.cells():
+            if isinstance(module, nn.Cell):
+                fn_recursive_set_mem_eff(module)
+
+    def set_flash_attention_force_cast_dtype(self, force_cast_dtype: Optional[ms.Type]):
+        r"""
+        Since the flash-attention operator in MindSpore only supports float16 and bfloat16 data types, we need to manually
+        set whether to force data type conversion.
+
+        When the attention interface encounters data of an unsupported data type,
+        if `force_cast_dtype` is not None, the function will forcibly convert the data to `force_cast_dtype` for computation
+        and then restore it to the original data type afterward. If `force_cast_dtype` is None, it will fall back to the
+        original attention calculation using mathematical formulas.
+
+        Parameters:
+            force_cast_dtype (Optional): The data type to which the input data should be forcibly converted. If None, no forced
+            conversion is performed.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the set_flash_attention_force_cast_dtype method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "set_flash_attention_force_cast_dtype"):
+                module.set_flash_attention_force_cast_dtype(force_cast_dtype)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        for module in self.cells():
+            if isinstance(module, nn.Cell):
+                fn_recursive_set_mem_eff(module)
+
     def set_use_memory_efficient_attention_xformers(self, valid: bool, attention_op: Optional[Callable] = None) -> None:
         # Recursively walk through all the children.
         # Any children which exposes the set_use_memory_efficient_attention_xformers method
@@ -234,7 +284,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `mindspore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
@@ -381,9 +431,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -426,7 +473,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         Example:
 
         ```py
-        from diffusers import UNet2DConditionModel
+        from mindone.diffusers import UNet2DConditionModel
 
         unet = UNet2DConditionModel.from_pretrained("runwayml/stable-diffusion-v1-5", subfolder="unet")
         ```
@@ -444,7 +491,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         ignore_mismatched_sizes = kwargs.pop("ignore_mismatched_sizes", False)
         force_download = kwargs.pop("force_download", False)
         from_flax = kwargs.pop("from_flax", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         output_loading_info = kwargs.pop("output_loading_info", False)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -476,7 +522,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             return_unused_kwargs=True,
             return_commit_hash=True,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,
@@ -498,7 +543,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             cache_dir=cache_dir,
             variant=variant,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,
@@ -520,7 +564,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     index_file,
                     cache_dir=cache_dir,
                     proxies=proxies,
-                    resume_download=resume_download,
                     local_files_only=local_files_only,
                     token=token,
                     user_agent=user_agent,
@@ -535,7 +578,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                         weights_name=_add_variant(SAFETENSORS_WEIGHTS_NAME, variant),
                         cache_dir=cache_dir,
                         force_download=force_download,
-                        resume_download=resume_download,
                         proxies=proxies,
                         local_files_only=local_files_only,
                         token=token,
@@ -558,7 +600,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     weights_name=_add_variant(WEIGHTS_NAME, variant),
                     cache_dir=cache_dir,
                     force_download=force_download,
-                    resume_download=resume_download,
                     proxies=proxies,
                     local_files_only=local_files_only,
                     token=token,
@@ -570,10 +611,19 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
             model = cls.from_config(config, **unused_kwargs)
 
+            # Move the model's data type conversion ahead of the weight loading process to avoid unnecessary
+            # data type conversions of weights that can increase computation time in certain situations.
+            if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+                raise ValueError(
+                    f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
+                )
+            elif mindspore_dtype is not None:
+                model = model.to(mindspore_dtype)
+
             if is_sharded:
                 load_checkpoint_and_dispatch(
                     model,
-                    sharded_ckpt_cached_folder,
+                    index_file,  # TODO: check accelerate
                     dtype=mindspore_dtype,
                     strict=True,
                 )
@@ -595,13 +645,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     "mismatched_keys": mismatched_keys,
                     "error_msgs": error_msgs,
                 }
-
-        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            raise ValueError(
-                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
-            )
-        elif mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
@@ -764,7 +807,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         Example:
 
         ```py
-        from diffusers import UNet2DConditionModel
+        from mindone.diffusers import UNet2DConditionModel
 
         model_id = "runwayml/stable-diffusion-v1-5"
         unet = UNet2DConditionModel.from_pretrained(model_id, subfolder="unet")
@@ -840,7 +883,7 @@ class LegacyModelMixin(ModelMixin):
     @classmethod
     @validate_hf_hub_args
     def from_pretrained(cls, pretrained_model_name_or_path: Optional[Union[str, os.PathLike]], **kwargs):
-        # To prevent depedency import problem.
+        # To prevent dependency import problem.
         from .model_loading_utils import _fetch_remapped_cls_from_config
 
         # Create a copy of the kwargs so that we don't mess with the keyword arguments in the downstream calls.
@@ -848,7 +891,6 @@ class LegacyModelMixin(ModelMixin):
 
         cache_dir = kwargs.pop("cache_dir", None)
         force_download = kwargs.pop("force_download", False)
-        resume_download = kwargs.pop("resume_download", None)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
         token = kwargs.pop("token", None)
@@ -871,7 +913,6 @@ class LegacyModelMixin(ModelMixin):
             return_unused_kwargs=True,
             return_commit_hash=True,
             force_download=force_download,
-            resume_download=resume_download,
             proxies=proxies,
             local_files_only=local_files_only,
             token=token,

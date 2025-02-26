@@ -151,7 +151,7 @@ class ImageNetLatentIterator:
 
         # N(mean, std)
         mean, std = np.split(latent, 2, axis=0)
-        latent = mean + std * np.random.randn(*mean.shape).astype(mean.dtype)
+        latent = np.random.normal(loc=mean, scale=std, size=mean.shape)
 
         latent = self._random_horiztotal_flip(latent)
         latent, pos = self._patchify(latent)
@@ -175,7 +175,7 @@ def create_dataloader_imagenet_preprocessing(
         num_parallel_workers=config["num_parallel_workers"],
         shuffle=config["shuffle"],
     )
-    dataset = dataset.batch(1)
+    dataset = dataset.batch(1, num_parallel_workers=config["num_parallel_workers"])
     return dataset
 
 
@@ -208,5 +208,10 @@ def create_dataloader_imagenet_latent(
         "mask": ([max_length], 0),
     }
 
-    dataset = dataset.padded_batch(config["batch_size"], drop_remainder=True, pad_info=pad_info)
+    dataset = dataset.padded_batch(
+        config["batch_size"],
+        drop_remainder=True,
+        num_parallel_workers=config["num_parallel_workers"],
+        pad_info=pad_info,
+    )
     return dataset

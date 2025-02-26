@@ -18,6 +18,7 @@ from diffusion import create_diffusion
 from pipelines.train_pipeline import NetworkWithLoss
 from utils.model_utils import load_fit_ckpt_params
 
+import mindspore as ms
 from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
@@ -69,6 +70,10 @@ def main(args):
         device_target=args.device_target,
         max_device_memory=args.max_device_memory,
     )
+
+    if args.mode == ms.GRAPH_MODE:
+        ms.set_context(jit_config={"jit_level": args.jit_level})
+
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
@@ -232,6 +237,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"JIT level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (fit: {num_params_fit:,})",

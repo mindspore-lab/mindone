@@ -443,14 +443,15 @@ class STDiT3(nn.Cell):
             x = spatial_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S)
             x = temporal_block(x, y, t_mlp, mask, frames_mask, t0_mlp, T, S)
 
+        # === final layer ===
+        x = self.final_layer(x, t, frames_mask, t0, T, S)
+
         if self.enable_sequence_parallelism:
             x = x.reshape(B, T, S, -1)
             x = self.gather_forward_split_backward(x)
             S = S * self.sp_size
             x = x.reshape(B, (T * S), -1)
 
-        # === final layer ===
-        x = self.final_layer(x, t, frames_mask, t0, T, S)
         x = self.unpatchify(x, T, H, W, Tx, Hx, Wx)
 
         # cast to float32 for better accuracy

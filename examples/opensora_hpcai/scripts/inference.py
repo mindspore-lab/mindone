@@ -20,7 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.acceleration.parallel_states import set_sequence_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIO_MAP, ASPECT_RATIOS, get_image_size, get_num_frames
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT3_XL_2_DSP, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
@@ -186,6 +186,7 @@ def main(args):
             config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
         )
     elif args.vae_type == "OpenSoraVAE_V1_2":
+        assert os.path.exists(args.vae_checkpoint), f"vae checkopint {args.vae_checkpoint} NOT found"
         vae = OpenSoraVAE_V1_2(
             micro_batch_size=args.vae_micro_batch_size,
             micro_frame_size=args.vae_micro_frame_size,
@@ -252,7 +253,10 @@ def main(args):
         model_name = "STDiT3"
         model_extra_args["qk_norm"] = True
         logger.info(f"{model_name} init")
-        latte_model = STDiT3_XL_2(**model_extra_args)
+        if args.dsp:
+            latte_model = STDiT3_XL_2_DSP(**model_extra_args)
+        else:
+            latte_model = STDiT3_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
 
@@ -476,7 +480,7 @@ def main(args):
                 videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
             logger.info(
-                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"
+                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.4f} step/s"
             )
 
         latents = np.concatenate(latents, axis=2)
@@ -637,6 +641,7 @@ def parse_args():
         type=str2bool,
         help="whether to enable sequence parallelism. Default is False",
     )
+    parser.add_argument("--dsp", default=False, type=str2bool, help="Use DSP instead of SP in sequence parallel.")
     parser.add_argument(
         "--dtype",
         default="fp32",

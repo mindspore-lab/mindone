@@ -27,7 +27,6 @@ This document includes the training arguments of [`opensora/train/train_t2v.py`]
 - `multi_scale` (type: bool, default: False): whether to support multi-scale training. Multi-scale training is not supported now. Working in progress.
 
 ## Model Acceleration
-- `enable_flash_attention` (type: bool, default: False): whether to apply Flash-Attention in LatteT2V model. If True, it will save memory.
 - `enable_tiling` (type: bool, default: False): whether to use vae tiling to save memory. If True, it will run vae inference with less memory in a slower speed.
 - `tile_overlap_factor` (type: float, default: 0.25, range: (0, 1)): the overlap factor of vae tiling.
 - `use_recompute` (type: bool, default: False): whether to use recompute (gradient checkpointing) to save memory. If True, will run lattet2v training with less memory in a slower speed.

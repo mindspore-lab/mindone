@@ -546,9 +546,9 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
 
         # 10. Prepare the final outputs.
         if output_type == "np":
-            prediction = self.image_processor.pt_to_numpy(prediction)  # [N,H,W,3]
+            prediction = self.image_processor.ms_to_numpy(prediction)  # [N,H,W,3]
             if uncertainty is not None and output_uncertainty:
-                uncertainty = self.image_processor.pt_to_numpy(uncertainty)  # [N,H,W,1]
+                uncertainty = self.image_processor.ms_to_numpy(uncertainty)  # [N,H,W,1]
 
         if not return_dict:
             return (prediction, uncertainty, pred_latent)

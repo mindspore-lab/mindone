@@ -22,7 +22,13 @@ from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
 from ...loaders.single_file_model import FromOriginalModelMixin
 from ...utils import BaseOutput, logging
 from ..activations import get_activation
-from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
+from ..attention_processor import (
+    ADDED_KV_ATTENTION_PROCESSORS,
+    CROSS_ATTENTION_PROCESSORS,
+    AttentionProcessor,
+    AttnAddedKVProcessor,
+    AttnProcessor,
+)
 from ..embeddings import (
     GaussianFourierProjection,
     GLIGENTextBoundingboxProjection,
@@ -274,6 +280,10 @@ class UNet2DConditionModel(
             encoder_hid_dim_type,
             cross_attention_dim=cross_attention_dim,
             encoder_hid_dim=encoder_hid_dim,
+        )
+
+        self.has_text_encoder_hid_proj = (
+            False  # Used in `process_encoder_hidden_states`, Kolors Unet already has a `encoder_hid_proj`
         )
 
         # class embedding
@@ -762,7 +772,9 @@ class UNet2DConditionModel(
         """
         Disables custom attention processors and sets the default attention implementation.
         """
-        if all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+        if all(proc.__class__ in ADDED_KV_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+            processor = AttnAddedKVProcessor()
+        elif all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
             processor = AttnProcessor()
         else:
             raise ValueError(
@@ -897,6 +909,12 @@ class UNet2DConditionModel(
                 raise ValueError(
                     f"{self.__class__} has the config param `encoder_hid_dim_type` set to 'ip_image_proj' which requires the keyword argument `image_embeds` to be passed in  `added_conditions`"  # noqa: E501
                 )
+
+            if (
+                self.has_text_encoder_hid_proj
+            ):  # abandon `hasattr` as it is not supported by static graph before MindSpore 2.3
+                encoder_hidden_states = self.text_encoder_hid_proj(encoder_hidden_states)
+
             image_embeds = added_cond_kwargs.get("image_embeds")
             image_embeds = self.encoder_hid_proj(image_embeds)
             encoder_hidden_states = (encoder_hidden_states, image_embeds)

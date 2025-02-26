@@ -277,7 +277,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         - `to(dtype) → DiffusionPipeline` to return a pipeline with the specified `dtype`
 
         Arguments:
-            dtype (`torch.dtype`):
+            dtype (`mindspore.dtype`):
                 Returns a pipeline with the specified `dtype`
 
         Returns:
@@ -294,7 +294,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
     def dtype(self) -> ms.dtype:
         r"""
         Returns:
-            `torch.dtype`: The torch dtype on which the pipeline is located.
+            `mindspore.dtype`: The mindspore dtype on which the pipeline is located.
         """
         module_names, _ = self._get_signature_keys(self)
         modules = [getattr(self, n, None) for n in module_names]
@@ -331,8 +331,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     - A path to a *directory* (for example `./my_pipeline_directory/`) containing pipeline weights
                       saved using
                     [`~DiffusionPipeline.save_pretrained`].
-            mindspore_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If "auto" is passed, the
+            mindspore_dtype (`str` or `mindspore.dtype`, *optional*):
+                Override the default `mindspore.dtype` and load the model with another dtype. If "auto" is passed, the
                 dtype is automatically derived from the model's weights.
             custom_pipeline (`str`, *optional*):
 
@@ -364,9 +364,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
                 is not used.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -434,7 +432,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         ```
         """
         cache_dir = kwargs.pop("cache_dir", None)
-        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -459,7 +456,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cached_folder = cls.download(
                 pretrained_model_name_or_path,
                 cache_dir=cache_dir,
-                resume_download=resume_download,
                 force_download=force_download,
                 proxies=proxies,
                 local_files_only=local_files_only,
@@ -599,7 +595,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             connected_pipes = {prefix: getattr(modelcard.data, prefix, [None])[0] for prefix in CONNECTED_PIPES_KEYS}
             load_kwargs = {
                 "cache_dir": cache_dir,
-                "resume_download": resume_download,
                 "force_download": force_download,
                 "proxies": proxies,
                 "local_files_only": local_files_only,
@@ -661,6 +656,64 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
     def name_or_path(self) -> str:
         return getattr(self.config, "_name_or_path", None)
 
+    def remove_all_hooks(self):
+        r"""
+        Removes all hooks that were added when using `enable_sequential_cpu_offload` or `enable_model_cpu_offload`.
+        """
+        raise NotImplementedError("`remove_all_hooks` is not implemented.")
+
+    def enable_model_cpu_offload(self, gpu_id: Optional[int] = None, device: str = "cuda"):
+        r"""
+        Offloads all models to CPU using accelerate, reducing memory usage with a low impact on performance. Compared
+        to `enable_sequential_cpu_offload`, this method moves one whole model at a time to the GPU when its `forward`
+        method is called, and the model remains in GPU until the next model runs. Memory savings are lower than with
+        `enable_sequential_cpu_offload`, but performance is much better due to the iterative execution of the `unet`.
+
+        Arguments:
+            gpu_id (`int`, *optional*):
+                The ID of the accelerator that shall be used in inference. If not specified, it will default to 0.
+            device (`torch.Device` or `str`, *optional*, defaults to "cuda"):
+                The PyTorch device type of the accelerator that shall be used in inference. If not specified, it will
+                default to "cuda".
+        """
+        raise NotImplementedError(
+            "`enable_model_cpu_offload` is not implemented. If you want to utilize the offload function, you can try the [capabilities provided by the framework itself](https://www.mindspore.cn/docs/zh-CN/master/model_train/parallel/memory_offload.html)."  # noqa: E501
+        )
+
+    def maybe_free_model_hooks(self):
+        r"""
+        Function that offloads all components, removes all model hooks that were added when using
+        `enable_model_cpu_offload` and then applies them again. In case the model has not been offloaded this function
+        is a no-op. Make sure to add this function to the end of the `__call__` function of your pipeline so that it
+        functions correctly when applying enable_model_cpu_offload.
+        """
+        raise NotImplementedError("`maybe_free_model_hooks` is not implemented.")
+
+    def enable_sequential_cpu_offload(self, gpu_id: Optional[int] = None, device: str = "cuda"):
+        r"""
+        Offloads all models to CPU using 🤗 Accelerate, significantly reducing memory usage. When called, the state
+        dicts of all `torch.nn.Module` components (except those in `self._exclude_from_cpu_offload`) are saved to CPU
+        and then moved to `torch.device('meta')` and loaded to GPU only when their specific submodule has its `forward`
+        method called. Offloading happens on a submodule basis. Memory savings are higher than with
+        `enable_model_cpu_offload`, but performance is lower.
+
+        Arguments:
+            gpu_id (`int`, *optional*):
+                The ID of the accelerator that shall be used in inference. If not specified, it will default to 0.
+            device (`torch.Device` or `str`, *optional*, defaults to "cuda"):
+                The PyTorch device type of the accelerator that shall be used in inference. If not specified, it will
+                default to "cuda".
+        """
+        raise NotImplementedError(
+            "`enable_sequential_cpu_offload` is not implemented. If you want to utilize the offload function, you can try the [capabilities provided by the framework itself](https://www.mindspore.cn/docs/zh-CN/master/model_train/parallel/memory_offload.html)."  # noqa: E501
+        )
+
+    def reset_device_map(self):
+        r"""
+        Resets the device maps (if any) to None.
+        """
+        raise NotImplementedError("`reset_device_map` is not implemented.")
+
     @classmethod
     @validate_hf_hub_args
     def download(cls, pretrained_model_name, **kwargs) -> Union[str, os.PathLike]:
@@ -699,9 +752,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the
                 cached versions if they exist.
-            resume_download:
-                Deprecated and ignored. All downloads are now resumed by default when possible. Will be removed in v1
-                of Diffusers.
+
             proxies (`Dict[str, str]`, *optional*):
                 A dictionary of proxy servers to use by protocol or endpoint, for example, `{'http': 'foo.bar:3128',
                 'http://hostname': 'foo.bar:4012'}`. The proxies are used on each request.
@@ -754,7 +805,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
         """
         cache_dir = kwargs.pop("cache_dir", None)
-        resume_download = kwargs.pop("resume_download", None)
         force_download = kwargs.pop("force_download", False)
         proxies = kwargs.pop("proxies", None)
         local_files_only = kwargs.pop("local_files_only", None)
@@ -793,7 +843,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 revision=revision,
                 proxies=proxies,
                 force_download=force_download,
-                resume_download=resume_download,
                 token=token,
             )
 
@@ -981,7 +1030,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             cached_folder = snapshot_download(
                 pretrained_model_name,
                 cache_dir=cache_dir,
-                resume_download=resume_download,
                 proxies=proxies,
                 local_files_only=local_files_only,
                 token=token,
@@ -1004,7 +1052,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 for connected_pipe_repo_id in connected_pipes:
                     download_kwargs = {
                         "cache_dir": cache_dir,
-                        "resume_download": resume_download,
                         "force_download": force_download,
                         "proxies": proxies,
                         "local_files_only": local_files_only,
@@ -1175,6 +1222,62 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         for module in modules:
             fn_recursive_set_mem_eff(module)
 
+    def enable_flash_sdp(self, enabled: bool):
+        r"""
+        .. warning:: This flag is beta and subject to change.
+
+        Enables or disables flash scaled dot product attention.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the enable_flash_sdp method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "enable_flash_sdp"):
+                module.enable_flash_sdp(enabled)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            fn_recursive_set_mem_eff(module)
+
+    def set_flash_attention_force_cast_dtype(self, force_cast_dtype: Optional[ms.Type]):
+        r"""
+        Since the flash-attention operator in MindSpore only supports float16 and bfloat16 data types, we need to manually
+        set whether to force data type conversion.
+
+        When the attention interface encounters data of an unsupported data type,
+        if `force_cast_dtype` is not None, the function will forcibly convert the data to `force_cast_dtype` for computation
+        and then restore it to the original data type afterward. If `force_cast_dtype` is None, it will fall back to the
+        original attention calculation using mathematical formulas.
+
+        Parameters:
+            force_cast_dtype (Optional): The data type to which the input data should be forcibly converted. If None, no forced
+            conversion is performed.
+        """
+
+        # Recursively walk through all the children.
+        # Any children which exposes the set_flash_attention_force_cast_dtype method
+        # gets the message
+        def fn_recursive_set_mem_eff(module: nn.Cell):
+            if hasattr(module, "set_flash_attention_force_cast_dtype"):
+                module.set_flash_attention_force_cast_dtype(force_cast_dtype)
+
+            for child in module.cells():
+                fn_recursive_set_mem_eff(child)
+
+        module_names, _ = self._get_signature_keys(self)
+        modules = [getattr(self, n, None) for n in module_names]
+        modules = [m for m in modules if isinstance(m, nn.Cell)]
+
+        for module in modules:
+            fn_recursive_set_mem_eff(module)
+
     @classmethod
     def from_pipe(cls, pipeline, **kwargs):
         r"""
@@ -1297,3 +1400,103 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             new_pipeline.to(dtype=mindspore_dtype)
 
         return new_pipeline
+
+
+class StableDiffusionMixin:
+    r"""
+    Helper for DiffusionPipeline with vae and unet.(mainly for LDM such as stable diffusion)
+    """
+
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
+
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
+
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
+
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
+
+    def enable_freeu(self, s1: float, s2: float, b1: float, b2: float):
+        r"""Enables the FreeU mechanism as in https://arxiv.org/abs/2309.11497.
+
+        The suffixes after the scaling factors represent the stages where they are being applied.
+
+        Please refer to the [official repository](https://github.com/ChenyangSi/FreeU) for combinations of the values
+        that are known to work well for different pipelines such as Stable Diffusion v1, v2, and Stable Diffusion XL.
+
+        Args:
+            s1 (`float`):
+                Scaling factor for stage 1 to attenuate the contributions of the skip features. This is done to
+                mitigate "oversmoothing effect" in the enhanced denoising process.
+            s2 (`float`):
+                Scaling factor for stage 2 to attenuate the contributions of the skip features. This is done to
+                mitigate "oversmoothing effect" in the enhanced denoising process.
+            b1 (`float`): Scaling factor for stage 1 to amplify the contributions of backbone features.
+            b2 (`float`): Scaling factor for stage 2 to amplify the contributions of backbone features.
+        """
+        raise NotImplementedError(
+            "FreeU is not implemented as it requires FFT which is not fully supported by MindSpore."
+        )
+
+    def disable_freeu(self):
+        """Disables the FreeU mechanism if enabled."""
+        raise NotImplementedError(
+            "FreeU is not implemented as it requires FFT which is not fully supported by MindSpore."
+        )
+
+    def fuse_qkv_projections(self, unet: bool = True, vae: bool = True):
+        """
+        Enables fused QKV projections. For self-attention modules, all projection matrices (i.e., query, key, value)
+        are fused. For cross-attention modules, key and value projection matrices are fused.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+
+        Args:
+            unet (`bool`, defaults to `True`): To apply fusion on the UNet.
+            vae (`bool`, defaults to `True`): To apply fusion on the VAE.
+        """
+        raise NotImplementedError(
+            "Not implemented now. If this function is urgently needed, please contact @townwish4git."
+        )
+
+    def unfuse_qkv_projections(self, unet: bool = True, vae: bool = True):
+        """Disable QKV projection fusion if enabled.
+
+        <Tip warning={true}>
+
+        This API is 🧪 experimental.
+
+        </Tip>
+
+        Args:
+            unet (`bool`, defaults to `True`): To apply fusion on the UNet.
+            vae (`bool`, defaults to `True`): To apply fusion on the VAE.
+
+        """
+        raise NotImplementedError(
+            "Not implemented now. If this function is urgently needed, please contact @townwish4git."
+        )

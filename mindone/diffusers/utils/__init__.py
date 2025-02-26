@@ -43,14 +43,17 @@ from .import_utils import (
     _LazyModule,
     is_bs4_available,
     is_ftfy_available,
+    is_invisible_watermark_available,
     is_matplotlib_available,
+    is_mindspore_version,
     is_opencv_available,
     is_peft_version,
     is_scipy_available,
+    is_sentencepiece_available,
     is_transformers_available,
     maybe_import_module_in_mindone,
 )
-from .loading_utils import load_image
+from .loading_utils import load_image, load_video
 from .logging import get_logger
 from .outputs import BaseOutput
 from .peft_utils import (
@@ -63,7 +66,7 @@ from .peft_utils import (
     set_weights_and_activate_adapters,
     unscale_lora_layers,
 )
-from .pil_utils import PIL_INTERPOLATION, make_image_grid, numpy_to_pil, pt_to_pil
+from .pil_utils import PIL_INTERPOLATION, make_image_grid, ms_to_pil, numpy_to_pil
 from .state_dict_utils import (
     convert_all_state_dict_to_peft,
     convert_state_dict_to_diffusers,

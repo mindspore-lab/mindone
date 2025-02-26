@@ -16,7 +16,7 @@ from typing import Optional, Tuple
 import mindspore as ms
 from mindspore import nn, ops
 
-from .layers_compat import conv_transpose2d
+from .layers_compat import conv_transpose2d, pad, upsample_nearest3d_free_interpolate
 from .normalization import LayerNorm, RMSNorm
 
 
@@ -341,19 +341,93 @@ class KUpsample2D(nn.Cell):
         self.kernel = kernel_1d.T @ kernel_1d
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
-        inputs = ops.pad(inputs, ((self.pad + 1) // 2,) * 4, self.pad_mode)
+        inputs = pad(inputs, ((self.pad + 1) // 2,) * 4, self.pad_mode)
         weight = inputs.new_zeros(
             [
                 inputs.shape[1],
                 inputs.shape[1],
                 self.kernel.shape[0],
                 self.kernel.shape[1],
-            ]
+            ],
+            dtype=inputs.dtype,
         )
         indices = ops.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))
         weight[indices, indices] = kernel
         return conv_transpose2d(inputs, weight, stride=2, padding=self.pad * 2 + 1)
+
+
+class CogVideoXUpsample3D(nn.Cell):
+    r"""
+    A 3D Upsample layer using in CogVideoX by Tsinghua University & ZhipuAI # Todo: Wait for paper relase.
+
+    Args:
+        in_channels (`int`):
+            Number of channels in the input image.
+        out_channels (`int`):
+            Number of channels produced by the convolution.
+        kernel_size (`int`, defaults to `3`):
+            Size of the convolving kernel.
+        stride (`int`, defaults to `1`):
+            Stride of the convolution.
+        padding (`int`, defaults to `1`):
+            Padding added to all four sides of the input.
+        compress_time (`bool`, defaults to `False`):
+            Whether or not to compress the time dimension.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        kernel_size: int = 3,
+        stride: int = 1,
+        padding: int = 1,
+        compress_time: bool = False,
+    ) -> None:
+        super().__init__()
+
+        self.conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            pad_mode="pad",
+            has_bias=True,
+        )
+        self.compress_time = compress_time
+
+    def construct(self, inputs: ms.Tensor) -> ms.Tensor:
+        if self.compress_time:
+            if inputs.shape[2] > 1 and inputs.shape[2] % 2 == 1:
+                # split first frame
+                x_first, x_rest = inputs[:, :, 0], inputs[:, :, 1:]
+
+                x_first = upsample_nearest3d_free_interpolate(x_first, scale_factor=2.0)
+                x_rest = upsample_nearest3d_free_interpolate(x_rest, scale_factor=2.0)
+                x_first = x_first[:, :, None, :, :]
+                inputs = ops.cat([x_first, x_rest], axis=2)
+            elif inputs.shape[2] > 1:
+                inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
+            else:
+                if inputs.shape[2] == 1:
+                    inputs = inputs.squeeze(2)
+                inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
+                inputs = inputs[:, :, None, :, :]
+        else:
+            # only interpolate 2D
+            b, c, t, h, w = inputs.shape
+            inputs = inputs.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
+            inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
+            inputs = inputs.reshape(b, t, c, *inputs.shape[2:]).permute(0, 2, 1, 3, 4)
+
+        b, c, t, h, w = inputs.shape
+        inputs = inputs.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
+        inputs = self.conv(inputs)
+        inputs = inputs.reshape(b, t, *inputs.shape[1:]).permute(0, 2, 1, 3, 4)
+
+        return inputs
 
 
 def upfirdn2d_native(

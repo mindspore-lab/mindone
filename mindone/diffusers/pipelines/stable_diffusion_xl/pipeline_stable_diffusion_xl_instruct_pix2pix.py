@@ -28,10 +28,14 @@ from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, StableDiffusionXLLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import deprecate, logging, scale_lora_layers
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import StableDiffusionXLPipelineOutput
+
+if is_invisible_watermark_available():
+    from .watermark import StableDiffusionXLWatermarker
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -98,6 +102,7 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
 
 class StableDiffusionXLInstructPix2PixPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     FromSingleFileMixin,
     StableDiffusionXLLoraLoaderMixin,
@@ -184,8 +189,12 @@ class StableDiffusionXLInstructPix2PixPipeline(
         self.default_sample_size = self.unet.config.sample_size
         self.is_cosxl_edit = is_cosxl_edit
 
+        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+
         if add_watermarker:
-            logger.warning("watermarker is not supported!")
+            self.watermark = StableDiffusionXLWatermarker()
+        else:
+            self.watermark = None
 
     def encode_prompt(
         self,
@@ -284,7 +293,7 @@ class StableDiffusionXLInstructPix2PixPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -849,7 +858,7 @@ class StableDiffusionXLInstructPix2PixPipeline(
                     t,
                     encoder_hidden_states=prompt_embeds,
                     cross_attention_kwargs=cross_attention_kwargs,
-                    added_cond_kwargs=added_cond_kwargs,
+                    added_cond_kwargs=ms.mutable(added_cond_kwargs),
                     return_dict=False,
                 )[0]
 
@@ -902,6 +911,10 @@ class StableDiffusionXLInstructPix2PixPipeline(
                 self.vae.to(dtype=ms.float16)
         else:
             return StableDiffusionXLPipelineOutput(images=latents)
+
+        # apply watermark if available
+        if self.watermark is not None:
+            image = self.watermark.apply_watermark(image)
 
         image = self.image_processor.postprocess(image, output_type=output_type)
 

@@ -1,0 +1,8 @@
+mindcv==0.3.0
+transformers==4.39.1
+loguru==0.7.2
+einops==0.7.0
+sentencepiece==0.1.99
+pandas==2.0.3
+gradio==3.50.2
+pyarrow==16.1.0

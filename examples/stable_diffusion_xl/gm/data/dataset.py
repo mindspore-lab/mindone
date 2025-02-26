@@ -53,10 +53,6 @@ class Text2ImageDataset:
         self.filter_small_size = filter_small_size
 
         self.multi_aspect = list(multi_aspect) if multi_aspect is not None else None
-        if self.multi_aspect and len(self.multi_aspect) > 10:
-            random.seed(seed)
-            self.multi_aspect = random.sample(self.multi_aspect, 10)
-            print(f"Text2ImageDataset: modify multi_aspect sizes to {self.multi_aspect}")
 
         self.seed = seed
         self.per_batch_size = per_batch_size
@@ -147,9 +143,10 @@ class Text2ImageDataset:
     def collate_fn(self, samples, batch_info):
         new_size = self.target_size
         if self.multi_aspect:
-            epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
-            cur_seed = epoch_num * 10 + batch_num
-            random.seed(cur_seed)
+            # FIXME: unable to get the correct batch_info on Mindspore 2.3
+            # epoch_num, batch_num = batch_info.get_epoch_num(), batch_info.get_batch_num()
+            # cur_seed = epoch_num * 10 + batch_num
+            # random.seed(cur_seed)
             new_size = random.choice(self.multi_aspect)
 
         for bs_trans in self.batched_transforms:

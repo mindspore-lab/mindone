@@ -29,10 +29,12 @@ dependencies = [
     "tqdm",
     "pyyaml",
     "omegaconf",
+    "opencv-python",
+    "sentencepiece",
     "numpy<2.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",
-    "transformers==4.38.*",
+    "transformers>=4.42.0",
 ]
 
 [project.optional-dependencies]
@@ -52,11 +54,14 @@ training = [
     "datasets",
     "protobuf",
     "tensorboard",
-    "tensorboardX"
+    "tensorboardX",
+    "ftfy",
+    "Jinja2"
 ]
 tests = [
     "pytest",
-    "pytest-cov"
+    "pytest-cov",
+    "pytest-mock"
 ]
 dev = [
   "mindone[lint,docs,training,tests]"  # Self-referential. Developers install everything.
