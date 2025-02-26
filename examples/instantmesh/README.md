@@ -87,6 +87,11 @@ python convert_dinovit_bin2st.py facebook/dino-vitb16  # this will dowanload din
 huggingface-cli download zxhezexin/openlrm-base-obj-1.0  # do this if your proxy setup does not support hf download automatically, convert srcript takes care of dino already
 ```
 
+### Update in 2025
+Hurray! Now `mindone.transformers` supported pretrained ckpt loading for `xx_model.bin`. You can now bypass the conversion above.
+
+---
+
 The image features are extracted with dino-vit, which depends on HuggingFace's transformer package. We reuse [the MindSpore's implementation](https://github.com/mindspore-lab/mindone/blob/master/mindone/transformers/modeling_utils.py#L499) and the only challenge remains to be that `.bin` checkpoint of [dino-vit](https://huggingface.co/facebook/dino-vitb16/tree/main) is not supported by MindSpore off-the-shelf. The checkpoint script above serves easy conversion purposes and ensures that dino-vit is still based on `MSPreTrainedModel` safe and sound.
 
 ### InstantMesh Checkpoint

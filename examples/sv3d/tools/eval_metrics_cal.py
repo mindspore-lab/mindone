@@ -53,7 +53,7 @@ def cal_metrics(list_of_pred_path, list_of_gt_path, pred_name):
     num_samples = len(list_of_gt_path)
 
     arr_gt = np.array([read_img(list_of_gt_path[i]) for i in range(num_samples)])
-    arr_pred = np.array([read_img(list_of_pred_path[i], norm=True) for i in range(num_samples)])
+    arr_pred = np.array([read_img(list_of_pred_path[i]) for i in range(num_samples)])
 
     psnr_cur = [calc_psnr(arr_gt[i], arr_pred[i]) for i in range(num_samples)]
     ssim_cur = [
