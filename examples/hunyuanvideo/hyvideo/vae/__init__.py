@@ -67,7 +67,7 @@ def load_vae(
             checkpoint = Path(checkpoint)
             assert checkpoint.exists(), f"VAE checkpoint not found: {checkpoint}"
             logger.info(f"Load from checkpoint {checkpoint}")
-            state_dict = ms.load_checkpoint(checkpoint)
+            state_dict = ms.load_checkpoint(str(checkpoint))
             state_dict = dict(
                 [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
             )
