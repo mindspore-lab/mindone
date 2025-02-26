@@ -383,7 +383,7 @@ def main(args):
                             ema.swap_before_eval()
 
                         ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
-                        if args.save_training_resume:
+                        if args.train.save.save_training_resume:
                             ms.save_checkpoint(
                                 training_step_ae,
                                 os.path.join(ckpt_dir, "train_resume.ckpt"),
@@ -431,7 +431,7 @@ def main(args):
                     if ema is not None:
                         ema.swap_before_eval()
                     ckpt_manager.save(ae_with_loss.autoencoder, None, ckpt_name=ckpt_name, append_dict=None)
-                    if args.save_training_resume:
+                    if args.train.save.save_training_resume:
                         ms.save_checkpoint(
                             training_step_ae,
                             os.path.join(ckpt_dir, "train_resume.ckpt"),
