@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 import mindspore as ms
 
@@ -22,6 +22,7 @@ def load_vae(
     logger: Any = None,
     checkpoint: str = None,
     trainable: bool = False,
+    factor_kwargs: Dict = {},
 ):
     """the fucntion to load the 3D VAE model
 
@@ -35,6 +36,7 @@ def load_vae(
         logger (_type_, optional): logger. Defaults to None.
         checkpoint (str, optional): the checkpoint to load vae. Defaults to None and use default path.
         trainable (bool, optional): set vae trainable
+        factor_kwargs (Dict, optional): the kwargs to pass to vae. Defaults to {}.
     """
     if path is None:
         path = VAE_PATH[type]
@@ -45,9 +47,9 @@ def load_vae(
         )
     config = AutoencoderKLCausal3D.load_config(path)
     if sample_size:
-        vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size)
+        vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size, **factor_kwargs)
     else:
-        vae = AutoencoderKLCausal3D.from_config(config)
+        vae = AutoencoderKLCausal3D.from_config(config, **factor_kwargs)
 
     if checkpoint is None:
         vae_ckpt = Path(path) / "model.safetensors"
@@ -126,6 +128,7 @@ def load_vae_train(
     logger: Any = None,
     checkpoint: str = None,
     trainable: bool = False,
+    factor_kwargs: Dict = {},
 ):
     # the function to initiate the 3D VAE model for training
     assert trainable, "trainable must be True!"
@@ -142,4 +145,5 @@ def load_vae_train(
         logger=logger,
         checkpoint=checkpoint,
         trainable=trainable,
+        factor_kwargs=factor_kwargs,
     )

@@ -52,6 +52,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         spatial_compression_ratio: int = 8,
         time_compression_ratio: int = 4,
         mid_block_add_attention: bool = True,
+        use_recompute: bool = False,
     ):
         super().__init__()
 
@@ -112,6 +113,20 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.stdnormal = ops.StandardNormal()
 
         print("D--: tile_latent_min size  ", self.tile_latent_min_tsize, self.tile_latent_min_size)
+        self.use_recompute = use_recompute
+        if use_recompute:
+            self.recompute(self.encoder)
+            self.recompute(self.decoder)
+            self.recompute(self.quant_conv)
+            self.recompute(self.post_quant_conv)
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute(parallel_optimizer_comm_recompute=True)
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            b.add_flags(output_no_recompute=True)
 
     def _set_gradient_checkpointing(self, module, value=False):
         raise NotImplementedError

@@ -106,6 +106,7 @@ def main(args):
         logger=logger,
         **args.vae,
     )
+    use_recompute = args.vae.factor_kwargs.get("use_recompute", False)
     # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
     vae_dtype = PRECISION_TO_TYPE[args.vae.precision]
     sample_n_frames = args.dataset.sample_n_frames
@@ -191,6 +192,7 @@ def main(args):
                 f"Batch size: {args.dataloader.batch_size}",
                 f"Image size: {args.dataset.crop_size}",
                 f"Frames: {args.dataset.sample_n_frames}",
+                f"Use discriminator: {disc_with_loss is not None}",
                 f"Weight decay ae: {args.train.optimizer_ae.weight_decay}"
                 + (
                     f"\nWeight decay disc: {args.train.optimizer_disc.weight_decay}"
@@ -214,6 +216,7 @@ def main(args):
                 f"Grad clipping: {args.train.settings.clip_grad}",
                 f"Max grad norm: {args.train.settings.clip_norm}",
                 f"EMA: {ema is not None}",
+                f"Use recompute: {use_recompute}",
             ]
         )
         key_info += "\n" + "=" * 50
