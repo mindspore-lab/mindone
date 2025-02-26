@@ -218,7 +218,7 @@ def main(args):
             optimizer=optimizer,
             scale_sense=ms.Tensor(1.0),  # tune
             clip_grad=True,  # tune
-            clip_norm=1.0,    # tune
+            clip_norm=5.0,    # tune
             # ema=ema,
             # zero_stage=args.zero_stage,
         )
@@ -250,7 +250,7 @@ def main(args):
     # ds_iter = dataloader.create_tuple_iterator(num_epochs=num_epochs - start_epoch)
     ds_iter = dataloader.create_tuple_iterator(num_epochs=-1)
     num_batches = dataloader.get_dataset_size() 
-    num_epochs = math.floor(args.train_steps / num_batches)
+    num_epochs = math.ceil(args.train_steps / num_batches)
     global_step = start_global_step
     
     for epoch in range(start_epoch + 1, num_epochs + 1):

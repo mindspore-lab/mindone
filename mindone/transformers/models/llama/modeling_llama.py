@@ -25,7 +25,7 @@ from transformers import LlamaConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, nn, ops, mint
 from mindspore.common import initializer as init
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
@@ -777,6 +777,7 @@ class LlamaModel(LlamaPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.use_cache
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
+
         if self.training:
             use_cache = False
 
@@ -880,6 +881,7 @@ class LlamaModel(LlamaPreTrainedModel):
             causal_mask = causal_mask * _mask_position
             causal_mask = causal_mask[None, None, :, :].broadcast_to((input_tensor.shape[0], 1, -1, -1))
             if attention_mask is not None:
+                causal_mask  = causal_mask.clone()   # copy to contiguous memory for -in-place edit
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0

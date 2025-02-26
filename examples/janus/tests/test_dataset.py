@@ -19,6 +19,7 @@ def test():
     ds = TextImageDataset(csv_path='datasets/data_demo/jade/csvfile/image_text_en.csv',
                     data_dir='datasets/data_demo',
                     vl_chat_processor=vl_chat_processor,
+                    null_prompt_prob=0.3,
                     )
 
     for i in range(10):
