@@ -73,6 +73,7 @@ def load_vae(
             state_dict = dict(
                 [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
             )
+            state_dict = dict([k.replace("._backbone.", "."), v] for k, v in state_dict.items())
             vae.load_state_dict(state_dict)
         elif isinstance(checkpoint, dict):
             vae.load_state_dict(checkpoint)
