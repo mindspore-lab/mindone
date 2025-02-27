@@ -22,6 +22,7 @@ def load_vae(
     logger: Any = None,
     checkpoint: str = None,
     trainable: bool = False,
+    gn_fp32: bool = False,
     factor_kwargs: Dict = {},
 ):
     """the fucntion to load the 3D VAE model
@@ -36,6 +37,7 @@ def load_vae(
         logger (_type_, optional): logger. Defaults to None.
         checkpoint (str, optional): the checkpoint to load vae. Defaults to None and use default path.
         trainable (bool, optional): set vae trainable
+        gn_fp32 (bool, optional): whether to keep GroupNorm in fp32. Defaults to False.
         factor_kwargs (Dict, optional): the kwargs to pass to vae. Defaults to {}.
     """
     if path is None:
@@ -88,6 +90,8 @@ def load_vae(
                 custom_fp32_cells = [GroupNorm]
             elif dtype == ms.bfloat16:
                 custom_fp32_cells = [MSInterpolate]
+                if gn_fp32:
+                    custom_fp32_cells.append(GroupNorm)
             else:
                 raise ValueError
 
@@ -128,6 +132,7 @@ def load_vae_train(
     logger: Any = None,
     checkpoint: str = None,
     trainable: bool = False,
+    gn_fp32: bool = True,
     factor_kwargs: Dict = {},
 ):
     # the function to initiate the 3D VAE model for training
@@ -146,4 +151,5 @@ def load_vae_train(
         checkpoint=checkpoint,
         trainable=trainable,
         factor_kwargs=factor_kwargs,
+        gn_fp32=gn_fp32,
     )
