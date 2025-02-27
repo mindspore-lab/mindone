@@ -38,7 +38,7 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import mindspore
+        >>> import mindspore as ms
         >>> from mindone.diffusers import FluxFillPipeline
         >>> from mindone.diffusers.utils import load_image
 
@@ -339,7 +339,7 @@ class FluxFillPipeline(
         if masked_image.shape[1] == num_channels_latents:
             masked_image_latents = masked_image
         else:
-            masked_image_latents = retrieve_latents(self.vae, self.vae.encode(masked_image), generator=generator)
+            masked_image_latents = retrieve_latents(self.vae, self.vae.encode(masked_image)[0], generator=generator)
 
         masked_image_latents = (masked_image_latents - self.vae.config.shift_factor) * self.vae.config.scaling_factor
         masked_image_latents = masked_image_latents.to(dtype=dtype)
@@ -789,8 +789,6 @@ class FluxFillPipeline(
             batch_size = len(prompt)
         else:
             batch_size = prompt_embeds.shape[0]
-
-        device = self._execution_device
 
         # 3. Prepare prompt embeddings
         lora_scale = self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None

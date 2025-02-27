@@ -168,13 +168,20 @@ class FluxPriorReduxPipeline(DiffusionPipeline):
 
     def encode_image(self, image, num_images_per_prompt):
         dtype = next(self.image_encoder.get_parameters()).dtype
+
+        # "nn.MultiheadAttention" has an additional member variable `dtype` set in initialization.
+        # Once the precision of pipeline is cast by `from_pretrained` method, this member variable `dtype`
+        # should be reset as well, or it will lead to internal dtype inconsistency error within the operator.
+        if self.image_encoder.vision_model.use_head:
+            self.image_encoder.vision_model.head.attention.dtype = dtype
+
         image = self.feature_extractor.preprocess(
             images=image, do_resize=True, return_tensors="np", do_convert_rgb=True
-        )
-        image = image.to(dtype=dtype)
+        ).pixel_values
+        image = ms.Tensor(image).to(dtype=dtype)
 
         # image_enc_hidden_states = self.image_encoder(**image).last_hidden_state
-        image_enc_hidden_states = self.image_encoder(**image)[0]
+        image_enc_hidden_states = self.image_encoder(pixel_values=image)[0]
         image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
 
         return image_enc_hidden_states

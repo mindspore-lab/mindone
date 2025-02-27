@@ -168,8 +168,11 @@ class FluxTransformerBlock(nn.Cell):
 
         if len(attention_outputs) == 2:
             attn_output, context_attn_output = attention_outputs
+            ip_attn_output = None
         elif len(attention_outputs) == 3:
             attn_output, context_attn_output, ip_attn_output = attention_outputs
+        else:
+            attn_output, context_attn_output, ip_attn_output = None, None, None
 
         # Process attention outputs for the `hidden_states`.
         attn_output = gate_msa.unsqueeze(1) * attn_output

@@ -48,7 +48,7 @@ EXAMPLE_DOC_STRING = """
 
         >>> pipe = FluxControlImg2ImgPipeline.from_pretrained(
         ...     "black-forest-labs/FLUX.1-Canny-dev", mindspore_dtype=ms.bfloat16
-        ... ).to("cuda")
+        ... )
 
         >>> prompt = "A robot made of exotic candies and chocolates of different kinds. Abstract background"
         >>> image = load_image(
@@ -844,7 +844,7 @@ class FluxControlImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSin
         # handle guidance
         if self.transformer.config.guidance_embeds:
             guidance = ops.full([1], guidance_scale, dtype=ms.float32)
-            guidance = guidance.expand(latents.shape[0])
+            guidance = guidance.broadcast_to(latents.shape[0])
         else:
             guidance = None
 

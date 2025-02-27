@@ -1994,8 +1994,6 @@ class MochiAttentionPool(nn.Cell):
             )(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, attn_mask)[3]
             x = x.to(q.dtype)
 
-        x = self.scaled_dot_product_attention(q, k, v, attn_mask=attn_mask, dropout_p=0.0)  # (B, H, 1, head_dim)
-
         # Concatenate heads and run output.
         x = x.squeeze(2).flatten(start_dim=1, end_dim=2)  # (B, D = H * head_dim)
         x = self.to_out(x)

@@ -392,6 +392,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             norm_type="layer_norm",
         )
         self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * out_channels)
+        self.p = self.config.patch_size
 
         self._gradient_checkpointing = False
 
@@ -430,7 +431,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             )
 
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
-        p = self.config.patch_size
+        p = self.p
 
         post_patch_height = height // p
         post_patch_width = width // p

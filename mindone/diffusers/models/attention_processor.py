@@ -810,7 +810,7 @@ class MochiAttention(nn.Cell):
         if self.context_pre_only is not None:
             self.add_q_proj = nn.Dense(added_kv_proj_dim, self.inner_dim, has_bias=added_proj_bias)
 
-        self.to_out = nn.CellList([nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(dropout)])
+        self.to_out = nn.CellList([nn.Dense(self.inner_dim, self.out_dim, has_bias=out_bias), nn.Dropout(p=dropout)])
 
         if not self.context_pre_only:
             self.to_add_out = nn.Dense(self.inner_dim, self.out_context_dim, has_bias=out_bias)

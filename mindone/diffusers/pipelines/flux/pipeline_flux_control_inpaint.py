@@ -321,7 +321,7 @@ class FluxControlInpaintPipeline(
             truncation=True,
             return_overflowing_tokens=False,
             return_length=False,
-            return_tensors="pt",
+            return_tensors="np",
         )
 
         text_input_ids = text_inputs.input_ids
@@ -503,8 +503,8 @@ class FluxControlInpaintPipeline(
 
     @staticmethod
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._prepare_latent_image_ids
-    def _prepare_latent_image_ids(batch_size, height, width, device, dtype):
-        latent_image_ids = ops.zeros(height, width, 3)
+    def _prepare_latent_image_ids(batch_size, height, width, dtype):
+        latent_image_ids = ops.zeros((height, width, 3))
         latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height)[:, None]
         latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width)[None, :]
 
@@ -514,7 +514,7 @@ class FluxControlInpaintPipeline(
             latent_image_id_height * latent_image_id_width, latent_image_id_channels
         )
 
-        return latent_image_ids.to(device=device, dtype=dtype)
+        return latent_image_ids.to(dtype=dtype)
 
     @staticmethod
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._pack_latents
@@ -1043,7 +1043,9 @@ class FluxControlInpaintPipeline(
                 init_mask = mask
                 if i < len(timesteps) - 1:
                     noise_timestep = timesteps[i + 1]
-                    init_latents_proper = self.scheduler.scale_noise(image_latents, ms.tensor([noise_timestep]), noise)
+                    init_latents_proper = self.scheduler.scale_noise(
+                        image_latents, ms.tensor([noise_timestep.item()]), noise
+                    )
                 else:
                     init_latents_proper = image_latents
                 init_latents_proper = self._pack_latents(

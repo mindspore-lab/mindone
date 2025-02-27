@@ -241,7 +241,7 @@ class MochiDownBlock3D(nn.Cell):
                 hidden_states, conv_cache=conv_cache.get(conv_cache_key)
             )
 
-            if attn is not None:
+            if not isinstance(attn, NoneCell):
                 residual = hidden_states
                 hidden_states = norm(hidden_states)
 
@@ -309,8 +309,8 @@ class MochiMidBlock3D(nn.Cell):
                     )
                 )
             else:
-                norms.append(None)
-                attentions.append(None)
+                norms.append(NoneCell())
+                attentions.append(NoneCell())
 
         self.resnets = nn.CellList(resnets)
         self.norms = nn.CellList(norms)
@@ -347,7 +347,7 @@ class MochiMidBlock3D(nn.Cell):
                 hidden_states, conv_cache=conv_cache.get(conv_cache_key)
             )
 
-            if attn is not None:
+            if not isinstance(attn, NoneCell):
                 residual = hidden_states
                 hidden_states = norm(hidden_states)
 
@@ -621,7 +621,9 @@ class MochiDecoder3D(nn.Cell):
 
         self.nonlinearity = get_activation(act_fn)()
 
-        self.conv_in = nn.Conv3d(in_channels, block_out_channels[-1], kernel_size=(1, 1, 1), pad_mode="pad")
+        self.conv_in = nn.Conv3d(
+            in_channels, block_out_channels[-1], kernel_size=(1, 1, 1), pad_mode="pad", has_bias=True
+        )
         self.block_in = MochiMidBlock3D(
             in_channels=block_out_channels[-1],
             num_layers=layers_per_block[-1],
