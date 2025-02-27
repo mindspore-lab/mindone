@@ -31,19 +31,3 @@ def distribute_samples(n_samples, worker_id, n_workers):
 
     # get data sample indices for current worker id
     return indices[worker_id]
-
-
-def data_split_even(samples, worker_id, n_workers):
-    """
-    Distribute data samples as even as possible
-    Args:
-        samples: data samples
-        worker_id: worker (or NPU) id
-        n_workers: number of workers (or NPUs)
-    Return:
-        data samples assigned to worker_id
-    """
-    n_samples = len(samples)
-    start_idx, end_idx = distribute_samples(n_samples, worker_id, n_workers)
-
-    return samples[start_idx:end_idx]
