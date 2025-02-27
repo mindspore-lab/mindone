@@ -1,0 +1,90 @@
+env:
+  mode: 0
+  jit_level: O0
+  seed: 42
+  distributed: False
+  debug: False
+
+vae:
+  type: "884-16c-hy"
+  precision: bf16
+  tiling: False
+  trainable: True
+  checkpoint:
+
+dataset:
+  data_file_path: "../videocomposer/datasets/webvid5_copy.csv"
+  data_folder: "../videocomposer/datasets/webvid5"
+  dynamic_sample: True # randomly sample stride from 1 to 8
+  sample_stride: 8
+  sample_n_frames: 17
+  size: 256
+  crop_size: 256
+  output_columns: [ "video"]
+  disable_flip: False
+
+dataloader:
+  batch_size: 1
+  shuffle: True
+  num_workers_dataset: 4
+
+
+train:
+  steps: 30000
+  output_path: ../../../output/webvid5_256px  # the path is relative to this config
+
+
+  losses:
+    lpips_ckpt_path: "pretrained/lpips_vgg-426bf45c.ckpt"
+    disc_start: 1000
+    disc_weight: 0.05
+    kl_weight: 1e-6
+    perceptual_weight: 0.1
+    loss_type: "l1"
+    print_losses: False
+
+
+  sequence_parallel:
+    shards: 1
+
+  lr_scheduler:
+    name: constant
+    lr: 1e-4
+    warmup_steps: 1000
+
+  optimizer_ae:
+    name: adamw_re
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.0
+
+  optimizer_disc:
+    name: adamw_re
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.0
+
+  loss_scaler_ae:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  loss_scaler_disc:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  settings:
+    zero_stage: 0
+    gradient_accumulation_steps: 1
+    clip_grad: True
+    clip_norm: 1.0
+    drop_overflow_update: True
+
+  save:
+    ckpt_save_policy: latest_k
+    ckpt_save_interval: &save_interval 1000
+    ckpt_max_keep: 10
+    log_interval: 1 # with respect to steps
+    save_ema_only: False
+    record_lr: False
