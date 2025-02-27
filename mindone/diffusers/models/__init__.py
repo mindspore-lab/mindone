@@ -27,6 +27,7 @@ _import_structure = {
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
     "controlnet": ["ControlNetModel"],
+    "controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnet_hunyuan": ["HunyuanDiT2DControlNetModel", "HunyuanDiT2DMultiControlNetModel"],
     "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
     "controlnet_sparsectrl": ["SparseControlNetModel"],
@@ -46,6 +47,7 @@ _import_structure = {
     "transformers.stable_audio_transformer": ["StableAudioDiTModel"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
@@ -74,6 +76,7 @@ if TYPE_CHECKING:
         VQModel,
     )
     from .controlnet import ControlNetModel
+    from .controlnet_flux import FluxControlNetModel, FluxMultiControlNetModel
     from .controlnet_hunyuan import HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
     from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
     from .controlnet_sparsectrl import SparseControlNetModel
@@ -83,6 +86,7 @@ if TYPE_CHECKING:
     from .transformers import (
         AuraFlowTransformer2DModel,
         CogVideoXTransformer3DModel,
+        CogView3PlusTransformer2DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
         FluxTransformer2DModel,

@@ -10,6 +10,7 @@ _import_structure = {
         "AnimateDiffSDXLPipeline",
         "AnimateDiffSparseControlNetPipeline",
         "AnimateDiffVideoToVideoPipeline",
+        "AnimateDiffVideoToVideoControlNetPipeline",
     ],
     "aura_flow": ["AuraFlowPipeline"],
     "auto_pipeline": [
@@ -22,8 +23,10 @@ _import_structure = {
         "CogVideoXPipeline",
         "CogVideoXImageToVideoPipeline",
         "CogVideoXVideoToVideoPipeline",
+        "CogVideoXFunControlPipeline",
     ],
     "consistency_models": ["ConsistencyModelPipeline"],
+    "cogview3": ["CogView3PlusPipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -40,6 +43,7 @@ _import_structure = {
     ],
     "controlnet_sd3": [
         "StableDiffusion3ControlNetPipeline",
+        "StableDiffusion3ControlNetInpaintingPipeline",
     ],
     "dance_diffusion": ["DanceDiffusionPipeline"],
     "ddim": ["DDIMPipeline"],
@@ -53,7 +57,14 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
-    "flux": ["FluxPipeline"],
+    "flux": [
+        "FluxControlNetPipeline",
+        "FluxControlNetImg2ImgPipeline",
+        "FluxControlNetInpaintPipeline",
+        "FluxImg2ImgPipeline",
+        "FluxInpaintPipeline",
+        "FluxPipeline",
+    ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
@@ -97,14 +108,17 @@ _import_structure = {
         "MarigoldNormalsPipeline",
     ],
     "pag": [
+        "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
         "KolorsPAGPipeline",
         "HunyuanDiTPAGPipeline",
         "StableDiffusion3PAGPipeline",
         "StableDiffusionPAGPipeline",
+        "StableDiffusionPAGImg2ImgPipeline",
         "StableDiffusionControlNetPAGPipeline",
         "StableDiffusionXLPAGPipeline",
         "StableDiffusionXLPAGInpaintPipeline",
+        "StableDiffusionXLControlNetPAGImg2ImgPipeline",
         "StableDiffusionXLControlNetPAGPipeline",
         "StableDiffusionXLPAGImg2ImgPipeline",
         "PixArtSigmaPAGPipeline",
@@ -171,12 +185,19 @@ if TYPE_CHECKING:
         AnimateDiffPipeline,
         AnimateDiffSDXLPipeline,
         AnimateDiffSparseControlNetPipeline,
+        AnimateDiffVideoToVideoControlNetPipeline,
         AnimateDiffVideoToVideoPipeline,
     )
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
-    from .cogvideo import CogVideoXImageToVideoPipeline, CogVideoXPipeline, CogVideoXVideoToVideoPipeline
+    from .cogvideo import (
+        CogVideoXFunControlPipeline,
+        CogVideoXImageToVideoPipeline,
+        CogVideoXPipeline,
+        CogVideoXVideoToVideoPipeline,
+    )
+    from .cogview3 import CogView3PlusPipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
@@ -188,7 +209,7 @@ if TYPE_CHECKING:
         StableDiffusionXLControlNetPipeline,
     )
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
-    from .controlnet_sd3 import StableDiffusion3ControlNetPipeline
+    from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
     from .controlnet_xs import StableDiffusionControlNetXSPipeline, StableDiffusionXLControlNetXSPipeline
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
@@ -201,7 +222,14 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
-    from .flux import FluxPipeline
+    from .flux import (
+        FluxControlNetImg2ImgPipeline,
+        FluxControlNetInpaintPipeline,
+        FluxControlNetPipeline,
+        FluxImg2ImgPipeline,
+        FluxInpaintPipeline,
+        FluxPipeline,
+    )
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
@@ -238,8 +266,11 @@ if TYPE_CHECKING:
         KolorsPAGPipeline,
         PixArtSigmaPAGPipeline,
         StableDiffusion3PAGPipeline,
+        StableDiffusionControlNetPAGInpaintPipeline,
         StableDiffusionControlNetPAGPipeline,
+        StableDiffusionPAGImg2ImgPipeline,
         StableDiffusionPAGPipeline,
+        StableDiffusionXLControlNetPAGImg2ImgPipeline,
         StableDiffusionXLControlNetPAGPipeline,
         StableDiffusionXLPAGImg2ImgPipeline,
         StableDiffusionXLPAGInpaintPipeline,

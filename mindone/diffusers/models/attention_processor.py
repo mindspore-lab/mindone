@@ -18,7 +18,7 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
-from ..utils import is_mindspore_version, logging
+from ..utils import deprecate, is_mindspore_version, logging
 from ..utils.mindspore_utils import dtype_to_min
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -108,6 +108,7 @@ class Attention(nn.Cell):
         out_dim: int = None,
         context_pre_only=None,
         pre_only=False,
+        elementwise_affine: bool = True,
     ):
         super().__init__()
 
@@ -167,8 +168,8 @@ class Attention(nn.Cell):
             self.norm_q = None
             self.norm_k = None
         elif qk_norm == "layer_norm":
-            self.norm_q = LayerNorm(dim_head, eps=eps)
-            self.norm_k = LayerNorm(dim_head, eps=eps)
+            self.norm_q = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_k = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
         elif qk_norm == "fp32_layer_norm":
             self.norm_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
             self.norm_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
@@ -180,7 +181,7 @@ class Attention(nn.Cell):
             self.norm_q = RMSNorm(dim_head, eps=eps)
             self.norm_k = RMSNorm(dim_head, eps=eps)
         else:
-            raise ValueError(f"unknown qk_norm: {qk_norm}. Should be None or 'layer_norm'")
+            raise ValueError(f"unknown qk_norm: {qk_norm}. Should be None,'layer_norm','fp32_layer_norm','rms_norm'")
 
         self.cross_attention_norm = cross_attention_norm
         if cross_attention_norm is None:
@@ -238,6 +239,10 @@ class Attention(nn.Cell):
             elif qk_norm == "rms_norm":
                 self.norm_added_q = RMSNorm(dim_head, eps=eps)
                 self.norm_added_k = RMSNorm(dim_head, eps=eps)
+            else:
+                raise ValueError(
+                    f"unknown qk_norm: {qk_norm}. Should be one of `None,'layer_norm','fp32_layer_norm','rms_norm'`"
+                )
         else:
             self.norm_added_q = None
             self.norm_added_k = None
@@ -1001,62 +1006,72 @@ class JointAttnProcessor2_0:
     ) -> ms.Tensor:
         residual = hidden_states
 
-        batch_size, channel, height, width = (None,) * 4
-        input_ndim = hidden_states.ndim
-        if input_ndim == 4:
-            batch_size, channel, height, width = hidden_states.shape
-            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-        context_input_ndim = encoder_hidden_states.ndim
-        if context_input_ndim == 4:
-            batch_size, channel, height, width = encoder_hidden_states.shape
-            encoder_hidden_states = encoder_hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-
-        batch_size = encoder_hidden_states.shape[0]
+        batch_size = hidden_states.shape[0]
 
         # `sample` projections.
         query = attn.to_q(hidden_states)
         key = attn.to_k(hidden_states)
         value = attn.to_v(hidden_states)
 
-        # `context` projections.
-        encoder_hidden_states_query_proj = attn.add_q_proj(encoder_hidden_states)
-        encoder_hidden_states_key_proj = attn.add_k_proj(encoder_hidden_states)
-        encoder_hidden_states_value_proj = attn.add_v_proj(encoder_hidden_states)
-
-        # attention
-        query = ops.cat([query, encoder_hidden_states_query_proj], axis=1)
-        key = ops.cat([key, encoder_hidden_states_key_proj], axis=1)
-        value = ops.cat([value, encoder_hidden_states_value_proj], axis=1)
-
         inner_dim = key.shape[-1]
         head_dim = inner_dim // attn.heads
+
         query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
         key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
         value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        # `context` projections.
+        if encoder_hidden_states is not None:
+            encoder_hidden_states_query_proj = attn.add_q_proj(encoder_hidden_states)
+            encoder_hidden_states_key_proj = attn.add_k_proj(encoder_hidden_states)
+            encoder_hidden_states_value_proj = attn.add_v_proj(encoder_hidden_states)
+
+            encoder_hidden_states_query_proj = encoder_hidden_states_query_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+            encoder_hidden_states_key_proj = encoder_hidden_states_key_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+            encoder_hidden_states_value_proj = encoder_hidden_states_value_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+
+            if attn.norm_added_q is not None:
+                encoder_hidden_states_query_proj = attn.norm_added_q(encoder_hidden_states_query_proj)
+            if attn.norm_added_k is not None:
+                encoder_hidden_states_key_proj = attn.norm_added_k(encoder_hidden_states_key_proj)
+
+            query = ops.cat([query, encoder_hidden_states_query_proj], axis=2)
+            key = ops.cat([key, encoder_hidden_states_key_proj], axis=2)
+            value = ops.cat([value, encoder_hidden_states_value_proj], axis=2)
 
         hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
-        # Split the attention outputs.
-        hidden_states, encoder_hidden_states = (
-            hidden_states[:, : residual.shape[1]],
-            hidden_states[:, residual.shape[1] :],
-        )
+        if encoder_hidden_states is not None:
+            # Split the attention outputs.
+            hidden_states, encoder_hidden_states = (
+                hidden_states[:, : residual.shape[1]],
+                hidden_states[:, residual.shape[1] :],
+            )
+            if not attn.context_pre_only:
+                encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
 
         # linear proj
         hidden_states = attn.to_out[0](hidden_states)
         # dropout
         hidden_states = attn.to_out[1](hidden_states)
-        if not attn.context_pre_only:
-            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
 
-        if input_ndim == 4:
-            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
-        if context_input_ndim == 4:
-            encoder_hidden_states = encoder_hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
-
-        return hidden_states, encoder_hidden_states
+        if encoder_hidden_states is not None:
+            return hidden_states, encoder_hidden_states
+        else:
+            return hidden_states
 
 
 @ms.jit_class
@@ -1630,81 +1645,15 @@ class FusedAuraFlowAttnProcessor2_0:
             return hidden_states
 
 
-# YiYi to-do: refactor rope related functions/classes
-def apply_rope(xq, xk, freqs_cis):
-    xq_ = xq.float().reshape(*xq.shape[:-1], -1, 1, 2)
-    xk_ = xk.float().reshape(*xk.shape[:-1], -1, 1, 2)
-    xq_out = freqs_cis[..., 0] * xq_[..., 0] + freqs_cis[..., 1] * xq_[..., 1]
-    xk_out = freqs_cis[..., 0] * xk_[..., 0] + freqs_cis[..., 1] * xk_[..., 1]
-    return xq_out.reshape(*xq.shape).type_as(xq), xk_out.reshape(*xk.shape).type_as(xk)
-
-
-@ms.jit_class
-class FluxSingleAttnProcessor2_0:
-    r"""
-    Processor for implementing scaled dot-product attention (enabled by default if you're using MindSpore 2.3+).
-    """
-
-    def __call__(
-        self,
-        attn: Attention,
-        hidden_states: ms.Tensor,
-        encoder_hidden_states: Optional[ms.Tensor] = None,
-        attention_mask: Optional[ms.Tensor] = None,
-        image_rotary_emb: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
-        input_ndim = hidden_states.ndim
-        batch_size, channel, height, width = (None,) * 4  # make complier happy
-
-        if input_ndim == 4:
-            batch_size, channel, height, width = hidden_states.shape
-            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-
-        batch_size, _, _ = hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-
-        query = attn.to_q(hidden_states)
-        if encoder_hidden_states is None:
-            encoder_hidden_states = hidden_states
-
-        key = attn.to_k(encoder_hidden_states)
-        value = attn.to_v(encoder_hidden_states)
-
-        inner_dim = key.shape[-1]
-        head_dim = inner_dim // attn.heads
-
-        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
-
-        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
-        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
-
-        if attn.norm_q is not None:
-            query = attn.norm_q(query)
-        if attn.norm_k is not None:
-            key = attn.norm_k(key)
-
-        # Apply RoPE if needed
-        if image_rotary_emb is not None:
-            # YiYi to-do: update uising apply_rotary_emb
-            # from ..embeddings import apply_rotary_emb
-            # query = apply_rotary_emb(query, image_rotary_emb)
-            # key = apply_rotary_emb(key, image_rotary_emb)
-            query, key = apply_rope(query, key, image_rotary_emb)
-
-        # the output of sdp = (batch, num_heads, seq_len, head_dim)
-        hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
-
-        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
-        hidden_states = hidden_states.to(query.dtype)
-
-        if input_ndim == 4:
-            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
-
-        return hidden_states
-
-
 @ms.jit_class
 class FluxAttnProcessor2_0:
     """Attention processor used typically in processing the SD3-like self-attention projections."""
+
+    def __init__(self):
+        # move importing from __call__ to __init__ as it is not supported in construct()
+        from .embeddings import apply_rotary_emb
+
+        self.apply_rotary_emb = apply_rotary_emb
 
     def __call__(
         self,
@@ -1714,17 +1663,7 @@ class FluxAttnProcessor2_0:
         attention_mask: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
-        input_ndim = hidden_states.ndim
-        batch_size, channel, height, width = (None,) * 4  # make complier happy
-        if input_ndim == 4:
-            batch_size, channel, height, width = hidden_states.shape
-            hidden_states = hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-        context_input_ndim = encoder_hidden_states.ndim
-        if context_input_ndim == 4:
-            batch_size, channel, height, width = encoder_hidden_states.shape
-            encoder_hidden_states = encoder_hidden_states.view(batch_size, channel, height * width).swapaxes(1, 2)
-
-        batch_size = encoder_hidden_states.shape[0]
+        batch_size, _, _ = hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
 
         # `sample` projections.
         query = attn.to_q(hidden_states)
@@ -1743,59 +1682,149 @@ class FluxAttnProcessor2_0:
         if attn.norm_k is not None:
             key = attn.norm_k(key)
 
-        # `context` projections.
-        encoder_hidden_states_query_proj = attn.add_q_proj(encoder_hidden_states)
-        encoder_hidden_states_key_proj = attn.add_k_proj(encoder_hidden_states)
-        encoder_hidden_states_value_proj = attn.add_v_proj(encoder_hidden_states)
+        # the attention in FluxSingleTransformerBlock does not use `encoder_hidden_states`
+        if encoder_hidden_states is not None:
+            # `context` projections.
+            encoder_hidden_states_query_proj = attn.add_q_proj(encoder_hidden_states)
+            encoder_hidden_states_key_proj = attn.add_k_proj(encoder_hidden_states)
+            encoder_hidden_states_value_proj = attn.add_v_proj(encoder_hidden_states)
 
-        encoder_hidden_states_query_proj = encoder_hidden_states_query_proj.view(
-            batch_size, -1, attn.heads, head_dim
-        ).swapaxes(1, 2)
-        encoder_hidden_states_key_proj = encoder_hidden_states_key_proj.view(
-            batch_size, -1, attn.heads, head_dim
-        ).swapaxes(1, 2)
-        encoder_hidden_states_value_proj = encoder_hidden_states_value_proj.view(
-            batch_size, -1, attn.heads, head_dim
-        ).swapaxes(1, 2)
+            encoder_hidden_states_query_proj = encoder_hidden_states_query_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+            encoder_hidden_states_key_proj = encoder_hidden_states_key_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+            encoder_hidden_states_value_proj = encoder_hidden_states_value_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
 
-        if attn.norm_added_q is not None:
-            encoder_hidden_states_query_proj = attn.norm_added_q(encoder_hidden_states_query_proj)
-        if attn.norm_added_k is not None:
-            encoder_hidden_states_key_proj = attn.norm_added_k(encoder_hidden_states_key_proj)
+            if attn.norm_added_q is not None:
+                encoder_hidden_states_query_proj = attn.norm_added_q(encoder_hidden_states_query_proj)
+            if attn.norm_added_k is not None:
+                encoder_hidden_states_key_proj = attn.norm_added_k(encoder_hidden_states_key_proj)
 
-        # attention
-        query = ops.cat([encoder_hidden_states_query_proj, query], axis=2)
-        key = ops.cat([encoder_hidden_states_key_proj, key], axis=2)
-        value = ops.cat([encoder_hidden_states_value_proj, value], axis=2)
+            # attention
+            query = ops.cat([encoder_hidden_states_query_proj, query], axis=2)
+            key = ops.cat([encoder_hidden_states_key_proj, key], axis=2)
+            value = ops.cat([encoder_hidden_states_value_proj, value], axis=2)
 
         if image_rotary_emb is not None:
-            # YiYi to-do: update uising apply_rotary_emb
-            # from ..embeddings import apply_rotary_emb
-            # query = apply_rotary_emb(query, image_rotary_emb)
-            # key = apply_rotary_emb(key, image_rotary_emb)
-            query, key = apply_rope(query, key, image_rotary_emb)
+            query = self.apply_rotary_emb(query, image_rotary_emb)
+            key = self.apply_rotary_emb(key, image_rotary_emb)
 
         hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
-        encoder_hidden_states, hidden_states = (
-            hidden_states[:, : encoder_hidden_states.shape[1]],
-            hidden_states[:, encoder_hidden_states.shape[1] :],
-        )
+        if encoder_hidden_states is not None:
+            encoder_hidden_states, hidden_states = (
+                hidden_states[:, : encoder_hidden_states.shape[1]],
+                hidden_states[:, encoder_hidden_states.shape[1] :],
+            )
 
-        # linear proj
-        hidden_states = attn.to_out[0](hidden_states)
-        # dropout
-        hidden_states = attn.to_out[1](hidden_states)
-        encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
+            # linear proj
+            hidden_states = attn.to_out[0](hidden_states)
+            # dropout
+            hidden_states = attn.to_out[1](hidden_states)
+            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
 
-        if input_ndim == 4:
-            hidden_states = hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
-        if context_input_ndim == 4:
-            encoder_hidden_states = encoder_hidden_states.swapaxes(-1, -2).reshape(batch_size, channel, height, width)
+            return hidden_states, encoder_hidden_states
+        else:
+            return hidden_states
 
-        return hidden_states, encoder_hidden_states
+
+@ms.jit_class
+class FusedFluxAttnProcessor2_0:
+    """Attention processor used typically in processing the SD3-like self-attention projections."""
+
+    def __init__(self):
+        # move importing from __call__ to __init__ as it is not supported in construct()
+        from .embeddings import apply_rotary_emb
+
+        self.apply_rotary_emb = apply_rotary_emb
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_rotary_emb: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        batch_size, _, _ = hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+
+        # `sample` projections.
+        qkv = attn.to_qkv(hidden_states)
+        split_size = qkv.shape[-1] // 3
+        query, key, value = ops.split(qkv, split_size, axis=-1)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        # the attention in FluxSingleTransformerBlock does not use `encoder_hidden_states`
+        # `context` projections.
+        if encoder_hidden_states is not None:
+            encoder_qkv = attn.to_added_qkv(encoder_hidden_states)
+            split_size = encoder_qkv.shape[-1] // 3
+            (
+                encoder_hidden_states_query_proj,
+                encoder_hidden_states_key_proj,
+                encoder_hidden_states_value_proj,
+            ) = ops.split(encoder_qkv, split_size, axis=-1)
+
+            encoder_hidden_states_query_proj = encoder_hidden_states_query_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+            encoder_hidden_states_key_proj = encoder_hidden_states_key_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+            encoder_hidden_states_value_proj = encoder_hidden_states_value_proj.view(
+                batch_size, -1, attn.heads, head_dim
+            ).swapaxes(1, 2)
+
+            if attn.norm_added_q is not None:
+                encoder_hidden_states_query_proj = attn.norm_added_q(encoder_hidden_states_query_proj)
+            if attn.norm_added_k is not None:
+                encoder_hidden_states_key_proj = attn.norm_added_k(encoder_hidden_states_key_proj)
+
+            # attention
+            query = ops.cat([encoder_hidden_states_query_proj, query], axis=2)
+            key = ops.cat([encoder_hidden_states_key_proj, key], axis=2)
+            value = ops.cat([encoder_hidden_states_value_proj, value], axis=2)
+
+        if image_rotary_emb is not None:
+            query = self.apply_rotary_emb(query, image_rotary_emb)
+            key = self.apply_rotary_emb(key, image_rotary_emb)
+
+        hidden_states = attn.scaled_dot_product_attention(query, key, value, dropout_p=0.0, is_causal=False)
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
+
+        if encoder_hidden_states is not None:
+            encoder_hidden_states, hidden_states = (
+                hidden_states[:, : encoder_hidden_states.shape[1]],
+                hidden_states[:, encoder_hidden_states.shape[1] :],
+            )
+
+            # linear proj
+            hidden_states = attn.to_out[0](hidden_states)
+            # dropout
+            hidden_states = attn.to_out[1](hidden_states)
+            encoder_hidden_states = attn.to_add_out(encoder_hidden_states)
+
+            return hidden_states, encoder_hidden_states
+        else:
+            return hidden_states
 
 
 @ms.jit_class
@@ -3264,6 +3293,18 @@ class PAGCFGIdentitySelfAttnProcessor2_0:
         hidden_states = hidden_states / attn.rescale_output_factor
 
         return hidden_states
+
+
+@ms.jit_class
+class FluxSingleAttnProcessor2_0(FluxAttnProcessor2_0):
+    r"""
+    Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
+    """
+
+    def __init__(self):
+        deprecation_message = "`FluxSingleAttnProcessor2_0` is deprecated and will be removed in a future version. Please use `FluxAttnProcessor2_0` instead."
+        deprecate("FluxSingleAttnProcessor2_0", "0.32.0", deprecation_message)
+        super().__init__()
 
 
 ADDED_KV_ATTENTION_PROCESSORS = (AttnAddedKVProcessor,)

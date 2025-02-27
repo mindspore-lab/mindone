@@ -324,7 +324,7 @@ class LDMBertConfig(PretrainedConfig):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
 
 
-def _expand_mask(mask: ms.Tensor, dtype: ms.dtype, tgt_len: Optional[int] = None):
+def _expand_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
     """

@@ -478,6 +478,58 @@ class CogVideoXPatchEmbed(nn.Cell):
         return embeds
 
 
+class CogView3PlusPatchEmbed(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int = 16,
+        hidden_size: int = 2560,
+        patch_size: int = 2,
+        text_hidden_size: int = 4096,
+        pos_embed_max_size: int = 128,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.hidden_size = hidden_size
+        self.patch_size = patch_size
+        self.text_hidden_size = text_hidden_size
+        self.pos_embed_max_size = pos_embed_max_size
+        # Linear projection for image patches
+        self.proj = nn.Dense(in_channels * patch_size**2, hidden_size)
+
+        # Linear projection for text embeddings
+        self.text_proj = nn.Dense(text_hidden_size, hidden_size)
+
+        pos_embed = get_2d_sincos_pos_embed(hidden_size, pos_embed_max_size, base_size=pos_embed_max_size)
+        pos_embed = pos_embed.reshape(pos_embed_max_size, pos_embed_max_size, hidden_size)
+        self.pos_embed = ms.Tensor.from_numpy(pos_embed).float()
+
+    def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
+        batch_size, channel, height, width = hidden_states.shape
+
+        if height % self.patch_size != 0 or width % self.patch_size != 0:
+            raise ValueError("Height and width must be divisible by patch size")
+
+        height = height // self.patch_size
+        width = width // self.patch_size
+        hidden_states = hidden_states.view(batch_size, channel, height, self.patch_size, width, self.patch_size)
+        hidden_states = hidden_states.permute(0, 2, 4, 1, 3, 5).contiguous()
+        hidden_states = hidden_states.view(batch_size, height * width, channel * self.patch_size * self.patch_size)
+
+        # Project the patches
+        hidden_states = self.proj(hidden_states)
+        encoder_hidden_states = self.text_proj(encoder_hidden_states)
+        hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+
+        # Calculate text_length
+        text_length = encoder_hidden_states.shape[1]
+
+        image_pos_embed = self.pos_embed[:height, :width].reshape(height * width, -1)
+        text_pos_embed = ops.zeros((text_length, self.hidden_size), dtype=image_pos_embed.dtype)
+        pos_embed = ops.cat([text_pos_embed, image_pos_embed], axis=0)[None, ...]
+
+        return (hidden_states + pos_embed).to(hidden_states.dtype)
+
+
 def get_3d_rotary_pos_embed(
     embed_dim,
     crops_coords,
@@ -756,6 +808,30 @@ def apply_rotary_emb(
         x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
 
         return x_out.type_as(x)
+
+
+class FluxPosEmbed(nn.Cell):
+    # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
+    def __init__(self, theta: int, axes_dim: List[int]):
+        super().__init__()
+        self.theta = theta
+        self.axes_dim = axes_dim
+
+    def construct(self, ids: ms.Tensor) -> ms.Tensor:
+        n_axes = ids.shape[-1]
+        cos_out = []
+        sin_out = []
+        pos = ids.float()
+        freqs_dtype = ms.float64
+        for i in range(n_axes):
+            cos, sin = get_1d_rotary_pos_embed(
+                self.axes_dim[i], pos[:, i], repeat_interleave_real=True, use_real=True, freqs_dtype=freqs_dtype
+            )
+            cos_out.append(cos)
+            sin_out.append(sin)
+        freqs_cos = ops.cat(cos_out, axis=-1)
+        freqs_sin = ops.cat(sin_out, axis=-1)
+        return freqs_cos, freqs_sin
 
 
 class TimestepEmbedding(nn.Cell):
@@ -1126,6 +1202,39 @@ class CombinedTimestepGuidanceTextProjEmbeddings(nn.Cell):
         pooled_projections = self.text_embedder(pooled_projection)
         conditioning = time_guidance_emb + pooled_projections
 
+        return conditioning
+
+
+class CogView3CombinedTimestepSizeEmbeddings(nn.Cell):
+    def __init__(self, embedding_dim: int, condition_dim: int, pooled_projection_dim: int, timesteps_dim: int = 256):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=timesteps_dim, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.condition_proj = Timesteps(num_channels=condition_dim, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=timesteps_dim, time_embed_dim=embedding_dim)
+        self.condition_embedder = PixArtAlphaTextProjection(pooled_projection_dim, embedding_dim, act_fn="silu")
+
+    def construct(
+        self,
+        timestep: ms.Tensor,
+        original_size: ms.Tensor,
+        target_size: ms.Tensor,
+        crop_coords: ms.Tensor,
+        hidden_dtype: ms.Type,
+    ) -> ms.Tensor:
+        timesteps_proj = self.time_proj(timestep)
+
+        original_size_proj = self.condition_proj(original_size.flatten()).view(original_size.shape[0], -1)
+        crop_coords_proj = self.condition_proj(crop_coords.flatten()).view(crop_coords.shape[0], -1)
+        target_size_proj = self.condition_proj(target_size.flatten()).view(target_size.shape[0], -1)
+
+        # (B, 3 * condition_dim)
+        condition_proj = ops.cat([original_size_proj, crop_coords_proj, target_size_proj], axis=1)
+
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (B, embedding_dim)
+        condition_emb = self.condition_embedder(condition_proj.to(dtype=hidden_dtype))  # (B, embedding_dim)
+
+        conditioning = timesteps_emb + condition_emb
         return conditioning
 
 
