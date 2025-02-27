@@ -3,12 +3,16 @@
 import logging
 import math
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+import mindspore as ms
+import mindspore.mint as mint
+import mindspore.nn as nn
+import mindspore.ops as ops
+from mindspore import Parameter
+from mindspore.nn.utils import no_init_parameters
+import mindspore.mint.nn.functional as F
 import torchvision.transforms as T
 
-from .attention import flash_attention
+from ..utils.utils import load_pth
 from .tokenizers import HuggingfaceTokenizer
 from .xlm_roberta import XLMRoberta
 
@@ -26,7 +30,7 @@ def pos_interpolate(pos, seq_len):
         src_grid = int(math.sqrt(pos.size(1)))
         tar_grid = int(math.sqrt(seq_len))
         n = pos.size(1) - src_grid * src_grid
-        return torch.cat([
+        return mint.cat([
             pos[:, :n],
             F.interpolate(
                 pos[:, n:].float().reshape(1, src_grid, src_grid, -1).permute(
@@ -38,19 +42,19 @@ def pos_interpolate(pos, seq_len):
                          dim=1)
 
 
-class QuickGELU(nn.Module):
+class QuickGELU(nn.Cell):
 
-    def forward(self, x):
-        return x * torch.sigmoid(1.702 * x)
-
-
-class LayerNorm(nn.LayerNorm):
-
-    def forward(self, x):
-        return super().forward(x.float()).type_as(x)
+    def construct(self, x):
+        return x * mint.sigmoid(1.702 * x)
 
 
-class SelfAttention(nn.Module):
+class LayerNorm(mint.nn.LayerNorm):
+
+    def construct(self, x):
+        return super().construct(x.float()).type_as(x)
+
+
+class SelfAttention(nn.Cell):
 
     def __init__(self,
                  dim,
@@ -68,10 +72,10 @@ class SelfAttention(nn.Module):
         self.proj_dropout = proj_dropout
 
         # layers
-        self.to_qkv = nn.Linear(dim, dim * 3)
-        self.proj = nn.Linear(dim, dim)
+        self.to_qkv = mint.nn.Linear(dim, dim * 3)
+        self.proj = mint.nn.Linear(dim, dim)
 
-    def forward(self, x):
+    def construct(self, x):
         """
         x:   [B, L, C].
         """
@@ -82,7 +86,15 @@ class SelfAttention(nn.Module):
 
         # compute attention
         p = self.attn_dropout if self.training else 0.0
-        x = flash_attention(q, k, v, dropout_p=p, causal=self.causal, version=2)
+        x = ops.flash_attention_score(
+            query=q,
+            key=k,
+            value=v,
+            head_num=self.num_heads,
+            attn_mask=self.causal,
+            keep_prob=1.0-p,
+            input_layout="BSND",
+        )
         x = x.reshape(b, s, c)
 
         # output
@@ -91,7 +103,7 @@ class SelfAttention(nn.Module):
         return x
 
 
-class SwiGLU(nn.Module):
+class SwiGLU(nn.Cell):
 
     def __init__(self, dim, mid_dim):
         super().__init__()
@@ -99,17 +111,17 @@ class SwiGLU(nn.Module):
         self.mid_dim = mid_dim
 
         # layers
-        self.fc1 = nn.Linear(dim, mid_dim)
-        self.fc2 = nn.Linear(dim, mid_dim)
-        self.fc3 = nn.Linear(mid_dim, dim)
+        self.fc1 = mint.nn.Linear(dim, mid_dim)
+        self.fc2 = mint.nn.Linear(dim, mid_dim)
+        self.fc3 = mint.nn.Linear(mid_dim, dim)
 
-    def forward(self, x):
+    def construct(self, x):
         x = F.silu(self.fc1(x)) * self.fc2(x)
         x = self.fc3(x)
         return x
 
 
-class AttentionBlock(nn.Module):
+class AttentionBlock(nn.Cell):
 
     def __init__(self,
                  dim,
@@ -138,12 +150,12 @@ class AttentionBlock(nn.Module):
         if activation == 'swi_glu':
             self.mlp = SwiGLU(dim, int(dim * mlp_ratio))
         else:
-            self.mlp = nn.Sequential(
-                nn.Linear(dim, int(dim * mlp_ratio)),
-                QuickGELU() if activation == 'quick_gelu' else nn.GELU(),
-                nn.Linear(int(dim * mlp_ratio), dim), nn.Dropout(proj_dropout))
+            self.mlp = nn.SequentialCell(
+                mint.nn.Linear(dim, int(dim * mlp_ratio)),
+                QuickGELU() if activation == 'quick_gelu' else mint.nn.GELU(),
+                mint.nn.Linear(int(dim * mlp_ratio), dim), mint.nn.Dropout(proj_dropout))
 
-    def forward(self, x):
+    def construct(self, x):
         if self.post_norm:
             x = x + self.norm1(self.attn(x))
             x = x + self.norm2(self.mlp(x))
@@ -153,7 +165,7 @@ class AttentionBlock(nn.Module):
         return x
 
 
-class AttentionPool(nn.Module):
+class AttentionPool(nn.Cell):
 
     def __init__(self,
                  dim,
@@ -173,17 +185,17 @@ class AttentionPool(nn.Module):
 
         # layers
         gain = 1.0 / math.sqrt(dim)
-        self.cls_embedding = nn.Parameter(gain * torch.randn(1, 1, dim))
-        self.to_q = nn.Linear(dim, dim)
-        self.to_kv = nn.Linear(dim, dim * 2)
-        self.proj = nn.Linear(dim, dim)
+        self.cls_embedding = Parameter(gain * mint.randn(1, 1, dim))
+        self.to_q = mint.nn.Linear(dim, dim)
+        self.to_kv = mint.nn.Linear(dim, dim * 2)
+        self.proj = mint.nn.Linear(dim, dim)
         self.norm = LayerNorm(dim, eps=norm_eps)
         self.mlp = nn.Sequential(
-            nn.Linear(dim, int(dim * mlp_ratio)),
+            mint.nn.Linear(dim, int(dim * mlp_ratio)),
             QuickGELU() if activation == 'quick_gelu' else nn.GELU(),
-            nn.Linear(int(dim * mlp_ratio), dim), nn.Dropout(proj_dropout))
+            mint.nn.Linear(int(dim * mlp_ratio), dim), mint.nn.Dropout(proj_dropout))
 
-    def forward(self, x):
+    def construct(self, x):
         """
         x:  [B, L, C].
         """
@@ -194,7 +206,13 @@ class AttentionPool(nn.Module):
         k, v = self.to_kv(x).view(b, s, 2, n, d).unbind(2)
 
         # compute attention
-        x = flash_attention(q, k, v, version=2)
+        x = ops.flash_attention_score(
+            query=q, 
+            key=k,
+            value=v,
+            head_num=self.num_heads,
+            input_layout="BSND",
+        )
         x = x.reshape(b, 1, c)
 
         # output
@@ -206,7 +224,7 @@ class AttentionPool(nn.Module):
         return x[:, 0]
 
 
-class VisionTransformer(nn.Module):
+class VisionTransformer(nn.Cell):
 
     def __init__(self,
                  image_size=224,
@@ -252,11 +270,11 @@ class VisionTransformer(nn.Module):
             stride=patch_size,
             bias=not pre_norm)
         if pool_type in ('token', 'token_fc'):
-            self.cls_embedding = nn.Parameter(gain * torch.randn(1, 1, dim))
-        self.pos_embedding = nn.Parameter(gain * torch.randn(
+            self.cls_embedding = nn.Parameter(gain * mint.randn(1, 1, dim))
+        self.pos_embedding = nn.Parameter(gain * mint.randn(
             1, self.num_patches +
             (1 if pool_type in ('token', 'token_fc') else 0), dim))
-        self.dropout = nn.Dropout(embedding_dropout)
+        self.dropout = mint.nn.Dropout(embedding_dropout)
 
         # transformer
         self.pre_norm = LayerNorm(dim, eps=norm_eps) if pre_norm else None
@@ -269,20 +287,20 @@ class VisionTransformer(nn.Module):
 
         # head
         if pool_type == 'token':
-            self.head = nn.Parameter(gain * torch.randn(dim, out_dim))
+            self.head = nn.Parameter(gain * mint.randn(dim, out_dim))
         elif pool_type == 'token_fc':
-            self.head = nn.Linear(dim, out_dim)
+            self.head = mint.nn.Linear(dim, out_dim)
         elif pool_type == 'attn_pool':
             self.head = AttentionPool(dim, mlp_ratio, num_heads, activation,
                                       proj_dropout, norm_eps)
 
-    def forward(self, x, interpolation=False, use_31_block=False):
+    def construct(self, x, interpolation=False, use_31_block=False):
         b = x.size(0)
 
         # embeddings
         x = self.patch_embedding(x).flatten(2).permute(0, 2, 1)
         if self.pool_type in ('token', 'token_fc'):
-            x = torch.cat([self.cls_embedding.expand(b, -1, -1), x], dim=1)
+            x = mint.cat([self.cls_embedding.expand(b, -1, -1), x], dim=1)
         if interpolation:
             e = pos_interpolate(self.pos_embedding, x.size(1))
         else:
@@ -309,12 +327,12 @@ class XLMRobertaWithHead(XLMRoberta):
         # head
         mid_dim = (self.dim + self.out_dim) // 2
         self.head = nn.Sequential(
-            nn.Linear(self.dim, mid_dim, bias=False), nn.GELU(),
-            nn.Linear(mid_dim, self.out_dim, bias=False))
+            mint.nn.Linear(self.dim, mid_dim, bias=False), nn.GELU(),
+            mint.nn.Linear(mid_dim, self.out_dim, bias=False))
 
-    def forward(self, ids):
+    def construct(self, ids):
         # xlm-roberta
-        x = super().forward(ids)
+        x = super().construct(ids)
 
         # average pooling
         mask = ids.ne(self.pad_id).unsqueeze(-1).to(x)
@@ -325,7 +343,7 @@ class XLMRobertaWithHead(XLMRoberta):
         return x
 
 
-class XLMRobertaCLIP(nn.Module):
+class XLMRobertaCLIP(nn.Cell):
 
     def __init__(self,
                  embed_dim=1024,
@@ -401,14 +419,14 @@ class XLMRobertaCLIP(nn.Module):
             num_layers=text_layers,
             post_norm=text_post_norm,
             dropout=text_dropout)
-        self.log_scale = nn.Parameter(math.log(1 / 0.07) * torch.ones([]))
+        self.log_scale = nn.Parameter(math.log(1 / 0.07) * mint.ones([]))
 
-    def forward(self, imgs, txt_ids):
+    def construct(self, imgs, txt_ids):
         """
-        imgs:       [B, 3, H, W] of torch.float32.
+        imgs:       [B, 3, H, W] of ms.float32.
         - mean:     [0.48145466, 0.4578275, 0.40821073]
         - std:      [0.26862954, 0.26130258, 0.27577711]
-        txt_ids:    [B, L] of torch.long.
+        txt_ids:    [B, L] of ms.int32.
                     Encoded by data.CLIPTokenizer.
         """
         xi = self.visual(imgs)
@@ -437,15 +455,10 @@ def _clip(pretrained=False,
           return_transforms=False,
           return_tokenizer=False,
           tokenizer_padding='eos',
-          dtype=torch.float32,
-          device='cpu',
+          dtype: ms.Type = ms.float32,
           **kwargs):
-    # init a model on device
-    with torch.device(device):
-        model = model_cls(**kwargs)
-
-    # set device
-    model = model.to(dtype=dtype, device=device)
+    # init model
+    model = model_cls(**kwargs)
     output = (model,)
 
     # init transforms
@@ -500,23 +513,33 @@ def clip_xlm_roberta_vit_h_14(
 
 class CLIPModel:
 
-    def __init__(self, dtype, device, checkpoint_path, tokenizer_path):
+    def __init__(self, dtype, checkpoint_path, tokenizer_path):
         self.dtype = dtype
-        self.device = device
         self.checkpoint_path = checkpoint_path
         self.tokenizer_path = tokenizer_path
 
-        # init model
-        self.model, self.transforms = clip_xlm_roberta_vit_h_14(
-            pretrained=False,
-            return_transforms=True,
-            return_tokenizer=False,
-            dtype=dtype,
-            device=device)
-        self.model = self.model.eval().requires_grad_(False)
-        logging.info(f'loading {checkpoint_path}')
-        self.model.load_state_dict(
-            torch.load(checkpoint_path, map_location='cpu'))
+        # init model        
+        with no_init_parameters():
+            model, self.transforms = clip_xlm_roberta_vit_h_14(
+                pretrained=False,
+                return_transforms=True,
+                return_tokenizer=False,
+                dtype=dtype,
+            )
+        model.set_train(False)
+        for param in model.trainable_params():
+            param.requires_grad = False
+
+        if checkpoint_path is not None:
+            logging.info(f"loading {checkpoint_path}")
+            if checkpoint_path.endswith(".pth"):
+                param_dict = load_pth(checkpoint_path, dtype=model.dtype)
+                ms.load_param_into_net(model, param_dict)
+            else:
+                ms.load_checkpoint(checkpoint_path, model)
+        model.init_parameters_data()
+
+        self.model = model
 
         # init tokenizer
         self.tokenizer = HuggingfaceTokenizer(
@@ -527,7 +550,7 @@ class CLIPModel:
     def visual(self, videos):
         # preprocess
         size = (self.model.image_size,) * 2
-        videos = torch.cat([
+        videos = mint.cat([
             F.interpolate(
                 u.transpose(0, 1),
                 size=size,
@@ -536,7 +559,5 @@ class CLIPModel:
         ])
         videos = self.transforms.transforms[-1](videos.mul_(0.5).add_(0.5))
 
-        # forward
-        with torch.cuda.amp.autocast(dtype=self.dtype):
-            out = self.model.visual(videos, use_31_block=True)
-            return out
+        out = self.model.visual(videos, use_31_block=True)
+        return out
