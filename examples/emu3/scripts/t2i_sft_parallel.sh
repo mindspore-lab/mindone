@@ -37,9 +37,9 @@ python emu3/train/train.py \
     --lr_scheduler_type "cosine_with_min_lr" \
     --logging_steps 1 \
     --gradient_checkpointing True \
+    --save_strategy steps \
+    --run_name ${EXP_NAME} \
     # --eval_strategy no \
-    # --save_strategy steps \
-    # --run_name ${EXP_NAME}
     # --report_to wandb tensorboard \
     # --deepspeed scripts/zero3.json \
     # --tf32 True \

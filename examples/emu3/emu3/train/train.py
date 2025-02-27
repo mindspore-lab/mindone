@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
-import os
-import os.path as osp
-import pathlib
+"""
+This script would run OOM.
+"""
 from dataclasses import dataclass, field
 from typing import List, Optional
 
+import numpy as np
 import transformers as tf
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.train.datasets import Emu3FeatureDataset
+from mindone.trainers import get_scheduler
+import mindspore as ms
 
 from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 from mindone.transformers.trainer import Trainer
@@ -17,7 +20,7 @@ from mindone.transformers.training_args import TrainingArguments as tf_TrainingA
 
 @dataclass
 class ModelArguments:
-    model_name_or_path: Optional[str] = field(default="BAAI/Emu3-Stage1") # Emu3-Gen/Chat/Stage1
+    model_name_or_path: Optional[str] = field(default="BAAI/Emu3-Stage1")  # Emu3-Gen/Chat/Stage1
 
 
 @dataclass
@@ -29,7 +32,6 @@ class DataArguments:
     apply_loss_on_only_text: bool = field(default=False)
     ignore_index: int = field(default=-100)
     visual_token_pattern: str = field(default="<|visual token {token_id:0>6d}|>")
-    special_token_ids: list = field(default=[151643,151849,151850,151851,151852,151853,151846,151847]) # Emu3Config
     codebook_size: Optional[int] = field(default=32768)
 
 
@@ -38,12 +40,12 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     report_to: List[str] = field(default_factory=list)
     remove_unused_columns: bool = field(default=False)
     min_learning_rate: Optional[float] = field(default=None)
-    image_area: Optional[int] = field(default=None)         # image max resolution, e.g. 720*720, 512*512
+    image_area: Optional[int] = field(default=None)  # image max resolution, e.g. 720*720, 512*512
     max_position_embeddings: Optional[int] = field(default=None)
-    output_dir: str = field(default="./outputs")            # output directory for checkpoints
-    enable_flash_attention: bool = field(default=True)      # enable flash_attention_2
-    gradient_checkpointing: bool = field(default=True)      # activate gradient checkpointing
-    is_distribute: bool = field(default=False)              # use data parallel
+    output_dir: str = field(default="./outputs")  # output directory for checkpoints
+    enable_flash_attention: bool = field(default=True)  # enable flash_attention_2
+    gradient_checkpointing: bool = field(default=True)  # activate gradient checkpointing
+    is_distribute: bool = field(default=False)  # use data parallel
 
 
 def update_configs(model_config, args, fields):
@@ -74,9 +76,9 @@ def train():
         model_args.model_name_or_path,
         config=model_config,
         attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
-        mindspore_dtype=ms.bfloat16 if args.bf16 else (ms.float16 if args.fp16 else None),
+        mindspore_dtype=ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None),
         use_safetensors=True,
-    )
+    ) # AMP O0
 
     tokenizer = Emu3Tokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -93,16 +95,34 @@ def train():
 
     # training configs
     if training_args.do_eval:
+        import evaluate
+
         metric = evaluate.load("accuracy")
+
         def compute_metrics(eval_pred):
             logits, labels = eval_pred
             predictions = np.argmax(logits, axis=-1)
             return metric.compute(predictions=predictions, references=labels)
+
     else:
         compute_metrics = None
 
+    class TrainNetWithLoss(nn.Cell):
+        def __init__(self, model):
+            super(TrainNetWithLoss, self).__init__(auto_prefix=False)
+            self.network = network
+
+        def construct(self, input_ids, attention_mask, labels):
+            outputs = self.network(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=False)
+            loss = outputs[0]
+            return loss
+
+        def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+            self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
+
+
     trainer = Trainer(
-        model=model,
+        model=TrainNetWithLoss(model),
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
@@ -111,6 +131,7 @@ def train():
     # by default, use AdamW, linear lr scheduler
 
     trainer.train()
+
 
 if __name__ == "__main__":
     train()

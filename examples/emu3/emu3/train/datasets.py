@@ -3,18 +3,15 @@
 import json
 import os.path as osp
 import random
-from typing import List
 
+import numpy as np
 from emu3.mllm import Emu3Tokenizer
-from emu3.train import DataArguments
 
 import mindspore as ms
-from mindspore import ops
 
-from mindone.data import BaseDataset
 
-class Emu3FeatureDataset(BaseDataset):
-    def __init__(self, args: "DataArguments", tokenizer: "Emu3Tokenizer", split: str = "train", task: str ="img_gen"):
+class Emu3FeatureDataset(object):
+    def __init__(self, args, tokenizer: "Emu3Tokenizer", split: str = "train", task: str = "img_gen"):
         super().__init__()
 
         self.args = args
@@ -35,18 +32,28 @@ class Emu3FeatureDataset(BaseDataset):
         self.bov = tokenizer.encode(args.visual_token_pattern.format(token_id=0))[0]
         self.eov = tokenizer.encode(args.visual_token_pattern.format(token_id=args.codebook_size - 1))[0]
 
+        self.task = task  # "img_gen" or "vqa"
+        self.chat_template = "You are a helpful assistant. USER: {image_prompt}{text_prompt}. ASSISTANT:"
+        # self.special_token_ids = [
+        #     151643,  # pad_token_id
+        #     151849,  # bos_token_id
+        #     151850,  # eos_token_id
+        #     151851,  # img_token_id
+        #     151852,  # boi_token_id
+        #     151853,  # eoi_token_id
+        #     151846,  # eol_token_id
+        #     151847,  # eof_token_id
+        # ]  # details in Emu3Config
         # self.output_columns = ["input_ids", "attention_mask", "position_ids", "past_key_values", "inputs_embeds", "labels"]
-        self.task = task # "img_gen" or "vqa"
-        self.chat_template="You are a helpful assistant. USER: {image_prompt}{text_prompt}. ASSISTANT:"
 
     def __len__(self):
         return len(self.filelist)
 
     def __getitem__(self, index: int):
         path = osp.join(self.path_prefix, self.filelist[index])
-        data = ms.load_checkpoint(path) # {"name": name, "images": token_ids, "texts": prompt}
+        data = ms.load_checkpoint(path)  # {"name": name, "images": token_ids, "texts": prompt}
 
-        image_tokens = data["images"]
+        image_tokens = data["images"].asnumpy()
         image_prompt = self.format_image_prompt(image_tokens)
 
         # structure:
@@ -60,25 +67,29 @@ class Emu3FeatureDataset(BaseDataset):
 
             # image generation template
             input = self.tokenizer.bos_token + prompt + image_prompt
-        else: # vqa
+        else:  # vqa
             response = data["response"]
-            input = self.tokenizer.bos_token + self.chat_template.format(image_prompt, prompt) + response
+            vt_prompts = self.chat_template.format(image_prompt, prompt) # instruction + input vision & text prompts
+            input = vt_prompts + response # instruction + input vision & text prompts + response
 
         sample = self.tokenizer(
             input,
             padding="max_length",
             return_token_type_ids=False,
             return_tensors="np",
-        ) # keys: "input_ids", "attention_mask"
+        )  # keys: "input_ids", "attention_mask"
         # print(sample)
 
-        labels = (ms.Tensor(sample["input_ids"], dtype=ms.int32), )
-        if self.args.apply_loss_on_only_vision: # image generation
-            labels = ops.where(ops.logical_and(labels >= self.bov, labels <= self.eov), labels, self.args.ignore_index)
-        elif self.args.apply_loss_on_only_text: # vqa, simply ignore visual ids, ignore special ids
-            visual_mask = ops.logical_and(labels >= self.bov, labels <= self.eov)
-            special_mask = ms.Tensor([label in self.args.special_token_ids for label in labels], dtype=ms.bool_)
-            labels = ops.where((visual_mask or special_mask), self.args.ignore_index, labels)
+        labels = sample["input_ids"]
+        if self.args.apply_loss_on_only_vision:  # image generation
+            labels = np.where(np.logical_and(labels >= self.bov, labels <= self.eov), labels, self.args.ignore_index)
+        elif self.args.apply_loss_on_only_text:  # vqa
+            # simply ignore visual ids, ignore special ids
+            # visual_mask = np.logical_and(labels >= self.bov, labels <= self.eov)
+            # special_mask = np.array([label in self.special_token_ids for label in labels], dtype=np.bool_)
+            # labels = np.where((visual_mask or special_mask), self.args.ignore_index, labels)
+            prompt_ids = self.tokenizer.decode(vt_prompts)
+            labels[: len(prompt_ids)] = self.args.ignore_index
 
         sample["labels"] = labels
         for k, v in sample.items():
@@ -86,15 +97,15 @@ class Emu3FeatureDataset(BaseDataset):
                 sample[k] = ms.Tensor(sample[k], dtype=ms.int32)
             sample[k] = v.squeeze(0)
 
-        # return (
-        #     sample["input_ids"],
-        #     sample["attention_mask"],
-        #     None,
-        #     None,
-        #     None,
-        #     sample["labels"]
-        # )
-        return sample
+        return (
+            sample["input_ids"],
+            sample["attention_mask"],
+            None,
+            None,
+            None,
+            sample["labels"]
+        )
+        # return sample
 
     def format_image_prompt(self, image_tokens):
         h, w = image_tokens.shape

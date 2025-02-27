@@ -9,14 +9,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, ".")))
 
 import time
 
-# TODO: from mindone.transformers import Emu3ForCausalLM
 from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
-from mindspore import Tensor, nn
+from mindspore import Tensor, nn, ops
 
 from mindone.transformers.generation.logits_process import (
     LogitsProcessorList,

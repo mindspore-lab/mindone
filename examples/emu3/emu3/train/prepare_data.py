@@ -1,4 +1,4 @@
-'''
+"""
 This script is to prepare image generation dataset.
 
 Input example data json format:
@@ -28,7 +28,10 @@ Output dataset
     {"name": name, "images": token_ids, "texts": prompt}
 ...
 
-'''
+Usage:
+cd examples/emu3
+python emu3/train/prepare_data.py --model-path DIR-TO-Emu3-VisionTokenizer --data-path DIR-TO-DATA.json --output-path DATA-DIR
+"""
 
 import argparse
 import json
@@ -36,6 +39,7 @@ import os
 
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
+from tqdm import tqdm
 
 import mindspore as ms
 from mindspore import _no_grad, jit_class
@@ -94,17 +98,17 @@ def main():
     os.makedirs(f"{args.output_path}/feature", exist_ok=True)
     os.makedirs(f"{args.output_path}/list", exist_ok=True)
 
-    datalist = {"prefix": f"{args.output_path}/feature", "path_list": []}
+    datalist = {"prefix": os.path.join(args.output_path, "feature"), "path_list": []}
 
     with open(args.data_path) as f:
         input_data = json.load(f)
-
+    base_dir = os.path.dirname(args.data_path)
     cnt = 0
-    for inp in input_data:
+    for inp in tqdm(input_data):
         name = inp["name"]
         prompt = inp["text"]
-
-        image = Image.open(inp["image"]).convert("RGB")
+        img_dir = os.path.join(base_dir, inp["image"])
+        image = Image.open(img_dir).convert("RGB")
         image = smart_resize(image, args.image_area)
 
         image = image_processor(image, return_tensors="np")["pixel_values"]
@@ -115,7 +119,7 @@ def main():
         token_ids = token_ids.squeeze(0).asnumpy()
         data = {"name": name, "images": token_ids, "texts": prompt}
 
-        ms.save_checkpoint(data, f"{args.output_path}/feature/{name}.ckpt")
+        ms.save_checkpoint([], f"{args.output_path}/feature/{name}.ckpt", append_dict=data)
         datalist["path_list"].append(f"{name}.ckpt")
         cnt += 1
 
