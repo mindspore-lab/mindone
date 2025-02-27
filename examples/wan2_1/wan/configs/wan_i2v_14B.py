@@ -1,5 +1,5 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
-import torch
+import mindspore as ms
 from easydict import EasyDict
 
 from .shared_config import wan_shared_cfg
@@ -14,7 +14,7 @@ i2v_14B.t5_tokenizer = 'google/umt5-xxl'
 
 # clip
 i2v_14B.clip_model = 'clip_xlm_roberta_vit_h_14'
-i2v_14B.clip_dtype = torch.float16
+i2v_14B.clip_dtype = ms.float16
 i2v_14B.clip_checkpoint = 'models_clip_open-clip-xlm-roberta-large-vit-huge-14.pth'
 i2v_14B.clip_tokenizer = 'xlm-roberta-large'
 

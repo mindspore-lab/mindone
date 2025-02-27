@@ -197,8 +197,8 @@ class WanI2V:
             [
                 mint.concat(
                     [
-                        functional.interpolate(img[None].cpu(), size=(h, w), mode="bicubic").transpose(0, 1),
-                        mint.zeros(3, 80, h, w),
+                        functional.interpolate(img[None], size=(h, w), mode="bicubic").transpose(0, 1),
+                        mint.zeros((3, 80, h, w)),
                     ],
                     dim=1,
                 )
