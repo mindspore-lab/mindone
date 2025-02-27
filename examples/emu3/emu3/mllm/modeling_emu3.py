@@ -25,6 +25,12 @@ import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
+from mindspore.communication import get_group_size
+from emu3.acceleration import (
+    get_sequence_parallel_group,
+    SplitFowardGatherBackward,
+    GatherFowardSplitBackward
+)
 from emu3.mllm.configuration_emu3 import Emu3Config
 from transformers.utils import (
     add_start_docstrings,
@@ -39,7 +45,8 @@ from mindspore.common.initializer import Normal, initializer
 from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache, DynamicCache
+from mindone.transformers.cache_utils import Cache  # , get_max_length, get_seq_length, update
+from mindone.transformers.mindspore_adapter import recompute_except_output
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import (
     _MIN_FP16,
@@ -57,7 +64,6 @@ logger = logging.get_logger(__name__)
 
 from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
 from mindone.utils.version_control import check_valid_flash_attention
-
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 FA_MS23_UPDATE = False
 if FLASH_IS_AVAILABLE:
@@ -312,6 +318,14 @@ class Emu3Attention(nn.Cell):
         self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=False)
         self._init_rope()
 
+        # Initialize sequence parallel operator
+        if (sp_group := get_sequence_parallel_group()) is not None:
+            self.sp_group_size = get_group_size(sp_group)
+            self.alltoall = ops.AlltoAll(self.sp_group_size, 1, 2, group=sp_group)
+        else:
+            self.sp_group_size = None
+            self.alltoall = nn.Identity()
+
     def _init_rope(self):
         if self.config.rope_scaling is None:
             self.rotary_emb = Emu3RotaryEmbedding(
@@ -359,7 +373,7 @@ class Emu3Attention(nn.Cell):
 
         bsz, q_len, _ = hidden_states.shape
 
-        if self.config.pretraining_tp > 1:
+        if self.config.pretraining_tp > 1: # never run
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
             query_slices = self.q_proj.weight.split(
                 (self.num_heads * self.head_dim) // self.config.pretraining_tp, axis=0
@@ -384,6 +398,12 @@ class Emu3Attention(nn.Cell):
         query_states = query_states.view((bsz, q_len, self.num_heads, self.head_dim)).swapaxes(1, 2)
         key_states = key_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
         value_states = value_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
+
+        # sequence parallel: scatter BNS'D => BN'SD
+        query_states = self.alltoall(query_states)
+        key_states = self.alltoall(key_states)
+        value_states = self.alltoall(value_states)
+        # print(f"query_states {query_states.shape}, key_states {key_states.shape}, value_states {value_states.shape}")
 
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
@@ -430,7 +450,10 @@ class Emu3Attention(nn.Cell):
                 f" {attn_output.shape}"
             )
 
-        attn_output = attn_output.swapaxes(1, 2).contiguous()
+        attn_output = attn_output.swapaxes(1, 2).contiguous() # BN'SD => BSN'D
+
+        # sequence parallel: gather BSN'D => BS'ND
+        attn_output = self.alltoall(attn_output)
 
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
 
@@ -459,6 +482,9 @@ class Emu3FlashAttention2(Emu3Attention):
 
         self.enable_flash_attention = FLASH_IS_AVAILABLE
         dropout_rate = self.attention_dropout if self.training else 0.0
+
+        # sequence parallel
+        num_heads = self.num_heads // self.sp_group_size if self.sp_group_size is not None else self.num_heads
 
         if self.enable_flash_attention:
             # Q: (b s n d) -> (b n s d)  #  b - batch_size, s - seq_len, n - num_head, d - head dim
@@ -498,6 +524,12 @@ class Emu3FlashAttention2(Emu3Attention):
         key_states = key_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
 
+        # sequence parallel: scatter BNS'D => BN'SD
+        query_states = self.alltoall(query_states)
+        key_states = self.alltoall(key_states)
+        value_states = self.alltoall(value_states)
+        # print(f"query_states {query_states.shape}, key_states {key_states.shape}, value_states {value_states.shape}")
+
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
             kv_seq_len += past_key_value.get_usable_length(kv_seq_len, self.layer_idx)
@@ -514,6 +546,10 @@ class Emu3FlashAttention2(Emu3Attention):
         attn_output = self.flash_attention(query_states, key_states, value_states, mask=attention_mask)
 
         attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)
+
+        # sequence parallel: gather BSN'D => BS'ND
+        attn_output = self.alltoall(attn_output)
+
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
@@ -769,7 +805,16 @@ class Emu3Model(Emu3PreTrainedModel):
         self._use_sdpa = config._attn_implementation == "sdpa"
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
         self.norm = Emu3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        # self.gradient_checkpointing = False
+        self.gradient_checkpointing = False
+
+        # Initialize sequence parallel
+        if (sp_group := get_sequence_parallel_group()) is not None:
+            _logger.info(f"Initialize Emu3 model with sequence parallel group `{sp_group}`.")
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
+        else:
+            self.split_forward_gather_backward = nn.Identity()
+            self.gather_forward_split_backward = nn.Identity()
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -781,20 +826,17 @@ class Emu3Model(Emu3PreTrainedModel):
         self.embed_tokens = value
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        self.gradient_checkpointing = True
         if gradient_checkpointing_kwargs is None:
             # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
             gradient_checkpointing_kwargs = {}
 
         # llama layers
         for decoder_layer in self.layers:
-            assert isinstance(decoder_layer, LlamaDecoderLayer)
+            assert isinstance(decoder_layer, Emu3DecoderLayer)
             for name, cell in decoder_layer.name_cells().items():
-                if "output_identity" in name:
-                    assert isinstance(cell, nn.Identity)
-                    pass
-                else:
-                    # cell._recompute()
-                    recompute_except_output(cell, **gradient_checkpointing_kwargs)
+                # cell._recompute()
+                recompute_except_output(cell, **gradient_checkpointing_kwargs)
         recompute_except_output(self.embed_tokens, **gradient_checkpointing_kwargs)
         recompute_except_output(self.norm, **gradient_checkpointing_kwargs)
 
@@ -831,21 +873,29 @@ class Emu3Model(Emu3PreTrainedModel):
         else:
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
-        # if self.gradient_checkpointing and self.training:
-        #     if use_cache:
-        #         logger.warning_once(
-        #             "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
-        #         )
-        #         use_cache = False
+        if self.gradient_checkpointing and self.training:
+            if use_cache:
+                logger.warning_once(
+                    "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
+                )
+                use_cache = False
 
         past_key_values_length = 0
-        use_legacy_cache = False
+        # use_legacy_cache = False
         if use_cache:
-            use_legacy_cache = not isinstance(past_key_values, Cache) and self._supports_cache_class
-            if use_legacy_cache:
-                past_key_values = DynamicCache.from_legacy_cache(past_key_values)
-            past_key_values_length = past_key_values.get_usable_length(seq_length) if isinstance(past_key_values, Cache) else get_max_length(past_key_values)
-
+            # use_legacy_cache = isinstance(past_key_values, tuple) and self._supports_cache_class
+            # if use_legacy_cache:
+            #     past_key_values = DynamicCache.from_legacy_cache(past_key_values)
+            if isinstance(past_key_values, Cache):
+                past_key_values_length = past_key_values.get_usable_length(seq_length)
+            else:  # tuple static cache
+                pass
+                # max_length = get_max_length(past_key_values)
+                # previous_seq_length = get_seq_length(past_key_values)
+                # if max_length is not None and previous_seq_length + seq_length > max_length:
+                #     past_key_values_length = max_length - seq_length
+                # else:
+                #     past_key_values_length = previous_seq_length
         if position_ids is None:
             position_ids = ops.arange(past_key_values_length, seq_length + past_key_values_length, dtype=ms.int32)
             position_ids = position_ids.unsqueeze(0)
@@ -853,11 +903,20 @@ class Emu3Model(Emu3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
+        # sequence parallel start: BxSxD => BxS'xD (S'=S/M)
+        print(f"inputs_embeds {inputs_embeds.shape}, position_ids {position_ids.shape} attention_mask {attention_mask}")
+        inputs_embeds = self.split_forward_gather_backward(inputs_embeds)   # BSD => BS'D
+        position_ids = self.split_forward_gather_backward(position_ids)     # BS => BS'
+        attention_mask = self.split_forward_gather_backward(attention_mask) # BS => BS'
+        print(f"inputs_embeds {inputs_embeds.shape}, position_ids {position_ids.shape} attention_mask {attention_mask}")
+
         if self._use_flash_attention_2:
             # 4d mask is passed through the layers
             attention_mask = _prepare_4d_causal_attention_mask(
                 attention_mask, (batch_size, seq_length), inputs_embeds.to(ms.float16), past_key_values_length
             )  # inverted 4D mask (0 retain, -inf discard)
+            # use cache: shape = [B, 1, q_seq, kv_seq=q_seq+past_kv_seq]
+            # no cache:  shape = [B, 1, q_seq, q_seq]
         else:  # eager
             # 4d mask is passed through the layers
             attention_mask = _prepare_4d_causal_attention_mask(
@@ -893,6 +952,9 @@ class Emu3Model(Emu3PreTrainedModel):
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
 
+        # sequence parallel end
+        hidden_states = self.gather_forward_split_backward(hidden_states)
+
         hidden_states = self.norm(hidden_states)
 
         # add hidden states from the last decoder layer
@@ -901,8 +963,9 @@ class Emu3Model(Emu3PreTrainedModel):
 
         next_cache = None
         if use_cache:
-            next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
+            # next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
             next_cache = next_decoder_cache
+
         if not return_dict:
             return tuple(v for v in [hidden_states, next_cache, all_hidden_states, all_self_attns] if v is not None)
         return BaseModelOutputWithPast(
@@ -1153,149 +1216,3 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
 
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
         self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
-
-
-if __name__ == "__main__":
-    # Debug and testing use only
-
-    import time
-
-    from PIL import Image
-
-    ms.set_context(mode=ms.PYNATIVE_MODE, pynative_synchronize=True)
-    # ms.set_context(mode = ms.GRAPH_MODE) # NOT SUPPORTED YET
-
-    # config.json
-    config_json = {
-        "architectures": ["Emu3ForCausalLM"],
-        "attention_dropout": 0.1,
-        "auto_map": {
-            "AutoConfig": "configuration_emu3.Emu3Config",
-            "AutoModelForCausalLM": "modeling_emu3.Emu3ForCausalLM",
-        },
-        "boi_token_id": 151852,
-        "bos_token_id": 151849,
-        "eof_token_id": 151847,
-        "eoi_token_id": 151853,
-        "eol_token_id": 151846,
-        "eos_token_id": 151850,
-        "hidden_act": "silu",
-        "hidden_size": 4096,
-        "image_area": 262144,
-        "img_token_id": 151851,
-        "initializer_range": 0.02,
-        "intermediate_size": 14336,
-        "max_position_embeddings": 5120,
-        "model_type": "Emu3",
-        "num_attention_heads": 32,
-        "num_hidden_layers": 32,
-        "num_key_value_heads": 8,
-        "pad_token_id": 151643,
-        "pretraining_tp": 1,
-        "rms_norm_eps": 1e-05,
-        "rope_scaling": None,
-        "rope_theta": 1000000.0,
-        "tie_word_embeddings": False,
-        "torch_dtype": "float32",
-        "transformers_version": "4.44.0",
-        "use_cache": True,
-        "vocab_size": 184622,
-        "attn_implementation": "flash_attention_2",
-    }
-
-    # TEST: loading model
-    start_time = time.time()
-    config = Emu3Config(**config_json)
-    try:
-        model = Emu3ForCausalLM(config).set_train(False)
-        print("*" * 100)
-        print("Test passed: Sucessfully loaded Emu3ForCausalLM")
-        print("Time elapsed: %.4fs" % (time.time() - start_time))
-        print("*" * 100)
-    except RuntimeError:
-        raise RuntimeError("Load Emu3ForCausalLM Error.")
-
-    # TEST: load processor
-    start_time = time.time()
-    from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer
-    from emu3.mllm.processing_emu3 import Emu3Processor
-    from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
-
-    from mindone.utils.amp import auto_mixed_precision
-
-    EMU_HUB = "BAAI/Emu3-Gen"
-    VQ_HUB = "BAAI/Emu3-VisionTokenizer"
-    VQ_DTYPE = ms.bfloat16
-    try:
-        tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
-        image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
-        image_tokenizer = Emu3VisionVQModel.from_pretrained(
-            VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE
-        ).set_train(False)
-        image_tokenizer = auto_mixed_precision(
-            image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
-        )
-        processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
-        print("*" * 100)
-        print("Test passed: Sucessfully loaded Emu3Processor")
-        print("Time elapsed: %.4fs" % (time.time() - start_time))
-        print("*" * 100)
-    except RuntimeError:
-        raise RuntimeError("Load Emu3Processor Error.")
-
-    # TEST: process input
-    start_time = time.time()
-    text = ["Describe this image."]
-    w, h = 1024, 512
-    image_path = "demo.jpeg"  # REPLACE with your image
-    image_inputs = [Image.open(image_path).convert("RGB").resize((w, h))]
-    # image = np.uint8(np.random.rand(h, w, 3) * 255)
-    # image_inputs = [Image.fromarray(image).convert("RGB")]
-    inputs = processor(
-        text=text,
-        image=image_inputs,
-        mode="U",
-        padding_image=True,
-        padding="longest",
-        return_tensors="np",
-    )
-    print("*" * 100)
-    print("Test passed: Sucessfully processed input data using Emu3Processor")
-    print("Time elapsed: %.4fs" % (time.time() - start_time))
-    print("*" * 100)
-
-    # TEST: dummy inference
-    from transformers.generation.configuration_utils import GenerationConfig
-
-    GENERATION_CONFIG = GenerationConfig(
-        pad_token_id=tokenizer.pad_token_id, bos_token_id=tokenizer.bos_token_id, eos_token_id=tokenizer.eos_token_id
-    )
-    start_time = time.time()
-    try:
-        generated_ids = model.generate(
-            ms.Tensor(inputs.input_ids, dtype=ms.int32),
-            GENERATION_CONFIG,
-            max_new_tokens=128,
-            attention_mask=ms.Tensor(inputs.attention_mask),
-        )
-        print("*" * 100)
-        print("Test passed: Sucessfully generated tokens using Emu3ForCausalLM")
-        print(f"generated_ids length / #steps: {len(generated_ids[0])}")
-        elapsed = time.time() - start_time
-        print("Time elapsed: %.4fs" % (elapsed))
-        print("Average speed %.4fs/step" % (elapsed / len(generated_ids[0])))
-        print("*" * 100)
-    except RuntimeError:
-        raise RuntimeError("Run generate() Error.")
-
-    start_time = time.time()
-    try:
-        answers = processor.batch_decode(generated_ids, skip_special_tokens=True)
-        for ans in answers:
-            print(ans)
-        print("*" * 100)
-        print("Test passed: Sucessfully detokenize generated tokens")
-        print("Time elapsed: %.4fs" % (time.time() - start_time))
-        print("*" * 100)
-    except RuntimeError:
-        raise RuntimeError("Run Qwen2VLProcessor.decode() Error.")
