@@ -24,7 +24,7 @@ def sinusoidal_embedding_1d(dim: int, position: Tensor) -> Tensor:
     position = position.type(ms.float32)
 
     # calculation
-    sinusoid = mint.outer(position, mint.pow(10000, -mint.arange(half).to(position).div(half)))
+    sinusoid = mint.outer(position, mint.pow(10000, -mint.arange(half).to(position.dtype).div(half)))
     x = mint.cat([mint.cos(sinusoid), mint.sin(sinusoid)], dim=1)
     return x
 
@@ -529,17 +529,19 @@ class WanModel(ModelMixin, ConfigMixin):
         x = [u.flatten(2).transpose(1, 2) for u in x]
         seq_lens = Tensor([u.shape[1] for u in x], dtype=ms.int32)
         assert seq_lens.max() <= seq_len
-        x = mint.cat([mint.cat([u, u.new_zeros(1, seq_len - u.shape[1], u.shape[2])], dim=1) for u in x])
+        x = mint.cat([mint.cat([u, u.new_zeros((1, seq_len - u.shape[1], u.shape[2]))], dim=1) for u in x])
 
         # time embeddings
         e = self.time_embedding(sinusoidal_embedding_1d(self.freq_dim, t).float())
-        e0 = self.time_projection(e).unflatten(1, (6, self.dim))
+        e0 = self.time_projection(e)
+        # TODO: reshape -> unflatten
+        e0 = e0.reshape(e0.shape[0], (6, self.dim), *e.shape[2:])
         assert e.dtype == ms.float32 and e0.dtype == ms.float32
 
         # context
         context_lens = None
         context = self.text_embedding(
-            mint.stack([mint.cat([u, u.new_zeros(self.text_len - u.shape[0], u.shape[1])]) for u in context])
+            mint.stack([mint.cat([u, u.new_zeros((self.text_len - u.shape[0], u.shape[1]))]) for u in context])
         )
 
         if clip_fea is not None:

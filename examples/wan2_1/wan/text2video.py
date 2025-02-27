@@ -70,10 +70,10 @@ class WanT2V:
 
         self.vae_stride = config.vae_stride
         self.patch_size = config.patch_size
-        self.vae = WanVAE(vae_pth=os.path.join(checkpoint_dir, config.vae_checkpoint))
+        self.vae = WanVAE(vae_pth=os.path.join(checkpoint_dir, config.vae_checkpoint), dtype=self.param_dtype)
 
         logging.info(f"Creating WanModel from {checkpoint_dir}")
-        self.model = WanModel.from_pretrained(checkpoint_dir)
+        self.model = WanModel.from_pretrained(checkpoint_dir, mindspore_dtype=self.param_dtype)
         self.model.set_train(False)
         for param in self.model.trainable_params():
             param.requires_grad = False
@@ -102,7 +102,7 @@ class WanT2V:
         guide_scale=5.0,
         n_prompt="",
         seed=-1,
-        offload_model=True,
+        offload_model=False,
     ):
         r"""
         Generates video frames from text prompt using diffusion process.
@@ -126,7 +126,7 @@ class WanT2V:
                 Negative prompt for content exclusion. If not given, use `config.sample_neg_prompt`
             seed (`int`, *optional*, defaults to -1):
                 Random seed for noise generation. If -1, use random seed.
-            offload_model (`bool`, *optional*, defaults to True):
+            offload_model (`bool`, *optional*, defaults to False):
                 If True, offloads models to CPU during generation to save VRAM
 
         Returns:
@@ -172,7 +172,12 @@ class WanT2V:
 
         noise = [
             mint.randn(
-                target_shape[0], target_shape[1], target_shape[2], target_shape[3], dtype=ms.float32, generator=seed_g
+                target_shape[0],
+                target_shape[1],
+                target_shape[2],
+                target_shape[3],
+                dtype=self.param_dtype,
+                generator=seed_g,
             )
         ]
 

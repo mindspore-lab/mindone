@@ -16,6 +16,7 @@ from mindspore.nn.utils import no_init_parameters
 from mindone.models.utils import normal_, ones_
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 
+from ..utils.utils import load_pth
 from .tokenizers import HuggingfaceTokenizer
 
 __all__ = ["T5Model", "T5Encoder", "T5Decoder", "T5EncoderModel"]
@@ -105,7 +106,7 @@ class T5Attention(nn.Cell):
         v = self.v(context).view(b, -1, n, c)
 
         # attention bias
-        attn_bias = x.new_zeros(b, n, q.shape[1], k.shape[1])
+        attn_bias = x.new_zeros((b, n, q.shape[1], k.shape[1]))
         if pos_bias is not None:
             attn_bias += pos_bias
         if mask is not None:
@@ -290,6 +291,7 @@ class T5Encoder(nn.Cell):
         self.num_layers = num_layers
         self.num_buckets = num_buckets
         self.shared_pos = shared_pos
+        self.dtype = dtype
 
         # layers
         self.token_embedding = (
@@ -343,6 +345,7 @@ class T5Decoder(nn.Cell):
         self.num_layers = num_layers
         self.num_buckets = num_buckets
         self.shared_pos = shared_pos
+        self.dtype = dtype
 
         # layers
         self.token_embedding = (
@@ -413,6 +416,7 @@ class T5Model(nn.Cell):
         self.encoder_layers = encoder_layers
         self.decoder_layers = decoder_layers
         self.num_buckets = num_buckets
+        self.dtype = dtype
 
         # layers
         self.token_embedding = mint.nn.Embedding(vocab_size, dim, dtype=dtype)
@@ -526,12 +530,16 @@ class T5EncoderModel:
         with no_init_parameters():
             model = umt5_xxl(encoder_only=True, return_tokenizer=False, dtype=dtype)
         model.set_train(False)
-        for param in self.model.trainable_params():
+        for param in model.trainable_params():
             param.requires_grad = False
 
         if checkpoint_path is not None:
             logging.info(f"loading {checkpoint_path}")
-            ms.load_checkpoint(checkpoint_path, model)
+            if checkpoint_path.endswith(".pth"):
+                param_dict = load_pth(checkpoint_path, dtype=model.dtype)
+                ms.load_param_into_net(model, param_dict)
+            else:
+                ms.load_checkpoint(checkpoint_path, model)
         model.init_parameters_data()
 
         self.model = model
@@ -542,7 +550,8 @@ class T5EncoderModel:
         self.tokenizer = HuggingfaceTokenizer(name=tokenizer_path, seq_len=text_len, clean="whitespace")
 
     def __call__(self, texts):
-        ids, mask = self.tokenizer(texts, return_mask=True, add_special_tokens=True)
+        ids, mask = self.tokenizer(texts, return_mask=True, add_special_tokens=True, return_tensors="np")
+        ids, mask = Tensor(ids), Tensor(mask)
         seq_lens = mask.gt(0).sum(dim=1).to(ms.int32)
         context = self.model(ids, mask)
         return [u[:v] for u, v in zip(context, seq_lens)]

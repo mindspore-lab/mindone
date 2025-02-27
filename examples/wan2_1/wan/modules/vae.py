@@ -15,6 +15,8 @@ from mindspore.nn.utils import no_init_parameters
 
 from mindone.models.utils import zeros_
 
+from ..utils.utils import load_pth
+
 __all__ = ["WanVAE"]
 
 CACHE_T = 2
@@ -445,6 +447,7 @@ class WanVAE_(nn.Cell):
         self.attn_scales = attn_scales
         self.temperal_downsample = temperal_downsample
         self.temperal_upsample = temperal_downsample[::-1]
+        self.dtype = dtype
 
         # modules
         self.encoder = Encoder3d(
@@ -551,7 +554,11 @@ def _video_vae(pretrained_path: Optional[str] = None, z_dim: Optional[int] = Non
     # load checkpoint
     if pretrained_path is not None:
         logging.info(f"loading {pretrained_path}")
-        ms.load_checkpoint(pretrained_path, model)
+        if pretrained_path.endswith(".pth"):
+            param_dict = load_pth(pretrained_path, dtype=model.dtype)
+            ms.load_param_into_net(model, param_dict)
+        else:
+            ms.load_checkpoint(pretrained_path, model)
     model.init_parameters_data()
     return model
 
@@ -601,7 +608,7 @@ class WanVAE:
         self.scale = [self.mean, 1.0 / self.std]
 
         # init model
-        self.model = _video_vae(pretrained_path=vae_pth, z_dim=z_dim)
+        self.model = _video_vae(pretrained_path=vae_pth, z_dim=z_dim, dtype=dtype)
         self.model.set_train(False)
         for param in self.model.trainable_params():
             param.requires_grad = False
