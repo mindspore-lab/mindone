@@ -8,7 +8,7 @@ from hyvideo.utils.helpers import set_model_param_dtype
 from jsonargparse.typing import Path_fr
 
 import mindspore as ms
-from mindspore import _no_grad, amp, jit_class, nn
+from mindspore import amp, nn
 from mindspore.communication.management import GlobalComm
 
 from mindone.trainers.train_step import TrainOneStepWrapper
@@ -16,7 +16,7 @@ from mindone.trainers.zero import prepare_network
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.params import load_param_into_net_with_filter
 
-__all__ = ["MODEL_DTYPE", "no_grad", "init_model", "resume_train_net"]
+__all__ = ["MODEL_DTYPE", "init_model", "resume_train_net"]
 
 logger = logging.getLogger(__name__)
 
@@ -43,25 +43,6 @@ def load_ckpt_params(model: nn.Cell, ckpt: Union[str, Dict]) -> None:
             f"Exist ckpt params not loaded: {ckpt_not_load} (total: {len(ckpt_not_load)}),\n"
             f"or net params not loaded: {param_not_load} (total: {len(param_not_load)})"
         )
-
-
-@jit_class
-class no_grad(_no_grad):
-    """
-    A context manager that suppresses gradient memory allocation in PyNative mode.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
-
-    def __enter__(self):
-        if self._pynative:
-            super().__enter__()
-
-    def __exit__(self, *args):
-        if self._pynative:
-            super().__exit__(*args)
 
 
 def init_model(
