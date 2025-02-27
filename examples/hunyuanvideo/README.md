@@ -114,6 +114,8 @@ To run video reconstruction on a folder of videos, please refer to `scripts/vae/
 
 To evaluate the PSNR score between the real and the reconsturcted videos, you may use `scripts/eval/script/cal_psnr.sh`.
 
+To specify the mindspore checkpoint path, please use `--ms-checkpoint`. See more usage information using `python scripts/run_vae.py --help`.
+
 ### Text-to-Video Evalution
 
 After training, the checkpoint shards will be saved under `output/experiment_dir/`. The folder structure is as follows:
@@ -141,8 +143,7 @@ A wildcard pattern `*` is needed to match any rank ids of the checkpoint shards.
 
 ### 3D-VAE Training
 
-coming soon.
-
+See the training tutorial of Causal 3D-VAE from [here](docs/3d_vae_docs.md)
 
 
 ## Acknowledgements
