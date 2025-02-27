@@ -114,6 +114,7 @@ _import_structure = {
         "PixArtSigmaPipeline",
     ],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
+    "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
     "stable_cascade": [
         "StableCascadeCombinedPipeline",
         "StableCascadeDecoderPipeline",
@@ -247,6 +248,7 @@ if TYPE_CHECKING:
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
+    from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (
         CLIPImageProjection,
