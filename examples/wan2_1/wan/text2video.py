@@ -219,11 +219,11 @@ class WanT2V:
             )[0]
             latents = [temp_x0.squeeze(0)]
 
-            x0 = latents
-            if offload_model:
-                raise NotImplementedError()
-            if self.rank == 0:
-                videos = self.vae.decode(x0)
+        x0 = latents
+        if offload_model:
+            raise NotImplementedError()
+        if self.rank == 0:
+            videos = self.vae.decode(x0)
 
         del noise, latents
         del sample_scheduler

@@ -32,8 +32,16 @@ def sinusoidal_embedding_1d(dim: int, position: Tensor) -> Tensor:
 def rope_params(max_seq_len: int, dim: int, theta: float = 10000) -> Tensor:
     assert dim % 2 == 0
     freqs = mint.outer(mint.arange(max_seq_len), 1.0 / mint.pow(theta, mint.arange(0, dim, 2).to(ms.float32).div(dim)))
-    freqs = mint.polar(mint.ones_like(freqs), freqs)
+    freqs = mint.stack([mint.cos(freqs), mint.sin(freqs)], dim=-1)
     return freqs
+
+
+def complex_mult(a: Tensor, b: Tensor) -> Tensor:
+    a_real, a_complex = a[..., 0], a[..., 1]
+    b_real, b_complex = b[..., 0], b[..., 1]
+    out_real = a_real * b_real - a_complex * b_complex
+    out_complex = a_real * b_complex + b_real * a_complex
+    return mint.stack([out_real, out_complex], dim=-1)
 
 
 def rope_apply(x: Tensor, grid_sizes: Tensor, freqs: Tensor) -> Tensor:
@@ -51,20 +59,20 @@ def rope_apply(x: Tensor, grid_sizes: Tensor, freqs: Tensor) -> Tensor:
         x_i = x[i, :seq_len].to(ms.float32).reshape(seq_len, n, -1, 2)
         freqs_i = mint.cat(
             [
-                freqs[0][:f].view(f, 1, 1, -1).expand(f, h, w, -1),
-                freqs[1][:h].view(1, h, 1, -1).expand(f, h, w, -1),
-                freqs[2][:w].view(1, 1, w, -1).expand(f, h, w, -1),
+                freqs[0][:f].view(f, 1, 1, -1, 2).expand((f, h, w, -1, 2)),
+                freqs[1][:h].view(1, h, 1, -1, 2).expand((f, h, w, -1, 2)),
+                freqs[2][:w].view(1, 1, w, -1, 2).expand((f, h, w, -1, 2)),
             ],
-            dim=-1,
-        ).reshape(seq_len, 1, -1)
+            dim=-2,
+        ).reshape(seq_len, 1, -1, 2)
 
         # apply rotary embedding
-        x_i = (x_i[..., 0] * freqs_i[..., 0] - x_i[..., 1] * freqs_i[..., 1]).flatten(2)
-        x_i = mint.cat([x_i, x[i, seq_len:]])
+        x_i = complex_mult(x_i, freqs_i).flatten(2)
+        x_i = mint.cat([x_i.to(x.dtype), x[i, seq_len:]])
 
         # append to collection
         output.append(x_i)
-    return mint.stack(output).float()
+    return mint.stack(output)
 
 
 class WanRMSNorm(nn.Cell):
@@ -96,7 +104,8 @@ class WanLayerNorm(mint.nn.LayerNorm):
         Args:
             x(Tensor): Shape [B, L, C]
         """
-        return super().construct(x.float()).type_as(x)
+        # TODO: to float32
+        return super().construct(x).type_as(x)
 
 
 class WanSelfAttention(nn.Cell):
@@ -148,11 +157,13 @@ class WanSelfAttention(nn.Cell):
         assert self.window_size == (-1, -1)
 
         x = ops.flash_attention_score(
-            q=rope_apply(q, grid_sizes, freqs),
-            k=rope_apply(k, grid_sizes, freqs),
-            v=v,
+            query=rope_apply(q, grid_sizes, freqs),
+            key=rope_apply(k, grid_sizes, freqs),
+            value=v,
+            head_num=self.num_heads,
             actual_seq_kvlen=seq_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
+            input_layout="BSND",
         )
 
         # output
@@ -177,7 +188,15 @@ class WanT2VCrossAttention(WanSelfAttention):
         v = self.v(context).view(b, -1, n, d)
 
         # compute attention
-        x = ops.flash_attention_score(q, k, v, actual_seq_kvlen=context_lens, scalar_value=1 / math.sqrt(q.shape[-1]))
+        x = ops.flash_attention_score(
+            q,
+            k,
+            v,
+            head_num=self.num_heads,
+            actual_seq_kvlen=context_lens,
+            scalar_value=1 / math.sqrt(q.shape[-1]),
+            input_layout="BSND",
+        )
 
         # output
         x = x.flatten(2)
@@ -219,9 +238,18 @@ class WanI2VCrossAttention(WanSelfAttention):
         v = self.v(context).view(b, -1, n, d)
         k_img = self.norm_k_img(self.k_img(context_img)).view(b, -1, n, d)
         v_img = self.v_img(context_img).view(b, -1, n, d)
-        img_x = ops.flash_attention_score(q, k_img, v_img, scalar_value=1 / math.sqrt(q.shape[-1]))
+        img_x = ops.flash_attention_score(
+            q,
+            k_img,
+            v_img,
+            head_num=self.num_heads,
+            scalar_value=1 / math.sqrt(q.shape[-1]),
+            input_layout="BSND",
+        )
         # compute attention
-        x = ops.flash_attention_score(q, k, v, actual_seq_kvlen=context_lens)
+        x = ops.flash_attention_score(
+            q, k, v, head_num=self.num_heads, actual_seq_kvlen=context_lens, input_layout="BSND"
+        )
 
         # output
         x = x.flatten(2)
@@ -297,18 +325,16 @@ class WanAttentionBlock(nn.Cell):
             grid_sizes(Tensor): Shape [B, 3], the second dimension contains (F, H, W)
             freqs(Tensor): Rope freqs, shape [1024, C / num_heads / 2]
         """
-        assert e.dtype == ms.float32
         e = (self.modulation + e).chunk(6, dim=1)
-        assert e[0].dtype == ms.float32
 
         # self-attention
-        y = self.self_attn(self.norm1(x).float() * (1 + e[1]) + e[0], seq_lens, grid_sizes, freqs)
+        y = self.self_attn(self.norm1(x) * (1 + e[1]) + e[0], seq_lens, grid_sizes, freqs)
         x = x + y * e[2]
 
         # cross-attention & ffn function
         def cross_attn_ffn(x: Tensor, context: Tensor, context_lens: Tensor, e: Tensor) -> Tensor:
             x = x + self.cross_attn(self.norm3(x), context, context_lens)
-            y = self.ffn(self.norm2(x).float() * (1 + e[4]) + e[3])
+            y = self.ffn(self.norm2(x) * (1 + e[4]) + e[3])
             x = x + y * e[5]
             return x
 
@@ -338,7 +364,6 @@ class Head(nn.Cell):
             x(Tensor): Shape [B, L1, C]
             e(Tensor): Shape [B, C]
         """
-        assert e.dtype == ms.float32
         e = (self.modulation + e.unsqueeze(1)).chunk(2, dim=1)
         x = self.head(self.norm(x) * (1 + e[1]) + e[0])
         return x
@@ -532,11 +557,10 @@ class WanModel(ModelMixin, ConfigMixin):
         x = mint.cat([mint.cat([u, u.new_zeros((1, seq_len - u.shape[1], u.shape[2]))], dim=1) for u in x])
 
         # time embeddings
-        e = self.time_embedding(sinusoidal_embedding_1d(self.freq_dim, t).float())
+        e = self.time_embedding(sinusoidal_embedding_1d(self.freq_dim, t).to(self.dtype))
         e0 = self.time_projection(e)
         # TODO: reshape -> unflatten
-        e0 = e0.reshape(e0.shape[0], (6, self.dim), *e.shape[2:])
-        assert e.dtype == ms.float32 and e0.dtype == ms.float32
+        e0 = e0.reshape(e0.shape[0], 6, self.dim, *e.shape[2:])
 
         # context
         context_lens = None

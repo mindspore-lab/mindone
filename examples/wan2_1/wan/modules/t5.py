@@ -379,7 +379,7 @@ class T5Decoder(nn.Cell):
         if mask is None:
             mask = mint.tril(mint.ones((1, s, s)))
         elif mask.ndim == 2:
-            mask = mint.tril(mask.unsqueeze(1).expand(-1, s, -1))
+            mask = mint.tril(mask.unsqueeze(1).expand((-1, s, -1)))
 
         # layers
         x = self.token_embedding(ids)

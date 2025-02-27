@@ -39,7 +39,7 @@ class CausalConv3d(mint.nn.Conv3d):
             padding[4] -= cache_x.shape[2]
         x = F.pad(x, padding)
 
-        return super().forward(x)
+        return super().construct(x)
 
 
 class RMS_norm(nn.Cell):
@@ -205,7 +205,7 @@ class AttentionBlock(nn.Cell):
         q, k, v = self.to_qkv(x).reshape(b * t, 1, c * 3, -1).permute(0, 1, 3, 2).contiguous().chunk(3, dim=-1)
 
         # apply attention
-        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1 / math.sqrt(q.shape[-1]))
+        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1 / math.sqrt(q.shape[-1]), input_layout="BSND")
         x = x.squeeze(1).permute(0, 2, 1).reshape(b * t, c, h, w)
 
         # output
