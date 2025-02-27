@@ -127,6 +127,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
+    "sana": ["SanaPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_cascade": [
         "StableCascadeCombinedPipeline",
@@ -277,6 +278,7 @@ if TYPE_CHECKING:
     )
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
+    from .sana import SanaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (

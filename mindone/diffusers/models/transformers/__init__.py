@@ -7,6 +7,7 @@ from .latte_transformer_3d import LatteTransformer3DModel
 from .lumina_nextdit2d import LuminaNextDiT2DModel
 from .pixart_transformer_2d import PixArtTransformer2DModel
 from .prior_transformer import PriorTransformer
+from .sana_transformer import SanaTransformer2DModel
 from .t5_film_transformer import T5FilmDecoder
 from .transformer_2d import Transformer2DModel
 from .transformer_cogview3plus import CogView3PlusTransformer2DModel

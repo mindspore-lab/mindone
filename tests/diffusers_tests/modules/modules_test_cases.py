@@ -507,6 +507,41 @@ VAE_CASES = [
         },
     ],
     [
+        "AutoencoderDC",
+        "diffusers.models.autoencoders.AutoencoderDC",
+        "mindone.diffusers.models.autoencoders.AutoencoderDC",
+        (),
+        {
+            "in_channels": 3,
+            "latent_channels": 4,
+            "attention_head_dim": 2,
+            "encoder_block_types": (
+                "ResBlock",
+                "EfficientViTBlock",
+            ),
+            "decoder_block_types": (
+                "ResBlock",
+                "EfficientViTBlock",
+            ),
+            "encoder_block_out_channels": (8, 8),
+            "decoder_block_out_channels": (8, 8),
+            "encoder_qkv_multiscales": ((), (5,)),
+            "decoder_qkv_multiscales": ((), (5,)),
+            "encoder_layers_per_block": (1, 1),
+            "decoder_layers_per_block": [1, 1],
+            "downsample_block_type": "conv",
+            "upsample_block_type": "interpolate",
+            "decoder_norm_types": "rms_norm",
+            "decoder_act_fns": "silu",
+            "scaling_factor": 0.41407,
+        },
+        (),
+        {
+            "sample": np.random.randn(4, 3, 32, 32).astype(np.float32),
+            "return_dict": False,
+        },
+    ],
+    [
         "AutoencoderTiny",
         "diffusers.models.autoencoders.autoencoder_tiny.AutoencoderTiny",
         "mindone.diffusers.models.autoencoders.autoencoder_tiny.AutoencoderTiny",
@@ -815,6 +850,38 @@ PIXART_TRANSFORMER2D_CASES = [
 ]
 
 
+SANA_TRANSFORMER2D_CASES = [
+    [
+        "SanaTransformer2DModel",
+        "diffusers.models.transformers.SanaTransformer2DModel",
+        "mindone.diffusers.models.transformers.SanaTransformer2DModel",
+        (),
+        {
+            "sample_size": 32,
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 4,
+            "caption_projection_dim": 32,
+            "joint_attention_dim": 32,
+            "pooled_projection_dim": 64,
+            "out_channels": 4,
+            "pos_embed_max_size": 96,
+            "dual_attention_layers": (),
+            "qk_norm": None,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 32, 32),
+            "encoder_hidden_states": np.random.randn(2, 8, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ],
+]
+
+
 SD3_TRANSFORMER2D_CASES = [
     [
         "SD3Transformer2DModel",
@@ -990,6 +1057,7 @@ TRANSFORMERS_CASES = (
     + DIT_TRANSFORMER2D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
+    + SANA_TRANSFORMER2D_CASES
     + SD3_TRANSFORMER2D_CASES
     + SD35_TRANSFORMER2D_CASES
     + TRANSFORMER2D_CASES
