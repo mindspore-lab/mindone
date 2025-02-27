@@ -57,8 +57,11 @@ The following table shows the requirements for running Step-Video-T2V model (bat
 
 ### 🔧 3.2 Dependencies and Installation
 
-- [MindONE](https://github.com/mindspore-lab/mindone)
-- [FFmpeg](https://www.ffmpeg.org/)
+| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
+|:----------:|:--------------:|:-----------:|:------------------:|
+|   2.5.0    |    24.1.RC2    | 7.3.0.1.231 |   8.0.0.beta1    |
+
+To install other dependent packages:
 ```bash
 git clone https://github.com/mindspore-lab/mindone.git
 
@@ -66,9 +69,9 @@ git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
 pip install -e .
 
-# install stepvideo
+# install requirements
 cd examples/step_video_t2v
-pip install -e .
+pip install -r requirements.txt
 ```
 
 ### 🔧 3.3. Prepare Weight Format
@@ -114,7 +117,7 @@ run_parallel.py --model_dir $model_dir --vae_url $vae_url --caption_url $caption
 ###  🚀 3.4 Best-of-Practice Inference settings
 Step-Video-T2V exhibits robust performance in inference settings, consistently generating high-fidelity and dynamic videos. However, our experiments reveal that variations in inference hyperparameters can have a substantial effect on the trade-off between video fidelity and dynamics. To achieve optimal results, we recommend the following best practices for tuning inference parameters:
 
-| Models   | infer_steps   | cfg_scale  | time_shift | num_frames |
+| models   | infer_steps   | cfg_scale  | time_shift | num_frames |
 |:-------:|:-------:|:-------:|:-------:|:-------:|
 | Step-Video-T2V | 30-50 | 9.0 |  13.0 | 204
 | Step-Video-T2V-Turbo (Inference Step Distillation) | 10-15 | 5.0 | 17.0 | 204 |

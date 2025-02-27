@@ -318,17 +318,6 @@ class StepVideoModel(ModelMixin, ConfigMixin):
             encoder_attention_mask, encoder_hidden_states, q_seqlen=frame * len_frame
         )
 
-        ############################################################################################################
-        # # FIXME: zhy_test, sp start
-        # if self.sp_size > 1:
-        #     np.save(f"./in_hidden_states_sp_{self.sp_rank}.npy", hidden_states.to(ms.float32).asnumpy())
-        #     np.save(f"./in_encoder_hidden_states_sp_{self.sp_rank}.npy", hidden_states.to(ms.float32).asnumpy())
-        #     np.save(f"./in_attn_mask_sp_{self.sp_rank}.npy", attn_mask.to(ms.float32).asnumpy())
-        # else:
-        #     np.save("./in_hidden_states.npy", hidden_states.to(ms.float32).asnumpy())
-        #     np.save("./in_encoder_hidden_states.npy", hidden_states.to(ms.float32).asnumpy())
-        #     np.save("./in_attn_mask.npy", attn_mask.to(ms.float32).asnumpy())
-
         hidden_states = self.block_forward(
             hidden_states,
             encoder_hidden_states,
@@ -337,16 +326,6 @@ class StepVideoModel(ModelMixin, ConfigMixin):
             attn_mask=attn_mask,
             parallel=self.parallel,
         )
-
-        # # FIXME: zhy_test, sp end
-        # if self.sp_size > 1:
-        #     np.save(f"./out_hidden_states_sp_{self.sp_rank}.npy", hidden_states.to(ms.float32).asnumpy())
-        # else:
-        #     np.save("./out_hidden_states.npy", hidden_states.to(ms.float32).asnumpy())
-
-        # print("="*100 + "\n" + "run transformer block success." + "\n" + "="*100)
-
-        ############################################################################################################
 
         # hidden_states = rearrange(hidden_states, 'b (f l) d -> (b f) l d', b=bsz, f=frame, l=len_frame)
         hidden_states = hidden_states.view(bsz * frame, len_frame, -1)
@@ -425,12 +404,6 @@ class StepVideoModel(ModelMixin, ConfigMixin):
         )
 
         ################################################################################
-
-        # FIXME: zhy_test, pp start
-        # np.save("./in_hidden_states_stage_0.npy", hidden_states.to(ms.float32).asnumpy())
-        # np.save("./in_encoder_hidden_states_stage_0.npy", hidden_states.to(ms.float32).asnumpy())
-        # np.save("./in_attn_mask_stage_0.npy", attn_mask.to(ms.float32).asnumpy())
-
         # !!! block_forward, w/ chunk, w/o sp_all_gather
         if self.parallel:
             hidden_states = ops.chunk(hidden_states, self.sp_size, axis=-2)[self.sp_rank]
@@ -446,24 +419,18 @@ class StepVideoModel(ModelMixin, ConfigMixin):
             )
 
         # send stage0 out hidden_states
-        print("stage0: first sending...")
-        print(f"zhy_test, {hidden_states.shape=}, {hidden_states.dtype=}")
-        # method 4
+        # print("stage0: first sending...")
         mint_send(hidden_states, get_rank() + self.sp_size)  # 0->2, 1->3
-        print("stage0: first send success")
+        # print("stage0: first send success")
 
         # for continue process, fake all_gather(..., dim=-2)
         if self.parallel:
             # output = sp_all_gather(output, dim=-2)
             hidden_states = ops.tile(hidden_states, (1, self.sp_size, 1))
 
-        print("stage0: second sync recv...")
+        # print("stage0: second sync recv...")
         mint_recv(hidden_states, get_rank() + self.sp_size)  # 0<-2, 1<-3
-        print("stage0: second sync recv success")
-
-        # FIXME: zhy_test, pp end
-        # np.save("./out_hidden_states_stage_0.npy", hidden_states.to(ms.float32).asnumpy())
-        # print("="*100 + "\n" + "stage0: run transformer block success." + "\n" + "="*100)
+        # print("stage0: second sync recv success")
         ################################################################################
 
         # hidden_states = rearrange(hidden_states, 'b (f l) d -> (b f) l d', b=bsz, f=frame, l=len_frame)
@@ -546,23 +513,16 @@ class StepVideoModel(ModelMixin, ConfigMixin):
 
         ################################################################################
         # !!! block_forward, w/o chunk, w/ sp_all_gather !!!
-
-        # # FIXME: zhy_test, pp start
-        # np.save("./in_hidden_states_stage_1.npy", hidden_states.to(ms.float32).asnumpy())
-        # np.save("./in_encoder_hidden_states_stage_1.npy", hidden_states.to(ms.float32).asnumpy())
-        # np.save("./in_attn_mask_stage_1.npy", attn_mask.to(ms.float32).asnumpy())
-
+        #
         # recv stage0 out hidden_states
-        print("stage1: first recving...")
-        print(f"zhy_test, {hidden_states.shape=}, {hidden_states.dtype=}")
-        # method 4
+        # print("stage1: first recving...")
         _shape = list(hidden_states.shape)
         _shape[1] //= self.sp_size  # chunk when stage 0
         stage0_out_hidden_states = ops.zeros(_shape, dtype=hidden_states.dtype)
         # mint_send(hidden_states          , get_rank()+self.sp_size)     # 0->2, 1->3
         mint_recv(stage0_out_hidden_states, get_rank() - self.sp_size)  # 2<-0, 3<-1
         hidden_states = stage0_out_hidden_states
-        print("stage1: first recv success")
+        # print("stage1: first recv success")
 
         if self.parallel:
             # hidden_states = ops.chunk(hidden_states, self.sp_size, axis=-2)[self.sp_rank]
@@ -580,13 +540,9 @@ class StepVideoModel(ModelMixin, ConfigMixin):
         if self.parallel:
             hidden_states = sp_all_gather(hidden_states, dim=-2)
 
-        print("stage1: second sync sending...")
+        # print("stage1: second sync sending...")
         mint_send(hidden_states, get_rank() - self.sp_size)  # 2->0, 3->1
-        print("stage1: second sync send success")
-
-        # FIXME: zhy_test, pp end
-        # np.save("./out_hidden_states_stage_1.npy", hidden_states.to(ms.float32).asnumpy())
-        # print("="*100 + "\n" + "stage1: run transformer block success." + "\n" + "="*100)
+        # print("stage1: second sync send success")
         ################################################################################
 
         # hidden_states = rearrange(hidden_states, 'b (f l) d -> (b f) l d', b=bsz, f=frame, l=len_frame)
