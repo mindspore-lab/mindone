@@ -34,11 +34,15 @@ from ...loaders import (
 )
 from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 from .multicontrolnet import MultiControlNetModel
+
+if is_invisible_watermark_available():
+    from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -147,6 +151,7 @@ def retrieve_timesteps(
 
 class StableDiffusionXLControlNetPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     StableDiffusionXLLoraLoaderMixin,
     IPAdapterMixin,
@@ -252,7 +257,12 @@ class StableDiffusionXLControlNetPipeline(
         self.control_image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
         )
-        self.watermark = None
+        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
+
+        if add_watermarker:
+            self.watermark = StableDiffusionXLWatermarker()
+        else:
+            self.watermark = None
 
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
 
@@ -359,7 +369,7 @@ class StableDiffusionXLControlNetPipeline(
                 text_input_ids = text_inputs.input_ids
                 untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
+                if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
                     text_input_ids, untruncated_ids
                 ):
                     removed_text = tokenizer.batch_decode(untruncated_ids[:, tokenizer.model_max_length - 1 : -1])
@@ -865,15 +875,15 @@ class StableDiffusionXLControlNetPipeline(
         See https://github.com/google-research/vdm/blob/dc27b98a554f65cdc654b800da5aa1846545d41b/model_vdm.py#L298
 
         Args:
-            w (`torch.Tensor`):
+            w (`mindspore.Tensor`):
                 Generate embedding vectors with a specified guidance scale to subsequently enrich timestep embeddings.
             embedding_dim (`int`, *optional*, defaults to 512):
                 Dimension of the embeddings to generate.
-            dtype (`torch.dtype`, *optional*, defaults to `torch.float32`):
+            dtype (`mindspore.dtype`, *optional*, defaults to `mindspore.float32`):
                 Data type of the generated embeddings.
 
         Returns:
-            `torch.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
+            `mindspore.Tensor`: Embedding vectors with shape `(len(w), embedding_dim)`.
         """
         assert len(w.shape) == 1
         w = w * 1000.0
@@ -1485,6 +1495,10 @@ class StableDiffusionXLControlNetPipeline(
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor
+
+            if self.vae.dtype != latents.dtype:
+                # convert latents to vae's type and store it back into latents
+                latents = latents.to(self.vae.dtype)
 
             image = self.vae.decode(latents, return_dict=False)[0]
 

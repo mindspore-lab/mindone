@@ -115,6 +115,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
 
         self._step_index = None
         self._begin_index = None
+        self.sigma_data = self.config.sigma_data
 
     @property
     def init_noise_sigma(self):
@@ -147,7 +148,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         self._begin_index = begin_index
 
     def precondition_inputs(self, sample, sigma):
-        c_in = 1 / ((sigma**2 + self.config.sigma_data**2) ** 0.5)
+        c_in = 1 / ((sigma**2 + self.sigma_data**2) ** 0.5)
         scaled_sample = sample * c_in
         return scaled_sample
 
@@ -160,7 +161,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         return c_noise
 
     def precondition_outputs(self, sample, model_output, sigma):
-        sigma_data = self.config.sigma_data
+        sigma_data = self.sigma_data
         c_skip = sigma_data**2 / (sigma**2 + sigma_data**2)
 
         if self.config.prediction_type == "epsilon":

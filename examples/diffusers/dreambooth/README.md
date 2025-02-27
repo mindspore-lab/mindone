@@ -16,13 +16,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the example folder and run
-```bash
-pip install -r requirements.txt
-```
 
 ### Dog toy example
 
@@ -98,7 +94,7 @@ python train_dreambooth.py \
 The script also allows to fine-tune the `text_encoder` along with the `unet`. It's been observed experimentally that fine-tuning `text_encoder` gives much better results especially on faces.
 Pass the `--train_text_encoder` argument to the script to enable training `text_encoder`.
 
-___Note: Training text encoder requires more memory, with this option the training won't fit on 16GB GPU. It needs at least 24GB VRAM.___
+___Note: Training text encoder requires more memory.___
 
 ```bash
 export MODEL_NAME="CompVis/stable-diffusion-v1-4"
@@ -122,16 +118,6 @@ python train_dreambooth.py \
   --num_class_images=200 \
   --max_train_steps=800 \
   --train_text_encoder
-```
-
-### Using DreamBooth for pipelines other than Stable Diffusion
-
-The [AltDiffusion pipeline](https://huggingface.co/docs/diffusers/api/pipelines/alt_diffusion) also supports dreambooth fine-tuning. The process is the same as above, all you need to do is replace the `MODEL_NAME` like this:
-
-```
-export MODEL_NAME="CompVis/stable-diffusion-v1-4" --> export MODEL_NAME="BAAI/AltDiffusion-m9"
-or
-export MODEL_NAME="CompVis/stable-diffusion-v1-4" --> export MODEL_NAME="BAAI/AltDiffusion"
 ```
 
 ### Inference
@@ -238,7 +224,7 @@ pipe.load_lora_weights("path-to-the-lora-checkpoint")
 Finally, we can run the model in inference.
 
 ```python
-image = pipe("A picture of a sks dog in a bucket", num_inference_steps=25)[0][0]
+image = pipe("A picture of a sks dog in a bucket", num_inference_steps=50)[0][0]
 ```
 
 If you are loading the LoRA parameters from the Hub and if the Hub repository has
@@ -309,7 +295,7 @@ Additionally, a few alternative cli flags are needed for IF.
 
 `--resolution=64`: IF is a pixel space diffusion model. In order to operate on un-compressed pixels, the input images are of a much smaller resolution.
 
-`--pre_compute_text_embeddings`: IF uses [T5](https://huggingface.co/docs/transformers/model_doc/t5) for its text encoder. In order to save GPU memory, we pre compute all text embeddings and then de-allocate
+`--pre_compute_text_embeddings`: IF uses [T5](https://huggingface.co/docs/transformers/model_doc/t5) for its text encoder. In order to save memory, we pre-compute all text embeddings and then de-allocate
 T5.
 
 `--tokenizer_max_length=77`: T5 has a longer default text length, but the default IF encoding procedure uses a smaller number.
@@ -351,8 +337,6 @@ snapshot_download(
 
 ### IF stage I LoRA Dreambooth
 
-This training configuration requires ~28 GB VRAM.
-
 ```sh
 export MODEL_NAME="DeepFloyd/IF-I-XL-v1.0"
 export INSTANCE_DIR="dog"
@@ -391,7 +375,7 @@ python train_dreambooth_lora.py \
 export MODEL_NAME="DeepFloyd/IF-II-L-v1.0"
 export INSTANCE_DIR="dog"
 export OUTPUT_DIR="dreambooth_dog_upscale"
-export VALIDATION_IMAGES="dog_downsized/image_1.png dog_downsized/image_2.png dog_downsized/image_3.png dog_downsized/image_4.png"
+export VALIDATION_IMAGES="dog_downsized/image_1.jpg dog_downsized/image_2.jpg dog_downsized/image_3.jpg dog_downsized/image_4.jpg"
 
 python train_dreambooth_lora.py \
     --pretrained_model_name_or_path=$MODEL_NAME \
@@ -422,8 +406,6 @@ with a T5 loaded from the original model.
 
 `--learning_rate=1e-7`: For full dreambooth, IF requires very low learning rates. With higher learning rates model quality will degrade. Note that it is
 likely the learning rate can be increased with larger batch sizes.
-
-Using 8bit adam and a batch size of 4, the model can be trained in ~48 GB VRAM.
 
 `--validation_scheduler`: Set a particular scheduler via a string. We found that it is better to use the DDPMScheduler for validation when training DeepFloyd IF.
 
@@ -464,7 +446,7 @@ faces required large effective batch sizes.
 export MODEL_NAME="DeepFloyd/IF-II-L-v1.0"
 export INSTANCE_DIR="dog"
 export OUTPUT_DIR="dreambooth_dog_upscale"
-export VALIDATION_IMAGES="dog_downsized/image_1.png dog_downsized/image_2.png dog_downsized/image_3.png dog_downsized/image_4.png"
+export VALIDATION_IMAGES="dog_downsized/image_1.jpg dog_downsized/image_2.jpg dog_downsized/image_3.jpg dog_downsized/image_4.jpg"
 
 python train_dreambooth.py \
   --pretrained_model_name_or_path=$MODEL_NAME \

@@ -113,6 +113,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
         latent_shift: float = 0.5,
         force_upcast: bool = False,
         scaling_factor: float = 1.0,
+        shift_factor: float = 0.0,
     ):
         super().__init__()
 
@@ -167,8 +168,134 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
         """[0, 1] -> raw latents"""
         return x.sub(self.latent_shift).mul(2 * self.latent_magnitude)
 
+    def enable_slicing(self) -> None:
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.use_slicing = True
+
+    def disable_slicing(self) -> None:
+        r"""
+        Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing
+        decoding in one step.
+        """
+        self.use_slicing = False
+
+    def enable_tiling(self, use_tiling: bool = True) -> None:
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.use_tiling = use_tiling
+
+    def disable_tiling(self) -> None:
+        r"""
+        Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing
+        decoding in one step.
+        """
+        self.enable_tiling(False)
+
+    def _tiled_encode(self, x: ms.Tensor) -> ms.Tensor:
+        r"""Encode a batch of images using a tiled encoder.
+
+        When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several
+        steps. This is useful to keep memory use constant regardless of image size. To avoid tiling artifacts, the
+        tiles overlap and are blended together to form a smooth output.
+
+        Args:
+            x (`ms.Tensor`): Input batch of images.
+
+        Returns:
+            `ms.Tensor`: Encoded batch of images.
+        """
+        # scale of encoder output relative to input
+        sf = self.spatial_scale_factor
+        tile_size = self.tile_sample_min_size
+
+        # number of pixels to blend and to traverse between tile
+        blend_size = int(tile_size * self.tile_overlap_factor)
+        traverse_size = tile_size - blend_size
+
+        # tiles index (up/left)
+        ti = range(0, x.shape[-2], traverse_size)
+        tj = range(0, x.shape[-1], traverse_size)
+
+        # mask for blending
+        blend_masks = ops.stack(ops.meshgrid([ops.arange(tile_size / sf) / (blend_size / sf - 1)] * 2, indexing="ij"))
+        blend_masks = blend_masks.clamp(0, 1)
+
+        # output array
+        out = ops.zeros((x.shape[0], 4, x.shape[-2] // sf, x.shape[-1] // sf))
+        for i in ti:
+            for j in tj:
+                tile_in = x[..., i : i + tile_size, j : j + tile_size]
+                # tile result
+                tile_out = out[..., i // sf : (i + tile_size) // sf, j // sf : (j + tile_size) // sf]
+                tile = self.encoder(tile_in)
+                h, w = tile.shape[-2], tile.shape[-1]
+                # blend tile result into output
+                blend_mask_i = ops.ones_like(blend_masks[0]) if i == 0 else blend_masks[0]
+                blend_mask_j = ops.ones_like(blend_masks[1]) if j == 0 else blend_masks[1]
+                blend_mask = blend_mask_i * blend_mask_j
+                tile, blend_mask = tile[..., :h, :w], blend_mask[..., :h, :w]
+                tile_out = blend_mask * tile + (1 - blend_mask) * tile_out
+        return out
+
+    def _tiled_decode(self, x: ms.Tensor) -> ms.Tensor:
+        r"""Encode a batch of images using a tiled encoder.
+
+        When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several
+        steps. This is useful to keep memory use constant regardless of image size. To avoid tiling artifacts, the
+        tiles overlap and are blended together to form a smooth output.
+
+        Args:
+            x (`ms.Tensor`): Input batch of images.
+
+        Returns:
+            `ms.Tensor`: Encoded batch of images.
+        """
+        # scale of decoder output relative to input
+        sf = self.spatial_scale_factor
+        tile_size = self.tile_latent_min_size
+
+        # number of pixels to blend and to traverse between tiles
+        blend_size = int(tile_size * self.tile_overlap_factor)
+        traverse_size = tile_size - blend_size
+
+        # tiles index (up/left)
+        ti = range(0, x.shape[-2], traverse_size)
+        tj = range(0, x.shape[-1], traverse_size)
+
+        # mask for blending
+        blend_masks = ops.stack(ops.meshgrid([ops.arange(tile_size * sf) / (blend_size * sf - 1)] * 2, indexing="ij"))
+        blend_masks = blend_masks.clamp(0, 1)
+
+        # output array
+        out = ops.zeros((x.shape[0], 3, x.shape[-2] * sf, x.shape[-1] * sf))
+        for i in ti:
+            for j in tj:
+                tile_in = x[..., i : i + tile_size, j : j + tile_size]
+                # tile result
+                tile_out = out[..., i * sf : (i + tile_size) * sf, j * sf : (j + tile_size) * sf]
+                tile = self.decoder(tile_in)
+                h, w = tile.shape[-2], tile.shape[-1]
+                # blend tile result into output
+                blend_mask_i = ops.ones_like(blend_masks[0]) if i == 0 else blend_masks[0]
+                blend_mask_j = ops.ones_like(blend_masks[1]) if j == 0 else blend_masks[1]
+                blend_mask = (blend_mask_i * blend_mask_j)[..., :h, :w]
+                tile_out = blend_mask * tile + (1 - blend_mask) * tile_out
+        return out
+
     def encode(self, x: ms.Tensor, return_dict: bool = False) -> Union[AutoencoderTinyOutput, Tuple[ms.Tensor]]:
-        output = self.encoder(x)
+        if self.use_slicing and x.shape[0] > 1:
+            output = [
+                self._tiled_encode(x_slice) if self.use_tiling else self.encoder(x_slice) for x_slice in x.split(1)
+            ]
+            output = ops.cat(output)
+        else:
+            output = self._tiled_encode(x) if self.use_tiling else self.encoder(x)
 
         if not return_dict:
             return (output,)
@@ -178,7 +305,11 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
     def decode(
         self, x: ms.Tensor, generator: Optional[np.random.Generator] = None, return_dict: bool = False
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
-        output = self.decoder(x)
+        if self.use_slicing and x.shape[0] > 1:
+            output = [self._tiled_decode(x_slice) if self.use_tiling else self.decoder(x) for x_slice in x.split(1)]
+            output = ops.cat(output)
+        else:
+            output = self._tiled_decode(x) if self.use_tiling else self.decoder(x)
 
         if not return_dict:
             return (output,)

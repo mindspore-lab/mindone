@@ -13,16 +13,20 @@ modified Decoder with added temporal layers to counteract flickering artifacts.
 src="https://github.com/mindspore-lab/mindone/assets/16683750/e291f64d-fb49-4983-b488-22d96addb9fb"/>
 <br><em>An example of a single U-Net Block with Added Temporal Layers (for more information please refer to <a href="#acknowledgements">[2]</a>)</em></p>
 
+## Requirements
+
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+
 ## Pretrained Models
 
-<div align="center">
 
 | SD Base Version | SVD version | Trained for          | Config                      | Checkpoint                                                                                |
-|-----------------|-------------|----------------------|-----------------------------|-------------------------------------------------------------------------------------------|
+|:-----------------:|:-------------:|:----------------------:|:-----------------------------:|:-------------------------------------------------------------------------------------------:|
 | v2.0 & v2.1     | SVD         | 14 frames generation | [yaml](configs/svd.yaml)    | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd-d19a808f.ckpt)    |
 |                 | SVD-XT      | 25 frames generation | [yaml](configs/svd_xt.yaml) | [Download (9GB)](https://download.mindspore.cn/toolkits/mindone/svd/svd_xt-993f895f.ckpt) |
 
-</div>
 
 The weights above were converted from the PyTorch version. If you want to convert another custom model, you can do so by
 using `svd_tools/convert.py`. For example:
@@ -95,12 +99,18 @@ python train.py --config=configs/svd_train.yaml \
 --train.dataset.init_args.metadata=PATH_TO_LABELS
 ```
 
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+|  model_name  | cards | batch size  | resolution | grad accu  |sink | jit_level | graph compile | s/step | recipe |
+|:-------------:|:-------:|:-------------:|:-------------:|:-----------:|:-----:|:---------:|:--------------:|:---------:|:------:|
+|     svd     |    1  |      1     |   4x576x1024 |     5    |  OFF | O0    |     6 mins   |   1.18   | [yaml](configs/svd_train.yaml) |
+
+
 > [!NOTE]
 > More details on the training arguments can be found in the [training config](configs/svd_train.yaml)
 > and [model config](configs/svd.yaml).
 
-> [!IMPORTANT]
-> For 910*, please set `export MS_ASCEND_CHECK_OVERFLOW_MODE="INFNAN_MODE"` before running training.
+
 
 ## Acknowledgements
 

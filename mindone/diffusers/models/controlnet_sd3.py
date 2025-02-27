@@ -80,7 +80,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 JointTransformerBlock(
                     dim=self.inner_dim,
                     num_attention_heads=num_attention_heads,
-                    attention_head_dim=self.inner_dim,
+                    attention_head_dim=self.config.attention_head_dim,
                     context_pre_only=False,
                 )
                 for i in range(num_layers)
@@ -206,7 +206,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             module.gradient_checkpointing = value
 
     @classmethod
-    def from_transformer(cls, transformer, num_layers=None, load_weights_from_transformer=True):
+    def from_transformer(cls, transformer, num_layers=12, load_weights_from_transformer=True):
         config = transformer.config
         config["num_layers"] = num_layers or config.num_layers
         controlnet = cls(**config)
@@ -273,8 +273,6 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                 f"For example, it can be done in a pipeline call like `StableDiffusionPipeline.__call__`."
             )
 
-        height, width = hidden_states.shape[-2:]
-
         hidden_states = self.pos_embed(hidden_states)  # takes care of adding positional embeddings too.
         temb = self.time_text_embed(timestep, pooled_projections)
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
@@ -333,6 +331,9 @@ class SD3MultiControlNetModel(ModelMixin):
         joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> Union[SD3ControlNetOutput, Tuple]:
+        # adapt to graph mode
+        control_block_samples = None
+
         for i, (image, scale, controlnet) in enumerate(zip(controlnet_cond, conditioning_scale, self.nets)):
             block_samples = controlnet(
                 hidden_states=hidden_states,

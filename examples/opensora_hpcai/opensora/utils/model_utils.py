@@ -9,7 +9,7 @@ from safetensors import safe_open
 
 from mindspore import Model as MSModel
 from mindspore import Parameter, context, load_checkpoint
-from mindspore.nn import GELU, GraphCell, GroupNorm, SiLU
+from mindspore.nn import GraphCell, GroupNorm, SiLU  # GELU
 from mindspore.train.callback import _CallbackManager
 
 from ..models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm, PositionEmbedding2D, SinusoidalEmbedding
@@ -21,7 +21,7 @@ WHITELIST_OPS = [
     Attention,
     LlamaRMSNorm,
     SiLU,
-    GELU,
+    # GELU,
     GroupNorm,
     PositionEmbedding2D,
     SinusoidalEmbedding,

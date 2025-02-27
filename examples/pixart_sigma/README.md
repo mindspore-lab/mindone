@@ -7,27 +7,29 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 - Main
     - [Training](#vanilla-finetune)
     - [Inference](#getting-start)
-    - [Use diffusers: coming soon]
-    - [Launch Demo: coming soon]
-- Guidance
-    - [Feature extraction: coming soon]
-    - [One step Generation (DMD): coming soon]
-    - [LoRA & DoRA: coming soon]
+    - [Launch Demo](#running-the-demo-with-gradio)
+    - [Use diffusers](#integration-in-diffusers)
 - Benchmark
     - [Training](#training)
     - [Inference](#inference)
+- Guidance
+    - [LoRA Finetuning](#lora-finetuning)
 
 ## What's New
 - 2024-09-05
     - Support fine-tuning and inference for Pixart-Sigma models.
 
-## Dependencies and Installation
+## Requirements
 
-- CANN: 8.0.RC2 or later
-- Python: 3.9 or later
-- Mindspore: 2.3.1
+| mindspore | ascend driver | firmware    | cann toolkit/kernel |
+|:-----------:|:---------------:|:-------------:|:---------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
 
-Then, run `pip install -r requirements.txt` to install the necessary packages.
+
+Python: 3.9 or later.
+
+Then run `pip install -r requirements.txt` to install the necessary packages.
+
 
 ## Getting Start
 
@@ -163,34 +165,170 @@ Below is the FID score curve
 Followed by some generated images using the testing prompts.
 <p align="center"><img width="1024" src="https://github.com/user-attachments/assets/b9ba152d-bbf0-46c2-af10-ba8066b92486"/></p>
 
-## Benchmark
+### Running the Demo with Gradio
+First install gradio by
+``` bash
+pip install gradio
+```
+**Basic Usage**: Run the demo with the recommended configuration using the following command:
 
-### Training
+```bash
+python gradio_demo.py \
+    --image_height 1024 \
+    --image_width 1024 \
+    --sample_size 128 \
+    --checkpoint "models/PixArt-Sigma-XL-2-1024-MS.ckpt" \
+    --vae_root "models/vae" \
+    --text_encoder_root "models/text_encoder" \
+    --tokenizer_root "models/tokenizer" \
+    --sd_scale_factor 0.13025 \
+    --enable_flash_attention True \
+    --dtype "fp16"
+```
 
-| Context       | Optimizer | Global Batch Size | Resolution | Bucket Training | VAE/T5 Cache | Speed (step/s) | FPS (img/s) |  Config                                                             |
-|---------------|-----------|-------------------|------------|-----------------|--------------|----------------|-------------|---------------------------------------------------------------------|
-| D910*x4-MS2.3 | CAME      | 4 x 64            | 256x256    | No              | No           | 0.344          | 88.1        | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml)|
-| D910*x4-MS2.3 | CAME      | 4 x 32            | 512        | Yes             | No           | 0.262          | 33.5        | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)  |
-| D910*x4-MS2.3 | CAME      | 4 x 12            | 1024       | Yes             | No           | 0.142          | 6.8         | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml)|
-| D910*x4-MS2.3 | CAME      | 4 x 1             | 2048       | Yes             | No           | 0.114          | 0.5         | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)    |
+**Parameter Explanation**
+- `--image_height`: Output image height (1024 recommended)
+- `--image_width`: Output image width (1024 recommended)
+- `--sample_size`: Size of latent samples (128 for 1024px images)
+- `--checkpoint`: Path to the PixArt model checkpoint
+- `--vae_root`: Directory containing VAE model files
+- `--text_encoder_root`: Directory containing text encoder model
+- `--tokenizer_root`: Directory containing tokenizer files
+- `--sd_scale_factor`: VAE scaling factor (0.13025 recommended)
+- `--enable_flash_attention`: Enable flash attention for better performance
+- `--dtype`: Model precision ("fp16" recommended for GPU)
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}\
-> Bucket Training: Training images with different aspect ratios based on bucketing.\
-> VAE/T5 Cache: Use the pre-generated T5 Embedding and VAE Cache for training.\
-> Speed (step/s): sampling speed measured in the number of training steps per second.\
-> FPS (img/s): images per second during training. average training time (s/step) = global batch_size / FPS
+**Using the Web Interface**
+
+After running the command, the demo will launch a web interface accessible at:
+```
+http://localhost:7788
+```
+
+The interface allows you to:
+1. Enter text prompts
+2. Choose sampling method (dpm, ddim, iddpm)
+3. Adjust sampling steps
+4. Modify guidance scale
+5. Set random seed
+6. Generate images
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/gradio_demo.png?raw=true"/></p>
+
+### Integration in diffusers
+```python
+from mindone.diffusers import DiffusionPipeline, Transformer2DModel, PixArtSigmaPipeline
+import mindspore as ms
+
+transformer = Transformer2DModel.from_pretrained(
+    "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
+    subfolder='transformer',
+    mindspore_dtype=ms.float16,
+    use_safetensors=True,
+)
+pipe = PixArtSigmaPipeline.from_pretrained(
+    "PixArt-alpha/pixart_sigma_sdxlvae_T5_diffusers",
+    transformer=transformer,
+    mindspore_dtype=ms.float16,
+    use_safetensors=True,
+)
+prompt =["Whimsical forest fairy resting on a mossy toadstool, surrounded by glowing fireflies.",
+        "Brass and gear-laden mechanical owl soaring gracefully through a cloudy, steampunk-inspired cityscape.",
+        "Abandoned, weathered spaceship drifting silently through a field of sparkling asteroids.",
+        "Warm light spilling out from the windows of a cozy cottage nestled in a snowy, pine-filled forest.",
+        "Majestic, dragon-like creature gliding over a rugged, fantastical mountain range, casting a dramatic shadow below."]
+image = pipe(prompt)[0]
+for i in range(5):
+    image[i].save("./prompt{}.png".format(i))
+```
+Generated image from the code.
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/pixart-sigma.png?raw=true"/></p>
+
+## Performance
+
+### Training Performance
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
+
+| model name   | cards | batch size | resolution   | recompute | sink | jit level |graph compile | s/step | img/s | config                                                               |
+|:------------:|:-----:|:----------:|:------------:|:----------:|:---------:|:---------:|:---------:|:---------:|:-------------:|:--------------------------------------------------------------------|
+| PixArt-Sigma | 4     | 64         | 256x256      | ON        | OFF       | O1        |3~5 mins      |  2.907s    | 88.1          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 4     | 32         | 512 (multi)  | ON        | OFF       | O1 |3~5 mins       | 3.817s    | 33.5          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 4     | 12         | 1024 (multi) | ON        | OFF       | O1  |3~5 mins      | 7.042s    | 6.8           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 4     | 1          | 2048 (multi) | ON        | OFF       | O1  |3~5 mins      | 8.772s    | 0.5           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
+
+> s/step: training time measured in the number of seconds for each training step.\
+> imgs/s: images per second during training. imgs/s = cards * batch_size / step time
+
+### Inference Performance
+
+| model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  recipe                                                                  |
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
+| PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.055    | [yaml](configs/inference/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
+
+
+## LoRA Finetuning
+We provide the train and inference of Pixart-Alpha/Pixart-Sigma in `pixart/lora-finetuning`
+
+### LoRA Training
+You can fine-tune PixArt-alpha or PixArt-Sigma models using LoRA. The base models are available on [Hugging Face](https://huggingface.co/PixArt-alpha).
+
+Below is an example script for training on the Pokemon dataset using PixArt-XL-2-512x512. Note that for PixArt-Sigma, increase the `max-token-length` to 300.
+
+
+```bash
+dataset_id=svjack/pokemon-blip-captions-en-zh
+caption_column=en_text
+model_id=PixArt-alpha/PixArt-XL-2-512x512
+
+python  pixart/lora-finetuning/train_pixart_lora.py \
+    --pretrained_model_name_or_path=$model_id \
+    --dataset_name=$dataset_id \
+    --caption_column=$caption_column \
+    --resolution=512   --random_flip \
+    --train_batch_size=4 \
+    --num_train_epochs=80   --checkpointing_steps=200 \
+    --learning_rate=1e-04   --lr_scheduler="constant" \
+    --lr_warmup_steps=0   --seed=42 \
+    --mixed_precision="fp16" \
+    --output_dir="output/pixart-pokemon-model" \
+    --validation_prompt="cute dragon creature" \
+    --report_to="tensorboard" \
+    --checkpoints_total_limit=10 \
+    --validation_epochs=5 \
+    --max_token_length=120
+```
 
 ### Inference
+After training, you can generate images using your fine-tuned model. Here's how to use it:
+```bash
+python pixart/lora-finetuning/inference_pixart_lora.py \
+    --model_id="PixArt-alpha/PixArt-XL-2-512x512" \
+    --lora_path="output/pixart-pokemon-model/lora_checkpoint_path" \
+    --prompt="A grass-type Pokemon in a forest, highly detailed" \
+    --output_path="./generated_pokemon.png"
+```
+The script accepts the following parameters:
+- `--model_id`: Base model ID from Hugging Face or local path (default: "PixArt-alpha/PixArt-XL-2-512x512")
+- `--lora_path`: Path to your trained LoRA weights directory (required)
+- `--prompt`: Text description for the image you want to generate
+- `--output_path`: Where to save the generated image (default: "./pokemon.png")
 
-| Context       | Scheduler | Steps | Resolution   | Batch Size | Speed (step/s) | Config                                                                  |
-|---------------|-----------|-------|--------------|------------|----------------|-------------------------------------------------------------------------|
-| D910*x1-MS2.3 | DPM++     | 20    | 256 x 256    | 1          | 18.04          | [pixart-sigma-256x256.yaml](configs/inference/pixart-sigma-256x256.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 512 x 512    | 1          | 15.95          | [pixart-sigma-512-MS.yaml](configs/inference/pixart-sigma-512-MS.yaml)  |
-| D910*x1-MS2.3 | DPM++     | 20    | 1024 x 1024  | 1          | 4.96           | [pixart-sigma-1024-MS.yaml](configs/inference/pixart-sigma-1024-MS.yaml)|
-| D910*x1-MS2.3 | DPM++     | 20    | 2048 x 2048  | 1          | 0.57           | [pixart-sigma-2K-MS.yaml](configs/inference/pixart-sigma-2K-MS.yaml)    |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
-> Speed (step/s): sampling speed measured in the number of sampling steps per second.
+Here is some examples
+<p align="center"><img width="1024" src="https://github.com/itruonghai/mindone-asset/blob/main/pixart_lora.png?raw=true"/></p>
+
+#### LoRA Finetuning Performance
+
+
+
+| model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  img/s                                                                  |
+|:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
+| PixArt-Alpha | 1     | 4           | 512 x 512    | O1        | < 3 mins      | 0.055    | 72.72 |
+| PixArt-Sigma | 1     | 4           | 512 x 512    | O1        | < 3 mins      | 0.065    | 61.54 |
+
 
 # References
 

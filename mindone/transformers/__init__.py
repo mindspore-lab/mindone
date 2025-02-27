@@ -1,3 +1,4 @@
+__version__ = "4.42.4"
 from .modeling_utils import MSPreTrainedModel
 from .models.bert import (
     BertForMaskedLM,
@@ -30,6 +31,15 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.gemma import (
+    GemmaForCausalLM,
+    GemmaForSequenceClassification,
+    GemmaForTokenClassification,
+    GemmaModel,
+    GemmaPreTrainedModel,
+)
+from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
@@ -37,11 +47,26 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.phi3 import (
+    Phi3ForCausalLM,
+    Phi3ForSequenceClassification,
+    Phi3ForTokenClassification,
+    Phi3Model,
+    Phi3PreTrainedModel,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,
     T5ForConditionalGeneration,
     T5Model,
     T5PreTrainedModel,
+)
+from .models.umt5 import (
+    UMT5EncoderModel,
+    UMT5ForQuestionAnswering,
+    UMT5ForSequenceClassification,
+    UMT5ForTokenClassification,
+    UMT5Model,
+    UMT5PreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel

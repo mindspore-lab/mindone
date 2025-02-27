@@ -5,12 +5,18 @@ try:
 except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
+import logging
+
 from tqdm import tqdm
 
 from mindspore import Tensor, dtype, ops
+from mindspore.communication import get_rank
 
+from ..acceleration.parallel_states import get_sequence_parallel_group
 from ..utils.distributions import LogisticNormal
 from .iddpm.diffusion_utils import mean_flat
+
+logger = logging.getLogger(__name__)
 
 
 class RFLOW:
@@ -150,8 +156,20 @@ class RFlowScheduler:
         self.use_timestep_transform = use_timestep_transform
         self.transform_scale = transform_scale
 
+        self.sp_group = get_sequence_parallel_group()
+        if self.sp_group is not None:
+            logging.info(
+                f"Broadcasting all random variables from rank (0) to current rank ({get_rank(self.sp_group)}) in group `{self.sp_group}`."
+            )
+            self.broadcast = ops.Broadcast(0, group=self.sp_group)
+
     def _discrete_sample(self, size: int) -> Tensor:
         return ops.randint(0, self.num_timesteps, (size,), dtype=dtype.int32)
+
+    def _broadcast(self, x: Tensor) -> Tensor:
+        if self.sp_group is None:
+            return x
+        return self.broadcast((x,))[0]
 
     def _uniform_sample(self, size: int) -> Tensor:
         return ops.rand((size,), dtype=dtype.float32) * self.num_timesteps
@@ -180,12 +198,14 @@ class RFlowScheduler:
         """
         if t is None:
             t = self._sample_func(x_start.shape[0])
+            t = self._broadcast(t)
             if self.use_timestep_transform:
                 t = timestep_transform(
                     t, height, width, num_frames, scale=self.transform_scale, num_timesteps=self.num_timesteps
                 )
 
         noise = ops.randn_like(x_start)
+        noise = self._broadcast(noise)
 
         x_t = self.add_noise(x_start, noise, t)
 

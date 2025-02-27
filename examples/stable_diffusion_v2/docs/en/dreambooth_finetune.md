@@ -1,7 +1,7 @@
 # Dreambooth for Stable Diffusion Finetuning
 [DreamBooth: Fine Tuning Text-to-Image Diffusion Models for Subject-Driven Generation](https://arxiv.org/abs/2208.12242)
 
-## 1. Introduction
+## Introduction
 
 DreamBooth is a method used to fine-tune existing Text-to-Image models, developed by researchers from Google Research and Boston University in 2022. It allows the model to generate contextualized images of the subject, e.g., a cute puppy of yours, in different scenes, poses, and views. DreamBooth can be used to fine-tune models such as Stable Diffusion2.
 
@@ -32,28 +32,20 @@ $x$ is the image of your subject ("sks dog"), and $x_{pr}$ is the image from the
 **Notes**:
 - Unlike LoRA, Dreambooth is a method that updates all the weights of the Latent Diffusion model. If needed, the text encoder of the CLIP model can also be updated. We find that finetuning text encoder and the Text-to-Image model yields better performance than finetuning the Text-to-Image model alone.
 
-**MindONE** supports DreamBooth finetuning and inference for Stable Diffusion models based on MindSpore and Ascend platforms.
 
-For finetuning experiment details, please refer to [Section 2](#2-get-started-for-finetuning).
+## Preparation
 
-For inference with existing dreambooth models, please refer to [Section 3](#3-get-started-for-inference).
-
-## 2. Get Started
-
-
-### 2.1 Preparation
-
-#### 2.1.1 Dependency
+#### Dependency
 
 Please refer to the [Installation](../../README.md#installation) section.
 
 
-#### 2.1.2 Pretrained Models
+#### Pretrained Models
 
 Please download the pretrained [SD2.0-base checkpoint](https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v2_base-57526ee4.ckpt) and put it under `stable_diffusion_v2/models` folder.
 
 
-#### 2.1.3 Finetuning Dataset Preparation
+#### Finetuning Dataset Preparation
 
 The finetuning dataset should contain 3-5 images from the same subject under the same folder.
 
@@ -75,9 +67,9 @@ In [Google/DreamBooth](https://github.com/google/dreambooth), there are many ima
   <em> Figure 2. The five images from the subject dog for finetuning. </em>
 </p>
 
-### 2.2 Fine-tuning
+## Fine-tuning
 
-#### 2.2.1 Experiment-Related Arguments
+#### Experiment-Related Arguments
 
 Before starting to run the fine-tuning program, please modify the following experiment-related variables in the shell or
 in the config file `train_config_dreambooth_v2.yaml` that may vary for different users:
@@ -87,7 +79,7 @@ in the config file `train_config_dreambooth_v2.yaml` that may vary for different
 * `--output_path=/path/to/save/output_data`
 * `--pretrained_model_path=/path/to/pretrained_model`
 
-#### 2.2.2 Training Command for DreamBooth
+#### Training Command for DreamBooth
 
 Then, execute the script to launch finetuning:
 
@@ -114,7 +106,7 @@ The finetuning process takes about 20 minutes.
 > 1. Setting `train_text_encoder` to `True` allows to finetune the stable diffusion model along with the CLIP text encoder. We recommend to set it to True, since it yields better performance than `train_text_encoder=False`.
 > 2. If `train_text_encoder` is set to `False` which saves some memory, we recommend you to change the `epochs` to 20 to achieve better performance.
 
-#### 2.2.3 Training Command for Vanilla Finetuning
+#### Training Command for Vanilla Finetuning
 
 Vanilla Finetuning is to finetune the network with the five dogs images directly, without applying the prior perservation loss.
 
@@ -129,7 +121,7 @@ python train_dreambooth.py \
     --pretrained_model_path "models/sd_v2_base-57526ee4.ckpt"
 ```
 
-#### 2.2.5 Training Command for DreamBooth with LoRA
+#### Training Command for DreamBooth with LoRA
 
 LoRA is a parameter-efficient finetuning method. Here, we combine DreamBooth with LoRA by injecting the LoRA parameters into the text encoder and the UNet of Text-to-Image model, and training with the prior preservation loss.
 
@@ -149,7 +141,7 @@ python train_dreambooth.py \
 Note that we train the LoRA parameters with a constant learning rate `5e-5`, a weight decay `1e-4 ` for 4 epochs (800 steps). The rank of the LoRA parameter is 64.
 
 
-### 2.3 Inference
+## Inference
 
 The inference command generates images on a given prompt and save them to a given output directory. An example command is as follows:
 
@@ -231,39 +223,9 @@ python text_to_image.py     \
 
 The results in Figure 7. are very close to the results in Figure 3.
 
-### 2.4 Evaluation
 
-For evaluation, we consider two metrics:
+---
 
-- CLIP-T score: the cosine similarity between the text prompt and the image CLIP embedding.
-- CLIP-I score: the cosine similarity between the CLIP embeddings of the real and the generated images.
-
-By default, we use the pretrained `clip_vit_base_patch16` model to extract the image/text embeddings and `bpe_simple_vocab_16e6` as the text tokenizer. To download the two files, please refer to the guideline [Clip Score Evaluation](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/tools/eval/README.md#clip-score).
-
-
-#### 2.4.1 CLIP-T score
-
-The command to evaluate the CLIP-T score is shown below:
-
-```shell
-python tools/eval/eval_clip_score.py  \
-    --ckpt_path <path-to-clip-model>  \
-    --image_path_or_dir <path-to-image>  \
-    --prompt_or_path <string/path-to-txt>
-```
-
-#### 2.4.2 CLIP-I score
-
-The command to evaluate the CLIP-I score is shown below:
-
-```shell
-python tools/eval/eval_clip_i_score.py  \
-    --ckpt_path <path-to-clip-model>  \
-    --gen_image_path_or_dir <path-to-generated-image>  \
-    --real_image_path_or_dir <path-to-real-image>
-```
-
-## 3. Get Started For Inference
 
 If you already have a pretrained DreamBooth model saved in mindspore checkpoint file format, you can easily run inference with `text_to_image.py`. For example:
 ```
@@ -297,9 +259,40 @@ Now, set `--ckpt_path` as `models/toonyou_beta3.ckpt` and run `text_to_image.py`
   <em> Figure 8. The generated images of the ToonYou (beta3) DreamBooth model using the prompt 'A girl, cherry blossoms, pink flowers, spring season'. </em>
 </p>
 
+## Evaluation
+
+For evaluation, we consider two metrics:
+
+- CLIP-T score: the cosine similarity between the text prompt and the image CLIP embedding.
+- CLIP-I score: the cosine similarity between the CLIP embeddings of the real and the generated images.
+
+By default, we use the pretrained `clip_vit_base_patch16` model to extract the image/text embeddings and `bpe_simple_vocab_16e6` as the text tokenizer. To download the two files, please refer to the guideline [Clip Score Evaluation](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2/tools/eval/README.md#clip-score).
 
 
-# References
+#### CLIP-T score
+
+The command to evaluate the CLIP-T score is shown below:
+
+```shell
+python tools/eval/eval_clip_score.py  \
+    --ckpt_path <path-to-clip-model>  \
+    --image_path_or_dir <path-to-image>  \
+    --prompt_or_path <string/path-to-txt>
+```
+
+#### CLIP-I score
+
+The command to evaluate the CLIP-I score is shown below:
+
+```shell
+python tools/eval/eval_clip_i_score.py  \
+    --ckpt_path <path-to-clip-model>  \
+    --gen_image_path_or_dir <path-to-generated-image>  \
+    --real_image_path_or_dir <path-to-real-image>
+```
+
+
+## References
 
 [1] Nataniel Ruiz, Yuanzhen Li, Varun Jampani, Yael Pritch, Michael Rubinstein, Kfir Aberman:
 DreamBooth: Fine Tuning Text-to-Image Diffusion Models for Subject-Driven Generation. CoRR abs/2208.12242 (2022)

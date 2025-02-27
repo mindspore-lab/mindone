@@ -74,6 +74,18 @@ def init_env(args):
         device_target="Ascend",
         device_id=device_id,
     )
+    try:
+        if args.jit_level in ["O0", "O1", "O2"]:
+            ms.set_context(jit_config={"jit_level": args.jit_level})
+        else:
+            logger.warning(
+                f"Unsupported jit_level: {args.jit_level}. The framework will automatically select the execution mode."
+            )
+    except Exception:
+        logger.warning(
+            "The current jit_level is not suitable because current MindSpore version or mode does not match,"
+            "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
+        )
     ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_fp16"})  # Only effective on Ascend 901B
     # ms.set_context(ascend_config={"precision_mode": "allow_fp32_to_bf16"})  # TODO: testing bf16
 
@@ -327,6 +339,7 @@ def main(cfg):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {cfg.ms_mode}",
+                f"Jit level: {cfg.jit_level}",
                 f"Distributed mode: {cfg.use_parallel}",
                 f"Dataset sink mode: {cfg.dataset_sink_mode}",
                 f"Data path: {cfg.root_dir}",
@@ -334,7 +347,7 @@ def main(cfg):
                 "Model: VideoComposer",
                 f"Conditions for training: {cfg.conditions_for_train}",
                 f"Num params: {param_nums}",
-                f"Num trainable params: {num_trainable_params:,}",
+                f"Num trainable params: {num_trainable_params: , }",
                 f"Optimizer: {cfg.optim}",
                 f"Learning rate: {cfg.learning_rate}",
                 f"Batch size: {cfg.batch_size}",

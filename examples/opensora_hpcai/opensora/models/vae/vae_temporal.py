@@ -150,7 +150,7 @@ def get_activation_fn(activation):
 class Encoder(nn.Cell):
     """Encoder Blocks."""
 
-    # @ms.lazy_inline()
+    @ms.lazy_inline()
     def __init__(
         self,
         in_out_channels=4,
@@ -261,7 +261,7 @@ class Encoder(nn.Cell):
 class Decoder(nn.Cell):
     """Decoder Blocks."""
 
-    # @ms.lazy_inline()
+    @ms.lazy_inline()
     def __init__(
         self,
         in_out_channels=4,
@@ -406,6 +406,7 @@ class VAE_Temporal(nn.Cell):
         num_groups=32,  # for nn.GroupNorm
         activation_fn="swish",
         use_recompute=False,
+        sample_deterministic=False,
     ):
         super().__init__()
 
@@ -413,6 +414,7 @@ class VAE_Temporal(nn.Cell):
         # self.time_padding = self.time_downsample_factor - 1
         self.patch_size = (self.time_downsample_factor, 1, 1)
         self.out_channels = in_out_channels
+        self.sample_deterministic = sample_deterministic
 
         # NOTE: following MAGVIT, conv in bias=False in encoder first conv
         self.encoder = Encoder(
@@ -505,6 +507,8 @@ class VAE_Temporal(nn.Cell):
     def encode(self, x):
         # embedding, get latent representation z
         posterior_mean, posterior_logvar = self._encode(x)
+        if self.sample_deterministic:
+            return posterior_mean
         z = self.sample(posterior_mean, posterior_logvar)
 
         return z

@@ -33,7 +33,7 @@ model:
                 use_linear_in_transformer: True
                 transformer_depth: [1, 2, 10]  # note: the first is unused (due to attn_res starting at 2) 32, 16, 8 --> 64, 32, 16
                 context_dim: 2048
-                spatial_transformer_attn_type: vanilla  # vanilla, flash-attention
+                spatial_transformer_attn_type: flash-attention  # vanilla, flash-attention
                 legacy: False
                 use_recompute: True
 
@@ -124,7 +124,7 @@ optim:
 
 
 data:
-    per_batch_size: 1
+    per_batch_size: 6
     total_step: 100000
     num_parallel_workers: 2
     python_multiprocessing: False
@@ -146,6 +146,24 @@ data:
                 [1344, 768],
                 [1472, 704],
                 [1600, 640],
+                [1728, 576],
+                [512, 512],
+                [768, 768],
+                [704, 1344],
+                [768, 1280],
+                [832, 1152],
+                [896, 1088],
+                [960, 1024],
+                [1024, 960],
+                [1088, 896],
+                [1152, 832],
+                [1280, 768],
+                [1344, 704],
+                [1408, 704],
+                [1472, 704],
+                [1536, 640],
+                [1600, 640],
+                [1664, 576],
                 [1728, 576]
             ]
             batched_transforms:

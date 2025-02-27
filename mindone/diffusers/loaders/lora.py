@@ -176,8 +176,7 @@ class LoraLoaderMixin:
                       the Hub.
                     - A path to a *directory* (for example `./my_model_directory`) containing the model weights saved
                       with [`ModelMixin.save_pretrained`].
-                    - A [torch state
-                      dict](https://pytorch.org/tutorials/beginner/saving_loading_models.html#what-is-a-state-dict).
+                    - A MindSpore statedict.
 
             cache_dir (`Union[str, os.PathLike]`, *optional*):
                 Path to a directory where a downloaded pretrained model configuration is cached if the standard cache
@@ -597,9 +596,9 @@ class LoraLoaderMixin:
         Arguments:
             save_directory (`str` or `os.PathLike`):
                 Directory to save LoRA parameters to. Will be created if it doesn't exist.
-            unet_lora_layers (`Dict[str, torch.nn.Module]` or `Dict[str, torch.Tensor]`):
+            unet_lora_layers (`Dict[str, mindspore.nn.Cell]` or `Dict[str, ms.Tensor]`):
                 State dict of the LoRA layers corresponding to the `unet`.
-            text_encoder_lora_layers (`Dict[str, torch.nn.Module]` or `Dict[str, torch.Tensor]`):
+            text_encoder_lora_layers (`Dict[str, mindspore.nn.Cell]` or `Dict[str, ms.Tensor]`):
                 State dict of the LoRA layers corresponding to the `text_encoder`. Must explicitly pass the text
                 encoder LoRA state dict because it comes from 🤗 Transformers.
             is_main_process (`bool`, *optional*, defaults to `True`):
@@ -608,7 +607,7 @@ class LoraLoaderMixin:
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `mindspore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
@@ -728,12 +727,12 @@ class LoraLoaderMixin:
         Example:
 
         ```py
-        from diffusers import DiffusionPipeline
-        import torch
+        from mindone.diffusers import DiffusionPipeline
+        import mindspore as ms
 
         pipeline = DiffusionPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", torch_dtype=torch.float16
-        ).to("cuda")
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms.float16
+        )
         pipeline.load_lora_weights("nerijs/pixel-art-xl", weight_name="pixel-art-xl.safetensors", adapter_name="pixel")
         pipeline.fuse_lora(lora_scale=0.7)
         ```
@@ -825,7 +824,7 @@ class LoraLoaderMixin:
         Args:
             adapter_names (`List[str]` or `str`):
                 The names of the adapters to use.
-            text_encoder (`torch.nn.Module`, *optional*):
+            text_encoder (`mindspore.nn.Cell`, *optional*):
                 The text encoder module to set the adapter layers for. If `None`, it will try to get the `text_encoder`
                 attribute.
             text_encoder_weights (`List[float]`, *optional*):
@@ -863,7 +862,7 @@ class LoraLoaderMixin:
         Disables the LoRA layers for the text encoder.
 
         Args:
-            text_encoder (`torch.nn.Module`, *optional*):
+            text_encoder (`mindspore.nn.Cell`, *optional*):
                 The text encoder module to disable the LoRA layers for. If `None`, it will try to get the
                 `text_encoder` attribute.
         """
@@ -877,7 +876,7 @@ class LoraLoaderMixin:
         Enables the LoRA layers for the text encoder.
 
         Args:
-            text_encoder (`torch.nn.Module`, *optional*):
+            text_encoder (`mindspore.nn.Cell`, *optional*):
                 The text encoder module to enable the LoRA layers for. If `None`, it will try to get the `text_encoder`
                 attribute.
         """
@@ -1011,11 +1010,12 @@ class LoraLoaderMixin:
         Example:
 
         ```python
-        from diffusers import DiffusionPipeline
+        from mindone.diffusers import DiffusionPipeline
+        import mindspore as ms
 
         pipeline = DiffusionPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0",
-        ).to("cuda")
+        )
         pipeline.load_lora_weights("CiroN2022/toy-face", weight_name="toy_face_sdxl.safetensors", adapter_name="toy")
         pipeline.get_active_adapters()
         ```
@@ -1146,12 +1146,12 @@ class StableDiffusionXLLoraLoaderMixin(LoraLoaderMixin):
         Arguments:
             save_directory (`str` or `os.PathLike`):
                 Directory to save LoRA parameters to. Will be created if it doesn't exist.
-            unet_lora_layers (`Dict[str, torch.nn.Module]` or `Dict[str, torch.Tensor]`):
+            unet_lora_layers (`Dict[str, mindspore.nn.Cell]` or `Dict[str, ms.Tensor]`):
                 State dict of the LoRA layers corresponding to the `unet`.
-            text_encoder_lora_layers (`Dict[str, torch.nn.Module]` or `Dict[str, torch.Tensor]`):
+            text_encoder_lora_layers (`Dict[str, mindspore.nn.Cell]` or `Dict[str, ms.Tensor]`):
                 State dict of the LoRA layers corresponding to the `text_encoder`. Must explicitly pass the text
                 encoder LoRA state dict because it comes from 🤗 Transformers.
-            text_encoder_2_lora_layers (`Dict[str, torch.nn.Module]` or `Dict[str, torch.Tensor]`):
+            text_encoder_2_lora_layers (`Dict[str, mindspore.nn.Cell]` or `Dict[str, ms.Tensor]`):
                 State dict of the LoRA layers corresponding to the `text_encoder_2`. Must explicitly pass the text
                 encoder LoRA state dict because it comes from 🤗 Transformers.
             is_main_process (`bool`, *optional*, defaults to `True`):
@@ -1160,7 +1160,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraLoaderMixin):
                 process to avoid race conditions.
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
+                replace `mindspore.save_checkpoint` with another method. Can be configured with the environment variable
                 `DIFFUSERS_SAVE_MODE`.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
@@ -1468,9 +1468,7 @@ class SD3LoraLoaderMixin:
                 need to call this function on all processes. In this case, set `is_main_process=True` only on the main
                 process to avoid race conditions.
             save_function (`Callable`):
-                The function to use to save the state dictionary. Useful during distributed training when you need to
-                replace `torch.save` with another method. Can be configured with the environment variable
-                `DIFFUSERS_SAVE_MODE`.
+                The function to use to save the state dictionary.
             safe_serialization (`bool`, *optional*, defaults to `True`):
                 Whether to save the model using `safetensors` or the traditional PyTorch way with `pickle`.
         """

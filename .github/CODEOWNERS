@@ -9,17 +9,17 @@
 # Any change inside the `/examples` directory at the root of the repository and any of its subdirectories will require approval from @CaitinZhao, @SamitHuang or @zhanghuiyao.
 /examples/ @CaitinZhao @SamitHuang @zhanghuiyao
 
-# @geniuspatrick owns any file in an `diffusers`, `transformers`, `peft` and `safetensors` directory anywhere in the repository.
-diffusers/ @geniuspatrick
-transformers/ @geniuspatrick
-peft/ @geniuspatrick
-safetensors/ @geniuspatrick
+# @vigo999 owns any file in an `diffusers`, `transformers`, `peft` and `safetensors` directory anywhere in the repository.
+diffusers/ @vigo999
+transformers/ @vigo999
+peft/ @vigo999
+safetensors/ @vigo999
 
-# @geniuspatrick owns any file about the repository settings.
-/.* @geniuspatrick
-/docs/ @geniuspatrick
-/mkdocs.yml @geniuspatrick
-/pyproject.toml @geniuspatrick
+# @vigo999 owns any file about the repository settings.
+/.* @vigo999
+/docs/ @vigo999
+/mkdocs.yml @vigo999
+/pyproject.toml @vigo999
 
 # @global-owners own any file except for the following list, as their owners are left empty.
 /*.md

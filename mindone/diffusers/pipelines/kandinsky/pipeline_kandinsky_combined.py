@@ -66,10 +66,10 @@ IMAGE2IMAGE_EXAMPLE_DOC_STRING = """
         url = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
 
         response = requests.get(url)
-        image = Image.open(BytesIO(response.content)).convert("RGB")
-        image.thumbnail((768, 768))
+        original_image = Image.open(BytesIO(response.content)).convert("RGB")
+        original_image.thumbnail((768, 768))
 
-        image = pipe(prompt=prompt, image=original_image, num_inference_steps=25)[0][0]
+        image = pipe(prompt=prompt, negative_prompt=negative_prompt, image=original_image, num_inference_steps=25)[0][0]
         ```
 """
 
@@ -96,7 +96,13 @@ INPAINT_EXAMPLE_DOC_STRING = """
         # Let's mask out an area above the cat's head
         mask[:250, 250:-250] = 1
 
-        image = pipe(prompt=prompt, image=original_image, mask_image=mask, num_inference_steps=25)[0][0]
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            image=original_image,
+            mask_image=mask,
+            num_inference_steps=25,
+        )[0][0]
         ```
 """
 

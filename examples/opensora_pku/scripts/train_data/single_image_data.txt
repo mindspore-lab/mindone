@@ -1,1 +1,0 @@
-/home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/human_image/images,/home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/human_image-t5-emb-len=300,/home_host/ddd/workspace/datasets/Open-Sora-Plan-v1.1.0_490/anno_jsons/human_images_162094.json

@@ -39,6 +39,16 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 STR_OPERATION_TO_FUNC = {">": op.gt, ">=": op.ge, "==": op.eq, "!=": op.ne, "<=": op.le, "<": op.lt}
 
+_mindspore_version = "N/A"
+_mindspore_available = importlib.util.find_spec("mindspore") is not None
+if _mindspore_available:
+    try:
+        _mindspore_version = importlib_metadata.version("mindspore")
+        logger.info(f"MindSpore version {_mindspore_version} available.")
+    except importlib_metadata.PackageNotFoundError:
+        _mindspore_available = False
+
+
 _transformers_available = importlib.util.find_spec("transformers") is not None
 try:
     _transformers_version = importlib_metadata.version("transformers")
@@ -94,12 +104,38 @@ except importlib_metadata.PackageNotFoundError:
     _bs4_available = False
 
 
+_invisible_watermark_available = importlib.util.find_spec("imwatermark") is not None
+try:
+    _invisible_watermark_version = importlib_metadata.version("invisible-watermark")
+    logger.debug(f"Successfully imported invisible-watermark version {_invisible_watermark_version}")
+except importlib_metadata.PackageNotFoundError:
+    _invisible_watermark_available = False
+
+
+_sentencepiece_available = importlib.util.find_spec("sentencepiece") is not None
+try:
+    _sentencepiece_version = importlib_metadata.version("sentencepiece")
+    logger.info(f"Successfully imported sentencepiece version {_sentencepiece_version}")
+except importlib_metadata.PackageNotFoundError:
+    _sentencepiece_available = False
+
+
 _matplotlib_available = importlib.util.find_spec("matplotlib") is not None
 try:
     _matplotlib_version = importlib_metadata.version("matplotlib")
     logger.debug(f"Successfully imported matplotlib version {_matplotlib_version}")
 except importlib_metadata.PackageNotFoundError:
     _matplotlib_available = False
+
+
+_imageio_available = importlib.util.find_spec("imageio") is not None
+if _imageio_available:
+    try:
+        _imageio_version = importlib_metadata.version("imageio")
+        logger.debug(f"Successfully imported imageio version {_imageio_version}")
+
+    except importlib_metadata.PackageNotFoundError:
+        _imageio_available = False
 
 
 def is_transformers_available():
@@ -124,6 +160,18 @@ def is_bs4_available():
 
 def is_matplotlib_available():
     return _matplotlib_available
+
+
+def is_imageio_available():
+    return _imageio_available
+
+
+def is_invisible_watermark_available():
+    return _invisible_watermark_available
+
+
+def is_sentencepiece_available():
+    return _sentencepiece_available
 
 
 # docstyle-ignore
@@ -161,6 +209,22 @@ that match your environment. Please note that you may need to restart your runti
 """
 
 
+# docstyle-ignore
+IMAGEIO_IMPORT_ERROR = """
+{0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
+"""
+
+# docstyle-ignore
+INVISIBLE_WATERMARK_IMPORT_ERROR = """
+{0} requires the invisible-watermark library but it was not found in your environment. You can install it with pip: `pip install invisible-watermark>=0.2.0`
+"""
+
+# docstyle-ignore
+SENTENCEPIECE_IMPORT_ERROR = """
+{0} requires the sentencepiece library but it was not found in your environment. You can install it with pip: `pip install sentencepiece`
+"""
+
+
 BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
@@ -168,6 +232,9 @@ BACKENDS_MAPPING = OrderedDict(
         ("scipy", (is_scipy_available, SCIPY_IMPORT_ERROR)),
         ("transformers", (is_transformers_available, TRANSFORMERS_IMPORT_ERROR)),
         ("ftfy", (is_ftfy_available, FTFY_IMPORT_ERROR)),
+        ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
+        ("invisible_watermark", (is_invisible_watermark_available, INVISIBLE_WATERMARK_IMPORT_ERROR)),
+        ("sentencepiece", (is_sentencepiece_available, SENTENCEPIECE_IMPORT_ERROR)),
     ]
 )
 
@@ -190,6 +257,18 @@ def compare_versions(library_or_version: Union[str, Version], operation: str, re
     if isinstance(library_or_version, str):
         library_or_version = parse(importlib_metadata.version(library_or_version))
     return operation(library_or_version, parse(requirement_version))
+
+
+def is_mindspore_version(operation: str, version: str):
+    """
+    Args:
+    Compares the current MindSpore version to a given reference with an operation.
+        operation (`str`):
+            A string representation of an operator, such as `">"` or `"<="`
+        version (`str`):
+            A string version of MindSpore
+    """
+    return compare_versions(parse(_mindspore_version), operation, version)
 
 
 def is_peft_version(operation: str, version: str):

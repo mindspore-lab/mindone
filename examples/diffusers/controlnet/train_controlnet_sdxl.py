@@ -897,9 +897,11 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    controlnet.to_float(weight_dtype)
-    for _, cell in controlnet.cells_and_names():
-        cell.to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        controlnet.to_float(weight_dtype)
+        for _, cell in controlnet.cells_and_names():
+            cell.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -1105,11 +1107,12 @@ class TrainStepForControlNet(TrainStep):
         self.noise_scheduler_num_train_timesteps = noise_scheduler.config.num_train_timesteps
         self.noise_scheduler_prediction_type = noise_scheduler.config.prediction_type
         self.weight_dtype = weight_dtype
+        self.vae_dtype = self.vae.dtype
         self.args = AttrJitWrapper(**vars(args))
 
     def forward(self, pixel_values, conditioning_pixel_values, prompt_ids, add_text_embeds, add_time_ids):
         # Convert images to latent space
-        latents = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values)[0])
+        latents = self.vae.diag_gauss_dist.sample(self.vae.encode(pixel_values.to(self.vae_dtype))[0])
         latents = latents * self.vae_scaling_factor
         latents = latents.to(self.weight_dtype)
 

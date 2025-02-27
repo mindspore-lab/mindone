@@ -20,9 +20,11 @@ class AutoencoderKL(nn.Cell):
         image_key="image",
         monitor=None,
         use_recompute=False,
+        sample_deterministic=False,
     ):
         super().__init__()
         self.image_key = image_key
+        self.sample_deterministic = sample_deterministic
         self.encoder = Encoder(**ddconfig)
         self.decoder = Decoder(**ddconfig)
         # assert ddconfig["double_z"]
@@ -106,6 +108,8 @@ class AutoencoderKL(nn.Cell):
     def encode(self, x):
         # embedding, get latent representation z
         posterior_mean, posterior_logvar = self._encode(x)
+        if self.sample_deterministic:
+            return posterior_mean
         z = self.sample(posterior_mean, posterior_logvar)
 
         return z
