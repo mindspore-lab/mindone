@@ -6,6 +6,7 @@ import random
 import sys
 from functools import partial
 
+import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
@@ -223,6 +224,8 @@ class WanT2V:
         if offload_model:
             raise NotImplementedError()
         if self.rank == 0:
+            # TODO: handle this
+            np.save("latent.npy", x0[0].to(ms.float32).asnumpy())
             videos = self.vae.decode(x0)
 
         del noise, latents

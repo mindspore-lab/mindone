@@ -29,6 +29,9 @@ def rand_name(length=8, suffix=""):
 
 
 def cache_video(tensor, save_file=None, fps=30, suffix=".mp4", nrow=8, normalize=True, value_range=(-1, 1), retry=5):
+    # TODO: use mindspore ?
+    tensor = torch.tensor(tensor.float().asnumpy(), device="cpu")
+
     # cache file
     cache_file = osp.join("/tmp", rand_name(suffix=suffix)) if save_file is None else save_file
 
