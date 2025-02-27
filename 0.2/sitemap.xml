@@ -117,11 +117,19 @@
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/cogview3plus_transformer2d/</loc>
+         <lastmod>2025-02-27</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/consistency_decoder_vae/</loc>
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet/</loc>
+         <lastmod>2025-02-27</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/models/controlnet_flux/</loc>
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
@@ -237,11 +245,19 @@
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/cogview3/</loc>
+         <lastmod>2025-02-27</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/consistency_models/</loc>
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet/</loc>
+         <lastmod>2025-02-27</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/api/pipelines/controlnet_flux/</loc>
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
@@ -630,6 +646,10 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/callback/</loc>
+         <lastmod>2025-02-27</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.2/diffusers/using-diffusers/cogvideox/</loc>
          <lastmod>2025-02-27</lastmod>
     </url>
     <url>
