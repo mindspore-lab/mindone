@@ -49,7 +49,7 @@ train:
 
   lr_scheduler:
     name: constant
-    lr: 5.0e-5
+    lr: 1e-4
     warmup_steps: 1000
 
   optimizer_ae:
