@@ -77,12 +77,12 @@ class Resample(nn.Cell):
         # layers
         if mode == "upsample2d":
             self.resample = nn.SequentialCell(
-                Upsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
+                Upsample(scale_factor=(2.0, 2.0), mode="nearest"),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1, dtype=dtype),
             )
         elif mode == "upsample3d":
             self.resample = nn.SequentialCell(
-                Upsample(scale_factor=(2.0, 2.0), mode="nearest-exact"),
+                Upsample(scale_factor=(2.0, 2.0), mode="nearest"),
                 mint.nn.Conv2d(dim, dim // 2, 3, padding=1, dtype=dtype),
             )
             self.time_conv = CausalConv3d(dim, dim * 2, (3, 1, 1), padding=(1, 0, 0), dtype=dtype)
@@ -128,7 +128,7 @@ class Resample(nn.Cell):
         t = x.shape[2]
         x = x.transpose(1, 2).flatten(0, 1)  # b c t h w -> (b t) c h w
         x = self.resample(x)
-        x = x.reshape(b, t, *x.shape[2:]).transpose(1, 2)  # (b t) c h w -> b c t h w
+        x = x.reshape(b, t, *x.shape[1:]).transpose(1, 2)  # (b t) c h w -> b c t h w
 
         if self.mode == "downsample3d":
             if feat_cache is not None:
@@ -199,18 +199,18 @@ class AttentionBlock(nn.Cell):
     def construct(self, x: Tensor) -> Tensor:
         identity = x
         b, c, t, h, w = x.shape
-        x = x.flatten(0, 1)  # b c t h w -> (b t) c h w
+        x = x.transpose(1, 2).reshape(-1, c, h, w)  # b c t h w -> (b t) c h w
         x = self.norm(x)
         # compute query, key, value
         q, k, v = self.to_qkv(x).reshape(b * t, 1, c * 3, -1).permute(0, 1, 3, 2).contiguous().chunk(3, dim=-1)
 
         # apply attention
-        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1 / math.sqrt(q.shape[-1]), input_layout="BSND")
+        x = ops.flash_attention_score(q, k, v, 1, scalar_value=1 / math.sqrt(q.shape[-1]), input_layout="BNSD")
         x = x.squeeze(1).permute(0, 2, 1).reshape(b * t, c, h, w)
 
         # output
         x = self.proj(x)
-        x = x.reshape(b, t, *x.shape[2:]).transpose(1, 2)  # (b t) c h w-> b c t h w
+        x = x.reshape(b, t, *x.shape[1:]).transpose(1, 2)  # (b t) c h w-> b c t h w
         return x + identity
 
 
