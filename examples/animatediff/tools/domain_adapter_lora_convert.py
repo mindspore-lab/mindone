@@ -152,11 +152,11 @@ if __name__ == "__main__":
 
     src_pt_ckpt = args.src
     if args.pt_params_naming == "diffuser":
-        torch_names_txt = "../../stable_diffusion_v2/tools/model_conversion/diffusers_unet_v2.txt"
+        torch_names_txt = "tools/model_conversion/diffusers_unet_v2.txt"
     else:
         raise ValueError(f"Torch naming method {args.pt_params_naming} is not supported.")
 
-    ms_names_txt = "../../stable_diffusion_v2/tools/model_conversion/ms_names_v2.txt"
+    ms_names_txt = "tools/model_conversion/ms_names_v2.txt"
 
     output_dir = args.target
 

@@ -20,7 +20,7 @@ import numpy as np
 
 import mindspore as ms
 import mindspore.numpy as msnp
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import initializer
 
 from mindone.utils.version_control import (
@@ -66,12 +66,11 @@ def default(val, d):
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
-        self.proj = nn.Dense(dim_in, dim_out * 2).to_float(dtype)
-        self.split = ops.Split(-1, 2)
-        self.gelu = ops.GeLU()
+        self.proj = mint.nn.Linear(dim_in, dim_out * 2).to_float(dtype)
+        self.gelu = nn.GELU()
 
     def construct(self, x):
-        x, gate = self.split(self.proj(x))
+        x, gate = mint.split(self.proj(x), self.proj(x).shape[-1] // 2, dim=-1)
 
         return x * self.gelu(gate)
 
@@ -82,14 +81,14 @@ class FeedForward(nn.Cell):
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
         project_in = (
-            nn.Sequential(nn.Dense(dim, inner_dim).to_float(dtype), nn.GELU().to_float(dtype))
+            nn.Sequential(mint.nn.Linear(dim, inner_dim).to_float(dtype), mint.nn.GELU().to_float(dtype))
             if not glu
             else GEGLU(dim, inner_dim, dtype=dtype)
         )
         self.net = nn.SequentialCell(
             project_in,
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
-            nn.Dense(inner_dim, dim_out).to_float(dtype),
+            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout).to_float(ms.float32),
+            mint.nn.Linear(inner_dim, dim_out).to_float(dtype),
         )
 
     def construct(self, x):
@@ -108,7 +107,7 @@ def zero_module(module):
 
 
 def Normalize(in_channels):
-    return nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+    return mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
 
 
 class LinearAttention(nn.Cell):
@@ -116,8 +115,8 @@ class LinearAttention(nn.Cell):
         super().__init__()
         self.heads = heads
         hidden_dim = dim_head * heads
-        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, has_bias=False, pad_mode="pad")
-        self.to_out = nn.Conv2d(hidden_dim, dim, 1, has_bias=True, pad_mode="pad")
+        self.to_qkv = mint.nn.Conv2d(dim, hidden_dim * 3, 1, bias=False)
+        self.to_out = mint.nn.Conv2d(hidden_dim, dim, 1, bias=True)
 
 
 class CrossAttention(nn.Cell):
@@ -142,13 +141,12 @@ class CrossAttention(nn.Cell):
 
         self.heads = heads
 
-        self.transpose = ops.Transpose()
-        self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+        self.to_q = mint.nn.Linear(query_dim, inner_dim, bias=False).to_float(dtype)
+        self.to_k = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
+        self.to_v = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
         self.to_out = nn.SequentialCell(
-            nn.Dense(inner_dim, query_dim).to_float(dtype),
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
+            mint.nn.Linear(inner_dim, query_dim).to_float(dtype),
+            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout).to_float(ms.float32),
         )
         self.head_dim = dim_head
         self.attention = Attention(dim_head)
@@ -191,9 +189,9 @@ class CrossAttention(nn.Cell):
         b, n, d = x.shape
         d = d // h
 
-        x = ops.reshape(x, (b, n, h, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b * h, n, d))
+        x = mint.reshape(x, (b, n, h, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b * h, n, d))
         return x
 
     @staticmethod
@@ -202,9 +200,9 @@ class CrossAttention(nn.Cell):
         b, n, d = x.shape
         b = b // h
 
-        x = ops.reshape(x, (b, h, n, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h * d))
+        x = mint.reshape(x, (b, h, n, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b, n, h * d))
         return x
 
     def construct(self, x, context=None, mask=None):
@@ -239,7 +237,7 @@ class CrossAttention(nn.Cell):
 
             if not FA_MS23_UPDATE:
                 if mask is None:
-                    mask = ops.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
+                    mask = mint.zeros((q_b, q_n, q_n), self.fa_mask_dtype)
                 out = self.flash_attention(
                     q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), mask.to(self.fa_mask_dtype)
                 )
@@ -249,7 +247,10 @@ class CrossAttention(nn.Cell):
                 )
 
             if head_dim == self.FA_pad_head_dim:
-                out = ops.slice(out, [0, 0, 0, 0], [q_b, h, q_n, head_dim])
+                out = mint.narrow(out, 0, 0, q_b)
+                out = mint.narrow(out, 1, 0, h)
+                out = mint.narrow(out, 2, 0, q_n)
+                out = mint.narrow(out, 3, 0, head_dim)
 
             b, h, n, d = out.shape
             # reshape FA output to original attn input format, (b n s d) -> (b s n*d)
@@ -270,22 +271,21 @@ class CrossAttention(nn.Cell):
 class Attention(nn.Cell):
     def __init__(self, dim_head):
         super().__init__()
-        self.softmax = ops.Softmax(axis=-1)
-        self.transpose = ops.Transpose()
+        self.softmax = mint.nn.Softmax(dim=-1)
         self.scale = dim_head**-0.5
 
     def construct(self, q, k, v, mask):
-        sim = ops.matmul(q, self.transpose(k, (0, 2, 1))) * self.scale
+        sim = mint.matmul(q, mint.permute(k, (0, 2, 1))) * self.scale
 
         if exists(mask):
-            mask = self.reshape(mask, (mask.shape[0], -1))
+            mask = mint.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
             else:
                 finfo_type = np.float32
             max_neg_value = -np.finfo(finfo_type).max
             mask = mask.repeat(self.heads, axis=0)
-            mask = ops.expand_dims(mask, axis=1)
+            mask = mint.unsqueeze(mask, dim=1)
             sim.masked_fill(mask, max_neg_value)
 
         # TODO: testing use fp16 instead
@@ -293,7 +293,7 @@ class Attention(nn.Cell):
         # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
         attn = self.softmax(sim)
 
-        out = ops.matmul(attn, v)
+        out = mint.matmul(attn, v)
 
         return out
 
@@ -331,9 +331,9 @@ class BasicTransformerBlock(nn.Cell):
             dtype=dtype,
             enable_flash_attention=enable_flash_attention,
         )  # is self-attn if context is none
-        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        self.norm1 = mint.nn.LayerNorm([dim], eps=1e-05).to_float(dtype)
+        self.norm2 = mint.nn.LayerNorm([dim], eps=1e-05).to_float(dtype)
+        self.norm3 = mint.nn.LayerNorm([dim], eps=1e-05).to_float(dtype)
         self.checkpoint = checkpoint
 
     def construct(self, x, context=None):
@@ -373,11 +373,11 @@ class SpatialTransformer(nn.Cell):
         self.norm = Normalize(in_channels)
 
         if not use_linear:
-            self.proj_in = nn.Conv2d(
-                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"
+            self.proj_in = mint.nn.Conv2d(
+                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, bias=True
             ).to_float(dtype)
         else:
-            self.proj_in = nn.Dense(in_channels, inner_dim).to_float(dtype)
+            self.proj_in = mint.nn.Linear(in_channels, inner_dim).to_float(dtype)
 
         self.transformer_blocks = nn.CellList(
             [
@@ -398,16 +398,14 @@ class SpatialTransformer(nn.Cell):
 
         if not use_linear:
             self.proj_out = zero_module(
-                nn.Conv2d(
-                    inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"
-                ).to_float(self.dtype)
+                mint.nn.Conv2d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, bias=True).to_float(
+                    self.dtype
+                )
             )
         else:
-            self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(dtype))
+            self.proj_out = zero_module(mint.nn.Linear(in_channels, inner_dim).to_float(dtype))
 
         self.use_linear = use_linear
-        self.reshape = ops.Reshape()
-        self.transpose = ops.Transpose()
 
     def construct(self, x, emb=None, context=None):
         # note: if no context is given, cross-attention defaults to self-attention
@@ -416,16 +414,16 @@ class SpatialTransformer(nn.Cell):
         x = self.norm(x)
         if not self.use_linear:
             x = self.proj_in(x)
-        x = self.reshape(x, (b, c, h * w))  # (b, c, h*w)
-        x = self.transpose(x, (0, 2, 1))  # (b, h*w, c)
+        x = mint.reshape(x, (b, c, h * w))  # (b, c, h*w)
+        x = mint.permute(x, (0, 2, 1))  # (b, h*w, c)
         if self.use_linear:
             x = self.proj_in(x)
         for block in self.transformer_blocks:
             x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
-        x = self.reshape(x, (b, h, w, c))
-        x = self.transpose(x, (0, 3, 1, 2))
+        x = mint.reshape(x, (b, h, w, c))
+        x = mint.permute(x, (0, 3, 1, 2))
         if not self.use_linear:
             x = self.proj_out(x)
         return x + x_in
