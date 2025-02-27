@@ -11,7 +11,6 @@ from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CON
 from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
 from wan.utils.utils import cache_image, cache_video, str2bool
 
-import mindspore as ms
 import mindspore.mint.distributed as dist
 from mindspore.communication import GlobalComm
 
@@ -149,9 +148,6 @@ def _init_logging(rank):
 
 
 def generate(args):
-    # TODO: debug only
-    ms.set_context(pynative_synchronize=True)
-
     if args.distributed_mode:
         dist.init_process_group(backend="hccl")
 
