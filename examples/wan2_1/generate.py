@@ -93,9 +93,9 @@ def _parse_args():
     )
     parser.add_argument("--ulysses_size", type=int, default=1, help="The size of the ulysses parallelism in DiT.")
     parser.add_argument("--ring_size", type=int, default=1, help="The size of the ring attention parallelism in DiT.")
-    parser.add_argument("--t5_fsdp", action="store_true", default=False, help="Whether to use FSDP for T5.")
+    parser.add_argument("--t5_zero3", action="store_true", default=False, help="Whether to use ZeRO3 for T5.")
     parser.add_argument("--t5_cpu", action="store_true", default=False, help="Whether to place T5 model on CPU.")
-    parser.add_argument("--dit_fsdp", action="store_true", default=False, help="Whether to use FSDP for DiT.")
+    parser.add_argument("--dit_zero3", action="store_true", default=False, help="Whether to use ZeRO3 for DiT.")
     parser.add_argument("--save_file", type=str, default=None, help="The file to save the generated image or video to.")
     parser.add_argument("--prompt", type=str, default=None, help="The prompt to generate the image or video from.")
     parser.add_argument("--use_prompt_extend", action="store_true", default=False, help="Whether to use prompt extend.")
@@ -161,8 +161,8 @@ def generate(args):
             args.ulysses_size = world_size
     else:
         assert not (
-            args.t5_fsdp or args.dit_fsdp
-        ), "t5_fsdp and dit_fsdp are not supported in non-distributed environments."
+            args.t5_zero3 or args.dit_zero3
+        ), "t5_zero3 and dit_zero3 are not supported in non-distributed environments."
         assert not (
             args.ulysses_size > 1 or args.ring_size > 1
         ), "context parallel are not supported in non-distributed environments."
@@ -233,8 +233,8 @@ def generate(args):
             config=cfg,
             checkpoint_dir=args.ckpt_dir,
             rank=rank,
-            t5_fsdp=args.t5_fsdp,
-            dit_fsdp=args.dit_fsdp,
+            t5_zero3=args.t5_zero3,
+            dit_zero3s=args.dit_zero3,
             use_usp=args.ulysses_sp,
             t5_cpu=args.t5_cpu,
         )
@@ -286,8 +286,8 @@ def generate(args):
             config=cfg,
             checkpoint_dir=args.ckpt_dir,
             rank=rank,
-            t5_fsdp=args.t5_fsdp,
-            dit_fsdp=args.dit_fsdp,
+            t5_zero3=args.t5_zero3,
+            dit_zero3=args.dit_zero3,
             use_usp=args.ulysses_sp,
             t5_cpu=args.t5_cpu,
         )

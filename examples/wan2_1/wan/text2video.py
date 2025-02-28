@@ -31,8 +31,8 @@ class WanT2V:
         config,
         checkpoint_dir,
         rank=0,
-        t5_fsdp=False,
-        dit_fsdp=False,
+        t5_zero3=False,
+        dit_zero3=False,
         use_usp=False,
         t5_cpu=False,
     ):
@@ -46,14 +46,14 @@ class WanT2V:
                 Path to directory containing model checkpoints
             rank (`int`,  *optional*, defaults to 0):
                 Process rank for distributed training
-            t5_fsdp (`bool`, *optional*, defaults to False):
-                Enable FSDP sharding for T5 model
-            dit_fsdp (`bool`, *optional*, defaults to False):
-                Enable FSDP sharding for DiT model
+            t5_zero3 (`bool`, *optional*, defaults to False):
+                Enable ZeRO3 sharding for T5 model
+            dit_zero3 (`bool`, *optional*, defaults to False):
+                Enable ZeRO3 sharding for DiT model
             use_usp (`bool`, *optional*, defaults to False):
                 Enable distribution strategy of USP.
             t5_cpu (`bool`, *optional*, defaults to False):
-                Whether to place T5 model on CPU. Only works without t5_fsdp.
+                Whether to place T5 model on CPU. Only works without t5_zero3.
         """
         self.config = config
         self.rank = rank
@@ -74,7 +74,7 @@ class WanT2V:
             dtype=config.t5_dtype,
             checkpoint_path=os.path.join(checkpoint_dir, config.t5_checkpoint),
             tokenizer_path=os.path.join(checkpoint_dir, config.t5_tokenizer),
-            shard_fn=shard_fn if t5_fsdp else None,
+            shard_fn=shard_fn if t5_zero3 else None,
         )
 
         self.vae_stride = config.vae_stride
@@ -92,7 +92,7 @@ class WanT2V:
         # TODO: GlobalComm.INITED -> mint.is_initialzed
         if GlobalComm.INITED:
             dist.barrier()
-        if dit_fsdp:
+        if dit_zero3:
             self.model = shard_fn(self.model)
 
         self.sample_neg_prompt = config.sample_neg_prompt
