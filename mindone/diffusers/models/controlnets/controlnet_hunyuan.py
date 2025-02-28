@@ -367,6 +367,9 @@ class HunyuanDiT2DMultiControlNetModel(ModelMixin):
         return_dict: bool
             Whether to return a dictionary.
         """
+        # adapt to graph mode
+        control_block_samples = None
+
         for i, (image, scale, controlnet) in enumerate(zip(controlnet_cond, conditioning_scale, self.nets)):
             block_samples = controlnet(
                 hidden_states=hidden_states,

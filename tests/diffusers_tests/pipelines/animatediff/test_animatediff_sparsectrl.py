@@ -8,9 +8,23 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import (
+    AnimateDiffSparseControlNetPipeline,
+    AutoencoderKL,
+    DPMSolverMultistepScheduler,
+    MotionAdapter,
+    SparseControlNetModel,
+)
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -188,3 +202,70 @@ class AnimateDiffSparseControlNetPipelineFastTests(PipelineTesterMixin, unittest
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class AnimateDiffSparseControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "SG161222/Realistic_Vision_V5.1_noVAE"
+        motion_adapter_id = "guoyww/animatediff-motion-adapter-v1-5-3"
+        controlnet_id = "guoyww/animatediff-sparsectrl-scribble"
+        lora_adapter_id = "guoyww/animatediff-motion-lora-v1-5-3"
+        vae_id = "stabilityai/sd-vae-ft-mse"
+
+        motion_adapter = MotionAdapter.from_pretrained(motion_adapter_id, mindspore_dtype=ms_dtype)
+        controlnet = SparseControlNetModel.from_pretrained(controlnet_id, mindspore_dtype=ms_dtype)
+        vae = AutoencoderKL.from_pretrained(vae_id, mindspore_dtype=ms_dtype)
+        scheduler = DPMSolverMultistepScheduler.from_pretrained(
+            model_id,
+            subfolder="scheduler",
+            beta_schedule="linear",
+            algorithm_type="dpmsolver++",
+            use_karras_sigmas=True,
+        )
+        pipe = AnimateDiffSparseControlNetPipeline.from_pretrained(
+            model_id,
+            motion_adapter=motion_adapter,
+            controlnet=controlnet,
+            vae=vae,
+            scheduler=scheduler,
+            mindspore_dtype=ms_dtype,
+        )
+        pipe.load_lora_weights(
+            lora_adapter_id, adapter_name="motion_lora", weight_name="diffusion_pytorch_model.safetensors"
+        )
+        pipe.fuse_lora(lora_scale=1.0)
+
+        prompt = "an aerial view of a cyberpunk city, night time, neon lights, masterpiece, high quality"
+        negative_prompt = "low quality, worst quality, letterboxed"
+
+        image_files = [
+            ["huggingface/documentation-images", "animatediff-scribble-1.png", "diffusers"],
+            ["huggingface/documentation-images", "animatediff-scribble-2.png", "diffusers"],
+            ["huggingface/documentation-images", "animatediff-scribble-3.png", "diffusers"],
+        ]
+        condition_frame_indices = [0, 8, 15]
+        conditioning_frames = [load_downloaded_image_from_hf_hub(*img_file) for img_file in image_files]
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            num_inference_steps=25,
+            conditioning_frames=conditioning_frames,
+            controlnet_conditioning_scale=1.0,
+            controlnet_frame_indices=condition_frame_indices,
+        )[0][0][1]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"sparsecontrolnet_{dtype}.npy",
+            subfolder="animatediff",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
