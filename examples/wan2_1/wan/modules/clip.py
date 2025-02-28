@@ -5,15 +5,16 @@ import math
 from typing import List, Tuple
 
 import numpy as np
+
 import mindspore as ms
+import mindspore.dataset.vision as vision
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
-from mindspore.nn.utils import no_init_parameters
 from mindspore.dataset.transforms import Compose
-import mindspore.dataset.vision as vision
+from mindspore.nn.utils import no_init_parameters
 
 from ..utils.utils import load_pth
 from .tokenizers import HuggingfaceTokenizer

@@ -205,16 +205,7 @@ def generate(args):
             args.prompt = EXAMPLE_PROMPT[args.task]["prompt"]
         logging.info(f"Input prompt: {args.prompt}")
         if args.use_prompt_extend:
-            logging.info("Extending prompt ...")
-            if rank == 0:
-                raise NotImplementedError()
-            else:
-                input_prompt = [None]
-            # TODO: GlobalComm.INITED -> mint.is_initialzed
-            if GlobalComm.INITED:
-                dist.broadcast_object_list(input_prompt, src=0)
-            args.prompt = input_prompt[0]
-            logging.info(f"Extended prompt: {args.prompt}")
+            raise NotImplementedError
 
         logging.info("Creating WanT2V pipeline.")
         wan_t2v = wan.WanT2V(
@@ -250,15 +241,7 @@ def generate(args):
 
         img = Image.open(args.image).convert("RGB")
         if args.use_prompt_extend:
-            logging.info("Extending prompt ...")
-            if rank == 0:
-                raise NotImplementedError()
-            else:
-                input_prompt = [None]
-            if dist.is_initialized():
-                dist.broadcast_object_list(input_prompt, src=0)
-            args.prompt = input_prompt[0]
-            logging.info(f"Extended prompt: {args.prompt}")
+            raise NotImplementedError
 
         logging.info("Creating WanI2V pipeline.")
         wan_i2v = wan.WanI2V(
