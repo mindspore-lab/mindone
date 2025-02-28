@@ -127,7 +127,7 @@ def _parse_args():
 
     # extra for mindspore
     parser.add_argument("--distributed", action="store_true", default=False, help="Distributed mode")
-    parser.add_argument("--ulysses", action="store_true", default=False, help="turn on ulysses parallelism in DiT.")
+    parser.add_argument("--ulysses_sp", action="store_true", default=False, help="turn on ulysses parallelism in DiT.")
 
     args = parser.parse_args()
 
@@ -157,7 +157,7 @@ def generate(args):
         rank = dist.get_rank()
         world_size = dist.get_world_size()
 
-        if args.ulysses:
+        if args.ulysses_sp:
             args.ulysses_size = world_size
     else:
         assert not (
@@ -235,7 +235,7 @@ def generate(args):
             rank=rank,
             t5_fsdp=args.t5_fsdp,
             dit_fsdp=args.dit_fsdp,
-            use_usp=args.ulysses,
+            use_usp=args.ulysses_sp,
             t5_cpu=args.t5_cpu,
         )
 
@@ -288,7 +288,7 @@ def generate(args):
             rank=rank,
             t5_fsdp=args.t5_fsdp,
             dit_fsdp=args.dit_fsdp,
-            use_usp=args.ulysses,
+            use_usp=args.ulysses_sp,
             t5_cpu=args.t5_cpu,
         )
 
