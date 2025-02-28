@@ -8,7 +8,6 @@ from datetime import datetime
 import wan
 from PIL import Image
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
-from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
 from wan.utils.utils import cache_image, cache_video, str2bool
 
 import mindspore as ms
@@ -181,14 +180,7 @@ def generate(args):
         ), "The number of ulysses_size and ring_size should be equal to the world size."
 
     if args.use_prompt_extend:
-        if args.prompt_extend_method == "dashscope":
-            prompt_expander = DashScopePromptExpander(model_name=args.prompt_extend_model, is_vl="i2v" in args.task)
-        elif args.prompt_extend_method == "local_qwen":
-            prompt_expander = QwenPromptExpander(
-                model_name=args.prompt_extend_model, is_vl="i2v" in args.task, device=rank
-            )
-        else:
-            raise NotImplementedError(f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
+        raise NotImplementedError(f"prompt_extend is not supported")
 
     cfg = WAN_CONFIGS[args.task]
     if args.ulysses_size > 1:
