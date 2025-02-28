@@ -151,7 +151,7 @@ class WanI2V:
                 If True, offloads models to CPU during generation to save VRAM
 
         Returns:
-            torch.Tensor:
+            mindspore.Tensor:
                 Generated video frames tensor. Dimensions: (C, N H, W) where:
                 - C: Color channels (3 for RGB)
                 - N: Number of frames (81)
@@ -276,7 +276,7 @@ class WanI2V:
 
         if self.rank == 0:
             # TODO: handle this
-            np.save("latent.npy", x0[0].to(ms.float32).asnumpy())
+            # np.save("latent.npy", x0[0].to(ms.float32).asnumpy())
             videos = self.vae.decode(x0)
 
         del noise, latent

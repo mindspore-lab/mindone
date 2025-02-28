@@ -699,7 +699,7 @@ class FlowDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
                 The current discrete timestep in the diffusion chain.
             sample (`Tensor`):
                 A current instance of a sample created by the diffusion process.
-            generator (`torch.Generator`, *optional*):
+            generator (`mindspore.Generator`, *optional*):
                 A random number generator.
             variance_noise (`Tensor`):
                 Alternative to generating noise with `generator` by directly providing the noise for the variance

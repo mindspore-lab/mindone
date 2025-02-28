@@ -135,7 +135,7 @@ class XLMRoberta(nn.Cell):
 
     def construct(self, ids: Tensor) -> Tensor:
         """
-        ids: [B, L] of torch.LongTensor.
+        ids: [B, L] of mindspore.Tensor.
         """
         b, s = ids.shape
         mask = ids.ne(self.pad_id).to(ms.int32)

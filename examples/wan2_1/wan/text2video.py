@@ -6,7 +6,6 @@ import random
 import sys
 from functools import partial
 
-import numpy as np
 from tqdm import tqdm
 
 import mindspore as ms
@@ -136,7 +135,7 @@ class WanT2V:
                 If True, offloads models to CPU during generation to save VRAM
 
         Returns:
-            torch.Tensor:
+            mindspore.Tensor:
                 Generated video frames tensor. Dimensions: (C, N H, W) where:
                 - C: Color channels (3 for RGB)
                 - N: Number of frames (81)
@@ -230,7 +229,7 @@ class WanT2V:
             raise NotImplementedError()
         if self.rank == 0:
             # TODO: handle this
-            np.save("latent.npy", x0[0].to(ms.float32).asnumpy())
+            # np.save("latent.npy", x0[0].to(ms.float32).asnumpy())
             videos = self.vae.decode(x0)
 
         del noise, latents
