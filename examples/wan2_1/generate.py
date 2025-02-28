@@ -333,4 +333,6 @@ def generate(args):
 
 if __name__ == "__main__":
     args = _parse_args()
+    # TODO: remove global seed
+    ms.set_seed(args.base_seed)
     generate(args)
