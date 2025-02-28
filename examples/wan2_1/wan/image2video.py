@@ -28,6 +28,7 @@ from .utils.fm_solvers import FlowDPMSolverMultistepScheduler, get_sampling_sigm
 from .utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
 from .utils.utils import pil2tensor
 
+
 class WanI2V:
     def __init__(
         self,
