@@ -114,7 +114,7 @@ def _parse_args():
         choices=["ch", "en"],
         help="The target language of prompt extend.",
     )
-    parser.add_argument("--base_seed", type=int, default=-1, help="The seed to use for generating the image or video.")
+    parser.add_argument("--base_seed", type=int, default=0, help="The seed to use for generating the image or video.")
     parser.add_argument("--image", type=str, default=None, help="The image to generate the video from.")
     parser.add_argument(
         "--sample_solver", type=str, default="unipc", choices=["unipc", "dpm++"], help="The solver used to sample."
