@@ -176,7 +176,7 @@ python generate.py  \
 - Multi-NPU inference
 
 ```
-msrun --worker_num=2 generate.py \
+msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task t2v-14B \
     --size 1280*720 \
     --ckpt_dir ./Wan2.1-T2V-14B \
@@ -236,7 +236,7 @@ python generate.py \
 - Multi-NPU inference
 
 ```
-msrun --worker_num=2 generate.py \
+msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task i2v-14B --size 1280*720 \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
     --dit_fsdp --t5_fsdp --ulysses_sp \
