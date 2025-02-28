@@ -13,7 +13,6 @@ import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.distributed as dist
 import mindspore.mint.nn.functional as functional
-from mindspore import Tensor
 from mindspore.communication import GlobalComm, get_group_size
 from mindspore.nn.utils import no_init_parameters
 
