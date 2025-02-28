@@ -248,7 +248,7 @@ def save_image_ms(
 
     grid = make_grid_ms(tensor, **kwargs)
     # Add 0.5 after unnormalizing to [0, 255] to round to the nearest integer
-    ndarr = grid.mul(255).add(0.5).clamp(0, 255).permute(1, 2, 0).to(ms.uint8).numpy()
+    ndarr = grid.mul(255).add_(0.5).clamp_(0, 255).permute(1, 2, 0).to(ms.uint8).asnumpy()
 
     im = Image.fromarray(ndarr)
     im.save(fp, format=format)
