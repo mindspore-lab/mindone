@@ -181,7 +181,7 @@ msrun --worker_num=${worker_num} generate.py \
     --task t2v-14B \
     --size 1280*720 \
     --ckpt_dir ./Wan2.1-T2V-14B \
-    --dit_fsdp --t5_fsdp \
+    --dit_fsdp --t5_fsdp --ulysses_sp \
     --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage."
 ```
 
@@ -220,6 +220,7 @@ Similar to Text-to-Video, Image-to-Video supports different resolutions. The spe
 
 
 - Single-NPU inference
+
 ```
 python generate.py \
     --task i2v-14B \
@@ -228,7 +229,6 @@ python generate.py \
     --image examples/i2v_input.JPG \
     --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
 ```
-> I2V 720P requires multi-NPU inference
 
 > 💡For the Image-to-Video task, the `size` parameter represents the area of the generated video, with the aspect ratio following that of the original input image.
 
@@ -236,15 +236,15 @@ python generate.py \
 - Multi-NPU inference
 
 ```
-worker_num=2
-msrun --nproc_per_node=${worker_num} generate.py \
+msrun --work_num=2 generate.py \
     --task i2v-14B --size 1280*720 \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
-    --dit_fsdp --t5_fsdp \
+    --dit_fsdp --t5_fsdp --ulysses_sp \
     --image examples/i2v_input.JPG \
-    --ulysses_size 8 \
     --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
 ```
+
+ > 💡At least 2 cards are required to run 720P I2V generation to avoid OOM. 8 cards will accelerate the generation process at most.
 
 
 ## Citation
