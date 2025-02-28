@@ -20,6 +20,9 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import CogView3PlusPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -157,3 +160,34 @@ class CogView3PlusPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             np.max(np.linalg.norm(pt_generated_image - ms_generated_image) / np.linalg.norm(pt_generated_image))
             < threshold
         )
+
+
+@slow
+@ddt
+class CogView3PlusPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = CogView3PlusPipeline.from_pretrained("THUDM/CogView3Plus-3b", torch_dtype=ms_dtype)
+        prompt = "A painting of a squirrel eating a burger."
+
+        torch.manual_seed(0)
+        images = pipe(
+            prompt=prompt,
+            height=1024,
+            width=1024,
+            num_inference_steps=2,
+            output_type="np",
+        )[0]
+
+        image = images[0]
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2i_{dtype}.npy",
+            subfolder="cogview3plus",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold
