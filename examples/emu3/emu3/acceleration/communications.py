@@ -1,7 +1,6 @@
-from typing import Callable, Literal, Tuple
+from typing import Callable, Literal, Tuple, Union
 
-import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import nn, ops, mint
 from mindspore import Tensor
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 

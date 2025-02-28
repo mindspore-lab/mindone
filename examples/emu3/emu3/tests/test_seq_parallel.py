@@ -1,10 +1,18 @@
+"""
+Test:
+- set up model
+- inference
+- gradient
+
+"""
+
 import argparse
 from typing import Tuple
 
 import numpy as np
 from emu3.acceleration import create_parallel_group, get_sequence_parallel_group
-from emu.mllm import Emu3ForCausalLM
 from emu3.mllm.configuration_emu3 import Emu3Config
+from emu.mllm import Emu3ForCausalLM
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -57,7 +65,7 @@ def get_network_config():
         "max_position_embeddings": 5120,
         "model_type": "Emu3",
         "num_attention_heads": 32,
-        "num_hidden_layers": 1, # DEBUG
+        "num_hidden_layers": 1,  # DEBUG
         "num_key_value_heads": 8,
         "pad_token_id": 151643,
         "pretraining_tp": 1,
@@ -70,7 +78,7 @@ def get_network_config():
         "use_cache": False,
         "vocab_size": 184622,
         "attn_implementation": "flash_attention_2",
-        "use_return_dict": False
+        "use_return_dict": False,
     }
     return config
 
@@ -99,10 +107,10 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     ms.set_seed(1024)
     create_parallel_group(shards=get_group_size())
     parallel_network_cfg = get_network_config()
-    config = Emu3Config(**non_parallel_network_cfg)
-    non_parallel_network = Emu3ForCausalLM(config).set_train(False)
+    config = Emu3Config(**parallel_network_cfg)
+    parallel_network = Emu3ForCausalLM(config).set_train(False)
     # if data[-1] is None:
-    #     non_parallel_network = non_parallel_network.set_train(True)
+    #     parallel_network = parallel_network.set_train(True)
 
     # load weight
     for (_, w0), (_, w1) in zip(non_parallel_network.parameters_and_names(), parallel_network.parameters_and_names()):
@@ -117,7 +125,6 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     parallel_out = parallel_network(*data)
     # parallel_out_loss = parallel_out[0].asnumpy() if parallel_out[0] is not None else None
     parallel_out_logits = parallel_out[1].asnumpy()
-
 
     assert np.count_nonzero(non_parallel_out_logits) > 0
     np.testing.assert_equal(non_parallel_out_logits.shape, parallel_out_logits.shape)

@@ -69,8 +69,8 @@ class Emu3FeatureDataset(object):
             input = self.tokenizer.bos_token + prompt + image_prompt
         else:  # vqa
             response = data["response"]
-            vt_prompts = self.chat_template.format(image_prompt, prompt) # instruction + input vision & text prompts
-            input = vt_prompts + response # instruction + input vision & text prompts + response
+            vt_prompts = self.chat_template.format(image_prompt, prompt)  # instruction + input vision & text prompts
+            input = vt_prompts + response  # instruction + input vision & text prompts + response
 
         sample = self.tokenizer(
             input,
@@ -97,15 +97,14 @@ class Emu3FeatureDataset(object):
                 sample[k] = ms.Tensor(sample[k], dtype=ms.int32)
             sample[k] = v.squeeze(0)
 
-        return (
-            sample["input_ids"],
-            sample["attention_mask"],
-            None,
-            None,
-            None,
-            sample["labels"]
-        )
-        # return sample
+        return {
+            "input_ids": sample["input_ids"],
+            "attention_mask": sample["attention_mask"],
+            # "position_ids": None,
+            # "past_key_values": None,
+            # "input_embeds": None,
+            "labels": sample["labels"],
+        }
 
     def format_image_prompt(self, image_tokens):
         h, w = image_tokens.shape

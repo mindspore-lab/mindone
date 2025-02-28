@@ -25,12 +25,7 @@ import math
 import warnings
 from typing import List, Optional, Tuple, Union
 
-from mindspore.communication import get_group_size
-from emu3.acceleration import (
-    get_sequence_parallel_group,
-    SplitFowardGatherBackward,
-    GatherFowardSplitBackward
-)
+from emu3.acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
 from emu3.mllm.configuration_emu3 import Emu3Config
 from transformers.utils import (
     add_start_docstrings,
@@ -42,6 +37,7 @@ from transformers.utils import (
 import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, initializer
+from mindspore.communication import get_group_size
 from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 from mindone.transformers.activations import ACT2FN
@@ -64,6 +60,7 @@ logger = logging.get_logger(__name__)
 
 from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
 from mindone.utils.version_control import check_valid_flash_attention
+
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 FA_MS23_UPDATE = False
 if FLASH_IS_AVAILABLE:
@@ -373,7 +370,7 @@ class Emu3Attention(nn.Cell):
 
         bsz, q_len, _ = hidden_states.shape
 
-        if self.config.pretraining_tp > 1: # never run
+        if self.config.pretraining_tp > 1:  # never run
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
             query_slices = self.q_proj.weight.split(
                 (self.num_heads * self.head_dim) // self.config.pretraining_tp, axis=0
@@ -450,7 +447,7 @@ class Emu3Attention(nn.Cell):
                 f" {attn_output.shape}"
             )
 
-        attn_output = attn_output.swapaxes(1, 2).contiguous() # BN'SD => BSN'D
+        attn_output = attn_output.swapaxes(1, 2).contiguous()  # BN'SD => BSN'D
 
         # sequence parallel: gather BSN'D => BS'ND
         attn_output = self.alltoall(attn_output)
@@ -490,7 +487,7 @@ class Emu3FlashAttention2(Emu3Attention):
             # Q: (b s n d) -> (b n s d)  #  b - batch_size, s - seq_len, n - num_head, d - head dim
             self.flash_attention = MSFlashAttention(
                 head_dim=self.head_dim,
-                head_num=self.num_heads,
+                head_num=num_heads,
                 attention_dropout=dropout_rate,
                 input_layout="BNSD",  # BSH or BNSD
                 dtype=ms.float16,
@@ -809,7 +806,7 @@ class Emu3Model(Emu3PreTrainedModel):
 
         # Initialize sequence parallel
         if (sp_group := get_sequence_parallel_group()) is not None:
-            _logger.info(f"Initialize Emu3 model with sequence parallel group `{sp_group}`.")
+            logger.info(f"Initialize Emu3 model with sequence parallel group `{sp_group}`.")
             self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
             self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
         else:
@@ -905,9 +902,9 @@ class Emu3Model(Emu3PreTrainedModel):
 
         # sequence parallel start: BxSxD => BxS'xD (S'=S/M)
         print(f"inputs_embeds {inputs_embeds.shape}, position_ids {position_ids.shape} attention_mask {attention_mask}")
-        inputs_embeds = self.split_forward_gather_backward(inputs_embeds)   # BSD => BS'D
-        position_ids = self.split_forward_gather_backward(position_ids)     # BS => BS'
-        attention_mask = self.split_forward_gather_backward(attention_mask) # BS => BS'
+        inputs_embeds = self.split_forward_gather_backward(inputs_embeds)  # BSD => BS'D
+        position_ids = self.split_forward_gather_backward(position_ids)  # BS => BS'
+        attention_mask = self.split_forward_gather_backward(attention_mask)  # BS => BS'
         print(f"inputs_embeds {inputs_embeds.shape}, position_ids {position_ids.shape} attention_mask {attention_mask}")
 
         if self._use_flash_attention_2:
@@ -1019,7 +1016,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -1137,7 +1134,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
-            loss = loss_fct(shift_logits, shift_labels)
+            loss = loss_fct(shift_logits.float(), shift_labels)
 
         if not return_dict:
             output = (logits,) + outputs[1:]

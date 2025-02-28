@@ -2,14 +2,13 @@
 # Test inference pipeline
 
 import time
-from PIL import Image
-import math
-import warnings
-from typing import List, Optional, Tuple, Union
-from emu3.mllm.configuration_emu3 import Emu3Config
+
 from emu3.mllm import Emu3ForCausalLM
+from emu3.mllm.configuration_emu3 import Emu3Config
+from PIL import Image
+
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn
 
 ms.set_context(mode=ms.PYNATIVE_MODE, pynative_synchronize=True)
 # ms.set_context(mode = ms.GRAPH_MODE) # NOT SUPPORTED YET

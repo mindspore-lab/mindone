@@ -114,6 +114,7 @@ def get_cosine_schedule_with_warmup(
     )
     return [base_lr * lr_lambda(cur_step) for cur_step in range(num_training_steps)]
 
+
 def get_cosine_with_min_lr_schedule_with_warmup(
     base_lr: float,
     num_warmup_steps: int,

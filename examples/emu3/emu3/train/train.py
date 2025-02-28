@@ -10,9 +10,11 @@ import numpy as np
 import transformers as tf
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.train.datasets import Emu3FeatureDataset
-from mindone.trainers import get_scheduler
-import mindspore as ms
 
+import mindspore as ms
+from mindspore import nn
+
+# from mindone.trainers import get_scheduler
 from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
@@ -78,7 +80,7 @@ def train():
         attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
         mindspore_dtype=ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None),
         use_safetensors=True,
-    ) # AMP O0
+    )  # AMP O0
 
     tokenizer = Emu3Tokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -107,22 +109,21 @@ def train():
     else:
         compute_metrics = None
 
-    class TrainNetWithLoss(nn.Cell):
-        def __init__(self, model):
-            super(TrainNetWithLoss, self).__init__(auto_prefix=False)
-            self.network = network
+    # class TrainNet(nn.Cell):
+    #     def __init__(self, network):
+    #         super(TrainNet, self).__init__(auto_prefix=False)
+    #         self.network = network
 
-        def construct(self, input_ids, attention_mask, labels):
-            outputs = self.network(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=False)
-            loss = outputs[0]
-            return loss
+    #     def construct(self, input_ids, attention_mask, labels):
+    #         outputs = self.network(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=False)
+    #         return outputs
 
-        def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
-            self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
-
+    #     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+    #         self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
+    # model = TrainNet(model)
 
     trainer = Trainer(
-        model=TrainNetWithLoss(model),
+        model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
