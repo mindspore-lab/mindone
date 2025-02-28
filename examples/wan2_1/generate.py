@@ -11,6 +11,7 @@ from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CON
 from wan.utils.prompt_extend import DashScopePromptExpander, QwenPromptExpander
 from wan.utils.utils import cache_image, cache_video, str2bool
 
+import mindspore as ms
 import mindspore.mint.distributed as dist
 from mindspore.communication import GlobalComm
 
@@ -125,7 +126,7 @@ def _parse_args():
     parser.add_argument("--sample_guide_scale", type=float, default=5.0, help="Classifier free guidance scale.")
 
     # extra for mindspore
-    parser.add_argument("--distributed_mode", action="store_true", default=False, help="Distributed mode")
+    parser.add_argument("--distributed", action="store_true", default=False, help="Distributed mode")
 
     args = parser.parse_args()
 
@@ -148,8 +149,9 @@ def _init_logging(rank):
 
 
 def generate(args):
-    if args.distributed_mode:
+    if args.distributed:
         dist.init_process_group(backend="hccl")
+        ms.set_auto_parallel_context(parallel_mode="data_parallel")
 
         rank = dist.get_rank()
         world_size = dist.get_world_size()
