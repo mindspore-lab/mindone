@@ -19,13 +19,27 @@ The following videos are generated based on MindSpore and Ascend 910*.
 
 https://github.com/user-attachments/assets/f6705d28-7755-447b-a256-6727f66d693b
 
+```text
+prompt: A sepia-toned vintage photograph depicting a whimsical bicycle race featuring several dogs wearing goggles and tiny cycling outfits. The canine racers, with determined expressions and blurred motion, pedal miniature bicycles on a dusty road. Spectators in period clothing line the sides, adding to the nostalgic atmosphere. Slightly grainy and blurred, mimicking old photos, with soft side lighting enhancing the warm tones and rustic charm of the scene. 'Bicycle Race' captures this unique moment in a medium shot, focusing on both the racers and the lively crowd.
+```
+
 https://github.com/user-attachments/assets/1e1da53a-9112-4fc3-bb8e-b458497c4806
 
+```text
+prompt: Film quality, professional quality, rich details. The video begins to show the surface of a pond, and the camera slowly zooms in to a close-up. The water surface begins to bubble, and then a blonde woman is seen coming out of the lotus pond soaked all over, showing the subtle changes in her facial expression, creating a dreamy atmosphere.
+```
 
 https://github.com/user-attachments/assets/34e4501f-a207-40bb-bb6c-b162ff6505b0
 
+```text
+prompt: Two anthropomorphic cats wearing boxing suits and bright gloves fiercely battled on the boxing ring under the spotlight. Their muscles are tight, displaying the strength and agility of professional boxers. A spotted dog judge stood aside. The animals in the audience around cheered and cheered, adding a lively atmosphere to the competition. The cat's boxing movements are quick and powerful, with its paws tracing blurry trajectories in the air. The screen adopts a dynamic blur effect, close ups, and focuses on the intense confrontation on the boxing ring.
+```
+
 https://github.com/user-attachments/assets/aceda253-78a2-4fa5-9edc-83f035c7c2ea
 
+```text
+prompt: Sports photography full of dynamism, several motorcycles fiercely compete on the loess flying track, their wheels rolling up the dust in the sky. The motorcyclist is wearing professional racing clothes. The camera uses a high-speed shutter to capture moments, follows from the side and rear, and finally freezes in a close-up of a motorcycle, showcasing its exquisite body lines and powerful mechanical beauty, creating a tense and exciting racing atmosphere. Close up dynamic perspective, perfectly presenting the visual impact of speed and power.
+```
 
 - Image-to-Video
 
