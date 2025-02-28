@@ -2,21 +2,21 @@
 import argparse
 import binascii
 import logging
+import math
 import os
 import os.path as osp
 from typing import List, Optional, Tuple, Union
-import math
 
 import imageio
 import ml_dtypes
+import numpy as np
 import torch
 import tqdm
 from PIL import Image
-import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor
 import mindspore.mint as mint
+from mindspore import Parameter, Tensor
 
 __all__ = ["cache_video", "cache_image", "str2bool", "load_pth"]
 
@@ -45,10 +45,7 @@ def cache_video(tensor, save_file=None, fps=30, suffix=".mp4", nrow=8, normalize
             # preprocess
             tensor = tensor.clamp(min(value_range), max(value_range))
             tensor = mint.stack(
-                [
-                    make_grid_ms(u, nrow=nrow, normalize=normalize, value_range=value_range)
-                    for u in tensor.unbind(2)
-                ],
+                [make_grid_ms(u, nrow=nrow, normalize=normalize, value_range=value_range) for u in tensor.unbind(2)],
                 dim=1,
             ).permute(1, 2, 3, 0)
             tensor = (tensor * 255).type(ms.uint8)
