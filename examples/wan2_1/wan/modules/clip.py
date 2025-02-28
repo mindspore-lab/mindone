@@ -5,9 +5,6 @@ import math
 from typing import List, Tuple
 
 import numpy as np
-import torch
-import torchvision.transforms as T
-
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
@@ -15,6 +12,8 @@ import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
 from mindspore.nn.utils import no_init_parameters
+from mindspore.dataset.transforms import Compose
+import mindspore.dataset.vision as vision
 
 from ..utils.utils import load_pth
 from .tokenizers import HuggingfaceTokenizer
@@ -491,11 +490,11 @@ def _clip(
             std = [0.26862954, 0.26130258, 0.27577711]
 
         # transforms
-        transforms = T.Compose(
+        transforms = Compose(
             [
-                T.Resize((model.image_size, model.image_size), interpolation=T.InterpolationMode.BICUBIC),
-                T.ToTensor(),
-                T.Normalize(mean=mean, std=std),
+                vision.Resize((model.image_size, model.image_size), interpolation=vision.Inter.BICUBIC),
+                vision.ToTensor(),
+                vision.Normalize(mean=mean, std=std, is_hwc=False),
             ]
         )
         output += (transforms,)
@@ -572,7 +571,7 @@ class CLIPModel:
         videos = mint.cat(
             [F.interpolate(u.transpose(0, 1), size=size, mode="bicubic", align_corners=False) for u in videos]
         )
-        videos = self.transforms.transforms[-1](torch.tensor(videos.asnumpy()).mul_(0.5).add_(0.5))
+        videos = self.transforms.transforms[-1](videos.mul_(0.5).add_(0.5).asnumpy())
 
-        out = self.model.visual(Tensor(videos.numpy(), dtype=self.model.dtype), use_31_block=True)
+        out = self.model.visual(Tensor(videos, dtype=self.model.dtype), use_31_block=True)
         return out
