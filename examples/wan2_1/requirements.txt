@@ -10,4 +10,3 @@ dashscope
 imageio-ffmpeg
 gradio>=5.0.0
 numpy>=1.23.5,<2
-torchvision>=0.19.0
