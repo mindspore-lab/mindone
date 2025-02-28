@@ -171,7 +171,7 @@ def make_grid_ms(
     """
     # if list of tensors, convert to a 4D mini-batch Tensor
     if isinstance(tensor, list):
-        tensor = mint.stack(tensor, axis=0)
+        tensor = mint.stack(tensor, dim=0)
 
     if tensor.dim() == 2:  # single image H x W
         tensor = tensor.unsqueeze(0)
@@ -184,14 +184,13 @@ def make_grid_ms(
         tensor = mint.cat((tensor, tensor, tensor), 1)
 
     if normalize is True:
-        # tensor = tensor.clone()  # avoid modifying tensor in-place
+        tensor = tensor.clone()  # avoid modifying tensor in-place
         if value_range is not None and not isinstance(value_range, tuple):
             raise TypeError("value_range has to be a tuple (min, max) if specified. min and max are numbers")
 
         def norm_ip(img, low, high):
-            img = mint.clamp(img, min=low, max=high)
-            img = mint.sub(img, low)
-            img = mint.div(img, max(high - low, 1e-5))
+            img.clamp_(min=low, max=high)
+            img.sub_(low).div_(max(high - low, 1e-5))
 
         def norm_range(t, value_range):
             if value_range is not None:
