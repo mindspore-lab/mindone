@@ -19,6 +19,7 @@ from ..utils import _LazyModule
 _import_structure = {
     "adapter": ["MultiAdapter", "T2IAdapter"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
+    "autoencoders.autoencoder_dc": ["AutoencoderDC"],
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
     "autoencoders.autoencoder_kl_allegro": ["AutoencoderKLAllegro"],
     "autoencoders.autoencoder_kl_cogvideox": ["AutoencoderKLCogVideoX"],
@@ -48,6 +49,7 @@ _import_structure = {
     "transformers.lumina_nextdit2d": ["LuminaNextDiT2DModel"],
     "transformers.pixart_transformer_2d": ["PixArtTransformer2DModel"],
     "transformers.prior_transformer": ["PriorTransformer"],
+    "transformers.sana_transformer": ["SanaTransformer2DModel"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
     "transformers.transformer_allegro": ["AllegroTransformer3DModel"],
@@ -71,6 +73,7 @@ if TYPE_CHECKING:
     from .adapter import MultiAdapter, T2IAdapter
     from .autoencoders import (
         AsymmetricAutoencoderKL,
+        AutoencoderDC,
         AutoencoderKL,
         AutoencoderKLAllegro,
         AutoencoderKLCogVideoX,
@@ -107,6 +110,7 @@ if TYPE_CHECKING:
         LuminaNextDiT2DModel,
         PixArtTransformer2DModel,
         PriorTransformer,
+        SanaTransformer2DModel,
         SD3Transformer2DModel,
         T5FilmDecoder,
         Transformer2DModel,
