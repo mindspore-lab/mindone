@@ -10,6 +10,8 @@ import ml_dtypes
 import torch
 import torchvision
 import tqdm
+from PIL import Image
+import numpy as np
 
 import mindspore as ms
 from mindspore import Parameter, Tensor
@@ -120,3 +122,17 @@ def load_pth(pth_path: str, dtype: ms.Type = ms.bfloat16):
         else:
             mindspore_data[name] = Parameter(Tensor(value.numpy(), dtype=dtype))
     return mindspore_data
+
+
+def pil2tensor(pic: Image.Image) -> ms.Tensor:
+    """
+    convert PIL image to mindspore.Tensor
+    """
+    pic = np.array(pic)
+    if pic.dtype != np.uint8:
+        pic = pic.astype(np.uint8)
+    pic = np.transpose(pic, (2, 0, 1))  # hwc -> chw
+    tensor = Tensor(pic, dtype=ms.float32)
+    tensor = tensor / 255.0
+
+    return tensor
