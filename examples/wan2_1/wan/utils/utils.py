@@ -112,7 +112,7 @@ def load_pth(pth_path: str, dtype: ms.Type = ms.bfloat16):
     logger.info(f"Loading PyTorch ckpt from {pth_path}.")
     torch_data = torch.load(pth_path, map_location="cpu")
     mindspore_data = dict()
-    for name, value in tqdm.tqdm(torch_data.items(), desc="convert to Mindspore Format"):
+    for name, value in tqdm.tqdm(torch_data.items(), desc="converting to MindSpore format"):
         if value.dtype == torch.bfloat16:
             mindspore_data[name] = Parameter(
                 Tensor(value.view(dtype=torch.uint16).numpy().view(ml_dtypes.bfloat16), dtype=dtype)

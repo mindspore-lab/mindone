@@ -200,14 +200,16 @@ class WanI2V:
             [
                 mint.concat(
                     [
-                        functional.interpolate(img[None], size=(h, w), mode="bicubic").transpose(0, 1),
-                        mint.zeros((3, 80, h, w)),
+                        functional.interpolate(img[None], size=(h, w), mode="bicubic")
+                        .transpose(0, 1)
+                        .to(self.param_dtype),
+                        mint.zeros((3, 80, h, w), dtype=self.param_dtype),
                     ],
                     dim=1,
                 )
             ]
         )[0]
-        y = mint.concat([msk, y])
+        y = mint.concat([msk, y]).to(self.param_dtype)
 
         # evaluation mode
         if sample_solver == "unipc":
