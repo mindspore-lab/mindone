@@ -58,13 +58,13 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 
 ## 📑 Todo List
 - Wan2.1 Text-to-Video
-    - [x] Single-NPU Inference code of the 14B and 1.3B models
-    - [x] Multi-NPU Inference code of the 14B models
+    - [x] Single-NPU inference code of the 14B and 1.3B models
+    - [x] Multi-NPU inference acceleration for the 14B models
     - [ ] prompt extension
     - [ ] Gradio demo
 - Wan2.1 Image-to-Video
-    - [x] Single-NPU Inference code of the 14B model
-    - [x] Multi-NPU Inference code of the 14B model
+    - [x] Single-NPU inference code of the 14B model
+    - [x] Multi-NPU inference acceleration for the 14B model
     - [ ] prompt extension
     - [ ] Gradio demo
 
