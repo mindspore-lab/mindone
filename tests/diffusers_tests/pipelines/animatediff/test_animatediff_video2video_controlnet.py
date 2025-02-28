@@ -24,6 +24,7 @@ from mindone.diffusers.utils.testing_utils import (
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -246,15 +247,11 @@ class AnimateDiffVideoToVideoControlNetPipelineIntegrationTests(PipelineTesterMi
         prompt = "astronaut in space, dancing"
         negative_prompt = "bad quality, worst quality, jpeg artifacts, ugly"
 
-        conditioning_video = load_downloaded_video_from_hf_hub(
-            "",
-            "",
-            subfolder="",
+        conditioning_frames = load_downloaded_video_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "v2v_controlnet_conditioning_frames.npy",
+            subfolder="animatediff",
         )
-
-        conditioning_frames = []
-        for frame in conditioning_video:
-            conditioning_frames.append(frame)
 
         strength = 0.8
         torch.manual_seed(0)
@@ -274,5 +271,4 @@ class AnimateDiffVideoToVideoControlNetPipelineIntegrationTests(PipelineTesterMi
             f"v2v_controlnet_{dtype}.npy",
             subfolder="animatediff",
         )
-        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(expected_video - video) / np.linalg.norm(expected_video)) < threshold
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

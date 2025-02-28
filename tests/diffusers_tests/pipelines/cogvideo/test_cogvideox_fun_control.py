@@ -31,6 +31,7 @@ from mindone.diffusers.utils.testing_utils import (
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -223,5 +224,4 @@ class CogVideoXFunControlPipelineIntegrationTests(PipelineTesterMixin, unittest.
             f"fun_control_{dtype}.npy",
             subfolder="cogvideox",
         )
-        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.max(np.linalg.norm(expected_video - video) / np.linalg.norm(expected_video)) < threshold
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL
