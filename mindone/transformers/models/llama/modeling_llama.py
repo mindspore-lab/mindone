@@ -17,24 +17,25 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import math
 from typing import Optional, Tuple, Union
 
-import math
 import numpy as np
 from transformers import LlamaConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops, mint
+from mindspore import Parameter, Tensor, nn, ops
 from mindspore.common import initializer as init
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...activations import ACT2FN
 from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
 from ...mindspore_adapter import recompute_except_output
-from ...mindspore_adapter.attention import FlashAttention2
+
+# from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
-from ...modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
+from ...modeling_attn_mask_utils import _MIN_FP16  # , dtype_to_min
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
 from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
 
@@ -369,7 +370,6 @@ class LlamaFlashAttention2(LlamaAttention):
             self.num_heads, keep_prob=1 - self.attention_dropout, scale_value=scale_factor, input_layout="BNSD"
         )
 
-
     def convert_mask_to_fa_format(self, attention_mask):
         if attention_mask is not None:
             if attention_mask.dtype == ms.bool_:
@@ -441,7 +441,8 @@ class LlamaFlashAttention2(LlamaAttention):
         # flip mask to ms FA format, 1 - drop, 0 - retain
         attention_mask = (-attention_mask).to(ms.bool_)
         _, _, _, attn_output = self.flash_attention(
-            query_states, key_states, value_states, None, None, None, attention_mask)
+            query_states, key_states, value_states, None, None, None, attention_mask
+        )
         # assert attn_output.shape == (bsz, self.num_heads, q_len, self.head_dim)
 
         # 2. vanilla attention
@@ -777,7 +778,6 @@ class LlamaModel(LlamaPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.use_cache
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
-
         if self.training:
             use_cache = False
 
@@ -881,7 +881,7 @@ class LlamaModel(LlamaPreTrainedModel):
             causal_mask = causal_mask * _mask_position
             causal_mask = causal_mask[None, None, :, :].broadcast_to((input_tensor.shape[0], 1, -1, -1))
             if attention_mask is not None:
-                causal_mask  = causal_mask.clone()   # copy to contiguous memory for -in-place edit
+                causal_mask = causal_mask.clone()  # copy to contiguous memory for -in-place edit
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0

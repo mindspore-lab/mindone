@@ -1,4 +1,5 @@
 import math
+
 import mindspore as ms
 from mindspore.common.api import jit_class
 from mindspore.experimental.optim.lr_scheduler import LRScheduler
@@ -41,22 +42,22 @@ class WarmupCosineDecayLR(LRScheduler):
         warmup_lrs = []
         if warmup_steps > 0:
             warmup_lrs = linear_refined_lr(
-                start_factor=0.,
+                start_factor=0.0,
                 end_factor=1.0,
                 warmup_steps=warmup_steps,
                 lr=lr_max,
                 total_steps=warmup_steps,
-        )
+            )
         main_lrs = cosine_decay_refined_lr(
             decay_steps=decay_steps,
             eta_min=lr_min,
             eta_max=lr_max,
             total_steps=decay_steps,
             num_cycles=1,
-            cycle_decay=1.,
+            cycle_decay=1.0,
         )
 
-        self.lr_seq = warmup_lrs + main_lrs 
+        self.lr_seq = warmup_lrs + main_lrs
         self.lr_seq = ms.Tensor(self.lr_seq, dtype=ms.float32)
 
         super().__init__(optimizer, last_epoch)
@@ -65,7 +66,7 @@ class WarmupCosineDecayLR(LRScheduler):
         # self.last_epoch is the current step, begin from 0 if self.last_epoch is not resumed
         cur_step = self.last_epoch.value().to(ms.int32)
         # lr for each parameter group on current step
-        if cur_step <= self.lr_seq.shape[0]-1:
+        if cur_step <= self.lr_seq.shape[0] - 1:
             group_lrs = [self.lr_seq[cur_step] for lr in self._last_lr]
         else:
             # TODO: support cycle
@@ -73,4 +74,3 @@ class WarmupCosineDecayLR(LRScheduler):
 
         # print('D--: ', cur_step, group_lrs)
         return group_lrs
-

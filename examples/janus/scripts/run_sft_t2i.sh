@@ -23,6 +23,6 @@ python train.py \
     --ckpt_max_keep 10 \
     --use_value_and_grad True \
     --output_path outputs/stage${stage}_t2i_dsJade_lr${lr}_wd${wd}_bs${bs}_npp${npp} \
-    
+
     # uncomment for debug
     # --num_samples 20 --shuffle=False \

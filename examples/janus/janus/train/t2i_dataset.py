@@ -5,9 +5,9 @@ import random
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+from janus.models import VLChatProcessor
 from PIL import Image
-from transformers import AutoTokenizer
-from janus.models import MultiModalityCausalLM, VLChatProcessor
+
 import mindspore as ms
 from mindspore.dataset.transforms import Compose, vision
 
@@ -29,14 +29,14 @@ class TextImageDataset:
         with open(csv_path, "r") as csvfile:
             self.dataset = list(csv.DictReader(csvfile))
         if num_samples > 0:
-            logger.info(f'sequential slice dataset samples to {num_samples}')
+            logger.info(f"sequential slice dataset samples to {num_samples}")
             self.dataset = self.dataset[:num_samples]
 
         self.length = len(self.dataset)
 
         self.data_dir = data_dir
         self.vl_chat_processor = vl_chat_processor
-        self.interpolation_mode = vision.Inter.ANTIALIAS # vision.Inter.BICUBIC
+        self.interpolation_mode = vision.Inter.ANTIALIAS  # vision.Inter.BICUBIC
         self.null_prompt_prob = null_prompt_prob
 
         self.transform = self.create_transform(image_size, self.interpolation_mode)
@@ -44,8 +44,11 @@ class TextImageDataset:
         if image_size != 384:
             logger.warning(f"JanusPro should be trained using fixed image size of 384, but get {image_size}")
 
-        assert (image_size / 16)**2 == self.vl_chat_processor.num_image_tokens, "(image_size / vq_downsample_rate)^2 should be equal to number of image tokens set in vl chat processor"
-
+        assert (
+            image_size / 16
+        ) ** 2 == self.vl_chat_processor.num_image_tokens, (
+            "(image_size / vq_downsample_rate)^2 should be equal to number of image tokens set in vl chat processor"
+        )
 
     def __len__(self) -> int:
         return self.length
@@ -97,35 +100,39 @@ class TextImageDataset:
 
         # TODO: add eos tag?
         vlcp = self.vl_chat_processor
-        prompt = sft_format + vlcp.image_start_tag \
-                + (vlcp.image_tag * vlcp.num_image_tokens) \
-                + vlcp.image_end_tag \
-
+        prompt = sft_format + vlcp.image_start_tag + (vlcp.image_tag * vlcp.num_image_tokens) + vlcp.image_end_tag
         # add image placeholder tokens and padding to max length
         # left padding (default), same as inference. eos will be added
-        input_ids = vlcp.tokenizer.encode(prompt,
-                add_special_tokens=True,
-                padding="max_length",
-                max_length=self.max_token_length,
-                # padding_side='left',
-                truncation=True)
+        input_ids = vlcp.tokenizer.encode(
+            prompt,
+            add_special_tokens=True,
+            padding="max_length",
+            max_length=self.max_token_length,
+            # padding_side='left',
+            truncation=True,
+        )
         input_ids = np.array(input_ids, np.int32)
 
-        assert (input_ids == vlcp.image_id).sum() == vlcp.num_image_tokens, "text + image tokens exceeds max token length, please adjust max_length or num image token"
+        assert (
+            input_ids == vlcp.image_id
+        ).sum() == vlcp.num_image_tokens, (
+            "text + image tokens exceeds max token length, please adjust max_length or num image token"
+        )
 
         attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
-        attention_mask[input_ids==vlcp.pad_id] = 0
+        attention_mask[input_ids == vlcp.pad_id] = 0
 
         image_seq_mask = np.zeros(shape=[len(input_ids)], dtype=np.bool)
-        image_seq_mask[input_ids==vlcp.image_id] = 1
+        image_seq_mask[input_ids == vlcp.image_id] = 1
 
         # label, only train on vision seq
         ignore_index = -100  # TODO: read from config? but CE Loss didn't accept setting ignore_index
         labels = input_ids
-        labels = np.where((input_ids == vlcp.image_id),
-                    labels,
-                    ignore_index,
-                    )
+        labels = np.where(
+            (input_ids == vlcp.image_id),
+            labels,
+            ignore_index,
+        )
         labels = np.array(labels, np.int32)
 
         return input_ids, labels, attention_mask, image_seq_mask
@@ -146,21 +153,21 @@ def _filter_extreme_ratio(dataset: List[Dict[str, Any]], ratio: float = 4.5) -> 
         new_dataset.append(record)
     return new_dataset
 
-def create_dataloader_t2i(
-        csv_path: str,
-        data_dir: str,
-        vl_chat_processor: VLChatProcessor,
-        max_token_length: int = 1024,
-        image_size: int = 384,
-        null_prompt_prob: float = 0.0,
-        num_samples: int = -1,
-        batch_size: int = 1,
-        shuffle: bool = True,
-        num_parallel_workers: int = 8,
-        rank: int = 0,
-        rank_size: int = 1,
-    ):
 
+def create_dataloader_t2i(
+    csv_path: str,
+    data_dir: str,
+    vl_chat_processor: VLChatProcessor,
+    max_token_length: int = 1024,
+    image_size: int = 384,
+    null_prompt_prob: float = 0.0,
+    num_samples: int = -1,
+    batch_size: int = 1,
+    shuffle: bool = True,
+    num_parallel_workers: int = 8,
+    rank: int = 0,
+    rank_size: int = 1,
+):
     dataset = TextImageDataset(
         csv_path=csv_path,
         data_dir=data_dir,
@@ -172,13 +179,13 @@ def create_dataloader_t2i(
     )
 
     dataloader = ms.dataset.GeneratorDataset(
-       source = dataset,
-       column_names = ["input_ids", "labels", "attention_mask", "image_seq_mask", "image"],
-       shuffle = shuffle,
-       num_parallel_workers = num_parallel_workers,
-       python_multiprocessing = True,
-       num_shards = rank_size,
-       shard_id = rank,
+        source=dataset,
+        column_names=["input_ids", "labels", "attention_mask", "image_seq_mask", "image"],
+        shuffle=shuffle,
+        num_parallel_workers=num_parallel_workers,
+        python_multiprocessing=True,
+        num_shards=rank_size,
+        shard_id=rank,
     )
 
     dataloader = dataloader.batch(batch_size, drop_remainder=True)

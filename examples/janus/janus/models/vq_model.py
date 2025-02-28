@@ -245,7 +245,7 @@ class VectorQuantizer(nn.Cell):
         vq_loss = None
         commit_loss = None
         entropy_loss = None
-        
+
         # compute loss for embedding
         if self.training:
             raise NotImplementedError

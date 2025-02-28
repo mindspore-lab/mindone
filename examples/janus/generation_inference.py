@@ -4,17 +4,16 @@ import sys
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))  # for mindone
 import argparse
+import datetime
 from time import time
 
 import numpy as np
 import PIL.Image
-import datetime
 from janus.models import MultiModalityCausalLM, VLChatProcessor
-from janus.models.modeling_vlm import MultiModalityConfig
 from janus.models.compat import get_multinomial_op
+from janus.models.modeling_vlm import MultiModalityConfig
 from janus.utils.io import set_model_param_dtype
 from tqdm import tqdm
-from transformers import AutoModelForCausalLM
 
 import mindspore as ms
 from mindspore import Tensor, mint, ops
@@ -121,7 +120,7 @@ def generate(
     os.makedirs("generated_samples", exist_ok=True)
     time_str = datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     for i in range(parallel_size):
-        save_path = os.path.join('generated_samples', "img_{}-{}.jpg".format(i, time_str))
+        save_path = os.path.join("generated_samples", "img_{}-{}.jpg".format(i, time_str))
         PIL.Image.fromarray(visual_img[i]).save(save_path)
         print("Image saved in", save_path)
 
@@ -154,7 +153,12 @@ if __name__ == "__main__":
         help="path to model weight folder",
     )
     parser.add_argument("--use_cache", type=str2bool, default=True, help="use kv cache or not")
-    parser.add_argument("--ckpt_path", type=str, default=None, help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path")
+    parser.add_argument(
+        "--ckpt_path",
+        type=str,
+        default=None,
+        help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path",
+    )
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--max_new_tokens", type=int, default=1024)
     args = parser.parse_args()
@@ -168,8 +172,8 @@ if __name__ == "__main__":
     # specify the path to the model
     vl_chat_processor: VLChatProcessor = VLChatProcessor.from_pretrained(args.model_path)
     tokenizer = vl_chat_processor.tokenizer
-    
-    config =  MultiModalityConfig.from_pretrained(args.model_path)
+
+    config = MultiModalityConfig.from_pretrained(args.model_path)
     if args.ckpt_path is not None:
         with no_init_parameters():
             vl_gpt = MultiModalityCausalLM(config=config)
@@ -178,8 +182,8 @@ if __name__ == "__main__":
 
         parameter_dict = ms.load_checkpoint(args.ckpt_path)
         param_not_load, ckpt_not_load = ms.load_param_into_net(vl_gpt, parameter_dict, strict_load=True)
-        print("net param not load: ".format(param_not_load))
-        print("ckpt param not load: ".format(ckpt_not_load))
+        print("net param not load: {}".format(param_not_load))
+        print("ckpt param not load: {}".format(ckpt_not_load))
     else:
         with no_init_parameters():
             vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)

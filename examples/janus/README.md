@@ -127,11 +127,11 @@ On local terminal, run `ssh -L 37906:localhost:37906 user_name@server_ip`, then 
 Have Fun!
 
 
-### Training 
+### Training
 
-We reproduce the training pipline referring to the [JanusPro](https://arxiv.org/abs/2501.17811) paper. Here we provide an example for i2v sft. 
+We reproduce the training pipline referring to the [JanusPro](https://arxiv.org/abs/2501.17811) paper. Here we provide an example for i2v sft.
 
-1. Download the demo images from [here](https://dit.hunyuan.tencent.com/download/HunyuanDiT/data_demo.zip), and extract to `datasets` folder. 
+1. Download the demo images from [here](https://dit.hunyuan.tencent.com/download/HunyuanDiT/data_demo.zip), and extract to `datasets` folder.
 
 2. Add the annotation csv file by `cp data_demo/jade/csvfile/image_text_en.csv datasets/data_demo/jade/csvfile/.`  
 
