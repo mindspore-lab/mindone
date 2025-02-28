@@ -21,6 +21,9 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import KolorsPAGPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -170,3 +173,33 @@ class KolorsPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KolorsPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_pag_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = KolorsPAGPipeline.from_pretrained(
+            "Kwai-Kolors/Kolors-diffusers",
+            variant="fp16",
+            mindspore_dtype=ms_dtype,
+            enable_pag=True,
+            pag_applied_layers=["down_blocks.2.attentions.1", "up_blocks.0.attentions.1"],
+        )
+
+        prompt = "A photo of a ladybug, macro, zoom, high quality, film, holding a wooden sign with the text 'KOLORS'"
+        torch.manual_seed(0)
+        image = pipe(prompt, guidance_scale=5.5, pag_scale=1.5)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"kolors_{dtype}.npy",
+            subfolder="pag",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold

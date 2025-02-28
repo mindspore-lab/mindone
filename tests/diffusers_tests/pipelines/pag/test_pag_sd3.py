@@ -7,6 +7,9 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import StableDiffusion3PAGPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -203,3 +206,31 @@ class StableDiffusion3PAGPipelineFastTests(PipelineTesterMixin, unittest.TestCas
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class StableDiffusion3PAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_pag_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = StableDiffusion3PAGPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-3-medium-diffusers",
+            mindspore_dtype=ms_dtype,
+            enable_pag=True,
+            pag_applied_layers=["blocks.13"],
+        )
+        prompt = "A cat holding a sign that says hello world"
+        torch.manual_seed(0)
+        image = pipe(prompt, guidance_scale=5.0, pag_scale=0.7)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"sd3_{dtype}.npy",
+            subfolder="pag",
+        )
+        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
+        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold
