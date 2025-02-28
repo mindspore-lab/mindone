@@ -216,7 +216,7 @@ class CogVideoXFunControlPipelineIntegrationTests(PipelineTesterMixin, unittest.
             "moons, but the remainder of the scene is mostly realistic."
         )
         torch.manual_seed(0)
-        video = pipe(prompt=prompt, control_video=control_video)[0][0]
+        video = pipe(prompt=prompt, control_video=control_video, output_type="np")[0][0]
 
         expected_video = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

@@ -26,6 +26,7 @@ from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -189,5 +190,4 @@ class CogView3PlusPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCas
             f"t2i_{dtype}.npy",
             subfolder="cogview3plus",
         )
-        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.linalg.norm(expected_image - image) / np.linalg.norm(expected_image) < threshold
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
