@@ -16,10 +16,12 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
+from transformers import T5TokenizerFast
+
 import mindspore as ms
 from mindspore import nn, ops
+
 from mindone.transformers import T5EncoderModel
-from transformers import T5TokenizerFast
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...loaders import FromSingleFileMixin, LTXVideoLoraLoaderMixin
@@ -215,7 +217,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
-                text_input_ids, untruncated_ids
+            text_input_ids, untruncated_ids
         ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
@@ -386,8 +388,8 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             post_patch_width,
             patch_size,
         )
-        latents = latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(
-            start_dim=1, end_dim=3
+        latents = (
+            latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(start_dim=1, end_dim=3)
         )
         return latents
 
@@ -400,7 +402,12 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         # what happens in the `_pack_latents` method.
         batch_size = latents.shape[0]
         latents = latents.reshape(batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size)
-        latents = latents.permute(0, 4, 1, 5, 2, 6, 3, 7).flatten(start_dim=6, end_dim=7).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+        latents = (
+            latents.permute(0, 4, 1, 5, 2, 6, 3, 7)
+            .flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
+        )
         return latents
 
     @staticmethod
@@ -419,7 +426,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
     ) -> ms.Tensor:
         # Denormalize latents across the channel dimension [B, C, F, H, W]
         latents_mean = latents_mean.view(1, -1, 1, 1, 1).to(latents.dtype)
-        latents_std = latents_std.view(1, -1, 1, 1, 1).to( latents.dtype)
+        latents_std = latents_std.view(1, -1, 1, 1, 1).to(latents.dtype)
         latents = latents * latents_std / scaling_factor + latents_mean
         return latents
 
@@ -450,9 +457,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             )
 
         latents = randn_tensor(shape, generator=generator, dtype=dtype)
-        latents = self._pack_latents(
-            latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
-        )
+        latents = self._pack_latents(latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size)
         return latents
 
     @property
@@ -682,7 +687,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0], ))
+                timestep = t.broadcast_to((latent_model_input.shape[0],))
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
@@ -746,9 +751,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                     decode_noise_scale = [decode_noise_scale] * batch_size
 
                 timestep = ms.Tensor(decode_timestep, dtype=latents.dtype)
-                decode_noise_scale = ms.Tensor(decode_noise_scale, dtype=latents.dtype)[
-                    :, None, None, None, None
-                ]
+                decode_noise_scale = ms.Tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
                 latents = (1 - decode_noise_scale) * latents + decode_noise_scale * noise
 
             video = self.vae.decode(latents, timestep, return_dict=False)[0]

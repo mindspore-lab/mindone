@@ -16,9 +16,11 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-import mindspore as ms
-from mindone.transformers import CLIPTextModel, LlamaModel
 from transformers import CLIPTokenizer, LlamaTokenizerFast
+
+import mindspore as ms
+
+from mindone.transformers import CLIPTextModel, LlamaModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...loaders import HunyuanVideoLoraLoaderMixin
@@ -29,7 +31,6 @@ from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import HunyuanVideoPipelineOutput
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -276,7 +277,7 @@ class HunyuanVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoaderMixin):
         text_input_ids = text_inputs.input_ids
         untruncated_ids = self.tokenizer_2(prompt, padding="longest", return_tensors="np").input_ids
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
-                text_input_ids, untruncated_ids
+            text_input_ids, untruncated_ids
         ):
             removed_text = self.tokenizer_2.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(

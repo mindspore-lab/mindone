@@ -17,7 +17,7 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops, nn
+from mindspore import nn, ops
 
 from ..models.attention import BasicTransformerBlock, FreeNoiseTransformerBlock
 from ..models.resnet import Downsample2D, ResnetBlock2D, Upsample2D
@@ -31,7 +31,6 @@ from ..models.unets.unet_motion_model import (
 from ..pipelines.pipeline_utils import DiffusionPipeline
 from ..utils import logging
 from ..utils.mindspore_utils import randn_tensor
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -430,9 +429,7 @@ class AnimateDiffFreeNoiseMixin:
         latents = latents[:, :, :num_frames]
         return latents
 
-    def _lerp(
-        self, start_index: int, end_index: int, start_tensor: ms.Tensor, end_tensor: ms.Tensor
-    ) -> ms.Tensor:
+    def _lerp(self, start_index: int, end_index: int, start_tensor: ms.Tensor, end_tensor: ms.Tensor) -> ms.Tensor:
         num_indices = end_index - start_index + 1
         interpolated_tensors = []
 

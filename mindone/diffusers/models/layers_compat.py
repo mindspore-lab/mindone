@@ -37,9 +37,8 @@ Todo:
     - ...
 """
 
-from packaging.version import parse
-
 import numpy as np
+from packaging.version import parse
 
 import mindspore as ms
 from mindspore import ops
@@ -57,6 +56,7 @@ __all__ = [
     "multinomial",
     "pad",
     "view_as_complex",
+    "unflatten",
 ]
 
 MINDSPORE_VERSION = parse(ms.__version__)
@@ -549,11 +549,9 @@ def _unflatten(input, dim, sizes):
 
     # If there is one unknown size, calculate it
     if num_unknown == 1:
-        sizes = tuple(
-            size if size != -1 else shape[dim] // sizes_prod for size in sizes
-        )
+        sizes = tuple(size if size != -1 else shape[dim] // sizes_prod for size in sizes)
 
-    new_shape = shape[:dim] + sizes + shape[dim + 1:]
+    new_shape = shape[:dim] + sizes + shape[dim + 1 :]
 
     return input.reshape(new_shape)
 

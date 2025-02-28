@@ -22,7 +22,7 @@ from mindspore import nn, ops
 from ..utils import deprecate
 from .activations import FP32SiLU, get_activation
 from .attention_processor import Attention
-from .layers_compat import view_as_complex
+from .layers_compat import pad, unflatten, view_as_complex
 
 
 def get_timestep_embedding(
@@ -1785,6 +1785,41 @@ class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
         return conditioning
 
 
+class MochiCombinedTimestepCaptionEmbedding(nn.Cell):
+    def __init__(
+        self,
+        embedding_dim: int,
+        pooled_projection_dim: int,
+        text_embed_dim: int,
+        time_embed_dim: int = 256,
+        num_attention_heads: int = 8,
+    ) -> None:
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=time_embed_dim, flip_sin_to_cos=True, downscale_freq_shift=0.0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=time_embed_dim, time_embed_dim=embedding_dim)
+        self.pooler = MochiAttentionPool(
+            num_attention_heads=num_attention_heads, embed_dim=text_embed_dim, output_dim=embedding_dim
+        )
+        self.caption_proj = nn.Dense(text_embed_dim, pooled_projection_dim)
+
+    def construct(
+        self,
+        timestep: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        encoder_attention_mask: ms.Tensor,
+        hidden_dtype: Optional[ms.Type] = None,
+    ):
+        time_proj = self.time_proj(timestep)
+        time_emb = self.timestep_embedder(time_proj.to(dtype=hidden_dtype))
+
+        pooled_projections = self.pooler(encoder_hidden_states, encoder_attention_mask)
+        caption_proj = self.caption_proj(encoder_hidden_states)
+
+        conditioning = time_emb + pooled_projections
+        return conditioning, caption_proj
+
+
 class TextTimeEmbedding(nn.Cell):
     def __init__(self, encoder_dim: int, time_embed_dim: int, num_heads: int = 64):
         super().__init__()
@@ -1922,6 +1957,104 @@ class AttentionPooling(nn.Cell):
         a = a.reshape(bs, -1, 1).swapaxes(1, 2)
 
         return a[:, 0, :]  # cls_token
+
+
+class MochiAttentionPool(nn.Cell):
+    def __init__(
+        self,
+        num_attention_heads: int,
+        embed_dim: int,
+        output_dim: Optional[int] = None,
+    ) -> None:
+        super().__init__()
+
+        self.output_dim = output_dim or embed_dim
+        self.num_attention_heads = num_attention_heads
+
+        self.to_kv = nn.Dense(embed_dim, 2 * embed_dim)
+        self.to_q = nn.Dense(embed_dim, embed_dim)
+        self.to_out = nn.Dense(embed_dim, self.output_dim)
+
+    @staticmethod
+    def pool_tokens(x: ms.Tensor, mask: ms.Tensor, *, keepdim=False) -> ms.Tensor:
+        """
+        Pool tokens in x using mask.
+
+        NOTE: We assume x does not require gradients.
+
+        Args:
+            x: (B, L, D) tensor of tokens.
+            mask: (B, L) boolean tensor indicating which tokens are not padding.
+
+        Returns:
+            pooled: (B, D) tensor of pooled tokens.
+        """
+        assert x.shape[1] == mask.shape[1]  # Expected mask to have same length as tokens.
+        assert x.shape[0] == mask.shape[0]  # Expected mask to have same batch size as tokens.
+        mask = mask[:, :, None].to(dtype=x.dtype)
+        mask = mask / mask.sum(axis=1, keepdims=True).clamp(min=1)
+        pooled = (x * mask).sum(axis=1, keepdims=keepdim)
+        return pooled
+
+    def construct(self, x: ms.Tensor, mask: ms.Tensor) -> ms.Tensor:
+        r"""
+        Args:
+            x (`ms.Tensor`):
+                Tensor of shape `(B, S, D)` of input tokens.
+            mask (`ms.Tensor`):
+                Boolean ensor of shape `(B, S)` indicating which tokens are not padding.
+
+        Returns:
+            `ms.Tensor`:
+                `(B, D)` tensor of pooled tokens.
+        """
+        D = x.shape[2]
+
+        # Construct attention mask, shape: (B, 1, num_queries=1, num_keys=1+L).
+        attn_mask = mask[:, None, None, :].bool()  # (B, 1, 1, L).
+        attn_mask = pad(attn_mask, (1, 0), value=True)  # (B, 1, 1, 1+L).
+
+        # Average non-padding token features. These will be used as the query.
+        x_pool = self.pool_tokens(x, mask, keepdim=True)  # (B, 1, D)
+
+        # Concat pooled features to input sequence.
+        x = ops.cat([x_pool, x], axis=1)  # (B, L+1, D)
+
+        # Compute queries, keys, values. Only the mean token is used to create a query.
+        kv = self.to_kv(x)  # (B, L+1, 2 * D)
+        q = self.to_q(x[:, 0])  # (B, D)
+
+        # Extract heads.
+        head_dim = D // self.num_attention_heads
+        kv = unflatten(kv, 2, (2, self.num_attention_heads, head_dim))  # (B, 1+L, 2, H, head_dim)
+        kv = kv.swapaxes(1, 3)  # (B, H, 2, 1+L, head_dim)
+        k, v = kv.unbind(2)  # (B, H, 1+L, head_dim)
+        q = unflatten(q, 1, (self.num_attention_heads, head_dim))  # (B, H, head_dim)
+        q = q.unsqueeze(2)  # (B, H, 1, head_dim)
+
+        # Compute attention.
+        if attn_mask is not None:
+            attn_mask = ops.logical_not(attn_mask) if attn_mask.dtype == ms.bool_ else attn_mask.bool()
+            attn_mask = ops.broadcast_to(attn_mask, (attn_mask.shape[0], attn_mask.shape[1], q.shape[-2], k.shape[-2]))[
+                :, :1, :, :
+            ]
+
+        scale = head_dim**-0.5
+        if q.dtype in (ms.float16, ms.bfloat16):
+            x = ops.operations.nn_ops.FlashAttentionScore(
+                head_num=self.num_attention_heads, keep_prob=1.0, scale_value=scale, input_layout="BNSD"
+            )(q, k, v, None, None, None, attn_mask)[3]
+
+        else:
+            x = ops.operations.nn_ops.FlashAttentionScore(
+                head_num=self.num_attention_heads, keep_prob=1.0, scale_value=scale, input_layout="BNSD"
+            )(q.to(ms.float16), k.to(ms.float16), v.to(ms.float16), None, None, None, attn_mask)[3]
+            x = x.to(q.dtype)
+
+        # Concatenate heads and run output.
+        x = x.squeeze(2).flatten(start_dim=1, end_dim=2)  # (B, D = H * head_dim)
+        x = self.to_out(x)
+        return x
 
 
 def get_fourier_embeds_from_boundingbox(embed_dim, box):

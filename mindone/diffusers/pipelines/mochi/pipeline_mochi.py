@@ -1,4 +1,4 @@
-# Copyright 2024 Lightricks and The HuggingFace Team. All rights reserved.
+# Copyright 2024 Genmo and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,52 +21,36 @@ from transformers import T5TokenizerFast
 import mindspore as ms
 from mindspore import ops
 
-from mindone.transformers import T5EncoderModel
-
+from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
-from ...image_processor import PipelineImageInput
-from ...loaders import FromSingleFileMixin, LTXVideoLoraLoaderMixin
-from ...models.autoencoders import AutoencoderKLLTXVideo
-from ...models.transformers import LTXVideoTransformer3DModel
+from ...loaders import Mochi1LoraLoaderMixin
+from ...models.autoencoders import AutoencoderKL
+from ...models.transformers import MochiTransformer3DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
-from ...utils import logging
-from ...utils.mindspore_utils import randn, randn_tensor
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
+from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
-from .pipeline_output import LTXPipelineOutput
+from .pipeline_output import MochiPipelineOutput
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import mindspore as ms
-        >>> from mindone.diffusers import LTXImageToVideoPipeline
-        >>> from mindone.diffusers.utils import export_to_video, load_image
+        >>> import mindspore
+        >>> from mindone.diffusers import MochiPipeline
+        >>> from mindone.diffusers.utils import export_to_video
 
-        >>> pipe = LTXImageToVideoPipeline.from_pretrained("Lightricks/LTX-Video", mindspore_dtype=ms.bfloat16)
-
-        >>> image = load_image(
-        ...     "https://huggingface.co/datasets/a-r-r-o-w/tiny-meme-dataset-captioned/resolve/main/images/8.png"
-        ... )
-        >>> prompt = "A young girl stands calmly in the foreground, looking directly at the camera, as a house fire rages in the background. Flames engulf the structure, with smoke billowing into the air. Firefighters in protective gear rush to the scene, a fire truck labeled '38' visible behind them. The girl's neutral expression contrasts sharply with the chaos of the fire, creating a poignant and emotionally charged scene."
-        >>> negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
-
-        >>> video = pipe(
-        ...     image=image,
-        ...     prompt=prompt,
-        ...     negative_prompt=negative_prompt,
-        ...     width=704,
-        ...     height=480,
-        ...     num_frames=161,
-        ...     num_inference_steps=50,
-        ... )[0][0]
-        >>> export_to_video(video, "output.mp4", fps=24)
+        >>> pipe = MochiPipeline.from_pretrained("genmo/mochi-1-preview", torch_dtype=torch.bfloat16)
+        >>> pipe.enable_vae_tiling()
+        >>> prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
+        >>> frames = pipe(prompt, num_inference_steps=28, guidance_scale=3.5)[0][0]
+        >>> export_to_video(frames, "mochi.mp4")
         ```
 """
 
 
-# Copied from diffusers.pipelines.flux.pipeline_flux.calculate_shift
 def calculate_shift(
     image_seq_len,
     base_seq_len: int = 256,
@@ -78,6 +62,24 @@ def calculate_shift(
     b = base_shift - m * base_seq_len
     mu = image_seq_len * m + b
     return mu
+
+
+# from: https://github.com/genmoai/models/blob/075b6e36db58f1242921deff83a1066887b9c9e1/src/mochi_preview/infer.py#L77
+def linear_quadratic_schedule(num_steps, threshold_noise, linear_steps=None):
+    if linear_steps is None:
+        linear_steps = num_steps // 2
+    linear_sigma_schedule = [i * threshold_noise / linear_steps for i in range(linear_steps)]
+    threshold_noise_step_diff = linear_steps - threshold_noise * num_steps
+    quadratic_steps = num_steps - linear_steps
+    quadratic_coef = threshold_noise_step_diff / (linear_steps * quadratic_steps**2)
+    linear_coef = threshold_noise / linear_steps - 2 * threshold_noise_step_diff / (quadratic_steps**2)
+    const = quadratic_coef * (linear_steps**2)
+    quadratic_sigma_schedule = [
+        quadratic_coef * (i**2) + linear_coef * i + const for i in range(linear_steps, num_steps)
+    ]
+    sigma_schedule = linear_sigma_schedule + quadratic_sigma_schedule
+    sigma_schedule = [1.0 - x for x in sigma_schedule]
+    return sigma_schedule
 
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
@@ -137,33 +139,18 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
-def retrieve_latents(
-    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
-):
-    if sample_mode == "sample":
-        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
-    elif sample_mode == "argmax":
-        return vae.diag_gauss_dist.mode(encoder_output)
-    # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
-    # elif hasattr(encoder_output, "latents"):
-    #     return encoder_output.latents
-    else:
-        return encoder_output
-
-
-class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixin):
+class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
     r"""
-    Pipeline for image-to-video generation.
+    The mochi pipeline for text-to-video generation.
 
-    Reference: https://github.com/Lightricks/LTX-Video
+    Reference: https://github.com/genmoai/models
 
     Args:
-        transformer ([`LTXVideoTransformer3DModel`]):
+        transformer ([`MochiTransformer3DModel`]):
             Conditional Transformer architecture to denoise the encoded video latents.
         scheduler ([`FlowMatchEulerDiscreteScheduler`]):
             A scheduler to be used in combination with `transformer` to denoise the encoded image latents.
-        vae ([`AutoencoderKLLTXVideo`]):
+        vae ([`AutoencoderKL`]):
             Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
         text_encoder ([`T5EncoderModel`]):
             [T5](https://huggingface.co/docs/transformers/en/model_doc/t5#transformers.T5EncoderModel), specifically
@@ -183,10 +170,11 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
     def __init__(
         self,
         scheduler: FlowMatchEulerDiscreteScheduler,
-        vae: AutoencoderKLLTXVideo,
+        vae: AutoencoderKL,
         text_encoder: T5EncoderModel,
         tokenizer: T5TokenizerFast,
-        transformer: LTXVideoTransformer3DModel,
+        transformer: MochiTransformer3DModel,
+        force_zeros_for_empty_prompt: bool = False,
     ):
         super().__init__()
 
@@ -197,28 +185,24 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             transformer=transformer,
             scheduler=scheduler,
         )
+        # TODO: determine these scaling factors from model parameters
+        self.vae_spatial_scale_factor = 8
+        self.vae_temporal_scale_factor = 6
+        self.patch_size = 2
 
-        self.vae_spatial_compression_ratio = self.vae.spatial_compression_ratio if hasattr(self, "vae") else 32
-        self.vae_temporal_compression_ratio = self.vae.temporal_compression_ratio if hasattr(self, "vae") else 8
-        self.transformer_spatial_patch_size = self.transformer.config.patch_size if hasattr(self, "transformer") else 1
-        self.transformer_temporal_patch_size = (
-            self.transformer.config.patch_size_t if hasattr(self, "transformer") else 1
-        )
-
-        self.video_processor = VideoProcessor(vae_scale_factor=self.vae_spatial_compression_ratio)
+        self.video_processor = VideoProcessor(vae_scale_factor=self.vae_spatial_scale_factor)
         self.tokenizer_max_length = (
-            self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 128
+            self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 256
         )
-
-        self.default_height = 512
-        self.default_width = 704
-        self.default_frames = 121
+        self.default_height = 480
+        self.default_width = 848
+        self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
 
     def _get_t5_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
         num_videos_per_prompt: int = 1,
-        max_sequence_length: int = 128,
+        max_sequence_length: int = 256,
         dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
@@ -234,20 +218,29 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             add_special_tokens=True,
             return_tensors="np",
         )
-        text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
-        prompt_attention_mask = prompt_attention_mask.bool()
+
+        text_input_ids = ms.Tensor(text_inputs.input_ids)
+        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask, dtype=ms.bool_)
+
+        # The original Mochi implementation zeros out empty negative prompts
+        # but this can lead to overflow when placing the entire pipeline under the autocast context
+        # adding this here so that we can enable zeroing prompts if necessary
+        if self.config.force_zeros_for_empty_prompt and (prompt == "" or prompt[-1] == ""):
+            text_input_ids = ops.zeros_like(text_input_ids)
+            prompt_attention_mask = ops.zeros_like(prompt_attention_mask, dtype=ms.bool_)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-        if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.equal(text_input_ids, untruncated_ids):
+        if untruncated_ids.shape[-1] >= text_input_ids.numpy().shape[-1] and not np.array_equal(
+            text_input_ids.asnumpy(), untruncated_ids
+        ):
             removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids))[0]
+        prompt_embeds = self.text_encoder(text_input_ids, attention_mask=prompt_attention_mask)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -260,7 +253,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
         return prompt_embeds, prompt_attention_mask
 
-    # Copied from diffusers.pipelines.mochi.pipeline_mochi.MochiPipeline.encode_prompt with 256->128
+    # Adapted from diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline.encode_prompt
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
@@ -271,7 +264,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         prompt_attention_mask: Optional[ms.Tensor] = None,
         negative_prompt_attention_mask: Optional[ms.Tensor] = None,
-        max_sequence_length: int = 128,
+        max_sequence_length: int = 256,
         dtype: Optional[ms.Type] = None,
     ):
         r"""
@@ -287,16 +280,16 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             do_classifier_free_guidance (`bool`, *optional*, defaults to `True`):
                 Whether to use classifier free guidance or not.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
-                Number of videos that should be generated per prompt. torch device to place the resulting embeddings on
-            prompt_embeds (`torch.Tensor`, *optional*):
+                Number of videos that should be generated per prompt. ms device to place the resulting embeddings on
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`torch.Tensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
-            dtype: (`torch.dtype`, *optional*):
-                torch dtype
+            dtype: (`ms.dtype`, *optional*):
+                ms dtype
         """
         prompt = [prompt] if isinstance(prompt, str) else prompt
         if prompt is not None:
@@ -337,7 +330,6 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
         return prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask
 
-    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline.check_inputs
     def check_inputs(
         self,
         prompt,
@@ -349,14 +341,15 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         prompt_attention_mask=None,
         negative_prompt_attention_mask=None,
     ):
-        if height % 32 != 0 or width % 32 != 0:
-            raise ValueError(f"`height` and `width` have to be divisible by 32 but are {height} and {width}.")
+        if height % 8 != 0 or width % 8 != 0:
+            raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
 
         if callback_on_step_end_tensor_inputs is not None and not all(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, \
+                    but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -391,131 +384,64 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                     f" {negative_prompt_attention_mask.shape}."
                 )
 
-    @staticmethod
-    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._pack_latents
-    def _pack_latents(latents: ms.Tensor, patch_size: int = 1, patch_size_t: int = 1) -> ms.Tensor:
-        # Unpacked latents of shape are [B, C, F, H, W] are patched into tokens of shape [B, C, F // p_t, p_t, H // p, p, W // p, p].
-        # The patch dimensions are then permuted and collapsed into the channel dimension of shape:
-        # [B, F // p_t * H // p * W // p, C * p_t * p * p] (an ndim=3 tensor).
-        # dim=0 is the batch size, dim=1 is the effective video sequence length, dim=2 is the effective number of input features
-        batch_size, num_channels, num_frames, height, width = latents.shape
-        post_patch_num_frames = num_frames // patch_size_t
-        post_patch_height = height // patch_size
-        post_patch_width = width // patch_size
-        latents = latents.reshape(
-            batch_size,
-            -1,
-            post_patch_num_frames,
-            patch_size_t,
-            post_patch_height,
-            patch_size,
-            post_patch_width,
-            patch_size,
-        )
-        latents = (
-            latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(start_dim=1, end_dim=3)
-        )
-        return latents
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
 
-    @staticmethod
-    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._unpack_latents
-    def _unpack_latents(
-        latents: ms.Tensor, num_frames: int, height: int, width: int, patch_size: int = 1, patch_size_t: int = 1
-    ) -> ms.Tensor:
-        # Packed latents of shape [B, S, D] (S is the effective video sequence length, D is the effective feature dimensions)
-        # are unpacked and reshaped into a video tensor of shape [B, C, F, H, W]. This is the inverse operation of
-        # what happens in the `_pack_latents` method.
-        batch_size = latents.shape[0]
-        latents = latents.reshape(batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size)
-        latents = (
-            latents.permute(0, 4, 1, 5, 2, 6, 3, 7)
-            .flatten(start_dim=6, end_dim=7)
-            .flatten(start_dim=4, end_dim=5)
-            .flatten(start_dim=2, end_dim=3)
-        )
-        return latents
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
 
-    @staticmethod
-    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._normalize_latents
-    def _normalize_latents(
-        latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
-    ) -> ms.Tensor:
-        # Normalize latents across the channel dimension [B, C, F, H, W]
-        latents_mean = latents_mean.view(1, -1, 1, 1, 1).to(latents.dtype)
-        latents_std = latents_std.view(1, -1, 1, 1, 1).to(latents.dtype)
-        latents = (latents - latents_mean) * scaling_factor / latents_std
-        return latents
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
 
-    @staticmethod
-    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._denormalize_latents
-    def _denormalize_latents(
-        latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
-    ) -> ms.Tensor:
-        # Denormalize latents across the channel dimension [B, C, F, H, W]
-        latents_mean = latents_mean.view(1, -1, 1, 1, 1).to(latents.dtype)
-        latents_std = latents_std.view(1, -1, 1, 1, 1).to(latents.dtype)
-        latents = latents * latents_std / scaling_factor + latents_mean
-        return latents
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
 
     def prepare_latents(
         self,
-        image: Optional[ms.Tensor] = None,
-        batch_size: int = 1,
-        num_channels_latents: int = 128,
-        height: int = 512,
-        width: int = 704,
-        num_frames: int = 161,
-        dtype: Optional[ms.Type] = None,
-        generator: Optional[np.random.Generator] = None,
-        latents: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
-        height = height // self.vae_spatial_compression_ratio
-        width = width // self.vae_spatial_compression_ratio
-        num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1 if latents is None else latents.size(2)
+        batch_size,
+        num_channels_latents,
+        height,
+        width,
+        num_frames,
+        dtype,
+        device,
+        generator,
+        latents=None,
+    ):
+        height = height // self.vae_spatial_scale_factor
+        width = width // self.vae_spatial_scale_factor
+        num_frames = (num_frames - 1) // self.vae_temporal_scale_factor + 1
 
         shape = (batch_size, num_channels_latents, num_frames, height, width)
-        mask_shape = (batch_size, 1, num_frames, height, width)
 
         if latents is not None:
-            conditioning_mask = latents.new_zeros(shape)
-            conditioning_mask[:, :, 0] = 1.0
-            conditioning_mask = self._pack_latents(
-                conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
+            return latents.to(device=device, dtype=dtype)
+        if isinstance(generator, list) and len(generator) != batch_size:
+            raise ValueError(
+                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
+                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
             )
-            return latents.to(dtype=dtype), conditioning_mask
 
-        if isinstance(generator, list):
-            if len(generator) != batch_size:
-                raise ValueError(
-                    f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                    f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-                )
-
-            init_latents = [
-                retrieve_latents(self.vae, self.vae.encode(image[i].unsqueeze(0).unsqueeze(2))[0], generator[i])
-                for i in range(batch_size)
-            ]
-        else:
-            init_latents = [
-                retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0).unsqueeze(2))[0], generator)
-                for img in image
-            ]
-
-        init_latents = ops.cat(init_latents, axis=0).to(dtype)
-        init_latents = self._normalize_latents(init_latents, self.vae.latents_mean, self.vae.latents_std)
-        init_latents = init_latents.tile((1, 1, num_frames, 1, 1))
-        conditioning_mask = ops.zeros(mask_shape, dtype=dtype)
-        conditioning_mask[:, :, 0] = 1.0
-
-        noise = randn_tensor(shape, generator=generator, dtype=dtype)
-        latents = init_latents * conditioning_mask + noise * (1 - conditioning_mask)
-
-        conditioning_mask = self._pack_latents(
-            conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
-        ).squeeze(-1)
-        latents = self._pack_latents(latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size)
-
-        return latents, conditioning_mask
+        latents = randn_tensor(shape, generator=generator, dtype=ms.float32)
+        latents = latents.to(dtype)
+        return latents
 
     @property
     def guidance_scale(self):
@@ -539,16 +465,14 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
     def __call__(
         self,
-        image: PipelineImageInput = None,
         prompt: Union[str, List[str]] = None,
         negative_prompt: Optional[Union[str, List[str]]] = None,
-        height: int = 512,
-        width: int = 704,
-        num_frames: int = 161,
-        frame_rate: int = 25,
-        num_inference_steps: int = 50,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        num_frames: int = 19,
+        num_inference_steps: int = 64,
         timesteps: List[int] = None,
-        guidance_scale: float = 3,
+        guidance_scale: float = 4.5,
         num_videos_per_prompt: Optional[int] = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
@@ -556,29 +480,25 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         prompt_attention_mask: Optional[ms.Tensor] = None,
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         negative_prompt_attention_mask: Optional[ms.Tensor] = None,
-        decode_timestep: Union[float, List[float]] = 0.0,
-        decode_noise_scale: Optional[Union[float, List[float]]] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
-        max_sequence_length: int = 128,
+        max_sequence_length: int = 256,
     ):
         r"""
         Function invoked when calling the pipeline for generation.
 
         Args:
-            image (`PipelineImageInput`):
-                The input image to condition the generation on. Must be an image, a list of images or a `torch.Tensor`.
             prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
                 instead.
-            height (`int`, defaults to `512`):
+            height (`int`, *optional*, defaults to `self.default_height`):
                 The height in pixels of the generated image. This is set to 480 by default for the best results.
-            width (`int`, defaults to `704`):
+            width (`int`, *optional*, defaults to `self.default_width`):
                 The width in pixels of the generated image. This is set to 848 by default for the best results.
-            num_frames (`int`, defaults to `161`):
+            num_frames (`int`, defaults to `19`):
                 The number of video frames to generate
             num_inference_steps (`int`, *optional*, defaults to 50):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
@@ -587,7 +507,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
                 in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
                 passed will be used. Must be in descending order.
-            guidance_scale (`float`, defaults to `3 `):
+            guidance_scale (`float`, defaults to `4.5`):
                 Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
                 `guidance_scale` is defined as `w` of equation 2. of [Imagen
                 Paper](https://arxiv.org/pdf/2205.11487.pdf). Guidance scale is enabled by setting `guidance_scale >
@@ -595,32 +515,28 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 usually at the expense of lower image quality.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of videos to generate per prompt.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
+                One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
                 to make generation deterministic.
-            latents (`torch.Tensor`, *optional*):
+            latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
                 generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
                 tensor will ge generated by sampling using the supplied random `generator`.
-            prompt_embeds (`torch.Tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            prompt_attention_mask (`torch.Tensor`, *optional*):
+            prompt_attention_mask (`ms.Tensor`, *optional*):
                 Pre-generated attention mask for text embeddings.
-            negative_prompt_embeds (`torch.FloatTensor`, *optional*):
+            negative_prompt_embeds (`ms.FloatTensor`, *optional*):
                 Pre-generated negative text embeddings. For PixArt-Sigma this negative prompt should be "". If not
                 provided, negative_prompt_embeds will be generated from `negative_prompt` input argument.
-            negative_prompt_attention_mask (`torch.FloatTensor`, *optional*):
+            negative_prompt_attention_mask (`ms.FloatTensor`, *optional*):
                 Pre-generated attention mask for negative text embeddings.
-            decode_timestep (`float`, defaults to `0.0`):
-                The timestep at which generated video is decoded.
-            decode_noise_scale (`float`, defaults to `None`):
-                The interpolation factor between random noise and denoised latents at the decode timestep.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between
                 [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
-            return_dict (`bool`, *optional*, defaults to `True`):
-                Whether or not to return a [`~pipelines.ltx.LTXPipelineOutput`] instead of a plain tuple.
+            return_dict (`bool`, *optional*, defaults to `False`):
+                Whether or not to return a [`~pipelines.mochi.MochiPipelineOutput`] instead of a plain tuple.
             attention_kwargs (`dict`, *optional*):
                 A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
                 `self.processor` in
@@ -634,19 +550,22 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 The list of tensor inputs for the `callback_on_step_end` function. The tensors specified in the list
                 will be passed as `callback_kwargs` argument. You will only be able to include variables listed in the
                 `._callback_tensor_inputs` attribute of your pipeline class.
-            max_sequence_length (`int` defaults to `128 `):
+            max_sequence_length (`int` defaults to `256`):
                 Maximum sequence length to use with the `prompt`.
 
         Examples:
 
         Returns:
-            [`~pipelines.ltx.LTXPipelineOutput`] or `tuple`:
-                If `return_dict` is `True`, [`~pipelines.ltx.LTXPipelineOutput`] is returned, otherwise a `tuple` is
-                returned where the first element is a list with the generated images.
+            [`~pipelines.mochi.MochiPipelineOutput`] or `tuple`:
+                If `return_dict` is `True`, [`~pipelines.mochi.MochiPipelineOutput`] is returned, otherwise a `tuple`
+                is returned where the first element is a list with the generated images.
         """
 
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
+
+        height = height or self.default_height
+        width = width or self.default_width
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
@@ -689,120 +608,77 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             negative_prompt_attention_mask=negative_prompt_attention_mask,
             max_sequence_length=max_sequence_length,
         )
-        if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
-
         # 4. Prepare latent variables
-        if latents is None:
-            image = self.video_processor.preprocess(image, height=height, width=width)
-            image = image.to(dtype=prompt_embeds.dtype)
-
         num_channels_latents = self.transformer.config.in_channels
-        latents, conditioning_mask = self.prepare_latents(
-            image,
+        latents = self.prepare_latents(
             batch_size * num_videos_per_prompt,
             num_channels_latents,
             height,
             width,
             num_frames,
-            ms.float32,
+            prompt_embeds.dtype,
             generator,
             latents,
         )
 
         if self.do_classifier_free_guidance:
-            conditioning_mask = ops.cat([conditioning_mask, conditioning_mask])
+            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
 
-        # 5. Prepare timesteps
-        latent_num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
-        latent_height = height // self.vae_spatial_compression_ratio
-        latent_width = width // self.vae_spatial_compression_ratio
-        video_sequence_length = latent_num_frames * latent_height * latent_width
-        sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps)
-        mu = calculate_shift(
-            video_sequence_length,
-            self.scheduler.config.base_image_seq_len,
-            self.scheduler.config.max_image_seq_len,
-            self.scheduler.config.base_shift,
-            self.scheduler.config.max_shift,
-        )
+        # 5. Prepare timestep
+        # from https://github.com/genmoai/models/blob/075b6e36db58f1242921deff83a1066887b9c9e1/src/mochi_preview/infer.py#L77
+        threshold_noise = 0.025
+        sigmas = linear_quadratic_schedule(num_inference_steps, threshold_noise)
+        sigmas = np.array(sigmas)
+
         timesteps, num_inference_steps = retrieve_timesteps(
             self.scheduler,
             num_inference_steps,
             timesteps,
-            sigmas=sigmas,
-            mu=mu,
+            sigmas,
         )
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
-        # 6. Prepare micro-conditions
-        latent_frame_rate = frame_rate / self.vae_temporal_compression_ratio
-        rope_interpolation_scale = (
-            1 / latent_frame_rate,
-            self.vae_spatial_compression_ratio,
-            self.vae_spatial_compression_ratio,
-        )
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
 
-        # 7. Denoising loop
+        # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
 
                 latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
-                latent_model_input = latent_model_input.to(prompt_embeds.dtype)
-
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],))
-                timestep = timestep.unsqueeze(-1) * (1 - conditioning_mask)
+                timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
                     encoder_hidden_states=prompt_embeds,
                     timestep=timestep,
                     encoder_attention_mask=prompt_attention_mask,
-                    num_frames=latent_num_frames,
-                    height=latent_height,
-                    width=latent_width,
-                    rope_interpolation_scale=rope_interpolation_scale,
                     attention_kwargs=attention_kwargs,
                     return_dict=False,
                 )[0]
-                noise_pred = noise_pred.float()
+                # Mochi CFG + Sampling runs in FP32
+                noise_pred = noise_pred.to(dtype=ms.float32)
 
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    timestep, _ = timestep.chunk(2)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                noise_pred = self._unpack_latents(
-                    noise_pred,
-                    latent_num_frames,
-                    latent_height,
-                    latent_width,
-                    self.transformer_spatial_patch_size,
-                    self.transformer_temporal_patch_size,
-                )
-                latents = self._unpack_latents(
-                    latents,
-                    latent_num_frames,
-                    latent_height,
-                    latent_width,
-                    self.transformer_spatial_patch_size,
-                    self.transformer_temporal_patch_size,
-                )
+                latents_dtype = latents.dtype
+                latents = self.scheduler.step(noise_pred, t, latents.to(ms.float32), return_dict=False)[0]
+                latents = latents.to(latents_dtype)
 
-                noise_pred = noise_pred[:, :, 1:]
-                noise_latents = latents[:, :, 1:]
-                pred_latents = self.scheduler.step(noise_pred, t, noise_latents, return_dict=False)[0]
-
-                latents = ops.cat([latents[:, :, :1], pred_latents], axis=2)
-                latents = self._pack_latents(
-                    latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
-                )
+                if latents.dtype != latents_dtype:
+                    latents = latents.to(latents_dtype)
 
                 if callback_on_step_end is not None:
                     callback_kwargs = {}
@@ -817,41 +693,28 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.transformer, lora_scale)
+
         if output_type == "latent":
             video = latents
         else:
-            latents = self._unpack_latents(
-                latents,
-                latent_num_frames,
-                latent_height,
-                latent_width,
-                self.transformer_spatial_patch_size,
-                self.transformer_temporal_patch_size,
-            )
-            latents = self._denormalize_latents(
-                latents, self.vae.latents_mean, self.vae.latents_std, self.vae.config.scaling_factor
-            )
-            latents = latents.to(prompt_embeds.dtype)
-
-            if not self.vae.config.timestep_conditioning:
-                timestep = None
+            # unscale/denormalize the latents
+            # denormalize with the mean and std if available and not None
+            has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
+            has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
+            if has_latents_mean and has_latents_std:
+                latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, 12, 1, 1, 1).to(latents.dtype)
+                latents_std = ms.tensor(self.vae.config.latents_std).view(1, 12, 1, 1, 1).to(latents.dtype)
+                latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
-                noise = randn(latents.shape, generator=generator, dtype=latents.dtype)
-                if not isinstance(decode_timestep, list):
-                    decode_timestep = [decode_timestep] * batch_size
-                if decode_noise_scale is None:
-                    decode_noise_scale = decode_timestep
-                elif not isinstance(decode_noise_scale, list):
-                    decode_noise_scale = [decode_noise_scale] * batch_size
+                latents = latents / self.vae.config.scaling_factor
 
-                timestep = ms.Tensor(decode_timestep, dtype=latents.dtype)
-                decode_noise_scale = ms.Tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
-                latents = (1 - decode_noise_scale) * latents + decode_noise_scale * noise
-
-            video = self.vae.decode(latents, timestep, return_dict=False)[0]
+            video = self.vae.decode(latents, return_dict=False)[0]
             video = self.video_processor.postprocess_video(video, output_type=output_type)
 
         if not return_dict:
             return (video,)
 
-        return LTXPipelineOutput(frames=video)
+        return MochiPipelineOutput(frames=video)

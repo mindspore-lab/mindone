@@ -62,12 +62,17 @@ _import_structure = {
     ],
     "dit": ["DiTPipeline"],
     "flux": [
-        "FluxControlNetPipeline",
+        "FluxControlImg2ImgPipeline",
+        "FluxControlInpaintPipeline",
         "FluxControlNetImg2ImgPipeline",
         "FluxControlNetInpaintPipeline",
+        "FluxControlNetPipeline",
+        "FluxControlPipeline",
+        "FluxFillPipeline",
         "FluxImg2ImgPipeline",
         "FluxInpaintPipeline",
         "FluxPipeline",
+        "FluxPriorReduxPipeline",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "hunyuan_video": ["HunyuanVideoPipeline"],
@@ -113,6 +118,7 @@ _import_structure = {
         "MarigoldDepthPipeline",
         "MarigoldNormalsPipeline",
     ],
+    "mochi": ["MochiPipeline"],
     "pag": [
         "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
@@ -236,15 +242,20 @@ if TYPE_CHECKING:
     )
     from .dit import DiTPipeline
     from .flux import (
+        FluxControlImg2ImgPipeline,
+        FluxControlInpaintPipeline,
         FluxControlNetImg2ImgPipeline,
         FluxControlNetInpaintPipeline,
         FluxControlNetPipeline,
+        FluxControlPipeline,
+        FluxFillPipeline,
         FluxImg2ImgPipeline,
         FluxInpaintPipeline,
         FluxPipeline,
+        FluxPriorReduxPipeline,
     )
-    from .hunyuandit import HunyuanDiTPipeline
     from .hunyuan_video import HunyuanVideoPipeline
+    from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
         KandinskyCombinedPipeline,
@@ -275,6 +286,7 @@ if TYPE_CHECKING:
     from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
+    from .mochi import MochiPipeline
     from .pag import (
         AnimateDiffPAGPipeline,
         HunyuanDiTPAGPipeline,

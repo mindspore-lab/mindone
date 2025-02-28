@@ -15,6 +15,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import nn, ops
 
@@ -26,7 +27,6 @@ from ..layers_compat import pad, unflatten
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .vae import DecoderOutput, DiagonalGaussianDistribution
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

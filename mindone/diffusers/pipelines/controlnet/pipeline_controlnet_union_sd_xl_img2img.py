@@ -18,12 +18,13 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
-import mindspore as ms
-from mindspore import nn, ops
-from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
+import mindspore as ms
+from mindspore import nn, ops
+
 from mindone.diffusers.utils.import_utils import is_invisible_watermark_available
+from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
@@ -34,16 +35,12 @@ from ...loaders import (
     TextualInversionLoaderMixin,
 )
 from ...models import AutoencoderKL, ControlNetModel, ControlNetUnionModel, ImageProjection, UNet2DConditionModel
-from ...models.attention_processor import (
-    AttnProcessor2_0,
-    XFormersAttnProcessor,
-)
+from ...models.attention_processor import AttnProcessor2_0, XFormersAttnProcessor
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
-
 
 if is_invisible_watermark_available():
     from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
@@ -1386,9 +1383,7 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
             add_time_ids = ops.cat([add_neg_time_ids, add_time_ids], axis=0)
 
         control_type = (
-            control_type.reshape(1, -1)
-            .to(dtype=prompt_embeds.dtype)
-            .tile((batch_size * num_images_per_prompt * 2, 1))
+            control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((batch_size * num_images_per_prompt * 2, 1))
         )
 
         # `nn.MultiheadAttention` has an additional member variable `dtype` compared to torch. In graph mode, `dtype`
@@ -1509,12 +1504,8 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
             has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
             has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
             if has_latents_mean and has_latents_std:
-                latents_mean = (
-                    ms.Tensor(self.vae.config.latents_mean).view(1, 4, 1, 1).to(latents.dtype)
-                )
-                latents_std = (
-                    ms.Tensor(self.vae.config.latents_std).view(1, 4, 1, 1).to(latents.dtype)
-                )
+                latents_mean = ms.Tensor(self.vae.config.latents_mean).view(1, 4, 1, 1).to(latents.dtype)
+                latents_std = ms.Tensor(self.vae.config.latents_std).view(1, 4, 1, 1).to(latents.dtype)
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor
