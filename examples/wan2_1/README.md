@@ -60,10 +60,12 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 - Wan2.1 Text-to-Video
     - [x] Single-NPU Inference code of the 14B and 1.3B models
     - [x] Multi-NPU Inference code of the 14B models
+    - [ ] prompt extension
     - [ ] Gradio demo
 - Wan2.1 Image-to-Video
     - [x] Single-NPU Inference code of the 14B model
     - [x] Multi-NPU Inference code of the 14B model
+    - [ ] prompt extension
     - [ ] Gradio demo
 
 
@@ -246,6 +248,7 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
 
  > 💡At least 2 cards are required to run 720P I2V generation to avoid OOM. 8 cards will accelerate the generation process at most.
 
+## Performance
 
 ## Citation
 
