@@ -65,6 +65,7 @@ class PixArtSigmaPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             "mindone.transformers.models.t5.modeling_t5.T5EncoderModel",
             dict(
                 pretrained_model_name_or_path="hf-internal-testing/tiny-random-t5",
+                revision="refs/pr/1",
             ),
         ],
         [
@@ -97,7 +98,7 @@ class PixArtSigmaPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         return pt_components, ms_components
 
-    def get_dummy_inputs(self, device, seed=0):
+    def get_dummy_inputs(self, seed=0):
         inputs = {
             "prompt": "A painting of a squirrel eating a burger",
             "num_inference_steps": 2,

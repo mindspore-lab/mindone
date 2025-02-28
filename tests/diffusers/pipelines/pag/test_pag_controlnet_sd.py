@@ -127,6 +127,7 @@ class StableDiffusionControlNetPAGPipelineFastTests(
                 "vae",
                 "text_encoder",
                 "tokenizer",
+                "safety_checker",
                 "feature_extractor",
                 "image_encoder",
             ]

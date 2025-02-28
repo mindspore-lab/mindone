@@ -194,8 +194,7 @@ class StableDiffusionXLPAGInpaintPipelineFastTests(
         }
 
         components["requires_aesthetics_score"] = (requires_aesthetics_score, requires_aesthetics_score)
-
-        unet = self.get_unet_config(time_cond_proj_dim)
+        unet = self.get_unet_config(skip_first_text_encoder, time_cond_proj_dim, requires_aesthetics_score)
         pipeline_config = self.pipeline_config + [unet]
 
         pt_components, ms_components = get_pipeline_components(components, pipeline_config)
