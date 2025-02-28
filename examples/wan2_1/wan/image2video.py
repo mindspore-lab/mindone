@@ -27,7 +27,7 @@ from .modules.t5 import T5EncoderModel
 from .modules.vae import WanVAE
 from .utils.fm_solvers import FlowDPMSolverMultistepScheduler, get_sampling_sigmas, retrieve_timesteps
 from .utils.fm_solvers_unipc import FlowUniPCMultistepScheduler
-
+from .utils.utils import pil2tensor
 
 class WanI2V:
     def __init__(
@@ -158,7 +158,7 @@ class WanI2V:
                 - H: Frame height (from max_area)
                 - W: Frame width from max_area)
         """
-        img = Tensor(TF.to_tensor(img).sub_(0.5).div_(0.5).numpy())
+        img = pil2tensor(img).sub_(0.5).div_(0.5)
 
         F = frame_num
         h, w = img.shape[1:]
