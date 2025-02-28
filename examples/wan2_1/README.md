@@ -13,9 +13,29 @@ In this repository, we present an efficient MindSpore implementation of [Wan2.1]
 
 ## Video Demos
 
-<div align="center">
-  <video src="https://github.com/user-attachments/assets/4aca6063-60bf-4953-bfb7-e265053f49ef" width="70%" poster=""> </video>
-</div>
+The following videos are generated based on MindSpore and Ascend 910*.
+
+- Text-to-Video
+
+https://github.com/user-attachments/assets/f6705d28-7755-447b-a256-6727f66d693b
+
+https://github.com/user-attachments/assets/1e1da53a-9112-4fc3-bb8e-b458497c4806
+
+
+https://github.com/user-attachments/assets/34e4501f-a207-40bb-bb6c-b162ff6505b0
+
+https://github.com/user-attachments/assets/aceda253-78a2-4fa5-9edc-83f035c7c2ea
+
+
+- Image-to-Video
+
+
+https://github.com/user-attachments/assets/d37bf480-595e-4a41-95f8-acbc421b7428
+
+```text
+prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside.
+```
+
 
 ## 🔥 Latest News!!
 
@@ -208,7 +228,8 @@ msrun --nproc_per_node=${worker_num} generate.py \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
     --dit_fsdp --t5_fsdp \
     --image examples/i2v_input.JPG \
-    --ulysses_size 8 --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
+    --ulysses_size 8 \
+    --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
 ```
 
 
