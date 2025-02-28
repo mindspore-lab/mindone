@@ -109,7 +109,7 @@ def str2bool(v):
 
 
 def load_pth(pth_path: str, dtype: ms.Type = ms.bfloat16):
-    logger.info(f"Loading Pytorch ckpt from {pth_path}.")
+    logger.info(f"Loading PyTorch ckpt from {pth_path}.")
     torch_data = torch.load(pth_path, map_location="cpu")
     mindspore_data = dict()
     for name, value in tqdm.tqdm(torch_data.items(), desc="convert to Mindspore Format"):

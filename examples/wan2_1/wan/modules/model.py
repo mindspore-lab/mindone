@@ -218,8 +218,7 @@ class WanI2VCrossAttention(WanSelfAttention):
 
         self.k_img = mint.nn.Linear(dim, dim, dtype=dtype)
         self.v_img = mint.nn.Linear(dim, dim, dtype=dtype)
-        # self.alpha = nn.Parameter(torch.zeros((1, )))
-        self.norm_k_img = WanRMSNorm(dim, eps=eps) if qk_norm else mint.nn.Identity()
+        self.norm_k_img = WanRMSNorm(dim, eps=eps, dtype=dtype) if qk_norm else mint.nn.Identity()
 
     def construct(self, x: Tensor, context: Tensor, context_lens: Tensor) -> Tensor:
         r"""

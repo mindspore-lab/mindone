@@ -16,6 +16,7 @@ import mindspore.mint.distributed as dist
 import mindspore.mint.nn.functional as functional
 from mindspore import Tensor
 from mindspore.communication import GlobalComm
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.trainers.zero import prepare_network
 
@@ -85,7 +86,9 @@ class WanI2V:
         )
 
         logging.info(f"Creating WanModel from {checkpoint_dir}")
-        self.model = WanModel.from_pretrained(checkpoint_dir, mindspore_dtype=self.param_dtype)
+        with no_init_parameters():
+            self.model = WanModel.from_pretrained(checkpoint_dir, mindspore_dtype=self.param_dtype)
+        self.model.init_parameters_data()
         self.model.set_train(False)
         for param in self.model.trainable_params():
             param.requires_grad = False
@@ -189,7 +192,7 @@ class WanI2V:
         else:
             raise NotImplementedError()
 
-        clip_context = self.clip.visual([img[:, None, :, :]])
+        clip_context = self.clip.visual([img[:, None, :, :]]).to(self.param_dtype)
         if offload_model:
             raise NotImplementedError()
 

@@ -13,6 +13,7 @@ import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.distributed as dist
 from mindspore.communication import GlobalComm
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.trainers.zero import prepare_network
 
@@ -74,7 +75,9 @@ class WanT2V:
         self.vae = WanVAE(vae_pth=os.path.join(checkpoint_dir, config.vae_checkpoint), dtype=self.param_dtype)
 
         logging.info(f"Creating WanModel from {checkpoint_dir}")
-        self.model = WanModel.from_pretrained(checkpoint_dir, mindspore_dtype=self.param_dtype)
+        with no_init_parameters():
+            self.model = WanModel.from_pretrained(checkpoint_dir, mindspore_dtype=self.param_dtype)
+        self.model.init_parameters_data()
         self.model.set_train(False)
         for param in self.model.trainable_params():
             param.requires_grad = False

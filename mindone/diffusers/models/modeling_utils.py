@@ -27,7 +27,6 @@ from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
 from mindspore import nn, ops
-from mindspore.nn.utils import no_init_parameters
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
 
@@ -610,8 +609,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     commit_hash=commit_hash,
                 )
 
-            with no_init_parameters():
-                model = cls.from_config(config, **unused_kwargs)
+            model = cls.from_config(config, **unused_kwargs)
 
             # Move the model's data type conversion ahead of the weight loading process to avoid unnecessary
             # data type conversions of weights that can increase computation time in certain situations.
@@ -647,8 +645,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     "mismatched_keys": mismatched_keys,
                     "error_msgs": error_msgs,
                 }
-
-            model.init_parameters_data()
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
