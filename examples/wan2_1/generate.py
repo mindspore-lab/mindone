@@ -1,9 +1,14 @@
 # Copyright 2024-2025 The Alibaba Wan Team Authors. All rights reserved.
 import argparse
 import logging
+import os
 import random
 import sys
 from datetime import datetime
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
 
 import wan
 from PIL import Image
@@ -180,7 +185,7 @@ def generate(args):
         ), "The number of ulysses_size and ring_size should be equal to the world size."
 
     if args.use_prompt_extend:
-        raise NotImplementedError(f"prompt_extend is not supported")
+        raise NotImplementedError("prompt_extend is not supported")
 
     cfg = WAN_CONFIGS[args.task]
     if args.ulysses_size > 1:
@@ -202,16 +207,7 @@ def generate(args):
         if args.use_prompt_extend:
             logging.info("Extending prompt ...")
             if rank == 0:
-                prompt_output = prompt_expander(
-                    args.prompt, tar_lang=args.prompt_extend_target_lang, seed=args.base_seed
-                )
-                if prompt_output.status is False:
-                    logging.info(f"Extending prompt failed: {prompt_output.message}")
-                    logging.info("Falling back to original prompt.")
-                    input_prompt = args.prompt
-                else:
-                    input_prompt = prompt_output.prompt
-                input_prompt = [input_prompt]
+                raise NotImplementedError()
             else:
                 input_prompt = [None]
             # TODO: GlobalComm.INITED -> mint.is_initialzed
@@ -256,16 +252,7 @@ def generate(args):
         if args.use_prompt_extend:
             logging.info("Extending prompt ...")
             if rank == 0:
-                prompt_output = prompt_expander(
-                    args.prompt, tar_lang=args.prompt_extend_target_lang, image=img, seed=args.base_seed
-                )
-                if prompt_output.status is False:
-                    logging.info(f"Extending prompt failed: {prompt_output.message}")
-                    logging.info("Falling back to original prompt.")
-                    input_prompt = args.prompt
-                else:
-                    input_prompt = prompt_output.prompt
-                input_prompt = [input_prompt]
+                raise NotImplementedError()
             else:
                 input_prompt = [None]
             if dist.is_initialized():
