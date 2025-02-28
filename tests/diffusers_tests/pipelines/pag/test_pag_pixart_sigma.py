@@ -1,18 +1,3 @@
-# coding=utf-8
-# Copyright 2024 HuggingFace Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import unittest
 
 import numpy as np
@@ -21,7 +6,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers import HunyuanDiTPAGPipeline
+from mindone.diffusers import PixArtSigmaPAGPipeline
 from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
 
 from ..pipeline_test_utils import (
@@ -42,24 +27,28 @@ test_cases = [
 
 
 @ddt
-class HunyuanDiTPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class PixArtSigmaPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
-            "diffusers.models.transformers.hunyuan_transformer_2d.HunyuanDiT2DModel",
-            "mindone.diffusers.models.transformers.hunyuan_transformer_2d.HunyuanDiT2DModel",
+            "diffusers.models.transformers.pixart_transformer_2d.PixArtTransformer2DModel",
+            "mindone.diffusers.models.transformers.pixart_transformer_2d.PixArtTransformer2DModel",
             dict(
-                sample_size=16,
+                sample_size=8,
                 num_layers=2,
                 patch_size=2,
                 attention_head_dim=8,
                 num_attention_heads=3,
+                caption_channels=32,
                 in_channels=4,
-                cross_attention_dim=32,
-                cross_attention_dim_t5=32,
-                pooled_projection_dim=16,
-                hidden_size=24,
+                cross_attention_dim=24,
+                out_channels=8,
+                attention_bias=True,
                 activation_fn="gelu-approximate",
+                num_embeds_ada_norm=1000,
+                norm_type="ada_norm_single",
+                norm_elementwise_affine=False,
+                norm_eps=1e-6,
             ),
         ],
         [
@@ -70,29 +59,12 @@ class HunyuanDiTPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         ],
         [
             "scheduler",
-            "diffusers.schedulers.scheduling_ddpm.DDPMScheduler",
-            "mindone.diffusers.schedulers.scheduling_ddpm.DDPMScheduler",
+            "diffusers.schedulers.scheduling_ddim.DDIMScheduler",
+            "mindone.diffusers.schedulers.scheduling_ddim.DDIMScheduler",
             dict(),
         ],
         [
             "text_encoder",
-            "transformers.models.bert.modeling_bert.BertModel",
-            "mindone.transformers.models.bert.modeling_bert.BertModel",
-            dict(
-                pretrained_model_name_or_path="hf-internal-testing/tiny-random-BertModel",
-                revision="refs/pr/1",
-            ),
-        ],
-        [
-            "tokenizer",
-            "transformers.models.auto.tokenization_auto.AutoTokenizer",
-            "transformers.models.auto.tokenization_auto.AutoTokenizer",
-            dict(
-                pretrained_model_name_or_path="hf-internal-testing/tiny-random-BertModel",
-            ),
-        ],
-        [
-            "text_encoder_2",
             "transformers.models.t5.modeling_t5.T5EncoderModel",
             "mindone.transformers.models.t5.modeling_t5.T5EncoderModel",
             dict(
@@ -101,7 +73,7 @@ class HunyuanDiTPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             ),
         ],
         [
-            "tokenizer_2",
+            "tokenizer",
             "transformers.models.auto.tokenization_auto.AutoTokenizer",
             "transformers.models.auto.tokenization_auto.AutoTokenizer",
             dict(
@@ -119,13 +91,8 @@ class HunyuanDiTPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 "scheduler",
                 "text_encoder",
                 "tokenizer",
-                "text_encoder_2",
-                "tokenizer_2",
-                "safety_checker",
-                "feature_extractor",
             ]
         }
-
         pt_components, ms_components = get_pipeline_components(components, self.pipeline_config)
         eval_components = ["transformer", "vae"]
 
@@ -136,32 +103,27 @@ class HunyuanDiTPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         return pt_components, ms_components
 
     def get_dummy_inputs(self, seed=0):
-        generator = torch.manual_seed(seed)
         inputs = {
             "prompt": "A painting of a squirrel eating a burger",
-            "generator": generator,
             "num_inference_steps": 2,
-            "guidance_scale": 5.0,
-            "output_type": "np",
+            "guidance_scale": 1.0,
+            "pag_scale": 3.0,
             "use_resolution_binning": False,
-            "pag_scale": 0.0,
+            "output_type": "np",
         }
         return inputs
 
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
-        ms.set_context(mode=mode, jit_syntax_level=ms.STRICT, pynative_synchronize=True)
+        ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
-        pt_pipe_cls = get_module("diffusers.pipelines.pag.pipeline_pag_hunyuandit.HunyuanDiTPAGPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.pag.pipeline_pag_hunyuandit.HunyuanDiTPAGPipeline")
+        pt_pipe_cls = get_module("diffusers.pipelines.pag.pipeline_pag_pixart_sigma.PixArtSigmaPAGPipeline")
+        ms_pipe_cls = get_module("mindone.diffusers.pipelines.pag.pipeline_pag_pixart_sigma.PixArtSigmaPAGPipeline")
 
-        pt_pipe = pt_pipe_cls(**pt_components, pag_applied_layers=["blocks.0"])
-        ms_pipe = ms_pipe_cls(
-            **ms_components,
-            pag_applied_layers=["blocks.0"],
-        )
+        pt_pipe = pt_pipe_cls(**pt_components, pag_applied_layers=["blocks.1"])
+        ms_pipe = ms_pipe_cls(**ms_components, pag_applied_layers=["blocks.1"])
 
         pt_pipe.set_progress_bar_config(disable=None)
         ms_pipe.set_progress_bar_config(disable=None)
@@ -173,40 +135,41 @@ class HunyuanDiTPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
         inputs = self.get_dummy_inputs()
 
         torch.manual_seed(0)
-        pt_image = pt_pipe(**inputs).images
+        pt_image = pt_pipe(**inputs)
         torch.manual_seed(0)
-        ms_image = ms_pipe(**inputs)[0]
+        ms_image = ms_pipe(**inputs)
 
-        pt_image_slice = pt_image[0, -3:, -3:, -1]
-        ms_image_slice = ms_image[0, -3:, -3:, -1]
+        pt_image_slice = pt_image.images[0, -3:, -3:, -1]
+        ms_image_slice = ms_image[0][0, -3:, -3:, -1]
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+        assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
 
 
 @slow
 @ddt
-class HunyuanDiTPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+class PixArtSigmaPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_pag_inference(self, mode, dtype):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipe = HunyuanDiTPAGPipeline.from_pretrained(
-            "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers",
+        pipe = PixArtSigmaPAGPipeline.from_pretrained(
+            "PixArt-alpha/PixArt-Sigma-XL-2-1024-MS",
             mindspore_dtype=ms_dtype,
+            pag_applied_layers=["blocks.14"],
             enable_pag=True,
-            pag_applied_layers=["14"],
         )
 
-        prompt = "一个宇航员在骑马"
+        prompt = "A small cactus with a happy face in the Sahara desert"
+
         torch.manual_seed(0)
-        image = pipe(prompt, guidance_scale=4, pag_scale=3)[0][0]
+        image = pipe(prompt, num_inference_steps=2)[0][0]
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f"hunyuan_dit_{dtype}.npy",
+            f"pixart_sigma_{dtype}.npy",
             subfolder="pag",
         )
         assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
