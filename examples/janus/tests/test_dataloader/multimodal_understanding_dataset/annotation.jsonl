@@ -1,0 +1,15 @@
+[
+  [
+    {
+      "role": "<|User|>",
+      "content": "<image_placeholder>\nConvert the formula into latex code.",
+      "images": [
+        "images/equation.png"
+      ]
+    },
+    {
+      "role": "<|Assistant|>",
+      "content": "This is a latex code: \\frac{1}{2}"
+    }
+  ]
+]
