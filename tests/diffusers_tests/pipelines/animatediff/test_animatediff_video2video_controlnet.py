@@ -267,6 +267,7 @@ class AnimateDiffVideoToVideoControlNetPipelineIntegrationTests(PipelineTesterMi
             controlnet_conditioning_scale=0.75,
             conditioning_frames=conditioning_frames,
             strength=strength,
+            output_type="np",
         )[0][0]
 
         expected_video = load_downloaded_numpy_from_hf_hub(
