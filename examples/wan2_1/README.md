@@ -1,5 +1,3 @@
-# Wan2.1
-
 <div align="center">
 <h1>🚀 Wan: Open and Advanced Large-Scale Video Generative Models </h1>
 
@@ -154,7 +152,7 @@ msrun --worker_num=${worker_num} generate.py \
 ```
 
 
-#### Run Image-to-Video Generation
+### Run Image-to-Video Generation
 
 Similar to Text-to-Video, Image-to-Video supports different resolutions. The specific parameters and their corresponding settings are as follows:
 
