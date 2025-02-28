@@ -9,10 +9,14 @@ import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.communication import GlobalComm, get_group_size
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.models.utils import normal_, xavier_uniform_, zeros_
+
+from ..acceleration.communications import AlltoAll, GatherForwardSplitBackward, SplitForwardGatherBackward
+from ..acceleration.parallel_states import get_sequence_parallel_group
 
 __all__ = ["WanModel"]
 
@@ -135,6 +139,16 @@ class WanSelfAttention(nn.Cell):
         self.norm_q = WanRMSNorm(dim, eps=eps, dtype=dtype) if qk_norm else mint.nn.Identity()
         self.norm_k = WanRMSNorm(dim, eps=eps, dtype=dtype) if qk_norm else mint.nn.Identity()
 
+        sp_group = get_sequence_parallel_group()
+        if sp_group is not None:
+            self.all_to_all = AlltoAll(split_dim=2, concat_dim=1, group=sp_group)
+            self.all_to_all_back = AlltoAll(split_dim=1, concat_dim=2, group=sp_group)
+            self.sp_size = get_group_size(sp_group)
+        else:
+            self.all_to_all = mint.nn.Identity()
+            self.all_to_all_back = mint.nn.Identity()
+            self.sp_size = 1
+
     def construct(self, x: Tensor, seq_lens: Tensor, grid_sizes: Tensor, freqs: Tensor) -> Tensor:
         r"""
         Args:
@@ -148,8 +162,11 @@ class WanSelfAttention(nn.Cell):
         # query, key, value function
         def qkv_fn(x):
             q = self.norm_q(self.q(x)).view(b, s, n, d)
+            q = self.all_to_all(q)
             k = self.norm_k(self.k(x)).view(b, s, n, d)
+            k = self.all_to_all(k)
             v = self.v(x).view(b, s, n, d)
+            v = self.all_to_all(v)
             return q, k, v
 
         q, k, v = qkv_fn(x)
@@ -160,20 +177,21 @@ class WanSelfAttention(nn.Cell):
             query=rope_apply(q, grid_sizes, freqs),
             key=rope_apply(k, grid_sizes, freqs),
             value=v,
-            head_num=self.num_heads,
-            actual_seq_kvlen=seq_lens,
+            head_num=self.num_heads // self.sp_size,
+            actual_seq_kvlen=seq_lens // self.sp_size,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
 
         # output
+        x = self.all_to_all_back(x)
         x = x.flatten(2)
         x = self.o(x)
         return x
 
 
 class WanT2VCrossAttention(WanSelfAttention):
-    def construct(self, x: Tensor, context: Tensor, context_lens: Tensor) -> Tensor:
+    def construct(self, x: Tensor, context: Tensor, context_lens: Optional[Tensor]) -> Tensor:
         r"""
         Args:
             x(Tensor): Shape [B, L1, C]
@@ -184,21 +202,25 @@ class WanT2VCrossAttention(WanSelfAttention):
 
         # compute query, key, value
         q = self.norm_q(self.q(x)).view(b, -1, n, d)
+        q = self.all_to_all(q)
         k = self.norm_k(self.k(context)).view(b, -1, n, d)
+        k = self.all_to_all(k)
         v = self.v(context).view(b, -1, n, d)
+        v = self.all_to_all(v)
 
         # compute attention
         x = ops.flash_attention_score(
             q,
             k,
             v,
-            head_num=self.num_heads,
-            actual_seq_kvlen=context_lens,
+            head_num=self.num_heads // self.sp_size,
+            actual_seq_kvlen=context_lens // self.sp_size if context_lens is not None else context_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
 
         # output
+        x = self.all_to_all_back(x)
         x = x.flatten(2)
         x = self.o(x)
         return x
@@ -233,15 +255,20 @@ class WanI2VCrossAttention(WanSelfAttention):
 
         # compute query, key, value
         q = self.norm_q(self.q(x)).view(b, -1, n, d)
+        q = self.all_to_all(q)
         k = self.norm_k(self.k(context)).view(b, -1, n, d)
+        k = self.all_to_all(k)
         v = self.v(context).view(b, -1, n, d)
+        v = self.all_to_all(v)
         k_img = self.norm_k_img(self.k_img(context_img)).view(b, -1, n, d)
+        k_img = self.all_to_all(k_img)
         v_img = self.v_img(context_img).view(b, -1, n, d)
+        v_img = self.all_to_all(v_img)
         img_x = ops.flash_attention_score(
             q,
             k_img,
             v_img,
-            head_num=self.num_heads,
+            head_num=self.num_heads // self.sp_size,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
@@ -250,13 +277,14 @@ class WanI2VCrossAttention(WanSelfAttention):
             q,
             k,
             v,
-            head_num=self.num_heads,
-            actual_seq_kvlen=context_lens,
+            head_num=self.num_heads // self.sp_size,
+            actual_seq_kvlen=context_lens // self.sp_size,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
 
         # output
+        x = self.all_to_all_back(x)
         x = x.flatten(2)
         img_x = img_x.flatten(2)
         x = x + img_x
@@ -514,6 +542,17 @@ class WanModel(ModelMixin, ConfigMixin):
         if model_type == "i2v":
             self.img_emb = MLPProj(1280, dim, dtype=dtype)
 
+        sp_group = get_sequence_parallel_group()
+        if sp_group is not None:
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=1, group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=1, group=sp_group)
+            self.sp_size = get_group_size(GlobalComm.WORLD_COMM_GROUP)
+            assert self.num_heads % self.sp_size == 0
+        else:
+            self.split_forward_gather_backward = mint.nn.Identity()
+            self.gather_forward_split_backward = mint.nn.Identity()
+            self.sp_size = 1
+
         # initialize weights
         self.init_weights()
 
@@ -577,6 +616,11 @@ class WanModel(ModelMixin, ConfigMixin):
             context_clip = self.img_emb(clip_fea)  # bs x 257 x dim
             context = mint.concat([context_clip, context], dim=1)
 
+        assert x.shape[1] % self.sp_size == 0
+        assert context.shape[1] % self.sp_size == 0
+        x = self.split_forward_gather_backward(x)
+        context = self.split_forward_gather_backward(context)
+
         # arguments
         kwargs = dict(
             e=e0, seq_lens=seq_lens, grid_sizes=grid_sizes, freqs=self.freqs, context=context, context_lens=context_lens
@@ -587,6 +631,8 @@ class WanModel(ModelMixin, ConfigMixin):
 
         # head
         x = self.head(x, e)
+
+        x = self.gather_forward_split_backward(x)
 
         # unpatchify
         x = self.unpatchify(x, grid_sizes)

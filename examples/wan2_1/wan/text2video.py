@@ -12,11 +12,12 @@ from tqdm import tqdm
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.distributed as dist
-from mindspore.communication import GlobalComm
+from mindspore.communication import GlobalComm, get_group_size
 from mindspore.nn.utils import no_init_parameters
 
 from mindone.trainers.zero import prepare_network
 
+from .acceleration.parallel_states import create_parallel_group
 from .modules.model import WanModel
 from .modules.t5 import T5EncoderModel
 from .modules.vae import WanVAE
@@ -61,6 +62,12 @@ class WanT2V:
         self.num_train_timesteps = config.num_train_timesteps
         self.param_dtype = config.param_dtype
 
+        if use_usp:
+            self.sp_size = get_group_size(GlobalComm.WORLD_COMM_GROUP)
+            create_parallel_group(self.sp_size)
+        else:
+            self.sp_size = 1
+
         shard_fn = partial(prepare_network, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP)
         self.text_encoder = T5EncoderModel(
             text_len=config.text_len,
@@ -81,11 +88,6 @@ class WanT2V:
         self.model.set_train(False)
         for param in self.model.trainable_params():
             param.requires_grad = False
-
-        if use_usp:
-            raise NotImplementedError()
-        else:
-            self.sp_size = 1
 
         # TODO: GlobalComm.INITED -> mint.is_initialzed
         if GlobalComm.INITED:
