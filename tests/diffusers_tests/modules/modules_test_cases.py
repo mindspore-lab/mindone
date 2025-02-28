@@ -654,6 +654,36 @@ PRIOR_TRANSFORMER_CASES = [
 ]
 
 
+ALLEGRO_TRANSFORMER3D_CASES = [
+    [
+        "AllegroTransformer3DModel",
+        "diffusers.models.transformers.transformer_allegro.AllegroTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_allegro.AllegroTransformer3DModel",
+        (),
+        {
+            # Product of num_attention_heads * attention_head_dim must be divisible by 16 for 3D positional embeddings.
+            "num_attention_heads": 2,
+            "attention_head_dim": 8,
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_layers": 1,
+            "cross_attention_dim": 16,
+            "sample_width": 8,
+            "sample_height": 8,
+            "sample_frames": 8,
+            "caption_channels": 8,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 2, 8, 8),
+            "encoder_hidden_states": np.random.randn(2, 16, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ]
+]
+
+
 AURAFLOW_TRANSFORMER2D_CASES = [
     [
         "AuraFlowTransformer2DModel",
@@ -984,7 +1014,8 @@ LUMINA_NEXTDIT2D_CASES = [
 
 
 TRANSFORMERS_CASES = (
-    AURAFLOW_TRANSFORMER2D_CASES
+    ALLEGRO_TRANSFORMER3D_CASES
+    + AURAFLOW_TRANSFORMER2D_CASES
     + COGVIDEOX_TRANSFORMER3D_CASES
     + COGVIEW3PLUS_TRANSFORMER2D_CASES
     + DIT_TRANSFORMER2D_CASES

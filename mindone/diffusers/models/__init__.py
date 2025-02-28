@@ -20,6 +20,7 @@ _import_structure = {
     "adapter": ["MultiAdapter", "T2IAdapter"],
     "autoencoders.autoencoder_asym_kl": ["AsymmetricAutoencoderKL"],
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
+    "autoencoders.autoencoder_kl_allegro": ["AutoencoderKLAllegro"],
     "autoencoders.autoencoder_kl_cogvideox": ["AutoencoderKLCogVideoX"],
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
@@ -49,6 +50,7 @@ _import_structure = {
     "transformers.prior_transformer": ["PriorTransformer"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "transformers.transformer_allegro": ["AllegroTransformer3DModel"],
     "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
     "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
@@ -70,6 +72,7 @@ if TYPE_CHECKING:
     from .autoencoders import (
         AsymmetricAutoencoderKL,
         AutoencoderKL,
+        AutoencoderKLAllegro,
         AutoencoderKLCogVideoX,
         AutoencoderKLTemporalDecoder,
         AutoencoderTiny,
@@ -92,6 +95,7 @@ if TYPE_CHECKING:
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
+        AllegroTransformer3DModel,
         AuraFlowTransformer2DModel,
         CogVideoXTransformer3DModel,
         CogView3PlusTransformer2DModel,

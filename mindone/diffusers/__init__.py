@@ -15,9 +15,11 @@ _import_structure = {
     "configuration_utils": ["ConfigMixin"],
     "loaders": ["FromOriginalModelMixin"],
     "models": [
+        "AllegroTransformer3DModel",
         "AsymmetricAutoencoderKL",
         "AuraFlowTransformer2DModel",
         "AutoencoderKL",
+        "AutoencoderKLAllegro",
         "AutoencoderKLCogVideoX",
         "AutoencoderKLTemporalDecoder",
         "AutoencoderTiny",
@@ -71,6 +73,7 @@ _import_structure = {
         "get_scheduler",
     ],
     "pipelines": [
+        "AllegroPipeline",
         "AnimateDiffControlNetPipeline",
         "AnimateDiffPAGPipeline",
         "AnimateDiffPipeline",
@@ -242,9 +245,11 @@ _import_structure = {
 if TYPE_CHECKING:
     from .configuration_utils import ConfigMixin
     from .models import (
+        AllegroTransformer3DModel,
         AsymmetricAutoencoderKL,
         AuraFlowTransformer2DModel,
         AutoencoderKL,
+        AutoencoderKLAllegro,
         AutoencoderKLCogVideoX,
         AutoencoderKLTemporalDecoder,
         AutoencoderTiny,
@@ -298,6 +303,7 @@ if TYPE_CHECKING:
         get_scheduler,
     )
     from .pipelines import (
+        AllegroPipeline,
         AnimateDiffControlNetPipeline,
         AnimateDiffPAGPipeline,
         AnimateDiffPipeline,

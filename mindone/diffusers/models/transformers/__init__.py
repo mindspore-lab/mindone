@@ -9,6 +9,7 @@ from .pixart_transformer_2d import PixArtTransformer2DModel
 from .prior_transformer import PriorTransformer
 from .t5_film_transformer import T5FilmDecoder
 from .transformer_2d import Transformer2DModel
+from .transformer_allegro import AllegroTransformer3DModel
 from .transformer_cogview3plus import CogView3PlusTransformer2DModel
 from .transformer_flux import FluxTransformer2DModel
 from .transformer_sd3 import SD3Transformer2DModel
