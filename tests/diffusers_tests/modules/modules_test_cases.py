@@ -938,7 +938,7 @@ HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
             "encoder_attention_mask": np.ones((1, 12)),
             "guidance": np.random.randint(0, 1000, size=(1,)).astype(np.float32),
         },
-        ("bf16", ),  # only bf16 supported
+        ("bf16",),  # only bf16 supported
         (0, 1),
     ],
 ]

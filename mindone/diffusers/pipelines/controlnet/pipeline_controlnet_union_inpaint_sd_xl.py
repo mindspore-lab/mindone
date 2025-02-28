@@ -17,9 +17,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
+from transformers import CLIPImageProcessor, CLIPTokenizer
+
 import mindspore as ms
 from mindspore import nn, ops
-from transformers import CLIPImageProcessor, CLIPTokenizer
+
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -31,22 +33,12 @@ from ...loaders import (
     TextualInversionLoaderMixin,
 )
 from ...models import AutoencoderKL, ControlNetModel, ControlNetUnionModel, ImageProjection, UNet2DConditionModel
-from ...models.attention_processor import (
-    AttnProcessor2_0,
-    XFormersAttnProcessor,
-)
+from ...models.attention_processor import AttnProcessor2_0, XFormersAttnProcessor
 from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
-    deprecate,
-    is_invisible_watermark_available,
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
-
 
 if is_invisible_watermark_available():
     from mindone.diffusers.pipelines.stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
@@ -1393,7 +1385,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 f"steps is {num_inference_steps} which is < 1 and not appropriate for this pipeline."
             )
         # at which timestep to set the initial noise (n.b. 50% if strength is 0.5)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt, ))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
         is_strength_max = strength == 1.0
         self._num_timesteps = len(timesteps)
@@ -1553,9 +1545,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             timesteps = timesteps[:num_inference_steps]
 
         control_type = (
-            control_type.reshape(1, -1)
-            .to(dtype=prompt_embeds.dtype)
-            .tile((batch_size * num_images_per_prompt * 2, 1))
+            control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((batch_size * num_images_per_prompt * 2, 1))
         )
 
         # `nn.MultiheadAttention` has an additional member variable `dtype` compared to torch. In graph mode, `dtype`

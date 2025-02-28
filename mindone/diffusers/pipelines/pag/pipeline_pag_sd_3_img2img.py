@@ -16,12 +16,13 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-
 import PIL.Image
+from transformers import CLIPTokenizer, T5TokenizerFast
+
 import mindspore as ms
 from mindspore import ops
+
 from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
-from transformers import CLIPTokenizer, T5TokenizerFast
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3LoraLoaderMixin
@@ -870,9 +871,7 @@ class StableDiffusion3PAGImg2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, 
         else:
             batch_size = prompt_embeds.shape[0]
 
-        lora_scale = (
-            self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
-        )
+        lora_scale = self.joint_attention_kwargs.get("scale", None) if self.joint_attention_kwargs is not None else None
         (
             prompt_embeds,
             negative_prompt_embeds,
@@ -913,7 +912,7 @@ class StableDiffusion3PAGImg2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, sigmas=sigmas)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt, ))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         # 5. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels
         if latents is None:
@@ -944,7 +943,7 @@ class StableDiffusion3PAGImg2ImgPipeline(DiffusionPipeline, SD3LoraLoaderMixin, 
                 # expand the latents if we are doing classifier free guidance, perturbed-attention guidance, or both
                 latent_model_input = ops.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0], ))
+                timestep = t.broadcast_to((latent_model_input.shape[0],))
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,

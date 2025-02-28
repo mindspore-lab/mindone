@@ -170,9 +170,7 @@ class LTXVideoResnetBlock3d(nn.Cell):
 
         if self.per_channel_scale1 is not None:
             spatial_shape = hidden_states.shape[-2:]
-            spatial_noise = randn(
-                spatial_shape, generator=generator, dtype=hidden_states.dtype
-            )[None]
+            spatial_noise = randn(spatial_shape, generator=generator, dtype=hidden_states.dtype)[None]
             hidden_states = hidden_states + (spatial_noise * self.per_channel_scale1)[None, :, None, ...]
 
         hidden_states = self.norm2(hidden_states.movedim(1, -1)).movedim(-1, 1)
@@ -186,9 +184,7 @@ class LTXVideoResnetBlock3d(nn.Cell):
 
         if self.per_channel_scale2 is not None:
             spatial_shape = hidden_states.shape[-2:]
-            spatial_noise = randn(
-                spatial_shape, generator=generator, dtype=hidden_states.dtype
-            )[None]
+            spatial_noise = randn(spatial_shape, generator=generator, dtype=hidden_states.dtype)[None]
             hidden_states = hidden_states + (spatial_noise * self.per_channel_scale2)[None, :, None, ...]
 
         if self.norm3 is not None:
@@ -233,7 +229,12 @@ class LTXVideoUpsampler3d(nn.Cell):
             residual = hidden_states.reshape(
                 batch_size, -1, self.stride[0], self.stride[1], self.stride[2], num_frames, height, width
             )
-            residual = residual.permute(0, 1, 5, 2, 6, 3, 7, 4).flatten(start_dim=6, end_dim=7).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+            residual = (
+                residual.permute(0, 1, 5, 2, 6, 3, 7, 4)
+                .flatten(start_dim=6, end_dim=7)
+                .flatten(start_dim=4, end_dim=5)
+                .flatten(start_dim=2, end_dim=3)
+            )
             repeats = (self.stride[0] * self.stride[1] * self.stride[2]) // self.upscale_factor
             residual = residual.tile((1, repeats, 1, 1, 1))
             residual = residual[:, :, self.stride[0] - 1 :]
@@ -242,7 +243,12 @@ class LTXVideoUpsampler3d(nn.Cell):
         hidden_states = hidden_states.reshape(
             batch_size, -1, self.stride[0], self.stride[1], self.stride[2], num_frames, height, width
         )
-        hidden_states = hidden_states.permute(0, 1, 5, 2, 6, 3, 7, 4).flatten(start_dim=6, end_dim=7).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+        hidden_states = (
+            hidden_states.permute(0, 1, 5, 2, 6, 3, 7, 4)
+            .flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
+        )
         hidden_states = hidden_states[:, :, self.stride[0] - 1 :]
 
         if self.residual:
@@ -342,7 +348,7 @@ class LTXVideoDownBlock3D(nn.Cell):
         r"""Forward method of the `LTXDownBlock3D` class."""
 
         for i, resnet in enumerate(self.resnets):
-                hidden_states = resnet(hidden_states, temb, generator)
+            hidden_states = resnet(hidden_states, temb, generator)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
@@ -430,7 +436,7 @@ class LTXVideoMidBlock3d(nn.Cell):
             temb = temb.view(hidden_states.shape[0], -1, 1, 1, 1)
 
         for i, resnet in enumerate(self.resnets):
-                hidden_states = resnet(hidden_states, temb, generator)
+            hidden_states = resnet(hidden_states, temb, generator)
 
         return hidden_states
 
@@ -823,7 +829,12 @@ class LTXVideoDecoder3d(nn.Cell):
 
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
         hidden_states = hidden_states.reshape(batch_size, -1, p_t, p, p, num_frames, height, width)
-        hidden_states = hidden_states.permute(0, 1, 5, 2, 6, 4, 7, 3).flatten(start_dim=6, end_dim=7).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+        hidden_states = (
+            hidden_states.permute(0, 1, 5, 2, 6, 4, 7, 3)
+            .flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
+        )
 
         return hidden_states
 
@@ -1102,9 +1113,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and z.shape[0] > 1:
             if temb is not None:
-                decoded_slices = [
-                    self._decode(z_slice, t_slice)[0] for z_slice, t_slice in (z.split(1), temb.split(1))
-                ]
+                decoded_slices = [self._decode(z_slice, t_slice)[0] for z_slice, t_slice in (z.split(1), temb.split(1))]
             else:
                 decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
             decoded = ops.cat(decoded_slices)
@@ -1234,9 +1243,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                         "should be possible, please submit a PR to https://github.com/huggingface/diffusers/pulls."
                     )
                 else:
-                    time = self.decoder(
-                        z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width], temb
-                    )
+                    time = self.decoder(z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width], temb)
 
                 row.append(time)
             rows.append(row)

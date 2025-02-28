@@ -29,15 +29,9 @@ from ..attention_processor import (
 from ..embeddings import TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
 from ..normalization import LayerNorm
-from ..unets.unet_2d_blocks import (
-    CrossAttnDownBlock2D,
-    DownBlock2D,
-    UNetMidBlock2DCrossAttn,
-    get_down_block,
-)
+from ..unets.unet_2d_blocks import CrossAttnDownBlock2D, DownBlock2D, UNetMidBlock2DCrossAttn, get_down_block
 from ..unets.unet_2d_condition import UNet2DConditionModel
 from .controlnet import ControlNetConditioningEmbedding, ControlNetOutput, zero_module
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -380,7 +374,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     padding=0,
                     has_bias=True,
                     weight_init="zeros",
-                    bias_init="zeros"
+                    bias_init="zeros",
                 )
                 self.controlnet_down_blocks.append(controlnet_block)
 
@@ -393,7 +387,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     padding=0,
                     has_bias=True,
                     weight_init="zeros",
-                    bias_init="zeros"
+                    bias_init="zeros",
                 )
                 self.controlnet_down_blocks.append(controlnet_block)
 
@@ -411,7 +405,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             padding=0,
             has_bias=True,
             weight_init="zeros",
-            bias_init="zeros"
+            bias_init="zeros",
         )
         self.controlnet_mid_block = controlnet_block
 

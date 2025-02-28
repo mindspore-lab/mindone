@@ -30,4 +30,3 @@ pipe = StableDiffusionXLControlNetUnionPipeline.from_pretrained("stabilityai/sta
 ```
 
 ::: mindone.diffusers.ControlNetUnionModel
-

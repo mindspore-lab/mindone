@@ -230,7 +230,6 @@ class HunyuanVideoPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 ]
             )
 
-
         torch.manual_seed(0)
         ms_image = ms_pipe(**inputs)
         ms_image_slice = ms_image[0][0][0, -3:, -3:, -1]

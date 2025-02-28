@@ -40,8 +40,6 @@ Todo:
 import numpy as np
 from packaging.version import parse
 
-import numpy as np
-
 import mindspore as ms
 from mindspore import ops
 from mindspore.common.api import _function_forbid_reuse
@@ -512,6 +510,7 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
 
 view_as_complex = _view_as_complex
 
+
 # ================================================================================
 # unflatten
 # ================================================================================
@@ -550,11 +549,9 @@ def _unflatten(input, dim, sizes):
 
     # If there is one unknown size, calculate it
     if num_unknown == 1:
-        sizes = tuple(
-            size if size != -1 else shape[dim] // sizes_prod for size in sizes
-        )
+        sizes = tuple(size if size != -1 else shape[dim] // sizes_prod for size in sizes)
 
-    new_shape = shape[:dim] + sizes + shape[dim + 1:]
+    new_shape = shape[:dim] + sizes + shape[dim + 1 :]
 
     return input.reshape(new_shape)
 

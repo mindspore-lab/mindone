@@ -36,7 +36,6 @@ from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, LayerNorm
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -159,9 +158,7 @@ class HunyuanVideoAdaNorm(nn.Cell):
         self.linear = nn.Dense(in_features, out_features)
         self.nonlinearity = SiLU()
 
-    def construct(
-        self, temb: ms.Tensor
-    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+    def construct(self, temb: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         temb = self.linear(self.nonlinearity(temb))
         gate_msa, gate_mlp = temb.chunk(2, axis=1)
         gate_msa, gate_mlp = gate_msa.unsqueeze(1), gate_mlp.unsqueeze(1)
@@ -742,7 +739,11 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             batch_size, post_patch_num_frames, post_patch_height, post_patch_width, -1, p_t, p, p
         )
         hidden_states = hidden_states.permute(0, 4, 1, 5, 2, 6, 3, 7)
-        hidden_states = hidden_states.flatten(start_dim=6, end_dim=7).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+        hidden_states = (
+            hidden_states.flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
+        )
 
         if not return_dict:
             return (hidden_states,)

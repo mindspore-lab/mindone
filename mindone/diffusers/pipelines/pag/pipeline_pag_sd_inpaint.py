@@ -15,13 +15,14 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-
 import PIL.Image
+from packaging import version
+from transformers import CLIPImageProcessor, CLIPTokenizer
+
 import mindspore as ms
 from mindspore import ops
-from packaging import version
+
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
-from transformers import CLIPImageProcessor, CLIPTokenizer
 
 from ...configuration_utils import FrozenDict
 from ...image_processor import PipelineImageInput, VaeImageProcessor
@@ -34,7 +35,6 @@ from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .pag_utils import PAGMixin
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -1046,9 +1046,7 @@ class StableDiffusionPAGInpaintPipeline(
             batch_size = prompt_embeds.shape[0]
 
         # 3. Encode input prompt
-        lora_scale = (
-            self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
-        )
+        lora_scale = self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
 
         prompt_embeds, negative_prompt_embeds = self.encode_prompt(
             prompt,
@@ -1062,12 +1060,8 @@ class StableDiffusionPAGInpaintPipeline(
         )
 
         # 4. set timesteps
-        timesteps, num_inference_steps = retrieve_timesteps(
-            self.scheduler, num_inference_steps, timesteps, sigmas
-        )
-        timesteps, num_inference_steps = self.get_timesteps(
-            num_inference_steps=num_inference_steps, strength=strength
-        )
+        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
+        timesteps, num_inference_steps = self.get_timesteps(num_inference_steps=num_inference_steps, strength=strength)
         # check that number of inference steps is not < 1 - as this doesn't make sense
         if num_inference_steps < 1:
             raise ValueError(
@@ -1075,7 +1069,7 @@ class StableDiffusionPAGInpaintPipeline(
                 f"steps is {num_inference_steps} which is < 1 and not appropriate for this pipeline."
             )
 
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt, ))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
         is_strength_max = strength == 1.0
 

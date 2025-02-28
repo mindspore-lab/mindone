@@ -254,8 +254,8 @@ if TYPE_CHECKING:
         FluxPipeline,
         FluxPriorReduxPipeline,
     )
-    from .hunyuandit import HunyuanDiTPipeline
     from .hunyuan_video import HunyuanVideoPipeline
+    from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
         KandinskyCombinedPipeline,
