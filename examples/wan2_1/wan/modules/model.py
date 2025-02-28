@@ -202,25 +202,21 @@ class WanT2VCrossAttention(WanSelfAttention):
 
         # compute query, key, value
         q = self.norm_q(self.q(x)).view(b, -1, n, d)
-        q = self.all_to_all(q)
         k = self.norm_k(self.k(context)).view(b, -1, n, d)
-        k = self.all_to_all(k)
         v = self.v(context).view(b, -1, n, d)
-        v = self.all_to_all(v)
 
         # compute attention
         x = ops.flash_attention_score(
             q,
             k,
             v,
-            head_num=self.num_heads // self.sp_size,
-            actual_seq_kvlen=context_lens // self.sp_size if context_lens is not None else context_lens,
+            head_num=self.num_heads,
+            actual_seq_kvlen=context_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
 
         # output
-        x = self.all_to_all_back(x)
         x = x.flatten(2)
         x = self.o(x)
         return x
@@ -255,11 +251,8 @@ class WanI2VCrossAttention(WanSelfAttention):
 
         # compute query, key, value
         q = self.norm_q(self.q(x)).view(b, -1, n, d)
-        q = self.all_to_all(q)
         k = self.norm_k(self.k(context)).view(b, -1, n, d)
-        k = self.all_to_all(k)
         v = self.v(context).view(b, -1, n, d)
-        v = self.all_to_all(v)
         k_img = self.norm_k_img(self.k_img(context_img)).view(b, -1, n, d)
         k_img = self.all_to_all(k_img)
         v_img = self.v_img(context_img).view(b, -1, n, d)
@@ -268,7 +261,7 @@ class WanI2VCrossAttention(WanSelfAttention):
             q,
             k_img,
             v_img,
-            head_num=self.num_heads // self.sp_size,
+            head_num=self.num_heads,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
@@ -277,14 +270,13 @@ class WanI2VCrossAttention(WanSelfAttention):
             q,
             k,
             v,
-            head_num=self.num_heads // self.sp_size,
-            actual_seq_kvlen=context_lens // self.sp_size,
+            head_num=self.num_heads,
+            actual_seq_kvlen=context_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
 
         # output
-        x = self.all_to_all_back(x)
         x = x.flatten(2)
         img_x = img_x.flatten(2)
         x = x + img_x
@@ -617,9 +609,7 @@ class WanModel(ModelMixin, ConfigMixin):
             context = mint.concat([context_clip, context], dim=1)
 
         assert x.shape[1] % self.sp_size == 0
-        assert context.shape[1] % self.sp_size == 0
         x = self.split_forward_gather_backward(x)
-        context = self.split_forward_gather_backward(context)
 
         # arguments
         kwargs = dict(
