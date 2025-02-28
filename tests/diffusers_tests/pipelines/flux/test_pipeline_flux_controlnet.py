@@ -144,9 +144,11 @@ class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase
         return get_pipeline_components(components, self.pipeline_config)
 
     def get_dummy_inputs(self, seed=0):
+        generator = torch.manual_seed(seed)
+
         pt_control_image = randn_tensor(
             (1, 3, 32, 32),
-            dtype=torch.float16,
+            generator=generator,
         )
         ms_control_image = ms.tensor(pt_control_image.numpy())
 

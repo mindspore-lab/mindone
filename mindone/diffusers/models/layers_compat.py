@@ -23,6 +23,9 @@ Key Features:
         - **multinomial**: Native post 2.3.0; custom for earlier versions.
         - **pad**: Native post 2.3.0; custom for earlier versions.
 
+        [2025/01/14]
+        - **unflatten**: Always custom due to framework limitations.
+
 Example:
     Import this module and use the operators as you would with native MindSpore functions, with the assurance of cross-version compatibility.
 
@@ -37,6 +40,8 @@ Todo:
 import numpy as np
 from packaging.version import parse
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import ops
 from mindspore.common.api import _function_forbid_reuse
@@ -48,6 +53,7 @@ __all__ = [
     "group_norm",
     "interpolate",
     "fp32_interpolate",
+    "unflatten",
     "upsample_nearest3d_free_interpolate",
     "multinomial",
     "pad",
@@ -506,7 +512,6 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
 
 view_as_complex = _view_as_complex
 
-
 # ================================================================================
 # unflatten
 # ================================================================================
@@ -534,12 +539,22 @@ def _unflatten(input, dim, sizes):
     if dim < 0 or dim >= len(shape):
         raise ValueError(f"Invalid dimension {dim} for tensor with shape {input.shape}")
 
-    # check validation of sizes
-    sizes = tuple(int(shape[dim] // np.prod([s for s in sizes if s != -1])) if s == -1 else s for s in sizes)
-    if shape[dim] != np.prod(sizes):
-        raise ValueError(f"Cannot unflatten dimension {dim} of size {shape[dim]} into shape {sizes}")
+    # Calculate the product of sizes, excluding -1
+    sizes_prod = 1
+    num_unknown = 0
+    for size in sizes:
+        if size == -1:
+            num_unknown += 1
+        else:
+            sizes_prod *= size
 
-    new_shape = shape[:dim] + sizes + shape[dim + 1 :]
+    # If there is one unknown size, calculate it
+    if num_unknown == 1:
+        sizes = tuple(
+            size if size != -1 else shape[dim] // sizes_prod for size in sizes
+        )
+
+    new_shape = shape[:dim] + sizes + shape[dim + 1:]
 
     return input.reshape(new_shape)
 

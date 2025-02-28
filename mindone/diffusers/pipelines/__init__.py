@@ -4,6 +4,7 @@ from ..utils import _LazyModule
 
 # These modules contain pipelines from multiple libraries/frameworks
 _import_structure = {
+    "allegro": ["AllegroPipeline"],
     "animatediff": [
         "AnimateDiffPipeline",
         "AnimateDiffControlNetPipeline",
@@ -35,6 +36,9 @@ _import_structure = {
         "StableDiffusionXLControlNetImg2ImgPipeline",
         "StableDiffusionXLControlNetInpaintPipeline",
         "StableDiffusionXLControlNetPipeline",
+        "StableDiffusionXLControlNetUnionPipeline",
+        "StableDiffusionXLControlNetUnionInpaintPipeline",
+        "StableDiffusionXLControlNetUnionImg2ImgPipeline",
     ],
     "controlnet_hunyuandit": ["HunyuanDiTControlNetPipeline"],
     "controlnet_xs": [
@@ -71,6 +75,7 @@ _import_structure = {
         "FluxPriorReduxPipeline",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
+    "hunyuan_video": ["HunyuanVideoPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
     "kandinsky": [
@@ -107,6 +112,7 @@ _import_structure = {
         "LatentConsistencyModelPipeline",
     ],
     "latte": ["LattePipeline"],
+    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline"],
     "lumina": ["LuminaText2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
@@ -118,9 +124,12 @@ _import_structure = {
         "AnimateDiffPAGPipeline",
         "KolorsPAGPipeline",
         "HunyuanDiTPAGPipeline",
+        "SanaPAGPipeline",
         "StableDiffusion3PAGPipeline",
+        "StableDiffusion3PAGImg2ImgPipeline",
         "StableDiffusionPAGPipeline",
         "StableDiffusionPAGImg2ImgPipeline",
+        "StableDiffusionPAGInpaintPipeline",
         "StableDiffusionControlNetPAGPipeline",
         "StableDiffusionXLPAGPipeline",
         "StableDiffusionXLPAGInpaintPipeline",
@@ -133,6 +142,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
+    "sana": ["SanaPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_cascade": [
         "StableCascadeCombinedPipeline",
@@ -185,6 +195,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from .allegro import AllegroPipeline
     from .animatediff import (
         AnimateDiffControlNetPipeline,
         AnimateDiffPipeline,
@@ -212,6 +223,9 @@ if TYPE_CHECKING:
         StableDiffusionXLControlNetImg2ImgPipeline,
         StableDiffusionXLControlNetInpaintPipeline,
         StableDiffusionXLControlNetPipeline,
+        StableDiffusionXLControlNetUnionImg2ImgPipeline,
+        StableDiffusionXLControlNetUnionInpaintPipeline,
+        StableDiffusionXLControlNetUnionPipeline,
     )
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
     from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
@@ -241,6 +255,7 @@ if TYPE_CHECKING:
         FluxPriorReduxPipeline,
     )
     from .hunyuandit import HunyuanDiTPipeline
+    from .hunyuan_video import HunyuanVideoPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
         KandinskyCombinedPipeline,
@@ -268,6 +283,7 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .latte import LattePipeline
+    from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
@@ -276,10 +292,13 @@ if TYPE_CHECKING:
         HunyuanDiTPAGPipeline,
         KolorsPAGPipeline,
         PixArtSigmaPAGPipeline,
+        SanaPAGPipeline,
+        StableDiffusion3PAGImg2ImgPipeline,
         StableDiffusion3PAGPipeline,
         StableDiffusionControlNetPAGInpaintPipeline,
         StableDiffusionControlNetPAGPipeline,
         StableDiffusionPAGImg2ImgPipeline,
+        StableDiffusionPAGInpaintPipeline,
         StableDiffusionPAGPipeline,
         StableDiffusionXLControlNetPAGImg2ImgPipeline,
         StableDiffusionXLControlNetPAGPipeline,
@@ -289,6 +308,7 @@ if TYPE_CHECKING:
     )
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
+    from .sana import SanaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (

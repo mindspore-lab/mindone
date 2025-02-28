@@ -201,13 +201,13 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         num_attention_heads: int = 24,
         load_weights_from_transformer=True,
     ):
-        config = transformer.config
+        config = dict(transformer.config)
         config["num_layers"] = num_layers
         config["num_single_layers"] = num_single_layers
         config["attention_head_dim"] = attention_head_dim
         config["num_attention_heads"] = num_attention_heads
 
-        controlnet = cls(**config)
+        controlnet = cls.from_config(config)
 
         if load_weights_from_transformer:
             ms.load_param_into_net(controlnet.pos_embed, transformer.pos_embed.parameters_dict())

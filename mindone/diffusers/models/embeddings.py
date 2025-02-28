@@ -908,6 +908,42 @@ def get_3d_rotary_pos_embed(
     return cos, sin
 
 
+def get_3d_rotary_pos_embed_allegro(
+    embed_dim,
+    crops_coords,
+    grid_size,
+    temporal_size,
+    interpolation_scale: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+    theta: int = 10000,
+) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor]]:
+    # TODO(aryan): docs
+    start, stop = crops_coords
+    grid_size_h, grid_size_w = grid_size
+    interpolation_scale_t, interpolation_scale_h, interpolation_scale_w = interpolation_scale
+    grid_t = ops.linspace(0, temporal_size * (temporal_size - 1) / temporal_size, temporal_size).float()
+    grid_h = ops.linspace(start[0], stop[0] * (grid_size_h - 1) / grid_size_h, grid_size_h).float()
+    grid_w = ops.linspace(start[1], stop[1] * (grid_size_w - 1) / grid_size_w, grid_size_w).float()
+
+    # Compute dimensions for each axis
+    dim_t = embed_dim // 3
+    dim_h = embed_dim // 3
+    dim_w = embed_dim // 3
+
+    # Temporal frequencies
+    freqs_t = get_1d_rotary_pos_embed(
+        dim_t, grid_t / interpolation_scale_t, theta=theta, use_real=True, repeat_interleave_real=False
+    )
+    # Spatial frequencies for height and width
+    freqs_h = get_1d_rotary_pos_embed(
+        dim_h, grid_h / interpolation_scale_h, theta=theta, use_real=True, repeat_interleave_real=False
+    )
+    freqs_w = get_1d_rotary_pos_embed(
+        dim_w, grid_w / interpolation_scale_w, theta=theta, use_real=True, repeat_interleave_real=False
+    )
+
+    return freqs_t, freqs_h, freqs_w, grid_t, grid_h, grid_w
+
+
 def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True, output_type: str = "np"):
     """
     RoPE for image tokens with 2d structure.
@@ -1153,6 +1189,27 @@ def apply_rotary_emb(
         x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
 
         return x_out.type_as(x)
+
+
+def apply_rotary_emb_allegro(x: ms.Tensor, freqs_cis, positions):
+    # TODO(aryan): rewrite
+    def apply_1d_rope(tokens, pos, cos, sin):
+        # cos = ops.embedding(pos, ms.Parameter(cos))[:, None, :, :]
+        # sin = ops.embedding(pos, ms.Parameter(sin))[:, None, :, :]
+        # In `ops.embedding`, weight should be a Parameter, but we do not support `parameter` in graph mode.
+        cos = cos[pos][:, None, :, :]
+        sin = sin[pos][:, None, :, :]
+        x1, x2 = tokens[..., : tokens.shape[-1] // 2], tokens[..., tokens.shape[-1] // 2 :]
+        tokens_rotated = ops.cat((-x2, x1), axis=-1)
+        return (tokens.float() * cos + tokens_rotated.float() * sin).to(tokens.dtype)
+
+    (t_cos, t_sin), (h_cos, h_sin), (w_cos, w_sin) = freqs_cis
+    t, h, w = x.chunk(3, axis=-1)
+    t = apply_1d_rope(t, positions[0], t_cos, t_sin)
+    h = apply_1d_rope(h, positions[1], h_cos, h_sin)
+    w = apply_1d_rope(w, positions[2], w_cos, w_sin)
+    x = ops.cat([t, h, w], axis=-1)
+    return x
 
 
 class FluxPosEmbed(nn.Cell):
