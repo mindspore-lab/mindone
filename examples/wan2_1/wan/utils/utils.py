@@ -124,7 +124,7 @@ def load_pth(pth_path: str, dtype: ms.Type = ms.bfloat16):
     return mindspore_data
 
 
-def pil2tensor(pic: Image.Image) -> Tensor:
+def pil2tensor(pic: Image.Image) -> ms.Tensor:
     """
     convert PIL image to mindspore.Tensor
     """
