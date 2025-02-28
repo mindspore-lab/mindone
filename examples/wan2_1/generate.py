@@ -130,7 +130,6 @@ def _parse_args():
     parser.add_argument("--sample_guide_scale", type=float, default=5.0, help="Classifier free guidance scale.")
 
     # extra for mindspore
-    parser.add_argument("--distributed", action="store_true", default=False, help="Distributed mode")
     parser.add_argument("--ulysses_sp", action="store_true", default=False, help="turn on ulysses parallelism in DiT.")
 
     args = parser.parse_args()
@@ -154,7 +153,7 @@ def _init_logging(rank):
 
 
 def generate(args):
-    if args.distributed:
+    if args.ulysses_sp or args.t5_zero3 or args.dit_zero3:
         dist.init_process_group(backend="hccl")
         ms.set_auto_parallel_context(parallel_mode="data_parallel")
 

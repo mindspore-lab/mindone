@@ -41,6 +41,13 @@ https://github.com/user-attachments/assets/aceda253-78a2-4fa5-9edc-83f035c7c2ea
 prompt: Sports photography full of dynamism, several motorcycles fiercely compete on the loess flying track, their wheels rolling up the dust in the sky. The motorcyclist is wearing professional racing clothes. The camera uses a high-speed shutter to capture moments, follows from the side and rear, and finally freezes in a close-up of a motorcycle, showcasing its exquisite body lines and powerful mechanical beauty, creating a tense and exciting racing atmosphere. Close up dynamic perspective, perfectly presenting the visual impact of speed and power.
 ```
 
+https://github.com/user-attachments/assets/c00ca7b8-5e05-4776-8c72-ae19e6bd44f5
+
+```text
+prompt: 电影画质，专业质量，丰富细节。一名宇航员身穿太空服，面朝镜头骑着一匹机械马在火星表面驰骋。红色的荒凉地表延伸至远方，点缀着巨大的陨石坑和奇特的岩石结构。机械马的步伐稳健，扬起微弱的尘埃，展现出未来科技与原始探索的完美结合。宇航员手持操控装置，目光坚定，仿佛正在开辟人类的新疆域。背景是深邃的宇宙和蔚蓝的地球，画面既科幻又充满希望，让人不禁畅想未来的星际生活。
+```
+
+
 - Image-to-Video
 
 
@@ -182,7 +189,6 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task t2v-14B \
     --size 1280*720 \
     --ckpt_dir ./Wan2.1-T2V-14B \
-    --distributed \
     --dit_zero3 --t5_zero3 --ulysses_sp \
     --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage."
 ```
@@ -242,7 +248,6 @@ python generate.py \
 msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task i2v-14B --size 1280*720 \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
-    --distributed \
     --dit_zero3 --t5_zero3 --ulysses_sp \
     --image examples/i2v_input.JPG \
     --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
