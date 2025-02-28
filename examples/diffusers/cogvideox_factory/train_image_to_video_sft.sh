@@ -6,10 +6,10 @@ NUM_NPUS=8
 
 # Training Configurations
 # Experiment with as many hyperparameters as you want!
-LEARNING_RATES=("1e-4" "1e-3")
+LEARNING_RATES=("1e-4")
 LR_SCHEDULES=("cosine_with_restarts")
-OPTIMIZERS=("adamw" "adam")
-MAX_TRAIN_STEPS=("3000")
+OPTIMIZERS=("adamw")
+MAX_TRAIN_STEPS=("20000")
 SP=False
 SP_SIZE=$NUM_NPUS
 FA_RCP=False
@@ -22,7 +22,7 @@ OUTPUT_ROOT_DIR=./output_sp
 MINDSPORE_MODE=0
 JIT_LEVEL=O1
 AMP_LEVEL=O2
-DEEPSPEED_ZERO_STAGE=2
+DEEPSPEED_ZERO_STAGE=3
 
 # Prepare launch cmd according to NUM_NPUS
 if [ "$NUM_NPUS" -eq 1 ]; then
@@ -56,16 +56,16 @@ fi
 DATA_ROOT="preprocessed-dataset"
 CAPTION_COLUMN="prompts.txt"
 VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX1.5-5B"
+MODEL_PATH="THUDM/CogVideoX1.5-5B-I2V"
 
 # Launch experiments with different hyperparameters
 for learning_rate in "${LEARNING_RATES[@]}"; do
   for lr_schedule in "${LR_SCHEDULES[@]}"; do
     for optimizer in "${OPTIMIZERS[@]}"; do
       for steps in "${MAX_TRAIN_STEPS[@]}"; do
-        output_dir="./cogvideox-lora__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
+        output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
 
-        cmd="$LAUNCHER training/cogvideox_text_to_video_lora.py \
+        cmd="$LAUNCHER training/cogvideox_image_to_video_sft.py \
           --pretrained_model_name_or_path $MODEL_PATH \
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
@@ -93,6 +93,7 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --lr_num_cycles 1 \
           --enable_slicing \
           --enable_tiling \
+          --noised_image_dropout 0.05 \
           --optimizer $optimizer \
           --beta1 0.9 \
           --beta2 0.95 \

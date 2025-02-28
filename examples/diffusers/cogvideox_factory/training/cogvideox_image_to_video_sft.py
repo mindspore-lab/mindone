@@ -40,7 +40,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindone.diffusers import (
     AutoencoderKLCogVideoX,
     CogVideoXDPMScheduler,
-    CogVideoXPipeline,
+    CogVideoXImageToVideoPipeline,
     ConfigMixin,
     SchedulerMixin,
 )
@@ -55,7 +55,7 @@ from mindone.diffusers.training_utils import (
     pynative_no_grad,
     set_seed,
 )
-from mindone.diffusers.utils import export_to_video, pynative_context
+from mindone.diffusers.utils import export_to_video, load_image, pynative_context
 from mindone.diffusers.utils.logging import get_logger
 from mindone.diffusers.utils.mindspore_utils import get_state_dict
 from mindone.transformers import T5EncoderModel
@@ -70,7 +70,7 @@ logger = get_logger(__name__)
 
 def log_validation(
     trackers,
-    pipe: CogVideoXPipeline,
+    pipe: CogVideoXImageToVideoPipeline,
     args: Dict[str, Any],
     pipeline_args: Dict[str, Any],
     epoch,
@@ -139,15 +139,18 @@ class CollateFunction:
         text_input_ids = [x["text_input_ids"] for x in examples]
         text_input_ids = np.stack(text_input_ids)
 
+        images = [x["image"] for x in examples]
+        images = np.stack(images)
+
         videos = [x["video"] for x in examples]
         videos = np.stack(videos)
 
         if self.use_rope:
             rotary_positional_embeddings = [x["rotary_positional_embeddings"] for x in examples]
             rotary_positional_embeddings = np.stack(rotary_positional_embeddings)
-            return videos, text_input_ids, rotary_positional_embeddings
+            return images, videos, text_input_ids, rotary_positional_embeddings
         else:
-            return videos, text_input_ids
+            return images, videos, text_input_ids
 
 
 class FilterFunction:
@@ -210,6 +213,7 @@ def main(args):
             enable_sequence_parallelism = False
         else:
             from mindone.acceleration import create_parallel_group
+
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
 
@@ -365,6 +369,7 @@ def main(args):
         "embeddings_cache": args.embeddings_cache,
         "latents_cache": args.latents_cache,
         "random_flip": args.random_flip,
+        "image_to_video": True,
         "tokenizer": None if args.embeddings_cache else tokenizer,
         "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
         "use_rotary_positional_embeddings": transformer_config.use_rotary_positional_embeddings,
@@ -404,7 +409,7 @@ def main(args):
         train_dataloader = train_dataloader.map(
             filter_fn,
             input_columns=["examples"],
-            output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"],
+            output_columns=["images", "videos", "text_input_ids", "rotary_positional_embeddings"],
         )
 
         train_dataloader = train_dataloader.bucket_batch_by_length(
@@ -420,9 +425,9 @@ def main(args):
             batch_size=args.train_batch_size,
             per_batch_map=lambda examples, batch_info: collate_fn(examples),
             input_columns=["examples"],
-            output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"]
+            output_columns=["images", "videos", "text_input_ids", "rotary_positional_embeddings"]
             if transformer_config.use_rotary_positional_embeddings
-            else ["videos", "text_input_ids"],
+            else ["images", "videos", "text_input_ids"],
         )
     data_len = len(train_dataloader)
 
@@ -486,6 +491,7 @@ def main(args):
         weight_dtype=weight_dtype,
         args=args,
         use_rotary_positional_embeddings=transformer_config.use_rotary_positional_embeddings,
+        ofs_embed_dim=transformer_config.ofs_embed_dim,
         enable_sequence_parallelism=enable_sequence_parallelism,
     ).set_train(True)
 
@@ -603,16 +609,23 @@ def main(args):
 
         for step, batch in enumerate(train_dataloader_iter):
             train_start = time()
-            videos, text_input_ids = batch[0], batch[1]
-            rotary_positional_embeddings = batch[2] if transformer_config.use_rotary_positional_embeddings else None
+            images, videos, text_input_ids = batch[0], batch[1], batch[2]
+            rotary_positional_embeddings = batch[3] if transformer_config.use_rotary_positional_embeddings else None
             # Encode videos
             if not args.latents_cache:
                 with pynative_context(), pynative_no_grad():
+                    images = images.permute(0, 2, 1, 3, 4)
+                    image_noise_sigma = ops.normal((images.shape[0],), -3.0, 0.5)
+                    image_noise_sigma = ops.exp(image_noise_sigma)
+                    images = images + ops.randn_like(images) * image_noise_sigma[:, None, None, None, None]
+                    images = vae.encode(images.to(vae.dtype))[0]
+
                     videos = videos.permute(0, 2, 1, 3, 4).to(vae.dtype)  # [B, C, F, H, W]
                     videos = vae.encode(videos)[0]
+            images = images.to(weight_dtype)
             videos = videos.to(weight_dtype)
             # videos B, C, F, H, W: (1, 32, 20, 96, 170)
-            loss, _, _ = train_step(videos, text_input_ids, rotary_positional_embeddings)
+            loss, _, _ = train_step(images, videos, text_input_ids, rotary_positional_embeddings)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if train_step.accum_steps == 1 or train_step.cur_accum_step.item() == 0:
@@ -664,7 +677,7 @@ def main(args):
         if is_master(args):
             if args.validation_prompt is not None and (epoch + 1) % args.validation_epochs == 0:
                 pipe_init_kwargs = {} if text_encoder is None else {"text_encoder": text_encoder, "vae": vae}
-                pipe = CogVideoXPipeline.from_pretrained(
+                pipe = CogVideoXImageToVideoPipeline.from_pretrained(
                     args.pretrained_model_name_or_path,
                     transformer=transformer,
                     scheduler=scheduler,
@@ -680,8 +693,10 @@ def main(args):
                     pipe.vae.enable_tiling()
 
                 validation_prompts = args.validation_prompt.split(args.validation_prompt_separator)
+                validation_images = args.validation_images.split(args.validation_prompt_separator)
                 for validation_prompt in validation_prompts:
                     pipeline_args = {
+                        "image": load_image(validation_images),
                         "prompt": validation_prompt,
                         "guidance_scale": args.guidance_scale,
                         "use_dynamic_cfg": args.use_dynamic_cfg,
@@ -729,7 +744,7 @@ def main(args):
         ms.hal.empty_cache()
 
         # Final test inference
-        pipe = CogVideoXPipeline.from_pretrained(
+        pipe = CogVideoXImageToVideoPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             revision=args.revision,
             variant=args.variant,
@@ -777,6 +792,7 @@ class TrainStepForCogVideo(nn.Cell):
         weight_dtype: ms.Type,
         args: AttrJitWrapper,
         use_rotary_positional_embeddings: bool,
+        ofs_embed_dim: Optional[int],
         enable_sequence_parallelism: bool = False,
     ):
         super().__init__()
@@ -793,6 +809,7 @@ class TrainStepForCogVideo(nn.Cell):
         self.scheduler_num_train_timesteps = scheduler.config.num_train_timesteps
 
         self.use_rotary_positional_embeddings = use_rotary_positional_embeddings
+        self.ofs_embed_dim = ofs_embed_dim
         self.args = AttrJitWrapper(**vars(args))
         self.enable_sequence_parallelism = enable_sequence_parallelism
         if self.enable_sequence_parallelism:
@@ -829,11 +846,18 @@ class TrainStepForCogVideo(nn.Cell):
 
         return x
 
-    def construct(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
+    def construct(self, images, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
+        images = self.diagonal_gaussian_distribution_sample(images) * self.vae_scaling_factor
+        images = images.permute(0, 2, 1, 3, 4)
+
         videos = self.diagonal_gaussian_distribution_sample(videos) * self.vae_scaling_factor
         # [B, C, F, H, W] (1, 16, 20, 96, 170) -> [B, F, C, H, W]
         videos = videos.permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
-        model_input = videos
+
+        padding_shape = (videos.shape[0], videos.shape[1] - 1, *videos.shape[2:])
+        latent_padding = ops.zeros(padding_shape, dtype=images.dtype)
+        images = ops.cat([images, latent_padding], axis=1)
+        images = ops.where(ops.rand(images.shape[0]) < args.noised_image_dropout, ops.zeros_like(images), images)
 
         # Encode prompts
         if not args.embeddings_cache:
@@ -846,10 +870,10 @@ class TrainStepForCogVideo(nn.Cell):
             prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
         # prompt_embeds(1, 226, 4096)
         # Sample noise that will be added to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = ops.randn_like(videos, dtype=videos.dtype)
         if self.enable_sequence_parallelism:
             noise = self.broadcast((noise,))[0]
-        batch_size, num_frames, num_channels, height, width = model_input.shape
+        batch_size, num_frames, num_channels, height, width = videos.shape
 
         # Sample a random timestep for each image
         timesteps = ops.randint(0, self.scheduler_num_train_timesteps, (batch_size,), dtype=ms.int32)
@@ -862,25 +886,28 @@ class TrainStepForCogVideo(nn.Cell):
 
         # Add noise to the model input according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_model_input = self.scheduler.add_noise(model_input, noise, timesteps)
+        noisy_videos = self.scheduler.add_noise(videos, noise, timesteps)
+        noisy_model_input = ops.cat([noisy_videos, images], axis=2)
+        ofs_emb = None if self.ofs_embed_dim is None else ops.full((1,), fill_value=2.0, dtype=noisy_model_input.dtype)
 
         # Predict the noise residual
         model_output = self.transformer(
             hidden_states=noisy_model_input,
             encoder_hidden_states=prompt_embeds,
             timestep=timesteps,
+            ofs=ofs_emb,
             image_rotary_emb=image_rotary_emb,
             return_dict=False,
         )[0]
 
-        model_pred = self.scheduler.get_velocity(model_output, noisy_model_input, timesteps)
+        model_pred = self.scheduler.get_velocity(model_output, noisy_videos, timesteps)
 
         alphas_cumprod = self.scheduler.alphas_cumprod.to(dtype=ms.float32)
         weights = 1 / (1 - alphas_cumprod[timesteps])
         new_weights_shape = weights.shape + (1,) * (len(model_pred.shape) - len(weights.shape))
         weights = weights.reshape(new_weights_shape)
 
-        target = model_input
+        target = videos
 
         loss = ops.mean(
             (weights * (model_pred - target) ** 2).reshape(batch_size, -1),
