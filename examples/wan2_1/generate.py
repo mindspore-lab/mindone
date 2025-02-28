@@ -213,7 +213,7 @@ def generate(args):
             checkpoint_dir=args.ckpt_dir,
             rank=rank,
             t5_zero3=args.t5_zero3,
-            dit_zero3s=args.dit_zero3,
+            dit_zero3=args.dit_zero3,
             use_usp=args.ulysses_sp,
             t5_cpu=args.t5_cpu,
         )
