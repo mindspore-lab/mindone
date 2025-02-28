@@ -176,8 +176,7 @@ python generate.py  \
 - Multi-NPU inference
 
 ```
-worker_num=2
-msrun --worker_num=${worker_num} generate.py \
+msrun --worker_num=2 generate.py \
     --task t2v-14B \
     --size 1280*720 \
     --ckpt_dir ./Wan2.1-T2V-14B \
@@ -185,6 +184,7 @@ msrun --worker_num=${worker_num} generate.py \
     --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage."
 ```
 
+ > 💡 We support 720 T2V inference using only 1 card. But using more cards can accelerate the generation process.
 
 ### Run Image-to-Video Generation
 
@@ -236,7 +236,7 @@ python generate.py \
 - Multi-NPU inference
 
 ```
-msrun --work_num=2 generate.py \
+msrun --worker_num=2 generate.py \
     --task i2v-14B --size 1280*720 \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
     --dit_fsdp --t5_fsdp --ulysses_sp \
