@@ -326,6 +326,7 @@ class StableDiffusionLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -570,6 +571,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
             kwargs (`dict`, *optional*):
                 See [`~loaders.StableDiffusionLoraLoaderMixin.lora_state_dict`].
         """
@@ -754,6 +756,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading only loading the pretrained LoRA weights and not initializing the random weights.
         """
         # If the serialization format is new (introduced in https://github.com/huggingface/diffusers/pull/2918),
         # then the `state_dict` keys should have `cls.unet_name` and/or `cls.text_encoder_name` as
@@ -804,6 +807,7 @@ class StableDiffusionXLLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -1212,6 +1216,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         # Load the layers corresponding to transformer.
         logger.info(f"Loading {cls.transformer_name}.")
@@ -1255,6 +1260,7 @@ class SD3LoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 
@@ -1639,6 +1645,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         # if a dict is passed, copy it instead of modifying it inplace
         if isinstance(pretrained_model_name_or_path_or_dict, dict):
@@ -1730,6 +1737,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         # Load the layers corresponding to transformer.
         keys = list(state_dict.keys())
@@ -1829,6 +1837,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
             adapter_name (`str`, *optional*):
                 Adapter name to be used for referencing the loaded adapter model. If not specified, it will use
                 `default_{i}` where i is the total number of adapters being loaded.
+            Speed up model loading by only loading the pretrained LoRA weights and not initializing the random weights.:
         """
         from mindone.diffusers._peft import LoraConfig
 

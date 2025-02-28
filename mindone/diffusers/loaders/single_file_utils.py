@@ -561,6 +561,9 @@ def infer_diffusers_model_type(checkpoint):
     elif any(key in checkpoint for key in CHECKPOINT_KEY_NAMES["sd35_large"]):
         model_type = "sd35_large"
 
+    elif CHECKPOINT_KEY_NAMES["sd35_large"] in checkpoint:
+        model_type = "sd35_large"
+
     elif CHECKPOINT_KEY_NAMES["animatediff"] in checkpoint:
         if CHECKPOINT_KEY_NAMES["animatediff_scribble"] in checkpoint:
             model_type = "animatediff_scribble"

@@ -22,19 +22,45 @@ IMAGE_EXT = (".jpg", ".jpeg", ".png", ".gif", ".webp")
 
 
 class ImageVideoDataset(BaseDataset):
+    """
+    A dataset for loading image and video data from a CSV file.
+
+    Args:
+        csv_path: The path to the CSV file containing the data annotations.
+        video_folder: The path to the folder containing the videos.
+        text_emb_folder: The folder or dictionary ({emb_name: folder}) containing the text embeddings.
+        empty_text_emb: The path to the empty text embedding file or dictionary ({emb_name: file}). Default: None.
+        text_drop_prob: The probability of dropping a text embedding during training. Default: 0.2.
+        tae_latent_folder: The folder containing the TAE latent files. Default: None.
+        tae_scale_factor: The scale factor for TAE latent files. Default: 1.5305.
+        tae_shift_factor: The shift factor for TAE latent files. Default: 0.0609.
+        target_size: The target size for resizing the frames. Default: None.
+        sample_n_frames: The number of frames to sample from a video. Default: 16.
+        sample_stride: The stride for sampling frames. Default: 1.
+        deterministic_sample: Whether to sample frames starting from the beginning
+                              (useful for an overfitting experiment on small datasets). Default: False.
+        frames_mask_generator: The mask generator for frames. Default: None.
+        t_compress_func: The function that returns the number of frames in the compressed (latent) space. Default: None.
+        filter_data: Whether to filter out samples that are not found. Default: False.
+        apply_transforms_dataset: Whether to apply the transformations to the dataset immediately during loading.
+                                  Default: False.
+        output_columns: The list of column names to output.
+    """
+
     def __init__(
         self,
         csv_path: str,
         video_folder: str,
-        text_emb_folder: Optional[Union[str, Dict[str, str]]] = None,
+        text_emb_folder: Union[str, Dict[str, str]],
         empty_text_emb: Optional[Union[str, Dict[str, str]]] = None,
         text_drop_prob: float = 0.2,
         tae_latent_folder: Optional[str] = None,
         tae_scale_factor: float = 1.5305,
         tae_shift_factor: float = 0.0609,
         target_size: Optional[Tuple[int, int]] = None,
-        sample_n_frames: int = 17,
+        sample_n_frames: int = 16,
         sample_stride: int = 1,
+        deterministic_sample: bool = False,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
         t_compress_func: Optional[Callable[[int], int]] = None,
         filter_data: bool = False,
@@ -42,15 +68,11 @@ class ImageVideoDataset(BaseDataset):
         *,
         output_columns: List[str],
     ):
-        if text_emb_folder is None:
-            raise NotImplementedError(
-                "Text embedding during training is not supported, please provide `text_emb_folder`."
-            )
-
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, tae_latent_folder, filter_data)
         self._frames = sample_n_frames
         self._stride = sample_stride
         self._min_length = (self._frames - 1) * self._stride + 1
+        self._deterministic = deterministic_sample
 
         self._text_emb_folder = text_emb_folder
         self._empty_text_emb = empty_text_emb if text_drop_prob > 0 else None
@@ -164,18 +186,16 @@ class ImageVideoDataset(BaseDataset):
 
         if self._tae_latent_folder:
             tae_latent_data = np.load(data["tae_latent"])
-            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]  # C T H W
-            if latent_mean.shape[1] < self._min_length:  # TODO: add support for images and buckets
+            latent_mean, latent_std = tae_latent_data["latent_mean"], tae_latent_data["latent_std"]  # T C H W
+            if 1 < len(latent_mean) < self._min_length:  # TODO: add support for buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = random.randint(0, len(latent_mean) - self._min_length)
+            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - self._min_length)
             batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             tae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
-            tae_latent = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
-            # FIXME: remove unnecessary transpose
-            data["video"] = np.transpose(tae_latent, (1, 0, 2, 3))  # C T H W -> T C H W
+            data["video"] = (tae_latent - self._tae_shift_factor) * self._tae_scale_factor
 
         else:
             if data["video"].lower().endswith(IMAGE_EXT):
@@ -190,8 +210,10 @@ class ImageVideoDataset(BaseDataset):
                         min_length = (num_frames - 1) * self._stride + 1
                     if len(reader) < min_length:
                         raise ValueError(f"Video is too short: {data['video']}")
-                    start_pos = random.randint(0, len(reader) - min_length)
-                    data["video"] = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
+                    start_pos = 0 if self._deterministic else random.randint(0, len(reader) - min_length)
+                    data["video"] = reader.fetch_frames(
+                        num=num_frames, start_pos=start_pos, step=self._stride
+                    )  # T H W C
                     data["fps"] = np.array(reader.fps / self._stride, dtype=np.float32)
 
         data["num_frames"] = np.array(num_frames, dtype=np.float32)
@@ -249,7 +271,7 @@ class ImageVideoDataset(BaseDataset):
                         ResizeCrop(target_size, interpolation=interpolation),
                         lambda x: x.astype(np.float32) / 127.5 - 1,
                         lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
-                        lambda x: np.transpose(x, (0, 3, 1, 2)),
+                        lambda x: np.transpose(x, (3, 0, 1, 2)),  # T H W C -> C T H W
                     ],
                     "input_columns": ["video"],
                 }

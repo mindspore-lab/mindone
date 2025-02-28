@@ -139,7 +139,7 @@ class SplitInferenceModule(nn.Cell):
             return tuple([ops.cat(x, axis=self.split_dim) for x in zip(*results)])
         else:
             raise ValueError(
-                "In order to use the SplitInferenceModule, it is necessary for the underlying `module` to either return a torch.Tensor or a tuple of torch.Tensor's."
+                "In order to use the SplitInferenceModule, it is necessary for the underlying `module` to either return a torch.Tensor or a tuple of torch.Tensor's."  # noqa: E501
             )
 
 
@@ -393,7 +393,7 @@ class AnimateDiffFreeNoiseMixin:
                 return latents
             elif latents.shape[2] != self._free_noise_context_length:
                 raise ValueError(
-                    f"You have passed `latents` as a parameter to FreeNoise. The expected number of frames is either {num_frames} or {self._free_noise_context_length}, but found {latents.size(2)}"
+                    f"You have passed `latents` as a parameter to FreeNoise. The expected number of frames is either {num_frames} or {self._free_noise_context_length}, but found {latents.size(2)}"  # noqa: E501
                 )
 
         if self._free_noise_noise_type == "shuffle_context":
@@ -492,7 +492,7 @@ class AnimateDiffFreeNoiseMixin:
 
         if context_length > self.motion_adapter.config.motion_max_seq_length:
             logger.warning(
-                f"You have set {context_length=} which is greater than {self.motion_adapter.config.motion_max_seq_length=}. This can lead to bad generation results."
+                f"You have set {context_length=} which is greater than {self.motion_adapter.config.motion_max_seq_length=}. This can lead to bad generation results."  # noqa: E501
             )
         if weighting_scheme not in allowed_weighting_scheme:
             raise ValueError(

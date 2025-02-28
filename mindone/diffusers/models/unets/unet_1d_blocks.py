@@ -285,7 +285,9 @@ class Downsample1d(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         dtype = hidden_states.dtype
         hidden_states = pad(hidden_states, (self.pad,) * 2, self.pad_mode)
-        weight = hidden_states.new_zeros([hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]])
+        weight = hidden_states.new_zeros(
+            [hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]], dtype=hidden_states.dtype
+        )
         indices = ops.arange(hidden_states.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((hidden_states.shape[1], -1))
         weight[indices, indices] = kernel
@@ -302,7 +304,9 @@ class Upsample1d(nn.Cell):
 
     def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
         hidden_states = pad(hidden_states, ((self.pad + 1) // 2,) * 2, self.pad_mode)
-        weight = hidden_states.new_zeros([hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]])
+        weight = hidden_states.new_zeros(
+            [hidden_states.shape[1], hidden_states.shape[1], self.kernel.shape[0]], dtype=hidden_states.dtype
+        )
         indices = ops.arange(hidden_states.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((hidden_states.shape[1], -1))
         weight[indices, indices] = kernel

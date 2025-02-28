@@ -19,7 +19,7 @@ import numpy as np
 from transformers import T5TokenizerFast
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import ops
 
 from mindone.transformers import T5EncoderModel
 
@@ -45,7 +45,7 @@ EXAMPLE_DOC_STRING = """
 
         >>> pipe = LTXPipeline.from_pretrained("Lightricks/LTX-Video", mindspore_dtype=ms.bfloat16)
 
-        >>> prompt = "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage"
+        >>> prompt = "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage" # noqa: E501
         >>> negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
 
         >>> video = pipe(
@@ -333,7 +333,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
             )
 
         if prompt is not None and prompt_embeds is not None:

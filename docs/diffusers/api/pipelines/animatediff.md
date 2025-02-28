@@ -592,7 +592,7 @@ Here are some sample outputs:
         <td align="center">
           astronaut in space, dancing
           <br/>
-          <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/animatediff_vid2vid_controlnet.gif" alt="astronaut in space, dancing" />
+          <img src="https://github.com/user-attachments/assets/a29ee94f-efaf-4063-a903-c1af66bfff07" alt="astronaut in space, dancing" />
         </td>
     </tr>
 </table>

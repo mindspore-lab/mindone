@@ -21,7 +21,7 @@ from mindspore import nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
-from ...utils import logging, scale_lora_layers, unscale_lora_layers
+from ...utils import logging
 from ..attention import FeedForward
 from ..attention_processor import Attention
 from ..embeddings import PixArtAlphaTextProjection
@@ -367,9 +367,6 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
     ) -> ms.Tensor:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
-            lora_scale = attention_kwargs.pop("scale", 1.0)
-        else:
-            lora_scale = 1.0
 
         image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale)
 

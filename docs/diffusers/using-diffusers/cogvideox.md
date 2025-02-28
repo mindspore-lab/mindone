@@ -53,13 +53,15 @@ pipe = CogVideoXPipeline.from_pretrained(
     mindspore_dtype=mindspore.bfloat16
 )
 
+pipe.vae.enable_tiling()
+
 video = pipe(
     prompt=prompt,
     num_videos_per_prompt=1,
     num_inference_steps=50,
     num_frames=49,
     guidance_scale=6,
-    generator=np.random.Generator(np.random.PCG64(42)),
+    generator=np.random.Generator(np.random.PCG64(0)),
 )[0][0]
 
 export_to_video(video, "output.mp4", fps=8)
@@ -68,7 +70,7 @@ export_to_video(video, "output.mp4", fps=8)
 
 
 <div class="flex justify-center">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cogvideox/cogvideox_out.gif" alt="generated image of an astronaut in a jungle"/>
+    <img src="https://github.com/user-attachments/assets/7e9fdbb6-f33e-4bee-9d2f-5eb1fe8d66fb" alt="generated image of an astronaut in a jungle"/>
 </div>
 
 
@@ -90,6 +92,9 @@ pipe = CogVideoXImageToVideoPipeline.from_pretrained(
     mindspore_dtype=mindspore.bfloat16
 )
 
+pipe.vae.enable_tiling()
+pipe.vae.enable_slicing()
+
 video = pipe(
     prompt=prompt,
     image=image,
@@ -97,7 +102,7 @@ video = pipe(
     num_inference_steps=50,
     num_frames=49,
     guidance_scale=6,
-    generator=np.random.Generator(np.random.PCG64(42)),
+    generator=np.random.Generator(np.random.PCG64(0)),
 )[0][0]
 
 export_to_video(video, "output.mp4", fps=8)
@@ -109,7 +114,7 @@ export_to_video(video, "output.mp4", fps=8)
     <figcaption class="mt-2 text-center text-sm text-gray-500">initial image</figcaption>
   </div>
   <div>
-    <img class="rounded-xl" src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cogvideox/cogvideox_outrocket.gif"/>
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/8d423215-60f9-4bb8-bfb7-9e917099ea2e"/>
     <figcaption class="mt-2 text-center text-sm text-gray-500">generated video</figcaption>
   </div>
 </div>

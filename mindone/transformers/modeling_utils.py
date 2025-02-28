@@ -24,6 +24,7 @@ from typing import Callable, Dict, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
+from transformers.generation.configuration_utils import GenerationConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
     ADAPTER_SAFE_WEIGHTS_NAME,
@@ -53,8 +54,11 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Tensor, nn, ops
 
+from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
+from .mindspore_adapter import dtype_to_str
 from .modeling_attn_mask_utils import dtype_to_min
+from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 
 if is_safetensors_available():
     from safetensors import safe_open
@@ -149,7 +153,7 @@ def get_state_dict_dtype(state_dict):
 
 def dtype_byte_size(dtype):
     """
-    Returns the size (in bytes) occupied by one parameter of type `dtype`.
+    Returns the size (in bytes) occupied by one ms.Parameter of type `dtype`.
 
     Example:
 
@@ -168,7 +172,7 @@ def dtype_byte_size(dtype):
 
 
 def shard_checkpoint(
-    state_dict: Dict[str, ms.Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
+    state_dict: Dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
 ):
     """
     Splits a model state dictionary in sub-checkpoints so that the final size of each sub-checkpoint does not exceed a
@@ -187,7 +191,7 @@ def shard_checkpoint(
     </Tip>
 
     Args:
-        state_dict (`Dict[str, torch.Tensor]`): The state dictionary of a model to save.
+        state_dict (`Dict[str, Tensor]`): The state dictionary of a model to save.
         max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
             The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
             (like `"5MB"`).
@@ -278,7 +282,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
         for name, param in model_to_load.parameters_and_names():
             if param.name != name:
                 logger.error(
-                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
+                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
                     f"There are several possible reasons for this misalignment:\n"
                     f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
                     f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
@@ -322,6 +326,9 @@ class ModuleUtilsMixin:
     """
     A few utilities for `mindspore.nn.Cell`, to be used as a mixin.
     """
+
+    def _get_name(self):
+        return self.__class__.__name__
 
     def to(self, dtype: Optional[ms.Type] = None):
         for p in self.get_parameters():
@@ -498,7 +505,7 @@ class ModuleUtilsMixin:
                 if isinstance(module_type, nn.Embedding)
             ]
             total_parameters = [
-                parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
+                ms.Parameter for name, ms.Parameter in self.parameters_and_names() if name not in embedding_param_names
             ]
         else:
             total_parameters = list(self.get_parameters())
@@ -511,7 +518,7 @@ class ModuleUtilsMixin:
         return sum(total_numel)
 
 
-class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMixin):
+class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin, PeftAdapterMixin):
     r"""
     Base class for all models.
 
@@ -525,7 +532,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
         - **config_class** ([`PretrainedConfig`]) -- A subclass of [`PretrainedConfig`] to use as configuration class
           for this model architecture.
-        - **load_tf_weights** (`Callable`) -- A python *method* for loading a TensorFlow checkpoint in a PyTorch model,
+        - **load_tf_weights** (`Callable`) -- A python *method* for loading a TensorFlow checkpoint in a MindSpore model,
           taking as arguments:
 
             - **model** ([`PreTrainedModel`]) -- An instance of the model on which to load the TensorFlow checkpoint.
@@ -571,15 +578,19 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
     # SDPA support
     _supports_sdpa = False
 
-    # Has support for a `Cache` instance as `past_key_values`
+    # Has support for a `Cache` instance as `past_key_values`? Does it support a `StaticCache`?
     _supports_cache_class = False
+    _supports_static_cache = False
+
+    # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
+    _supports_quantized_cache = False
 
     @property
-    def dummy_inputs(self) -> Dict[str, ms.Tensor]:
+    def dummy_inputs(self) -> Dict[str, Tensor]:
         """
-        `Dict[str, torch.Tensor]`: Dummy inputs to do a forward pass in the network.
+        `Dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
         """
-        return {"input_ids": ms.tensor(DUMMY_INPUTS)}
+        return {"input_ids": Tensor(DUMMY_INPUTS)}
 
     @property
     def framework(self) -> str:
@@ -592,7 +603,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         super().__init__()
         if not isinstance(config, PretrainedConfig):
             raise ValueError(
-                f"Parameter config in `{self.__class__.__name__}(config)` should be an instance of class "
+                f"ms.Parameter config in `{self.__class__.__name__}(config)` should be an instance of class "
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
@@ -600,7 +611,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         self.config = config
         self.name_or_path = config.name_or_path
         self.warnings_issued = {}
-        self.generation_config = None
+        self.generation_config = GenerationConfig.from_model_config(config) if self.can_generate() else None
         # Overwrite the class attribute to make it an instance attribute, so models like
         # `InstructBlipForConditionalGeneration` can dynamically update it without modifying the class attribute
         # when a different component (e.g. language_model) is used.
@@ -612,6 +623,152 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         modules properly initialized (such as weight initialization).
         """
         self.init_weights()
+
+    @classmethod
+    def _autoset_attn_implementation(
+        cls,
+        config,
+        use_flash_attention_2: bool = False,
+        mindspore_dtype=None,
+    ):
+        """
+        Automatically checks and dispatches to a default attention implementation. In order of priority:
+            1. An implementation specified in `config._attn_implementation` (due for example to the argument attn_implementation="sdpa" in from_pretrained).
+            2. DEPRECATED: if use_flash_attention_2 is set to `True` and `flash_attn` is available, flash attention. (`LlamaFlashAttention` for example)
+            3. SDPA implementation, if available and supported by the model type. (`LlamaSdpaAttention` for example)
+            4. The default model's implementation otherwise (`LlamaAttention` for example) .
+        """
+        # Here we use config._attn_implementation_internal to check whether the attention implementation was explicitely set by the user.
+        # The property `PretrainedConfig._attn_implementation` is never `None`, for backward compatibility (always fall back on "eager").
+        # The `hasattr` here is used as some Transformers tests for some reason do not call PretrainedConfig __init__ (e.g. test_no_super_init_config_and_model)
+        requested_attn_implementation = None
+        if hasattr(config, "_attn_implementation_internal") and config._attn_implementation_internal is not None:
+            if config._attn_implementation != "flash_attention_2" and use_flash_attention_2:
+                raise ValueError(
+                    f'Both attn_implementation="{config._attn_implementation}" and `use_flash_attention_2=True` were '
+                    f"used when loading the model, which are not compatible."
+                    ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
+                )
+
+            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2"]:
+                message = (
+                    f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
+                    f'The only possible arguments are `attn_implementation="eager"`'
+                    f" (manual attention implementation)"
+                )
+                if cls._supports_flash_attn_2:
+                    message += ', `"attn_implementation=flash_attention_2"` (implementation using flash attention 2)'
+                if cls._supports_sdpa:
+                    message += ', `"attn_implementation=sdpa"` (implementation using scaled_dot_product_attention)'
+                raise ValueError(message + ".")
+
+            # If a config is passed with a preset attn_implementation, we skip the automatic dispatch and use the
+            # user-provided config, with hard checks that the requested attention implementation is available.
+            requested_attn_implementation = config._attn_implementation_internal
+
+        if use_flash_attention_2:
+            logger.warning_once(
+                "The model was loaded with use_flash_attention_2=True, which is deprecated and may be removed in a "
+                'future release. Please use `attn_implementation="flash_attention_2"` instead.'
+            )
+            config._attn_implementation = "flash_attention_2"
+        if config._attn_implementation == "flash_attention_2":
+            cls._check_and_enable_flash_attn_2(
+                config,
+                mindspore_dtype=mindspore_dtype,
+                hard_check_only=False,
+            )
+        elif requested_attn_implementation in [None, "sdpa"]:
+            # use_flash_attention_2 takes priority over SDPA, hence SDPA treated in this elif.
+            config = cls._check_and_enable_sdpa(
+                config,
+                hard_check_only=False if requested_attn_implementation is None else True,
+            )
+        else:
+            config._attn_implementation = "eager"
+
+        return config
+
+    @classmethod
+    def can_generate(cls) -> bool:
+        """
+        Returns whether this model can generate sequences with `.generate()`.
+
+        Returns:
+            `bool`: Whether this model can generate sequences with `.generate()`.
+        """
+        # Detects whether `prepare_inputs_for_generation` has been overwritten, which is a requirement for generation.
+        # Alternativelly, the model can also have a custom `generate` function.
+        if "GenerationMixin" in str(cls.prepare_inputs_for_generation) and "GenerationMixin" in str(cls.generate):
+            return False
+        return True
+
+    @classmethod
+    def _check_and_enable_flash_attn_2(
+        cls,
+        config,
+        mindspore_dtype=None,
+        hard_check_only: bool = False,
+    ) -> PretrainedConfig:
+        """
+        Checks the availability of Flash Attention 2 and compatibility with the current model.
+
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute
+        `attn_implementation` to "flash_attention_2" so that the model can initialize the correct attention module.
+        """
+        if not cls._supports_flash_attn_2:
+            raise ValueError(
+                f"{cls.__name__} does not support Flash Attention 2.0 yet. Please request to add support where"
+                f" the model is hosted, on its model hub page: https://huggingface.co/{config._name_or_path}/discussions/new"
+                " or in the Transformers GitHub repo: https://github.com/huggingface/transformers/issues/new"
+            )
+
+        if not is_flash_attn_2_available():
+            raise ImportError("FlashAttention2 has been toggled on, but it cannot be used due to some error")
+
+        if mindspore_dtype is None:
+            logger.warning_once(
+                "You are attempting to use Flash Attention 2.0 without specifying a MindSpore dtype. This might lead to unexpected behaviour"
+            )
+        elif mindspore_dtype is not None and mindspore_dtype not in [ms.float16, ms.bfloat16]:
+            logger.warning_once(
+                "Flash Attention 2.0 only supports ms.float16 and ms.bfloat16 dtypes, but"
+                f" the current dype in {cls.__name__} is {mindspore_dtype}. You should run training or inference using "
+                f"Automatic Mixed-Precision via the `network=auto_mix_precision(network, ...)` decorator,"
+                " or load the model with the `mindspore_dtype` argument. Example: `model = "
+                'AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="flash_attention_2", mindspore_dtype=ms.float16)`'
+            )
+
+        if not hard_check_only:
+            config._attn_implementation = "flash_attention_2"
+        return config
+
+    @classmethod
+    def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
+        """
+        Checks the availability of SDPA for a given model.
+
+        If all checks pass and `hard_check_only` is False, the method will set the config attribute `_attn_implementation`
+        to "flash_attention_2" so that the model can initialize the correct attention module.
+        """
+        if hard_check_only:
+            if not cls._supports_sdpa:
+                raise ValueError(
+                    f"{cls.__name__} does not support an attention implementation through `scaled_dot_product_attention` yet."
+                    " Please request the support for this architecture: https://github.com/huggingface/transformers/issues/28005. "
+                    "If you believe this error is a bug, please open an issue in Transformers GitHub repository and "
+                    'load your model with the argument `attn_implementation="eager"` meanwhile. Example: '
+                    '`model = AutoModel.from_pretrained("openai/whisper-tiny", attn_implementation="eager")`'
+                )
+            if not is_sdpa_available():
+                raise ImportError("SDPA requirements in Transformers are not met.")
+
+        if not is_sdpa_available() or not cls._supports_sdpa:
+            return config
+
+        if not hard_check_only:
+            config._attn_implementation = "sdpa"
+        return config
 
     def get_input_embeddings(self) -> nn.Cell:
         """
@@ -653,7 +810,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         Initialize the weights. This method should be overridden by derived class and is
         the only initialization method that will be called when loading a checkpoint
         using `from_pretrained`. Any attempt to initialize outside of this function
-        will be useless as the torch.nn.init function are all replaced with skip.
+        will be useless as the mindspore.common.initializer function are all replaced with skip.
         """
         pass
 
@@ -678,7 +835,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             new_num_tokens (`int`, *optional*):
                 The new number of tokens in the embedding matrix. Increasing the size will add newly initialized
                 vectors at the end. Reducing the size will remove vectors from the end. If not provided or `None`, just
-                returns a pointer to the input tokens `torch.nn.Embedding` module of the model without doing anything.
+                returns a pointer to the input tokens `mindspore.nn.Embedding` module of the model without doing anything.
             pad_to_multiple_of (`int`, *optional*):
                 If set will pad the embedding matrix to a multiple of the provided value.If `new_num_tokens` is set to
                 `None` will just pad the embedding to a multiple of `pad_to_multiple_of`.
@@ -736,7 +893,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
                 Increasing the size will add newly initialized vectors at the end. Reducing the size will remove
                 vectors from the end. If not provided or `None`, just returns a pointer to the input tokens
-                `torch.nn.Embedding` module of the model without doing anything.
+                `mindspore.nn.Embedding` module of the model without doing anything.
             pad_to_multiple_of (`int`, *optional*):
                 If set will pad the embedding matrix to a multiple of the provided value. If `new_num_tokens` is set to
                 `None` will just pad the embedding to a multiple of `pad_to_multiple_of`.
@@ -749,14 +906,15 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         if pad_to_multiple_of is not None:
             if not isinstance(pad_to_multiple_of, int):
                 raise ValueError(
-                    f"Asking to pad the embedding matrix to a multiple of `{pad_to_multiple_of}`, which is not and integer. Please make sure to pass an integer"
+                    f"Asking to pad the embedding matrix to a multiple of `{pad_to_multiple_of}`, "
+                    f"which is not and integer. Please make sure to pass an integer"
                 )
             if new_num_tokens is None:
                 new_num_tokens = old_embeddings.embedding_table.shape[0]
             new_num_tokens = ((new_num_tokens + pad_to_multiple_of - 1) // pad_to_multiple_of) * pad_to_multiple_of
         else:
             logger.info(
-                "You are resizing the embedding layer without providing a `pad_to_multiple_of` parameter. This means that the new embedding"
+                "You are resizing the embedding layer without providing a `pad_to_multiple_of` ms.Parameter. This means that the new embedding"
                 f" dimension will be {new_num_tokens}. This might induce some performance reduction as *Tensor Cores* will not be available."
                 " For more details about this, or help on choosing the correct value for resizing, refer to this guide:"
                 " https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc"
@@ -917,13 +1075,13 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 Whether the process calling this is the main process or not. Useful when in distributed training like
                 TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
                 the main process to avoid race conditions.
-            state_dict (nested dictionary of `torch.Tensor`):
+            state_dict (nested dictionary of `Tensor`):
                 The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
                 save parts of the model or if special precautions need to be taken when recovering the state dictionary
                 of a model (like when using model parallelism).
             save_function (`Callable`):
                 The function to use to save the state dictionary. Useful on distributed training like TPUs when one
-                need to replace `torch.save` by another method.
+                need to replace `ms.save_checkpoint` by another method.
             push_to_hub (`bool`, *optional*, defaults to `False`):
                 Whether or not to push your model to the Hugging Face model hub after saving it. You can specify the
                 repository you want to push to with `repo_id` (will default to the name of `save_directory` in your
@@ -990,7 +1148,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         # Only save the model itself if we are using distributed training
         model_to_save = self  # we don't unwrap_model(self) in mindspore
 
-        # save the string version of dtype to the config, e.g. convert torch.float32 => "float32"
+        # save the string version of dtype to the config, e.g. convert ms.float32 => "float32"
         # we currently don't use this setting automatically, but may start to use with v5
         dtype = get_parameter_dtype(model_to_save)
         model_to_save.config.torch_dtype = repr(dtype).split(".")[1]
@@ -1007,6 +1165,26 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         if is_main_process:
             if not _hf_peft_config_loaded:
                 model_to_save.config.save_pretrained(save_directory)
+            if self.can_generate():
+                # generation config built from the model config + the model config holds generation kwargs -> generate
+                # may revert to legacy behavior if the two don't match
+                if (
+                    model_to_save.generation_config._from_model_config
+                    and model_to_save.config._has_non_default_generation_parameters()
+                ):
+                    new_generation_config = GenerationConfig.from_model_config(model_to_save.config)
+                    if new_generation_config != model_to_save.generation_config:
+                        logger.warning(
+                            "Your generation config was originally created from the model config, but the model "
+                            "config has changed since then. Unless you pass the `generation_config` argument to this "
+                            "model's `generate` calls, they will revert to the legacy behavior where the base "
+                            "`generate` parameterization is loaded from the model config instead. "
+                            "To avoid this behavior and this warning, we recommend you to overwrite the generation "
+                            "config model attribute before calling the model's `save_pretrained`, preferably also "
+                            "removing any generation kwargs from the model config. This warning will be raised to an "
+                            "exception in v4.41."
+                        )
+                model_to_save.generation_config.save_pretrained(save_directory)
 
             if _hf_peft_config_loaded:
                 logger.info(
@@ -1016,7 +1194,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
                 if save_peft_format:
                     logger.info(
-                        "To match the expected format of the PEFT library, all keys of the state dict of adapters will be pre-pended with `base_model.model`."
+                        "To match the expected format of the PEFT library, all keys of the state dict of adapters will "
+                        "be pre-pended with `base_model.model`."
                     )
                     peft_state_dict = {}
                     for key, value in state_dict.items():
@@ -1027,7 +1206,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
                 if len(active_adapter) > 1:
                     raise ValueError(
-                        "Multiple active adapters detected, saving multiple active adapters is not supported yet. You can save adapters separately one by one "
+                        "Multiple active adapters detected, saving multiple active adapters is not supported yet. "
+                        "You can save adapters separately one by one "
                         "by iteratively calling `model.set_adapter(adapter_name)` then `model.save_pretrained(...)`"
                     )
                 active_adapter = active_adapter[0]
@@ -1061,7 +1241,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             # in distributed settings to avoid race conditions.
             weights_no_suffix = weights_name.replace(".bin", "").replace(".safetensors", "")
 
-            # make sure that file to be deleted matches format of sharded file, e.g. pytorch_model-00001-of-00005
+            # make sure that file to be deleted matches format of sharded file, e.g. mindspore_model-00001-of-00005
             filename_no_suffix = filename.replace(".bin", "").replace(".safetensors", "")
             reg = re.compile(r"(.*?)-\d{5}-of-\d{5}")
 
@@ -1115,7 +1295,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         **kwargs,
     ):
         r"""
-        Instantiate a pretrained pytorch model from a pre-trained model configuration.
+        Instantiate a pretrained mindspore model from a pre-trained model configuration.
 
         The model is set in evaluation mode by default using `model.eval()` (Dropout modules are deactivated). To train
         the model, you should first set it back in training mode with `model.train()`.
@@ -1137,7 +1317,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                     - A path or url to a *tensorflow index checkpoint file* (e.g, `./tf_model/model.ckpt.index`). In
                       this case, `from_tf` should be set to `True` and a configuration object should be provided as
                       `config` argument. This loading path is slower than converting the TensorFlow checkpoint in a
-                      PyTorch model using the provided conversion scripts and loading the PyTorch model afterwards.
+                      MindSpore model using the provided conversion scripts and loading the MindSpore model afterwards.
                     - A path or url to a model folder containing a *flax checkpoint file* in *.msgpack* format (e.g,
                       `./flax_model/` containing `flax_model.msgpack`). In this case, `from_flax` should be set to
                       `True`.
@@ -1160,7 +1340,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (`Dict[str, torch.Tensor]`, *optional*):
+            state_dict (`Dict[str, Tensor]`, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -1214,9 +1394,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 Override the default `mindspore.Type` and load the model under a specific `dtype`. The different options
                 are:
 
-                1. `torch.float16` or `torch.bfloat16` or `torch.float`: load in a specified
+                1. `ms.float16` or `ms.bfloat16` or `ms.float32`: load in a specified
                   `dtype`, ignoring the model's `config.mindspore_dtype` if one exists. If not specified
-                  - the model will get loaded in `torch.float` (fp32).
+                  - the model will get loaded in `ms.float32` (fp32).
 
                 2. `"auto"` - A `mindspore_dtype` entry in the `config.json` file of the model will be
                   attempted to be used. If this entry isn't found then next check the `dtype` of the first weight in
@@ -1236,7 +1416,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 In case the relevant files are located inside a subfolder of the model repo on huggingface.co, you can
                 specify the folder name here.
             variant (`str`, *optional*):
-                If specified load weights from `variant` filename, *e.g.* pytorch_model.<variant>.bin. `variant` is
+                If specified load weights from `variant` filename, *e.g.* mindspore_model.<variant>.bin. `variant` is
                 ignored when using `from_tf` or `from_flax`.
             use_safetensors (`bool`, *optional*, defaults to `None`):
                 Whether or not to use `safetensors` checkpoints. Defaults to `None`. If not specified and `safetensors`
@@ -1275,10 +1455,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         >>> # Update configuration during loading.
         >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased", output_attentions=True)
         >>> assert model.config.output_attentions == True
-        >>> # Loading from a TF checkpoint file instead of a PyTorch model (slower, for example purposes, not runnable).
+        >>> # Loading from a TF checkpoint file instead of a MindSpore model (slower, for example purposes, not runnable).
         >>> config = BertConfig.from_json_file("./tf_model/my_tf_model_config.json")
         >>> model = BertModel.from_pretrained("./tf_model/my_tf_checkpoint.ckpt.index", from_tf=True, config=config)
-        >>> # Loading from a Flax checkpoint file instead of a PyTorch model (slower)
+        >>> # Loading from a Flax checkpoint file instead of a MindSpore model (slower)
         >>> model = BertModel.from_pretrained("google-bert/bert-base-uncased", from_flax=True)
         ```
 
@@ -1312,6 +1492,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         subfolder = kwargs.pop("subfolder", "")
         commit_hash = kwargs.pop("_commit_hash", None)
         variant = kwargs.pop("variant", None)
+        use_flash_attention_2 = kwargs.pop("use_flash_attention_2", False)
         adapter_kwargs = kwargs.pop("adapter_kwargs", {})
         adapter_name = kwargs.pop("adapter_name", "default")
 
@@ -1354,8 +1535,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
             else:
                 commit_hash = getattr(config, "_commit_hash", None)
 
-        # Always True: if is_peft_available():
-        _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+        try:
+            _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+        except Exception:
+            _adapter_model_path = None
+            adapter_kwargs = {}
 
         if _adapter_model_path is None:
             _adapter_model_path = find_adapter_config_file(
@@ -1672,7 +1856,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
-                logger.info("A TensorFlow safetensors file is being loaded in a PyTorch model.")
+                logger.info("A TensorFlow safetensors file is being loaded in a MindSpore model.")
             elif metadata.get("format") == "flax":
                 from_flax = True
                 logger.info("A Flax safetensors file is being loaded in a PyTorch model.")
@@ -1729,11 +1913,20 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                 loaded_state_dict_keys = list(state_dict.keys())
 
         config.name_or_path = pretrained_model_name_or_path
+
         config = copy.deepcopy(config)  # We do not want to modify the config inplace in from_pretrained.
+        config = cls._autoset_attn_implementation(
+            config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
+        )
+
         model = cls(config, *model_args, **model_kwargs)
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
+
+            logger.info(
+                f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}"
+            )
 
         # make sure we use the model's config since the __init__ call might have copied it
         config = model.config
@@ -1778,6 +1971,29 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
 
+        # If it is a model with generation capabilities, attempt to load the generation config
+        if model.can_generate() and pretrained_model_name_or_path is not None:
+            try:
+                model.generation_config = GenerationConfig.from_pretrained(
+                    pretrained_model_name_or_path,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    resume_download=resume_download,
+                    proxies=proxies,
+                    local_files_only=local_files_only,
+                    token=token,
+                    revision=revision,
+                    subfolder=subfolder,
+                    _from_auto=from_auto_class,
+                    _from_pipeline=from_pipeline,
+                    **kwargs,
+                )
+            except OSError:
+                logger.info(
+                    "Generation config file not found, using a generation config created from the model config."
+                )
+                pass
+
         if output_loading_info:
             if loading_info is None:
                 loading_info = {
@@ -1805,9 +2021,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
     ):
         # Mapping loaded_keys from pt to ms
         pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [
-            _get_pt2ms_mapped_kv(pt2ms_mappings, s, None, f"{model.base_model_prefix}.")[0] for s in loaded_keys
-        ]
+        loaded_keys = [_get_pt2ms_mapped_kv(pt2ms_mappings, s, None, "")[0] for s in loaded_keys]
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -1909,6 +2123,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
         if state_dict is not None:
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, start_prefix)
+
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
@@ -1930,6 +2145,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
 
             if len(resolved_archive_file) > 1:
                 resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
+
+            # loading checkpoint
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, start_prefix)
@@ -1944,6 +2161,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, PushToHubMixin, PeftAdapterMi
                     remove_prefix_from_model,
                     ignore_mismatched_sizes,
                 )
+
                 error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
 
                 # force memory release

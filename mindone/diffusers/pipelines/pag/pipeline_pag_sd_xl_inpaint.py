@@ -762,10 +762,10 @@ class StableDiffusionXLPAGInpaintPipeline(
             # if strength is 1. then initialise the latents to noise, else initial to image + noise
             latents = noise if is_strength_max else self.scheduler.add_noise(image_latents, noise, timestep)
             # if pure noise then scale the initial latents by the  Scheduler's init sigma
-            latents = latents * self.scheduler.init_noise_sigma if is_strength_max else latents
+            latents = (latents * self.scheduler.init_noise_sigma).to(dtype) if is_strength_max else latents
         elif add_noise:
             noise = latents
-            latents = noise * self.scheduler.init_noise_sigma
+            latents = (noise * self.scheduler.init_noise_sigma).to(dtype)
         else:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
             latents = image_latents
@@ -1644,6 +1644,7 @@ class StableDiffusionXLPAGInpaintPipeline(
 
             if needs_upcasting:
                 self.upcast_vae()
+                latents = latents.to(next(iter(self.vae.post_quant_conv.get_parameters())).dtype)
 
             # unscale/denormalize the latents
             # denormalize with the mean and std if available and not None
@@ -1655,7 +1656,6 @@ class StableDiffusionXLPAGInpaintPipeline(
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor
-            latents = latents.to(self.vae.dtype)
 
             image = self.vae.decode(latents, return_dict=False)[0]
 

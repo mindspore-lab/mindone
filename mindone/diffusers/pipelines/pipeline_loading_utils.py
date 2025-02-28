@@ -318,7 +318,12 @@ def get_class_obj_and_candidates(
                     raise NotImplementedError(f"{class_name} has not been implemented in mindone.transformers yet")
                 class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
         else:
-            raise NotImplementedError(f"{library_name} has not been implemented in mindone yet.")
+            # we just import it from the library.
+            import importlib
+
+            library = importlib.import_module(library_name)
+            class_obj = getattr(library, class_name)
+            class_candidates = {c: getattr(library, c, None) for c in importable_classes.keys()}
 
     return class_obj, class_candidates
 

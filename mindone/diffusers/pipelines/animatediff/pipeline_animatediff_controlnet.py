@@ -895,6 +895,8 @@ class AnimateDiffControlNetPipeline(
 
             prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
+        prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
+
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
                 ip_adapter_image,

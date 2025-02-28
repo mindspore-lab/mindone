@@ -546,7 +546,7 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         # 5. Prepare latents
         latents = self.movq.encode(image)[0]
         latents = latents.repeat_interleave(num_images_per_prompt, dim=0)
-        latent_timestep = timesteps[:1].repeat(batch_size * num_images_per_prompt)
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         latents = self.prepare_latents(
             latents, latent_timestep, batch_size, num_images_per_prompt, prompt_embeds.dtype, generator
         )

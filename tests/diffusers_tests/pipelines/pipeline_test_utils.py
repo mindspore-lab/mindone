@@ -21,6 +21,7 @@ logger = logging.getLogger("PipelinesUnitTest")
 
 THRESHOLD_FP16 = 5e-2
 THRESHOLD_FP32 = 5e-3
+THRESHOLD_PIXEL = 20.0
 
 
 # copied from mindone.diffusers.models.modeling_utils
@@ -120,7 +121,11 @@ def get_pipeline_components(components, pipeline_config):
         ms_module_cls = get_module(ms_module)
 
         if "pretrained_model_name_or_path" in init_kwargs:
-            pt_modules_instance = pt_module_cls.from_pretrained(**init_kwargs)
+            if "ChatGLMModel" in pt_module:
+                pt_config = pt_module_cls.config_class.from_pretrained(**init_kwargs)
+                pt_modules_instance = pt_module_cls.from_pretrained(**init_kwargs, torch_dtype=pt_config.torch_dtype)
+            else:
+                pt_modules_instance = pt_module_cls.from_pretrained(**init_kwargs)
             ms_modules_instance = (
                 pt_modules_instance if pt_module == ms_module else ms_module_cls.from_pretrained(**init_kwargs)
             )

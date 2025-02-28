@@ -64,6 +64,15 @@ def _get_pt2ms_mappings(m):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=x.name
             )
+            if "weight_norm_cell" in name:
+                ori_name = name.replace(".weight_norm_cell", "")
+                mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -620,6 +629,15 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
             model = cls.from_config(config, **unused_kwargs)
 
+            # Move the model's data type conversion ahead of the weight loading process to avoid unnecessary
+            # data type conversions of weights that can increase computation time in certain situations.
+            if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+                raise ValueError(
+                    f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
+                )
+            elif mindspore_dtype is not None:
+                model = model.to(mindspore_dtype)
+
             if is_sharded:
                 load_checkpoint_and_dispatch(
                     model,
@@ -645,13 +663,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     "mismatched_keys": mismatched_keys,
                     "error_msgs": error_msgs,
                 }
-
-        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            raise ValueError(
-                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
-            )
-        elif mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 

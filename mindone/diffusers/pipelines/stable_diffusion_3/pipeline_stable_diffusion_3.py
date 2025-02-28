@@ -210,6 +210,10 @@ class StableDiffusion3Pipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingle
             self.transformer.config.patch_size if hasattr(self, "transformer") and self.transformer is not None else 2
         )
 
+        self.patch_size = (
+            self.transformer.config.patch_size if hasattr(self, "transformer") and self.transformer is not None else 2
+        )
+
     def _get_t5_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,

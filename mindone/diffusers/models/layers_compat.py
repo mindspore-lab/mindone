@@ -37,7 +37,6 @@ Todo:
     - ...
 """
 
-import numpy as np
 from packaging.version import parse
 
 import mindspore as ms
