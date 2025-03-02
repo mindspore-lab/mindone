@@ -20,7 +20,7 @@ import os
 import re
 import warnings
 from contextlib import contextmanager, nullcontext
-from typing import Callable, Dict, Optional, Tuple, Union
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
@@ -52,8 +52,10 @@ from transformers.utils import (
 from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Parameter, Tensor, nn, ops
+from mindspore.nn import Identity
 
+from .activations import get_activation
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .mindspore_adapter import dtype_to_str
@@ -90,19 +92,6 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
-    if key_pt.startswith(prefix):
-        key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
-        key_ms = prefix + key_ms
-    else:
-        key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
-
-    if value_pt is None:
-        return key_ms, None
-    else:
-        return key_ms, value_mapping(value_pt)
-
-
 def _convert_state_dict(m, state_dict_pt, prefix=""):
     if not state_dict_pt:
         return state_dict_pt
@@ -110,7 +99,15 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
     state_dict_ms = {}
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        name_ms, data_ms = _get_pt2ms_mapped_kv(pt2ms_mappings, name_pt, data_pt, prefix)
+        for name, param in m.parameters_and_names():
+            name_ms = param.name
+            length = len(prefix) + 1
+            if name_pt.startswith(prefix) and name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:]:
+                name_pt = name_pt[length:]
+            elif not name_pt.startswith(prefix) and name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:]:
+                name_pt = ".".join([prefix, name_pt])
+        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        data_ms = data_mapping(data_pt)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -276,7 +273,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
             )
 
 
-def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
+def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, prefix, is_sharded=False):
     # add prefix to the name of parameters
     if len(start_prefix) > 0:
         for name, param in model_to_load.parameters_and_names():
@@ -295,10 +292,16 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
-    local_state = {start_prefix + k: v for k, v in model_to_load.parameters_and_names()}
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
+        prefix_k = prefix + "." + k
+        wo_prefix_k = k[len(prefix) + 1 :]
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
+        elif wo_prefix_k in local_state:
+            v.set_dtype(local_state[wo_prefix_k].dtype)
+        elif prefix_k in local_state:
+            v.set_dtype(local_state[prefix_k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -585,6 +588,45 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
 
+    @classmethod
+    def can_generate(cls) -> bool:
+        """
+        Returns whether this model can generate sequences with `.generate()`.
+
+        Returns:
+            `bool`: Whether this model can generate sequences with `.generate()`.
+        """
+        # Directly inherits `GenerationMixin` -> can generate
+        if "GenerationMixin" in str(cls.__bases__):
+            return True
+        # Model class overwrites `generate` (e.g. time series models) -> can generate
+        if str(cls.__name__) in str(cls.generate):
+            return True
+        # The class inherits from a class that can generate (recursive check) -> can generate
+        for base in cls.__bases__:
+            if not hasattr(base, "can_generate"):
+                continue
+            if "PreTrainedModel" not in str(base) and base.can_generate():
+                return True
+        # BC: Detects whether `prepare_inputs_for_generation` has been overwritten in the model. Prior to v4.45, this
+        # was how we detected whether a model could generate.
+        if "GenerationMixin" not in str(cls.prepare_inputs_for_generation):
+            logger.warning_once(
+                f"{cls.__name__} has generative capabilities, as `prepare_inputs_for_generation` is explicitly "
+                "overwritten. However, it doesn't directly inherit from `GenerationMixin`. From 👉v4.50👈 onwards, "
+                "`PreTrainedModel` will NOT inherit from `GenerationMixin`, and this model will lose the ability "
+                "to call `generate` and other related functions."
+                "\n  - If you're using `trust_remote_code=True`, you can get rid of this warning by loading the "
+                "model with an auto class. See https://huggingface.co/docs/transformers/en/model_doc/auto#auto-classes"
+                "\n  - If you are the owner of the model architecture code, please modify your model class such that "
+                "it inherits from `GenerationMixin` (after `PreTrainedModel`, otherwise you'll get an exception)."
+                "\n  - If you are not the owner of the model architecture class, please contact the model code owner "
+                "to update it."
+            )
+            return True
+        # Otherwise, can't generate
+        return False
+
     @property
     def dummy_inputs(self) -> Dict[str, Tensor]:
         """
@@ -688,20 +730,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             config._attn_implementation = "eager"
 
         return config
-
-    @classmethod
-    def can_generate(cls) -> bool:
-        """
-        Returns whether this model can generate sequences with `.generate()`.
-
-        Returns:
-            `bool`: Whether this model can generate sequences with `.generate()`.
-        """
-        # Detects whether `prepare_inputs_for_generation` has been overwritten, which is a requirement for generation.
-        # Alternativelly, the model can also have a custom `generate` function.
-        if "GenerationMixin" in str(cls.prepare_inputs_for_generation) and "GenerationMixin" in str(cls.generate):
-            return False
-        return True
 
     @classmethod
     def _check_and_enable_flash_attn_2(
@@ -822,6 +850,143 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             return
         self._init_weights(module)
         module._is_hf_initialized = True
+
+    def tie_weights(self):
+        """
+        Tie the weights between the input embeddings and the output embeddings.
+
+        If the `torchscript` flag is set in the configuration, can't handle parameter sharing so we are cloning the
+        weights instead.
+        """
+        if getattr(self.config, "tie_word_embeddings", True):
+            output_embeddings = self.get_output_embeddings()
+            if output_embeddings is not None:
+                self._tie_or_clone_weights(output_embeddings, self.get_input_embeddings())
+
+        if getattr(self.config, "is_encoder_decoder", False) and getattr(self.config, "tie_encoder_decoder", False):
+            if hasattr(self, self.base_model_prefix):
+                self = getattr(self, self.base_model_prefix)
+            tied_weights = self._tie_encoder_decoder_weights(
+                self.encoder, self.decoder, self.base_model_prefix, "encoder"
+            )
+            # Setting a dynamic variable instead of `_tied_weights_keys` because it's a class
+            # attributed not an instance member, therefore modifying it will modify the entire class
+            # Leading to issues on subsequent calls by different tests or subsequent calls.
+            self._dynamic_tied_weights_keys = tied_weights
+
+        for name, module in self.cells_and_names():
+            if hasattr(module, "_tie_weights"):
+                module._tie_weights()
+
+    @staticmethod
+    def _tie_encoder_decoder_weights(
+        encoder: nn.Cell, decoder: nn.Cell, base_model_prefix: str, base_encoder_name: str
+    ):
+        uninitialized_encoder_weights: List[str] = []
+        tied_weights: List[str] = []
+        if decoder.__class__ != encoder.__class__:
+            logger.info(
+                f"{decoder.__class__} and {encoder.__class__} are not equal. In this case make sure that all encoder"
+                " weights are correctly initialized."
+            )
+
+        def tie_encoder_to_decoder_recursively(
+            decoder_pointer: nn.Cell,
+            encoder_pointer: nn.Cell,
+            module_name: str,
+            base_encoder_name: str,
+            uninitialized_encoder_weights: List[str],
+            depth=0,
+            total_decoder_name="",
+            total_encoder_name="",
+        ):
+            assert isinstance(decoder_pointer, nn.Cell) and isinstance(
+                encoder_pointer, nn.Cell
+            ), f"{decoder_pointer} and {encoder_pointer} have to be of type nn.Module"
+            if hasattr(decoder_pointer, "weight"):
+                assert hasattr(encoder_pointer, "weight")
+                encoder_pointer.weight = decoder_pointer.weight
+                tied_weights.append(f"{base_encoder_name}{total_encoder_name}.weight")
+                if hasattr(decoder_pointer, "bias"):
+                    assert hasattr(encoder_pointer, "bias")
+                    tied_weights.append(f"{base_encoder_name}{total_encoder_name}.bias")
+                    encoder_pointer.bias = decoder_pointer.bias
+                return
+
+            encoder_modules = encoder_pointer._modules
+            decoder_modules = decoder_pointer._modules
+            if len(decoder_modules) > 0:
+                assert (
+                    len(encoder_modules) > 0
+                ), f"Encoder module {encoder_pointer} does not match decoder module {decoder_pointer}"
+
+                all_encoder_weights = {module_name + "/" + sub_name for sub_name in encoder_modules.keys()}
+                encoder_layer_pos = 0
+                for name, module in decoder_modules.items():
+                    if name.isdigit():
+                        encoder_name = str(int(name) + encoder_layer_pos)
+                        decoder_name = name
+                        if not isinstance(decoder_modules[decoder_name], type(encoder_modules[encoder_name])) and len(
+                            encoder_modules
+                        ) != len(decoder_modules):
+                            # this can happen if the name corresponds to the position in a list module list of layers
+                            # in this case the decoder has added a cross-attention that the encoder does not have
+                            # thus skip this step and subtract one layer pos from encoder
+                            encoder_layer_pos -= 1
+                            continue
+                    elif name not in encoder_modules:
+                        continue
+                    elif depth > 500:
+                        raise ValueError(
+                            "Max depth of recursive function `tie_encoder_to_decoder` reached. It seems that there is"
+                            " a circular dependency between two or more `nn.Modules` of your model."
+                        )
+                    else:
+                        decoder_name = encoder_name = name
+                    tie_encoder_to_decoder_recursively(
+                        decoder_modules[decoder_name],
+                        encoder_modules[encoder_name],
+                        module_name + "/" + name,
+                        base_encoder_name,
+                        uninitialized_encoder_weights,
+                        depth=depth + 1,
+                        total_encoder_name=f"{total_encoder_name}.{encoder_name}",
+                        total_decoder_name=f"{total_decoder_name}.{decoder_name}",
+                    )
+                    all_encoder_weights.remove(module_name + "/" + encoder_name)
+
+                uninitialized_encoder_weights += list(all_encoder_weights)
+
+        # tie weights recursively
+        tie_encoder_to_decoder_recursively(
+            decoder, encoder, base_model_prefix, base_encoder_name, uninitialized_encoder_weights
+        )
+
+        if len(uninitialized_encoder_weights) > 0:
+            logger.warning(
+                f"The following encoder weights were not tied to the decoder {uninitialized_encoder_weights}"
+            )
+        return tied_weights
+
+    def _tie_or_clone_weights(self, output_embeddings, input_embeddings):
+        """Tie or clone module weights depending of whether we are using TorchScript or not"""
+        if self.config.torchscript:
+            output_embeddings.weight = Parameter(input_embeddings.embedding_table)
+        else:
+            output_embeddings.weight = input_embeddings.embedding_table
+
+        if getattr(output_embeddings, "bias", None) is not None:
+            output_embeddings.bias = ops.pad(
+                output_embeddings.bias,
+                (
+                    0,
+                    output_embeddings.weight.shape[0] - output_embeddings.bias.shape[0],
+                ),
+                "constant",
+                0,
+            )
+        if hasattr(output_embeddings, "out_features") and hasattr(input_embeddings, "num_embeddings"):
+            output_embeddings.out_features = input_embeddings.num_embeddings
 
     def resize_token_embeddings(
         self, new_num_tokens: Optional[int] = None, pad_to_multiple_of: Optional[int] = None
@@ -1541,17 +1706,16 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             _adapter_model_path = None
             adapter_kwargs = {}
 
-        if _adapter_model_path is None:
-            _adapter_model_path = find_adapter_config_file(
-                pretrained_model_name_or_path,
-                cache_dir=cache_dir,
-                force_download=force_download,
-                resume_download=resume_download,
-                proxies=proxies,
-                local_files_only=local_files_only,
-                _commit_hash=commit_hash,
-                **adapter_kwargs,
-            )
+        _adapter_model_path = find_adapter_config_file(
+            pretrained_model_name_or_path,
+            cache_dir=cache_dir,
+            force_download=force_download,
+            resume_download=resume_download,
+            proxies=proxies,
+            local_files_only=local_files_only,
+            _commit_hash=commit_hash,
+            **adapter_kwargs,
+        )
         if _adapter_model_path is not None and os.path.isfile(_adapter_model_path):
             with open(_adapter_model_path, "r", encoding="utf-8") as f:
                 _adapter_model_path = pretrained_model_name_or_path
@@ -1852,7 +2016,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             with safe_open(resolved_archive_file, framework="np") as f:
                 metadata = f.metadata()
 
-            if metadata.get("format") in ("np", "pt"):
+            if metadata.get("format") == "pt":
                 pass
             elif metadata.get("format") == "tf":
                 from_tf = True
@@ -2019,13 +2183,14 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         dtype=None,
         keep_in_fp32_modules=None,
     ):
-        # Mapping loaded_keys from pt to ms
-        pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [_get_pt2ms_mapped_kv(pt2ms_mappings, s, None, "")[0] for s in loaded_keys]
+        model.tie_weights()
+
+        loaded_keys = [_get_pt2ms_mappings(model).get(k, (k, None))[0] for k in loaded_keys]
+        prefix = model.base_model_prefix
+
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
-        prefix = model.base_model_prefix
         original_loaded_keys = loaded_keys
 
         if len(prefix) > 0:
@@ -2122,8 +2287,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         if state_dict is not None:
             # Whole checkpoint
-            state_dict = _convert_state_dict(model, state_dict, start_prefix)
-
+            state_dict = _convert_state_dict(model, state_dict, prefix)
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
                 model_state_dict,
@@ -2132,7 +2296,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 remove_prefix_from_model,
                 ignore_mismatched_sizes,
             )
-            error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False)
+            error_msgs = _load_state_dict_into_model(model_to_load, state_dict, start_prefix, prefix, is_sharded=False)
         else:
             # Sharded checkpoint or whole but low_cpu_mem_usage==True
 
@@ -2218,3 +2382,132 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             )
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
+
+    def warn_if_padding_and_no_attention_mask(self, input_ids, attention_mask):
+        """
+        Shows a one-time warning if the input_ids appear to contain padding and no attention mask was given.
+        """
+
+        if (attention_mask is not None) or (self.config.pad_token_id is None):
+            return
+
+        # Check only the first and last input IDs to reduce overhead.
+        if self.config.pad_token_id in input_ids[:, [-1, 0]]:
+            warn_string = (
+                "We strongly recommend passing in an `attention_mask` since your input_ids may be padded. See "
+                "https://huggingface.co/docs/transformers/troubleshooting"
+                "#incorrect-output-when-padding-tokens-arent-masked."
+            )
+
+            # If the pad token is equal to either BOS, EOS, or SEP, we do not know whether the user should use an
+            # attention_mask or not. In this case, we should still show a warning because this is a rare case.
+            if (
+                (self.config.bos_token_id is not None and self.config.bos_token_id == self.config.pad_token_id)
+                or (self.config.eos_token_id is not None and self.config.eos_token_id == self.config.pad_token_id)
+                or (self.config.sep_token_id is not None and self.config.sep_token_id == self.config.pad_token_id)
+            ):
+                warn_string += (
+                    f"\nYou may ignore this warning if your `pad_token_id` ({self.config.pad_token_id}) is identical "
+                    f"to the `bos_token_id` ({self.config.bos_token_id}), `eos_token_id` ({self.config.eos_token_id}), "
+                    f"or the `sep_token_id` ({self.config.sep_token_id}), and your input is not padded."
+                )
+
+            logger.warning_once(warn_string)
+
+
+class SequenceSummary(nn.Cell):
+    r"""
+    Compute a single vector summary of a sequence hidden states.
+
+    Args:
+        config ([`PretrainedConfig`]):
+            The config used by the model. Relevant arguments in the config class of the model are (refer to the actual
+            config class of your model for the default values it uses):
+
+            - **summary_type** (`str`) -- The method to use to make this summary. Accepted values are:
+
+                - `"last"` -- Take the last token hidden state (like XLNet)
+                - `"first"` -- Take the first token hidden state (like Bert)
+                - `"mean"` -- Take the mean of all tokens hidden states
+                - `"cls_index"` -- Supply a Tensor of classification token position (GPT/GPT-2)
+                - `"attn"` -- Not implemented now, use multi-head attention
+
+            - **summary_use_proj** (`bool`) -- Add a projection after the vector extraction.
+            - **summary_proj_to_labels** (`bool`) -- If `True`, the projection outputs to `config.num_labels` classes
+              (otherwise to `config.hidden_size`).
+            - **summary_activation** (`Optional[str]`) -- Set to `"tanh"` to add a tanh activation to the output,
+              another string or `None` will add no activation.
+            - **summary_first_dropout** (`float`) -- Optional dropout probability before the projection and activation.
+            - **summary_last_dropout** (`float`)-- Optional dropout probability after the projection and activation.
+    """
+
+    def __init__(self, config: PretrainedConfig):
+        super().__init__()
+
+        self.summary_type = getattr(config, "summary_type", "last")
+        if self.summary_type == "attn":
+            # We should use a standard multi-head attention module with absolute positional embedding for that.
+            # Cf. https://github.com/zihangdai/xlnet/blob/master/modeling.py#L253-L276
+            # We can probably just use the multi-head attention module of PyTorch >=1.1.0
+            raise NotImplementedError
+
+        self.summary = Identity()
+        if hasattr(config, "summary_use_proj") and config.summary_use_proj:
+            if hasattr(config, "summary_proj_to_labels") and config.summary_proj_to_labels and config.num_labels > 0:
+                num_classes = config.num_labels
+            else:
+                num_classes = config.hidden_size
+            self.summary = nn.Dense(config.hidden_size, num_classes)
+
+        activation_string = getattr(config, "summary_activation", None)
+        self.activation: Callable = get_activation(activation_string) if activation_string else Identity()
+
+        self.first_dropout = Identity()
+        if hasattr(config, "summary_first_dropout") and config.summary_first_dropout > 0:
+            self.first_dropout = nn.Dropout(config.summary_first_dropout)
+
+        self.last_dropout = Identity()
+        if hasattr(config, "summary_last_dropout") and config.summary_last_dropout > 0:
+            self.last_dropout = nn.Dropout(config.summary_last_dropout)
+
+    def construct(self, hidden_states: ms.Tensor, cls_index: Optional[ms.Tensor] = None) -> ms.Tensor:
+        """
+        Compute a single vector summary of a sequence hidden states.
+
+        Args:
+            hidden_states (`torch.FloatTensor` of shape `[batch_size, seq_len, hidden_size]`):
+                The hidden states of the last layer.
+            cls_index (`torch.LongTensor` of shape `[batch_size]` or `[batch_size, ...]`
+            where ... are optional leading dimensions of `hidden_states`, *optional*):
+                Used if `summary_type == "cls_index"` and takes the last token of the sequence as classification token.
+
+        Returns:
+            `torch.FloatTensor`: The summary of the sequence hidden states.
+        """
+        if self.summary_type == "last":
+            output = hidden_states[:, -1]
+        elif self.summary_type == "first":
+            output = hidden_states[:, 0]
+        elif self.summary_type == "mean":
+            output = hidden_states.mean(axis=1)
+        elif self.summary_type == "cls_index":
+            if cls_index is None:
+                cls_index = ops.full_like(
+                    hidden_states[..., :1, :],
+                    hidden_states.shape[-2] - 1,
+                    dtype=ms.int64,
+                )
+            else:
+                cls_index = cls_index.unsqueeze(-1).unsqueeze(-1)
+                cls_index = cls_index.expand((-1,) * (cls_index.dim() - 1) + (hidden_states.size(-1),))
+            # shape of cls_index: (bsz, XX, 1, hidden_size) where XX are optional leading dim of hidden_states
+            output = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, XX, hidden_size)
+        elif self.summary_type == "attn":
+            raise NotImplementedError
+
+        output = self.first_dropout(output)
+        output = self.summary(output)
+        output = self.activation(output)
+        output = self.last_dropout(output)
+
+        return output

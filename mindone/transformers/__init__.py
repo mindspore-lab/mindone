@@ -1,5 +1,12 @@
 __version__ = "4.42.4"
+
+# Feature Extractor
+from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .image_processing_base import ImageProcessingMixin
+from .image_processing_utils import BaseImageProcessor
+from .image_utils import ImageFeatureExtractionMixin
 from .modeling_utils import MSPreTrainedModel
+from .models.auto import AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -39,6 +46,7 @@ from .models.gemma import (
     GemmaPreTrainedModel,
 )
 from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.gpt2 import GPT2LMHeadModel
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -70,3 +78,4 @@ from .models.umt5 import (
     UMT5PreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .processing_utils import ProcessorMixin
