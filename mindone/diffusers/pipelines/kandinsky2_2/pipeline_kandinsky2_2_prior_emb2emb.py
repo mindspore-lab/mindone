@@ -2,10 +2,12 @@ from typing import List, Optional, Union
 
 import numpy as np
 import PIL.Image
-from transformers import CLIPImageProcessor, CLIPTextModelWithProjection, CLIPTokenizer, CLIPVisionModelWithProjection
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
+
+from mindone.transformers import CLIPImageProcessor, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
 from ...models import PriorTransformer
 from ...schedulers import UnCLIPScheduler

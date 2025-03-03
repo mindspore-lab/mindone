@@ -18,12 +18,11 @@ from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
-from transformers import CLIPImageProcessor
 
 import mindspore as ms
 from mindspore import ops
 
-from mindone.transformers import CLIPVisionModelWithProjection
+from mindone.transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput
 from ...models import AutoencoderKLTemporalDecoder, UNetSpatioTemporalConditionModel

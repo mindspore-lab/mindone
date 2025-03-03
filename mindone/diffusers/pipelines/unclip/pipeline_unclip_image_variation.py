@@ -17,12 +17,12 @@ from typing import List, Optional, Union
 
 import numpy as np
 import PIL.Image
-from transformers import CLIPImageProcessor, CLIPTokenizer
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
 
-from ....transformers import CLIPTextModelWithProjection, CLIPVisionModelWithProjection
+from ....transformers import CLIPImageProcessor, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 from ...models import UNet2DConditionModel, UNet2DModel
 from ...schedulers import UnCLIPScheduler
 from ...utils import logging

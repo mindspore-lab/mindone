@@ -17,9 +17,12 @@
 from typing import Dict, List, Optional, Union
 
 import numpy as np
-from transformers.image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
-from transformers.image_transforms import convert_to_rgb, resize, to_channel_dimension_format
-from transformers.image_utils import (
+
+import mindspore as ms
+
+from mindone.transformers.image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
+from mindone.transformers.image_transforms import convert_to_rgb, resize, to_channel_dimension_format
+from mindone.transformers.image_utils import (
     OPENAI_CLIP_MEAN,
     OPENAI_CLIP_STD,
     ChannelDimension,
@@ -30,9 +33,7 @@ from transformers.image_utils import (
     to_numpy_array,
     valid_images,
 )
-from transformers.utils import is_vision_available, logging
-
-import mindspore as ms
+from mindone.transformers.utils import is_vision_available, logging
 
 from ...utils import numpy_to_pil
 

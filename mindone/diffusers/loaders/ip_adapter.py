@@ -16,12 +16,11 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from huggingface_hub.utils import validate_hf_hub_args
-from transformers import CLIPImageProcessor
 
 import mindspore
 
 from mindone.safetensors.mindspore import load_file
-from mindone.transformers import CLIPVisionModelWithProjection
+from mindone.transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 
 from ..models.attention_processor import AttnProcessor, IPAdapterAttnProcessor
 from ..utils import _get_model_file, logging

@@ -18,12 +18,11 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 import PIL.Image
 from packaging import version
-from transformers import CLIPImageProcessor
 
 import mindspore as ms
 from mindspore import ops
 
-from mindone.transformers import CLIPVisionModelWithProjection
+from mindone.transformers import CLIPImageProcessor, CLIPVisionModelWithProjection
 
 from ...configuration_utils import FrozenDict
 from ...image_processor import VaeImageProcessor

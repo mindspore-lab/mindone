@@ -19,10 +19,12 @@ from typing import Any, Callable, Dict, List, Optional, Union
 import numpy as np
 import PIL.Image
 from packaging import version
-from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
+
+from mindone.transformers import CLIPImageProcessor, CLIPTextModel
 
 from ...configuration_utils import FrozenDict
 from ...image_processor import VaeImageProcessor

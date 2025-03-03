@@ -15,11 +15,11 @@ from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL
-from transformers import CLIPImageProcessor, CLIPTokenizer
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 
-from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
+from mindone.transformers import CLIPImageProcessor, CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...models import StableCascadeUNet
 from ...schedulers import DDPMWuerstchenScheduler
