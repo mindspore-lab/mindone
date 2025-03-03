@@ -350,6 +350,7 @@ class LlamaModel(nn.Cell):
 
         # sequence parallel start
         latent_embedding = self.split_forward_gather_backward(latent_embedding)
+        text_embedding = self.split_forward_gather_backward(text_embedding)
         position_embedding = self.split_forward_gather_backward(position_embedding)
 
         # main blocks
