@@ -32,7 +32,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
@@ -100,7 +100,7 @@ def log_validation(
                 num_frames += additional_frames * pipe.vae_scale_factor_temporal
 
             # VAE decode in PyNative Mode
-            with pynative_context():
+            with pynative_context(), pynative_no_grad():
                 latents = latents[:, additional_frames:]
                 video = pipe.decode_latents(latents)
                 video = pipe.video_processor.postprocess_video(video=video, output_type="np")[0]
@@ -210,6 +210,7 @@ def main(args):
             enable_sequence_parallelism = False
         else:
             from mindone.acceleration import create_parallel_group
+
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
 
@@ -603,18 +604,15 @@ def main(args):
 
         for step, batch in enumerate(train_dataloader_iter):
             train_start = time()
-            videos, text_input_ids = batch[0], batch[1]
-            rotary_positional_embeddings = batch[2] if transformer_config.use_rotary_positional_embeddings else None
-            # Encode videos
-            if not args.latents_cache:
-                with pynative_context(), pynative_no_grad():
-                    videos = videos.permute(0, 2, 1, 3, 4).to(vae.dtype)  # [B, C, F, H, W]
-                    videos = vae.encode(videos)[0]
-            videos = videos.to(weight_dtype)
             # videos B, C, F, H, W: (1, 32, 20, 96, 170)
-            loss, overflow, scale_sense = train_step(videos, text_input_ids, rotary_positional_embeddings)
+            transformer_inputs = train_step.network.prepare_transformer_inputs(*batch)
+            loss, overflow, scale_sense = train_step(*transformer_inputs)
             if overflow:
                 logger.warning(f"Step {step} overflow!, scale_sense is {scale_sense}")
+            last_lr = optimizer.get_lr()
+            last_lr = last_lr[0] if isinstance(last_lr, tuple) else last_lr  # grouped lr scenario
+            logs = {"loss": loss.item(), "lr": last_lr.item(), "pre step time": time() - train_start}
+            progress_bar.set_postfix(**logs)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if train_step.accum_steps == 1 or train_step.cur_accum_step.item() == 0:
@@ -649,11 +647,6 @@ def main(args):
                     save_model_hook(models, save_path)
                     train_step.save_state(args, save_path, optimizer_state_filter)
                     logger.info(f"Saved state to {save_path}")
-
-            last_lr = optimizer.get_lr()
-            last_lr = last_lr[0] if isinstance(last_lr, tuple) else last_lr  # grouped lr scenario
-            logs = {"loss": loss.item(), "lr": last_lr.item(), "pre step time": time() - train_start}
-            progress_bar.set_postfix(**logs)
 
             if is_master(args):
                 for tracker_name, tracker in trackers.items():
@@ -797,10 +790,13 @@ class TrainStepForCogVideo(nn.Cell):
         self.use_rotary_positional_embeddings = use_rotary_positional_embeddings
         self.args = AttrJitWrapper(**vars(args))
         self.enable_sequence_parallelism = enable_sequence_parallelism
+        self.sp_group = None
+        self.sp_rank = 0
         if self.enable_sequence_parallelism:
+            from mindspore.communication import get_rank
             from mindone.acceleration import get_sequence_parallel_group
-
-            self.broadcast = ops.Broadcast(0, group=get_sequence_parallel_group())
+            self.sp_group = get_sequence_parallel_group()
+            self.sp_rank = get_rank(self.sp_group)
 
     def compute_prompt_embeddings(
         self,
@@ -820,51 +816,64 @@ class TrainStepForCogVideo(nn.Cell):
         return prompt_embeds
 
     def diagonal_gaussian_distribution_sample(self, latent_dist: ms.Tensor) -> ms.Tensor:
-        mean, logvar = ops.chunk(latent_dist, 2, axis=1)
-        logvar = ops.clamp(logvar, -30.0, 20.0)
-        std = ops.exp(0.5 * logvar)
+        mean, logvar = mint.chunk(latent_dist, 2, dim=1)
+        logvar = mint.clamp(logvar, min=-30.0, max=20.0)
+        std = mint.exp(0.5 * logvar)
 
-        sample = ops.randn_like(mean, dtype=mean.dtype)
-        if self.enable_sequence_parallelism:
-            sample = self.broadcast((sample,))[0]
+        sample = mint.randn_like(mean, dtype=mean.dtype)
         x = mean + std * sample
-
         return x
 
-    def construct(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
-        videos = self.diagonal_gaussian_distribution_sample(videos) * self.vae_scaling_factor
-        # [B, C, F, H, W] (1, 16, 20, 96, 170) -> [B, F, C, H, W]
-        videos = videos.permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
-        model_input = videos
+    def _broadcast_out(self, x):
+        x = x.contiguous()
+        if self.enable_sequence_parallelism:
+            mint.distributed.broadcast(tensor=x, src=0, group=self.sp_group)
+        return x
 
-        # Encode prompts
-        if not args.embeddings_cache:
-            with pynative_no_grad():
+    def prepare_transformer_inputs(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
+        with pynative_context(), pynative_no_grad():
+            if not args.latents_cache:
+                videos = videos.permute(0, 2, 1, 3, 4).to(self.vae.dtype)  # [B, C, F, H, W]
+                videos = self.vae.encode(videos)[0]
+            videos = videos.to(self.weight_dtype)
+            videos = self.diagonal_gaussian_distribution_sample(videos) * self.vae_scaling_factor
+            # [B, C, F, H, W] (1, 16, 20, 96, 170) -> [B, F, C, H, W]
+            videos = videos.permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
+            model_input = videos
+
+            # Encode prompts
+            if not args.embeddings_cache:
                 prompt_embeds = self.compute_prompt_embeddings(
                     text_input_ids_or_prompt_embeds,
                     dtype=self.weight_dtype,
                 )
-        else:
-            prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
-        # prompt_embeds(1, 226, 4096)
-        # Sample noise that will be added to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
-        if self.enable_sequence_parallelism:
-            noise = self.broadcast((noise,))[0]
-        batch_size, num_frames, num_channels, height, width = model_input.shape
+            else:
+                prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
+            # prompt_embeds(1, 226, 4096)
+            # Sample noise that will be added to the latents
+            noise = mint.randn_like(model_input, dtype=model_input.dtype)
+            batch_size, num_frames, num_channels, height, width = model_input.shape
 
-        # Sample a random timestep for each image
-        timesteps = ops.randint(0, self.scheduler_num_train_timesteps, (batch_size,), dtype=ms.int32)
-        if self.enable_sequence_parallelism:
-            timesteps = self.broadcast((timesteps,))[0]
+            # Sample a random timestep for each image
+            timesteps = mint.randint(0, self.scheduler_num_train_timesteps, (batch_size,), dtype=ms.int32)
 
-        # Rotary embeds is Prepared in dataset.
-        if self.use_rotary_positional_embeddings:
-            image_rotary_emb = image_rotary_emb[0].to(self.weight_dtype)  # [2, S, D], (2, 40800, 64)
+            # Rotary embeds is Prepared in dataset.
+            if self.use_rotary_positional_embeddings:
+                image_rotary_emb = image_rotary_emb[0].to(self.weight_dtype)  # [2, S, D], (2, 40800, 64)
 
-        # Add noise to the model input according to the noise magnitude at each timestep
-        # (this is the forward diffusion process)
-        noisy_model_input = self.scheduler.add_noise(model_input, noise, timesteps)
+            # Add noise to the model input according to the noise magnitude at each timestep
+            # (this is the forward diffusion process)
+            noisy_model_input = self.scheduler.add_noise(model_input, noise, timesteps)
+
+            model_input = self._broadcast_out(model_input)
+            prompt_embeds = self._broadcast_out(prompt_embeds)
+            noisy_model_input = self._broadcast_out(noisy_model_input)
+            timesteps = self._broadcast_out(timesteps)
+            image_rotary_emb = self._broadcast_out(image_rotary_emb)
+        return model_input, prompt_embeds, noisy_model_input, timesteps, image_rotary_emb
+
+    def construct(self, model_input, prompt_embeds, noisy_model_input, timesteps, image_rotary_emb=None):
+        batch_size = model_input.shape[0]
 
         # Predict the noise residual
         model_output = self.transformer(

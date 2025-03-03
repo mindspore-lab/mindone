@@ -69,8 +69,8 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
           --video_column $VIDEO_COLUMN \
-          --height_buckets 1360 \
-          --width_buckets 768 \
+          --height_buckets 768 \
+          --width_buckets 1360 \
           --frame_buckets 77 \
           --max_num_frames 77 \
           --gradient_accumulation_steps 1 \

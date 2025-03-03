@@ -32,13 +32,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--height",
         type=int,
-        default=1360,
+        default=768,
         help="The height of the output video.",
     )
     parser.add_argument(
         "--width",
         type=int,
-        default=768,
+        default=1360,
         help="The width of the output video.",
     )
     parser.add_argument(
