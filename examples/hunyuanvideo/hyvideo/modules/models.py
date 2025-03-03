@@ -2,8 +2,11 @@ import logging
 import os
 from typing import List, Optional
 
+from hyvideo.acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
+
 import mindspore as ms
 from mindspore import mint, nn, ops
+from mindspore.communication import get_group_size
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models import ModelMixin
@@ -106,6 +109,22 @@ class MMDoubleStreamBlock(nn.Cell):
             **factory_kwargs,
         )
 
+        if (sp_group := get_sequence_parallel_group()) is not None:
+            self.sp_group_size = get_group_size(sp_group)
+            self.alltoall = ops.AlltoAll(
+                self.sp_group_size, 2, 1, group=sp_group
+            )  # BSND, split at 2 dim and concat at 1 dim
+            self.alltoall_out = ops.AlltoAll(
+                self.sp_group_size, 1, 2, group=sp_group
+            )  # BSND, split at 1 dim and concat at 2 dim
+            if heads_num % self.sp_group_size != 0:
+                raise ValueError(f"heads_num {heads_num} must be divisible by sp_group_size {self.sp_group_size}")
+            heads_num = heads_num // self.sp_group_size
+        else:
+            self.sp_group_size = None
+            self.alltoall = nn.Identity()
+            self.alltoall_out = nn.Identity()
+
         if attn_mode == "vanilla":
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == "flash":
@@ -200,6 +219,15 @@ class MMDoubleStreamBlock(nn.Cell):
         txt_q = self.txt_attn_q_norm(txt_q)  # .to(txt_v)
         txt_k = self.txt_attn_k_norm(txt_k)  # .to(txt_v)
 
+        # sequence_parallel
+        img_q = self.alltoall(img_q)  # B S_v/sp H D -> B S_v H/sp, D if sp is enabled
+        img_k = self.alltoall(img_k)
+        img_v = self.alltoall(img_v)
+        txt_q = self.alltoall(txt_q)
+        txt_k = self.alltoall(txt_k)
+        txt_v = self.alltoall(txt_v)
+        img_seq_len = img_q.shape[1]
+
         # Run actual attention.
         # input hidden states (B, S_v+S_t, H, D)
         q = ops.concat((img_q, txt_q), axis=1)
@@ -222,7 +250,10 @@ class MMDoubleStreamBlock(nn.Cell):
         # attention computation end
 
         # output hidden states (B, S_v+S_t, H, D)
-        img_attn, txt_attn = attn[:, : img.shape[1]], attn[:, img.shape[1] :]
+        img_attn, txt_attn = attn[:, :img_seq_len], attn[:, img_seq_len:]
+        img_attn, txt_attn = self.alltoall_out(img_attn), self.alltoall_out(
+            txt_attn
+        )  # B S_v H/sp, D -> B S_v/sp H D if sp is enabled
 
         # Calculate the img bloks.
         # residual connection with gate. img = img + img_attn_proj * gate, for simplicity
@@ -304,6 +335,22 @@ class MMSingleStreamBlock(nn.Cell):
         )
         self.hybrid_seq_parallel_attn = None
 
+        if (sp_group := get_sequence_parallel_group()) is not None:
+            self.sp_group_size = get_group_size(sp_group)
+            self.alltoall = ops.AlltoAll(
+                self.sp_group_size, 2, 1, group=sp_group
+            )  # BSND, split at 2 dim and concat at 1 dim
+            self.alltoall_out = ops.AlltoAll(
+                self.sp_group_size, 1, 2, group=sp_group
+            )  # BSND, split at 1 dim and concat at 2 dim
+            if heads_num % self.sp_group_size != 0:
+                raise ValueError(f"heads_num {heads_num} must be divisible by sp_group_size {self.sp_group_size}")
+            heads_num = heads_num // self.sp_group_size
+        else:
+            self.sp_group_size = None
+            self.alltoall = nn.Identity()
+            self.alltoall_out = nn.Identity()
+
         if attn_mode == "vanilla":
             self.compute_attention = VanillaAttention(head_dim)
         elif attn_mode == "flash":
@@ -341,7 +388,8 @@ class MMSingleStreamBlock(nn.Cell):
         # Apply QK-Norm if needed.
         q = self.q_norm(q)  # .to(v)
         k = self.k_norm(k)  # .to(v)
-
+        if self.sp_group_size is not None:
+            txt_len = txt_len // self.sp_group_size
         # Apply RoPE if needed.
         if freqs_cos is not None:
             img_q, txt_q = q[:, :-txt_len, :, :], q[:, -txt_len:, :, :]
@@ -355,7 +403,10 @@ class MMSingleStreamBlock(nn.Cell):
             k = ops.concat((img_k, txt_k), axis=1)
 
         # Compute attention.
-
+        # sequence_parallel
+        q = self.alltoall(q)
+        k = self.alltoall(k)
+        v = self.alltoall(v)
         attn = self.compute_attention(
             q,
             k,
@@ -364,7 +415,7 @@ class MMSingleStreamBlock(nn.Cell):
             actual_seq_kvlen=actual_seq_kvlen,
         )
         # attention computation end
-
+        attn = self.alltoall_out(attn)
         # Compute activation in mlp stream, cat again and run second linear layer.
         output = self.linear2(ops.concat((attn, self.mlp_act(mlp)), axis=2))
         return x + apply_gate(output, gate=mod_gate)
@@ -591,6 +642,15 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                 if bidx < num_blocks - num_no_recompute[1]:
                     self.recompute(block)
 
+        # init sequence parallel
+        if (sp_group := get_sequence_parallel_group()) is not None:
+            logger.info(f"Initialize HyVideo Transformer model with sequence parallel group `{sp_group}`.")
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
+        else:
+            self.split_forward_gather_backward = nn.Identity()
+            self.gather_forward_split_backward = nn.Identity()
+
     def recompute(self, b):
         if not b._has_config_recompute:
             b.recompute(parallel_optimizer_comm_recompute=True)
@@ -684,6 +744,16 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             valid_seq_len = valid_text_len[i] + img_seq_len
             actual_seq_len[2 * i] = i * max_seq_len + valid_seq_len
             actual_seq_len[2 * i + 1] = (i + 1) * max_seq_len
+
+        # sequence parallel start
+        img = self.split_forward_gather_backward(img)
+        freqs_cos = (
+            self.split_forward_gather_backward(freqs_cos.unsqueeze(0))[0] if freqs_cos is not None else freqs_cos
+        )
+        freqs_sin = (
+            self.split_forward_gather_backward(freqs_sin.unsqueeze(0))[0] if freqs_sin is not None else freqs_sin
+        )
+        txt = self.split_forward_gather_backward(txt)
         # --------------------- Pass through DiT blocks ------------------------
         for _, block in enumerate(self.double_blocks):
             # AMP: img bf16, txt bf16, vec bf16, freqs fp32
@@ -712,6 +782,8 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     actual_seq_kvlen=actual_seq_len,
                     # attn_mask=mask,
                 )
+        # sequence parallel end
+        x = self.gather_forward_split_backward(x)
 
         img = x[:, :img_seq_len, ...]
 
