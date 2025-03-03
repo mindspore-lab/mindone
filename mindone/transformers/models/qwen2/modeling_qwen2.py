@@ -25,10 +25,9 @@ import numpy as np
 from transformers import Qwen2Config, logging
 
 import mindspore as ms
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, nn, mint, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
 from mindone.transformers.modeling_attn_mask_utils import AttentionMaskConverter
 from mindone.transformers.modeling_outputs import (
@@ -230,10 +229,10 @@ class Qwen2MLP(nn.Cell):
         super().__init__()
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
-        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
-        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
-        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False)
-        self.act_fn = ACT2FN[config.hidden_act]
+        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
+        self.act_fn = mint.nn.SiLU()
 
     def construct(self, hidden_state):
         return self.down_proj(self.act_fn(self.gate_proj(hidden_state)) * self.up_proj(hidden_state))
@@ -284,10 +283,10 @@ class Qwen2Attention(nn.Cell):
                 f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
                 f" and `num_heads`: {self.num_heads})."
             )
-        self.q_proj = nn.Dense(self.hidden_size, self.num_heads * self.head_dim, has_bias=True)
-        self.k_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
-        self.v_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
-        self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=False)
+        self.q_proj = mint.nn.Linear(self.hidden_size, self.num_heads * self.head_dim, bias=True)
+        self.k_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
+        self.v_proj = mint.nn.Linear(self.hidden_size, self.num_key_value_heads * self.head_dim, bias=True)
+        self.o_proj = mint.nn.Linear(self.num_heads * self.head_dim, self.hidden_size, bias=False)
 
         self.rotary_emb = Qwen2RotaryEmbedding(
             self.head_dim,
@@ -337,10 +336,7 @@ class Qwen2Attention(nn.Cell):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        query_states = ops.mul(query_states, self.scale**0.5)
-        key_states = ops.mul(key_states, self.scale**0.5)
-
-        attn_weights = ops.matmul(query_states, key_states.swapaxes(2, 3))
+        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) / mint.sqrt(ms.tensor(self.head_dim))
 
         if attn_weights.shape != (bsz, self.num_heads, q_len, kv_seq_len):
             raise ValueError(
@@ -353,9 +349,9 @@ class Qwen2Attention(nn.Cell):
             attn_weights = attn_weights + causal_mask
 
         # upcast attention to fp32
-        attn_weights = ops.softmax(attn_weights, axis=-1, dtype=ms.float32).to(query_states.dtype)
+        attn_weights = mint.softmax(attn_weights, axis=-1, dtype=ms.float32).to(query_states.dtype)
         attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
-        attn_output = ops.matmul(attn_weights, value_states)
+        attn_output = mint.matmul(attn_weights, value_states)
 
         if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
             raise ValueError(
@@ -394,12 +390,6 @@ class Qwen2DecoderLayer(nn.Cell):
         self.mlp = Qwen2MLP(config)
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-
-        # recompute
-        # self.self_attn.recompute()
-        # self.mlp.recompute()
-        # self.input_layernorm.recompute()
-        # self.post_attention_layernorm.recompute()
 
     def construct(
         self,
@@ -601,9 +591,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
         self.post_init()
-
-        # recompute
-        # self.layers.recompute()
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -822,7 +809,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         super().__init__(config)
         self.model = Qwen2Model(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1027,7 +1014,7 @@ class Qwen2ForSequenceClassification(Qwen2PreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.model = Qwen2Model(config)
-        self.score = nn.Dense(config.hidden_size, self.num_labels, has_bias=False)
+        self.score = mint.nn.Linear(config.hidden_size, self.num_labels, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1141,7 +1128,7 @@ class Qwen2ForTokenClassification(Qwen2PreTrainedModel):
         else:
             classifier_dropout = 0.1
         self.dropout = nn.Dropout(classifier_dropout)
-        self.score = nn.Dense(config.hidden_size, config.num_labels)
+        self.score = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
