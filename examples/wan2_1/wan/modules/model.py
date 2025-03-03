@@ -6,6 +6,7 @@ import numpy as np
 
 import mindspore as ms
 import mindspore.mint as mint
+import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
@@ -41,8 +42,8 @@ def rope_params(max_seq_len: int, dim: int, theta: float = 10000) -> Tensor:
 
 
 def complex_mult(a: Tensor, b: Tensor) -> Tensor:
-    a_real, a_complex = a[..., 0], a[..., 1]
-    b_real, b_complex = b[..., 0], b[..., 1]
+    a_real, a_complex = mint.unbind(a, dim=-1)
+    b_real, b_complex = mint.unbind(b, dim=-1)
     out_real = a_real * b_real - a_complex * b_complex
     out_complex = a_real * b_complex + b_real * a_complex
     return mint.stack([out_real, out_complex], dim=-1)
@@ -149,6 +150,18 @@ class WanSelfAttention(nn.Cell):
             self.all_to_all_back = mint.nn.Identity()
             self.sp_size = 1
 
+    def qkv_fn(self, x: Tensor, grid_sizes: Tensor, freqs: Tensor) -> Tuple[Tensor, Tensor, Tensor]:
+        b, s, n, d = *x.shape[:2], self.num_heads, self.head_dim
+        q = self.norm_q(self.q(x)).view(b, s, n, d)
+        q = self.all_to_all(q)
+        q = rope_apply(q, grid_sizes, freqs).transpose(1, 2)
+        k = self.norm_k(self.k(x)).view(b, s, n, d)
+        k = self.all_to_all(k)
+        k = rope_apply(k, grid_sizes, freqs).transpose(1, 2)
+        v = self.v(x).view(b, s, n, d)
+        v = self.all_to_all(v).transpose(1, 2)
+        return q, k, v
+
     def construct(self, x: Tensor, seq_lens: Tensor, grid_sizes: Tensor, freqs: Tensor) -> Tensor:
         r"""
         Args:
@@ -157,33 +170,22 @@ class WanSelfAttention(nn.Cell):
             grid_sizes(Tensor): Shape [B, 3], the second dimension contains (F, H, W)
             freqs(Tensor): Rope freqs, shape [1024, C / num_heads / 2]
         """
-        b, s, n, d = *x.shape[:2], self.num_heads, self.head_dim
-
-        # query, key, value function
-        def qkv_fn(x):
-            q = self.norm_q(self.q(x)).view(b, s, n, d)
-            q = self.all_to_all(q)
-            k = self.norm_k(self.k(x)).view(b, s, n, d)
-            k = self.all_to_all(k)
-            v = self.v(x).view(b, s, n, d)
-            v = self.all_to_all(v)
-            return q, k, v
-
-        q, k, v = qkv_fn(x)
+        q, k, v = self.qkv_fn(x, grid_sizes, freqs)
 
         assert self.window_size == (-1, -1)
 
         x = ops.flash_attention_score(
-            query=rope_apply(q, grid_sizes, freqs),
-            key=rope_apply(k, grid_sizes, freqs),
+            query=q,
+            key=k,
             value=v,
             head_num=self.num_heads // self.sp_size,
             actual_seq_kvlen=seq_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
-            input_layout="BSND",
+            input_layout="BNSD",
         )
 
         # output
+        x = x.transpose(1, 2)
         x = self.all_to_all_back(x)
         x = x.flatten(2)
         x = self.o(x)
@@ -201,9 +203,9 @@ class WanT2VCrossAttention(WanSelfAttention):
         b, n, d = x.shape[0], self.num_heads, self.head_dim
 
         # compute query, key, value
-        q = self.norm_q(self.q(x)).view(b, -1, n, d)
-        k = self.norm_k(self.k(context)).view(b, -1, n, d)
-        v = self.v(context).view(b, -1, n, d)
+        q = self.norm_q(self.q(x)).view(b, -1, n, d).transpose(1, 2)
+        k = self.norm_k(self.k(context)).view(b, -1, n, d).transpose(1, 2)
+        v = self.v(context).view(b, -1, n, d).transpose(1, 2)
 
         # compute attention
         x = ops.flash_attention_score(
@@ -213,10 +215,11 @@ class WanT2VCrossAttention(WanSelfAttention):
             head_num=self.num_heads,
             actual_seq_kvlen=context_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
-            input_layout="BSND",
+            input_layout="BNSD",
         )
 
         # output
+        x = x.transpose(1, 2)
         x = x.flatten(2)
         x = self.o(x)
         return x
@@ -250,18 +253,18 @@ class WanI2VCrossAttention(WanSelfAttention):
         b, n, d = x.shape[0], self.num_heads, self.head_dim
 
         # compute query, key, value
-        q = self.norm_q(self.q(x)).view(b, -1, n, d)
-        k = self.norm_k(self.k(context)).view(b, -1, n, d)
-        v = self.v(context).view(b, -1, n, d)
-        k_img = self.norm_k_img(self.k_img(context_img)).view(b, -1, n, d)
-        v_img = self.v_img(context_img).view(b, -1, n, d)
+        q = self.norm_q(self.q(x)).view(b, -1, n, d).transpose(1, 2)
+        k = self.norm_k(self.k(context)).view(b, -1, n, d).transpose(1, 2)
+        v = self.v(context).view(b, -1, n, d).transpose(1, 2)
+        k_img = self.norm_k_img(self.k_img(context_img)).view(b, -1, n, d).transpose(1, 2)
+        v_img = self.v_img(context_img).view(b, -1, n, d).transpose(1, 2)
         img_x = ops.flash_attention_score(
             q,
             k_img,
             v_img,
             head_num=self.num_heads,
             scalar_value=1 / math.sqrt(q.shape[-1]),
-            input_layout="BSND",
+            input_layout="BNSD",
         )
         # compute attention
         x = ops.flash_attention_score(
@@ -271,11 +274,13 @@ class WanI2VCrossAttention(WanSelfAttention):
             head_num=self.num_heads,
             actual_seq_kvlen=context_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
-            input_layout="BSND",
+            input_layout="BNSD",
         )
 
         # output
+        x = x.transpose(1, 2)
         x = x.flatten(2)
+        img_x = img_x.transpose(1, 2)
         img_x = img_x.flatten(2)
         x = x + img_x
         x = self.o(x)
@@ -320,10 +325,10 @@ class WanAttentionBlock(nn.Cell):
             dim, num_heads, (-1, -1), qk_norm, eps, dtype=dtype
         )
         self.norm2 = WanLayerNorm(dim, eps, dtype=dtype)
-        # TODO: mint.nn.GELU -> mint.nn.GELU(approximate="tanh")
+        # TODO: GELUApproximate -> mint.nn.GELU(approximate="tanh")
         self.ffn = nn.SequentialCell(
             mint.nn.Linear(dim, ffn_dim, dtype=dtype),
-            mint.nn.GELU(),
+            GELUApproximate(),
             mint.nn.Linear(ffn_dim, dim, dtype=dtype),
         )
 
@@ -407,6 +412,11 @@ class MLPProj(nn.Cell):
     def construct(self, image_embeds: Tensor) -> Tensor:
         clip_extra_context_tokens = self.proj(image_embeds)
         return clip_extra_context_tokens
+
+
+class GELUApproximate(nn.Cell):
+    def construct(self, x: Tensor):
+        return F.gelu(x, approximate="tanh")
 
 
 class WanModel(ModelMixin, ConfigMixin):
@@ -495,10 +505,10 @@ class WanModel(ModelMixin, ConfigMixin):
 
         # embeddings
         self.patch_embedding = mint.nn.Conv3d(in_dim, dim, kernel_size=patch_size, stride=patch_size, dtype=dtype)
-        # TODO: mint.nn.GELU -> mint.nn.GELU(approximate="tanh")
+        # TODO: GELUApproximate -> mint.nn.GELU(approximate="tanh")
         self.text_embedding = nn.SequentialCell(
             mint.nn.Linear(text_dim, dim, dtype=dtype),
-            mint.nn.GELU(),
+            GELUApproximate(),
             mint.nn.Linear(dim, dim, dtype=dtype),
         )
 
