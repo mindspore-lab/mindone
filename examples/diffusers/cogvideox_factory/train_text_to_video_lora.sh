@@ -5,7 +5,7 @@ NUM_NPUS=8
 
 # Training Configurations
 # Experiment with as many hyperparameters as you want!
-LEARNING_RATES=("1e-4" "1e-3")
+LEARNING_RATES=("1e-5")
 LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw" "adam")
 MAX_TRAIN_STEPS=("3000")
@@ -13,9 +13,9 @@ SP=False
 SP_SIZE=$NUM_NPUS
 FA_RCP=False
 ENABLE_DYNAMIC_SHAPE=0
-LATENTS_CACHE=0
+LATENTS_CACHE=1
 EMBEDDINGS_CACHE=1
-OUTPUT_ROOT_DIR=./output_sp
+OUTPUT_ROOT_DIR=./output_lora
 
 # MindSpore settings
 MINDSPORE_MODE=0

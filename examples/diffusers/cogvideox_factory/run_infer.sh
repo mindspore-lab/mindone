@@ -1,0 +1,51 @@
+NUM_NPUS=8
+SP=False
+SP_SIZE=$NUM_NPUS
+
+# MindSpore settings
+MINDSPORE_MODE=0
+JIT_LEVEL=O1
+DEEPSPEED_ZERO_STAGE=3
+
+# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
+# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
+#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
+MODEL_PATH="THUDM/CogVideoX1.5-5b"
+# TRANSFORMER_PATH and LORA_PATH only choose one to set.
+TRANSFORMER_PATH=""
+LORA_PATH=""
+PROMPT="A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
+H=768
+W=1360
+F=80
+OUTPUT_ROOT_DIR=./output_infer_${H}_${W}_${F}
+
+if [ "$NUM_NPUS" -eq 1 ]; then
+    LAUNCHER="python"
+    EXTRA_ARGS=""
+    SP=False
+else
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph""
+    EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
+fi
+
+cmd="$LAUNCHER infer.py \
+    --pretrained_model_name_or_path $MODEL_PATH \
+    --prompt \"${PROMPT}\" \
+    --transformer_ckpt_path $TRANSFORMER_PATH \
+    --lora_ckpt_path $LORA_PATH \
+    --height $H \
+    --width $W \
+    --frame $F \
+    --npy_output_path $OUTPUT_ROOT_DIR \
+    --video_output_path $OUTPUT_ROOT_DIR \
+    --seed 42 \
+    --mixed_precision bf16 \
+    --mindspore_mode $MINDSPORE_MODE \
+    --jit_level $JIT_LEVEL \
+    --enable_sequence_parallelism $SP \
+    --sequence_parallel_shards $SP_SIZE \
+    $EXTRA_ARGS"
+
+echo "Running command: $cmd"
+eval $cmd
