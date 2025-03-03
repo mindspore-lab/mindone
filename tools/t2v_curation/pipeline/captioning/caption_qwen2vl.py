@@ -72,7 +72,11 @@ def main():
     rank_size = get_world_size()
 
     print("Loading Qwen2VLForConditionalGeneration Model")
-    model = Qwen2VLForConditionalGeneration.from_pretrained(args.pretrained_model_name_or_path).set_train(False)
+    model = Qwen2VLForConditionalGeneration.from_pretrained(
+        args.pretrained_model_name_or_path,
+        mindspore_dtype = ms.float16,
+        attn_implementation = "flash_attention_2"
+    ).set_train(False)
     print("Loading AutoProcessor")
     processor = AutoProcessor.from_pretrained(args.pretrained_model_name_or_path)
 
