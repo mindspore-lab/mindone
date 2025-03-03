@@ -43,11 +43,11 @@ _stage2_reduce_scatter = ops.MultitypeFuncGraph("stage2_reduce_scatter")
 
 
 @_stage2_reduce_scatter.register("Tensor", "Function", "Function", "Tensor", "Bool")
-def _run_stage2_reduce_scatter(op_group_size, reduce_scatter, allreduce, gradient, need_reduce_scatter):
+def _run_stage2_reduce_scatter(optimizer_parallel_group_size, reduce_scatter, allreduce, gradient, need_reduce_scatter):
     if need_reduce_scatter:
-        gradient = reduce_scatter(gradient) / op_group_size
+        gradient = reduce_scatter(gradient) / optimizer_parallel_group_size
     else:
-        gradient = allreduce(gradient) / op_group_size
+        gradient = allreduce(gradient) / optimizer_parallel_group_size
     return gradient
 
 
@@ -55,8 +55,8 @@ _stage1_split_grad = ops.MultitypeFuncGraph("stage1_split_grad")
 
 
 @_stage1_split_grad.register("Function", "Int", "Int", "Function", "Tensor", "Bool")
-def _run_stage1_split_grad(split, op_group_size, op_rank_id, allreduce, gradient, need_split):
-    gradient = allreduce(gradient) / op_group_size
+def _run_stage1_split_grad(split, optimizer_parallel_group_size, op_rank_id, allreduce, gradient, need_split):
+    gradient = allreduce(gradient) / optimizer_parallel_group_size
     if need_split:
         gradient = split(gradient)[op_rank_id]
     return gradient
@@ -84,7 +84,7 @@ class ZeroHelper:
     Args:
         optimizer (`nn.Optimizer`): Must be the subclass of MindSpore Optimizer.
         zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
-        op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+        optimizer_parallel_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
         dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
         optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
         comm_fusion (`dict`, *optional*): A dict contains the types and configurations
@@ -101,7 +101,7 @@ class ZeroHelper:
         self,
         optimizer: nn.Optimizer,
         zero_stage: int = 0,
-        op_group: str = None,
+        optimizer_parallel_group: str = None,
         dp_group: str = None,
         optimizer_offload: bool = False,
         comm_fusion: dict = None,
@@ -109,7 +109,7 @@ class ZeroHelper:
     ):
         self.optimizer = optimizer
         self.zero_stage = zero_stage
-        self.op_group = op_group
+        self.optimizer_parallel_group = optimizer_parallel_group
         if isinstance(optimizer, ms.experimental.optim.optimizer.Optimizer):
             self.optimizer._parameters = self.optimizer.parameters
         self.ori_parameters = self.optimizer._parameters
@@ -123,8 +123,8 @@ class ZeroHelper:
         self.op_reduce_scatter = ops.Identity()
         self.op_allreduce = ops.Identity()
         self.dp_allreduce = ops.Identity()
-        self.op_group_size = get_group_size(self.op_group) if self.is_parallel else 1
-        self.op_rank_id = get_rank(self.op_group) if self.is_parallel else 0
+        self.optimizer_parallel_group_size = get_group_size(self.optimizer_parallel_group) if self.is_parallel else 1
+        self.op_rank_id = get_rank(self.optimizer_parallel_group) if self.is_parallel else 0
         self.need_dp = False
         self.dp_group = dp_group
         self.last_assign = False
@@ -132,7 +132,7 @@ class ZeroHelper:
         self.need_parameter_split = tuple([False] * len(self.optimizer._parameters))
         self.use_comm_fusion = False
         if self.zero_stage in [1, 2, 3] and self.is_parallel:
-            self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
+            self.split_op = ops.Split(0, self.optimizer_parallel_group_size)  # optimizer parallel split
             self.get_need_parameter_split()
             if comm_fusion is None:
                 self.set_comm_ops()
@@ -164,7 +164,7 @@ class ZeroHelper:
         _logger.info(
             f"Build TrainOneStepWrapper with ZeRO stage: {self.zero_stage}, "
             f"optimizer_offload: {optimizer_offload}, "
-            f"op_group_size: {self.op_group_size}, "
+            f"optimizer_parallel_group_size: {self.optimizer_parallel_group_size}, "
             f"op_rank_id: {self.op_rank_id}, "
             f"dp_group_size: {self.dp_group_size}."
         )
@@ -172,14 +172,14 @@ class ZeroHelper:
     def set_comm_ops(
         self,
     ):
-        self.op_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
-        self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
+        self.op_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.optimizer_parallel_group)
+        self.op_reduce_scatter = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.optimizer_parallel_group)
         # AllGather the parameters after optimizer calculate to update the parameters in train network.
-        self.op_allgather = ops.AllGather(group=self.op_group)
+        self.op_allgather = ops.AllGather(group=self.optimizer_parallel_group)
 
         self.need_dp = self.dp_group is not None
         if self.need_dp:
-            # Set it when op_group is not the WORLD_COMM_GROUP.
+            # Set it when optimizer_parallel_group is not the WORLD_COMM_GROUP.
             self.dp_allreduce = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.dp_group)
             self.dp_group_size = ms.Tensor(get_group_size(group=self.dp_group), ms.float32)
 
@@ -200,7 +200,7 @@ class ZeroHelper:
             param_size = param.itemsize * param.size
             param_name = param.name
             self.update_comm_op_info(allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name)
-            comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
+            comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.optimizer_parallel_group)
             comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
             self.zero1_allreduce_list.append(comm_op)
         _logger.info(f"zero1_allreduce_fusion: {allreduce_info}")
@@ -223,11 +223,11 @@ class ZeroHelper:
                 self.update_comm_op_info(
                     allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name
                 )
-            comm_op = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.op_group)
+            comm_op = ops.ReduceScatter(op=ops.ReduceOp.SUM, group=self.optimizer_parallel_group)
             comm_op.add_prim_attr("fusion", reduce_scatter_info[-1]["fusion_id"])
             self.zero2_reduce_scatter_list.append(comm_op)
 
-            comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.op_group)
+            comm_op = ops.AllReduce(op=ops.ReduceOp.SUM, group=self.optimizer_parallel_group)
             comm_op.add_prim_attr("fusion", allreduce_info[-1]["fusion_id"])
             self.zero2_allreduce_list.append(comm_op)
         _logger.info(f"zero2_reduce_scatter_fusion: {reduce_scatter_info}")
@@ -244,7 +244,7 @@ class ZeroHelper:
                 self.update_comm_op_info(
                     allgather_info, comm_fusion["allgather"]["bucket_size"], param_size, param_name
                 )
-            comm_op = ops.AllGather(group=self.op_group)
+            comm_op = ops.AllGather(group=self.optimizer_parallel_group)
             comm_op.add_prim_attr("fusion", allgather_info[-1]["fusion_id"])
             self.optimizer_allgather_list.append(comm_op)
         _logger.info(f"optimizer_allgather_fusion: {allgather_info}")
@@ -260,13 +260,13 @@ class ZeroHelper:
                 self.update_comm_op_info(
                     dp_allreduce_info, comm_fusion["allreduce"]["bucket_size"], param_size, param_name
                 )
-            comm_op = ops.AllGather(group=self.op_group)
+            comm_op = ops.AllGather(group=self.optimizer_parallel_group)
             comm_op.add_prim_attr("fusion", dp_allreduce_info[-1]["fusion_id"])
             self.dp_allreduce_list.append(comm_op)
         _logger.info(f"dp_allreduce_fusion: {dp_allreduce_info}")
 
     def split_param(self, param):
-        return split_np(param, self.op_group_size, self.op_rank_id)
+        return split_np(param, self.optimizer_parallel_group_size, self.op_rank_id)
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
@@ -291,7 +291,7 @@ class ZeroHelper:
         for i, param in enumerate(self.optimizer._parameters):
             param_split_info = {
                 "split": self.need_parameter_split[i],
-                "group_size": self.op_group_size,
+                "group_size": self.optimizer_parallel_group_size,
                 "rank_id": self.op_rank_id,
             }
             params_split_info_dict[param.name] = param_split_info
@@ -301,22 +301,20 @@ class ZeroHelper:
 
     def get_need_parameter_split(self):
         self.need_parameter_split = [False] * len(self.optimizer._parameters)
-        param_tuples = self.get_optimizer_param_tuples()
         for i, param in enumerate(self.optimizer._parameters):
             if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
+                self.need_parameter_split[i] = param.parallel_optimizer
             else:
                 B = param.shape[0]
-            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
-                if self.zero_stage in [1, 2]:
-                    self.need_parameter_split[i] = True
+                if param.parallel_optimizer and B >= self.optimizer_parallel_group_size and B % self.optimizer_parallel_group_size == 0:
+                    if self.zero_stage in [1, 2]:
+                        self.need_parameter_split[i] = True
         self.need_parameter_split = tuple(self.need_parameter_split)
 
     def split_params(self):
-        if self.zero_stage in [1, 2] and self.is_parallel:
+        if not (self.zero_stage in [1, 2, 3] and self.is_parallel):
+            return
+        if self.zero_stage in [1, 2]:
             _logger.info("Clone optimizer.parameters, will increase memory.")
             # Because the first input of MindSpore optimizer must be ms.Parameter,
             # copy optimizer.parameters for optimizer parameters update.
@@ -330,15 +328,18 @@ class ZeroHelper:
             _logger.debug(f"Split optimizer param {param.name} {param.shape}")
             # If zero_stage is 3, the parameters in train network have been split,
             # use parameter in param_tuples to get batch size.
-            if self.zero_stage == 3:
-                if param_tuples:
-                    B = param_tuples[0][i].shape[0]
-                else:
-                    continue
-            else:
-                B = param.shape[0]
             _logger.debug(f"Do split with zero_stage {self.zero_stage}")
-            if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
+            if self.zero_stage in [1, 2]:
+                B = param.shape[0]
+                if (
+                    self.ori_parameters[i].parallel_optimizer
+                    and B >= self.optimizer_parallel_group_size
+                    and B % self.optimizer_parallel_group_size == 0
+                ):
+                    param.parallel_optimizer = True
+                else:
+                    param.parallel_optimizer = False
+            if param.parallel_optimizer:
                 if self.zero_stage in [1, 2]:
                     ori_shape = param.shape
                     param.assign_value(self.split_param(param))
@@ -346,7 +347,7 @@ class ZeroHelper:
                 for param_tuple in param_tuples:
                     ori_shape = param_tuple[i].shape
                     param_tuple[i].assign_value(self.split_param(param_tuple[i]))
-                    _logger.debug(f"Optimizer {param_tuple[i].name} " f"from {ori_shape} to {param_tuple[i].shape}")
+                    _logger.debug(f"Optimizer {param_tuple[i].name} from {ori_shape} to {param_tuple[i].shape}")
 
     def reduce_scatter_gradients(self, gradients):
         dtype = gradients[0].dtype
@@ -354,7 +355,7 @@ class ZeroHelper:
             gradients = self.hyper_map(
                 ops.partial(
                     _stage2_reduce_scatter,
-                    ms.Tensor(self.op_group_size, dtype),
+                    ms.Tensor(self.optimizer_parallel_group_size, dtype),
                 ),
                 self.zero2_reduce_scatter_list,
                 self.zero2_allreduce_list,
@@ -365,7 +366,7 @@ class ZeroHelper:
             gradients = self.hyper_map(
                 ops.partial(
                     _stage2_reduce_scatter,
-                    ms.Tensor(self.op_group_size, dtype),
+                    ms.Tensor(self.optimizer_parallel_group_size, dtype),
                     self.op_reduce_scatter,
                     self.op_allreduce,
                 ),
@@ -402,7 +403,7 @@ class ZeroHelper:
                 ops.partial(
                     _stage1_split_grad,
                     self.split_op,
-                    self.op_group_size,
+                    self.optimizer_parallel_group_size,
                     self.op_rank_id,
                 ),
                 self.zero1_allreduce_list,
@@ -414,7 +415,7 @@ class ZeroHelper:
                 ops.partial(
                     _stage1_split_grad,
                     self.split_op,
-                    self.op_group_size,
+                    self.optimizer_parallel_group_size,
                     self.op_rank_id,
                     self.op_allreduce,
                 ),
@@ -469,11 +470,11 @@ def get_cell_dtype(cell):
     return None
 
 
-def _init_parallel_settings(net, op_group, parallel_modules=None):
+def _init_parallel_settings(net, optimizer_parallel_group, parallel_modules=None):
     for module, parallel_module in parallel_modules.items():
         if isinstance(net, module):
             cell_type = get_cell_dtype(net)
-            new_net = parallel_module(net, 3, op_group)
+            new_net = parallel_module(net, 3, optimizer_parallel_group)
             if cell_type is not None:
                 new_net.to_float(cell_type)
             return new_net
@@ -487,14 +488,14 @@ def get_cell_params_fullname_dict(cell: nn.Cell):
     return fullname_dict
 
 
-def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
-    new_net = _init_parallel_settings(network, op_group, parallel_modules)
+def _prepare_network(network: nn.Cell, optimizer_parallel_group: str, parallel_modules=None):
+    new_net = _init_parallel_settings(network, optimizer_parallel_group, parallel_modules)
     if new_net is not None:
         return new_net
     for name, sub_net in network._cells.items():
         if not sub_net:
             continue
-        new_sub_net = _init_parallel_settings(sub_net, op_group, parallel_modules)
+        new_sub_net = _init_parallel_settings(sub_net, optimizer_parallel_group, parallel_modules)
         if new_sub_net is not None:
             params_fullname_dict = get_cell_params_fullname_dict(sub_net)
             if isinstance(network, (nn.CellList, nn.SequentialCell)):
@@ -513,33 +514,33 @@ def _prepare_network(network: nn.Cell, op_group: str, parallel_modules=None):
                 param = getattr(sub_net, param_name)
                 _logger.warning(f"Set param {param.name} parallel_optimizer False, param shape {param.shape}")
                 param.parallel_optimizer = False
-        _prepare_network(sub_net, op_group, parallel_modules)
+        _prepare_network(sub_net, optimizer_parallel_group, parallel_modules)
     return network
 
 
-def prepare_network(network: nn.Cell, zero_stage: int = 0, op_group: str = None, parallel_modules=None):
+def prepare_network(network: nn.Cell, zero_stage: int = 0, optimizer_parallel_group: str = None, parallel_modules=None):
     if zero_stage != 3 or _get_parallel_mode() != ParallelMode.DATA_PARALLEL:
         _logger.info("No need rewrite network and return original network.")
         return network
     _logger.info("Rewrite the network, please wait...")
     if parallel_modules is None:
         parallel_modules = PARALLEL_MODULES
-    network = _prepare_network(network, op_group, parallel_modules)
+    network = _prepare_network(network, optimizer_parallel_group, parallel_modules)
     return network
 
 
-def prepare_ema(ema, zero_stage: int = 0, op_group: str = None):
+def prepare_ema(ema, zero_stage: int = 0, optimizer_parallel_group: str = None):
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel or zero_stage != 3:
         return ema
-    op_group_size = get_group_size(op_group)
-    op_rank_id = get_rank(op_group)
-    _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {op_group_size}.")
+    optimizer_parallel_group_size = get_group_size(optimizer_parallel_group)
+    op_rank_id = get_rank(optimizer_parallel_group)
+    _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {optimizer_parallel_group_size}.")
     for net_weight, ema_weight, swap_cache in zip(ema.net_weight, ema.ema_weight, ema.swap_cache):
         if net_weight.shape == ema_weight.shape:
             continue
-        ema_weight.set_data(split_np(ema_weight, op_group_size, op_rank_id), slice_shape=True)
-        swap_cache.set_data(split_np(swap_cache, op_group_size, op_rank_id), slice_shape=True)
+        ema_weight.set_data(split_np(ema_weight, optimizer_parallel_group_size, op_rank_id), slice_shape=True)
+        swap_cache.set_data(split_np(swap_cache, optimizer_parallel_group_size, op_rank_id), slice_shape=True)
     return ema
 
 
@@ -556,7 +557,7 @@ def prepare_train_network(
     verbose: bool = False,
     zero_stage: int = 0,
     optimizer_offload: bool = False,
-    op_group: str = None,
+    optimizer_parallel_group: str = None,
     dp_group: str = None,
     comm_fusion: dict = None,
     parallel_modules=None,
@@ -573,7 +574,7 @@ def prepare_train_network(
             the shape should be :math:`()` or :math:`(1,)`.
         zero_stage (`int`, *optional*): Stage setting of ZeRO, default is 0.
         optimizer_offload (`bool`, *optional*): Only take effect when optimizer is AdamWeightDecay, default is False.
-        op_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
+        optimizer_parallel_group (`str`, *optional*): The name of the optimizer parallel communication group, default is None.
         dp_group (`str`, *optional*): The name of the data parallel communication group, default is None.
         comm_fusion (`dict`, *optional*): A dict contains the types and configurations
             for setting the communication fusion, default is None, turn off the communication fusion. If set a dict,
@@ -586,22 +587,26 @@ def prepare_train_network(
     """
     if zero_stage not in [0, 1, 2, 3]:
         raise ValueError("Not support zero_stage {zero_stage}")
-    if op_group is None:
+    if optimizer_parallel_group is None:
         _logger.warning("Not set zero group, set it WORLD_COMM_GROUP.")
-        op_group = GlobalComm.WORLD_COMM_GROUP
-    if op_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
-        raise ValueError("op_group {op_group} and dp_group {dp_group} not full network hccl group coverage")
+        optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+    if optimizer_parallel_group != GlobalComm.WORLD_COMM_GROUP and dp_group is None:
+        raise ValueError(
+            "optimizer_parallel_group {optimizer_parallel_group} and dp_group {dp_group} not full network hccl group coverage"
+        )
 
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel and zero_stage == 0:
         _logger.info("No need prepare train_network with zero.")
         zero_helper = None
     else:
-        network = prepare_network(network, zero_stage, op_group, parallel_modules=parallel_modules)
-        zero_helper = ZeroHelper(optimizer, zero_stage, op_group, dp_group, optimizer_offload, comm_fusion)
+        network = prepare_network(network, zero_stage, optimizer_parallel_group, parallel_modules=parallel_modules)
+        zero_helper = ZeroHelper(
+            optimizer, zero_stage, optimizer_parallel_group, dp_group, optimizer_offload, comm_fusion
+        )
 
     if ema is not None:
-        ema = prepare_ema(ema, zero_stage, op_group)
+        ema = prepare_ema(ema, zero_stage, optimizer_parallel_group)
     if isinstance(scale_sense, float):
         scale_sense = ms.Tensor(scale_sense, ms.float32)
     train_network = TrainOneStepWrapper(
@@ -620,7 +625,7 @@ def prepare_train_network(
     return train_network
 
 
-def transform_checkpoints(src_checkpoint: str, src_param_split_info_json: str, group_size: int):
+def convert_checkpoints(src_checkpoint: str, src_param_split_info_json: str, group_size: int):
     """
     src_checkpoint (`str`): The path of checkpoints need to merge parameters. eg. "save_checkpoint_dir/ckpt_{}.ckpt",
         {} is placeholder of rank_id.

@@ -12,10 +12,14 @@ class ZeroParamWrapper(nn.Cell):
     """
 
     def __init__(
-        self, param: ms.Parameter, zero_stage: int = 0, op_group: str = GlobalComm.WORLD_COMM_GROUP, cell_type=None
+        self,
+        param: ms.Parameter,
+        zero_stage: int = 0,
+        optimizer_parallel_group: str = GlobalComm.WORLD_COMM_GROUP,
+        cell_type=None,
     ):
         super().__init__(auto_prefix=False)
-        self.op_group = op_group
+        self.optimizer_parallel_group = optimizer_parallel_group
         self.zero_stage = zero_stage
         self.cell_type = cell_type
         if zero_stage != 3:
@@ -23,23 +27,24 @@ class ZeroParamWrapper(nn.Cell):
 
         # Init parallel settings
         self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-        self.op_group_size = get_group_size(self.op_group) if self.is_parallel else 1
+        self.optimizer_parallel_group_size = get_group_size(self.optimizer_parallel_group) if self.is_parallel else 1
         self.allgather = ops.Identity()
         self.reduce_scatter = None
         self.dtype = param.dtype
-        self.allreduce = ops.AllReduce(group=self.op_group, op=ops.ReduceOp.SUM)
+        self.allreduce = ops.AllReduce(group=self.optimizer_parallel_group, op=ops.ReduceOp.SUM)
 
         self.need_rewrite = self.check_rewrite(param)
         if self.need_rewrite:
-            self.op_allgather = ops.AllGather(group=self.op_group)
-            self.op_reduce_scatter = ops.ReduceScatter(group=self.op_group, op=ops.ReduceOp.SUM)
+            self.op_allgather = ops.AllGather(group=self.optimizer_parallel_group)
+            self.op_reduce_scatter = ops.ReduceScatter(group=self.optimizer_parallel_group, op=ops.ReduceOp.SUM)
 
     def check_rewrite(self, param):
         """Check the parameter need to split or not."""
         need_rewrite = self.is_parallel
         B = param.shape[0]
-        if not param.parallel_optimizer or B < self.op_group_size or B % self.op_group_size != 0:
+        if not param.parallel_optimizer or B < self.optimizer_parallel_group_size or B % self.optimizer_parallel_group_size != 0:
             need_rewrite = False
+        param.parallel_optimizer = need_rewrite
         return need_rewrite
 
     def construct(self, param):
@@ -51,7 +56,7 @@ class ZeroParamWrapper(nn.Cell):
 
     def bprop(self, param, out, dout):
         if self.need_rewrite:
-            r = self.op_reduce_scatter(dout.to(self.dtype)) / self.op_group_size
+            r = self.op_reduce_scatter(dout.to(self.dtype)) / self.optimizer_parallel_group_size
             return (r,)
-        dout = self.allreduce(dout.to(self.dtype)) / self.op_group_size
+        dout = self.allreduce(dout.to(self.dtype)) / self.optimizer_parallel_group_size
         return (dout,)
