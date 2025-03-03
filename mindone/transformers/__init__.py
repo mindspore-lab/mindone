@@ -21,6 +21,15 @@ from .models.blip_2 import (
     Blip2QFormerModel,
     Blip2VisionModel,
 )
+from .models.clap import (
+    ClapAudioModel,
+    ClapAudioModelWithProjection,
+    ClapFeatureExtractor,
+    ClapModel,
+    ClapPreTrainedModel,
+    ClapTextModel,
+    ClapTextModelWithProjection,
+)
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
     CLIPModel,
@@ -55,6 +64,14 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.speecht5 import (
+    SpeechT5ForSpeechToSpeech,
+    SpeechT5ForSpeechToText,
+    SpeechT5ForTextToSpeech,
+    SpeechT5HifiGan,
+    SpeechT5Model,
+    SpeechT5PreTrainedModel,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,

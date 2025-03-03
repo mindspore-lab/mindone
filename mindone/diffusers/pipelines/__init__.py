@@ -119,6 +119,7 @@ _import_structure = {
         "MarigoldNormalsPipeline",
     ],
     "mochi": ["MochiPipeline"],
+    "musicldm": ["MusicLDMPipeline"],
     "pag": [
         "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
@@ -288,6 +289,7 @@ if TYPE_CHECKING:
     from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
+    from .musicldm import MusicLDMPipeline
     from .pag import (
         AnimateDiffPAGPipeline,
         HunyuanDiTPAGPipeline,
