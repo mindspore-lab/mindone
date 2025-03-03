@@ -341,6 +341,7 @@ class CogVideoXPatchEmbed(nn.Cell):
     def __init__(
         self,
         patch_size: int = 2,
+        patch_size_t: Optional[int] = None,
         in_channels: int = 16,
         embed_dim: int = 1920,
         text_embed_dim: int = 4096,
@@ -358,6 +359,7 @@ class CogVideoXPatchEmbed(nn.Cell):
         super().__init__()
 
         self.patch_size = patch_size
+        self.patch_size_t = patch_size_t
         self.embed_dim = embed_dim
         self.sample_height = sample_height
         self.sample_width = sample_width
@@ -369,14 +371,20 @@ class CogVideoXPatchEmbed(nn.Cell):
         self.use_positional_embeddings = use_positional_embeddings
         self.use_learned_positional_embeddings = use_learned_positional_embeddings
 
-        self.proj = nn.Conv2d(
-            in_channels,
-            embed_dim,
-            kernel_size=(patch_size, patch_size),
-            stride=patch_size,
-            has_bias=bias,
-            pad_mode="pad",
-        )
+        if patch_size_t is None:
+            # CogVideoX 1.0 checkpoints
+            self.proj = nn.Conv2d(
+                in_channels,
+                embed_dim,
+                kernel_size=(patch_size, patch_size),
+                stride=patch_size,
+                has_bias=bias,
+                pad_mode="pad",
+            )
+        else:
+            # CogVideoX 1.5 checkpoints
+            self.proj = nn.Dense(in_channels * patch_size * patch_size * patch_size_t, embed_dim)
+
         self.text_proj = nn.Dense(text_embed_dim, embed_dim)
 
         if use_positional_embeddings or use_learned_positional_embeddings:
@@ -415,21 +423,122 @@ class CogVideoXPatchEmbed(nn.Cell):
         """
         text_embeds = self.text_proj(text_embeds)
 
-        batch, num_frames, channels, height, width = image_embeds.shape
-        image_embeds = image_embeds.reshape(-1, channels, height, width)
-        image_embeds = self.proj(image_embeds)
-        image_embeds = image_embeds.view(batch, num_frames, *image_embeds.shape[1:])
-        image_embeds = image_embeds.flatten(start_dim=3).swapaxes(2, 3)  # [batch, num_frames, height x width, channels]
-        image_embeds = image_embeds.flatten(start_dim=1, end_dim=2)  # [batch, num_frames x height x width, channels]
+        batch_size, num_frames, channels, height, width = image_embeds.shape
+
+        if self.patch_size_t is None:
+            image_embeds = image_embeds.reshape(-1, channels, height, width)
+            image_embeds = self.proj(image_embeds)
+            image_embeds = image_embeds.view(batch_size, num_frames, *image_embeds.shape[1:])
+            image_embeds = image_embeds.flatten(start_dim=3).swapaxes(
+                2, 3
+            )  # [batch, num_frames, height x width, channels]
+            image_embeds = image_embeds.flatten(
+                start_dim=1, end_dim=2
+            )  # [batch, num_frames x height x width, channels]
+        else:
+            p = self.patch_size
+            p_t = self.patch_size_t
+
+            image_embeds = image_embeds.permute(0, 1, 3, 4, 2)
+            image_embeds = image_embeds.reshape(
+                batch_size, num_frames // p_t, p_t, height // p, p, width // p, p, channels
+            )
+            image_embeds = (
+                image_embeds.permute(0, 1, 3, 5, 7, 2, 4, 6)
+                .flatten(start_dim=4, end_dim=7)
+                .flatten(start_dim=1, end_dim=3)
+            )
+            image_embeds = self.proj(image_embeds)
 
         embeds = ops.cat(
             [text_embeds, image_embeds], axis=1
         ).contiguous()  # [batch, seq_length + num_frames x height x width, channels]
+
+        if self.use_positional_embeddings or self.use_learned_positional_embeddings:
+            if self.use_learned_positional_embeddings and (self.sample_width != width or self.sample_height != height):
+                raise ValueError(
+                    "It is currently not possible to generate videos at a different resolution that the defaults. This should only be the case with 'THUDM/CogVideoX-5b-I2V'."  # noqa: E501
+                    "If you think this is incorrect, please open an issue at https://github.com/huggingface/diffusers/issues."
+                )
+
+            pre_time_compression_frames = (num_frames - 1) * self.temporal_compression_ratio + 1
+
+            if (
+                self.sample_height != height
+                or self.sample_width != width
+                or self.sample_frames != pre_time_compression_frames
+            ):
+                pos_embedding = self._get_positional_embeddings(height, width, pre_time_compression_frames)
+                pos_embedding = pos_embedding.to(dtype=embeds.dtype)
+            else:
+                pos_embedding = self.pos_embedding.to(dtype=embeds.dtype)
+
+            embeds = embeds + pos_embedding
+
         return embeds
 
 
+class CogView3PlusPatchEmbed(nn.Cell):
+    def __init__(
+        self,
+        in_channels: int = 16,
+        hidden_size: int = 2560,
+        patch_size: int = 2,
+        text_hidden_size: int = 4096,
+        pos_embed_max_size: int = 128,
+    ):
+        super().__init__()
+        self.in_channels = in_channels
+        self.hidden_size = hidden_size
+        self.patch_size = patch_size
+        self.text_hidden_size = text_hidden_size
+        self.pos_embed_max_size = pos_embed_max_size
+        # Linear projection for image patches
+        self.proj = nn.Dense(in_channels * patch_size**2, hidden_size)
+
+        # Linear projection for text embeddings
+        self.text_proj = nn.Dense(text_hidden_size, hidden_size)
+
+        pos_embed = get_2d_sincos_pos_embed(hidden_size, pos_embed_max_size, base_size=pos_embed_max_size)
+        pos_embed = pos_embed.reshape(pos_embed_max_size, pos_embed_max_size, hidden_size)
+        self.pos_embed = ms.Tensor.from_numpy(pos_embed).float()
+
+    def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
+        batch_size, channel, height, width = hidden_states.shape
+
+        if height % self.patch_size != 0 or width % self.patch_size != 0:
+            raise ValueError("Height and width must be divisible by patch size")
+
+        height = height // self.patch_size
+        width = width // self.patch_size
+        hidden_states = hidden_states.view(batch_size, channel, height, self.patch_size, width, self.patch_size)
+        hidden_states = hidden_states.permute(0, 2, 4, 1, 3, 5).contiguous()
+        hidden_states = hidden_states.view(batch_size, height * width, channel * self.patch_size * self.patch_size)
+
+        # Project the patches
+        hidden_states = self.proj(hidden_states)
+        encoder_hidden_states = self.text_proj(encoder_hidden_states)
+        hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+
+        # Calculate text_length
+        text_length = encoder_hidden_states.shape[1]
+
+        image_pos_embed = self.pos_embed[:height, :width].reshape(height * width, -1)
+        text_pos_embed = ops.zeros((text_length, self.hidden_size), dtype=image_pos_embed.dtype)
+        pos_embed = ops.cat([text_pos_embed, image_pos_embed], axis=0)[None, ...]
+
+        return (hidden_states + pos_embed).to(hidden_states.dtype)
+
+
 def get_3d_rotary_pos_embed(
-    embed_dim, crops_coords, grid_size, temporal_size, theta: int = 10000, use_real: bool = True
+    embed_dim,
+    crops_coords,
+    grid_size,
+    temporal_size,
+    theta: int = 10000,
+    use_real: bool = True,
+    grid_type: str = "linspace",
+    max_size: Optional[Tuple[int, int]] = None,
 ) -> Union[ms.Tensor, Tuple[ms.Tensor, ms.Tensor]]:
     """
     RoPE for video tokens with 3D structure.
@@ -445,16 +554,31 @@ def get_3d_rotary_pos_embed(
         The size of the temporal dimension.
     theta (`float`):
         Scaling factor for frequency computation.
+    grid_type (`str`):
+        Whether to use "linspace" or "slice" to compute grids.
     use_real (`bool`):
         If True, return real part and imaginary part separately. Otherwise, return complex numbers.
 
     Returns:
         `ms.Tensor`: positional embedding with shape `(temporal_size * grid_size[0] * grid_size[1], embed_dim/2)`.
     """
-    start, stop = crops_coords
-    grid_h = np.linspace(start[0], stop[0], grid_size[0], endpoint=False, dtype=np.float32)
-    grid_w = np.linspace(start[1], stop[1], grid_size[1], endpoint=False, dtype=np.float32)
-    grid_t = np.linspace(0, temporal_size, temporal_size, endpoint=False, dtype=np.float32)
+    if use_real is not True:
+        raise ValueError(" `use_real = False` is not currently supported for get_3d_rotary_pos_embed")
+
+    if grid_type == "linspace":
+        start, stop = crops_coords
+        grid_size_h, grid_size_w = grid_size
+        grid_h = np.linspace(start[0], stop[0], grid_size_h, endpoint=False, dtype=np.float32)
+        grid_w = np.linspace(start[1], stop[1], grid_size_w, endpoint=False, dtype=np.float32)
+        grid_t = np.linspace(0, temporal_size, temporal_size, endpoint=False, dtype=np.float32)
+    elif grid_type == "slice":
+        max_h, max_w = max_size
+        grid_size_h, grid_size_w = grid_size
+        grid_h = np.arange(max_h, dtype=np.float32)
+        grid_w = np.arange(max_w, dtype=np.float32)
+        grid_t = np.arange(temporal_size, dtype=np.float32)
+    else:
+        raise ValueError("Invalid value passed for `grid_type`.")
 
     # Compute dimensions for each axis
     dim_t = embed_dim // 4
@@ -462,54 +586,43 @@ def get_3d_rotary_pos_embed(
     dim_w = embed_dim // 8 * 3
 
     # Temporal frequencies
-    freqs_t = 1.0 / (theta ** (ops.arange(0, dim_t, 2, dtype=ms.float32) / dim_t))
-    grid_t = ms.Tensor.from_numpy(grid_t).float()
-    freqs_t = grid_t[..., None] * freqs_t[None, ...]
-    freqs_t = freqs_t.repeat_interleave(2, dim=-1)
-
+    freqs_t = get_1d_rotary_pos_embed(dim_t, grid_t, use_real=True)
     # Spatial frequencies for height and width
-    freqs_h = 1.0 / (theta ** (ops.arange(0, dim_h, 2, dtype=ms.float32) / dim_h))
-    freqs_w = 1.0 / (theta ** (ops.arange(0, dim_w, 2, dtype=ms.float32) / dim_w))
-    grid_h = ms.Tensor.from_numpy(grid_h).float()
-    grid_w = ms.Tensor.from_numpy(grid_w).float()
-    freqs_h = grid_h[..., None] * freqs_h[None, ...]
-    freqs_w = grid_w[..., None] * freqs_w[None, ...]
-    freqs_h = freqs_h.repeat_interleave(2, dim=-1)
-    freqs_w = freqs_w.repeat_interleave(2, dim=-1)
+    freqs_h = get_1d_rotary_pos_embed(dim_h, grid_h, use_real=True)
+    freqs_w = get_1d_rotary_pos_embed(dim_w, grid_w, use_real=True)
 
-    # Broadcast and concatenate tensors along specified dimension
-    def broadcast(tensors, dim=-1):
-        num_tensors = len(tensors)
-        shape_lens = {len(t.shape) for t in tensors}
-        assert len(shape_lens) == 1, "tensors must all have the same number of dimensions"
-        shape_len = list(shape_lens)[0]
-        dim = (dim + shape_len) if dim < 0 else dim
-        dims = list(zip(*(list(t.shape) for t in tensors)))
-        expandable_dims = [(i, val) for i, val in enumerate(dims) if i != dim]
-        assert all(
-            [*(len(set(t[1])) <= 2 for t in expandable_dims)]
-        ), "invalid dimensions for broadcastable concatenation"
-        max_dims = [(t[0], max(t[1])) for t in expandable_dims]
-        expanded_dims = [(t[0], (t[1],) * num_tensors) for t in max_dims]
-        expanded_dims.insert(dim, (dim, dims[dim]))
-        expandable_shapes = list(zip(*(t[1] for t in expanded_dims)))
-        tensors = [t[0].broadcast_to(t[1]) for t in zip(tensors, expandable_shapes)]
-        return ops.cat(tensors, axis=dim)
+    # BroadCast and concatenate temporal and spaial frequencie (height and width) into a 3d tensor
+    def combine_time_height_width(freqs_t, freqs_h, freqs_w):
+        freqs_t = freqs_t[:, None, None, :].broadcast_to(
+            (-1, grid_size_h, grid_size_w, -1)
+        )  # temporal_size, grid_size_h, grid_size_w, dim_t
+        freqs_h = freqs_h[None, :, None, :].broadcast_to(
+            (temporal_size, -1, grid_size_w, -1)
+        )  # temporal_size, grid_size_h, grid_size_2, dim_h
+        freqs_w = freqs_w[None, None, :, :].broadcast_to(
+            (temporal_size, grid_size_h, -1, -1)
+        )  # temporal_size, grid_size_h, grid_size_2, dim_w
 
-    freqs = broadcast((freqs_t[:, None, None, :], freqs_h[None, :, None, :], freqs_w[None, None, :, :]), dim=-1)
+        freqs = ops.cat(
+            [freqs_t, freqs_h, freqs_w], axis=-1
+        )  # temporal_size, grid_size_h, grid_size_w, (dim_t + dim_h + dim_w)
+        freqs = freqs.view(
+            temporal_size * grid_size_h * grid_size_w, -1
+        )  # (temporal_size * grid_size_h * grid_size_w), (dim_t + dim_h + dim_w)
+        return freqs
 
-    t, h, w, d = freqs.shape
-    freqs = freqs.view(t * h * w, d)
+    t_cos, t_sin = freqs_t  # both t_cos and t_sin has shape: temporal_size, dim_t
+    h_cos, h_sin = freqs_h  # both h_cos and h_sin has shape: grid_size_h, dim_h
+    w_cos, w_sin = freqs_w  # both w_cos and w_sin has shape: grid_size_w, dim_w
 
-    # Generate sine and cosine components
-    sin = freqs.sin()
-    cos = freqs.cos()
+    if grid_type == "slice":
+        t_cos, t_sin = t_cos[:temporal_size], t_sin[:temporal_size]
+        h_cos, h_sin = h_cos[:grid_size_h], h_sin[:grid_size_h]
+        w_cos, w_sin = w_cos[:grid_size_w], w_sin[:grid_size_w]
 
-    if use_real:
-        return cos, sin
-    else:
-        freqs_cis = ops.polar(ops.ones_like(freqs), freqs)
-        return freqs_cis
+    cos = combine_time_height_width(t_cos, h_cos, w_cos)
+    sin = combine_time_height_width(t_sin, h_sin, w_sin)
+    return cos, sin
 
 
 def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True):
@@ -584,6 +697,7 @@ def get_1d_rotary_pos_embed(
     linear_factor=1.0,
     ntk_factor=1.0,
     repeat_interleave_real=True,
+    freqs_dtype=ms.float32,  # ms.float32, ms.float64 (flux)
 ):
     """
     Precompute the frequency tensor for complex exponentials (cis) with given dimensions.
@@ -606,22 +720,38 @@ def get_1d_rotary_pos_embed(
         repeat_interleave_real (`bool`, *optional*, defaults to `True`):
             If `True` and `use_real`, real part and imaginary part are each interleaved with themselves to reach `dim`.
             Otherwise, they are concateanted with themselves.
+        freqs_dtype (`ms.float32` or `ms.float64`, *optional*, defaults to `ms.float32`):
+            the dtype of the frequency tensor.
     Returns:
         `ms.Tensor`: Precomputed frequency tensor with complex exponentials. [S, D/2]
     """
     assert dim % 2 == 0
 
     if isinstance(pos, int):
-        pos = np.arange(pos)
+        pos = ops.arange(pos)
+    if isinstance(pos, np.ndarray):
+        pos = ms.Tensor.from_numpy(pos)  # type: ignore  # [S]
+
     theta = theta * ntk_factor
-    freqs = 1.0 / (theta ** (ops.arange(0, dim, 2)[: (dim // 2)].float() / dim)) / linear_factor  # [D/2]
-    t = ms.Tensor.from_numpy(pos)  # type: ignore  # [S]
-    freqs = ops.outer(t, freqs).float()  # type: ignore   # [S, D/2]
+    freqs = 1.0 / (theta ** (ops.arange(0, dim, 2, dtype=freqs_dtype)[: (dim // 2)] / dim)) / linear_factor  # [D/2]
+    freqs = ops.outer(pos, freqs)  # type: ignore   # [S, D/2]
     if use_real and repeat_interleave_real:
-        freqs_cos = freqs.cos().repeat_interleave(2, dim=1)  # [S, D]
-        freqs_sin = freqs.sin().repeat_interleave(2, dim=1)  # [S, D]
+        # flux, hunyuan-dit, cogvideox
+        freqs_cos = freqs.cos().repeat_interleave(2, dim=1).float()  # [S, D]
+        freqs_sin = freqs.sin().repeat_interleave(2, dim=1).float()  # [S, D]
+        return freqs_cos, freqs_sin
+    elif use_real:
+        # stable audio
+        freqs_cos = ops.cat([freqs.cos(), freqs.cos()], axis=-1).float()  # [S, D]
+        freqs_sin = ops.cat([freqs.sin(), freqs.sin()], axis=-1).float()  # [S, D]
+        return freqs_cos, freqs_sin
+    elif use_real:
+        # stable audio, allegro
+        freqs_cos = ops.cat([freqs.cos(), freqs.cos()], axis=-1).float()  # [S, D]
+        freqs_sin = ops.cat([freqs.sin(), freqs.sin()], axis=-1).float()  # [S, D]
         return freqs_cos, freqs_sin
     else:
+        # lumina
         freqs_cis = ops.polar(ops.ones_like(freqs), freqs)  # complex64     # [S, D/2]
         return freqs_cis
 
@@ -647,16 +777,22 @@ def apply_rotary_emb(
         Tuple[ms.Tensor, ms.Tensor]: Tuple of modified query tensor and key tensor with rotary embeddings.
     """
     if use_real:
-        cos, sin = freqs_cis  # [S, D]
-        cos = cos[None, None]
-        sin = sin[None, None]
+        # Support concatenated `freqs_cis` since MindSpore recompute doesn't support calculate tensors' gradient from tuple.
+        if ops.is_tensor(freqs_cis):
+            cos, sin = freqs_cis.chunk(2)  # [1, S, D]
+            cos = cos[None]
+            sin = sin[None]
+        else:
+            cos, sin = freqs_cis  # [S, D]
+            cos = cos[None, None]
+            sin = sin[None, None]
 
         if use_real_unbind_dim == -1:
-            # Use for example in Lumina
+            # Used for flux, cogvideox, hunyuan-dit
             x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
             x_rotated = ops.stack([-x_imag, x_real], axis=-1).flatten(start_dim=3)
         elif use_real_unbind_dim == -2:
-            # Use for example in Stable Audio
+            # Used for Stable Audio
             x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
             x_rotated = ops.cat([-x_imag, x_real], axis=-1)
         else:
@@ -666,11 +802,36 @@ def apply_rotary_emb(
 
         return out
     else:
+        # used for lumina
         x_rotated = view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
         freqs_cis = freqs_cis.unsqueeze(2)
         x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
 
         return x_out.type_as(x)
+
+
+class FluxPosEmbed(nn.Cell):
+    # modified from https://github.com/black-forest-labs/flux/blob/c00d7c60b085fce8058b9df845e036090873f2ce/src/flux/modules/layers.py#L11
+    def __init__(self, theta: int, axes_dim: List[int]):
+        super().__init__()
+        self.theta = theta
+        self.axes_dim = axes_dim
+
+    def construct(self, ids: ms.Tensor) -> ms.Tensor:
+        n_axes = ids.shape[-1]
+        cos_out = []
+        sin_out = []
+        pos = ids.float()
+        freqs_dtype = ms.float64
+        for i in range(n_axes):
+            cos, sin = get_1d_rotary_pos_embed(
+                self.axes_dim[i], pos[:, i], repeat_interleave_real=True, use_real=True, freqs_dtype=freqs_dtype
+            )
+            cos_out.append(cos)
+            sin_out.append(sin)
+        freqs_cos = ops.cat(cos_out, axis=-1)
+        freqs_sin = ops.cat(sin_out, axis=-1)
+        return freqs_cos, freqs_sin
 
 
 class TimestepEmbedding(nn.Cell):
@@ -1041,6 +1202,39 @@ class CombinedTimestepGuidanceTextProjEmbeddings(nn.Cell):
         pooled_projections = self.text_embedder(pooled_projection)
         conditioning = time_guidance_emb + pooled_projections
 
+        return conditioning
+
+
+class CogView3CombinedTimestepSizeEmbeddings(nn.Cell):
+    def __init__(self, embedding_dim: int, condition_dim: int, pooled_projection_dim: int, timesteps_dim: int = 256):
+        super().__init__()
+
+        self.time_proj = Timesteps(num_channels=timesteps_dim, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.condition_proj = Timesteps(num_channels=condition_dim, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=timesteps_dim, time_embed_dim=embedding_dim)
+        self.condition_embedder = PixArtAlphaTextProjection(pooled_projection_dim, embedding_dim, act_fn="silu")
+
+    def construct(
+        self,
+        timestep: ms.Tensor,
+        original_size: ms.Tensor,
+        target_size: ms.Tensor,
+        crop_coords: ms.Tensor,
+        hidden_dtype: ms.Type,
+    ) -> ms.Tensor:
+        timesteps_proj = self.time_proj(timestep)
+
+        original_size_proj = self.condition_proj(original_size.flatten()).view(original_size.shape[0], -1)
+        crop_coords_proj = self.condition_proj(crop_coords.flatten()).view(crop_coords.shape[0], -1)
+        target_size_proj = self.condition_proj(target_size.flatten()).view(target_size.shape[0], -1)
+
+        # (B, 3 * condition_dim)
+        condition_proj = ops.cat([original_size_proj, crop_coords_proj, target_size_proj], axis=1)
+
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (B, embedding_dim)
+        condition_emb = self.condition_embedder(condition_proj.to(dtype=hidden_dtype))  # (B, embedding_dim)
+
+        conditioning = timesteps_emb + condition_emb
         return conditioning
 
 

@@ -117,7 +117,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -911,7 +911,7 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline, StableDiffusionMixin):
             image, has_nsfw_concept = self.run_safety_checker(image, prompt_embeds.dtype)
 
             # 10. Convert to PIL
-            image = self.numpy_to_pil(image.numpy())
+            image = self.numpy_to_pil(image)
         else:
             # 8. Post-processing
             image = self.decode_latents(latents)

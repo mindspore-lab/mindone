@@ -27,7 +27,7 @@ from ad.modules.diffusionmodules.util import (
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint
 
 from mindone.utils.version_control import is_old_ms_version
 
@@ -58,11 +58,14 @@ class Upsample(nn.Cell):
     def construct(self, x, emb=None, context=None, target_size=None):
         if target_size is None:
             if self.dims == 3:
-                x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))(x)
+                x = mint.nn.functional.interpolate(
+                    x, size=(x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2), mode="nearest"
+                )
             else:
-                x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
+                x = mint.nn.functional.interpolate(x, size=(x.shape[2] * 2, x.shape[3] * 2), mode="nearest")
+
         else:
-            x = ops.ResizeNearestNeighbor(size=target_size)(x)
+            x = mint.nn.functional.interpolate(x, size=target_size, mode="nearest")
 
         if self.use_conv:
             x = self.conv(x)
@@ -147,12 +150,11 @@ class ResBlock(nn.Cell):
         self.updown = up or down
         self.dtype = dtype
         self.identity = Identity()
-        self.split = ops.Split(1, 2)
 
         self.in_layers_norm = normalization(
             channels, norm_in_5d=norm_in_5d
         )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
-        self.in_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.in_layers_silu = mint.nn.SiLU().to_float(self.dtype)
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
@@ -167,19 +169,19 @@ class ResBlock(nn.Cell):
             self.h_upd = self.x_upd = self.identity
 
         self.emb_layers = nn.SequentialCell(
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             linear(
                 emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels, dtype=self.dtype
             ),
         )
 
         self.out_layers_norm = normalization(self.out_channels, norm_in_5d=norm_in_5d)
-        self.out_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.out_layers_silu = mint.nn.SiLU().to_float(self.dtype)
 
         if is_old_ms_version():
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
         else:
-            self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout)
+            self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout).to_float(ms.float32)
 
         self.out_layers_conv = zero_module(
             conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
@@ -215,10 +217,10 @@ class ResBlock(nn.Cell):
 
         emb_out = self.emb_layers(emb)
         while len(emb_out.shape) < len(h.shape):
-            emb_out = ops.expand_dims(emb_out, -1)
+            emb_out = mint.unsqueeze(emb_out, -1)
 
         if self.use_scale_shift_norm:
-            scale, shift = self.split(emb_out)
+            scale, shift = mint.split(emb_out, emb_out.shape[1] // 2, dim=1)
             h = self.out_layers_norm(h, video_length) * (1 + scale) + shift
             h = self.out_layers_silu(h)
             h = self.out_layers_drop(h)
@@ -388,19 +390,19 @@ class UNetModel(nn.Cell):
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
 
         if self.num_classes is not None:
             if isinstance(self.num_classes, int):
-                self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
+                self.label_emb = mint.nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
             elif self.num_classes == "sequential":
                 assert adm_in_channels is not None
                 self.label_emb = nn.SequentialCell(
                     nn.SequentialCell(
                         linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
-                        nn.SiLU().to_float(self.dtype),
+                        mint.nn.SiLU().to_float(self.dtype),
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
@@ -632,7 +634,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             normalization(ch),
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             zero_module(
                 conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
                     self.dtype
@@ -645,7 +647,6 @@ class UNetModel(nn.Cell):
                 normalization(ch),
                 conv_nd(dims, model_channels, n_embed, 1, has_bias=True, pad_mode="pad").to_float(self.dtype),
             )
-        self.cat = ops.Concat(axis=1)
 
     def construct(
         self, x, timesteps=None, context=None, y=None, features_adapter: list = None, append_to_context=None, **kwargs
@@ -672,7 +673,7 @@ class UNetModel(nn.Cell):
         h = x
 
         if append_to_context is not None:
-            context = ops.cat([context, append_to_context], axis=1)
+            context = mint.cat([context, append_to_context], dim=1)
 
         adapter_idx = 0
         for i, celllist in enumerate(self.input_blocks, 1):
@@ -693,7 +694,7 @@ class UNetModel(nn.Cell):
 
         hs_index = -1
         for celllist in self.output_blocks:
-            h = self.cat((h, hs[hs_index]))
+            h = mint.concat((h, hs[hs_index]), dim=1)
             for cell in celllist:
                 h = cell(h, emb, context)
             hs_index -= 1

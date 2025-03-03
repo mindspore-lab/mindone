@@ -4,9 +4,14 @@ from ...utils import _LazyModule
 
 _import_structure = {}
 _import_structure["pipeline_stable_diffusion_3_controlnet"] = ["StableDiffusion3ControlNetPipeline"]
+_import_structure["pipeline_stable_diffusion_3_controlnet_inpainting"] = [
+    "StableDiffusion3ControlNetInpaintingPipeline"
+]
+
 
 if TYPE_CHECKING:
     from .pipeline_stable_diffusion_3_controlnet import StableDiffusion3ControlNetPipeline
+    from .pipeline_stable_diffusion_3_controlnet_inpainting import StableDiffusion3ControlNetInpaintingPipeline
 else:
     import sys
 

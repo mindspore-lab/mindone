@@ -1,38 +1,27 @@
-"""
-Run causal vae reconstruction on a given image
-Usage example:
-python examples/rec_image.py \
-    --ae_path LanguageBind/Open-Sora-Plan-v1.2.0/vae \
-    --image_path test.jpg \
-    --rec_path rec.jpg \
-    --device Ascend \
-    --short_size 512 \
-    --enable_tiling
-"""
 import argparse
 import logging
 import os
+import re
 import sys
 
+import cv2
 import numpy as np
+from albumentations import Compose, Lambda, Resize, ToFloat
 from PIL import Image
 
 import mindspore as ms
-from mindspore import nn
 
 mindone_lib_path = os.path.abspath("../../")
 sys.path.insert(0, mindone_lib_path)
-from mindone.utils.amp import auto_mixed_precision
+
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 
 sys.path.append(".")
 
-import cv2
-from albumentations import Compose, Lambda, Resize, ToFloat
-from opensora.models import CausalVAEModelWrapper
-from opensora.models.causalvideovae.model.modules.updownsample import TrilinearInterpolate
-from opensora.utils.ms_utils import init_env
+from opensora.models.causalvideovae import ae_wrapper
+from opensora.models.causalvideovae.model.registry import ModelRegistry
+from opensora.npu_config import npu_config
 from opensora.utils.utils import get_precision
 
 logger = logging.getLogger(__name__)
@@ -60,7 +49,7 @@ def preprocess(image, height: int = 128, width: int = 128):
 
     image = video_transform(image=image)["image"]  # (h w c)
     # (h w c) -> (c h w) -> (c t h w)
-    image = np.transpose(image, (2, 1, 0))[:, None, :, :]
+    image = np.transpose(image, (2, 0, 1))[:, None, :, :]
     return image
 
 
@@ -75,27 +64,44 @@ def transform_to_rgb(x, rescale_to_uint8=True):
 def main(args):
     image_path = args.image_path
     short_size = args.short_size
-    init_env(
-        mode=args.mode,
-        device_target=args.device,
-        precision_mode=args.precision_mode,
-        jit_level=args.jit_level,
-        jit_syntax_level=args.jit_syntax_level,
-    )
+    npu_config.set_npu_env(args)
+    npu_config.print_ops_dtype_info()
 
     set_logger(name="", output_dir=args.output_path, rank=0)
-
+    dtype = get_precision(args.precision)
     if args.ms_checkpoint is not None and os.path.exists(args.ms_checkpoint):
         logger.info(f"Run inference with MindSpore checkpoint {args.ms_checkpoint}")
         state_dict = ms.load_checkpoint(args.ms_checkpoint)
-        # rm 'network.' prefix
+
         state_dict = dict(
             [k.replace("autoencoder.", "") if k.startswith("autoencoder.") else k, v] for k, v in state_dict.items()
         )
+        state_dict = dict([k.replace("_backbone.", "") if "_backbone." in k else k, v] for k, v in state_dict.items())
     else:
         state_dict = None
-    kwarg = {"state_dict": state_dict, "use_safetensors": True}
-    vae = CausalVAEModelWrapper(args.ae_path, **kwarg)
+    vae = None
+    if args.model_config is not None:
+        assert os.path.exists(args.model_config), f"`model_config` does not exist! {args.model_config}"
+        pattern = r"^([A-Za-z]+)Model"
+        if re.match(pattern, args.ae):
+            model_name = re.match(pattern, args.ae).group(1)
+            model_cls = ModelRegistry.get_model(model_name)
+            vae = model_cls.from_config(args.model_config, dtype=dtype)
+            if args.ms_checkpoint is None or not os.path.exists(args.ms_checkpoint):
+                logger.warning(
+                    "VAE is randomly initialized. The inference results may be incorrect! Check `ms_checkpoint`!"
+                )
+
+        else:
+            logger.warning(f"Incorrect ae name, must be one of {ae_wrapper.keys()}")
+
+    kwarg = {
+        "state_dict": state_dict,
+        "use_safetensors": True,
+        "dtype": dtype,
+        "vae": vae,
+    }
+    vae = ae_wrapper[args.ae](args.ae_path, **kwarg)
 
     if args.enable_tiling:
         vae.vae.enable_tiling()
@@ -104,25 +110,11 @@ def main(args):
     vae.set_train(False)
     for param in vae.get_parameters():
         param.requires_grad = False
-    if args.precision in ["fp16", "bf16"]:
-        amp_level = "O2"
-        dtype = get_precision(args.precision)
-        if dtype == ms.float16:
-            custom_fp32_cells = [nn.GroupNorm] if args.vae_keep_gn_fp32 else []
-        else:
-            custom_fp32_cells = [nn.AvgPool2d, TrilinearInterpolate]
 
-        vae = auto_mixed_precision(vae, amp_level, dtype, custom_fp32_cells=custom_fp32_cells)
-        logger.info(
-            f"Set mixed precision to {amp_level} with dtype={args.precision}, custom fp32_cells {custom_fp32_cells}"
-        )
-    elif args.precision == "fp32":
-        dtype = get_precision(args.precision)
-    else:
-        raise ValueError(f"Unsupported precision {args.precision}")
     input_x = np.array(Image.open(image_path))  # (h w c)
     assert input_x.shape[2], f"Expect the input image has three channels, but got shape {input_x.shape}"
     x_vae = preprocess(input_x, short_size, short_size)  # use image as a single-frame video
+
     x_vae = ms.Tensor(x_vae, dtype).unsqueeze(0)  # b c t h w
     latents = vae.encode(x_vae)
     latents = latents.to(dtype)
@@ -147,6 +139,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--image_path", type=str, default="")
     parser.add_argument("--rec_path", type=str, default="")
+    parser.add_argument("--ae", type=str, default="WFVAEModel_D8_4x8x8", choices=ae_wrapper.keys())
     parser.add_argument("--ae_path", type=str, default="results/pretrained")
     parser.add_argument("--ms_checkpoint", type=str, default=None)
     parser.add_argument("--short_size", type=int, default=336)
@@ -154,7 +147,7 @@ if __name__ == "__main__":
     parser.add_argument("--tile_sample_min_size", type=int, default=256)
     parser.add_argument("--enable_tiling", action="store_true")
     # ms related
-    parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
+    parser.add_argument("--mode", default=1, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument(
         "--precision",
         default="bf16",
@@ -187,6 +180,9 @@ if __name__ == "__main__":
     parser.add_argument("--jit_level", default="O0", help="Set jit level: # O0: KBK, O1:DVM, O2: GE")
     parser.add_argument(
         "--jit_syntax_level", default="strict", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
+    )
+    parser.add_argument(
+        "--model_config", type=str, default=None, help="The model config file for initiating vae model."
     )
     args = parser.parse_args()
     main(args)

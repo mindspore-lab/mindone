@@ -242,8 +242,9 @@ BACKENDS_MAPPING = OrderedDict(
 # This function was copied from: https://github.com/huggingface/accelerate/blob/874c4967d94badd24f893064cc3bef45f57cadf7/src/accelerate/utils/versions.py#L319
 def compare_versions(library_or_version: Union[str, Version], operation: str, requirement_version: str):
     """
-    Args:
     Compares a library version to some requirement using a given operation.
+
+    Args:
         library_or_version (`str` or `packaging.version.Version`):
             A library name or a version to check.
         operation (`str`):
@@ -261,8 +262,9 @@ def compare_versions(library_or_version: Union[str, Version], operation: str, re
 
 def is_mindspore_version(operation: str, version: str):
     """
-    Args:
     Compares the current MindSpore version to a given reference with an operation.
+
+    Args:
         operation (`str`):
             A string representation of an operator, such as `">"` or `"<="`
         version (`str`):
@@ -273,8 +275,9 @@ def is_mindspore_version(operation: str, version: str):
 
 def is_peft_version(operation: str, version: str):
     """
-    Args:
     Compares the current PEFT version to a given reference with an operation.
+
+    Args:
         operation (`str`):
             A string representation of an operator, such as `">"` or `"<="`
         version (`str`):

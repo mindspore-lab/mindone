@@ -2,6 +2,7 @@ import logging
 
 from opensora.acceleration.parallel_states import hccl_info
 
+import mindspore as ms
 from mindspore import Tensor, mint, nn, ops
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,10 @@ class _SingleAll2ALL(nn.Cell):
         # self.alltoall = AlltoAll(split_count=self.sp_size, group=self.spg)
 
     def construct(self, input_: Tensor):
+        origin_dtype = input_.dtype
+        if input_.dtype == ms.bfloat16:
+            input_ = input_.to(ms.float32)
+
         scatter_dim, gather_dim, sp_size = self.scatter_dim, self.gather_dim, self.sp_size
         inp_shape = list(input_.shape)
         inp_shape[scatter_dim] = inp_shape[scatter_dim] // sp_size
@@ -44,7 +49,7 @@ class _SingleAll2ALL(nn.Cell):
             + inp_shape[gather_dim + 1 :]
         )
 
-        return output
+        return output.to(origin_dtype)
 
 
 class AllGather(nn.Cell):

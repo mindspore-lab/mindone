@@ -12,10 +12,11 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 
 ## Requirements
 
-| mindspore  | ascend driver  |  firmware   |cann toolkit/kernel |
-|:----------:|:--------------:|:-----------:|:------------------:|
-|   2.3.1    |    24.1.RC2    | 7.3.0.1.231 |   8.0.RC2.beta1    |
-|   2.2.10   |     23.0.3     | 7.1.0.5.220 |    7.0.0.beta1     |
+| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |    24.1.0     | 7.5.0.3.220 |     8.0.0.beta1     |
+|   2.3.1   |   24.1.RC2    | 7.3.0.1.231 |    8.0.RC2.beta1    |
+|  2.2.10   |    23.0.3     | 7.1.0.5.220 |     7.0.0.beta1     |
 
 To install other dependent packages:
 ```bash
@@ -256,11 +257,17 @@ Experiments are tested on ascend 910* graph mode.
 
 ### Inference
 
+- mindspore 2.5.0
+
+|   model name   | cards | resolution  | scheduler | steps | s/step |   s/video    |
+|:--------------:|:-----:|:-----------:|:---------:|:-----:|:------:|:------------:|
+| AnimateDiff v2 |   1   | 512x512x16  |  DDIM     |  30   | 0.64   |     19.2     |
+
 - mindspore 2.3.1
 
-|   model name   |cards| resolution  | scheduler | steps |     s/step     |    s/video    |
-|:--------------:|:--:|:----------: |:---------:|:-----:|:--------------:|:-------------:|
-| AnimateDiff v2 |1|  512x512x16 |   DDIM    |  30   |      0.60      |      18.00    |
+|   model name   |cards| resolution  | scheduler | steps | s/step | s/video |
+|:--------------:|:--:|:----------: |:---------:|:-----:|:------:|:-------:|
+| AnimateDiff v2 |1|  512x512x16 |   DDIM    |  30   |  0.62  |  18.6   |
 
 - mindspore 2.2.10
 
@@ -270,14 +277,23 @@ Experiments are tested on ascend 910* graph mode.
 
 ### Training
 
+- mindspore 2.5.0
+
+|             method             | cards | batch size | resolution | flash attn | jit level | graph compile | s/step | img/s |
+|:----------------------------:|-------|:----------:|:----------:|:---------------:|:---------:|:-------------:|:------:|:-------------:|
+|         MM training          | 1     |     1      |    16x512x512     |       ON        |    O1     |    3~5mins    | 0.992  |     1.008     |
+|         Motion Lora          | 1     |     1      |    16x512x512     |       ON        |    O1     |    3~5mins    | 1.304  |     0.767     |
+| MM training w/ Embed. cached | 1     |     1      |    16x512x512     |       ON        |    O1     |    3~5mins    | 0.772  |     1.295     |
+| Motion Lora w/ Embed. cached | 1     |     1      |    16x512x512     |       ON        |    O1     |    3~5mins    | 0.874  |     1.144     |
+
 - mindspore 2.3.1
 
-|             method             |cards|  batch size| resolution    | flash attn | jit level |    s/step    |    img/s    |
-|:----------------------------:|:---:|:----------:|:----------:  |:---------------:|:---------:|:------------:|:-------------:|
-|         MM training          |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.320     |     0.75      |
-|         Motion Lora          |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.566     |     0.64     |
-| MM training w/ Embed. cached |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.004     |     0.99     |
-| Motion Lora w/ Embed. cached |  1   |     1     |    16x512x512 |       ON        |    O0     |    1.009     |     0.99     |
+|             method             |cards|  batch size| resolution    | flash attn | jit level | graph compile  |    s/step    |    img/s    |
+|:----------------------------:|:---:|:----------:|:----------:  |:---------------:|:---------:|:--------------:|:------------:|:-------------:|
+|         MM training          |  1   |     1     |    16x512x512 |       ON        |    O0     |    3~5mins     |    1.320     |     0.75      |
+|         Motion Lora          |  1   |     1     |    16x512x512 |       ON        |    O0     |    3~5mins     |    1.566     |     0.64     |
+| MM training w/ Embed. cached |  1   |     1     |    16x512x512 |       ON        |    O0     |    3~5mins     |    1.004     |     0.99     |
+| Motion Lora w/ Embed. cached |  1   |     1     |    16x512x512 |       ON        |    O0     |    3~5mins     |    1.009     |     0.99     |
 
 - mindspore 2.2.10
 

@@ -42,6 +42,7 @@ def create_model_sv3d(
     num_vectors: int = None,
     load_first_stage_model: bool = True,
     load_conditioner: bool = True,
+    config_arch_toload_vanilla_sv3d_ckpt: bool = False,
 ):
     if train_config:
         config.model.params = OmegaConf.merge(config.model.params, train_config.model)
@@ -54,6 +55,7 @@ def create_model_sv3d(
         amp_level=amp_level,
         load_first_stage_model=load_first_stage_model,
         load_conditioner=load_conditioner,
+        config_arch_toload_vanilla_sv3d_ckpt=config_arch_toload_vanilla_sv3d_ckpt,
     )
 
     if freeze:
@@ -104,10 +106,17 @@ def create_model_sv3d(
 
 
 def load_model_from_config(
-    model_config, ckpts=None, verbose=True, amp_level="O0", load_first_stage_model=True, load_conditioner=True
+    model_config,
+    ckpts=None,
+    verbose=True,
+    amp_level="O0",
+    load_first_stage_model=True,
+    load_conditioner=True,
+    config_arch_toload_vanilla_sv3d_ckpt=False,
 ):
     model_config["params"]["load_first_stage_model"] = load_first_stage_model
     model_config["params"]["load_conditioner"] = load_conditioner
+    model_config["params"]["config_arch_toload_vanilla_sv3d_ckpt"] = config_arch_toload_vanilla_sv3d_ckpt
     model = instantiate_from_config(model_config)
 
     # from sgm.models.diffusion import DiffusionEngineMultiGraph
@@ -115,7 +124,6 @@ def load_model_from_config(
     if ckpts:
         _logger.info(f"Loading model from {ckpts} with the cfg file")
         # if not isinstance(model, DiffusionEngineMultiGraph):
-        # print(f'fred load diffusion multigraph {isinstance(model, DiffusionEngineMultiGraph)}, not multigraph')
         if isinstance(ckpts, str):
             ckpts = [ckpts]
 
@@ -142,10 +150,11 @@ def load_model_from_config(
                 sd_dict.pop(_k)
 
         # make svd-d19a808f ckpt to accomodate sv3d_u.yaml setup: [1280, 768] -> [1280, 256]
-        sd_dict["model.diffusion_model.label_emb.0.0.weight"] = Parameter(
-            sd_dict["model.diffusion_model.label_emb.0.0.weight"][:, :256],
-            name="model.diffusion_model.label_emb.0.0.weight",
-        )
+        if not config_arch_toload_vanilla_sv3d_ckpt:
+            sd_dict["model.diffusion_model.label_emb.0.0.weight"] = Parameter(
+                sd_dict["model.diffusion_model.label_emb.0.0.weight"][:, :256],
+                name="model.diffusion_model.label_emb.0.0.weight",
+            )
 
         m, u = ms.load_param_into_net(model, sd_dict, strict_load=False)
 

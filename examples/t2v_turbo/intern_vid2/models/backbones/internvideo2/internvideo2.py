@@ -908,7 +908,7 @@ if __name__ == "__main__":
         dim=-1,
     ).to(ms.bool)
 
-    output = model(ops.rand((4, 3, num_frames, img_size, img_size)), mask.repeat(4, 1))
+    output = model(ops.rand((4, 3, num_frames, img_size, img_size)), mask.repeat_interleave(4, 1))
     print(output[0].shape)
     print(output[1].shape)
     print(output[2].shape)

@@ -131,7 +131,7 @@ def parse_args():
     parser.add_argument(
         "--output_path",
         type=str,
-        default="output",
+        default="outputs",
         help="output dir to save the generated videos",
     )
     parser.add_argument(
