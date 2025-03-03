@@ -1,6 +1,6 @@
 # model
 model_version: v1.1
-pretrained_model_path: "models/opensora_v1.1_stage3.ckpt"
+pretrained_model_path: "hpcai-tech/OpenSora-STDiT-v2-stage3"
 model_max_length: 200
 manual_pad: True
 

@@ -1,10 +1,10 @@
 model_version: v1.2
-ckpt_path: "models/opensora_stdit_v3.ckpt"
+ckpt_path: hpcai-tech/OpenSora-STDiT-v3
 t5_model_dir: "models/t5-v1_1-xxl/"
 # t5_dtype: bf16   # uncomment if oom
 
 vae_type: "OpenSoraVAE_V1_2"
-vae_checkpoint: "models/OpenSora-VAE-v1.2/model.ckpt"
+vae_checkpoint: hpcai-tech/OpenSora-VAE-v1.2
 vae_dtype: bf16
 vae_micro_batch_size: 4
 vae_micro_frame_size: 17  # keep it unchanged for the best results
