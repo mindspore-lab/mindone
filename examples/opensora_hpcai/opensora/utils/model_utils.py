@@ -3,19 +3,17 @@ import logging
 
 from mindspore import Model as MSModel
 from mindspore import context, nn
-from mindspore.nn import GroupNorm, SiLU  # GELU
+from mindspore.nn import GroupNorm
 from mindspore.train.callback import _CallbackManager
 
 from ..models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm, PositionEmbedding2D, SinusoidalEmbedding
 from ..models.text_encoder.flan_t5_large.t5 import T5LayerNorm
 
-# SORA's whitelist (FP32) operators
-WHITELIST_OPS = [
+# SORA's blacklist (FP32) operators for O2 AMP level
+BLACKLIST_OPS = [
     LayerNorm,
     Attention,
     LlamaRMSNorm,
-    SiLU,
-    # GELU,
     GroupNorm,
     PositionEmbedding2D,
     SinusoidalEmbedding,
