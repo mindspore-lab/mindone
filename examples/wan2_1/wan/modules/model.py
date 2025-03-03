@@ -178,7 +178,7 @@ class WanSelfAttention(nn.Cell):
             key=rope_apply(k, grid_sizes, freqs),
             value=v,
             head_num=self.num_heads // self.sp_size,
-            actual_seq_kvlen=seq_lens // self.sp_size,
+            actual_seq_kvlen=seq_lens,
             scalar_value=1 / math.sqrt(q.shape[-1]),
             input_layout="BSND",
         )
@@ -238,7 +238,7 @@ class WanI2VCrossAttention(WanSelfAttention):
         self.v_img = mint.nn.Linear(dim, dim, dtype=dtype)
         self.norm_k_img = WanRMSNorm(dim, eps=eps, dtype=dtype) if qk_norm else mint.nn.Identity()
 
-    def construct(self, x: Tensor, context: Tensor, context_lens: Tensor) -> Tensor:
+    def construct(self, x: Tensor, context: Tensor, context_lens: Optional[Tensor]) -> Tensor:
         r"""
         Args:
             x(Tensor): Shape [B, L1, C]
@@ -254,9 +254,7 @@ class WanI2VCrossAttention(WanSelfAttention):
         k = self.norm_k(self.k(context)).view(b, -1, n, d)
         v = self.v(context).view(b, -1, n, d)
         k_img = self.norm_k_img(self.k_img(context_img)).view(b, -1, n, d)
-        k_img = self.all_to_all(k_img)
         v_img = self.v_img(context_img).view(b, -1, n, d)
-        v_img = self.all_to_all(v_img)
         img_x = ops.flash_attention_score(
             q,
             k_img,
