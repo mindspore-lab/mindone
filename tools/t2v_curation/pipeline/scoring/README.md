@@ -6,7 +6,6 @@
   - [OCR](#OCR)
   - [LPIPS Motion Analysis](#lpips-score-motion-analysis)
   - [NSFW](#NSFW)
-  - [Optical Flow Score](#optical-flow-score)
   - [Filtering](#filtering)
 
 ## Aesthetic Score
@@ -219,30 +218,6 @@ msrun --worker_num=2 --local_worker_num=2 --join=True \
 ```
 
 This should output `/path/to/meta_nsfw.csv` with column `nsfw`.
-
-## Optical Flow Score
-Optical flow scores are used to assess the motion of a video. 
-Higher optical flow scores indicate larger movement.
-We use the [UniMatch](https://github.com/autonomousvision/unimatch) model for this task.
-
-To calculate the optical flow score, first download the
-model [here](https://s3.eu-central-1.amazonaws.com/avg-projects/unimatch/pretrained/gmflow-scale2-regrefine6-mixdata-train320x576-4e7b215d.pth).
-
-By default, you can put it in the folder `./pretrained_models/` and you may rename the model as `unimatch.ckpt`.
-
-Run the following command if using CPU. **Make sure** the meta file has the column `path` (path to the video):
-```bash
-python -m pipeline.scoring.optical_flow.inference /path/to/meta.csv --use_cpu
-```
-
-If running on Ascend, you may use
-```bash
-export PYTHONPATH=$(pwd)
-msrun --worker_num=1 --local_worker_num=1 --join=True \
---log_dir=msrun_log pipeline/scoring/optical_flow/inference.py \
-/path/to/meta.csv
-```
-This outputs `/path/to/meta_flow.csv` with a new column `flow`, where a higher score implies greater motion.
 
 ## Filtering
 Once scores are obtained, it is simple to filter samples based on these scores. Here is an example to remove

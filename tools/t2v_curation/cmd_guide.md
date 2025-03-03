@@ -72,21 +72,21 @@ msrun --worker_num=2 --local_worker_num=2 --join=True \
 python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --matchmin 20
 ```
 
-**4.2.1 Predict optical flow scores.**
+**4.2.1 Predict LPIPS scores.**
 ```bash
 msrun --worker_num=2 --local_worker_num=2 --join=True \
- --log_dir=msrun_log pipeline/scoring/optical_flow/inference.py \ 
+ --log_dir=msrun_log pipeline/scoring/lpips/inference.py \ 
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 
-**4.2.2 Filter videos based on optical flow scores.**
+**4.2.2 Filter videos based on LPIPS scores.**
 ```bash
-pyhton -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --flowmin 0.5
+pyhton -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --lpipsmin 0.2
 ```
 
 **4.3.1 Predict aesthetic scores.**
 ```bash
-python -m scoring.aesthetic.inference ${ROOT_META}/meta_clips_info_fmin1_dedup_animal_matchmin20.0_flow_.csv --use_cpu # cpu
+python -m scoring.aesthetic.inference ${ROOT_META}/working_meta.csv --use_cpu # cpu
 ```
 
 ```bash
@@ -100,11 +100,27 @@ msrun --worker_num=2 --local_worker_num=2 --join=True \
 python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --aesmin 4.5
 ```
 
-### 5. Captioning and calculating matching scores
-**5.1 Generate PLLaVA caption.**
+**4.4.1 Determine whether the video is NSFW.**
+```bash
+python -m scoring.nsfw.inference ${ROOT_META}/working_meta.csv --use_cpu # cpu
+```
+
 ```bash
 msrun --worker_num=2 --local_worker_num=2 --join=True \
- --log_dir=msrun_log pipeline/captioning/caption_pllava.py \
+ --log_dir=msrun_log pipeline/scoring/nsfw/inference.py \ 
+ ${ROOT_META}/working_meta.csv # Ascend
+```
+
+**4.4.2 Filter out videos flagged NSFW.**
+```bash
+python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --safety_check
+```
+
+### 5. Captioning and calculating matching scores
+**5.1 Generate Qwen2-VL caption.**
+```bash
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/captioning/caption_qwen2vl.py \
  ${ROOT_META}/working_meta.csv # support Ascend only
 ```
 

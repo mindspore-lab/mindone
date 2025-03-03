@@ -5,7 +5,6 @@ import os
 import argparse
 
 from pipeline.scoring.aesthetic.inference import AestheticScorer
-from pipeline.scoring.optical_flow.unimatch import UniMatch
 
 def show_params(params, value):
     if value:
@@ -61,35 +60,6 @@ def aesthetic_pth_to_ckpt(pth_path='pretrained_models/aesthetic.pth',
         params_list.append({"name": key, "data": Tensor(value.numpy())})
     save_checkpoint(params_list, save_path)
 
-def unimatch_pth_to_ckpt(pth_path='pretrained_models/unimatch.pth',
-                            save_path='pretrained_models/unimatch.ckpt'):
-    """
-    Transform a torch checkpoint file into mindspore checkpoint.
-    Modify the param's name first, then change tensor type. - unimatch
-    """
-
-    if not os.path.isfile(pth_path):
-        raise FileExistsError("The file `{}` does not exist! ".format(pth_path))
-    if ".ckpt" not in save_path:
-        raise ValueError("Attribute `save_path` should be a checkpoint file with the end of `.ckpt`!")
-
-    params = torch.load(pth_path, map_location=torch.device('cpu'))
-
-    params_list = []
-    for key, value in params['model'].items():
-        if 'norm' in key:
-            if key.endswith('.weight'):
-                new_key = key.replace('.weight', '.gamma')
-            elif key.endswith('.bias'):
-                new_key = key.replace('.bias', '.beta')
-            else:
-                new_key = key
-            params_list.append({"name": new_key, "data": Tensor(value.numpy())})
-        else:
-            params_list.append({"name": key, "data": Tensor(value.numpy())})
-
-    save_checkpoint(params_list, save_path)
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', type=str, help = 'The model to convert from pth to ckpt.')
@@ -106,7 +76,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    assert args.model in ['aesthetic', 'unimatch'], f"The model must be 'aesthetic' or 'unimatch', got {args.model}."
+    assert args.model in ['aesthetic'], f"The model must be 'aesthetic', got {args.model}."
     if args.show_pth:
         print("=========Showing pth parameters==========")
         show_params_from_path(args.pth_path, 'torch', args.value)
@@ -116,25 +86,11 @@ def main():
         if args.model == 'aesthetic':
             model = AestheticScorer()
             show_params_from_model(model, value = False)
-        elif args.model == 'unimatch':
-            model = UniMatch(
-                        feature_channels=128,
-                        num_scales=2,
-                        upsample_factor=4,
-                        num_head=1,
-                        ffn_dim_expansion=4,
-                        num_transformer_layers=6,
-                        reg_refine=True,
-                        task="flow",
-                    )
-            show_params_from_model(model, value=False)
 
     if args.convert:
         print("=========Converting pth to ckpt==========")
         if args.model == 'aesthetic':
             aesthetic_pth_to_ckpt(args.pth_path, args.save_path)
-        elif args.model == 'unimatch':
-            unimatch_pth_to_ckpt(args.pth_path, args.save_path)
         print("Done!")
 
 if __name__ == '__main__':

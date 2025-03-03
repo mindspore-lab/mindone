@@ -16,7 +16,7 @@ specific video categories of interest. Following this, we incorporate
 Next, these videos undergo an evaluation process where multiple 
 scores are predicted using existing models. These scores include 
 aesthetic scoring, OCR (Optical Character Recognition) for text 
-detection, and optical flow scoring to assess motion. 
+detection, and LPIPS scoring to assess motion. 
 Only videos that meet satisfactory evaluation criteria advance 
 to the captioning step.
 
@@ -67,8 +67,6 @@ and set up according to the guideline [here](./pipeline/scoring/README.md).
 
 #### Captioning Model Setup
 Follow the guideline [here](./pipeline/captioning/README.md).
-Please first download the models and put them in the designated 
-directory for captioning.
 
 #### Customize Pipeline Steps
 Enable or disable specific pipeline steps via setting `run`
@@ -103,15 +101,11 @@ For more information, please refer to:
 - [Scoring and Filtering](./pipeline/scoring/README.md)
 - [Captioning](./pipeline/captioning/README.md)
 
-## TODOsz
-- [ ] Fix: UniMatch Precision
-- [ ] Add: UniMatch description in scoring
+## TODO
 - [ ] Feature: better video splitting techniques
-- [ ] Feature: PLLaVA substitution within MindONE
-- [ ] Feature: captioner enhancement
 - [ ] Feature: further deduplication
 
 ## Acknowledgement
-This pipeline for video/image data processing pipeline in MindSpore is 
+This pipeline for video/image data processing pipeline in MindSpore is mostly 
 based on the [work](https://github.com/hpcaitech/Open-Sora/blob/main/docs/data_processing.md) by HPC-AI OpenSora. We thank them for their generous
 support to the open source community.

@@ -599,9 +599,6 @@ def main(args):
     if args.matchmin is not None:
         assert "match" in data.columns
         data = data[data["match"] >= args.matchmin]
-    if args.flowmin is not None:
-        assert "flow" in data.columns
-        data = data[data["flow"] >= args.flowmin]
     if args.lpipsmin is not None:
         assert "lpips" in data.columns
         data = data[data['lpips'] >= args.lpipsmin]
@@ -722,7 +719,6 @@ def parse_args():
     parser.add_argument("--ocr_single_max", type=float, default=None, help="filter the dataset by maximum single text box area percentage")
     parser.add_argument("--ocr_total_max", type=float, default=None, help="filter the dataset by maximum total text box area percentage")
     parser.add_argument("--matchmin", type=float, default=None, help="filter the dataset by minimum match score")
-    parser.add_argument("--flowmin", type=float, default=None, help="filter the dataset by minimum flow score")
     parser.add_argument("--fpsmax", type=float, default=None, help="filter the dataset by maximum fps")
     parser.add_argument("--img-only", action="store_true", help="only keep the image data")
     parser.add_argument("--vid-only", action="store_true", help="only keep the video data")
@@ -822,8 +818,6 @@ def get_output_path(args, input_name):
         name += f"_aesmin{args.aesmin:.1f}"
     if args.matchmin is not None:
         name += f"_matchmin{args.matchmin:.1f}"
-    if args.flowmin is not None:
-        name += f"_flowmin{args.flowmin:.1f}"
     if args.lpipsmin is not None:
         name += f"_lpipsmin{args.lpipsmin:.1f}"
     if args.safety_check is not None:
