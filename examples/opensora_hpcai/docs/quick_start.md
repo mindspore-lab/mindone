@@ -36,9 +36,12 @@ To enable flash attention, please use mindspore>=2.3-20240422.
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
-- T5: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
-
-    Put them under `models/t5-v1_1-xxl` folder. Rename `t5_v1_1_xxl-d35f27a3.ckpt` to `model.ckpt` if error raised.
+- **T5**:
+  You can download and convert the T5 model automatically by running the following command:
+  ```shell
+  python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
+  ```
+  If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
 
 - VAE:
 
