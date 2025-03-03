@@ -5,6 +5,7 @@ import numpy as np
 from mindspore import nn
 
 from mindone.diffusers.utils.logging import get_logger
+from mindone.trainers.adamw_bf16 import BF16AdamW
 
 logger = get_logger(__name__)
 
@@ -39,7 +40,7 @@ def get_optimizer(
         optimizer_name = "adamw"
 
     if optimizer_name == "adamw":
-        optimizer_class = nn.optim.AdamWeightDecay
+        optimizer_class = BF16AdamW
 
         init_kwargs = {
             "learning_rate": learning_rate,

@@ -75,10 +75,6 @@ class CogVideoXBlock_SP(nn.Cell):
         enable_sequence_parallelism=False,
     ):
         super().__init__()
-        self.enable_sequence_parallelism = enable_sequence_parallelism
-        if enable_sequence_parallelism:
-            sp_group = get_sequence_parallel_group()
-            self.sp_size = get_group_size(sp_group)
         # 1. Self Attention
         self.norm1 = CogVideoXLayerNormZero(time_embed_dim, dim, norm_elementwise_affine, norm_eps, bias=True)
 
@@ -91,11 +87,6 @@ class CogVideoXBlock_SP(nn.Cell):
             bias=attention_bias,
             out_bias=attention_out_bias,
         )
-        self.attn1.set_processor(
-            CogVideoXAttnProcessor2_0_SP(
-                self.attn1.heads, self.attn1.scale, enable_sequence_parallelism=enable_sequence_parallelism
-            )
-        )
 
         # 2. Feed Forward
         self.norm2 = CogVideoXLayerNormZero(time_embed_dim, dim, norm_elementwise_affine, norm_eps, bias=True)
@@ -107,6 +98,18 @@ class CogVideoXBlock_SP(nn.Cell):
             final_dropout=final_dropout,
             inner_dim=ff_inner_dim,
             bias=ff_bias,
+        )
+        self.set_sequence_parallelism(enable_sequence_parallelism)
+
+    def set_sequence_parallelism(self, enable_sequence_parallelism):
+        self.enable_sequence_parallelism = enable_sequence_parallelism
+        if enable_sequence_parallelism:
+            sp_group = get_sequence_parallel_group()
+            self.sp_size = get_group_size(sp_group)
+        self.attn1.set_processor(
+            CogVideoXAttnProcessor2_0_SP(
+                self.attn1.heads, self.attn1.scale, enable_sequence_parallelism=enable_sequence_parallelism
+            )
         )
 
     def construct(
@@ -242,14 +245,6 @@ class CogVideoXTransformer3DModel_SP(ModelMixin, ConfigMixin, PeftAdapterMixin):
     ):
         super().__init__()
         self.fa_checkpointing = fa_checkpointing
-        self.enable_sequence_parallelism = enable_sequence_parallelism
-        if enable_sequence_parallelism:
-            sp_group = get_sequence_parallel_group()
-            logger.info(f"Initialize CogVideoXTransformer3D model with sequence parallel group `{sp_group}`.")
-            self.sp_size = get_group_size(sp_group)
-            assert num_attention_heads % self.sp_size == 0
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
         inner_dim = num_attention_heads * attention_head_dim  # 48 * 64
 
         if not use_rotary_positional_embeddings and use_learned_positional_embeddings:
@@ -304,7 +299,6 @@ class CogVideoXTransformer3DModel_SP(ModelMixin, ConfigMixin, PeftAdapterMixin):
                     attention_bias=attention_bias,
                     norm_elementwise_affine=norm_elementwise_affine,
                     norm_eps=norm_eps,
-                    enable_sequence_parallelism=enable_sequence_parallelism,
                 )
                 for _ in range(num_layers)
             ]
@@ -330,6 +324,18 @@ class CogVideoXTransformer3DModel_SP(ModelMixin, ConfigMixin, PeftAdapterMixin):
         self.proj_out = nn.Dense(inner_dim, output_dim)
 
         self._gradient_checkpointing = False
+        self.set_sequence_parallelism(enable_sequence_parallelism)
+
+    def set_sequence_parallelism(self, enable_sequence_parallelism):
+        self.enable_sequence_parallelism = enable_sequence_parallelism
+        if enable_sequence_parallelism:
+            sp_group = get_sequence_parallel_group()
+            logger.info(f"Initialize CogVideoXTransformer3D model with sequence parallel group `{sp_group}`.")
+            self.sp_size = get_group_size(sp_group)
+            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
+            for block in self.transformer_blocks:
+                block.set_sequence_parallelism(enable_sequence_parallelism)
 
     @property
     def gradient_checkpointing(self):

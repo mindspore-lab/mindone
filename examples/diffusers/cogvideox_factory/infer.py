@@ -7,15 +7,85 @@ import numpy as np
 import mindspore as ms
 
 from mindone import diffusers
+from mindone.diffusers.training_utils import init_distributed_device, set_seed
+from mindone.diffusers.utils.mindspore_utils import randn_tensor
+from training.models import CogVideoXTransformer3DModel_SP
+
+
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=None, help="A seed for reproducible inference.")
+    parser.add_argument("--distributed", action="store_true", help="Enable distributed training.")
+    parser.add_argument(
+        "--mindspore_mode",
+        type=int,
+        default=1,
+        choices=[0, 1],
+        help="Forms of MindSpore programming execution, 0 means static graph mode and 1 means dynamic graph mode.",
+    )
+    parser.add_argument(
+        "--jit_level",
+        type=str,
+        default="O0",
+        choices=["O0", "O1", "O2"],
+        help=(
+            "Used to control the compilation optimization level, supports [O0, O1, O2]. The framework automatically "
+            "selects the execution method. O0: All optimizations except those necessary for functionality are "
+            "disabled, using an operator-by-operator execution method. O1: Enables common optimizations and automatic "
+            "operator fusion optimizations, using an operator-by-operator execution method. This is an experimental "
+            "optimization level, which is continuously being improved. O2: Enables extreme performance optimization, "
+            "using a sinking execution method. Only effective when args.mindspore_mode is 0"
+        ),
+    )
+    parser.add_argument(
+        "--mixed_precision",
+        type=str,
+        default="bf16",
+        choices=["no", "fp16", "bf16"],
+        help=(
+            "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10.and an Nvidia Ampere GPU. "
+            "Default to the value of accelerate config of the current system or the flag passed with the `accelerate.launch` command. Use this "
+            "argument to override the accelerate config."
+        ),
+    )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        type=str2bool,
+        default=False,
+        help="whether to enable sequence parallelism. Default is False",
+    )
+    parser.add_argument(
+        "--sequence_parallel_shards",
+        default=1,
+        type=int,
+        help="The number of shards in sequence parallel. Default is 1.",
+    )
     parser.add_argument(
         "--pretrained_model_name_or_path",
         type=str,
         default="THUDM/CogVideoX1.5-5b",
         help="Path to pretrained model or model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
+        "--revision",
+        type=str,
+        default=None,
+        required=False,
+        help="Revision of pretrained model identifier from huggingface.co/models.",
+    )
+    parser.add_argument(
+        "--variant",
+        type=str,
+        default=None,
+        help="Variant of the model files of the pretrained model identifier from huggingface.co/models, 'e.g.' fp16",
     )
     parser.add_argument(
         "--prompt",
@@ -63,10 +133,41 @@ def parse_args() -> argparse.Namespace:
 
 
 def infer(args: argparse.Namespace) -> None:
-    ms.set_context(mode=ms.GRAPH_MODE, jit_config={"jit_level": "O1"})
-    pipe = diffusers.CogVideoXPipeline.from_pretrained(
-        args.pretrained_model_name_or_path, mindspore_dtype=ms.bfloat16, use_safetensors=True
+    ms.set_context(mode=args.mindspore_mode, jit_config={"jit_level": args.jit_level})
+    init_distributed_device(args)
+    set_seed(args.seed)
+    # enable_sequence_parallelism check
+    enable_sequence_parallelism = getattr(args, "enable_sequence_parallelism", False)
+    if enable_sequence_parallelism:
+        if args.world_size <= 1 or args.sequence_parallel_shards <= 1:
+            print(
+                f"world_size :{args.world_size}, "
+                f"sequence_parallel_shards: {args.sequence_parallel_shards} "
+                f"can not enable enable_sequence_parallelism=True."
+            )
+            enable_sequence_parallelism = False
+        else:
+            from mindone.acceleration import create_parallel_group, get_sequence_parallel_group
+
+            create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
+            ms.set_auto_parallel_context(enable_alltoall=True)
+            sp_group = get_sequence_parallel_group()
+    dtype = (
+        ms.float16
+        if args.mixed_precision == "fp16"
+        else ms.bfloat16
+        if args.mixed_precision == "bf16"
+        else ms.float32
     )
+    model = diffusers.CogVideoXPipeline(transformer=CogVideoXTransformer3DModel_SP)
+    pipe = model.from_pretrained(
+        args.pretrained_model_name_or_path,
+        mindspore_dtype=dtype,
+        use_safetensors=True,
+        revision=args.revision,
+        variant=args.variant,
+    )
+    pipe.transformer.set_sequence_parallelism(enable_sequence_parallelism)
 
     if args.transformer_ckpt_path is not None:
         ckpt = ms.load_checkpoint(args.transformer_ckpt_path)
@@ -82,7 +183,18 @@ def infer(args: argparse.Namespace) -> None:
     pipe.vae.enable_slicing()
     prompt = "A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
     prompt = prompt if args.prompt is None else args.prompt
-    video = pipe(prompt=prompt, height=args.height, width=args.width, num_frames=args.frame)[0][0]
+    latents = None
+    if enable_sequence_parallelism:
+        shape = (
+            1,
+            (args.frame - 1) // pipe.vae_scale_factor_temporal + 1,
+            pipe.transformer.config.in_channels,
+            args.height // pipe.vae_scale_factor_spatial,
+            args.width // pipe.vae_scale_factor_spatial,
+        )
+        latents = randn_tensor(shape, dtype=dtype)
+        ms.mint.distributed.broadcast(latents, src=0, group=sp_group)
+    video = pipe(prompt=prompt, height=args.height, width=args.width, num_frames=args.frame, latents=latents)[0][0]
 
     if args.npy_output_path is not None:
         path = pathlib.Path(args.npy_output_path)

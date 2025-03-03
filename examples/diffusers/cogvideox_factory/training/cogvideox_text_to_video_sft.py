@@ -795,6 +795,7 @@ class TrainStepForCogVideo(nn.Cell):
         if self.enable_sequence_parallelism:
             from mindspore.communication import get_rank
             from mindone.acceleration import get_sequence_parallel_group
+
             self.sp_group = get_sequence_parallel_group()
             self.sp_rank = get_rank(self.sp_group)
 
