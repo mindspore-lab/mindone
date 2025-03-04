@@ -12,7 +12,7 @@ from mindone.transformers.models.qwen2 import Qwen2ForCausalLM
 
 
 def run_qwen2_generate(args):
-    print("=====> test_llama3_generate:")
+    print("=====> test_qwen2_generate:")
     print("=====> Building model...")
 
     s_time = time.time()
