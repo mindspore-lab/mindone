@@ -144,7 +144,7 @@ def main():
             indices_list.append(idx)
 
     if rank_size > 1:
-        indices_tensor = ms.Tensor(indices_list, dtype=np.int64)
+        indices_tensor = ms.Tensor(indices_list, dtype=ms.int64)
         indices_all = [ms.Tensor(np.zeros(indices_tensor.shape, dtype=ms.int64)) for _ in range(rank_size)]
         all_gather(indices_all, indices_tensor)
         indices_list_all = ops.Concat(axis=0)(indices_all).asnumpy().tolist()
