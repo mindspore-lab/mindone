@@ -7,7 +7,7 @@ sys.path.append(".")
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
-from janus.models import MultiModalityCausalLM, VLChatProcessor
+from janus.models import VLChatProcessor
 from janus.models.modeling_vlm import MultiModalityConfig
 from PIL import Image
 
@@ -17,7 +17,6 @@ from mindspore.dataset.vision import Inter
 
 def gen_t2i_train_sample(model_path="ckpts/Janus-Pro-1B", max_length=1088):  # 512+576
     vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
-    tokenizer = vl_chat_processor.tokenizer
 
     # prompt = "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair"
     prompt = "two dogs"

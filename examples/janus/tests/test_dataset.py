@@ -9,8 +9,6 @@ sys.path.insert(0, mindone_lib_path)
 from janus.models import VLChatProcessor
 from janus.train.t2i_dataset import TextImageDataset, create_dataloader_t2i
 
-from mindspore.dataset.vision import Inter
-
 
 def test():
     model_path = "ckpts/Janus-Pro-1B"
@@ -25,9 +23,6 @@ def test():
 
     for i in range(10):
         input_ids, labels, attention_mask, image_seq_mask, image = ds.__getitem__(i)
-        import pdb
-
-        pdb.set_trace()
 
 
 def test_dataloader():
