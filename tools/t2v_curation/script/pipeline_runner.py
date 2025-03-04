@@ -1,12 +1,18 @@
-
+import json
 import yaml
 import os
 import subprocess
+import sys
+import argparse
 import re
 
 def load_config(config_path):
+    ext = os.path.splitext(config_path)[1].lower()
     with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
+        if ext == '.json':
+            config = json.load(f)
+        else:
+            config = yaml.safe_load(f)
 
     # handle cases like `${paths.ROOT_META}/meta_fmin${meta_steps.remove_broken_videos.fmin}.csv` recursively
     def resolve_vars(item, vars_dict):
@@ -60,8 +66,16 @@ def sanitize_filename(s):
     # for naming during option filtering, replace ' ' with '_' and more to get a valid file name.
     return re.sub(r'[^A-Za-z0-9_.-]', '_', s)
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("config_path", type=str, help="Path to the input config file, support yaml or json")
+
 def main():
-    config = load_config('config/config.yaml')
+    args = parse_args()
+    if not (args.config_path.endswith('.yaml') or args.config_path.endswith('.json')):
+        print("Error: Config file must be .yaml or .json")
+        sys.exit(1)
+    config = load_config(args.config_path)
 
     # set environment variables
     os.environ['ROOT_VIDEO'] = config['paths']['ROOT_VIDEO']
@@ -134,7 +148,7 @@ def main():
     if pipeline_steps['run']:
         input_meta_csv = pipeline_steps['input_meta_csv']
 
-        # step 3" deduplication
+        # step 3: deduplication
         if pipeline_steps['deduplication']['run']:
             hash = pipeline_steps['deduplication']['hash']
             threshold = pipeline_steps['deduplication']['threshold']
@@ -154,7 +168,7 @@ def main():
                 if scoring_filtering['option_matching']['use_ascend']:
                     worker_num = scoring_filtering['option_matching']['worker_num']
                     run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                                f'--log_dir=msrun_log pipeline/scoring/matching/inference.py {input_meta_csv} '
+                                f'--log_dir=msrun_log/option pipeline/scoring/matching/inference.py {input_meta_csv} '
                                 f'--option "{option}" --bs {bs} --num_frames {num_frames}')
                 else:
                     run_command(f'python -m pipeline.scoring.matching.inference {input_meta_csv} '
@@ -175,7 +189,7 @@ def main():
                 if scoring_filtering['aesthetic_scoring']['use_ascend']:
                     worker_num = scoring_filtering['aesthetic_scoring']['worker_num']
                     run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                                f'--log_dir=msrun_log pipeline/scoring/aesthetic/inference.py {input_meta_csv} '
+                                f'--log_dir=msrun_log/aes pipeline/scoring/aesthetic/inference.py {input_meta_csv} '
                                 f'--bs {bs} --num_frames {num_frames}')
                 else:
                     run_command(f'python -m pipeline.scoring.aesthetic.inference {input_meta_csv} --use_cpu '
@@ -194,7 +208,7 @@ def main():
                 num_boxes = scoring_filtering['ocr_scoring']['num_boxes']
                 max_single_percentage = scoring_filtering['ocr_scoring']['max_single_percentage']
                 total_text_percentage = scoring_filtering['ocr_scoring']['total_text_percentage']
-                command = f'msrun --worker_num=1 --local_worker_num=1 --join=True --log_dir=msrun_log pipeline/scoring/ocr/inference.py {input_meta_csv}'
+                command = f'msrun --worker_num=1 --local_worker_num=1 --join=True --log_dir=msrun_log/ocr pipeline/scoring/ocr/inference.py {input_meta_csv}'
                 if num_boxes:
                     command += f' --num_boxes'
                 if max_single_percentage:
@@ -232,7 +246,7 @@ def main():
                 if scoring_filtering['lpips_scoring']['use_ascend']:
                     worker_num = scoring_filtering['lpips_scoring']['worker_num']
                     run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                                f'--log_dir=msrun_log pipeline/scoring/lpips/inference.py {input_meta_csv} '
+                                f'--log_dir=msrun_log/lpips pipeline/scoring/lpips/inference.py {input_meta_csv} '
                                 f'--seconds {seconds} --target_height {target_height} --target_width {target_width}')
                 else:
                     run_command(f'python -m pipeline.scoring.lpips.inference {input_meta_csv} --use_cpu '
@@ -246,17 +260,45 @@ def main():
                     run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --lpipsmin {lpipsmin} --output {output_meta_csv}')
                     input_meta_csv = output_meta_csv
 
+            # nsfw scoring
+            if scoring_filtering['nsfw_scoring']['run']:
+                num_frames = scoring_filtering['nsfw_scoring']['num_frames']
+                threshold = scoring_filtering['nsfw_scoring']['threshold']
+                batch_size = scoring_filtering['nsfw_scoring']['batch_size']
+                if scoring_filtering['nsfw_scoring']['use_ascend']:
+                    worker_num = scoring_filtering['nsfw_scoring']['worker_num']
+                    run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
+                                f'--log_dir=msrun_log/nsfw pipeline/scoring/nsfw/inference.py {input_meta_csv} '
+                                f'--num_frames {num_frames} --threshold {threshold} --bs {batch_size}')
+                else:
+                    run_command(f'python -m pipeline.scoring.nsfw.inference {input_meta_csv} '
+                                f'--num_frames {num_frames} --threshold {threshold} --bs {batch_size}')
+                input_meta_csv = input_meta_csv[:-4] + "_nsfw.csv"
+
+                # nsfw filtering
+                if scoring_filtering['nsfw_scoring']['nsfw_filtering']['run']:
+                    run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --nsfw_filtering')
+                    input_meta_csv = input_meta_csv[:-4] + "_nsfwfiltered.csv"
+            # nsfw scoring
+
         # step 5: captioning
         captioning = pipeline_steps['captioning']
         if captioning['run']:
-            # pllava captioning
-            if captioning['pllava_caption']['run']:
-                num_frames = captioning['pllava_caption']['num_frames']
-                worker_num = captioning['pllava_caption']['worker_num']
+            # qwen2vl captioning
+            if captioning['qwen2vl_caption']['run']:
+                num_frames = captioning['qwen2vl_caption']['num_frames']
+                question = captioning['qwen2vl_caption']['question']
+                height = captioning['qwen2vl_caption']['height']
+                width = captioning['qwen2vl_caption']['width']
+                fps = captioning['qwen2vl_caption']['fps']
+                max_new_tokens = captioning['qwen2vl_caption']['max_new_tokens']
+                worker_num = captioning['qwen2vl_caption']['worker_num']
+                batch_size = captioning['qwen2vl_caption']['batch_size']
                 run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                            f'--log_dir=msrun_log pipeline/captioning/caption_pllava.py {input_meta_csv} '
-                            f'--num_frames {num_frames}')
-                input_meta_csv = input_meta_csv[:-4] + "_caption.csv"
+                            f'--log_dir=msrun_log/qwen2vl pipeline/captioning/qwen2vl_caption.py {input_meta_csv} '
+                            f'--num_frames {num_frames} --question "{question}" --height {height} --width {width} '
+                            f'--fps {fps} --bs {batch_size} --max_new_tokens {max_new_tokens}')
+                input_meta_csv = input_meta_csv[:-4] + "_caption_qwen2vl.csv"
 
             # clean caption
             if captioning['clean_caption']['run']:
@@ -279,7 +321,7 @@ def main():
                 if captioning['matching_with_captions']['use_ascend']:
                     worker_num = captioning['matching_with_captions']['worker_num']
                     run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                                f'--log_dir=msrun_log pipeline/scoring/matching/inference.py {input_meta_csv} '
+                                f'--log_dir=msrun_log/match pipeline/scoring/matching/inference.py {input_meta_csv} '
                                 f'--bs {bs} --num_frames {num_frames}')
                 else:
                     run_command(f'python -m pipeline.scoring.matching.inference {input_meta_csv} --use_cpu '

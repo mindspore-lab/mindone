@@ -79,9 +79,15 @@ and provide the video type you would like to keep under `option`.
 
 #### Via Config and Runner
 
-After setting the `config.yaml` file, run the entire pipeline via
+We support using json or yaml config files. After setting the `config.yaml` or `config.json` file, run the entire pipeline via
 ```bash
-python -m script.pipeline_runner
+python -m script.pipeline_runner --config_path ./config/config.yaml
+```
+
+OR
+
+```bash
+python -m script.pipeline_runner --config_path ./config/config.json
 ```
 
 You will get the processed csv file containing metadata information
@@ -104,6 +110,7 @@ For more information, please refer to:
 ## TODO
 - [ ] Feature: better video splitting techniques
 - [ ] Feature: further deduplication
+- [ ] Documentation: example walkthrough & webpage
 
 ## Acknowledgement
 This pipeline for video/image data processing pipeline in MindSpore is mostly 

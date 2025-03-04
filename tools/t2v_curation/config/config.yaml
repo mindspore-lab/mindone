@@ -92,6 +92,7 @@ pipeline_steps:
       num_boxes: true # compute and store the total number of boxes
       max_single_percentage: true # compute and store the maximum single text box area percentage
       total_text_percentage: true # compute and store the total text area percentage
+      worker_num: 2
 
     ocr_filtering:
       run: true # this will only be run if `run` in `ocr_scoring` is also true
@@ -111,11 +112,28 @@ pipeline_steps:
         run: true   # this will only be run if `run` in `lpips_scoring` is also true
         lpipsmin: 0.2
 
+    nsfw_scoring:
+      run: true
+      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
+      threshold: 0.2 # threshold above which a frame is flagged as NSFW
+      batch_size: 64
+      use_ascend: true
+      worker_num: 2
+
+      nsfw_filtering:
+        run: true # this will only be run if `run` in `nsfw_scoring` is also true
+
   captioning:
     run: true
-    pllava_caption: # use ascend by default
+    qwen2vl_caption: # use ascend by default
       run: true
-      num_frames: 4 # PLLaVA parameter, number of frames input for PLLaVA for pooling
+      num_frames: 4
+      question: "Describe the video in details."
+      height: 448 # resized video height
+      width: 672 # resized video width
+      fps: 4 # fps to sample from video
+      batch_size: 1
+      max_new_tokens: 200
       worker_num: 2
 
     clean_caption: # T5 style, lower case etc.
