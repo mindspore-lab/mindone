@@ -4,6 +4,7 @@ msrun --bind_core=True --worker_num=8 --local_worker_num=8 --master_port=8000 --
    --config configs/train/stage2_t2v_512px.yaml \
    --env.distributed True \
    --train.settings.zero_stage 3 \
+   --train.sequence_parallel.shards 8 \
    --dataset.csv_path datasets/mixkit-100videos/video_caption_train.csv \
    --dataset.video_folder datasets/mixkit-100videos/mixkit \
    --dataset.text_emb_folder datasets/mixkit-100videos/text_embed \

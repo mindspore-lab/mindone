@@ -13,6 +13,7 @@ Here is the development plan of the project:
     - [x] Training
 - HunyuanVideo (13B):
     - [x] Inference
+    - [x] Sequence Parallel (Ulysses SP)
     - [x] Training stage 1: T2I 256px
     - [ ] Training stage 2: T2I  256px 512px (buckts)
     - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckts)
@@ -96,6 +97,8 @@ bash scripts/hyvideo/run_t2v_sample.sh
 ```
 If you want change to another prompt, please set `--prompt` to the new prompt.
 
+If you want to run T2V inference using sequence parallel (Ulysses SP), please use `scripts/hyvideo/run_t2v_sample_sp.sh`. You can revise the SP size using `--sp-size`, which should be aligned with `ASCEND_RT_VISIBLE_DEVICES`, `--worker_num` and `--local_worker_num`. See more usage information about `msrun` from this [website](https://www.mindspore.cn/docs/en/r2.4.10/model_train/parallel/msrun_launcher.html).
+
 ### Run Image-to-Video Inference
 
 Coming Soon.
@@ -130,7 +133,13 @@ python scripts/run_text_encoder.py \
 To run stage 1 (256px) trainig with HunyuanVideo (13B) on multiple NPUs, we use ZeRO3 and data parallelism with the following script:
 
 ```bash
-bash scripts/hyvideo/train_t2v_zero3.sh
+bash scripts/hyvideo/train_t2v_stage1.sh
+```
+
+To run stage 2 (512px) trainig with HunyuanVideo (13B) on multiple NPUs using Ulysses SP, please run the following command:
+
+```bash
+bash scripts/hyvideo/train_t2v_stage2.sh
 ```
 
 For the finetuning experiment with a small dataset, please refer to `scripts/hyvideo/train_t2v_256x256x29_finetune.sh`.
