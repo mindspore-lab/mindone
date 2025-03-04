@@ -19,6 +19,7 @@ W=1360
 F=80
 MAX_SEQUENCE_LENGTH=224
 OUTPUT_ROOT_DIR=./output_infer_${H}_${W}_${F}
+test -d ${OUTPUT_ROOT_DIR} || mkdir ${OUTPUT_ROOT_DIR}
 
 if [ "$NUM_NPUS" -eq 1 ]; then
     LAUNCHER="python"
