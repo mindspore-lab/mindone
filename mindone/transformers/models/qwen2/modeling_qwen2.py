@@ -25,7 +25,7 @@ import numpy as np
 from transformers import Qwen2Config, logging
 
 import mindspore as ms
-from mindspore import Parameter, nn, mint, ops
+from mindspore import Parameter, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.transformers.cache_utils import Cache, DynamicCache, StaticCache
