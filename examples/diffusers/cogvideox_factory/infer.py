@@ -11,7 +11,6 @@ from mindone.diffusers.training_utils import init_distributed_device, set_seed
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
 from mindone.models.modules.parallel import PARALLEL_MODULES
 from mindone.trainers.zero import _prepare_network
-from training.pipeline_cogvideox import CogVideoXSPPipeline
 
 
 def str2bool(b):
@@ -133,6 +132,9 @@ def parse_args() -> argparse.Namespace:
         help="The frame of the output video.",
     )
     parser.add_argument(
+        "--max_sequence_length", type=int, default=224, help="Max sequence length of prompt embeddings."
+    )
+    parser.add_argument(
         "--npy_output_path",
         type=str,
         default=None,
@@ -168,21 +170,49 @@ def infer(args: argparse.Namespace) -> None:
             ms.set_auto_parallel_context(enable_alltoall=True)
             sp_group = get_sequence_parallel_group()
     dtype = (
-        ms.float16
-        if args.mixed_precision == "fp16"
-        else ms.bfloat16
-        if args.mixed_precision == "bf16"
-        else ms.float32
+        ms.float16 if args.mixed_precision == "fp16" else ms.bfloat16 if args.mixed_precision == "bf16" else ms.float32
     )
     if enable_sequence_parallelism:
-        pipe = CogVideoXSPPipeline.from_pretrained(
+        from transformers import AutoTokenizer
+        from mindone.diffusers import CogVideoXDDIMScheduler
+        from mindone.transformers import T5EncoderModel
+        from training.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+
+        tokenizer = AutoTokenizer.from_pretrained(
             args.pretrained_model_name_or_path,
+            subfolder="tokenizer",
+            revision=args.revision,
+        )
+        text_encoder = T5EncoderModel.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="text_encoder",
             mindspore_dtype=dtype,
-            use_safetensors=True,
+            revision=args.revision,
+        )
+        if args.zero_stage == 3:
+            text_encoder = _prepare_network(text_encoder, "hccl_world_group", PARALLEL_MODULES)
+        vae = AutoencoderKLCogVideoX_SP.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="vae",
+            mindspore_dtype=dtype,
             revision=args.revision,
             variant=args.variant,
         )
-        pipe.transformer.set_sequence_parallelism(enable_sequence_parallelism)
+        transformer = CogVideoXTransformer3DModel_SP.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="transformer",
+            mindspore_dtype=dtype,
+            revision=args.revision,
+            variant=args.variant,
+            enable_sequence_parallelism=enable_sequence_parallelism,
+        )
+        scheduler = CogVideoXDDIMScheduler.from_pretrained(
+            args.pretrained_model_name_or_path,
+            subfolder="scheduler",
+            revision=args.revision,
+        )
+
+        pipe = diffusers.CogVideoXPipeline(tokenizer, text_encoder, vae, transformer, scheduler)
     else:
         pipe = diffusers.CogVideoXPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
@@ -222,7 +252,14 @@ def infer(args: argparse.Namespace) -> None:
         )
         latents = randn_tensor(shape, dtype=dtype)
         ms.mint.distributed.broadcast(latents, src=0, group=sp_group)
-    video = pipe(prompt=prompt, height=args.height, width=args.width, num_frames=args.frame, latents=latents)[0][0]
+    video = pipe(
+        prompt=prompt,
+        height=args.height,
+        width=args.width,
+        num_frames=args.frame,
+        max_sequence_length=args.max_sequence_length,
+        latents=latents,
+    )[0][0]
 
     if args.npy_output_path is not None:
         path = pathlib.Path(args.npy_output_path)

@@ -13,11 +13,11 @@ DEEPSPEED_ZERO_STAGE=3
 MODEL_PATH="THUDM/CogVideoX1.5-5b"
 # TRANSFORMER_PATH and LORA_PATH only choose one to set.
 TRANSFORMER_PATH=""
-LORA_PATH=""
 PROMPT="A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
 H=768
 W=1360
 F=80
+MAX_SEQUENCE_LENGTH=224
 OUTPUT_ROOT_DIR=./output_infer_${H}_${W}_${F}
 
 if [ "$NUM_NPUS" -eq 1 ]; then
@@ -27,18 +27,19 @@ if [ "$NUM_NPUS" -eq 1 ]; then
 else
     LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph""
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
+    export TOKENIZERS_PARALLELISM=false
 fi
 
 cmd="$LAUNCHER infer.py \
     --pretrained_model_name_or_path $MODEL_PATH \
     --prompt \"${PROMPT}\" \
     --transformer_ckpt_path $TRANSFORMER_PATH \
-    --lora_ckpt_path $LORA_PATH \
     --height $H \
     --width $W \
     --frame $F \
-    --npy_output_path $OUTPUT_ROOT_DIR \
-    --video_output_path $OUTPUT_ROOT_DIR \
+    --max_sequence_length=$MAX_SEQUENCE_LENGTH \
+    --npy_output_path ${OUTPUT_ROOT_DIR}/npy \
+    --video_output_path ${OUTPUT_ROOT_DIR}/output.mp4 \
     --seed 42 \
     --mixed_precision bf16 \
     --mindspore_mode $MINDSPORE_MODE \

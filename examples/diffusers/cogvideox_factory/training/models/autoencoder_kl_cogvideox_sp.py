@@ -28,7 +28,7 @@ from mindone.diffusers.loaders.single_file_model import FromOriginalModelMixin
 from mindone.diffusers.models.activations import get_activation
 from mindone.diffusers.models.autoencoders.vae import DecoderOutput, DiagonalGaussianDistribution
 from mindone.diffusers.models.downsampling import CogVideoXDownsample3D
-from mindone.diffusers.models.layers_compat import pad
+from mindone.diffusers.models.layers_compat import pad, upsample_nearest3d_free_interpolate
 from mindone.diffusers.models.modeling_outputs import AutoencoderKLOutput
 from mindone.diffusers.models.modeling_utils import ModelMixin
 from mindone.diffusers.models.normalization import GroupNorm
@@ -49,7 +49,7 @@ class GroupNorm_SP(GroupNorm):
         return mint.cat(outs, dim=2)
 
 
-class CogVideoXSafeConv3d(nn.Conv3d):
+class CogVideoXSafeConv3d(mint.nn.Conv3d):
     r"""
     A 3D convolution layer that splits the input tensor into smaller parts to avoid OOM in CogVideoX Model.
     """
@@ -128,14 +128,17 @@ class CogVideoXCausalConv3d_SP(nn.Cell):
 
         stride = stride if isinstance(stride, tuple) else (stride, 1, 1)
         dilation = (dilation, 1, 1)
+        padding = (0, self.height_pad, self.width_pad)
+        if self.pad_mode == "replicate":
+            padding = 0
         self.conv = CogVideoXSafeConv3d(
             in_channels=in_channels,
             out_channels=out_channels,
             kernel_size=kernel_size,
             stride=stride,
             dilation=dilation,
-            pad_mode="pad",
-            has_bias=True,
+            bias=True,
+            padding=padding,
         )
 
     def context_parallel_forward(self, inputs: ms.Tensor) -> ms.Tensor:
@@ -163,11 +166,6 @@ class CogVideoXCausalConv3d_SP(nn.Cell):
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
         inputs = self.context_parallel_forward(inputs)
-
-        if self.pad_mode != "replicate":
-            padding_2d = (self.width_pad, self.width_pad, self.height_pad, self.height_pad)
-            inputs = pad(inputs, padding_2d, mode="constant", value=0)
-
         output = self.conv(inputs)
         return output
 
@@ -310,8 +308,7 @@ class CogVideoXResnetBlock3D_SP(nn.Cell):
                     kernel_size=1,
                     stride=1,
                     padding=0,
-                    pad_mode="pad",
-                    has_bias=True,
+                    bias=True,
                 )
 
     def construct(
@@ -1030,10 +1027,10 @@ class AutoencoderKLCogVideoX_SP(ModelMixin, ConfigMixin, FromOriginalModelMixin)
             temporal_compression_ratio=temporal_compression_ratio,
         )
         self.quant_conv = (
-            CogVideoXSafeConv3d(2 * out_channels, 2 * out_channels, 1, has_bias=True) if use_quant_conv else None
+            CogVideoXSafeConv3d(2 * out_channels, 2 * out_channels, 1, bias=True) if use_quant_conv else None
         )
         self.post_quant_conv = (
-            CogVideoXSafeConv3d(out_channels, out_channels, 1, has_bias=True) if use_post_quant_conv else None
+            CogVideoXSafeConv3d(out_channels, out_channels, 1, bias=True) if use_post_quant_conv else None
         )
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
