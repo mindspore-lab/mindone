@@ -1,11 +1,13 @@
+# Num of NPUs for training
+# export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_NPUS=8
-SP=False
+SP=True
 SP_SIZE=$NUM_NPUS
+DEEPSPEED_ZERO_STAGE=3
 
 # MindSpore settings
 MINDSPORE_MODE=0
 JIT_LEVEL=O1
-DEEPSPEED_ZERO_STAGE=3
 
 # Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
 # This example assumes you downloaded an already prepared dataset from HF CLI as follows:
@@ -18,8 +20,8 @@ H=768
 W=1360
 F=80
 MAX_SEQUENCE_LENGTH=224
-OUTPUT_ROOT_DIR=./output_infer_${H}_${W}_${F}
-test -d ${OUTPUT_ROOT_DIR} || mkdir ${OUTPUT_ROOT_DIR}
+OUTPUT_DIR=./output_infer_${H}_${W}_${F}
+test -d ${OUTPUT_DIR} || mkdir ${OUTPUT_DIR}
 
 if [ "$NUM_NPUS" -eq 1 ]; then
     LAUNCHER="python"
@@ -39,8 +41,8 @@ cmd="$LAUNCHER infer.py \
     --width $W \
     --frame $F \
     --max_sequence_length=$MAX_SEQUENCE_LENGTH \
-    --npy_output_path ${OUTPUT_ROOT_DIR}/npy \
-    --video_output_path ${OUTPUT_ROOT_DIR}/output.mp4 \
+    --npy_output_path ${OUTPUT_DIR}/npy \
+    --video_output_path ${OUTPUT_DIR}/output.mp4 \
     --seed 42 \
     --mixed_precision bf16 \
     --mindspore_mode $MINDSPORE_MODE \

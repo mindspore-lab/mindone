@@ -84,6 +84,45 @@ export_to_video(video, "output.mp4", fps=8)
 ```
 
 以下我们提供了更多探索此仓库选项的额外部分。所有这些都旨在尽可能降低内存需求，使视频模型的微调变得更易于访问。
+此外，可以通过[`run_infer.sh`](./run_infer.sh)执行单卡、多卡并行推理，注意其中用到的预训练模型、分辨率、帧率、文本的`max_sequence_length`设置都应当与训练一致！
+
+- 执行卡数及并行配置，注意`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数, 当`SP=True`时，`SP_SIZE`不能是1：
+
+```shell
+NUM_NPUS=8
+SP=True
+SP_SIZE=$NUM_NPUS
+DEEPSPEED_ZERO_STAGE=3
+```
+
+- MindSpore配置，`MINDSPORE_MODE=0`表示静态图模式，`MINDSPORE_MODE=1`表示动态图模式，`JIT_LEVEL`仅在静态图模式下生效：
+
+```shell
+MINDSPORE_MODE=0
+JIT_LEVEL=O1
+```
+
+- 执行卡数及并行配置：
+
+```shell
+MODEL_PATH="THUDM/CogVideoX1.5-5b"
+TRANSFORMER_PATH=""
+```
+
+- 配置模型及推理结果参数, `TRANSFORMER_PATH`和`LORA_PATH`二选一，如果配置`LORA_PATH`需要修改下面`--transformer_ckpt_path $TRANSFORMER_PATH \`为`--lora_ckpt_path $LORA_PATH \`：
+
+```shell
+MODEL_PATH="THUDM/CogVideoX1.5-5b"
+# TRANSFORMER_PATH and LORA_PATH only choose one to set.
+TRANSFORMER_PATH=""
+PROMPT=""
+H=768
+W=1360
+F=80
+MAX_SEQUENCE_LENGTH=224
+```
+
+然后正式运行`run_infer.sh`，输出结果至`OUTPUT_DIR`。
 
 ## 训练
 
