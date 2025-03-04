@@ -786,7 +786,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         # sequence parallel end
 
         img = x[:, :img_seq_len, ...]
-        x = self.gather_forward_split_backward(x)
+        img = self.gather_forward_split_backward(img)
 
         # ---------------------------- Final layer ------------------------------
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
