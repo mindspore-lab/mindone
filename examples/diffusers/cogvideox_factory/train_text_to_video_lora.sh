@@ -21,7 +21,7 @@ OUTPUT_ROOT_DIR=./output_lora
 MINDSPORE_MODE=0
 JIT_LEVEL=O1
 AMP_LEVEL=O2
-DEEPSPEED_ZERO_STAGE=2
+DEEPSPEED_ZERO_STAGE=3
 
 # Prepare launch cmd according to NUM_NPUS
 if [ "$NUM_NPUS" -eq 1 ]; then

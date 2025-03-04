@@ -7,7 +7,7 @@
 > 我们的开发和验证基于Ascend 910*硬件，相关环境如下：
 > | mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
 > |:----------:|:--------------:|:-----------:|:------------------:|
-> |    2.4     |    24.1.RC2    | 7.5.0.1.129 |      8.0.RC3       |
+> |    2.5     |    24.1.RC2    | 7.5.0.1.129 |      8.0.0.beta1       |
 
 <table align="center">
 <tr>
@@ -19,7 +19,9 @@
 
 克隆并安装此仓库, 并且确保安装了相关依赖
 ```shell
+cd mindone
 pip install -e .[training]
+cd examples/diffusers/cogvideox_factory
 pip install -r requirements.txt
 ```
 
@@ -56,7 +58,7 @@ pip install -r requirements.txt
 huggingface-cli download   --repo-type dataset Wild-Heart/Disney-VideoGeneration-Dataset   --local-dir video-dataset-disney
 ```
 
-然后启动 LoRA 微调进行文本到视频的生成（根据您的选择修改不同的超参数、数据集根目录以及其他配置选项）：
+然后启动 LoRA 或者SFT微调进行文本到视频的生成，详情参考[训练](#训练)：
 
 ```
 # 对 CogVideoX 模型进行文本到视频的 LoRA 微调
@@ -83,8 +85,11 @@ video = pipe("<my-awesome-prompt>")[0][0]
 export_to_video(video, "output.mp4", fps=8)
 ```
 
-以下我们提供了更多探索此仓库选项的额外部分。所有这些都旨在尽可能降低内存需求，使视频模型的微调变得更易于访问。
-此外，可以通过[`run_infer.sh`](./run_infer.sh)执行单卡、多卡并行推理，注意其中用到的预训练模型、分辨率、帧率、文本的`max_sequence_length`设置都应当与训练一致！
+以下我们提供了更多探索此仓库选项的额外部分。所有这些都旨在尽可能降低内存需求，使视频模型的微调变得更易于访问。 详情参考[推理](#推理)。
+
+## 推理
+
+我们提供了脚本[`run_infer.sh`](./run_infer.sh)用以执行单卡、多卡并行推理。
 
 - 执行卡数及并行配置，注意`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数, 当`SP=True`时，`SP_SIZE`不能是1：
 
@@ -102,25 +107,23 @@ MINDSPORE_MODE=0
 JIT_LEVEL=O1
 ```
 
-- 执行卡数及并行配置：
-
-```shell
-MODEL_PATH="THUDM/CogVideoX1.5-5b"
-TRANSFORMER_PATH=""
-```
-
-- 配置模型及推理结果参数, `TRANSFORMER_PATH`和`LORA_PATH`二选一，如果配置`LORA_PATH`需要修改下面`--transformer_ckpt_path $TRANSFORMER_PATH \`为`--lora_ckpt_path $LORA_PATH \`：
+- 配置模型及推理结果参数。`MODEL_PATH`默认是`THUDM/CogVideoX1.5-5b`，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的`THUDM/CogVideoX1.5-5b`保持一致；`TRANSFORMER_PATH`和`LORA_PATH`可以不传，使用`MODEL_PATH`里的权重，配置的话`TRANSFORMER_PATH`和`LORA_PATH`二选一，如果配置`LORA_PATH`需要修改下面`--transformer_ckpt_path $TRANSFORMER_PATH \`为`--lora_ckpt_path $LORA_PATH \`：
 
 ```shell
 MODEL_PATH="THUDM/CogVideoX1.5-5b"
 # TRANSFORMER_PATH and LORA_PATH only choose one to set.
 TRANSFORMER_PATH=""
+LORA_PATH=""
 PROMPT=""
 H=768
 W=1360
 F=80
 MAX_SEQUENCE_LENGTH=224
 ```
+
+> [!TIP]
+> H, W, F配置最好和训练保持一致；
+> 开SP时，MAX_SEQUENCE_LENGTH必须是SP的倍数，F必须是8的倍数。
 
 然后正式运行`run_infer.sh`，输出结果至`OUTPUT_DIR`。
 
@@ -152,18 +155,18 @@ NUM_NPUS=8
 - 配置待处理数据集读取配置和输出路径：
 ```shell
 DATA_ROOT="/path/to/my/datasets/video-dataset"
-CAPTION_COLUMN="prompt.txt"
+CAPTION_COLUMN="prompts.txt"
 VIDEO_COLUMN="videos.txt"
 OUTPUT_DIR="/path/to/my/datasets/preprocessed-dataset"
 ```
 
 - 配置prompts和videos预处理的相关参数（注意必须与正式训练的配置一致）：
 ```shell
-HEIGHT_BUCKETS="480"
-WIDTH_BUCKETS="720"
-FRAME_BUCKETS="49"
-MAX_NUM_FRAMES="49"
-MAX_SEQUENCE_LENGTH=226
+HEIGHT_BUCKETS="768"
+WIDTH_BUCKETS="1360"
+FRAME_BUCKETS="80"
+MAX_NUM_FRAMES="80"
+MAX_SEQUENCE_LENGTH=224
 TARGET_FPS=8
 ```
 
@@ -176,7 +179,14 @@ DTYPE=bf16
 
 ### 正式训练
 
-- 配置用于训练的NPU数量：`NUM_NPUS=8`
+执行卡数及并行配置，注意`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数, 当`SP=True`时，`SP_SIZE`不能是1：
+
+```shell
+NUM_NPUS=8
+SP=True
+SP_SIZE=$NUM_NPUS
+DEEPSPEED_ZERO_STAGE=3
+```
 
 - 选择训练的超参数。让我们以学习率和优化器类型的超参数遍历为例：
 
@@ -190,8 +200,9 @@ DTYPE=bf16
 - 配置混合精度、ZeRO和MindSpore JIT加速配置：
   ```shell
   MINDSPORE_MODE=0
+  JIT_LEVEL=O1
   AMP_LEVEL=O2
-  DEEPSPEED_ZERO_STAGE=2
+  DEEPSPEED_ZERO_STAGE=3
   ```
 
 - 指定**预处理后**的字幕和视频的绝对路径以及列/文件。
@@ -202,42 +213,47 @@ DTYPE=bf16
   VIDEO_COLUMN="videos.txt"
   ```
 
+- 是否使用数据缓存,推荐都打开：
+
+  ```shell
+  LATENTS_CACHE=1
+  EMBEDDINGS_CACHE=1
+  ```
+
 - 运行实验，遍历不同的超参数：
-    ```shell
-    for learning_rate in "${LEARNING_RATES[@]}"; do
+  ```shell
+  for learning_rate in "${LEARNING_RATES[@]}"; do
     for lr_schedule in "${LR_SCHEDULES[@]}"; do
       for optimizer in "${OPTIMIZERS[@]}"; do
         for steps in "${MAX_TRAIN_STEPS[@]}"; do
-          output_dir="./cogvideox-lora__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
-
-          cmd="$LAUNCHER training/cogvideox_text_to_video_lora.py \
+          output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
+  
+          cmd="$LAUNCHER training/cogvideox_text_to_video_sft.py \
             --pretrained_model_name_or_path $MODEL_PATH \
             --data_root $DATA_ROOT \
             --caption_column $CAPTION_COLUMN \
             --video_column $VIDEO_COLUMN \
-            --id_token BW_STYLE \
-            --height_buckets 480 \
-            --width_buckets 720 \
-            --frame_buckets 49 \
+            --height_buckets 768 \
+            --width_buckets 1360 \
+            --frame_buckets 77 \
+            --max_num_frames 77 \
+            --gradient_accumulation_steps 1 \
             --dataloader_num_workers 2 \
-            --validation_prompt \"BW_STYLE A black and white animated scene unfolds with an anthropomorphic goat surrounded by musical notes and symbols, suggesting a playful environment. Mickey Mouse appears, leaning forward in curiosity as the goat remains still. The goat then engages with Mickey, who bends down to converse or react. The dynamics shift as Mickey grabs the goat, potentially in surprise or playfulness, amidst a minimalistic background. The scene captures the evolving relationship between the two characters in a whimsical, animated setting, emphasizing their interactions and emotions:::BW_STYLE A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance\" \
             --validation_prompt_separator ::: \
             --num_validation_videos 1 \
-            --validation_epochs 10 \
+            --validation_epochs 1 \
             --seed 42 \
-            --lora_rank 128 \
-            --lora_alpha 128 \
             --mixed_precision bf16 \
             --output_dir $output_dir \
-            --max_num_frames 49 \
             --train_batch_size 1 \
             --max_train_steps $steps \
-            --checkpointing_steps 1000 \
-            --gradient_accumulation_steps 1 \
+            --checkpointing_steps 2000 \
             --gradient_checkpointing \
+            --fa_gradient_checkpointing=$FA_RCP \
+            --scale_lr \
             --learning_rate $learning_rate \
             --lr_scheduler $lr_schedule \
-            --lr_warmup_steps 400 \
+            --lr_warmup_steps 800 \
             --lr_num_cycles 1 \
             --enable_slicing \
             --enable_tiling \
@@ -248,10 +264,12 @@ DTYPE=bf16
             --max_grad_norm 1.0 \
             --report_to tensorboard \
             --mindspore_mode $MINDSPORE_MODE \
+            --jit_level $JIT_LEVEL \
             --amp_level $AMP_LEVEL \
-            --embeddings_cache \
+            --enable_sequence_parallelism $SP \
+            --sequence_parallel_shards $SP_SIZE \
             $EXTRA_ARGS"
-
+  
           echo "Running command: $cmd"
           eval $cmd
           echo -ne "-------------------- Finished executing script --------------------\n\n"
