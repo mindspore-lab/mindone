@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import context, nn, ops
+from mindspore import context, mint, nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
@@ -212,6 +212,7 @@ def main(args):
 
     # enable_sequence_parallelism check
     enable_sequence_parallelism = getattr(args, "enable_sequence_parallelism", False)
+    sequence_parallel_shards = getattr(args, "sequence_parallel_shards", 1)
     if enable_sequence_parallelism:
         if args.world_size <= 1 or args.sequence_parallel_shards <= 1:
             logging.warning(
@@ -220,11 +221,14 @@ def main(args):
                 f"can not enable enable_sequence_parallelism=True."
             )
             enable_sequence_parallelism = False
+            sequence_parallel_shards = 1
         else:
             from mindone.acceleration import create_parallel_group
 
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
+    else:
+        sequence_parallel_shards = 1
 
     # Prepare models and scheduler
     # Loading order changed for MindSpore adaptation
@@ -438,7 +442,11 @@ def main(args):
 
     if args.scale_lr:
         args.learning_rate = (
-            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
+            args.learning_rate
+            * args.gradient_accumulation_steps
+            * args.train_batch_size
+            * args.world_size
+            // sequence_parallel_shards
         )
 
     lr_scheduler = get_scheduler(

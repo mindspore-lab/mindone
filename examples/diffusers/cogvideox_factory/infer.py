@@ -5,6 +5,7 @@ import shutil
 import numpy as np
 
 import mindspore as ms
+from mindspore.communication import get_rank
 
 from mindone import diffusers
 from mindone.diffusers.training_utils import init_distributed_device, set_seed
@@ -155,6 +156,7 @@ def infer(args: argparse.Namespace) -> None:
     set_seed(args.seed)
     # enable_sequence_parallelism check
     enable_sequence_parallelism = getattr(args, "enable_sequence_parallelism", False)
+    is_main_device = True
     if enable_sequence_parallelism:
         if args.world_size <= 1 or args.sequence_parallel_shards <= 1:
             print(
@@ -169,6 +171,8 @@ def infer(args: argparse.Namespace) -> None:
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
             sp_group = get_sequence_parallel_group()
+            sp_rank = get_rank(sp_group)
+            is_main_device = sp_rank == True
     dtype = (
         ms.float16 if args.mixed_precision == "fp16" else ms.bfloat16 if args.mixed_precision == "bf16" else ms.float32
     )
@@ -261,19 +265,20 @@ def infer(args: argparse.Namespace) -> None:
         latents=latents,
     )[0][0]
 
-    if args.npy_output_path is not None:
-        path = pathlib.Path(args.npy_output_path)
-        if path.exists():
-            shutil.rmtree(path)
-        path.mkdir()
-        index_max_length = len(str(len(video)))
-        for index, image in enumerate(video):
-            np.save(path / f"image_{str(index).zfill(index_max_length)}", np.array(image))
-        print("Successfully saved the inferred numpy array.")
+    if is_main_device:
+        if args.npy_output_path is not None:
+            path = pathlib.Path(args.npy_output_path)
+            if path.exists():
+                shutil.rmtree(path)
+            path.mkdir()
+            index_max_length = len(str(len(video)))
+            for index, image in enumerate(video):
+                np.save(path / f"image_{str(index).zfill(index_max_length)}", np.array(image))
+            print("Successfully saved the inferred numpy array.")
 
-    if args.video_output_path is not None:
-        diffusers.utils.export_to_video(video, args.video_output_path, fps=8)
-        print("Successfully saved the inferred video.")
+        if args.video_output_path is not None:
+            diffusers.utils.export_to_video(video, args.video_output_path, fps=8)
+            print("Successfully saved the inferred video.")
 
 
 if __name__ == "__main__":

@@ -86,6 +86,7 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --checkpointing_steps 2000 \
           --gradient_checkpointing \
           --fa_gradient_checkpointing=$FA_RCP \
+          --scale_lr \
           --learning_rate $learning_rate \
           --lr_scheduler $lr_schedule \
           --lr_warmup_steps 800 \
