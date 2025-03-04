@@ -13,6 +13,7 @@ _import_structure = {
         "AnimateDiffVideoToVideoPipeline",
         "AnimateDiffVideoToVideoControlNetPipeline",
     ],
+    "audioldm": ["AudioLDMPipeline"],
     "aura_flow": ["AuraFlowPipeline"],
     "auto_pipeline": [
         "AutoPipelineForImage2Image",
@@ -206,6 +207,7 @@ if TYPE_CHECKING:
         AnimateDiffVideoToVideoControlNetPipeline,
         AnimateDiffVideoToVideoPipeline,
     )
+    from .audioldm import AudioLDMPipeline
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
