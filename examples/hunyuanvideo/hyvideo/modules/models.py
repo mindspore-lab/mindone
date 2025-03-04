@@ -770,6 +770,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         # Merge txt and img to pass through single stream blocks.
         x = ops.concat((img, txt), axis=1)
+        img_seq_len = img.shape[1]
         if len(self.single_blocks) > 0:
             for _, block in enumerate(self.single_blocks):
                 x = block(
@@ -783,9 +784,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
                     # attn_mask=mask,
                 )
         # sequence parallel end
-        x = self.gather_forward_split_backward(x)
 
         img = x[:, :img_seq_len, ...]
+        x = self.gather_forward_split_backward(x)
 
         # ---------------------------- Final layer ------------------------------
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
