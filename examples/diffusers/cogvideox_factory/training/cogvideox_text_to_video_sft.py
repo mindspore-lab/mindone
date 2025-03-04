@@ -279,6 +279,8 @@ def main(args):
                 revision=args.revision,
                 variant=args.variant,
             )
+        for param in vae.get_parameters():
+            param.parallel_optimizer = False
 
         if args.enable_slicing:
             vae.enable_slicing()
