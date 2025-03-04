@@ -582,22 +582,20 @@ def main(args):
         dummy_videos = ms.Tensor(shape=videos_shape, dtype=weight_dtype)
 
         num_tokens = transformer_config.max_text_seq_length
-        if args.embeddings_cache:
-            text_encoder_config_path = Path(args.pretrained_model_name_or_path) / "text_encoder" / "config.json"
-            text_encoder_config = json.load(open(text_encoder_config_path))
-            hidden_size = text_encoder_config["d_model"]
-            prompt_embeds_shape = (symbol_batch_size, num_tokens, hidden_size)
-            dummy_text_input_ids_or_prompt_embeds = ms.Tensor(shape=prompt_embeds_shape, dtype=ms.float32)
-        else:
-            text_input_ids_shape = (symbol_batch_size, num_tokens)
-            dummy_text_input_ids_or_prompt_embeds = ms.Tensor(shape=text_input_ids_shape, dtype=ms.int64)
-
+        text_encoder_config_path = Path(args.pretrained_model_name_or_path) / "text_encoder" / "config.json"
+        text_encoder_config = json.load(open(text_encoder_config_path))
+        hidden_size = text_encoder_config["d_model"]
+        prompt_embeds_shape = (symbol_batch_size, num_tokens, hidden_size)
+        dummy_prompt_embeds = ms.Tensor(shape=prompt_embeds_shape, dtype=weight_dtype)
+        dummy_timesteps = ms.Tensor(shape=(symbol_batch_size,), dtype=ms.int32)
         cos_and_sin_dim = 2
         dim = dataset_init_kwargs["attention_head_dim"]
         rotary_positional_embeddings_shape = (symbol_batch_size, cos_and_sin_dim, symbol_sequence_length, dim)
-        dummy_rotary_positional_embeddings = ms.Tensor(shape=rotary_positional_embeddings_shape, dtype=ms.float32)
+        dummy_rotary_positional_embeddings = ms.Tensor(shape=rotary_positional_embeddings_shape, dtype=weight_dtype)
 
-        train_step.set_inputs(dummy_videos, dummy_text_input_ids_or_prompt_embeds, dummy_rotary_positional_embeddings)
+        train_step.set_inputs(
+            dummy_videos, dummy_prompt_embeds, dummy_videos, dummy_timesteps, dummy_rotary_positional_embeddings
+        )
 
     for epoch in range(first_epoch, args.num_train_epochs):
         transformer.set_train(True)
