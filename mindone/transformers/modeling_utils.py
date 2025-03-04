@@ -18,14 +18,13 @@ import gc
 import json
 import os
 import re
-import time
 import warnings
 from contextlib import contextmanager, nullcontext
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
-from transformers.generation.utils import GenerationConfig
+from transformers.generation.configuration_utils import GenerationConfig
 from transformers.safetensors_conversion import auto_conversion
 from transformers.utils import (
     ADAPTER_SAFE_WEIGHTS_NAME,
@@ -154,7 +153,7 @@ def get_state_dict_dtype(state_dict):
 
 def dtype_byte_size(dtype):
     """
-    Returns the size (in bytes) occupied by one parameter of type `dtype`.
+    Returns the size (in bytes) occupied by one ms.Parameter of type `dtype`.
 
     Example:
 
@@ -173,7 +172,7 @@ def dtype_byte_size(dtype):
 
 
 def shard_checkpoint(
-    state_dict: Dict[str, ms.Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
+    state_dict: Dict[str, Tensor], max_shard_size: Union[int, str] = "10GB", weights_name: str = WEIGHTS_NAME
 ):
     """
     Splits a model state dictionary in sub-checkpoints so that the final size of each sub-checkpoint does not exceed a
@@ -192,7 +191,7 @@ def shard_checkpoint(
     </Tip>
 
     Args:
-        state_dict (`Dict[str, ms.Tensor]`): The state dictionary of a model to save.
+        state_dict (`Dict[str, Tensor]`): The state dictionary of a model to save.
         max_shard_size (`int` or `str`, *optional*, defaults to `"10GB"`):
             The maximum size of each sub-checkpoint. If expressed as a string, needs to be digits followed by a unit
             (like `"5MB"`).
@@ -283,7 +282,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
         for name, param in model_to_load.parameters_and_names():
             if param.name != name:
                 logger.error(
-                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
+                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
                     f"There are several possible reasons for this misalignment:\n"
                     f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
                     f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
@@ -506,7 +505,7 @@ class ModuleUtilsMixin:
                 if isinstance(module_type, nn.Embedding)
             ]
             total_parameters = [
-                parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
+                ms.Parameter for name, ms.Parameter in self.parameters_and_names() if name not in embedding_param_names
             ]
         else:
             total_parameters = list(self.get_parameters())
@@ -587,11 +586,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
     _supports_quantized_cache = False
 
     @property
-    def dummy_inputs(self) -> Dict[str, ms.Tensor]:
+    def dummy_inputs(self) -> Dict[str, Tensor]:
         """
-        `Dict[str, ms.Tensor]`: Dummy inputs to do a forward pass in the network.
+        `Dict[str, Tensor]`: Dummy inputs to do a forward pass in the network.
         """
-        return {"input_ids": ms.tensor(DUMMY_INPUTS)}
+        return {"input_ids": Tensor(DUMMY_INPUTS)}
 
     @property
     def framework(self) -> str:
@@ -604,7 +603,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         super().__init__()
         if not isinstance(config, PretrainedConfig):
             raise ValueError(
-                f"Parameter config in `{self.__class__.__name__}(config)` should be an instance of class "
+                f"ms.Parameter config in `{self.__class__.__name__}(config)` should be an instance of class "
                 "`PretrainedConfig`. To create a model from a pretrained model use "
                 f"`model = {self.__class__.__name__}.from_pretrained(PRETRAINED_MODEL_NAME)`"
             )
@@ -673,7 +672,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 'future release. Please use `attn_implementation="flash_attention_2"` instead.'
             )
             config._attn_implementation = "flash_attention_2"
-
         if config._attn_implementation == "flash_attention_2":
             cls._check_and_enable_flash_attn_2(
                 config,
@@ -1053,7 +1051,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             new_num_tokens = ((new_num_tokens + pad_to_multiple_of - 1) // pad_to_multiple_of) * pad_to_multiple_of
         else:
             logger.info(
-                "You are resizing the embedding layer without providing a `pad_to_multiple_of` parameter. This means that the new embedding"
+                "You are resizing the embedding layer without providing a `pad_to_multiple_of` ms.Parameter. This means that the new embedding"
                 f" dimension will be {new_num_tokens}. This might induce some performance reduction as *Tensor Cores* will not be available."
                 " For more details about this, or help on choosing the correct value for resizing, refer to this guide:"
                 " https://docs.nvidia.com/deeplearning/performance/dl-performance-matrix-multiplication/index.html#requirements-tc"
@@ -1214,7 +1212,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 Whether the process calling this is the main process or not. Useful when in distributed training like
                 TPUs and need to call this function on all processes. In this case, set `is_main_process=True` only on
                 the main process to avoid race conditions.
-            state_dict (nested dictionary of `ms.Tensor`):
+            state_dict (nested dictionary of `Tensor`):
                 The state dictionary of the model to save. Will default to `self.state_dict()`, but can be used to only
                 save parts of the model or if special precautions need to be taken when recovering the state dictionary
                 of a model (like when using model parallelism).
@@ -1479,7 +1477,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                       save directory.
                     - The model is loaded by supplying a local directory as `pretrained_model_name_or_path` and a
                       configuration JSON file named *config.json* is found in the directory.
-            state_dict (`Dict[str, ms.Tensor]`, *optional*):
+            state_dict (`Dict[str, Tensor]`, *optional*):
                 A state dictionary to use instead of a state dictionary loaded from saved weights file.
 
                 This option can be used if you want to create a model from a pretrained configuration but load your own
@@ -1674,8 +1672,11 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             else:
                 commit_hash = getattr(config, "_commit_hash", None)
 
-        # Always True: if is_peft_available():
-        _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+        try:
+            _adapter_model_path = adapter_kwargs.pop("_adapter_model_path", None)
+        except Exception:
+            _adapter_model_path = None
+            adapter_kwargs = {}
 
         if _adapter_model_path is None:
             _adapter_model_path = find_adapter_config_file(
@@ -2285,14 +2286,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 resolved_archive_file = logging.tqdm(resolved_archive_file, desc="Loading checkpoint shards")
 
             # loading checkpoint
-            _s_time = time.time()
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                print(f"====> time cost, load_state_dict: {time.time() - _s_time:.3f}s")
-                _s_time = time.time()
                 state_dict = _convert_state_dict(model, state_dict, start_prefix)
-                print(f"====> time cost, _convert_state_dict: {time.time() - _s_time:.3f}s")
-                _s_time = time.time()
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
@@ -2304,12 +2300,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     remove_prefix_from_model,
                     ignore_mismatched_sizes,
                 )
-                print(f"====> time cost, _find_mismatched_keys: {time.time() - _s_time:.3f}s")
 
-                _s_time = time.time()
                 error_msgs += _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=True)
-                print(f"====> time cost, _load_state_dict_into_model: {time.time() - _s_time:.3f}s")
-                _s_time = time.time()
 
                 # force memory release
                 del state_dict

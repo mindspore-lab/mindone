@@ -20,14 +20,33 @@ import numpy as np
 from ad.modules.diffusionmodules.util import make_beta_schedule
 
 import mindspore as ms
-from mindspore import Parameter, Tensor
+from mindspore import Parameter, Tensor, _no_grad
 from mindspore import dtype as mstype
-from mindspore import nn, ops
+from mindspore import jit_class, mint, nn, ops
 
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.misc import default, exists, extract_into_tensor
 
 _logger = logging.getLogger(__name__)
+
+
+@jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 class DDPM(nn.Cell):
@@ -98,7 +117,6 @@ class DDPM(nn.Cell):
             self.monitor = monitor
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys, only_model=load_only_unet)
-        self.isnan = ops.IsNan()
         self.register_schedule(
             given_betas=given_betas,
             beta_schedule=beta_schedule,
@@ -313,7 +331,7 @@ class LatentDiffusion(DDPM):
         B, C, H, W = x.shape
         if C != 3:
             # b h w c -> b c h w
-            x = ops.transpose(x, (0, 3, 1, 2))
+            x = mint.permute(x, (0, 3, 1, 2))
             # raise ValueError("Expect input shape (b 3 h w), but get {}".format(x.shape))
 
         z = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
@@ -325,13 +343,13 @@ class LatentDiffusion(DDPM):
         B, F, C, H, W = x.shape
         if C != 3:
             raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-        x = ops.reshape(x, (-1, C, H, W))
+        x = mint.reshape(x, (-1, C, H, W))
 
         z = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
 
         # (b*f c h w) -> (b f c h w) -> (b c f h w )
-        z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-        z = ops.transpose(z, (0, 2, 1, 3, 4))
+        z = mint.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
+        z = mint.permute(z, (0, 2, 1, 3, 4))
 
         return z
 
@@ -363,22 +381,21 @@ class LatentDiffusion(DDPM):
             - assume unet3d input/output shape: (b c f h w)
                 unet2d input/output shape: (b c h w)
         """
+        with no_grad():
+            # 1. get image/video latents z using vae
+            if self.emb_cache:
+                z = x
+            else:
+                z = self.get_latents(x)
+            # 2. get condition embeddings
+            cond = self.get_condition_embeddings(text_tokens, control)
 
-        # 1. get image/video latents z using vae
-        if self.emb_cache:
-            z = x
-        else:
-            z = self.get_latents(x)
-
-        # 2. sample timestep and add noise to latents
+        # 3. sample timestep and add noise to latents
         t = self.uniform_int(
             (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
         )
         noise = ops.randn_like(z)
         noisy_latents, snr = self.add_noise(z, noise, t)
-
-        # 3. get condition embeddings
-        cond = self.get_condition_embeddings(text_tokens, control)
 
         # 4.  unet forward, predict conditioned on conditions
         model_output = self.apply_model(
@@ -398,11 +415,11 @@ class LatentDiffusion(DDPM):
         loss_sample = self.reduce_loss(loss_element)
 
         if self.snr_gamma is not None:
-            snr_gamma = ops.ones_like(snr) * self.snr_gamma
+            snr_gamma = mint.ones_like(snr) * self.snr_gamma
             # TODO: for v-pred, .../ (snr+1)
             # TODO: for beta zero rescale, consider snr=0
             # min{snr, gamma} / snr
-            loss_weight = ops.stack((snr, snr_gamma), axis=0).min(axis=0) / snr
+            loss_weight = mint.stack((snr, snr_gamma), dim=0).min(axis=0) / snr
             loss = (loss_weight * loss_sample).mean()
         else:
             loss = loss_sample.mean()
@@ -447,7 +464,7 @@ class LatentDiffusionWithEmbedding(LatentDiffusion):
         z = ops.stop_gradient(self.scale_factor * x)
 
         # (b f c h w) -> (b c f h w )
-        z = ops.transpose(z, (0, 2, 1, 3, 4))
+        z = mint.permute(z, (0, 2, 1, 3, 4))
         return z
 
     def get_condition_embeddings(self, text_tokens, control=None):
@@ -471,13 +488,13 @@ class DiffusionWrapper(nn.Cell):
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
-            x_concat = ops.concat((x, c_concat), axis=1)
+            x_concat = mint.concat((x, c_concat), dim=1)
             out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":  # t2v task
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
-            x_concat = ops.concat((x, c_concat), axis=1)
+            x_concat = mint.concat((x, c_concat), dim=1)
             context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)
         elif self.conditioning_key == "crossattn-adm":

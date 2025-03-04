@@ -47,7 +47,7 @@ Now we can launch the training using:
 **___Note: Please follow the [README_sdxl.md](./README_sdxl.md) if you are using the [stable-diffusion-xl](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0).___**
 
 ```bash
-export MODEL_NAME="runwayml/stable-diffusion-v1-5"
+export MODEL_NAME="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export DATA_DIR="./cat"
 
 python textual_inversion.py \
@@ -90,6 +90,9 @@ from mindone.diffusers import StableDiffusionPipeline
 
 model_id = "path-to-your-trained-model"
 pipe = StableDiffusionPipeline.from_pretrained(model_id, mindspore_dtype=ms.float16)
+
+repo_id_embeds = "path-to-your-learned-embeds"
+pipe.load_textual_inversion(repo_id_embeds)
 
 prompt = "A <cat-toy> backpack"
 
