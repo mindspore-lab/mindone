@@ -1,7 +1,11 @@
 __version__ = "4.42.4"
-
-
+# Feature Extractor
+from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
+from .image_processing_base import ImageProcessingMixin
+from .image_processing_utils import BaseImageProcessor
+from .image_utils import ImageFeatureExtractionMixin
 from .modeling_utils import MSPreTrainedModel
+from .models.auto import AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -49,6 +53,13 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.phi3 import (
+    Phi3ForCausalLM,
+    Phi3ForSequenceClassification,
+    Phi3ForTokenClassification,
+    Phi3Model,
+    Phi3PreTrainedModel,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,
@@ -65,3 +76,4 @@ from .models.umt5 import (
     UMT5PreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
+from .processing_utils import ProcessorMixin

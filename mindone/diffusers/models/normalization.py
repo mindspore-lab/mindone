@@ -83,6 +83,40 @@ class AdaLayerNorm(nn.Cell):
         return x
 
 
+class SD35AdaLayerNormZeroX(nn.Cell):
+    r"""
+    Norm layer adaptive layer norm zero (AdaLN-Zero).
+
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+        num_embeddings (`int`): The size of the embeddings dictionary.
+    """
+
+    def __init__(self, embedding_dim: int, norm_type: str = "layer_norm", bias: bool = True) -> None:
+        super().__init__()
+
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, 9 * embedding_dim, has_bias=bias)
+        if norm_type == "layer_norm":
+            self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+        else:
+            raise ValueError(f"Unsupported `norm_type` ({norm_type}) provided. Supported ones are: 'layer_norm'.")
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        emb: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, ...]:
+        emb = self.linear(self.silu(emb))
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = emb.chunk(
+            9, axis=1
+        )
+        norm_hidden_states = self.norm(hidden_states)
+        hidden_states = norm_hidden_states * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        norm_hidden_states2 = norm_hidden_states * (1 + scale_msa2[:, None]) + shift_msa2[:, None]
+        return hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp, norm_hidden_states2, gate_msa2
+
+
 class AdaLayerNormZero(nn.Cell):
     r"""
     Norm layer adaptive layer norm zero (adaLN-Zero).
@@ -339,6 +373,51 @@ class LuminaLayerNormContinuous(nn.Cell):
             x = self.linear_2(x)
 
         return x
+
+
+class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
+    r"""
+    Norm layer adaptive layer norm zero (adaLN-Zero).
+
+    Parameters:
+        embedding_dim (`int`): The size of each embedding vector.
+        num_embeddings (`int`): The size of the embeddings dictionary.
+    """
+
+    def __init__(self, embedding_dim: int, dim: int):
+        super().__init__()
+
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, 12 * dim, has_bias=True)
+        self.norm_x = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+        self.norm_c = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
+
+    def construct(
+        self,
+        x: ms.Tensor,
+        context: ms.Tensor,
+        emb: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+        emb = self.linear(self.silu(emb))
+        (
+            shift_msa,
+            scale_msa,
+            gate_msa,
+            shift_mlp,
+            scale_mlp,
+            gate_mlp,
+            c_shift_msa,
+            c_scale_msa,
+            c_gate_msa,
+            c_shift_mlp,
+            c_scale_mlp,
+            c_gate_mlp,
+        ) = emb.chunk(12, axis=1)
+        normed_x = self.norm_x(x)
+        normed_context = self.norm_c(context)
+        x = normed_x * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        context = normed_context * (1 + c_scale_msa[:, None]) + c_shift_msa[:, None]
+        return x, gate_msa, shift_mlp, scale_mlp, gate_mlp, context, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp
 
 
 class CogVideoXLayerNormZero(nn.Cell):

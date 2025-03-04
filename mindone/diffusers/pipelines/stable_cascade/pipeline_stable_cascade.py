@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -280,6 +281,15 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
     def num_timesteps(self):
         return self._num_timesteps
 
+    def get_timestep_ratio_conditioning(self, t, alphas_cumprod):
+        s = ms.tensor([0.008])
+        clamp_range = [0, 1]
+        min_var = ops.cos(s / (1 + s) * math.pi * 0.5) ** 2
+        var = alphas_cumprod[t]
+        var = var.clamp(*clamp_range)
+        ratio = (((var * min_var) ** 0.5).acos() / (math.pi * 0.5)) * (1 + s) - s
+        return ratio
+
     def __call__(
         self,
         image_embeddings: Union[ms.Tensor, List[ms.Tensor]],
@@ -427,10 +437,32 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             batch_size, image_embeddings, num_images_per_prompt, dtype, generator, latents, self.scheduler
         )
 
+        if isinstance(self.scheduler, DDPMWuerstchenScheduler):
+            timesteps = timesteps[:-1]
+        else:
+            if hasattr(self.scheduler.config, "clip_sample") and self.scheduler.config.clip_sample:
+                self.scheduler.config.clip_sample = False  # disample sample clipping
+                logger.warning(" set `clip_sample` to be False")
+
         # 6. Run denoising loop
-        self._num_timesteps = len(timesteps[:-1])
-        for i, t in enumerate(self.progress_bar(timesteps[:-1])):
-            timestep_ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
+        if hasattr(self.scheduler, "betas"):
+            alphas = 1.0 - self.scheduler.betas
+            alphas_cumprod = ops.cumprod(alphas, dim=0)
+        else:
+            alphas_cumprod = []
+
+        self._num_timesteps = len(timesteps)
+        for i, t in enumerate(self.progress_bar(timesteps)):
+            if not isinstance(self.scheduler, DDPMWuerstchenScheduler):
+                if len(alphas_cumprod) > 0:
+                    timestep_ratio = self.get_timestep_ratio_conditioning(t.long(), alphas_cumprod)
+                    timestep_ratio = timestep_ratio.broadcast_to((latents.shape[0],)).to(dtype)
+                else:
+                    timestep_ratio = (
+                        t.float().div(self.scheduler.timesteps[-1]).broadcast_to((latents.shape[0],)).to(dtype)
+                    )
+            else:
+                timestep_ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
 
             # 7. Denoise latents
             predicted_latents = self.decoder(
@@ -451,7 +483,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 )
 
             # 9. Renoise latents to next timestep
-            # TODO: check prev_sample
+            if not isinstance(self.scheduler, DDPMWuerstchenScheduler):
+                timestep_ratio = t
             latents = self.scheduler.step(
                 model_output=predicted_latents,
                 timestep=timestep_ratio,

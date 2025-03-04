@@ -176,7 +176,7 @@ class Upsample2D(nn.Cell):
             else:
                 hidden_states = ops.interpolate(hidden_states, size=output_size, mode="nearest")
 
-        # If the input is bfloat16, we cast back to bfloat16
+        # Cast back to original dtype
         if dtype == ms.bfloat16:
             hidden_states = hidden_states.to(dtype)
 

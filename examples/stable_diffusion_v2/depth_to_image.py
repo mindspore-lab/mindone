@@ -157,7 +157,7 @@ def prepare_conditions(depth, txt, num_samples=1, height=512, width=512, vae_sca
 
     # repeat to [bs, 1, h_z, w_z]
     depth = np.expand_dims(depth, axis=[0, 1])
-    depth = depth.repeat(num_samples, axis=0)
+    depth = depth.tile((num_samples, 1, 1, 1))
     assert len(depth.shape) == 4 and depth.shape[1] == 1, f"expect shape [n, 1, h, w], but got {depth.shape}"
 
     depth = Tensor(depth, dtype=mstype.float32)
