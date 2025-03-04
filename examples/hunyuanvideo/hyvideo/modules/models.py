@@ -702,7 +702,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
             oh // self.patch_size[1],
             ow // self.patch_size[2],
         )
-
+        # print(tt, th, tw)
         # Prepare modulation vectors.
         # AMP: t (fp16) -> sinusoidal (fp32) -> mlp (bf16), out bf16
         vec = self.time_in(t)
@@ -787,6 +787,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
 
         img = x[:, :img_seq_len, ...]
         img = self.gather_forward_split_backward(img)
+        # print(img.shape)
 
         # ---------------------------- Final layer ------------------------------
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
