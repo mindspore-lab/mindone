@@ -59,4 +59,6 @@ if __name__ == "__main__":
     parser.add_argument("--use_embed_input", type=ast.literal_eval, default=False)
     args, _ = parser.parse_known_args()
 
+    print("torch npu available: ", torch_npu.npu.is_available())
+
     run_qwen2_generate_pt(args)
