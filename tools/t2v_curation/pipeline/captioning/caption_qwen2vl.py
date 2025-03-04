@@ -40,8 +40,8 @@ def parse_args():
     parser.add_argument("--pretrained_model_name_or_path", type=str,
                         default="Qwen/Qwen2-VL-7B-Instruct")
     parser.add_argument("--question", type=str, default="Describe the video in details.")
-    parser.add_argument("--height", type=int, default=672, help = "resized video height")
-    parser.add_argument("--width", type=int, default=1008, help = "resized video width")
+    parser.add_argument("--height", type=int, default=448, help = "resized video height")
+    parser.add_argument("--width", type=int, default=672, help = "resized video width")
     parser.add_argument("--fps", type=int, default=4, help = "fps to sample from video")
     parser.add_argument("--bs", type=int, default=1, help="Batch size")
     parser.add_argument("--skip_if_existing", action="store_true",
