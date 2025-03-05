@@ -51,16 +51,14 @@ def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
 def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     # non parallel network
     ms.set_seed(1024)
-    non_parallel_network_cfg = get_network_config()
+    name = "HYVideo-T/2-depth1"
     factor_kwargs = {"dtype": dtype}
-    non_parallel_network = init_model(**non_parallel_network_cfg, factor_kwargs=factor_kwargs)
+    non_parallel_network = init_model(name=name, factor_kwargs=factor_kwargs)
 
     # parallel netowrk
     ms.set_seed(1024)
     create_parallel_group(shards=get_group_size())
-    parallel_network_cfg = get_network_config()
-    factor_kwargs = {"dtype": dtype}
-    parallel_network = init_model(**parallel_network_cfg, factor_kwargs=factor_kwargs)
+    parallel_network = init_model(name=name, factor_kwargs=factor_kwargs)
 
     # load weight
     for (_, w0), (_, w1) in zip(non_parallel_network.parameters_and_names(), parallel_network.parameters_and_names()):
