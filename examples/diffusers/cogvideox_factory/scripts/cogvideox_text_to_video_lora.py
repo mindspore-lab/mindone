@@ -881,9 +881,9 @@ class TrainStepForCogVideo(nn.Cell):
 
         target = model_input
 
-        loss = ops.mean(
+        loss = mint.mean(
             (weights * (model_pred - target) ** 2).reshape(batch_size, -1),
-            axis=1,
+            dim=1,
         )
         loss = loss.mean()
 

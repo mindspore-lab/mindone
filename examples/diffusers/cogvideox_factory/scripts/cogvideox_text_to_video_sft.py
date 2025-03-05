@@ -66,69 +66,6 @@ from mindone.transformers import T5EncoderModel
 logger = get_logger(__name__)
 
 
-def log_validation(
-    trackers,
-    pipe: CogVideoXPipeline,
-    args: Dict[str, Any],
-    pipeline_args: Dict[str, Any],
-    epoch,
-    is_final_validation: bool = False,
-):
-    logger.info(
-        f"Running validation... \n Generating {args.num_validation_videos} videos with prompt: {pipeline_args['prompt']}."
-    )
-
-    # run inference
-    generator = np.random.Generator(np.random.PCG64(seed=args.seed)) if args.seed else None
-
-    videos = []
-    for _ in range(args.num_validation_videos):
-        # Inference in PyNative Context and requires no grads, since VAE of pipeline does not support JIT
-        with pynative_no_grad():
-            latents = pipe(**pipeline_args, generator=generator, output_type="latent")[0]
-
-            # Calculate intermediate values of pipe.__call__ outside
-            num_frames = pipeline_args.get("num_frames", None) or pipe.transformer.config.sample_frames
-            latent_frames = (num_frames - 1) // pipe.vae_scale_factor_temporal + 1
-            patch_size_t = pipe.transformer.config.patch_size_t
-
-            additional_frames = 0
-            if patch_size_t is not None and latent_frames % patch_size_t != 0:
-                additional_frames = patch_size_t - latent_frames % patch_size_t
-                num_frames += additional_frames * pipe.vae_scale_factor_temporal
-
-            # VAE decode in PyNative Mode
-            with pynative_context(), pynative_no_grad():
-                latents = latents[:, additional_frames:]
-                video = pipe.decode_latents(latents)
-                video = pipe.video_processor.postprocess_video(video=video, output_type="np")[0]
-        videos.append(video)
-
-    for tracker_name, tracker_writer in trackers.items():
-        phase_name = "test" if is_final_validation else "validation"
-        if tracker_name == "tensorboard":
-            if is_master(args):
-                video_filenames = []
-                for i, video in enumerate(videos):
-                    prompt = (
-                        pipeline_args["prompt"][:25]
-                        .replace(" ", "_")
-                        .replace(" ", "_")
-                        .replace("'", "_")
-                        .replace('"', "_")
-                        .replace("/", "_")
-                    )
-                    filename = os.path.join(args.output_dir, f"{phase_name}_video_{i}_{prompt}.mp4")
-                    export_to_video(video, filename, fps=8)
-                    video_filenames.append(filename)
-
-            tracker_writer.add_video(phase_name, np.stack(videos), epoch, fps=8, dataformats="NTCHW")
-        if tracker_name == "wandb":
-            logger.warning(f"image logging not implemented for {tracker_name}")
-
-    return videos
-
-
 class CollateFunction:
     def __init__(self, use_rope: bool) -> None:
         self.use_rope = use_rope
@@ -249,7 +186,7 @@ def main(args):
     transformer.fa_checkpointing = args.fa_gradient_checkpointing
 
     text_encoder, vae = None, None
-    # Only load Text-encoder & VAE when they are needed in training or validation. Because currently
+    # Only load Text-encoder & VAE when they are needed in training. Because currently
     # the MindSpore memory pool does not have the function of releasing memory fragments. Deleting
     # them after loading still causes memory fragments which might result in OOM on devices.
     if not args.embeddings_cache:
@@ -666,110 +603,6 @@ def main(args):
             if global_step >= args.max_train_steps:
                 break
 
-        if is_master(args):
-            if args.validation_prompt is not None and (epoch + 1) % args.validation_epochs == 0:
-                pipe_init_kwargs = {} if text_encoder is None else {"text_encoder": text_encoder, "vae": vae}
-                pipe = CogVideoXPipeline.from_pretrained(
-                    args.pretrained_model_name_or_path,
-                    transformer=transformer,
-                    scheduler=scheduler,
-                    revision=args.revision,
-                    variant=args.variant,
-                    mindspore_dtype=weight_dtype,
-                    **pipe_init_kwargs,
-                )
-
-                if args.enable_slicing:
-                    pipe.vae.enable_slicing()
-                if args.enable_tiling:
-                    pipe.vae.enable_tiling()
-
-                validation_prompts = args.validation_prompt.split(args.validation_prompt_separator)
-                for validation_prompt in validation_prompts:
-                    pipeline_args = {
-                        "prompt": validation_prompt,
-                        "guidance_scale": args.guidance_scale,
-                        "use_dynamic_cfg": args.use_dynamic_cfg,
-                        "height": args.height,
-                        "width": args.width,
-                        "max_sequence_length": transformer_config.max_text_seq_length,
-                    }
-
-                    log_validation(
-                        trackers=trackers,
-                        pipe=pipe,
-                        args=args,
-                        pipeline_args=pipeline_args,
-                        epoch=epoch,
-                        is_final_validation=False,
-                    )
-
-                del pipe
-                gc.collect()
-                ms.hal.empty_cache()
-
-    if is_master(args):
-        dtype = (
-            ms.float16
-            if args.mixed_precision == "fp16"
-            else ms.bfloat16
-            if args.mixed_precision == "bf16"
-            else ms.float32
-        )
-
-        if hasattr(transformer, "_backbone"):
-            transformer = transformer._backbone
-
-        transformer = transformer.to(dtype)
-
-        transformer.save_pretrained(
-            os.path.join(args.output_dir, "transformer"),
-            safe_serialization=True,
-            max_shard_size="5GB",
-        )
-
-        # Cleanup trained models to save memory
-        del transformer
-        gc.collect()
-        ms.hal.empty_cache()
-
-        # Final test inference
-        pipe = CogVideoXPipeline.from_pretrained(
-            args.pretrained_model_name_or_path,
-            revision=args.revision,
-            variant=args.variant,
-            mindspore_dtype=weight_dtype,
-        )
-        pipe.scheduler = CogVideoXDPMScheduler.from_config(pipe.scheduler.config)
-
-        if args.enable_slicing:
-            pipe.vae.enable_slicing()
-        if args.enable_tiling:
-            pipe.vae.enable_tiling()
-
-        # Run inference
-        validation_outputs = []
-        if args.validation_prompt and args.num_validation_videos > 0:
-            validation_prompts = args.validation_prompt.split(args.validation_prompt_separator)
-            for validation_prompt in validation_prompts:
-                pipeline_args = {
-                    "prompt": validation_prompt,
-                    "guidance_scale": args.guidance_scale,
-                    "use_dynamic_cfg": args.use_dynamic_cfg,
-                    "height": args.height,
-                    "width": args.width,
-                }
-
-                video = log_validation(
-                    trackers=trackers,
-                    pipe=pipe,
-                    args=args,
-                    pipeline_args=pipeline_args,
-                    epoch=epoch,
-                    is_final_validation=True,
-                )
-                validation_outputs.extend(video)
-
 
 class TrainStepForCogVideo(nn.Cell):
     def __init__(
@@ -905,9 +738,9 @@ class TrainStepForCogVideo(nn.Cell):
 
         target = model_input
 
-        loss = ops.mean(
+        loss = mint.mean(
             (weights * (model_pred - target) ** 2).reshape(batch_size, -1),
-            axis=1,
+            dim=1,
         )
         loss = loss.mean()
 

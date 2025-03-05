@@ -83,9 +83,6 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --max_num_frames 77 \
           --gradient_accumulation_steps 1 \
           --dataloader_num_workers 2 \
-          --validation_prompt_separator ::: \
-          --num_validation_videos 1 \
-          --validation_epochs 1 \
           --seed 42 \
           --mixed_precision $MIXED_PRECISION \
           --output_dir $output_dir \
