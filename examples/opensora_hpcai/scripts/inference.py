@@ -163,16 +163,23 @@ def main(args):
         latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
+    start_idx = 0
+    end_idx = len(
+        captions if args.text_embed_folder is None else glob.glob(os.path.join(args.text_embed_folder, "*.npz"))
+    )
     if not args.enable_sequence_parallelism:
         # split samples to NPUs as even as possible
-        start_idx, end_idx = distribute_samples(len(captions), rank_id, device_num)
-        captions = captions[start_idx:end_idx]
+        start_idx, end_idx = distribute_samples(end_idx, rank_id, device_num)
+        if args.reference_path is not None:
+            args.reference_path = args.reference_path[start_idx:end_idx]
+        if args.mask_strategy is not None:
+            args.mask_strategy = args.mask_strategy[start_idx:end_idx]
         base_data_idx = start_idx
     else:
         base_data_idx = 0
 
     if args.use_parallel and not args.enable_sequence_parallelism:
-        print(f"Num captions for rank {rank_id}: {len(captions)}")
+        print(f"Num captions for rank {rank_id}: {end_idx - start_idx}")
 
     # 2. model initiate and weight loading
     # 2.1 vae
@@ -291,6 +298,7 @@ def main(args):
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(
             "t5", args.t5_model_name_or_path, dtype=dtype_map[args.t5_dtype], model_max_length=args.model_max_length
         )
+        captions = captions[start_idx:end_idx]
         num_prompts = len(captions)
         text_tokens, mask = zip(
             *[text_encoder.get_text_tokens_and_mask(caption, return_tensor=False) for caption in captions]
@@ -299,19 +307,18 @@ def main(args):
         text_emb = None
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
     else:
-        assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         if args.model_version != "v1":
             logger.warning("For embedded captions, only one prompt per video is supported at this moment.")
 
-        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
+        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))[start_idx:end_idx]
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
         for fp in embed_paths:
             prompt_prefix.append(os.path.basename(fp)[:-4])
-            dat = np.load(fp)
-            text_tokens.append(dat["tokens"])
-            mask.append(dat["mask"])
-            text_emb.append(dat["text_emb"])
+            with np.load(fp) as dat:
+                text_tokens.append(dat["tokens"])
+                mask.append(dat["mask"])
+                text_emb.append(dat["text_emb"])
         text_tokens = np.concatenate(text_tokens)
         mask = np.concatenate(mask)
         text_emb = np.concatenate(text_emb)
@@ -487,13 +494,13 @@ def main(args):
 
         # save result
         for j in range(ns):
-            global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
+                global_idx = base_data_idx + i + j
                 prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
             else:
-                fn = prompt_prefix[global_idx]
+                fn = prompt_prefix[i + j]
                 save_fp = f"{save_dir}/{fn}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{fn}.npy"
 
