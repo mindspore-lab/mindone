@@ -50,6 +50,7 @@ def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
 
 
 def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
+    print(f"Run model in dtype: {dtype}")
     # non parallel network
     ms.set_seed(1024)
     name = "HYVideo-T/2-depth1"
@@ -108,5 +109,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode", default=0, type=int, choices=[0, 1], help="Mode to test. (0: Graph Mode; 1: Pynative mode)"
     )
+    parser.add_argument(
+        "--dtype",
+        default="bf16",
+        type=str,
+        choices=["fp32", "bf16", "fp16"],
+        help="Mode to test. (0: Graph Mode; 1: Pynative mode)",
+    )
+    dtype_mapping = {"fp32": ms.float32, "bf16": ms.bfloat16, "fp16": ms.float16}
     args = parser.parse_args()
-    run_network(mode=args.mode)
+    run_network(mode=args.mode, dtype=dtype_mapping[args.dtype])
