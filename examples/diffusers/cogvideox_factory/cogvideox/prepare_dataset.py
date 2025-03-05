@@ -289,6 +289,7 @@ def save_intermediates(output_queue: queue.Queue) -> None:
 def main():
     args = get_args()
     set_seed(args.seed)
+    ms.set_cpu_affinity(True)
     # Initialize distributed processing
     init_distributed_device(args)
 
@@ -510,7 +511,7 @@ def main():
         ms.mint.distributed.all_reduce(y)
         print(f"All devices have preprocessed, device num is {y.item()}", flush=True)
         if y.item() != args.world_size:
-            print(f"[WARNING] Not all device done!")
+            print("[WARNING] Not all device done!")
 
     # 6. Combine results from each rank
     if is_master(args):

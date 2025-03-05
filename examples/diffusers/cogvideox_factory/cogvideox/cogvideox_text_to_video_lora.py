@@ -184,6 +184,7 @@ def main(args):
         mode=args.mindspore_mode,
         jit_config={"jit_level": args.jit_level},
     )
+    ms.set_cpu_affinity(True)
 
     # read attr distributed, writer attrs rank/local_rank/world_size:
     #   args.local_rank = mindspore.communication.get_local_rank()
@@ -431,6 +432,7 @@ def main(args):
         output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"]
         if transformer_config.use_rotary_positional_embeddings
         else ["videos", "text_input_ids"],
+        num_parallel_workers=args.dataloader_num_workers,
     )
 
     # Scheduler and math around the number of training steps.

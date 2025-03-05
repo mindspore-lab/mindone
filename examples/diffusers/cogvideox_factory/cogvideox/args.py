@@ -91,12 +91,14 @@ def _get_dataset_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--latents_cache",
         action="store_true",
-        help="Whether to use a pre-encoded tensor dataset of latents instead of videos. The expected format is that saved by running the `prepare_dataset.py` script.",
+        help="Whether to use a pre-encoded tensor dataset of latents instead of videos. "
+        "The expected format is that saved by running the `prepare_dataset.py` script.",
     )
     parser.add_argument(
         "--embeddings_cache",
         action="store_true",
-        help="Whether to use a pre-encoded tensor dataset of prompt embeddings instead of text prompts. The expected format is that saved by running the `prepare_dataset.py` script.",
+        help="Whether to use a pre-encoded tensor dataset of prompt embeddings instead of text prompts. "
+        "The expected format is that saved by running the `prepare_dataset.py` script.",
     )
     parser.add_argument(
         "--random_flip",
@@ -577,11 +579,6 @@ def check_args(args):
 
     if args.push_to_hub:
         raise ValueError("Pushing results to hub is not supported in MindSpore currently.")
-
-    # if args.mindspore_mode == 0 and not args.latents_cache:
-    #     raise ValueError(
-    #         "Since VAE does not support MindSpore.GRAPH_MODE, you should only use graph_mode when latents_cache."
-    #     )
 
 
 def get_args():

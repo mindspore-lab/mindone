@@ -34,7 +34,7 @@ from transformers import AutoTokenizer
 import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.amp import auto_mixed_precision
-from mindspore.dataset import GeneratorDataset
+import mindspore.dataset as ds
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 from mindone.diffusers import (
@@ -176,6 +176,7 @@ def main(args):
         mode=args.mindspore_mode,
         jit_config={"jit_level": args.jit_level},
     )
+    ms.set_cpu_affinity(True)
 
     # read attr distributed, writer attrs rank/local_rank/world_size:
     #   args.local_rank = mindspore.communication.get_local_rank()
@@ -398,7 +399,9 @@ def main(args):
         data_device_num = args.world_size
         data_rank_id = args.rank
 
-    train_dataloader = GeneratorDataset(
+    ds.config.set_prefetch_size(4)
+    # ds.config.set_iterator_mode(do_copy=True, parallel_convert=True)
+    train_dataloader = ds.GeneratorDataset(
         train_dataset,
         column_names=["examples"],
         shard_id=data_rank_id,
@@ -430,6 +433,7 @@ def main(args):
             output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"]
             if transformer_config.use_rotary_positional_embeddings
             else ["videos", "text_input_ids"],
+            num_parallel_workers=args.dataloader_num_workers,
         )
     data_len = len(train_dataloader)
 
@@ -588,7 +592,7 @@ def main(args):
         symbol_sequence_length = ms.Symbol(unique=True)
 
         channels = vae_config.config.norm_num_groups
-        videos_shape = (symbol_batch_size, symbol_frames, channels, symbol_height, symbol_width)
+        videos_shape = (symbol_batch_size, symbol_frames, channels // 2, symbol_height, symbol_width)
         dummy_videos = ms.Tensor(shape=videos_shape, dtype=weight_dtype)
 
         num_tokens = transformer_config.max_text_seq_length

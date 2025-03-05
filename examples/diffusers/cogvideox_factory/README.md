@@ -235,8 +235,7 @@ DEEPSPEED_ZERO_STAGE=3
       for optimizer in "${OPTIMIZERS[@]}"; do
         for steps in "${MAX_TRAIN_STEPS[@]}"; do
           output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
-  
-          cmd="$LAUNCHER training/cogvideox_text_to_video_sft.py \
+          cmd="$LAUNCHER cogvideox/cogvideox_text_to_video_sft.py \
             --pretrained_model_name_or_path $MODEL_PATH \
             --data_root $DATA_ROOT \
             --caption_column $CAPTION_COLUMN \
@@ -277,7 +276,6 @@ DEEPSPEED_ZERO_STAGE=3
             --enable_sequence_parallelism $SP \
             --sequence_parallel_shards $SP_SIZE \
             $EXTRA_ARGS"
-  
           echo "Running command: $cmd"
           eval $cmd
           echo -ne "-------------------- Finished executing script --------------------\n\n"
@@ -287,7 +285,7 @@ DEEPSPEED_ZERO_STAGE=3
   done
   ```
 
-要了解不同参数的含义，你可以查看 [args](./training/args.py) 文件，或者使用 `--help` 运行训练脚本。
+要了解不同参数的含义，你可以查看 [args](./cogvideox/args.py) 文件，或者使用 `--help` 运行训练脚本。
 
 
 ## 与原仓的差异&功能限制
@@ -303,10 +301,10 @@ DEEPSPEED_ZERO_STAGE=3
 - `amp_level`：混合精度配置
 - `zero_stage`: ZeRO优化器并行配置
 
-具体使用方式参见[`args.py`](./training/args.py)中的`_get_mindspore_args()`。
+具体使用方式参见[`args.py`](./cogvideox/args.py)中的`_get_mindspore_args()`。
 
 ### 功能限制
 
-当前训练脚本并不完全支持原仓代码的所有训练参数，详情参见[`args.py`](./training/args.py)中的`check_args()`。
+当前训练脚本并不完全支持原仓代码的所有训练参数，详情参见[`args.py`](./cogvideox/args.py)中的`check_args()`。
 
 其中一个主要的限制来自于CogVideoX模型中的[3D Causual VAE不支持静态图](https://gist.github.com/townwish4git/b6cd0d213b396eaedfb69b3abcd742da)，这导致我们**不支持静态图模式下VAE参与训练**，因此在静态图模式下必须提前进行数据预处理以获取VAE-latents/text-encoder-embeddings cache。

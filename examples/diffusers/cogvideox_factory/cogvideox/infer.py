@@ -152,6 +152,7 @@ def parse_args() -> argparse.Namespace:
 
 def infer(args: argparse.Namespace) -> None:
     ms.set_context(mode=args.mindspore_mode, jit_config={"jit_level": args.jit_level})
+    ms.set_cpu_affinity(True)
     init_distributed_device(args)
     set_seed(args.seed)
     # enable_sequence_parallelism check
@@ -172,12 +173,12 @@ def infer(args: argparse.Namespace) -> None:
             ms.set_auto_parallel_context(enable_alltoall=True)
             sp_group = get_sequence_parallel_group()
             sp_rank = get_rank(sp_group)
-            is_main_device = sp_rank == True
+            is_main_device = sp_rank == 0
     dtype = (
         ms.float16 if args.mixed_precision == "fp16" else ms.bfloat16 if args.mixed_precision == "bf16" else ms.float32
     )
     if enable_sequence_parallelism:
-        from training.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+        from models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
         from transformers import AutoTokenizer
 
         from mindone.diffusers import CogVideoXDDIMScheduler
@@ -244,7 +245,15 @@ def infer(args: argparse.Namespace) -> None:
 
     pipe.vae.enable_tiling()
     pipe.vae.enable_slicing()
-    prompt = "A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
+    prompt = (
+        "A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo "
+        "forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. "
+        "Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. "
+        "Sunlight filters through the tall bamboo, casting a gentle glow on the scene. "
+        "The panda's face is expressive, showing concentration and joy as it plays. "
+        "The background includes a small, flowing stream and vibrant green foliage, "
+        "enhancing the peaceful and magical atmosphere of this unique musical performance."
+    )
     prompt = prompt if args.prompt is None else args.prompt
     latents = None
     if enable_sequence_parallelism:
