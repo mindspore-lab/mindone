@@ -30,7 +30,7 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     EXTRA_ARGS=""
     SP=False
 else
-    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sft""
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sft" --join=True"
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
 fi
 if [ "$ENABLE_DYNAMIC_SHAPE" -eq 1 ]; then

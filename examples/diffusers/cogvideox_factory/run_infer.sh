@@ -29,7 +29,7 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     EXTRA_ARGS=""
     SP=False
 else
-    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph""
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph" --join=True"
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
     export TOKENIZERS_PARALLELISM=false
 fi

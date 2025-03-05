@@ -32,9 +32,9 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
+import mindspore.dataset as ds
 from mindspore import mint, nn, ops
 from mindspore.amp import auto_mixed_precision
-import mindspore.dataset as ds
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 from mindone.diffusers import (
