@@ -163,7 +163,6 @@ def main(args):
             module.set_train(False)
             for param in module.get_parameters():
                 param.requires_grad = False
-
     tot_params = len(list(vl_gpt.get_parameters()))
     print(f"tot params: {tot_params}, trainable params: {num_train_params}, frozen params: {num_frozen_params}")
     assert num_frozen_params + num_train_params == tot_params, "All params should be set to trainable or frozen."
@@ -203,7 +202,7 @@ def main(args):
 
     use_value_and_grad = args.use_value_and_grad
     if use_value_and_grad:
-
+        from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm
         def forward_fn(data):
             loss = vl_gpt(*data)
             return loss
@@ -211,11 +210,15 @@ def main(args):
         grad_fn = ms.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=False)
         if args.use_parallel:
             grad_reducer = nn.DistributedGradReducer(optimizer.parameters)
-
+        
         def train_step(data):
             loss, grads = grad_fn(data)
             if args.use_parallel:
                 grads = grad_reducer(grads)
+            # import pdb; pdb.set_trace()
+            if args.clip_grad:
+                grads = clip_grad_norm(grads, args.max_grad_norm)
+
             optimizer(grads)
 
             return loss
@@ -350,6 +353,8 @@ if __name__ == "__main__":
     parser.add_argument("--end_learning_rate", default=1e-5, type=float, help="end learning rate for cosine decay")
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
+    parser.add_argument("--clip_grad", default=False, type=str2bool, help="clip graident")
+    parser.add_argument("--max_grad_norm", default=5.0, type=float, help="max gradient l2 norm")
     parser.add_argument(
         "--null_prompt_prob",
         default=0.0,
