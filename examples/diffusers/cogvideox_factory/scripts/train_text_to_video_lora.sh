@@ -12,9 +12,10 @@ NUM_NPUS=8
 
 # Training Configurations
 # Experiment with as many hyperparameters as you want!
+MIXED_PRECISION="bf16"
 LEARNING_RATES=("1e-5")
 LR_SCHEDULES=("cosine_with_restarts")
-OPTIMIZERS=("adamw")
+OPTIMIZERS=("adamw_bf16")
 MAX_TRAIN_STEPS=("3000")
 FA_RCP=False
 LATENTS_CACHE=1
@@ -73,7 +74,7 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --num_validation_videos 1 \
           --validation_epochs 1 \
           --seed 42 \
-          --mixed_precision bf16 \
+          --mixed_precision $MIXED_PRECISION \
           --output_dir $output_dir \
           --train_batch_size 1 \
           --max_train_steps $steps \
