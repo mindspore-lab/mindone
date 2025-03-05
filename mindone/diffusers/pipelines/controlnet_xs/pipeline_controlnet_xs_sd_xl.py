@@ -17,12 +17,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL.Image
-from transformers import CLIPImageProcessor, CLIPTokenizer
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
 
-from ....transformers import CLIPTextModel, CLIPTextModelWithProjection
+from ....transformers import CLIPImageProcessor, CLIPTextModel, CLIPTextModelWithProjection
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, StableDiffusionXLLoraLoaderMixin, TextualInversionLoaderMixin

@@ -18,12 +18,12 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import PIL
-from transformers import CLIPImageProcessor, CLIPTokenizer
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
 
-from ....transformers import CLIPTextModel, CLIPVisionModelWithProjection
+from ....transformers import CLIPImageProcessor, CLIPTextModel, CLIPVisionModelWithProjection
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...models import AutoencoderKL
 from ...models.unets.unet_i2vgen_xl import I2VGenXLUNet

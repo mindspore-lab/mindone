@@ -5,12 +5,12 @@ import urllib.parse as ul
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from transformers import CLIPImageProcessor, T5Tokenizer
+from transformers import T5Tokenizer
 
 import mindspore as ms
 from mindspore import ops
 
-from ....transformers import T5EncoderModel
+from ....transformers import CLIPImageProcessor, T5EncoderModel
 from ...loaders import LoraLoaderMixin
 from ...models import UNet2DConditionModel
 from ...schedulers import DDPMScheduler

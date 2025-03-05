@@ -19,12 +19,12 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-from transformers import CLIPImageProcessor, CLIPTokenizer
+from transformers import CLIPTokenizer
 
 import mindspore as ms
 from mindspore import ops
 
-from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
+from mindone.transformers import CLIPImageProcessor, CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin

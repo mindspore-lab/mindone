@@ -16,12 +16,12 @@ import inspect
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import BertTokenizer, CLIPImageProcessor, MT5Tokenizer
+from transformers import BertTokenizer, MT5Tokenizer
 
 import mindspore as ms
 from mindspore import ops
 
-from ....transformers import BertModel, T5EncoderModel
+from ....transformers import BertModel, CLIPImageProcessor, T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import VaeImageProcessor
 from ...models import AutoencoderKL, HunyuanDiT2DModel

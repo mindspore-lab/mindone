@@ -26,6 +26,8 @@ import yaml
 import mindspore as ms
 from mindspore import Parameter, ops
 
+from mindone.transformers import AutoImageProcessor
+
 from ..models.modeling_utils import _convert_state_dict, load_state_dict
 from ..schedulers import (
     DDIMScheduler,
@@ -37,11 +39,8 @@ from ..schedulers import (
     LMSDiscreteScheduler,
     PNDMScheduler,
 )
-from ..utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, deprecate, is_transformers_available, logging
+from ..utils import SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME, deprecate, logging
 from ..utils.hub_utils import _get_model_file
-
-if is_transformers_available():
-    from transformers import AutoImageProcessor
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

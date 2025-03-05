@@ -1,1 +1,3 @@
+from .feature_extraction_dpt import DPTFeatureExtractor
+from .image_processing_dpt import DPTImageProcessor
 from .modeling_dpt import DPTForDepthEstimation

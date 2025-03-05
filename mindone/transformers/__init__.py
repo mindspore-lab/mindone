@@ -29,14 +29,17 @@ from .models.blip_2 import (
 )
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
+    CLIPFeatureExtractor,
+    CLIPImageProcessor,
     CLIPModel,
     CLIPPreTrainedModel,
+    CLIPProcessor,
     CLIPTextModel,
     CLIPTextModelWithProjection,
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
-from .models.dpt import DPTForDepthEstimation
+from .models.dpt import DPTFeatureExtractor, DPTForDepthEstimation, DPTImageProcessor
 from .models.gemma import (
     GemmaForCausalLM,
     GemmaForSequenceClassification,
