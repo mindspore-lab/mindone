@@ -1,18 +1,13 @@
-from typing import Union, Optional, List, Tuple
 import math
+import os
+from typing import List, Union
+
 import mindspore as ms
-
-from mindspore import mint, nn
-
-
+from mindspore import mint
 
 
 def make_grid(
-    tensor: Union[ms.Tensor, List[ms.Tensor]],
-    nrow: int = 8,
-    padding: int = 2,
-    pad_value: int = 0,
-    **kwargs
+    tensor: Union[ms.Tensor, List[ms.Tensor]], nrow: int = 8, padding: int = 2, pad_value: int = 0, **kwargs
 ) -> ms.Tensor:
     """Make a grid of images.
 
@@ -25,10 +20,8 @@ def make_grid(
         pad_value (float, optional): Value for the padded pixels. Default: ``0``.
 
     """
-    if not (ms.is_tensor(tensor) or
-            (isinstance(tensor, list) and all(ms.is_tensor(t) for t in tensor))):
-        raise TypeError(f'tensor or list of tensors expected, got {type(tensor)}')
-
+    if not (ms.is_tensor(tensor) or (isinstance(tensor, list) and all(ms.is_tensor(t) for t in tensor))):
+        raise TypeError(f"tensor or list of tensors expected, got {type(tensor)}")
 
     # if list of tensors, convert to a 4D mini-batch Tensor
     if isinstance(tensor, list):
@@ -43,7 +36,6 @@ def make_grid(
 
     if tensor.dim() == 4 and tensor.shape[1] == 1:  # single-channel images
         tensor = mint.cat((tensor, tensor, tensor), 1)
-
 
     if tensor.shape[0] == 1:
         return tensor.squeeze(0)
@@ -65,3 +57,31 @@ def make_grid(
             ).copy_(tensor[k])
             k = k + 1
     return grid
+
+
+def load_from_checkpoint(model, ckpt_fp, remove_prefix=["var."]):
+    assert os.path.exists(ckpt_fp), f"checkopint {ckpt_fp} NOT found"
+    print(f"Loading ckpt {ckpt_fp} into network")
+    param_dict = ms.load_checkpoint(ckpt_fp)
+    keys = list(param_dict.keys())
+    for pname in keys:
+        for pf in remove_prefix:
+            if pname.startswith(pf):
+                param_dict[pname.replace(pf, "")] = param_dict.pop(pname)
+
+    if (
+        "quantize.ema_vocab_hit_SV" in param_dict
+        and param_dict["quantize.ema_vocab_hit_SV"].shape[0] != model.quantize.ema_vocab_hit_SV.shape[0]
+    ):
+        param_dict["quantize.ema_vocab_hit_SV"] = model.quantize.ema_vocab_hit_SV
+    m, u = ms.load_param_into_net(model, param_dict)
+    print("net param not load: ", m, len(m))
+    print("ckpt param not load: ", u, len(u))
+
+
+def str2bool(b):
+    if b.lower() not in ["false", "true"]:
+        raise Exception("Invalid Bool Value")
+    if b.lower() in ["false"]:
+        return False
+    return True

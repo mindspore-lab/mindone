@@ -1,9 +1,11 @@
-import mindspore as ms
-from mindspore import mint, nn
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 # this file only provides the 2 modules used in VQVAE
-__all__ = ['Encoder', 'Decoder', ]
+__all__ = [
+    "Encoder",
+    "Decoder",
+]
 
 """
 References: https://github.com/CompVis/stable-diffusion/blob/21f890f9da3cfbeaba8e2ac3c425ee9e998d5229/ldm/modules/diffusionmodules/model.py
@@ -25,7 +27,7 @@ class Upsample2x(nn.Cell):
         self.conv = mint.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=1, padding=1)
 
     def construct(self, x):
-        return self.conv(F.interpolate(x, scale_factor=2.0, mode='nearest'))
+        return self.conv(F.interpolate(x, scale_factor=2.0, mode="nearest"))
 
 
 class Downsample2x(nn.Cell):
@@ -34,12 +36,13 @@ class Downsample2x(nn.Cell):
         self.conv = mint.nn.Conv2d(in_channels, in_channels, kernel_size=3, stride=2, padding=0)
 
     def construct(self, x):
-        return self.conv(F.pad(x, pad=(0, 1, 0, 1), mode='constant', value=0))
+        return self.conv(F.pad(x, pad=(0, 1, 0, 1), mode="constant", value=0))
 
 
 class ResnetBlock(nn.Cell):
-    def __init__(self, *, in_channels, out_channels=None,
-                 dropout):  # conv_shortcut=False,  # conv_shortcut: always False in VAE
+    def __init__(
+        self, *, in_channels, out_channels=None, dropout
+    ):  # conv_shortcut=False,  # conv_shortcut: always False in VAE
         super().__init__()
         self.in_channels = in_channels
         out_channels = in_channels if out_channels is None else out_channels
@@ -99,9 +102,17 @@ def make_attn(in_channels, using_sa=True):
 
 class Encoder(nn.Cell):
     def __init__(
-            self, *, ch=128, ch_mult=(1, 2, 4, 8), num_res_blocks=2,
-            dropout=0.0, in_channels=3,
-            z_channels, double_z=False, using_sa=True, using_mid_sa=True,
+        self,
+        *,
+        ch=128,
+        ch_mult=(1, 2, 4, 8),
+        num_res_blocks=2,
+        dropout=0.0,
+        in_channels=3,
+        z_channels,
+        double_z=False,
+        using_sa=True,
+        using_mid_sa=True,
     ):
         super().__init__()
         self.ch = ch
@@ -140,8 +151,9 @@ class Encoder(nn.Cell):
 
         # end
         self.norm_out = Normalize(block_in)
-        self.conv_out = mint.nn.Conv2d(block_in, (2 * z_channels if double_z else z_channels), kernel_size=3, stride=1,
-                                        padding=1)
+        self.conv_out = mint.nn.Conv2d(
+            block_in, (2 * z_channels if double_z else z_channels), kernel_size=3, stride=1, padding=1
+        )
 
     def construct(self, x):
         # downsampling
@@ -164,9 +176,16 @@ class Encoder(nn.Cell):
 
 class Decoder(nn.Cell):
     def __init__(
-            self, *, ch=128, ch_mult=(1, 2, 4, 8), num_res_blocks=2,
-            dropout=0.0, in_channels=3,  # in_channels: raw img channels
-            z_channels, using_sa=True, using_mid_sa=True,
+        self,
+        *,
+        ch=128,
+        ch_mult=(1, 2, 4, 8),
+        num_res_blocks=2,
+        dropout=0.0,
+        in_channels=3,  # in_channels: raw img channels
+        z_channels,
+        using_sa=True,
+        using_mid_sa=True,
     ):
         super().__init__()
         self.ch = ch
@@ -175,7 +194,6 @@ class Decoder(nn.Cell):
         self.in_channels = in_channels
 
         # compute in_ch_mult, block_in and curr_res at lowest res
-        in_ch_mult = (1,) + tuple(ch_mult)
         block_in = ch * ch_mult[self.num_resolutions - 1]
 
         # z to block_in

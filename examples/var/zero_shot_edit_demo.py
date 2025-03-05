@@ -1,38 +1,32 @@
 import argparse
-import os
+from time import time
+from typing import List
 
 import numpy as np
-from typing import List
+from models import build_vae_var
 from PIL import Image
-from time import time
+from utils.data import normalize_01_into_pm1, pil_loader
+from utils.utils import load_from_checkpoint, make_grid
+
 import mindspore as ms
 from mindspore import mint
 
-
-from models import VQVAE, build_vae_var
-from utils.data import pil_loader, normalize_01_into_pm1
-from utils.utils import make_grid
+from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.env import init_train_env
 from mindone.utils.seed import set_random_seed
-from mindone.utils.amp import auto_mixed_precision
 
 
-def load_from_checkpoint(model, ckpt_fp):
-    assert os.path.exists(ckpt_fp), f"checkopint {ckpt_fp} NOT found"
-    print(f"Loading ckpt {ckpt_fp} into network")
-    param_dict = ms.load_checkpoint(ckpt_fp)
-    m, u = ms.load_param_into_net(model, param_dict)
-    print("net param not load: ", m, len(m))
-    print("ckpt param not load: ", u, len(u))
-
-
-def get_edit_mask(patch_nums: List[int], y0: float, x0: float, y1: float, x1: float, inpainting: bool = True) -> ms.Tensor:
+def get_edit_mask(
+    patch_nums: List[int], y0: float, x0: float, y1: float, x1: float, inpainting: bool = True
+) -> ms.Tensor:
     ph, pw = patch_nums[-1], patch_nums[-1]
     edit_mask = mint.zeros((ph, pw))
-    edit_mask[round(y0 * ph):round(y1 * ph), round(x0 * pw):round(x1 * pw)] = 1 # outpainting mode: center would be gt
+    edit_mask[
+        round(y0 * ph) : round(y1 * ph), round(x0 * pw) : round(x1 * pw)
+    ] = 1  # outpainting mode: center would be gt
     if inpainting:
-        edit_mask = 1 - edit_mask   # inpainting mode: center would be model pred
-    return edit_mask    # a binary mask, 1 for keeping the tokens of the image to be edited; 0 for generating new tokens (by VAR)
+        edit_mask = 1 - edit_mask  # inpainting mode: center would be model pred
+    return edit_mask  # a binary mask, 1 for keeping the tokens of the image to be edited; 0 for generating new tokens (by VAR)
 
 
 def main(args):
@@ -54,9 +48,14 @@ def main(args):
         patch_nums = (1, 2, 3, 4, 5, 6, 8, 10, 13, 16)
 
     vae, var = build_vae_var(
-        V=4096, Cvae=32, ch=160, share_quant_resi=4,  # hard-coded VQVAE hyperparameters
+        V=4096,
+        Cvae=32,
+        ch=160,
+        share_quant_resi=4,  # hard-coded VQVAE hyperparameters
         patch_nums=patch_nums,
-        num_classes=1000, depth=model_depth, shared_aln=FOR_512_px,
+        num_classes=1000,
+        depth=model_depth,
+        shared_aln=FOR_512_px,
     )
 
     if args.vae_checkpoint:
@@ -91,15 +90,19 @@ def main(args):
 
     # load the image to be edited
 
-    input_img = normalize_01_into_pm1(ms.Tensor(ms.dataset.vision.ToTensor()(pil_loader(img_to_be_edited)))).unsqueeze(0)
+    input_img = normalize_01_into_pm1(ms.Tensor(ms.dataset.vision.ToTensor()(pil_loader(img_to_be_edited)))).unsqueeze(
+        0
+    )
     input_img_tokens = vae.img_to_idxBl(input_img, var.patch_nums)
 
     # zero-shot edit
     # The inpainting parameter controls whether the task is inpainting or outpainting
     edit_mask = get_edit_mask(
         var.patch_nums,
-        y0=0.1, x0=0.1,
-        y1=0.8, x1=0.8,
+        y0=0.1,
+        x0=0.1,
+        y1=0.8,
+        x1=0.8,
         inpainting=True,
     )
     B = 1
@@ -107,8 +110,15 @@ def main(args):
 
     start = time()
     recon_B3HW = var.autoregressive_infer_cfg(
-        B=B, label_B=label_B, cfg=3, top_k=900, top_p=0.95, g_seed=0, more_smooth=True,
-        input_img_tokens=input_img_tokens, edit_mask=edit_mask
+        B=B,
+        label_B=label_B,
+        cfg=3,
+        top_k=900,
+        top_p=0.95,
+        g_seed=0,
+        more_smooth=True,
+        input_img_tokens=input_img_tokens,
+        edit_mask=edit_mask,
     )
 
     img = make_grid(recon_B3HW, nrow=8, padding=0, pad_value=1.0)
@@ -116,7 +126,6 @@ def main(args):
     img = Image.fromarray(img.astype(np.uint8))
     img.save(args.output_path)
     print(f"inference time is {time() - start}s")
-
 
 
 def parse_args():
@@ -130,9 +139,9 @@ def parse_args():
         type=str,
         choices=["O0", "O1", "O2"],
         help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
-             "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
-             "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
-             "O2: Ultimate performance optimization, adopt Sink execution mode.",
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument(
         "--seed",
@@ -159,18 +168,13 @@ def parse_args():
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
     )
-    parser.add_argument(
-        "--output_path", default="image.png", type=str, help="output path to save inference results"
-    )
-    parser.add_argument(
-        "--input_image_path", default=None, type=str, help="input image path for edit."
-    )
+    parser.add_argument("--output_path", default="image.png", type=str, help="output path to save inference results")
+    parser.add_argument("--input_image_path", default=None, type=str, help="input image path for edit.")
 
     args = parser.parse_args()
     return args
 
+
 if __name__ == "__main__":
     args = parse_args()
     main(args)
-
-
