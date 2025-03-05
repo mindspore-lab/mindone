@@ -32,7 +32,6 @@ from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import _no_grad, jit_class, nn, ops
-from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
@@ -41,13 +40,14 @@ from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.pipelines.flux.pipeline_flux_controlnet import FluxControlNetPipeline
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
-    TrainStep,
     compute_density_for_timestep_sampling,
     init_distributed_device,
     is_master,
+    prepare_train_network,
     set_seed,
 )
 from mindone.transformers import CLIPTextModel, T5EncoderModel
+from mindone.utils.amp import auto_mixed_precision
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,23 @@ class pynative_no_grad(_no_grad):
     def __exit__(self, *args):
         if self._pynative:
             super().__exit__(*args)
+
+
+def do_ckpt_combine_online(net_to_save, optimizer_parallel_group):
+    """
+    Combine the model parameters when saving weighs during zero3 training.
+    """
+    new_net_to_save = []
+    all_gather_op = ops.AllGather(optimizer_parallel_group)
+
+    #  net_to_save is a dict with elements as {"name":name, "data": data}
+    for param in net_to_save:
+        if param["data"].parallel_optimizer:
+            new_data = ms.Tensor(all_gather_op(param["data"]).asnumpy())
+        else:
+            new_data = ms.Tensor(param["data"].asnumpy())
+        new_net_to_save.append({"name": param["name"], "data": new_data})
+    return new_net_to_save
 
 
 def log_validation(pipeline, args, step, trackers, logging_dir, is_final_validation=False):
@@ -329,16 +346,6 @@ def parse_args(input_args=None):
         default=1,
         help=("Number of subprocesses to use for data loading."),
     )
-    parser.add_argument(
-        "--enable_mindspore_data_sink",
-        action="store_true",
-        help=(
-            "Whether or not to enable `Data Sinking` feature from MindData which boosting data "
-            "fetching and transferring from host to device. For more information, see "
-            "https://www.mindspore.cn/tutorials/experts/en/r2.2/optimize/execution_opt.html#data-sinking. "
-            "Note: To avoid breaking the iteration logic of the training, the size of data sinking is set to 1."
-        ),
-    )
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="The beta1 parameter for the Adam optimizer.")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="The beta2 parameter for the Adam optimizer.")
     parser.add_argument("--adam_weight_decay", type=float, default=1e-2, help="Weight decay to use.")
@@ -362,14 +369,6 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
-        "--allow_tf32",
-        action="store_true",
-        help=(
-            "Whether or not to allow TF32 on Ampere GPUs. Can be used to speed up training. For more information, see"
-            " https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices"
-        ),
-    )
-    parser.add_argument(
         "--report_to",
         type=str,
         default="tensorboard",
@@ -390,6 +389,56 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument("--distributed", default=False, action="store_true", help="Enable distributed training")
+    parser.add_argument(
+        "--enable_mindspore_data_sink",
+        action="store_true",
+        help=(
+            "Whether or not to enable `Data Sinking` feature from MindData which boosting data "
+            "fetching and transferring from host to device. For more information, see "
+            "https://www.mindspore.cn/tutorials/experts/en/r2.2/optimize/execution_opt.html#data-sinking. "
+            "Note: To avoid breaking the iteration logic of the training, the size of data sinking is set to 1."
+        ),
+    )
+    parser.add_argument(
+        "--mindspore_mode",
+        type=int,
+        default=0,
+        choices=[0, 1],
+        help="Forms of MindSpore programming execution, 0 means static graph mode and 1 means dynamic graph mode.",
+    )
+    parser.add_argument(
+        "--jit_level",
+        type=str,
+        default="O1",
+        choices=["O0", "O1", "O2"],
+        help=(
+            "Used to control the compilation optimization level, supports [O0, O1, O2]. The framework automatically "
+            "selects the execution method. O0: All optimizations except those necessary for functionality are "
+            "disabled, using an operator-by-operator execution method. O1: Enables common optimizations and automatic "
+            "operator fusion optimizations, using an operator-by-operator execution method. This is an experimental "
+            "optimization level, which is continuously being improved. O2: Enables extreme performance optimization, "
+            "using a sinking execution method. Only effective when args.mindspore_mode is 0"
+        ),
+    )
+    parser.add_argument(
+        "--amp_level",
+        type=str,
+        default="O2",
+        choices=["O0", "O1", "O2", "O3"],
+        help=(
+            "Level of auto mixed precision(amp). Supports [O0, O1, O2, O3]. O0: Do not change. O1: Convert cells"
+            "and operators in whitelist to lower precision operations, and keep full precision operations for "
+            "the rest. O2: Keep full precision operations for cells and operators in blacklist, and convert "
+            "the rest to lower precision operations. O3: Cast network to lower precision."
+        ),
+    )
+    parser.add_argument(
+        "--zero_stage",
+        type=int,
+        default=0,
+        choices=[0, 1, 2, 3],
+        help="ZeRO-Stage in data parallel.",
+    )
     parser.add_argument(
         "--set_grads_to_none",
         action="store_true",
@@ -799,17 +848,14 @@ def collate_fn(examples):
 
     return pixel_values, conditioning_pixel_values, prompt_ids, pooled_prompt_embeds, text_ids
 
-    # {
-    #     "pixel_values": pixel_values,
-    #     "conditioning_pixel_values": conditioning_pixel_values,
-    #     "prompt_ids": prompt_ids,
-    #     "unet_added_conditions": {"pooled_prompt_embeds": pooled_prompt_embeds, "time_ids": text_ids},
-    # }
 
-
-def main(args):
+def main():
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(
+        mode=ms.GRAPH_MODE,
+        jit_config={"jit_level": args.jit_level},
+    )
+
     init_distributed_device(args)  # read attr distributed, writer attrs rank/local_rank/world_size
 
     logging_out_dir = Path(args.output_dir, args.logging_dir)
@@ -915,6 +961,11 @@ def main(args):
     vae.to(dtype=weight_dtype)
     flux_transformer.to(dtype=weight_dtype)
 
+    # Make sure the trainable params are in float32. and do AMP wrapper manually
+    if weight_dtype != ms.float32:
+        # cast_training_params([flux_controlnet], dtype=ms.float32)
+        flux_controlnet = auto_mixed_precision(flux_controlnet, amp_level=args.amp_level, dtype=weight_dtype)
+
     def compute_embeddings(
         batch,
         proportion_empty_prompts,
@@ -1019,6 +1070,7 @@ def main(args):
         num_cycles=args.lr_num_cycles,
         power=args.lr_power,
     )
+
     # Optimizer creation
     params_to_optimize = flux_controlnet.trainable_params()
     optimizer = nn.AdamWeightDecay(
@@ -1030,10 +1082,41 @@ def main(args):
         eps=args.adam_epsilon,
     )
 
-    # Prepare everything with our `accelerator`.
-    flux_controlnet.to_float(weight_dtype)
-    for _, cell in flux_controlnet.cells_and_names():
-        cell.to_float(weight_dtype)
+    # create train_step for training
+    network_with_loss = FluxControlNetWithLoss(
+        vae=vae,
+        flux_transformer=flux_transformer,
+        flux_controlnet=flux_controlnet,
+        noise_scheduler=noise_scheduler_copy,
+        weight_dtype=weight_dtype,
+        args=args,
+    ).set_train(True)
+
+    loss_scaler = nn.FixedLossScaleUpdateCell(loss_scale_value=2**12)
+
+    train_step = prepare_train_network(
+        network_with_loss,
+        optimizer=optimizer,
+        scale_sense=loss_scaler,
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        clip_grad=True,
+        clip_norm=args.max_grad_norm,
+        zero_stage=args.zero_stage,
+    )
+
+    if args.enable_mindspore_data_sink:
+        sink_process = ms.data_sink(train_step, train_dataloader)
+    else:
+        sink_process = None
+
+    # create pipeline for validation
+    if args.validation_prompt is not None:
+        pipeline = FluxControlNetPipeline.from_pretrained(
+            args.pretrained_model_name_or_path,
+            controlnet=flux_controlnet,
+            transformer=flux_transformer,
+            mindspore_dtype=ms.bfloat16,
+        )
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -1055,31 +1138,6 @@ def main(args):
             trackers[tracker_name] = SummaryWriter(str(logging_out_dir), write_to_disk=is_master(args))
         else:
             logger.warning(f"Tracker {tracker_name} is not implemented, omitting...")
-    train_step = TrainStepForFluxControlNet(
-        vae=vae,
-        flux_transformer=flux_transformer,
-        flux_controlnet=flux_controlnet,
-        optimizer=optimizer,
-        noise_scheduler=noise_scheduler_copy,
-        weight_dtype=weight_dtype,
-        length_of_dataloader=len(train_dataloader),
-        args=args,
-    ).set_train()
-
-    if args.enable_mindspore_data_sink:
-        sink_process = ms.data_sink(train_step, train_dataloader)
-    else:
-        sink_process = None
-
-    # create pipeline
-    if args.validation_prompt is not None:
-        pipeline = FluxControlNetPipeline.from_pretrained(
-            args.pretrained_model_name_or_path,
-            controlnet=flux_controlnet,
-            transformer=flux_transformer,
-            torch_dtype=ms.bfloat16,
-        )
-        pipeline.set_progress_bar_config(disable=True)
 
     # Train!
     total_batch_size = args.train_batch_size * args.world_size * args.gradient_accumulation_steps
@@ -1097,6 +1155,11 @@ def main(args):
 
     # Potentially load in the weights and states from a previous save
     if args.resume_from_checkpoint:
+        if args.zero_stage == 3:
+            raise NotImplementedError(
+                "currently we save combined checkpoint during zero3 training. resume not implemented yet"
+            )
+
         if args.resume_from_checkpoint != "latest":
             path = os.path.basename(args.resume_from_checkpoint)
         else:
@@ -1143,17 +1206,27 @@ def main(args):
             else enumerate(train_dataloader_iter)
         ):
             if args.enable_mindspore_data_sink:
-                loss, model_pred = sink_process()
+                loss, _, _ = sink_process()
             else:
-                loss, model_pred = train_step(*batch)
+                loss, _, _ = train_step(*batch)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
-            if train_step.sync_gradients:
+            if train_step.accum_steps == 1 or train_step.cur_accum_step.item() == 0:
                 progress_bar.update(1)
                 global_step += 1
+                prefix = "flux_controlnet."
 
-                if is_master(args):
-                    if global_step % args.checkpointing_steps == 0:
+                if global_step % args.checkpointing_steps == 0:
+                    net_to_save = [
+                        {"name": p.name[len(prefix) :], "data": p} for p in flux_controlnet.trainable_params()
+                    ]
+                    net_to_save = (
+                        net_to_save
+                        if args.zero_stage != 3
+                        else do_ckpt_combine_online(net_to_save, train_step.zero_helper.optimizer_parallel_group)
+                    )
+
+                    if is_master(args):
                         # _before_ saving state, check if this save would set us over the `checkpoints_total_limit`
                         if args.checkpoints_total_limit is not None:
                             checkpoints = os.listdir(args.output_dir)
@@ -1177,8 +1250,9 @@ def main(args):
                         save_path = os.path.join(args.output_dir, f"checkpoint-{global_step}")
                         # TODO: save optimizer & grad scaler etc. like accelerator.save_state
                         os.makedirs(save_path, exist_ok=True)
-                        output_model_file = os.path.join(save_path, "pytorch_model.safetensors")
-                        ms.save_checkpoint(flux_controlnet, output_model_file, format="safetensors")
+                        output_model_file = os.path.join(save_path, "diffusion_pytorch_model.safetensors")
+                        flux_controlnet.save_config(save_path)
+                        ms.save_checkpoint(net_to_save, output_model_file, format="safetensors")
                         logger.info(f"Saved state to {save_path}")
 
                     if args.validation_prompt is not None and global_step % args.validation_steps == 0:
@@ -1196,18 +1270,32 @@ def main(args):
                     tracker.add_scalars("train", logs, global_step)
             if global_step >= args.max_train_steps:
                 break
+
     # Create the pipeline using using the trained modules and save it.
+    save_weight_dtype = ms.float32
+    if args.save_weight_dtype == "fp16":
+        save_weight_dtype = ms.float16
+    elif args.save_weight_dtype == "bf16":
+        save_weight_dtype = ms.bfloat16
+    flux_controlnet.to(save_weight_dtype)
+
+    if args.zero_stage != 3:
+        if is_master(args):
+            if args.save_weight_dtype != "fp32":
+                flux_controlnet.save_pretrained(args.output_dir, variant=args.save_weight_dtype)
+            else:
+                flux_controlnet.save_pretrained(args.output_dir)
+
+    else:
+        prefix = "flux_controlnet."
+        net_to_save = [{"name": p.name[len(prefix) :], "data": p} for p in flux_controlnet.trainable_params()]
+        net_to_save = do_ckpt_combine_online(net_to_save, train_step.zero_helper.optimizer_parallel_group)
+        if is_master(args):
+            flux_controlnet.save_config(args.output_dir)
+            output_model_file = os.path.join(args.output_dir, "diffusion_pytorch_model.safetensors")
+            ms.save_checkpoint(net_to_save, output_model_file, format="safetensors")
+
     if is_master(args):
-        save_weight_dtype = ms.float32
-        if args.save_weight_dtype == "fp16":
-            save_weight_dtype = ms.float16
-        elif args.save_weight_dtype == "bf16":
-            save_weight_dtype = ms.bfloat16
-        flux_controlnet.to(save_weight_dtype)
-        if args.save_weight_dtype != "fp32":
-            flux_controlnet.save_pretrained(args.output_dir, variant=args.save_weight_dtype)
-        else:
-            flux_controlnet.save_pretrained(args.output_dir)
         # Run a final round of validation.
         # Setting `vae`, `unet`, and `controlnet` to None to load automatically from `args.output_dir`.
         if args.validation_prompt is not None:
@@ -1225,26 +1313,17 @@ def main(args):
             tracker.close()
 
 
-class TrainStepForFluxControlNet(TrainStep):
+class FluxControlNetWithLoss(nn.Cell):
     def __init__(
         self,
         vae: nn.Cell,
         flux_transformer: nn.Cell,
         flux_controlnet: nn.Cell,
-        optimizer: nn.Optimizer,
         noise_scheduler,
         weight_dtype,
-        length_of_dataloader,
         args,
     ):
-        super().__init__(
-            flux_controlnet,
-            optimizer,
-            StaticLossScaler(4096),
-            args.max_grad_norm,
-            args.gradient_accumulation_steps,
-            gradient_accumulation_kwargs=dict(length_of_dataloader=length_of_dataloader),
-        )
+        super().__init__()
         self.flux_controlnet = flux_controlnet
         self.flux_transformer = flux_transformer
         self.flux_transformer_config_guidance_embeds = flux_transformer.config.guidance_embeds
@@ -1271,7 +1350,7 @@ class TrainStepForFluxControlNet(TrainStep):
             sigma = sigma.unsqueeze(-1)
         return sigma
 
-    def forward(self, pixel_values, conditioning_pixel_values, prompt_ids, pooled_prompt_embeds, text_ids):
+    def construct(self, pixel_values, conditioning_pixel_values, prompt_ids, pooled_prompt_embeds, text_ids):
         # Convert images to latent space
         # vae encode
         with pynative_no_grad():
@@ -1367,11 +1446,9 @@ class TrainStepForFluxControlNet(TrainStep):
         )[0]
 
         loss = ops.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
-        loss = self.scale_loss(loss)
 
-        return loss, noise_pred
+        return loss
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    main(args)
+    main()

@@ -56,11 +56,13 @@ python train_controlnet_flux.py \
     --conditioning_image_column=conditioning_image \
     --image_column=image \
     --caption_column=text \
-    --output_dir="path to save model" \
+    --dataloader_num_workers=8 \
+    --output_dir="path_to_save_model" \
     --mixed_precision="bf16" \
     --resolution=512 \
     --learning_rate=1e-5 \
     --max_train_steps=15000 \
+    --validation_steps=100 \
     --checkpointing_steps=200 \
     --train_batch_size=1 \
     --gradient_accumulation_steps=1 \
@@ -85,7 +87,7 @@ from mindone.diffusers.pipelines.flux.pipeline_flux_controlnet import FluxContro
 from mindone.diffusers.models.controlnet_flux import FluxControlNetModel
 
 base_model = 'black-forest-labs/FLUX.1-dev'
-controlnet_model = 'promeai/FLUX.1-controlnet-lineart-promeai'
+controlnet_model = "path_to_save_model" # 'promeai/FLUX.1-controlnet-lineart-promeai'
 controlnet = FluxControlNetModel.from_pretrained(controlnet_model, mindspore_dtype=mindspore.bfloat16)
 pipe = FluxControlNetPipeline.from_pretrained(
     base_model,
@@ -105,3 +107,36 @@ image = pipe(
 )[0][0]
 image.save("./output.png")
 ```
+
+### Apply ZeRO3
+
+
+The training script supports [Zero Redundancy Optimizer (ZeRO)](https://arxiv.org/pdf/1910.02054.pdf) from stage 1 to 3. You could enable ZeRO3 training by setting `--zero_stage=3` and `--distributed`.
+
+Here is an example of of training 512 resolution on 4 NPUs with zero3.
+
+```bash
+export OUTPUT_DIR = 'path_to_output"
+msrun --worker_num=4 --local_worker_num=4 --log_dir=$OUTPUT_DIR train_controlnet_flux.py \
+    --pretrained_model_name_or_path="black-forest-labs/FLUX.1-dev" \
+    --dataset_name=fusing/fill50k \
+    --conditioning_image_column=conditioning_image \
+    --image_column=image \
+    --caption_column=text \
+    --dataloader_num_workers=8 \
+    --output_dir=$OUTPUT_DIR \
+    --mixed_precision="bf16" \
+    --resolution=512 \
+    --learning_rate=1e-5 \
+    --max_train_steps=15000 \
+    --checkpointing_steps=200 \
+    --train_batch_size=1 \
+    --gradient_accumulation_steps=1 \
+    --num_double_layers=4 \
+    --num_single_layers=0 \
+    --seed=42 \
+    --zero_stage=3 \
+    --distributed
+```
+
+Refer to the [tutorial](https://github.com/mindspore-lab/mindone/blob/master/docs/tools/zero.md) of using Zero redundancy optimizer(ZeRO) on MindONE if needed.
