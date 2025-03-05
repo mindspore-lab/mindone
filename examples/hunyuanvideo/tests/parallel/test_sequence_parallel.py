@@ -65,11 +65,11 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     # load weight
     for (_, w0), (_, w1) in zip(non_parallel_network.parameters_and_names(), parallel_network.parameters_and_names()):
         w1.set_data(w0)  # FIXME: seed does not work
-        np.testing.assert_allclose(w0.value().asnumpy(), w1.value().asnumpy())
+        np.testing.assert_allclose(w0.value().float().asnumpy(), w1.value().float().asnumpy())
 
     # test forward
-    non_parallel_out = non_parallel_network(*data).asnumpy()
-    parallel_out = parallel_network(*data).asnumpy()
+    non_parallel_out = non_parallel_network(*data).float().asnumpy()
+    parallel_out = parallel_network(*data).float().asnumpy()
 
     assert np.count_nonzero(non_parallel_out) > 0
     np.testing.assert_equal(non_parallel_out.shape, parallel_out.shape)
@@ -97,7 +97,7 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
 
     pass_grads = []
     for grad_0, grad_1 in zip(non_parallel_grads, syn_parallel_grads):
-        is_passed = np.allclose(grad_0.asnumpy(), grad_1.asnumpy(), rtol=1.3e-6, atol=1e-5)
+        is_passed = np.allclose(grad_0.float().asnumpy(), grad_1.float().asnumpy(), rtol=1.3e-6, atol=1e-5)
         pass_grads.append(is_passed)
     assert all(pass_grads), f"Pass rate ({sum(pass_grads)/len(pass_grads) * 100:.3f} %) is not 100 %"
 
