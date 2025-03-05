@@ -91,7 +91,7 @@ export_to_video(video, "output.mp4", fps=8)
 
 我们提供了脚本[`run_infer.sh`](./run_infer.sh)用以执行单卡、多卡并行推理。
 
-- 执行卡数及并行配置，注意`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数, 当`SP=True`时，`SP_SIZE`不能是1：
+- 执行卡数及并行配置。注意当`SP=True`时，`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数，`SP_SIZE`不能是1：
 
 ```shell
 NUM_NPUS=8
@@ -100,14 +100,14 @@ SP_SIZE=$NUM_NPUS
 DEEPSPEED_ZERO_STAGE=3
 ```
 
-- MindSpore配置，`MINDSPORE_MODE=0`表示静态图模式，`MINDSPORE_MODE=1`表示动态图模式，`JIT_LEVEL`仅在静态图模式下生效：
+- MindSpore配置。`MINDSPORE_MODE=0`表示静态图模式，`MINDSPORE_MODE=1`表示动态图模式，`JIT_LEVEL`仅在静态图模式下生效：
 
 ```shell
 MINDSPORE_MODE=0
 JIT_LEVEL=O1
 ```
 
-- 配置模型及推理结果参数。`MODEL_PATH`默认是`THUDM/CogVideoX1.5-5b`，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的`THUDM/CogVideoX1.5-5b`保持一致；`TRANSFORMER_PATH`和`LORA_PATH`可以不传，使用`MODEL_PATH`里的权重，配置的话`TRANSFORMER_PATH`和`LORA_PATH`二选一，如果配置`LORA_PATH`需要修改下面`--transformer_ckpt_path $TRANSFORMER_PATH \`为`--lora_ckpt_path $LORA_PATH \`：
+- 配置模型及推理结果参数。`MODEL_PATH`默认是`THUDM/CogVideoX1.5-5b`，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的`THUDM/CogVideoX1.5-5b`保持一致；`TRANSFORMER_PATH`和`LORA_PATH`可以不传，这时会使用`MODEL_PATH`里的权重；配置的话`TRANSFORMER_PATH`和`LORA_PATH`二选一，如果配置`LORA_PATH`需要修改下面`--transformer_ckpt_path $TRANSFORMER_PATH \`为`--lora_ckpt_path $LORA_PATH \`：
 
 ```shell
 MODEL_PATH="THUDM/CogVideoX1.5-5b"
@@ -144,7 +144,7 @@ MAX_SEQUENCE_LENGTH=224
 
 - 配置用于预处理prompts和videos的模型：
 ```shell
-MODEL_ID="THUDM/CogVideoX-2b"
+MODEL_ID="THUDM/CogVideoX1.5-5b"
 ```
 
 - 配置用于预处理数据的NPU数量：
@@ -152,10 +152,10 @@ MODEL_ID="THUDM/CogVideoX-2b"
 NUM_NPUS=8
 ```
 
-- 配置待处理数据集读取配置和输出路径：
+- 配置待处理数据集读取配置和输出路径, `CAPTION_COLUMN`，`VIDEO_COLUMN`需要是`DATA_ROOT`实际prompt和video的文件路径，具体要求见[数据集规范](./assets/dataset_zh.md)：
 ```shell
 DATA_ROOT="/path/to/my/datasets/video-dataset"
-CAPTION_COLUMN="prompts.txt"
+CAPTION_COLUMN="prompt.txt"
 VIDEO_COLUMN="videos.txt"
 OUTPUT_DIR="/path/to/my/datasets/preprocessed-dataset"
 ```
@@ -175,11 +175,19 @@ TARGET_FPS=8
 BATCH_SIZE=1
 DTYPE=bf16
 ```
+
+- 配置缓存数据，配置`--save_embeddings`缓存`text_encoder`输出，配置`--save_latents`缓存`vae`输出，建议都缓存。
+
+```shell
+CMD_WITH_PRE_ENCODING="$CMD_WITHOUT_PRE_ENCODING --save_embeddings "
+CMD_WITH_PRE_ENCODING="$CMD_WITH_PRE_ENCODING --save_latents "
+```
+
 然后正式运行`prepare_dateset.sh`，输出预处理后的数据集至`OUTPUT_DIR`
 
 ### 正式训练
 
-执行卡数及并行配置，注意`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数, 当`SP=True`时，`SP_SIZE`不能是1：
+执行卡数及并行配置。注意当`SP=True`时`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数，`SP_SIZE`不能是1：
 
 ```shell
 NUM_NPUS=8

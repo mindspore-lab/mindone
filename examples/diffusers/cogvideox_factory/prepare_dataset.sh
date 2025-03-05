@@ -8,19 +8,20 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     EXTRA_ARGS=""
     export HCCL_EXEC_TIMEOUT=1800
 else
-    LAUNCHER="msrun --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS"
+    LAUNCHER="msrun --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --join=True"
     EXTRA_ARGS="--distributed"
 fi
 
 # For more details on the expected data format, please refer to the README.
 DATA_ROOT="/path/to/my/datasets/video-dataset"  # This needs to be the path to the base directory where your videos are located.
-CAPTION_COLUMN="prompts.txt"
+CAPTION_COLUMN="prompt.txt"
 VIDEO_COLUMN="videos.txt"
 OUTPUT_DIR="preprocessed-dataset"
 HEIGHT_BUCKETS="768"
 WIDTH_BUCKETS="1360"
-FRAME_BUCKETS="77"
-MAX_NUM_FRAMES="77"
+# Need to change to multiple of 8, when training SP=True
+FRAME_BUCKETS="80"
+MAX_NUM_FRAMES="80"
 MAX_SEQUENCE_LENGTH=224
 TARGET_FPS=8
 BATCH_SIZE=1

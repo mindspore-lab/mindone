@@ -506,8 +506,10 @@ def main():
     save_future.result()
 
     if args.world_size > 1:
-        y = ops.AllGather()(ops.ones((1,), dtype=ms.float32))
-        if y.shape[0] != args.world_size:
+        y = ms.mint.ones((1,), dtype=ms.int32)
+        ms.mint.distributed.all_reduce(y)
+        print(f"All devices have preprocessed, device num is {y.item()}", flush=True)
+        if y.item() != args.world_size:
             print(f"[WARNING] Not all device done!")
 
     # 6. Combine results from each rank

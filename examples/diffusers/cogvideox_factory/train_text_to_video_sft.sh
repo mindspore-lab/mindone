@@ -11,6 +11,7 @@ OPTIMIZERS=("adamw")
 MAX_TRAIN_STEPS=("20000")
 SP=False
 SP_SIZE=$NUM_NPUS
+F=77  # Need to change to multiple of 8, when LATENTS_CACHE=0 & SP=True
 FA_RCP=False
 ENABLE_DYNAMIC_SHAPE=0
 LATENTS_CACHE=1
@@ -71,8 +72,8 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --video_column $VIDEO_COLUMN \
           --height_buckets 768 \
           --width_buckets 1360 \
-          --frame_buckets 77 \
-          --max_num_frames 77 \
+          --frame_buckets $F \
+          --max_num_frames $F \
           --gradient_accumulation_steps 1 \
           --dataloader_num_workers 2 \
           --validation_prompt_separator ::: \
