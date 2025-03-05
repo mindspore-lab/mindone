@@ -30,7 +30,7 @@ DTYPE=bf16
 # To create a folder-style dataset structure without pre-encoding videos and captions
 # For Image-to-Video finetuning, make sure to pass `--save_image_latents`
 CMD_WITHOUT_PRE_ENCODING="\
-  $LAUNCHER training/prepare_dataset.py \
+  $LAUNCHER cogvideox/prepare_dataset.py \
       --model_id $MODEL_ID \
       --data_root $DATA_ROOT \
       --caption_column $CAPTION_COLUMN \
