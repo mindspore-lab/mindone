@@ -62,7 +62,6 @@ python train_controlnet_flux.py \
     --resolution=512 \
     --learning_rate=1e-5 \
     --max_train_steps=15000 \
-    --validation_steps=100 \
     --checkpointing_steps=200 \
     --train_batch_size=1 \
     --gradient_accumulation_steps=1 \
