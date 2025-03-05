@@ -8,7 +8,7 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     EXTRA_ARGS=""
     export HCCL_EXEC_TIMEOUT=1800
 else
-    LAUNCHER="msrun --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --join=True"
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_data" --join=True"
     EXTRA_ARGS="--distributed"
 fi
 
