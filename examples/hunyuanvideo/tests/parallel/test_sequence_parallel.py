@@ -26,10 +26,11 @@ class MeanNet(nn.Cell):
 def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, ...]:
     latent_embedding = ops.rand([1, 16, 8, 24, 44], dtype=dtype)
     timestep = ms.Tensor([35], dtype=ms.int64)
-    ul2_emb = ops.rand([1, 64, 4096], dtype=dtype)
-    metaclip_emb = ops.rand([1, 64, 1280], dtype=dtype)
-    byt5_emb = ops.rand([1, 64, 1472], dtype=dtype)
-    return latent_embedding, timestep, ul2_emb, metaclip_emb, byt5_emb
+    llama_emb = ops.rand([1, 256, 4096], dtype=dtype)
+    llama_mask = ops.ones([1, 256], dtype=ms.int32)
+    clip_emb = ops.rand([1, 768], dtype=dtype)
+    guidance = ms.Tensor([6.0 * 1000], dtype=dtype)
+    return latent_embedding, timestep, llama_emb, llama_mask, clip_emb, None, None, guidance
 
 
 def get_network_config(name="HYVideo-T/2-depth1"):
