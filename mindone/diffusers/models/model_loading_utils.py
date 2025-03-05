@@ -30,7 +30,6 @@ from huggingface_hub.utils import EntryNotFoundError
 import mindspore as ms
 from mindspore import nn
 
-from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
@@ -77,7 +76,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
     try:
         file_extension = os.path.basename(checkpoint_file).split(".")[-1]
         if file_extension == SAFETENSORS_FILE_EXTENSION:
-            return safe_load_file(checkpoint_file)
+            return ms.load_checkpoint(checkpoint_file, format="safetensors")
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -111,7 +110,7 @@ def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> List[
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            v.set_dtype(local_state[k].dtype)
+            state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
         else:
             pass  # unexpect key keeps origin dtype
     ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
