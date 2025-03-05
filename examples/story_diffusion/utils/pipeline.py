@@ -406,9 +406,9 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
                     prompt_embeds = self.id_encoder(id_pixel_values, prompt_embeds, class_tokens_mask)
 
                     bs_embed, seq_len, _ = prompt_embeds.shape
-                    prompt_embeds = prompt_embeds.repeat(num_images_per_prompt, axis=1)
+                    prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
                     prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
-                    pooled_prompt_embeds = pooled_prompt_embeds.repeat(num_images_per_prompt, axis=1).view(
+                    pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt, 1)).view(
                         bs_embed * num_images_per_prompt, -1
                     )
                     pooled_prompt_embeds_arr.append(pooled_prompt_embeds)
@@ -472,7 +472,7 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
                 text_encoder_projection_dim=text_encoder_projection_dim,
             )
             add_time_ids = ops.cat([add_time_ids, add_time_ids], axis=0)
-            add_time_ids = add_time_ids.repeat(batch_size * num_images_per_prompt, axis=0)
+            add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
             # print(latents.shape)
             # print(add_time_ids.shape)

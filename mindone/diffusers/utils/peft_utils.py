@@ -70,14 +70,14 @@ def unscale_lora_layers(model, weight: Optional[float] = None):
     """
     from mindone.diffusers._peft.tuners.tuners_utils import BaseTunerLayer
 
-    if weight == 1.0:
+    if weight is None or weight == 1.0:
         return
 
     for _, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
-            if weight is not None and weight != 0:
+            if weight != 0:
                 module.unscale_layer(weight)
-            elif weight is not None and weight == 0:
+            else:
                 for adapter_name in module.active_adapters:
                     # if weight == 0 unscale should re-set the scale to the original value.
                     module.set_scale(adapter_name, 1.0)

@@ -30,7 +30,7 @@ pipeline = DiffusionPipeline.from_pretrained(model_id, use_safetensors=True)
 The example prompt you'll use is a portrait of an old warrior chief, but feel free to use your own prompt:
 
 ```python
-prompt = "portrait photo of a old warrior chief"
+prompt = "portrait photo of an old warrior chief"
 ```
 
 ## Speed
@@ -222,7 +222,7 @@ Pretty impressive! Let's tweak the second image - corresponding to the `Generato
 ```python
 prompts = [
     "portrait photo of the oldest warrior chief, tribal panther make up, blue on red, side profile, looking away, serious eyes 50mm portrait photography, hard rim lighting photography--beta --ar 2:3  --beta --upbeta",
-    "portrait photo of a old warrior chief, tribal panther make up, blue on red, side profile, looking away, serious eyes 50mm portrait photography, hard rim lighting photography--beta --ar 2:3  --beta --upbeta",
+    "portrait photo of an old warrior chief, tribal panther make up, blue on red, side profile, looking away, serious eyes 50mm portrait photography, hard rim lighting photography--beta --ar 2:3  --beta --upbeta",
     "portrait photo of a warrior chief, tribal panther make up, blue on red, side profile, looking away, serious eyes 50mm portrait photography, hard rim lighting photography--beta --ar 2:3  --beta --upbeta",
     "portrait photo of a young warrior chief, tribal panther make up, blue on red, side profile, looking away, serious eyes 50mm portrait photography, hard rim lighting photography--beta --ar 2:3  --beta --upbeta",
 ]

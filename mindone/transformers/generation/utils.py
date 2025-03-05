@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 
 from transformers import logging
 from transformers.generation.configuration_utils import GenerationConfig, GenerationMode
-from transformers.generation.utils import GenerateNonBeamOutput
 from transformers.tokenization_utils import ExtensionsTrie
 from transformers.utils.generic import ModelOutput
 
@@ -146,6 +145,10 @@ class GenerateEncoderDecoderOutput(ModelOutput):
     cross_attentions: Optional[Tuple[Tuple[ms.Tensor]]] = None
     decoder_hidden_states: Optional[Tuple[Tuple[ms.Tensor]]] = None
     past_key_values: Optional[Tuple[Tuple[Tuple[ms.Tensor]]]] = None
+
+
+# Typing shortcuts
+GenerateNonBeamOutput = Union[GenerateDecoderOnlyOutput, GenerateEncoderDecoderOutput]
 
 
 class GenerationMixin:

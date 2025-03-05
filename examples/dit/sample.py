@@ -135,7 +135,7 @@ def parse_args():
     parser.add_argument("--imagegrid", default=False, type=str2bool, help="Save the image in image-grids format.")
     parser.add_argument(
         "--jit_level",
-        default="O2",
+        default="O0",
         type=str,
         choices=["O0", "O1", "O2"],
         help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."

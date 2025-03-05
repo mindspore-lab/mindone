@@ -1,0 +1,87 @@
+env:
+  mode: 0
+  jit_level: O0
+  seed: 42
+  distributed: True
+  debug: False
+
+model:
+  name: "HYVideo-T/2-cfgdistill"
+  in_channels: 16
+  pretrained_model_path: ../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt # the path is relative to this config
+  text_states_dim: 4096
+  text_states_dim_2: 768
+  enable_ms_amp: True
+  amp_level: O2
+  factor_kwargs:
+    dtype: bf16
+    use_conv2d_patchify: True
+    attn_mode: flash
+    use_recompute: True
+    num_no_recompute: 0
+
+vae:
+  type: "884-16c-hy"
+  precision: fp16
+  tiling: False
+  trainable: False
+
+dataset:
+  csv_path: datasets/mixkit-100videos/video_caption_test.csv
+  video_folder: datasets/mixkit-100videos/mixkit
+  text_emb_folder: datasets/mixkit-100videos/text_embed
+  empty_text_emb: datasets/mixkit-100videos/empty_string_text_embeddings.npz
+  deterministic_sample: False
+  text_drop_prob: 0.0
+  target_size: [ 256, 256 ]
+  sample_n_frames: 29
+  vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
+  output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin"]
+
+dataloader:
+  batch_size: 1
+  shuffle: True
+  num_workers_dataset: 4
+
+train:
+  steps: 10000
+  output_path: ../../output/finetune_t2v_256px  # the path is relative to this config
+  data_sink_mode: True
+  data_sink_size: -1 # sink size same to dataset size
+
+  sequence_parallel:
+    shards: 1
+
+  lr_scheduler:
+    name: constant
+    lr: 2.0e-5
+    warmup_steps: 1000
+
+  optimizer:
+    name: adamw_re
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.0
+
+  loss_scaler:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  # ema:
+  #   ema_decay: 0.9999
+  #   offloading: True
+
+  settings:
+    zero_stage: 0
+    gradient_accumulation_steps: 1
+    clip_grad: True
+    clip_norm: 1.0
+
+  save:
+    ckpt_save_policy: latest_k
+    ckpt_save_interval: &save_interval 1000
+    ckpt_max_keep: 10
+    log_interval: 1 # with respect to steps
+    save_ema_only: False
+    record_lr: False
