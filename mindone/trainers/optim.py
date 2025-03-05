@@ -9,7 +9,9 @@ from mindcv.optim.adamw import AdamW as AdamW_Refined
 from mindspore.common.parameter import Parameter
 from mindspore.nn.optim import Adam, AdamWeightDecay, Momentum, Optimizer
 
+from .adamw_bf16 import BF16AdamW
 from .adamw_mf import AdamW as AdamW_MF
+from .adamw_mint import AdamW as AdamW_Mint
 from .adamw_zero1 import AdamWeightDecayZeRO1
 from .came import CAME
 
@@ -81,10 +83,14 @@ def create_optimizer(
         optim_cls = AdamWeightDecay
     elif name.lower() == "adamw_re":
         optim_cls = AdamW_Refined
+    elif name.lower() == "adamw_bf16":
+        optim_cls = BF16AdamW
     elif name.lower() == "adamw_mf":
         optim_cls = AdamW_MF
     elif name.lower() == "adamw_zero1":
         optim_cls = AdamWeightDecayZeRO1
+    elif name.lower() == "adamw_mint":
+        optim_cls = AdamW_Mint
     elif name.lower() in ["sgd", "momentum"]:
         optim_cls = Momentum
     elif name.lower() == "came":
