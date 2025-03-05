@@ -109,7 +109,7 @@ In this section, we provide instructions on how to train the HunyuanVideo model.
 
 ### Dataset Preparation
 
-To prepare the dataset for training HuyuanVideo, please refer to the [dataset format](./docs/dataset_docs.md).
+To prepare the dataset for training HunyuanVideo, please refer to the [dataset format](./docs/dataset_docs.md).
 
 ### Extract Text Embeddings
 
