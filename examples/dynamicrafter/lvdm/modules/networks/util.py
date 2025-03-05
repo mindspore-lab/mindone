@@ -90,9 +90,6 @@ class SiLU(nn.Cell):
         self.sigmoid = ops.Sigmoid()
 
     def construct(self, x):
-        # TODO: test use fp16 instead
-        # force sigmoid to use fp32
-        # return x * self.sigmoid(x.astype(ms.float32)).astype(x.dtype)
         return x * self.sigmoid(x)
 
 
