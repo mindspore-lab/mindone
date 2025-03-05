@@ -80,8 +80,8 @@ def main(args):
         device_num = device_num // args.train.sequence_parallel.shards
         shard_rank_id = rank_id // args.train.sequence_parallel.shards
 
-    # FIXME: Improve seed setting
-    set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
+    # set different seeds per NPU for sampling different timesteps, but if sp is enabled, force the timestep to be the same as rank_0
+    set_seed(args.env.seed + shard_rank_id)
     ds.set_seed(args.env.seed)  # keep MS.dataset's seed consistent as datasets first shuffled and then distributed
 
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
