@@ -9,7 +9,9 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
+import decord
 import numpy as np
+from cogvideox.dataset import VideoDatasetWithResizeAndRectangleCrop, VideoDatasetWithResizing
 from tqdm import tqdm
 from transformers import T5Tokenizer
 
@@ -21,11 +23,6 @@ from mindone.diffusers import AutoencoderKLCogVideoX
 from mindone.diffusers.training_utils import init_distributed_device, is_master, set_seed
 from mindone.diffusers.utils import export_to_video, get_logger
 from mindone.transformers import T5EncoderModel
-
-import decord  # isort:skip
-
-from dataset import VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
-
 
 decord.bridge.set_bridge("native")
 

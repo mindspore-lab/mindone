@@ -1,3 +1,10 @@
+#!/bin/bash
+# Package path
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+
+export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
+
 # export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 # Num of NPUs for inference
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -16,10 +23,11 @@ JIT_LEVEL=O1
 MODEL_PATH="THUDM/CogVideoX1.5-5b"
 # TRANSFORMER_PATH and LORA_PATH only choose one to set.
 TRANSFORMER_PATH=""
+LORA_PATH=""
 PROMPT="A panda, dressed in a small, red jacket and a tiny hat, sits on a wooden stool in a serene bamboo forest. The panda's fluffy paws strum a miniature acoustic guitar, producing soft, melodic tunes. Nearby, a few other pandas gather, watching curiously and some clapping in rhythm. Sunlight filters through the tall bamboo, casting a gentle glow on the scene. The panda's face is expressive, showing concentration and joy as it plays. The background includes a small, flowing stream and vibrant green foliage, enhancing the peaceful and magical atmosphere of this unique musical performance."
 H=768
 W=1360
-F=80
+F=77
 MAX_SEQUENCE_LENGTH=224
 OUTPUT_DIR=./output_infer_${H}_${W}_${F}
 test -d ${OUTPUT_DIR} || mkdir ${OUTPUT_DIR}
@@ -29,15 +37,16 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     EXTRA_ARGS=""
     SP=False
 else
-    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sp_graph" --join=True"
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_infer""
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
     export TOKENIZERS_PARALLELISM=false
 fi
 
-cmd="$LAUNCHER cogvideox/infer.py \
+cmd="$LAUNCHER ${SCRIPT_DIR}/infer.py \
     --pretrained_model_name_or_path $MODEL_PATH \
     --prompt \"${PROMPT}\" \
-    --transformer_ckpt_path $TRANSFORMER_PATH \
+    --transformer_ckpt_path \"${TRANSFORMER_PATH}\" \
+    --lora_ckpt_path \"${LORA_PATH}\" \
     --height $H \
     --width $W \
     --frame $F \

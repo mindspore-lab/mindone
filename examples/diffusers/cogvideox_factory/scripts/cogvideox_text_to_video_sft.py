@@ -25,8 +25,11 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 import yaml
-from datasets.bucket import Bucket, bucket_split_function
-from models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+from args import get_args
+from cogvideox.dataset import VideoDatasetWithResizeAndRectangleCrop, VideoDatasetWithResizing
+from cogvideox.datasets.bucket import Bucket, bucket_split_function
+from cogvideox.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+from cogvideox.utils import get_optimizer
 from tensorboardX import SummaryWriter
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer
@@ -59,11 +62,6 @@ from mindone.diffusers.utils import export_to_video, pynative_context
 from mindone.diffusers.utils.logging import get_logger
 from mindone.diffusers.utils.mindspore_utils import get_state_dict
 from mindone.transformers import T5EncoderModel
-
-from args import get_args  # isort:skip
-from dataset import VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
-from utils import get_optimizer  # isort:skip
-
 
 logger = get_logger(__name__)
 
@@ -212,7 +210,7 @@ def main(args):
             enable_sequence_parallelism = False
             sequence_parallel_shards = 1
         else:
-            from acceleration import create_parallel_group
+            from cogvideox.acceleration import create_parallel_group
 
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
@@ -604,7 +602,7 @@ def main(args):
         dummy_timesteps = ms.Tensor(shape=(symbol_batch_size,), dtype=ms.int32)
         cos_and_sin_dim = 2
         dim = dataset_init_kwargs["attention_head_dim"]
-        rotary_positional_embeddings_shape = (symbol_batch_size, cos_and_sin_dim, symbol_sequence_length, dim)
+        rotary_positional_embeddings_shape = (cos_and_sin_dim, symbol_sequence_length, dim)
         dummy_rotary_positional_embeddings = ms.Tensor(shape=rotary_positional_embeddings_shape, dtype=weight_dtype)
 
         train_step.set_inputs(
@@ -805,7 +803,7 @@ class TrainStepForCogVideo(nn.Cell):
         self.sp_group = None
         self.sp_rank = 0
         if self.enable_sequence_parallelism:
-            from acceleration import get_sequence_parallel_group
+            from cogvideox.acceleration import get_sequence_parallel_group
 
             from mindspore.communication import get_rank
 

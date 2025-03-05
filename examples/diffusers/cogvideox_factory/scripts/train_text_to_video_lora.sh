@@ -1,3 +1,10 @@
+#!/bin/bash
+# Package path
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+
+export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
+
 # export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 # Num of NPUs for training
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -9,7 +16,6 @@ LEARNING_RATES=("1e-5")
 LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw")
 MAX_TRAIN_STEPS=("3000")
-F=77  # Need to change to multiple of 8, when LATENTS_CACHE=0 & SP=True
 FA_RCP=False
 LATENTS_CACHE=1
 EMBEDDINGS_CACHE=1
@@ -52,15 +58,15 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
       for steps in "${MAX_TRAIN_STEPS[@]}"; do
         output_dir="./cogvideox-lora__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
 
-        cmd="$LAUNCHER cogvideox/cogvideox_text_to_video_lora.py \
+        cmd="$LAUNCHER ${SCRIPT_DIR}/cogvideox_text_to_video_lora.py \
           --pretrained_model_name_or_path $MODEL_PATH \
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
           --video_column $VIDEO_COLUMN \
           --height_buckets 768 \
           --width_buckets 1360 \
-          --frame_buckets $F \
-          --max_num_frames $F \
+          --frame_buckets 77 \
+          --max_num_frames 77 \
           --gradient_accumulation_steps 1 \
           --dataloader_num_workers 2 \
           --validation_prompt_separator ::: \

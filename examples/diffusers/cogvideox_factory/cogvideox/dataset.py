@@ -1,9 +1,11 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+# Must import after torch because this can sometimes lead to a nasty segmentation fault, or stack smashing error
+# Very few bug reports but it happens. Look in decord Github issues for more relevant information.
+import decord
 import numpy as np
 import pandas as pd
-from datasets import Bucket
 from transformers import PreTrainedTokenizer
 
 from mindspore.dataset import transforms, vision
@@ -11,11 +13,8 @@ from mindspore.dataset.vision import Inter as InterpolationMode
 
 from mindone.diffusers.utils import get_logger
 
-from utils import pad_last_frame, prepare_rotary_positional_embeddings  # isort:skip
-
-# Must import after torch because this can sometimes lead to a nasty segmentation fault, or stack smashing error
-# Very few bug reports but it happens. Look in decord Github issues for more relevant information.
-import decord  # isort:skip
+from .datasets import Bucket
+from .utils import pad_last_frame, prepare_rotary_positional_embeddings
 
 decord.bridge.set_bridge("native")
 

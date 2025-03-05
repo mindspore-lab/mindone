@@ -1,6 +1,8 @@
 from time import time
 
 import numpy as np
+from cogvideox.acceleration import create_parallel_group
+from cogvideox.models.autoencoder_kl_cogvideox_sp import AutoencoderKLCogVideoX_SP
 
 import mindspore as ms
 import mindspore.ops as ops
@@ -10,9 +12,6 @@ from mindone.diffusers import AutoencoderKLCogVideoX
 from mindone.diffusers.training_utils import pynative_no_grad
 from mindone.diffusers.utils import pynative_context
 from mindone.utils.seed import set_random_seed
-
-from ..acceleration import create_parallel_group
-from ..models.autoencoder_kl_cogvideox_sp import AutoencoderKLCogVideoX_SP
 
 THRESHOLD_FP16 = 1e-4
 THRESHOLD_BF16 = 1e-4
@@ -99,7 +98,7 @@ def run_performence(
     s = time()
     with pynative_context(), pynative_no_grad():
         videos = vae_forward(**data)
-    print(f"==first step: {time() - s} s", videos.shape)
+    print(f"==first step: {time() - s} s", videos[0].shape)
     print(f"=== Num trainable parameters = {num_trainable_parameters/1e9:.2f} B")
     print("=" * 10, "run_pref", "=" * 10, flush=True)
     if get_profile:
@@ -111,7 +110,7 @@ def run_performence(
         with pynative_context(), pynative_no_grad():
             s = time()
             videos = vae_forward(**data)
-            print(f"==step {i}: {time() - s} s", videos.shape)
+            print(f"==step {i}: {time() - s} s", videos[0].shape)
     print(f"=== dist_out forward cost: {(time() - start) / run_perf_step} s")
     if get_profile:
         profiler.stop()

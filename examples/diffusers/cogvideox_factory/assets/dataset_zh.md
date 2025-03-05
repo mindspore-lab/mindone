@@ -64,7 +64,7 @@ huggingface-cli download --repo-type dataset Wild-Heart/Disney-VideoGeneration-D
 OOM（内存不足），因为它需要加载 [VAE](https://huggingface.co/THUDM/CogVideoX-5b/tree/main/vae)
 （将视频编码为潜在空间）和大型 [T5-XXL](https://huggingface.co/google/t5-v1_1-xxl/)
 
-文本编码器。为了降低内存需求，您可以使用 `cogvideox/prepare_dataset.py` 脚本预先计算潜在变量和嵌入。
+文本编码器。为了降低内存需求，您可以使用 `../scripts/prepare_dataset.py` 脚本预先计算潜在变量和嵌入。
 
 填写或修改 `prepare_dataset.sh` 中的参数并执行它以获得预先计算的潜在变量和嵌入（请确保指定 `--save_latents_and_embeddings`
 以保存预计算的工件）。如果准备图像到视频的训练，请确保传递 `--save_image_latents`，它对沙子进行编码，将图像潜在值与视频一起保存。

@@ -117,13 +117,13 @@ LORA_PATH=""
 PROMPT=""
 H=768
 W=1360
-F=80
+F=77
 MAX_SEQUENCE_LENGTH=224
 ```
 
 > [!TIP]
 > H, W, F配置最好和训练保持一致；
-> 开SP时，MAX_SEQUENCE_LENGTH必须是SP的倍数，F必须是8的倍数。
+> 开SP时，MAX_SEQUENCE_LENGTH必须是SP的倍数。
 
 然后正式运行`run_infer.sh`，输出结果至`OUTPUT_DIR`。
 
@@ -132,15 +132,15 @@ MAX_SEQUENCE_LENGTH=224
 在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 LoRA 微调为例。
 
 > [!TIP]
-> 由于模型和框架的限制，对于训练我们暂时推荐分阶段的训练流程，即先通过[`prepare_dateset.sh`](./prepare_dataset.sh)预处理数据集，然后读取预处理后的数据集通过`train*.sh`进行正式训练。
+> 由于模型和框架的限制，对于训练我们暂时推荐分阶段的训练流程，即先通过[`prepare_dateset.sh`](./scripts/prepare_dataset.sh)预处理数据集，然后读取预处理后的数据集通过`train*.sh`进行正式训练。
 >
-> 在正式训练阶段，需要增加`--embeddings_cache`参数以支持text embeddings预处理。建议增加参数`--mindspore_mode=0`以进行静态图训练加速，在`train*.sh`里可通过设置参数`MINDSPORE_MODE=0`实现。
+> 在正式训练阶段，需要增加`--embeddings_cache`参数以支持text embeddings预处理，`--latents_cache`参数以支持vae预处理。建议增加参数`--mindspore_mode=0`以进行静态图训练加速，在`train*.sh`里可通过设置参数`MINDSPORE_MODE=0`实现。
 >
 > 具体情况参见[与原仓的差异 & 功能限制](#与原仓的差异功能限制)
 
 ### 预处理数据
 
-通过[`prepare_dateset.sh`](./prepare_dataset.sh)预处理数据。注意其中用到的预训练模型、分辨率、帧率、文本的`max_sequence_length`设置都应当与正式训练一致！
+通过[`prepare_dateset.sh`](./scripts/prepare_dataset.sh)预处理数据。注意其中用到的预训练模型、分辨率、帧率、文本的`max_sequence_length`设置都应当与正式训练一致！
 
 - 配置用于预处理prompts和videos的模型：
 ```shell
@@ -164,8 +164,8 @@ OUTPUT_DIR="/path/to/my/datasets/preprocessed-dataset"
 ```shell
 HEIGHT_BUCKETS="768"
 WIDTH_BUCKETS="1360"
-FRAME_BUCKETS="80"
-MAX_NUM_FRAMES="80"
+FRAME_BUCKETS="77"
+MAX_NUM_FRAMES="77"
 MAX_SEQUENCE_LENGTH=224
 TARGET_FPS=8
 ```
@@ -285,7 +285,7 @@ DEEPSPEED_ZERO_STAGE=3
   done
   ```
 
-要了解不同参数的含义，你可以查看 [args](./cogvideox/args.py) 文件，或者使用 `--help` 运行训练脚本。
+要了解不同参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
 
 
 ## 与原仓的差异&功能限制
@@ -301,10 +301,10 @@ DEEPSPEED_ZERO_STAGE=3
 - `amp_level`：混合精度配置
 - `zero_stage`: ZeRO优化器并行配置
 
-具体使用方式参见[`args.py`](./cogvideox/args.py)中的`_get_mindspore_args()`。
+具体使用方式参见[`args.py`](./scripts/args.py)中的`_get_mindspore_args()`。
 
 ### 功能限制
 
-当前训练脚本并不完全支持原仓代码的所有训练参数，详情参见[`args.py`](./cogvideox/args.py)中的`check_args()`。
+当前训练脚本并不完全支持原仓代码的所有训练参数，详情参见[`args.py`](./scripts/args.py)中的`check_args()`。
 
 其中一个主要的限制来自于CogVideoX模型中的[3D Causual VAE不支持静态图](https://gist.github.com/townwish4git/b6cd0d213b396eaedfb69b3abcd742da)，这导致我们**不支持静态图模式下VAE参与训练**，因此在静态图模式下必须提前进行数据预处理以获取VAE-latents/text-encoder-embeddings cache。

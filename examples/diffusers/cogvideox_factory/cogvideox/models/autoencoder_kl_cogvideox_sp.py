@@ -1133,7 +1133,6 @@ class AutoencoderKLCogVideoX_SP(ModelMixin, ConfigMixin, FromOriginalModelMixin)
         self.use_slicing = False
 
     def set_group_norm_frame_group_size(self, net, frame_group_size):
-        assert frame_group_size <= 8
         for _, cell in net.cells_and_names():
             if isinstance(cell, GroupNorm_SP):
                 cell.set_frame_group_size(frame_group_size)
@@ -1141,12 +1140,15 @@ class AutoencoderKLCogVideoX_SP(ModelMixin, ConfigMixin, FromOriginalModelMixin)
     def _encode(self, x: ms.Tensor) -> ms.Tensor:
         batch_size, num_channels, num_frames, height, width = x.shape
         frame_batch_size = self.num_sample_frames_batch_size
-        assert num_frames % frame_batch_size == 0
         remaining_frames = num_frames % (frame_batch_size * self.sp_size)
         pad_f = frame_batch_size * self.sp_size - remaining_frames if remaining_frames else 0
         if pad_f:
-            p = mint.zeros((batch_size, num_channels, pad_f, height, width), dtype=x.dtype)
-            x = mint.cat((x, p), dim=2)
+            p = frame_batch_size - num_frames % frame_batch_size if num_frames % frame_batch_size else 0
+            if p:
+                p0 = x[:, :, -1:].tile((1, 1, p, 1, 1))
+                x = mint.cat((x, p0), dim=2)
+            p1 = mint.zeros((batch_size, num_channels, pad_f - p, height, width), dtype=x.dtype)
+            x = mint.cat((x, p1), dim=2)
         frame_group_size_pre_sp_rank = (num_frames + pad_f) // frame_batch_size // self.sp_size
         self.set_group_norm_frame_group_size(self.encoder, frame_group_size_pre_sp_rank)
 
@@ -1196,12 +1198,15 @@ class AutoencoderKLCogVideoX_SP(ModelMixin, ConfigMixin, FromOriginalModelMixin)
     def _decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
         batch_size, num_channels, num_frames, height, width = z.shape
         frame_batch_size = self.num_latent_frames_batch_size
-        assert num_frames % frame_batch_size == 0
         remaining_frames = num_frames % (frame_batch_size * self.sp_size)
         pad_f = frame_batch_size * self.sp_size - remaining_frames if remaining_frames else 0
         if pad_f:
-            p = mint.zeros((batch_size, num_channels, pad_f, height, width), dtype=z.dtype)
-            z = mint.cat((z, p), dim=2)
+            p = frame_batch_size - num_frames % frame_batch_size if num_frames % frame_batch_size else 0
+            if p:
+                p0 = z[:, :, -1:].tile((1, 1, p, 1, 1))
+                z = mint.cat((z, p0), dim=2)
+            p1 = mint.zeros((batch_size, num_channels, pad_f - p, height, width), dtype=z.dtype)
+            z = mint.cat((z, p1), dim=2)
         frame_group_size_pre_sp_rank = (num_frames + pad_f) // frame_batch_size // self.sp_size
         self.set_group_norm_frame_group_size(self.decoder, frame_group_size_pre_sp_rank)
 

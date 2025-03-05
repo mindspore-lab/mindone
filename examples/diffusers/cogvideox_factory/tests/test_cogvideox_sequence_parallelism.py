@@ -1,6 +1,8 @@
 from time import time
 
 import numpy as np
+from cogvideox.acceleration import create_parallel_group, get_sequence_parallel_group
+from cogvideox.models.cogvideox_transformer_3d_sp import CogVideoXTransformer3DModel_SP
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -11,9 +13,6 @@ from mindone.diffusers import CogVideoXTransformer3DModel
 from mindone.models.modules.parallel import PARALLEL_MODULES
 from mindone.trainers.zero import _prepare_network
 from mindone.utils.seed import set_random_seed
-
-from ..acceleration import create_parallel_group, get_sequence_parallel_group
-from ..models.cogvideox_transformer_3d_sp import CogVideoXTransformer3DModel_SP
 
 THRESHOLD_FP16 = 5e-3
 THRESHOLD_BF16 = 5e-2

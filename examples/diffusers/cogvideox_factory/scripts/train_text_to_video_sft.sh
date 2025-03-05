@@ -1,3 +1,10 @@
+#!/bin/bash
+# Package path
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+PROJECT_DIR="$(dirname "${SCRIPT_DIR}")"
+
+export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
+
 # export MS_DEV_RUNTIME_CONF="memory_statistics:True,compile_statistics:True"
 # Num of NPUs for training
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
@@ -11,7 +18,6 @@ OPTIMIZERS=("adamw")
 MAX_TRAIN_STEPS=("20000")
 SP=False
 SP_SIZE=$NUM_NPUS
-F=77  # Need to change to multiple of 8, when LATENTS_CACHE=0 & SP=True
 FA_RCP=False
 ENABLE_DYNAMIC_SHAPE=0
 LATENTS_CACHE=1
@@ -41,7 +47,7 @@ if [ "$ENABLE_DYNAMIC_SHAPE" -eq 1 ]; then
   # `ms.mint.floor` does not accept scalar input, the scalar input must be converted to an `ms.Tensor` first. However,
   # `ms.Tensor` does not support non-constant input in graph mode.
   export MS_DISABLE_KERNEL_BACKOFF=0
-  EXTRA_ARGS="$EXTRA_ARGS --dynamic_shape --bucket_config=cogvideox/bucket.yaml"
+  EXTRA_ARGS="$EXTRA_ARGS --dynamic_shape --bucket_config=${SCRIPT_DIR}/bucket.yaml"
 fi
 if [ "$LATENTS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --latents_cache"
@@ -65,15 +71,15 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
       for steps in "${MAX_TRAIN_STEPS[@]}"; do
         output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
 
-        cmd="$LAUNCHER cogvideox/cogvideox_text_to_video_sft.py \
+        cmd="$LAUNCHER ${SCRIPT_DIR}/cogvideox_text_to_video_sft.py \
           --pretrained_model_name_or_path $MODEL_PATH \
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
           --video_column $VIDEO_COLUMN \
           --height_buckets 768 \
           --width_buckets 1360 \
-          --frame_buckets $F \
-          --max_num_frames $F \
+          --frame_buckets 77 \
+          --max_num_frames 77 \
           --gradient_accumulation_steps 1 \
           --dataloader_num_workers 2 \
           --validation_prompt_separator ::: \

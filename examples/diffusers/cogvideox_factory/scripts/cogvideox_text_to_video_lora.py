@@ -25,7 +25,10 @@ from typing import Any, Dict, Optional
 
 import numpy as np
 import yaml
-from models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+from args import get_args
+from cogvideox.dataset import VideoDatasetWithResizeAndRectangleCrop, VideoDatasetWithResizing
+from cogvideox.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+from cogvideox.utils import get_optimizer
 from tensorboardX import SummaryWriter
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer
@@ -58,11 +61,6 @@ from mindone.diffusers.training_utils import (
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft, export_to_video
 from mindone.diffusers.utils.logging import get_logger
 from mindone.transformers import T5EncoderModel
-
-from args import get_args  # isort:skip
-from dataset import VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
-from utils import get_optimizer  # isort:skip
-
 
 logger = get_logger(__name__)
 
@@ -224,7 +222,7 @@ def main(args):
             enable_sequence_parallelism = False
             sequence_parallel_shards = 1
         else:
-            from acceleration import create_parallel_group
+            from cogvideox.acceleration import create_parallel_group
 
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
@@ -781,7 +779,7 @@ class TrainStepForCogVideo(nn.Cell):
         self.sp_group = None
         self.sp_rank = 0
         if self.enable_sequence_parallelism:
-            from acceleration import get_sequence_parallel_group
+            from cogvideox.acceleration import get_sequence_parallel_group
 
             from mindspore.communication import get_rank
 

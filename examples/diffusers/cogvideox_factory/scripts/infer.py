@@ -167,7 +167,7 @@ def infer(args: argparse.Namespace) -> None:
             )
             enable_sequence_parallelism = False
         else:
-            from acceleration import create_parallel_group, get_sequence_parallel_group
+            from cogvideox.acceleration import create_parallel_group, get_sequence_parallel_group
 
             create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
             ms.set_auto_parallel_context(enable_alltoall=True)
@@ -178,7 +178,7 @@ def infer(args: argparse.Namespace) -> None:
         ms.float16 if args.mixed_precision == "fp16" else ms.bfloat16 if args.mixed_precision == "bf16" else ms.float32
     )
     if enable_sequence_parallelism:
-        from models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+        from cogvideox.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
         from transformers import AutoTokenizer
 
         from mindone.diffusers import CogVideoXDDIMScheduler
