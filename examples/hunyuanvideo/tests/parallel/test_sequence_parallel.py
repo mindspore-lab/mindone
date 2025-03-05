@@ -3,7 +3,6 @@ from typing import Tuple
 
 import numpy as np
 from hyvideo.acceleration import create_parallel_group, get_sequence_parallel_group
-from hyvideo.modules.models import HUNYUAN_VIDEO_CONFIG
 from hyvideo.utils import init_model
 
 import mindspore as ms
@@ -33,11 +32,6 @@ def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, ...]:
     return latent_embedding, timestep, llama_emb, llama_mask, clip_emb, None, None, guidance
 
 
-def get_network_config(name="HYVideo-T/2-depth1"):
-    config = HUNYUAN_VIDEO_CONFIG[name]
-    return config
-
-
 def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
     ms.set_context(mode=mode)
     init()
@@ -53,14 +47,17 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     print(f"Run model in dtype: {dtype}")
     # non parallel network
     ms.set_seed(1024)
-    name = "HYVideo-T/2-depth1"
+    name = "HYVideo-T/2-cfgdistill"
+    pretrained_model_path = "../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt"
     factor_kwargs = {"dtype": dtype}
-    non_parallel_network = init_model(name=name, factor_kwargs=factor_kwargs)
+    non_parallel_network = init_model(
+        name=name, pretrained_model_path=pretrained_model_path, factor_kwargs=factor_kwargs
+    )
 
     # parallel netowrk
     ms.set_seed(1024)
     create_parallel_group(shards=get_group_size())
-    parallel_network = init_model(name=name, factor_kwargs=factor_kwargs)
+    parallel_network = init_model(name=name, pretrained_model_path=pretrained_model_path, factor_kwargs=factor_kwargs)
 
     # load weight
     for (_, w0), (_, w1) in zip(non_parallel_network.parameters_and_names(), parallel_network.parameters_and_names()):
