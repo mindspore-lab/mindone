@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
+from datasets import Bucket
 from transformers import PreTrainedTokenizer
 
 from mindspore.dataset import transforms, vision
@@ -20,10 +21,6 @@ decord.bridge.set_bridge("native")
 
 logger = get_logger(__name__)
 
-# Dynamic Shape is not supported right now.
-# HEIGHT_BUCKETS = [256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536]
-# WIDTH_BUCKETS = [256, 320, 384, 480, 512, 576, 720, 768, 960, 1024, 1280, 1536]
-# FRAME_BUCKETS = [16, 24, 32, 48, 64, 80]
 
 # Default Resolution same as THUDM--CogVideo.sat.configs.sft.data.params.video_size/fps
 HEIGHT_BUCKETS = [480]
@@ -44,7 +41,8 @@ class VideoDataset(object):
         height_buckets: List[int] = None,
         width_buckets: List[int] = None,
         frame_buckets: List[int] = None,
-        load_tensors: bool = False,
+        embeddings_cache: bool = False,
+        latents_cache: bool = False,
         random_flip: Optional[float] = None,
         image_to_video: bool = False,
         tokenizer: Optional[PreTrainedTokenizer] = None,
@@ -56,6 +54,7 @@ class VideoDataset(object):
         attention_head_dim: Optional[int] = None,
         base_height: int = 480,
         base_width: int = 720,
+        buckets: Bucket = None,
     ) -> None:
         super().__init__()
 
@@ -68,7 +67,8 @@ class VideoDataset(object):
         self.height_buckets = height_buckets or HEIGHT_BUCKETS
         self.width_buckets = width_buckets or WIDTH_BUCKETS
         self.frame_buckets = frame_buckets or FRAME_BUCKETS
-        self.load_tensors = load_tensors
+        self.embeddings_cache = embeddings_cache
+        self.latents_cache = latents_cache
         self.random_flip = random_flip
         self.image_to_video = image_to_video
 
@@ -84,6 +84,7 @@ class VideoDataset(object):
         self.attention_head_dim = attention_head_dim
         self.base_height = base_height
         self.base_width = base_width
+        self.buckets = buckets
 
         self.resolutions = [
             (f, h, w) for h in self.height_buckets for w in self.width_buckets for f in self.frame_buckets
@@ -110,7 +111,7 @@ class VideoDataset(object):
 
         if len(self.video_paths) != len(self.prompts):
             raise ValueError(
-                f"Expected length of prompts and videos to be the same but found {len(self.prompts)=} and {len(self.video_paths)=}. Please ensure that the number of caption prompts and videos match in your dataset."  # noqa: E501
+                f"Expected length of prompts and videos to be the same but found len(self.prompts)={len(self.prompts)} and len(self.video_paths)={len(self.video_paths)}. Please ensure that the number of caption prompts and videos match in your dataset."  # noqa: E501
             )
 
         self.video_transforms = transforms.Compose(
@@ -145,36 +146,10 @@ class VideoDataset(object):
             # that data is not loaded a second time. PRs are welcome for improvements.
             return index
 
-        if self.load_tensors:
-            image_latents, video_latents, prompt_embeds = self._preprocess_video(self.video_paths[index])
-
-            # This is hardcoded for now.
-            # The VAE's temporal compression ratio is 4.
-            # The VAE's spatial compression ratio is 8.
-            latent_num_frames = video_latents.shape[1]
-            if latent_num_frames % 2 == 0:
-                num_frames = latent_num_frames * 4
-            else:
-                num_frames = (latent_num_frames - 1) * 4 + 1
-
-            height = video_latents.shape[2] * 8
-            width = video_latents.shape[3] * 8
-
-            return {
-                "prompt": None,
-                "text_input_ids": prompt_embeds,
-                "image": image_latents,
-                "video": video_latents,
-                "video_metadata": {
-                    "num_frames": num_frames,
-                    "height": height,
-                    "width": width,
-                },
-                "rotary_positional_embeddings": self.ropes,
-            }
+        if self.embeddings_cache:
+            text_input_ids = self._load_preprocessed_embeds(self.video_paths[index])
+            prompt = None
         else:
-            image, video, _ = self._preprocess_video(self.video_paths[index])
-
             prompt = self.id_token + self.prompts[index]
             text_inputs = self.tokenizer(
                 prompt,
@@ -184,20 +159,43 @@ class VideoDataset(object):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            text_input_ids = text_inputs.input_ids
+            text_input_ids = text_inputs.input_ids.squeeze()
 
-            return {
-                "prompt": prompt,
-                "text_input_ids": text_input_ids.squeeze(),
-                "image": image,
-                "video": video,
-                "video_metadata": {
-                    "num_frames": video.shape[0],
-                    "height": video.shape[2],
-                    "width": video.shape[3],
-                },
-                "rotary_positional_embeddings": self.ropes,
-            }
+        if self.latents_cache:
+            image, video = self._load_preprocessed_latents(self.video_paths[index])
+
+            # This is hardcoded for now.
+            # The VAE's temporal compression ratio is 4.
+            # The VAE's spatial compression ratio is 8.
+            latent_num_frames = video.shape[1]
+            if latent_num_frames % 2 == 0:
+                num_frames = latent_num_frames * 4
+            else:
+                num_frames = (latent_num_frames - 1) * 4 + 1
+
+            height = video.shape[2] * 8
+            width = video.shape[3] * 8
+        else:
+            image, video, _ = self._preprocess_video(self.video_paths[index])
+            num_frames = video.shape[0]
+            height = video.shape[2]
+            width = video.shape[3]
+
+        if self.buckets:
+            self.ropes = self.prepare_ropes_bucket(video.shape[0], video.shape[2], video.shape[3])
+
+        return {
+            "prompt": prompt,
+            "text_input_ids": text_input_ids,
+            "image": image,
+            "video": video,
+            "video_metadata": {
+                "num_frames": num_frames,
+                "height": height,
+                "width": width,
+            },
+            "rotary_positional_embeddings": self.ropes,
+        }
 
     def _load_dataset_from_local_path(self) -> Tuple[List[str], List[str]]:
         if not self.data_root.exists():
@@ -220,9 +218,9 @@ class VideoDataset(object):
         with open(video_path, "r", encoding="utf-8") as file:
             video_paths = [self.data_root.joinpath(line.strip()) for line in file.readlines() if len(line.strip()) > 0]
 
-        if not self.load_tensors and any(not path.is_file() for path in video_paths):
+        if not self.latents_cache and any(not path.is_file() for path in video_paths):
             raise ValueError(
-                f"Expected `{self.video_column=}` to be a path to a file in `{self.data_root=}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
+                f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
             )
 
         return prompts, video_paths
@@ -235,7 +233,7 @@ class VideoDataset(object):
 
         if any(not path.is_file() for path in video_paths):
             raise ValueError(
-                f"Expected `{self.video_column=}` to be a path to a file in `{self.data_root=}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
+                f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
             )
 
         return prompts, video_paths
@@ -251,23 +249,21 @@ class VideoDataset(object):
         F, C, H and W are the frames, channels, height and width of the latent, and S, D are the sequence length
         and embedding dimension of prompt embeddings.
         """
-        if self.load_tensors:
-            return self._load_preprocessed_latents_and_embeds(path)
-        else:
-            video_reader = decord.VideoReader(uri=path.as_posix())
-            video_num_frames = len(video_reader)
 
-            indices = list(range(0, video_num_frames, max(1, video_num_frames // self.max_num_frames)))
-            frames = video_reader.get_batch(indices).asnumpy()
-            frames = frames[: self.max_num_frames].astype(np.float32)
-            frames = np.ascontiguousarray(frames.transpose(0, 3, 1, 2))
-            frames = np.stack([self.video_transforms(frame) for frame in frames], axis=0)
+        video_reader = decord.VideoReader(uri=path.as_posix())
+        video_num_frames = len(video_reader)
 
-            image = frames[:1].copy() if self.image_to_video else None
+        indices = list(range(0, video_num_frames, max(1, video_num_frames // self.max_num_frames)))
+        frames = video_reader.get_batch(indices).asnumpy()
+        frames = frames[: self.max_num_frames].astype(np.float32)
+        frames = np.ascontiguousarray(frames.transpose(0, 3, 1, 2))
+        frames = np.stack([self.video_transforms(frame) for frame in frames], axis=0)
 
-            return image, frames, None
+        image = frames[:1].copy() if self.image_to_video else None
 
-    def _load_preprocessed_latents_and_embeds(self, path: Path) -> Tuple[np.ndarray, np.ndarray]:
+        return image, frames, None
+
+    def _load_preprocessed_latents(self, path: Path) -> Tuple[np.ndarray, np.ndarray]:
         filename_without_ext = path.name.split(".")[0]
         pt_filename = f"{filename_without_ext}.npy"
 
@@ -275,36 +271,64 @@ class VideoDataset(object):
         # We need to reach: /a/b/c/d/video_latents/00001.npy
         image_latents_path = path.parent.parent.joinpath("image_latents")
         video_latents_path = path.parent.parent.joinpath("video_latents")
-        embeds_path = path.parent.parent.joinpath("prompt_embeds")
 
-        if (
-            not video_latents_path.exists()
-            or not embeds_path.exists()
-            or (self.image_to_video and not image_latents_path.exists())
-        ):
+        if not video_latents_path.exists() or (self.image_to_video and not image_latents_path.exists()):
             raise ValueError(
-                f"When setting the load_tensors parameter to `True`, it is expected that the `{self.data_root=}` contains two folders named `video_latents` and `prompt_embeds`. However, these folders were not found. Please make sure to have prepared your data correctly using `prepare_data.py`. Additionally, if you're training image-to-video, it is expected that an `image_latents` folder is also present."  # noqa: E501
+                f"When setting the latents_cache parameter to `True`, it is expected that the `{self.data_root}` "
+                f"contains two folders named `video_latents` and `prompt_embeds`. "
+                f"However, these folders were not found. "
+                f"Please make sure to have prepared your data correctly using `prepare_data.py`. "
+                f"Additionally, if you're training image-to-video, "
+                f"it is expected that an `image_latents` folder is also present."
             )
 
         if self.image_to_video:
             image_latent_filepath = image_latents_path.joinpath(pt_filename)
         video_latent_filepath = video_latents_path.joinpath(pt_filename)
-        embeds_filepath = embeds_path.joinpath(pt_filename)
 
-        if not video_latent_filepath.is_file() or not embeds_filepath.is_file():
+        if not video_latent_filepath.is_file():
             if self.image_to_video:
                 image_latent_filepath = image_latent_filepath.as_posix()
             video_latent_filepath = video_latent_filepath.as_posix()
-            embeds_filepath = embeds_filepath.as_posix()
             raise ValueError(
-                f"The file {video_latent_filepath=} or {embeds_filepath=} could not be found. Please ensure that you've correctly executed `prepare_dataset.py`."  # noqa: E501
+                f"The file {video_latent_filepath} could not be found. "
+                f"Please ensure that you've correctly executed `prepare_dataset.py`."
             )
 
         images = np.load(image_latent_filepath) if self.image_to_video else None
         latents = np.load(video_latent_filepath)
+        return images, latents
+
+    def _load_preprocessed_embeds(self, path: Path) -> np.ndarray:
+        filename_without_ext = path.name.split(".")[0]
+        pt_filename = f"{filename_without_ext}.npy"
+
+        # The current path is something like: /a/b/c/d/videos/00001.mp4
+        # We need to reach: /a/b/c/d/video_latents/00001.npy
+        embeds_path = path.parent.parent.joinpath("prompt_embeds")
+
+        if not embeds_path.exists:
+            raise ValueError(
+                f"When setting the embeddings_cache parameter to `True`, "
+                f"it is expected that the `{self.data_root}` contains two folders named `video_latents` and `prompt_embeds`. "
+                f"However, these folders were not found. "
+                f"Please make sure to have prepared your data correctly using `prepare_data.py`. "
+                f"Additionally, if you're training image-to-video, "
+                f"it is expected that an `image_latents` folder is also present."
+            )
+
+        embeds_filepath = embeds_path.joinpath(pt_filename)
+
+        if not embeds_filepath.is_file():
+            embeds_filepath = embeds_filepath.as_posix()
+            raise ValueError(
+                f"The file {embeds_filepath} could not be found. "
+                f"Please ensure that you've correctly executed `prepare_dataset.py`."
+            )
+
         embeds = np.load(embeds_filepath)
 
-        return images, latents, embeds
+        return embeds
 
     def prepare_ropes(self):
         if len(self.resolutions) != 1:
@@ -331,34 +355,49 @@ class VideoDataset(object):
 
         self.ropes = image_rotary_emb
 
+    def prepare_ropes_bucket(self, f, h, w):
+        num_frames = (f - f % 2) / 4 + f % 2
+        image_rotary_emb = (
+            prepare_rotary_positional_embeddings(
+                height=h,
+                width=w,
+                num_frames=int(num_frames),
+                vae_scale_factor_spatial=self.vae_scale_factor_spatial,
+                patch_size=self.patch_size,
+                patch_size_t=self.patch_size_t,
+                attention_head_dim=self.attention_head_dim,
+                base_height=self.base_height,
+                base_width=self.base_width,
+            )
+            if self.use_rotary_positional_embeddings
+            else None
+        )
+
+        return image_rotary_emb
+
 
 class VideoDatasetWithResizing(VideoDataset):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def _preprocess_video(self, path: Path) -> np.ndarray:
-        if self.load_tensors:
-            return self._load_preprocessed_latents_and_embeds(path)
+        video_reader = decord.VideoReader(uri=path.as_posix())
+        video_num_frames = len(video_reader)
+        if self.buckets:
+            bucket_id = self.buckets.get_bucket_id(video_num_frames, video_reader[0].shape[0], video_reader[0].shape[1])
+            F, H, W = self.buckets.get_thw(bucket_id)
         else:
-            video_reader = decord.VideoReader(uri=path.as_posix())
-            video_num_frames = len(video_reader)
-            nearest_frame_bucket = min(
-                self.frame_buckets, key=lambda x: abs(x - min(video_num_frames, self.max_num_frames))
-            )
+            F = min(self.frame_buckets, key=lambda x: abs(x - min(video_num_frames, self.max_num_frames)))
+            H, W = self._find_nearest_resolution(video_reader[0].shape[0], video_reader[0].shape[1])
+        frame_indices = np.linspace(0, video_num_frames, min(video_num_frames, F), dtype=int, endpoint=False)
+        frames = video_reader.get_batch(frame_indices).asnumpy()
+        frames = pad_last_frame(frames, F).astype(np.float32)
+        frames_resized = np.stack([vision.Resize(size=(H, W))(frame) for frame in frames], axis=0)
+        frames_resized = np.ascontiguousarray(frames_resized.transpose(0, 3, 1, 2))  # (T, H, W, C) -> (T, C, H, W)
+        frames = np.stack([self.video_transforms(frame) for frame in frames_resized], axis=0)
 
-            frame_indices = list(range(0, video_num_frames, max(1, video_num_frames // nearest_frame_bucket)))
-
-            frames = video_reader.get_batch(frame_indices).asnumpy()
-            frames = pad_last_frame(frames, nearest_frame_bucket).astype(np.float32)
-
-            nearest_res = self._find_nearest_resolution(frames.shape[2], frames.shape[3])
-            frames_resized = np.stack([vision.Resize(size=nearest_res)(frame) for frame in frames], axis=0)
-            frames_resized = np.ascontiguousarray(frames_resized.transpose(0, 3, 1, 2))  # (T, H, W, C) -> (T, C, H, W)
-            frames = np.stack([self.video_transforms(frame) for frame in frames_resized], axis=0)
-
-            image = frames[:1].copy() if self.image_to_video else None
-
-            return image, frames, None
+        image = frames[:1].copy() if self.image_to_video else None
+        return image, frames, None
 
     def _find_nearest_resolution(self, height, width):
         nearest_res = min(self.resolutions, key=lambda x: abs(x[1] - height) + abs(x[2] - width))
@@ -400,28 +439,24 @@ class VideoDatasetWithResizeAndRectangleCrop(VideoDataset):
         return arr
 
     def _preprocess_video(self, path: Path) -> np.ndarray:
-        if self.load_tensors:
-            return self._load_preprocessed_latents_and_embeds(path)
+        video_reader = decord.VideoReader(uri=path.as_posix())
+        video_num_frames = len(video_reader)
+        if self.buckets:
+            bucket_id = self.buckets.get_bucket_id(video_num_frames, video_reader[0].shape[0], video_reader[0].shape[1])
+            F, H, W = self.buckets.get_thw(bucket_id)
         else:
-            video_reader = decord.VideoReader(uri=path.as_posix())
-            video_num_frames = len(video_reader)
-            nearest_frame_bucket = min(
-                self.frame_buckets, key=lambda x: abs(x - min(video_num_frames, self.max_num_frames))
-            )
+            F = min(self.frame_buckets, key=lambda x: abs(x - min(video_num_frames, self.max_num_frames)))
+            H, W = self._find_nearest_resolution(video_reader[0].shape[0], video_reader[0].shape[1])
+        frame_indices = np.linspace(0, video_num_frames, min(video_num_frames, F), dtype=int, endpoint=False)
+        frames = video_reader.get_batch(frame_indices).asnumpy()
+        frames = pad_last_frame(frames, F).astype(np.float32)
+        frames_resized = self._resize_for_rectangle_crop(frames, (H, W))
+        frames_resized = np.ascontiguousarray(frames_resized.transpose(0, 3, 1, 2))  # (T, H, W, C) -> (T, C, H, W)
+        frames = np.stack([self.video_transforms(frame) for frame in frames_resized], axis=0)
 
-            frame_indices = list(range(0, video_num_frames, max(1, video_num_frames // nearest_frame_bucket)))
+        image = frames[:1].copy() if self.image_to_video else None
 
-            frames = video_reader.get_batch(frame_indices).asnumpy()
-            frames = pad_last_frame(frames, nearest_frame_bucket).astype(np.float32)
-
-            nearest_res = self._find_nearest_resolution(frames.shape[2], frames.shape[3])
-            frames_resized = self._resize_for_rectangle_crop(frames, nearest_res)
-            frames_resized = np.ascontiguousarray(frames_resized.transpose(0, 3, 1, 2))  # (T, H, W, C) -> (T, C, H, W)
-            frames = np.stack([self.video_transforms(frame) for frame in frames_resized], axis=0)
-
-            image = frames[:1].copy() if self.image_to_video else None
-
-            return image, frames, None
+        return image, frames, None
 
     def _find_nearest_resolution(self, height, width):
         nearest_res = min(self.resolutions, key=lambda x: abs(x[1] - height) + abs(x[2] - width))
