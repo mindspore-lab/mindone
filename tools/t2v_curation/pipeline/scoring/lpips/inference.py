@@ -59,6 +59,12 @@ def parse_args():
         default="pretrained_models/lpips.ckpt",
         help="Load LPIPS model checkpoint.",
     )
+    parser.add_argument(
+        "--vgg16_ckpt_path",
+        type=str,
+        default="pretrained_models/vgg16.ckpt",
+        help="Load LPIPS model checkpoint.",
+    )
     args = parser.parse_args()
     return args
 
@@ -84,7 +90,7 @@ def main():
         rank_id = get_rank()
         rank_size = get_world_size()
 
-    model = LPIPS()
+    model = LPIPS(ckpt_path = args.vgg16_ckpt_path)
     model.load_from_pretrained(args.lpips_ckpt_path)
     model.set_train(False)
 
