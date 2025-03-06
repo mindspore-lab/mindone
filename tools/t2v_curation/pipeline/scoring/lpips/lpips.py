@@ -6,13 +6,11 @@ import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
-from pipeline.scoring.lpips.vgg import VGG, cfg_vgg16
-
 _logger = logging.getLogger(__name__)
 
 class LPIPS(nn.Cell):
     # learned perceptual metric
-    def __init__(self, use_dropout=True, ckpt_path=None):
+    def __init__(self, use_dropout=True):
         super().__init__()
         self.scaling_layer = ScalingLayer()
         self.chns = [64, 128, 256, 512, 512] # vgg16 features
@@ -24,7 +22,7 @@ class LPIPS(nn.Cell):
         # load NetLin metric layers
 
         # create vision backbone and load pretrained weights
-        self.net = vgg16(requires_grad=False, ckpt_path=ckpt_path)
+        self.net = vgg16(pretrained=True, requires_grad=False)
 
         self.set_train(False)
         for param in self.trainable_params():
@@ -86,10 +84,9 @@ class NetLinLayer(nn.Cell):
         return self.model(x)
 
 class vgg16(nn.Cell):
-    def __init__(self, requires_grad=False, ckpt_path=None):
+    def __init__(self, requires_grad=False, pretrained=True):
         super(vgg16, self).__init__()
-        model = VGG(cfg=cfg_vgg16, num_classes=1000, in_channels=3, drop_rate=0.5, batch_norm=False)
-        model.load_from_pretrained(ckpt_path)
+        model = mindcv.create_model("vgg16", pretrained=pretrained)
         model.set_train(False)
         vgg_pretrained_features = model.features
         self.slice1 = nn.SequentialCell()

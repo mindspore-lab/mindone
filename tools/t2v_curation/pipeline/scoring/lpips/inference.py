@@ -39,7 +39,6 @@ class VideoTextDataset:
     def __len__(self):
         return len(self.meta)
 
-
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
@@ -57,12 +56,6 @@ def parse_args():
         "--lpips_ckpt_path",
         type=str,
         default="pretrained_models/lpips.ckpt",
-        help="Load LPIPS model checkpoint.",
-    )
-    parser.add_argument(
-        "--vgg16_ckpt_path",
-        type=str,
-        default="pretrained_models/vgg16.ckpt",
         help="Load LPIPS model checkpoint.",
     )
     args = parser.parse_args()
@@ -91,7 +84,7 @@ def main():
         rank_size = get_world_size()
 
     model = LPIPS(ckpt_path = args.vgg16_ckpt_path)
-    model.load_from_pretrained(args.lpips_ckpt_path)
+    model.load_from_pretrained()
     model.set_train(False)
 
     dataset_generator = (
