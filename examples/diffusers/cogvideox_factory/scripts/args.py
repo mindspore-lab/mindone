@@ -391,7 +391,7 @@ def _get_optimizer_args(parser: argparse.ArgumentParser) -> None:
         "--optimizer",
         type=lambda s: s.lower(),
         default="adam",
-        choices=["adam", "adamw", "prodigy", "came"],
+        choices=["adam", "adamw", "adamw_bf16"],
         help=("The optimizer type to use."),
     )
     parser.add_argument(
