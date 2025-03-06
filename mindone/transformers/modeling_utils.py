@@ -299,6 +299,7 @@ def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_shar
     for k, v in state_dict.items():
         if k in local_state:
             state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
+            del v
         else:
             pass  # unexpect key keeps origin dtype
     cm = silence_mindspore_logger() if is_sharded else nullcontext()
@@ -334,6 +335,7 @@ class ModuleUtilsMixin:
         for _, cell in self.cells_and_names():
             for param_name, param in cell._params.items():
                 setattr(cell, param_name, ms.Parameter(param.to(dtype)))
+                del param
         self.update_parameters_name()
         return self
 

@@ -785,6 +785,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         for _, cell in self.cells_and_names():
             for param_name, param in cell._params.items():
                 setattr(cell, param_name, ms.Parameter(param.to(dtype)))
+                del param
         self.update_parameters_name()
         return self
 
