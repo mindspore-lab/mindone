@@ -792,7 +792,7 @@ def apply_rotary_emb(
             x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
             x_rotated = ops.stack([-x_imag, x_real], axis=-1).flatten(start_dim=3)
         elif use_real_unbind_dim == -2:
-            # Used for Stable Audio
+            # Used for Stable Audio, OmniGen and CogView4
             x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
             x_rotated = ops.cat([-x_imag, x_real], axis=-1)
         else:

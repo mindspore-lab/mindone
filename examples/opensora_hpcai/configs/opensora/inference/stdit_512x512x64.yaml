@@ -2,7 +2,7 @@ space_scale: 1.0
 time_scale: 0.6666666667
 
 ckpt_path: "models/OpenSora-v1-HQ-16x512x512.ckpt"
-t5_model_dir: "models/t5-v1_1-xxl/"
+t5_model_name_or_path: DeepFloyd/t5-v1_1-xxl
 vae_checkpoint: "models/sd-vae-ft-ema.ckpt"
 
 image_size: 512
