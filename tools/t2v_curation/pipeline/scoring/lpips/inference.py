@@ -83,8 +83,8 @@ def main():
         rank_id = get_rank()
         rank_size = get_world_size()
 
-    model = LPIPS(ckpt_path = args.vgg16_ckpt_path)
-    model.load_from_pretrained()
+    model = LPIPS()
+    model.load_from_pretrained(args.lpips_ckpt_path)
     model.set_train(False)
 
     dataset_generator = (
