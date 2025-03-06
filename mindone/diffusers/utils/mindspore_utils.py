@@ -15,6 +15,7 @@
 MindSpore utilities: Utilities related to MindSpore
 """
 
+import contextlib
 from collections import OrderedDict
 from typing import List, Optional, Tuple, Union
 
@@ -97,3 +98,24 @@ def randn_tensor(
         latents = randn(shape, generator=generator, dtype=dtype)
 
     return latents
+
+
+@ms.jit_class
+class pynative_context(contextlib.ContextDecorator):
+    """
+    Context Manager to create a temporary PyNative context. When enter this context, we will
+    change os.environ["MS_JIT"] to '0' to enable network run in eager mode. When exit this context,
+    we will resume its prev state. Currently, it CANNOT used inside mindspore.nn.Cell.construct()
+    when `mindspore.context.get_context("mode") == mindspore.context.GRAPH_MODE`. It can be used
+    as decorator.
+    """
+
+    def __init__(self):
+        self._prev_mode = ms.context.get_context("mode")
+
+    def __enter__(self):
+        ms.context.set_context(mode=ms.context.PYNATIVE_MODE)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ms.context.set_context(mode=self._prev_mode)
+        return False

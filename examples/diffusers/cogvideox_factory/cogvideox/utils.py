@@ -5,6 +5,7 @@ import numpy as np
 from mindspore import nn
 
 from mindone.diffusers.utils.logging import get_logger
+from mindone.trainers.adamw_bf16 import BF16AdamW
 
 logger = get_logger(__name__)
 
@@ -31,34 +32,28 @@ def get_optimizer(
     optimizer_name = optimizer_name.lower()
 
     # Optimizer creation
-    supported_optimizers = ["adam", "adamw"]  # "prodigy", "came"
+    supported_optimizers = ["adam", "adamw", "adamw_bf16"]  # "prodigy", "came"
     if optimizer_name not in supported_optimizers:
         logger.warning(
-            f"Unsupported choice of optimizer: {optimizer_name}. Supported optimizers include {supported_optimizers}. Defaulting to `AdamW`."
+            f"Unsupported choice of optimizer: {optimizer_name}. Supported optimizers include {supported_optimizers}. "
+            f"Defaulting to `adamw_bf16`."
         )
-        optimizer_name = "adamw"
+        optimizer_name = "adamw_bf16"
 
-    if optimizer_name == "adamw":
+    if optimizer_name == "adamw_bf16":
+        optimizer_class = BF16AdamW
+    elif optimizer_name == "adamw":
         optimizer_class = nn.optim.AdamWeightDecay
-
-        init_kwargs = {
-            "learning_rate": learning_rate,
-            "beta1": beta1,
-            "beta2": beta2,
-            "eps": epsilon,
-            "weight_decay": weight_decay,
-        }
-
     elif optimizer_name == "adam":
         optimizer_class = nn.optim.Adam
 
-        init_kwargs = {
-            "learning_rate": learning_rate,
-            "beta1": beta1,
-            "beta2": beta2,
-            "eps": epsilon,
-            "weight_decay": weight_decay,
-        }
+    init_kwargs = {
+        "learning_rate": learning_rate,
+        "beta1": beta1,
+        "beta2": beta2,
+        "eps": epsilon,
+        "weight_decay": weight_decay,
+    }
 
     optimizer = optimizer_class(params_to_optimize, **init_kwargs)
 
