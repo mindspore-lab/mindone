@@ -85,7 +85,7 @@ video = pipe("<my-awesome-prompt>")[0][0]
 export_to_video(video, "output.mp4", fps=8)
 ```
 
-以下我们提供了更多探索此仓库选项的额外部分。所有这些都旨在尽可能降低内存需求，使视频模型的微调变得更易于访问。 详情参考[推理](#推理)。
+以下是单卡、多卡推理和训练脚本说明。
 
 ## 推理
 
@@ -100,14 +100,14 @@ SP_SIZE=$NUM_NPUS
 DEEPSPEED_ZERO_STAGE=3
 ```
 
-- MindSpore配置。`MINDSPORE_MODE=0`表示静态图模式，`MINDSPORE_MODE=1`表示动态图模式，`JIT_LEVEL`仅在静态图模式下生效：
+- 运行模式配置。`MINDSPORE_MODE=0`表示`graph mode`，`MINDSPORE_MODE=1`表示`pynative mode`，`JIT_LEVEL`表示在`graph mode`下加速的level：
 
 ```shell
 MINDSPORE_MODE=0
 JIT_LEVEL=O1
 ```
 
-- 配置模型及推理结果参数。`MODEL_PATH`默认是`THUDM/CogVideoX1.5-5b`，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的`THUDM/CogVideoX1.5-5b`保持一致；`TRANSFORMER_PATH`和`LORA_PATH`可以不传，这时会使用`MODEL_PATH`里的权重；配置的话`TRANSFORMER_PATH`和`LORA_PATH`二选一，如果配置`LORA_PATH`需要修改下面`--transformer_ckpt_path $TRANSFORMER_PATH \`为`--lora_ckpt_path $LORA_PATH \`：
+- 配置模型及推理结果参数。`MODEL_PATH`默认是`THUDM/CogVideoX1.5-5b`，兼容[CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的CogVideoX 模型家族保持一致。`TRANSFORMER_PATH`和`LORA_PATH`可以不传，这时会使用`MODEL_PATH`里的权重；`TRANSFORMER_PATH`和`LORA_PATH`配置需要二选一：
 
 ```shell
 MODEL_PATH="THUDM/CogVideoX1.5-5b"

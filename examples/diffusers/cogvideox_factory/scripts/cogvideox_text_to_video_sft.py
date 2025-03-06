@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import gc
 import json
 import logging
 import math
@@ -40,13 +39,7 @@ from mindspore import mint, nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
-from mindone.diffusers import (
-    AutoencoderKLCogVideoX,
-    CogVideoXDPMScheduler,
-    CogVideoXPipeline,
-    ConfigMixin,
-    SchedulerMixin,
-)
+from mindone.diffusers import AutoencoderKLCogVideoX, CogVideoXDPMScheduler, ConfigMixin, SchedulerMixin
 from mindone.diffusers.optimization import get_scheduler
 from mindone.diffusers.training_utils import (
     AttrJitWrapper,
@@ -58,7 +51,7 @@ from mindone.diffusers.training_utils import (
     pynative_no_grad,
     set_seed,
 )
-from mindone.diffusers.utils import export_to_video, pynative_context
+from mindone.diffusers.utils import pynative_context
 from mindone.diffusers.utils.logging import get_logger
 from mindone.diffusers.utils.mindspore_utils import get_state_dict
 from mindone.transformers import T5EncoderModel
