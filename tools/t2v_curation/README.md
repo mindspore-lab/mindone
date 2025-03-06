@@ -81,13 +81,13 @@ and provide the video type you would like to keep under `option`.
 
 We support using json or yaml config files. After setting the `config.yaml` or `config.json` file, run the entire pipeline via
 ```bash
-python -m script.pipeline_runner --config_path ./config/config.yaml
+python -m script.pipeline_runner ./config/config.yaml
 ```
 
 OR
 
 ```bash
-python -m script.pipeline_runner --config_path ./config/config.json
+python -m script.pipeline_runner ./config/config.json
 ```
 
 You will get the processed csv file containing metadata information
