@@ -12,7 +12,7 @@
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
 |2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
-|2.4.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC2.beta1|
+|2.4.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Installation:
 ```
@@ -103,7 +103,8 @@ Input an image or a list of video frames, and a text prompt, output textual resp
 | Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.36 | 128 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 | Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.34 | 127 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 | Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.30 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 1372x2044 (image) | ON  | 0.32| 121 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct | bf16 | 1 | 1 | 12x308x476(video) | ON  | 0.30| 128| 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 
 - mindspore 2.4.1
 
@@ -119,7 +120,6 @@ Input an image or a list of video frames, and a text prompt, output textual resp
 *note: use mixed precision, `Conv3d` uses bf16, `flash attention` fp16, `LayerNorm` fp32.
 
 ### Inference Results
-Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 
 Input an image or a list of video frames, and a text prompt (English, Chinese or other lanugage), output textual response.
 
