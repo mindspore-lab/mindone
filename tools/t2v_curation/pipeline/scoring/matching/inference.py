@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 import sys
 
 import mindspore as ms
@@ -76,6 +77,9 @@ def parse_args():
 
     return args
 
+def sanitize_filename(s):
+    # for naming during option filtering, replace ' ' with '_' and more to get a valid file name.
+    return re.sub(r'[^A-Za-z0-9_.-]', '_', s)
 
 def main():
     args = parse_args()
@@ -87,7 +91,8 @@ def main():
 
     wo_ext, ext = os.path.splitext(meta_path)
     if args.option is not None:
-        out_path = f"{wo_ext}_{args.option}{ext}"
+        option_safe = sanitize_filename(args.option)
+        out_path = f"{wo_ext}_{option_safe}{ext}"
     else:
         out_path = f"{wo_ext}_matching{ext}"
     if args.skip_if_existing and os.path.exists(out_path):
