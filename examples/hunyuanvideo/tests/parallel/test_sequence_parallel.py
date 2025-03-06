@@ -1,15 +1,21 @@
 import argparse
+import logging
 from typing import Tuple
 
 import numpy as np
 from hyvideo.acceleration import create_parallel_group, get_sequence_parallel_group
 from hyvideo.utils import init_model
+from jsonargparse.typing import Path_fr
 
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
 from mindspore.communication import get_group_size, init
+
+from mindone.utils import set_logger
+
+logger = logging.getLogger(__name__)
 
 
 class MeanNet(nn.Cell):
@@ -44,11 +50,12 @@ def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
 
 
 def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
+    set_logger("")
     print(f"Run model in dtype: {dtype}")
     # non parallel network
     ms.set_seed(1024)
     name = "HYVideo-T/2-cfgdistill"
-    pretrained_model_path = "../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt"
+    pretrained_model_path = Path_fr("../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt")
     factor_kwargs = {"dtype": dtype}
     non_parallel_network = init_model(
         name=name, pretrained_model_path=pretrained_model_path, factor_kwargs=factor_kwargs
