@@ -32,7 +32,6 @@ _import_structure = {
     "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
     "controlnet_sparsectrl": ["SparseControlNetModel"],
     "controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
-    "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
     "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
