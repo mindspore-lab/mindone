@@ -11,6 +11,7 @@
 ## Requirements:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
+|2.5.0 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC3.beta1|
 |2.4.1 | 24.1RC3 | 7.3.0.1.231 | 8.0.RC2.beta1|
 
 ### Installation:
@@ -89,9 +90,22 @@ print(output_text)
 ## Inference
 
 ### Inference Speed
-Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
+Experiments are tested on ascend 910* pynative mode.
 
 Input an image or a list of video frames, and a text prompt, output textual response.
+
+
+- mindspore 2.5.0
+
+|model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | OFF | 0.40 | 128 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | OFF | 0.36 | 128 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 1372x2044 (image) | ON  | 0.34 | 127 | 0.02 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+| Qwen2-VL-7B-Instruct |  fp16 | 1 | 1 | 12x308x476(video) | ON  | 0.30 | 128 | 0.03 | [weight](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
+
+
+- mindspore 2.4.1
 
 |model name	| precision* | cards	| batch size| resolution | flash attn |	s/step	| step | response/s | weight |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
