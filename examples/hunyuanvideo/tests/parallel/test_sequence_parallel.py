@@ -10,10 +10,9 @@ from jsonargparse.typing import Path_fr
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Tensor, mint
+from mindspore import Tensor
 from mindspore.communication import get_group_size, init
 
-from mindone.models.utils import normal_, zeros_
 from mindone.utils import set_logger
 
 logger = logging.getLogger(__name__)
@@ -27,23 +26,6 @@ class MeanNet(nn.Cell):
     def construct(self, *inputs):
         output = self.net(*inputs)
         return output.mean() * 1024.0
-
-
-def _init_weights(module):
-    std = 0.01
-    if isinstance(module, mint.nn.Linear):
-        normal_(module.weight, mean=0.0, std=std)
-        if module.bias is not None:
-            zeros_(module.weight)
-
-
-def initialize_final_layer(model):
-    final_layer = model.final_layer
-
-    normal_(final_layer.adaLN_modulation[-1].weight)
-    if final_layer.adaLN_modulation[-1].bias is not None:
-        normal_(final_layer.adaLN_modulation[-1].bias)
-    final_layer.apply(_init_weights)
 
 
 def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, ...]:
@@ -72,12 +54,8 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     print(f"Run model in dtype: {dtype}")
     # non parallel network
     ms.set_seed(1024)
-    name = "HYVideo-T/2-depth1"  # "HYVideo-T/2-cfgdistill"
-    pretrained_model_path = (
-        Path_fr("../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt")
-        if name == "HYVideo-T/2-cfgdistill"
-        else None
-    )
+    name = "HYVideo-T/2-depth1"
+    pretrained_model_path = Path_fr("../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt")
     factor_kwargs = {"dtype": dtype}
     non_parallel_network = init_model(
         name=name, pretrained_model_path=pretrained_model_path, factor_kwargs=factor_kwargs
@@ -87,11 +65,6 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     ms.set_seed(1024)
     create_parallel_group(shards=get_group_size())
     parallel_network = init_model(name=name, pretrained_model_path=pretrained_model_path, factor_kwargs=factor_kwargs)
-
-    if name != "HYVideo-T/2-cfgdistill":
-        logger.info("Initialize final layer to avoid zero outputs")
-        initialize_final_layer(parallel_network)
-        initialize_final_layer(non_parallel_network)
 
     # load weight
     for (_, w0), (_, w1) in zip(non_parallel_network.parameters_and_names(), parallel_network.parameters_and_names()):
