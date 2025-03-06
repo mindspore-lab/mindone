@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import pandas as pd
 import mindspore as ms
-import mindspore.ops as ops
+import mindspore.mint as mint
 import mindspore.dataset as ds
 from mindspore.mint.distributed import init_process_group, get_rank, get_world_size
 from mindspore.mint.distributed import all_gather, all_gather_object
@@ -64,7 +64,7 @@ def main():
         print(f"Output meta file '{out_path}' already exists. Exit.")
         exit()
 
-    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend")
+    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend", pynative_synchronize=True)
     ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
     init_process_group()
 
@@ -145,9 +145,9 @@ def main():
 
     if rank_size > 1:
         indices_tensor = ms.Tensor(indices_list, dtype=ms.int64)
-        indices_all = [ms.Tensor(np.zeros(indices_tensor.shape, dtype=ms.int64)) for _ in range(rank_size)]
+        indices_all = [ms.Tensor(np.zeros(indices_tensor.shape, dtype=np.int64)) for _ in range(rank_size)]
         all_gather(indices_all, indices_tensor)
-        indices_list_all = ops.Concat(axis=0)(indices_all).asnumpy().tolist()
+        indices_list_all = mint.concat(indices_all, dim=0).asnumpy().tolist()
 
         captions_all = [None] * rank_size
         all_gather_object(captions_all, caption_list)
