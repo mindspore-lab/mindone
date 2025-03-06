@@ -8,9 +8,10 @@ import numpy as np
 from emu3.mllm import Emu3Tokenizer
 
 import mindspore as ms
+from mindone.data import BaseDataset
 
 
-class Emu3FeatureDataset(object):
+class Emu3FeatureDataset(BaseDataset):
     def __init__(self, args, tokenizer: "Emu3Tokenizer", split: str = "train", task: str = "img_gen"):
         super().__init__()
 
@@ -44,7 +45,7 @@ class Emu3FeatureDataset(object):
         #     151846,  # eol_token_id
         #     151847,  # eof_token_id
         # ]  # details in Emu3Config
-        # self.output_columns = ["input_ids", "attention_mask", "position_ids", "past_key_values", "inputs_embeds", "labels"]
+        self.output_columns = ["input_ids", "attention_mask", "labels"]
 
     def __len__(self):
         return len(self.filelist)
@@ -78,7 +79,6 @@ class Emu3FeatureDataset(object):
             return_token_type_ids=False,
             return_tensors="np",
         )  # keys: "input_ids", "attention_mask"
-        # print(sample)
 
         labels = sample["input_ids"]
         if self.args.apply_loss_on_only_vision:  # image generation
@@ -89,22 +89,23 @@ class Emu3FeatureDataset(object):
             # special_mask = np.array([label in self.special_token_ids for label in labels], dtype=np.bool_)
             # labels = np.where((visual_mask or special_mask), self.args.ignore_index, labels)
             prompt_ids = self.tokenizer.decode(vt_prompts)
+            response_ids = self.tokenizer.decode(response)
             labels[: len(prompt_ids)] = self.args.ignore_index
+            if len(prompt_ids) + len(response_ids) < len(labels):
+                labels[len(prompt_ids)+ len(response_ids) :] = self.args.ignore_index
 
         sample["labels"] = labels
         for k, v in sample.items():
-            if isinstance(sample[k], np.ndarray):
-                sample[k] = ms.Tensor(sample[k], dtype=ms.int32)
-            sample[k] = v.squeeze(0)
+            sample[k] = ms.Tensor(v.squeeze(0), dtype=ms.int32)
 
-        return {
-            "input_ids": sample["input_ids"],
-            "attention_mask": sample["attention_mask"],
-            # "position_ids": None,
-            # "past_key_values": None,
-            # "input_embeds": None,
-            "labels": sample["labels"],
-        }
+        return (
+            sample["input_ids"],
+            sample["attention_mask"],
+            sample["labels"],
+        )
+
+    def train_transforms(**kwargs):
+        return []
 
     def format_image_prompt(self, image_tokens):
         h, w = image_tokens.shape
