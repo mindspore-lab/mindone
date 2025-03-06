@@ -70,6 +70,7 @@ class FlashAttention(nn.Cell):
             o (B S N*D)
         """
         # preapre layout. (B S N D) -> (B N S D)
+        ori_dtype = q.dtype
         q = ops.transpose(q, (0, 2, 1, 3))
         k = ops.transpose(k, (0, 2, 1, 3))
         v = ops.transpose(v, (0, 2, 1, 3))
@@ -77,7 +78,9 @@ class FlashAttention(nn.Cell):
         # in ms FA, 0 - retain, 1 - discard. shape: `(B, N1, S1, S2)` or `(B, 1, S1, S2)`, dtype: bool or uint8
         if mask is not None:
             mask = ops.logical_not(mask)
-        _, _, _, out = self.flash_attention(q, k, v, None, None, None, mask)
+        _, _, _, out = self.flash_attention(
+            q.to(ms.bfloat16), k.to(ms.bfloat16), v.to(ms.bfloat16), None, None, None, mask
+        )
 
         # (B N S D) -> (B S N D)
         out = ops.transpose(out, (0, 2, 1, 3))
@@ -85,7 +88,7 @@ class FlashAttention(nn.Cell):
         B, S, N, D = out.shape
         out = out.reshape(B, S, -1)
 
-        return out
+        return out.to(ori_dtype)
 
 
 class FlashAttentionVarLen(nn.Cell):
@@ -115,14 +118,21 @@ class FlashAttentionVarLen(nn.Cell):
             o (B S N*D)
         """
         # preapre layout. (B S N D) -> (T N D)
+        ori_dtype = q.dtype
         bs, max_seq_len, heads_num, head_dim = q.shape
         q = q.reshape((-1, heads_num, head_dim))
         k = k.reshape((-1, heads_num, head_dim))
         v = v.reshape((-1, heads_num, head_dim))
 
-        _, _, _, out = self.flash_attention(q, k, v, actual_seq_qlen=actual_seq_qlen, actual_seq_kvlen=actual_seq_kvlen)
+        _, _, _, out = self.flash_attention(
+            q.to(ms.bfloat16),
+            k.to(ms.bfloat16),
+            v.to(ms.bfloat16),
+            actual_seq_qlen=actual_seq_qlen,
+            actual_seq_kvlen=actual_seq_kvlen,
+        )
 
         # (T N D) -> (B S N*D)
         out = out.reshape((bs, max_seq_len, heads_num * head_dim))
 
-        return out
+        return out.to(ori_dtype)
