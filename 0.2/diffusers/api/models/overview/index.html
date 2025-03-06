@@ -6662,9 +6662,7 @@ saving models.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">108</span>
-<span class="normal">109</span>
-<span class="normal">110</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">110</span>
 <span class="normal">111</span>
 <span class="normal">112</span>
 <span class="normal">113</span>
@@ -7437,7 +7435,37 @@ saving models.</p>
 <span class="normal">880</span>
 <span class="normal">881</span>
 <span class="normal">882</span>
-<span class="normal">883</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="n">PushToHubMixin</span><span class="p">):</span>
+<span class="normal">883</span>
+<span class="normal">884</span>
+<span class="normal">885</span>
+<span class="normal">886</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span>
+<span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span>
+<span class="normal">893</span>
+<span class="normal">894</span>
+<span class="normal">895</span>
+<span class="normal">896</span>
+<span class="normal">897</span>
+<span class="normal">898</span>
+<span class="normal">899</span>
+<span class="normal">900</span>
+<span class="normal">901</span>
+<span class="normal">902</span>
+<span class="normal">903</span>
+<span class="normal">904</span>
+<span class="normal">905</span>
+<span class="normal">906</span>
+<span class="normal">907</span>
+<span class="normal">908</span>
+<span class="normal">909</span>
+<span class="normal">910</span>
+<span class="normal">911</span>
+<span class="normal">912</span>
+<span class="normal">913</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ModelMixin</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">,</span> <span class="n">PushToHubMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Base class for all models.</span>
 
@@ -7452,6 +7480,7 @@ saving models.</p>
     <span class="n">_supports_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">_keys_to_ignore_on_load_unexpected</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">_no_split_modules</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_keep_in_fp32_modules</span> <span class="o">=</span> <span class="kc">None</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
@@ -7651,11 +7680,9 @@ saving models.</p>
 
         <span class="n">weights_name</span> <span class="o">=</span> <span class="n">SAFETENSORS_WEIGHTS_NAME</span> <span class="k">if</span> <span class="n">safe_serialization</span> <span class="k">else</span> <span class="n">WEIGHTS_NAME</span>
         <span class="n">weights_name</span> <span class="o">=</span> <span class="n">_add_variant</span><span class="p">(</span><span class="n">weights_name</span><span class="p">,</span> <span class="n">variant</span><span class="p">)</span>
-        <span class="n">weight_name_split</span> <span class="o">=</span> <span class="n">weights_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">weight_name_split</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]:</span>
-            <span class="n">weights_name_pattern</span> <span class="o">=</span> <span class="n">weight_name_split</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="si">{suffix}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">weight_name_split</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid </span><span class="si">{</span><span class="n">weights_name</span><span class="si">}</span><span class="s2"> provided.&quot;</span><span class="p">)</span>
+        <span class="n">weights_name_pattern</span> <span class="o">=</span> <span class="n">weights_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{suffix}</span><span class="s2">.bin&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+            <span class="s2">&quot;.safetensors&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{suffix}</span><span class="s2">.safetensors&quot;</span>
+        <span class="p">)</span>
 
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">save_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -7871,26 +7898,44 @@ saving models.</p>
             <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
             <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
         <span class="p">)</span>
+        <span class="c1"># no in-place modification of the original config.</span>
+        <span class="n">config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+        <span class="c1"># Check if `_keep_in_fp32_modules` is not None</span>
+        <span class="n">use_keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">mindspore_dtype</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
+            <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">keep_in_fp32_modules</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">[</span><span class="n">keep_in_fp32_modules</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="c1">#######################################</span>
 
         <span class="c1"># Determine if we&#39;re loading from a directory of sharded checkpoints.</span>
         <span class="n">is_sharded</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="n">index_file</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="n">is_local</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">pretrained_model_name_or_path</span><span class="p">)</span>
-        <span class="n">index_file</span> <span class="o">=</span> <span class="n">_fetch_index_file</span><span class="p">(</span>
-            <span class="n">is_local</span><span class="o">=</span><span class="n">is_local</span><span class="p">,</span>
-            <span class="n">pretrained_model_name_or_path</span><span class="o">=</span><span class="n">pretrained_model_name_or_path</span><span class="p">,</span>
-            <span class="n">subfolder</span><span class="o">=</span><span class="n">subfolder</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-            <span class="n">use_safetensors</span><span class="o">=</span><span class="n">use_safetensors</span><span class="p">,</span>
-            <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
-            <span class="n">variant</span><span class="o">=</span><span class="n">variant</span><span class="p">,</span>
-            <span class="n">force_download</span><span class="o">=</span><span class="n">force_download</span><span class="p">,</span>
-            <span class="n">proxies</span><span class="o">=</span><span class="n">proxies</span><span class="p">,</span>
-            <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
-            <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
-            <span class="n">revision</span><span class="o">=</span><span class="n">revision</span><span class="p">,</span>
-            <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
-            <span class="n">commit_hash</span><span class="o">=</span><span class="n">commit_hash</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">index_file_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;is_local&quot;</span><span class="p">:</span> <span class="n">is_local</span><span class="p">,</span>
+            <span class="s2">&quot;pretrained_model_name_or_path&quot;</span><span class="p">:</span> <span class="n">pretrained_model_name_or_path</span><span class="p">,</span>
+            <span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;use_safetensors&quot;</span><span class="p">:</span> <span class="n">use_safetensors</span><span class="p">,</span>
+            <span class="s2">&quot;cache_dir&quot;</span><span class="p">:</span> <span class="n">cache_dir</span><span class="p">,</span>
+            <span class="s2">&quot;variant&quot;</span><span class="p">:</span> <span class="n">variant</span><span class="p">,</span>
+            <span class="s2">&quot;force_download&quot;</span><span class="p">:</span> <span class="n">force_download</span><span class="p">,</span>
+            <span class="s2">&quot;proxies&quot;</span><span class="p">:</span> <span class="n">proxies</span><span class="p">,</span>
+            <span class="s2">&quot;local_files_only&quot;</span><span class="p">:</span> <span class="n">local_files_only</span><span class="p">,</span>
+            <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="n">token</span><span class="p">,</span>
+            <span class="s2">&quot;revision&quot;</span><span class="p">:</span> <span class="n">revision</span><span class="p">,</span>
+            <span class="s2">&quot;user_agent&quot;</span><span class="p">:</span> <span class="n">user_agent</span><span class="p">,</span>
+            <span class="s2">&quot;commit_hash&quot;</span><span class="p">:</span> <span class="n">commit_hash</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="n">index_file</span> <span class="o">=</span> <span class="n">_fetch_index_file</span><span class="p">(</span><span class="o">**</span><span class="n">index_file_kwargs</span><span class="p">)</span>
+        <span class="c1"># In case the index file was not found we still have to consider the legacy format.</span>
+        <span class="c1"># this becomes applicable when the variant is not None.</span>
+        <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">index_file</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">index_file</span><span class="p">)):</span>
+            <span class="n">index_file</span> <span class="o">=</span> <span class="n">_fetch_index_file_legacy</span><span class="p">(</span><span class="o">**</span><span class="n">index_file_kwargs</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">index_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">index_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
             <span class="n">is_sharded</span> <span class="o">=</span> <span class="kc">True</span>
 
@@ -7958,7 +8003,9 @@ saving models.</p>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mindspore_dtype</span><span class="si">}</span><span class="s2"> needs to be of type `ms.Type`, e.g. `ms.float16`, but is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
                 <span class="p">)</span>
-            <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># When using `use_keep_in_fp32_modules` if we do a global `to()` here, then we will</span>
+            <span class="c1"># completely lose the effectivity of `use_keep_in_fp32_modules`.</span>
+            <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
                 <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">is_sharded</span><span class="p">:</span>
@@ -8163,12 +8210,21 @@ saving models.</p>
                 <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">()</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module_type</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">)</span>
             <span class="p">]</span>
-            <span class="n">non_embedding_parameters</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">total_parameters</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">parameter</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">embedding_param_names</span>
             <span class="p">]</span>
-            <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">non_embedding_parameters</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">only_trainable</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">only_trainable</span><span class="p">)</span>
+            <span class="n">total_parameters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">())</span>
+
+        <span class="n">total_numel</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">total_parameters</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">only_trainable</span><span class="p">:</span>
+                <span class="c1"># For 4bit models, we need to multiply the number of parameters by 2 as half of the parameters are</span>
+                <span class="c1"># used for the 4bit quantization (uint8 tensors are stored)</span>
+                <span class="n">total_numel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">numel</span><span class="p">())</span>
+
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">total_numel</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_convert_deprecated_attention_blocks</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">state_dict</span><span class="p">:</span> <span class="n">OrderedDict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">deprecated_attention_block_paths</span> <span class="o">=</span> <span class="p">[]</span>
@@ -8288,10 +8344,7 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">127</span>
-<span class="normal">128</span>
-<span class="normal">129</span>
-<span class="normal">130</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">130</span>
 <span class="normal">131</span>
 <span class="normal">132</span>
 <span class="normal">133</span>
@@ -8304,7 +8357,10 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 <span class="normal">140</span>
 <span class="normal">141</span>
 <span class="normal">142</span>
-<span class="normal">143</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
+<span class="normal">143</span>
+<span class="normal">144</span>
+<span class="normal">145</span>
+<span class="normal">146</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The only reason we overwrite `getattr` here is to gracefully deprecate accessing</span>
 <span class="sd">    config attributes directly. See https://github.com/huggingface/diffusers/pull/3129 We need to overwrite</span>
 <span class="sd">    __getattr__ here in addition so that we don&#39;t trigger `nn.Cell`&#39;s __getattr__&#39;:</span>
@@ -8343,13 +8399,13 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">161</span>
-<span class="normal">162</span>
-<span class="normal">163</span>
-<span class="normal">164</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">164</span>
 <span class="normal">165</span>
 <span class="normal">166</span>
-<span class="normal">167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_gradient_checkpointing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">167</span>
+<span class="normal">168</span>
+<span class="normal">169</span>
+<span class="normal">170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_gradient_checkpointing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Deactivates gradient checkpointing for the current model (may be referred to as *activation checkpointing* or</span>
 <span class="sd">    *checkpoint activations* in other frameworks).</span>
@@ -8377,11 +8433,11 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">266</span>
-<span class="normal">267</span>
-<span class="normal">268</span>
-<span class="normal">269</span>
-<span class="normal">270</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_xformers_memory_efficient_attention</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_xformers_memory_efficient_attention</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -8408,10 +8464,7 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">172</span>
 <span class="normal">173</span>
 <span class="normal">174</span>
 <span class="normal">175</span>
@@ -8427,7 +8480,10 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 <span class="normal">185</span>
 <span class="normal">186</span>
 <span class="normal">187</span>
-<span class="normal">188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_flash_sdp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
+<span class="normal">188</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_flash_sdp</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    .. warning:: This flag is beta and subject to change.</span>
 
@@ -8469,14 +8525,14 @@ https://pytorch.org/docs/stable/_modules/torch/nn/modules/module.html#Module</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">155</span>
 <span class="normal">156</span>
 <span class="normal">157</span>
 <span class="normal">158</span>
-<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_gradient_checkpointing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">159</span>
+<span class="normal">160</span>
+<span class="normal">161</span>
+<span class="normal">162</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_gradient_checkpointing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Activates gradient checkpointing for the current model (may be referred to as *activation checkpointing* or</span>
 <span class="sd">    *checkpoint activations* in other frameworks).</span>
@@ -8549,10 +8605,7 @@ precedent.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">234</span>
-<span class="normal">235</span>
-<span class="normal">236</span>
-<span class="normal">237</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">237</span>
 <span class="normal">238</span>
 <span class="normal">239</span>
 <span class="normal">240</span>
@@ -8579,7 +8632,10 @@ precedent.</p>
 <span class="normal">261</span>
 <span class="normal">262</span>
 <span class="normal">263</span>
-<span class="normal">264</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_xformers_memory_efficient_attention</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attention_op</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_xformers_memory_efficient_attention</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attention_op</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable memory efficient attention from [xFormers](https://facebookresearch.github.io/xformers/).</span>
 
@@ -8879,8 +8935,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">416</span>
-<span class="normal">417</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">417</span>
 <span class="normal">418</span>
 <span class="normal">419</span>
 <span class="normal">420</span>
@@ -9128,7 +9183,28 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="normal">662</span>
 <span class="normal">663</span>
 <span class="normal">664</span>
-<span class="normal">665</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_name_or_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">]],</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -9254,26 +9330,44 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
         <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">)</span>
+    <span class="c1"># no in-place modification of the original config.</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+
+    <span class="c1"># Check if `_keep_in_fp32_modules` is not None</span>
+    <span class="n">use_keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">and</span> <span class="p">(</span><span class="n">mindspore_dtype</span> <span class="o">==</span> <span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
+        <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_keep_in_fp32_modules</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">keep_in_fp32_modules</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">[</span><span class="n">keep_in_fp32_modules</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">keep_in_fp32_modules</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1">#######################################</span>
 
     <span class="c1"># Determine if we&#39;re loading from a directory of sharded checkpoints.</span>
     <span class="n">is_sharded</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">index_file</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">is_local</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">pretrained_model_name_or_path</span><span class="p">)</span>
-    <span class="n">index_file</span> <span class="o">=</span> <span class="n">_fetch_index_file</span><span class="p">(</span>
-        <span class="n">is_local</span><span class="o">=</span><span class="n">is_local</span><span class="p">,</span>
-        <span class="n">pretrained_model_name_or_path</span><span class="o">=</span><span class="n">pretrained_model_name_or_path</span><span class="p">,</span>
-        <span class="n">subfolder</span><span class="o">=</span><span class="n">subfolder</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
-        <span class="n">use_safetensors</span><span class="o">=</span><span class="n">use_safetensors</span><span class="p">,</span>
-        <span class="n">cache_dir</span><span class="o">=</span><span class="n">cache_dir</span><span class="p">,</span>
-        <span class="n">variant</span><span class="o">=</span><span class="n">variant</span><span class="p">,</span>
-        <span class="n">force_download</span><span class="o">=</span><span class="n">force_download</span><span class="p">,</span>
-        <span class="n">proxies</span><span class="o">=</span><span class="n">proxies</span><span class="p">,</span>
-        <span class="n">local_files_only</span><span class="o">=</span><span class="n">local_files_only</span><span class="p">,</span>
-        <span class="n">token</span><span class="o">=</span><span class="n">token</span><span class="p">,</span>
-        <span class="n">revision</span><span class="o">=</span><span class="n">revision</span><span class="p">,</span>
-        <span class="n">user_agent</span><span class="o">=</span><span class="n">user_agent</span><span class="p">,</span>
-        <span class="n">commit_hash</span><span class="o">=</span><span class="n">commit_hash</span><span class="p">,</span>
-    <span class="p">)</span>
+    <span class="n">index_file_kwargs</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;is_local&quot;</span><span class="p">:</span> <span class="n">is_local</span><span class="p">,</span>
+        <span class="s2">&quot;pretrained_model_name_or_path&quot;</span><span class="p">:</span> <span class="n">pretrained_model_name_or_path</span><span class="p">,</span>
+        <span class="s2">&quot;subfolder&quot;</span><span class="p">:</span> <span class="n">subfolder</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;use_safetensors&quot;</span><span class="p">:</span> <span class="n">use_safetensors</span><span class="p">,</span>
+        <span class="s2">&quot;cache_dir&quot;</span><span class="p">:</span> <span class="n">cache_dir</span><span class="p">,</span>
+        <span class="s2">&quot;variant&quot;</span><span class="p">:</span> <span class="n">variant</span><span class="p">,</span>
+        <span class="s2">&quot;force_download&quot;</span><span class="p">:</span> <span class="n">force_download</span><span class="p">,</span>
+        <span class="s2">&quot;proxies&quot;</span><span class="p">:</span> <span class="n">proxies</span><span class="p">,</span>
+        <span class="s2">&quot;local_files_only&quot;</span><span class="p">:</span> <span class="n">local_files_only</span><span class="p">,</span>
+        <span class="s2">&quot;token&quot;</span><span class="p">:</span> <span class="n">token</span><span class="p">,</span>
+        <span class="s2">&quot;revision&quot;</span><span class="p">:</span> <span class="n">revision</span><span class="p">,</span>
+        <span class="s2">&quot;user_agent&quot;</span><span class="p">:</span> <span class="n">user_agent</span><span class="p">,</span>
+        <span class="s2">&quot;commit_hash&quot;</span><span class="p">:</span> <span class="n">commit_hash</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">index_file</span> <span class="o">=</span> <span class="n">_fetch_index_file</span><span class="p">(</span><span class="o">**</span><span class="n">index_file_kwargs</span><span class="p">)</span>
+    <span class="c1"># In case the index file was not found we still have to consider the legacy format.</span>
+    <span class="c1"># this becomes applicable when the variant is not None.</span>
+    <span class="k">if</span> <span class="n">variant</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">index_file</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">index_file</span><span class="p">)):</span>
+        <span class="n">index_file</span> <span class="o">=</span> <span class="n">_fetch_index_file_legacy</span><span class="p">(</span><span class="o">**</span><span class="n">index_file_kwargs</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">index_file</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">index_file</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
         <span class="n">is_sharded</span> <span class="o">=</span> <span class="kc">True</span>
 
@@ -9341,7 +9435,9 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                 <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">mindspore_dtype</span><span class="si">}</span><span class="s2"> needs to be of type `ms.Type`, e.g. `ms.float16`, but is </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span><span class="si">}</span><span class="s2">.&quot;</span>
             <span class="p">)</span>
-        <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="c1"># When using `use_keep_in_fp32_modules` if we do a global `to()` here, then we will</span>
+        <span class="c1"># completely lose the effectivity of `use_keep_in_fp32_modules`.</span>
+        <span class="k">elif</span> <span class="n">mindspore_dtype</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">use_keep_in_fp32_modules</span><span class="p">:</span>
             <span class="n">model</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">mindspore_dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">is_sharded</span><span class="p">:</span>
@@ -9478,28 +9574,7 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">803</span>
-<span class="normal">804</span>
-<span class="normal">805</span>
-<span class="normal">806</span>
-<span class="normal">807</span>
-<span class="normal">808</span>
-<span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
-<span class="normal">812</span>
-<span class="normal">813</span>
-<span class="normal">814</span>
-<span class="normal">815</span>
-<span class="normal">816</span>
-<span class="normal">817</span>
-<span class="normal">818</span>
-<span class="normal">819</span>
-<span class="normal">820</span>
-<span class="normal">821</span>
-<span class="normal">822</span>
-<span class="normal">823</span>
-<span class="normal">824</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">824</span>
 <span class="normal">825</span>
 <span class="normal">826</span>
 <span class="normal">827</span>
@@ -9514,7 +9589,37 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
 <span class="normal">836</span>
 <span class="normal">837</span>
 <span class="normal">838</span>
-<span class="normal">839</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_trainable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">exclude_embeddings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="normal">839</span>
+<span class="normal">840</span>
+<span class="normal">841</span>
+<span class="normal">842</span>
+<span class="normal">843</span>
+<span class="normal">844</span>
+<span class="normal">845</span>
+<span class="normal">846</span>
+<span class="normal">847</span>
+<span class="normal">848</span>
+<span class="normal">849</span>
+<span class="normal">850</span>
+<span class="normal">851</span>
+<span class="normal">852</span>
+<span class="normal">853</span>
+<span class="normal">854</span>
+<span class="normal">855</span>
+<span class="normal">856</span>
+<span class="normal">857</span>
+<span class="normal">858</span>
+<span class="normal">859</span>
+<span class="normal">860</span>
+<span class="normal">861</span>
+<span class="normal">862</span>
+<span class="normal">863</span>
+<span class="normal">864</span>
+<span class="normal">865</span>
+<span class="normal">866</span>
+<span class="normal">867</span>
+<span class="normal">868</span>
+<span class="normal">869</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">num_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">only_trainable</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">exclude_embeddings</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Get number of (trainable or non-embedding) parameters in the module.</span>
 
@@ -9545,12 +9650,21 @@ You<span class="w"> </span>should<span class="w"> </span>probably<span class="w"
             <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">module_type</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">cells_and_names</span><span class="p">()</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">module_type</span><span class="p">,</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">)</span>
         <span class="p">]</span>
-        <span class="n">non_embedding_parameters</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">total_parameters</span> <span class="o">=</span> <span class="p">[</span>
             <span class="n">parameter</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">parameter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">parameters_and_names</span><span class="p">()</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">embedding_param_names</span>
         <span class="p">]</span>
-        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">non_embedding_parameters</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">only_trainable</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
-        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">numel</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">()</span> <span class="k">if</span> <span class="n">p</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">only_trainable</span><span class="p">)</span>
+        <span class="n">total_parameters</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_parameters</span><span class="p">())</span>
+
+    <span class="n">total_numel</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="k">for</span> <span class="n">param</span> <span class="ow">in</span> <span class="n">total_parameters</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">param</span><span class="o">.</span><span class="n">requires_grad</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">only_trainable</span><span class="p">:</span>
+            <span class="c1"># For 4bit models, we need to multiply the number of parameters by 2 as half of the parameters are</span>
+            <span class="c1"># used for the 4bit quantization (uint8 tensors are stored)</span>
+            <span class="n">total_numel</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">param</span><span class="o">.</span><span class="n">numel</span><span class="p">())</span>
+
+    <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">total_numel</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
             </details>
     </div>
@@ -9736,10 +9850,7 @@ namespace).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">275</span>
 <span class="normal">276</span>
 <span class="normal">277</span>
 <span class="normal">278</span>
@@ -9878,7 +9989,8 @@ namespace).</p>
 <span class="normal">411</span>
 <span class="normal">412</span>
 <span class="normal">413</span>
-<span class="normal">414</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_pretrained</span><span class="p">(</span>
+<span class="normal">414</span>
+<span class="normal">415</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">save_pretrained</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">save_directory</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">PathLike</span><span class="p">],</span>
     <span class="n">is_main_process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -9928,11 +10040,9 @@ namespace).</p>
 
     <span class="n">weights_name</span> <span class="o">=</span> <span class="n">SAFETENSORS_WEIGHTS_NAME</span> <span class="k">if</span> <span class="n">safe_serialization</span> <span class="k">else</span> <span class="n">WEIGHTS_NAME</span>
     <span class="n">weights_name</span> <span class="o">=</span> <span class="n">_add_variant</span><span class="p">(</span><span class="n">weights_name</span><span class="p">,</span> <span class="n">variant</span><span class="p">)</span>
-    <span class="n">weight_name_split</span> <span class="o">=</span> <span class="n">weights_name</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">weight_name_split</span><span class="p">)</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">]:</span>
-        <span class="n">weights_name_pattern</span> <span class="o">=</span> <span class="n">weight_name_split</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="si">{suffix}</span><span class="s2">.&quot;</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">weight_name_split</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid </span><span class="si">{</span><span class="n">weights_name</span><span class="si">}</span><span class="s2"> provided.&quot;</span><span class="p">)</span>
+    <span class="n">weights_name_pattern</span> <span class="o">=</span> <span class="n">weights_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.bin&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{suffix}</span><span class="s2">.bin&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+        <span class="s2">&quot;.safetensors&quot;</span><span class="p">,</span> <span class="s2">&quot;</span><span class="si">{suffix}</span><span class="s2">.safetensors&quot;</span>
+    <span class="p">)</span>
 
     <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">save_directory</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
@@ -10073,10 +10183,7 @@ original attention calculation using mathematical formulas.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/modeling_utils.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">193</span>
 <span class="normal">194</span>
 <span class="normal">195</span>
 <span class="normal">196</span>
@@ -10100,7 +10207,10 @@ original attention calculation using mathematical formulas.</p>
 <span class="normal">214</span>
 <span class="normal">215</span>
 <span class="normal">216</span>
-<span class="normal">217</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_flash_attention_force_cast_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_cast_dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">]):</span>
+<span class="normal">217</span>
+<span class="normal">218</span>
+<span class="normal">219</span>
+<span class="normal">220</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_flash_attention_force_cast_dtype</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">force_cast_dtype</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Since the flash-attention operator in MindSpore only supports float16 and bfloat16 data types, we need to manually</span>
 <span class="sd">    set whether to force data type conversion.</span>
