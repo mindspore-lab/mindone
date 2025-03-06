@@ -422,7 +422,7 @@ def read_data(input_paths):
         if not os.path.exists(input_path):
             continue
         data.append(read_file(input_path))
-        input_name += os.path.basename(input_path).split(".")[0]
+        input_name += os.path.splitext(os.path.basename(input_path))[0]
         if i != len(input_list) - 1:
             input_name += "+"
         print(f"Loaded {len(data[-1])} samples from '{input_path}'.")
@@ -820,7 +820,7 @@ def get_output_path(args, input_name):
         name += f"_matchmin{args.matchmin:.1f}"
     if args.lpipsmin is not None:
         name += f"_lpipsmin{args.lpipsmin:.1f}"
-    if args.safety_check is not None:
+    if args.safety_check:
         name += f"_safe"
 
     if args.img_only:
