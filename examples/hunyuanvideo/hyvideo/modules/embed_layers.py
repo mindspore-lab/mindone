@@ -57,6 +57,7 @@ class PatchEmbed(nn.Cell):
             )
         # nn.init.xavier_uniform_(self.proj.weight.view(self.proj.weight.size(0), -1))
         # nn.init.zeros_(self.proj.bias)
+        self.proj = self.proj.to_float(ms.bfloat16)
         w = self.proj.weight
         w_flatted = w.reshape(w.shape[0], -1)
         w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
@@ -65,12 +66,13 @@ class PatchEmbed(nn.Cell):
 
     def construct(self, x):
         # x: (B C T H W)
+        ori_dtype = x.dtype
         if self.use_conv2d:
             B, C, T, H, W = x.shape
             # (B C T H W) -> (B*T C H W)
             x = x.permute(0, 2, 1, 3, 4).reshape((B * T, C, H, W))
 
-        x = self.proj(x)  # (BT C' H' W')
+        x = self.proj(x).to(ori_dtype)  # (BT C' H' W')
 
         if self.use_conv2d:
             _, Co, Ho, Wo = x.shape
