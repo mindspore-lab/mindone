@@ -45,6 +45,13 @@ from .models.gemma import (
     GemmaPreTrainedModel,
 )
 from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.glm import (
+    GlmForCausalLM,
+    GlmForSequenceClassification,
+    GlmForTokenClassification,
+    GlmModel,
+    GlmPreTrainedModel,
+)
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
@@ -60,6 +67,7 @@ from .models.phi3 import (
     Phi3Model,
     Phi3PreTrainedModel,
 )
+from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
