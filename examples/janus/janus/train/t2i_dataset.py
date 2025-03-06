@@ -2,6 +2,7 @@ import csv
 import logging
 import os
 import random
+from copy import deepcopy
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
@@ -127,13 +128,12 @@ class TextImageDataset:
 
         # label, only train on vision seq
         ignore_index = -100  # TODO: read from config? but CE Loss didn't accept setting ignore_index
-        labels = input_ids
+        labels = deepcopy(input_ids)
         labels = np.where(
             (input_ids == vlcp.image_id),
             labels,
             ignore_index,
         )
-        labels = np.array(labels, np.int32)
 
         return input_ids, labels, attention_mask, image_seq_mask
 

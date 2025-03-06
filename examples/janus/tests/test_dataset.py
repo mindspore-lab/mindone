@@ -8,6 +8,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 from janus.models import VLChatProcessor
 from janus.train.t2i_dataset import TextImageDataset, create_dataloader_t2i
+from janus.train.text_dataset import TextDataset
 
 
 def test():
@@ -47,6 +48,21 @@ def test_dataloader():
         start = time.time()
 
 
+def test_text_dataset():
+
+    model_path = "ckpts/Janus-Pro-1B"
+    vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
+    ds = TextDataset("pubmedqa", "datasets/PubMedQA",
+        vl_chat_processor=vl_chat_processor,
+        )
+    for i in range(10):
+        input_ids, labels, attention_mask = ds.__getitem__(i)
+        print(input_ids, labels, attention_mask)
+
+
+
 if __name__ == "__main__":
-    test()
+    # test()
     # test_dataloader()
+    test_text_dataset()
+

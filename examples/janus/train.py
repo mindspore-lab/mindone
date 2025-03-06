@@ -41,6 +41,7 @@ from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
+from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm
 
 logger = logging.getLogger(__name__)
 
@@ -202,7 +203,6 @@ def main(args):
 
     use_value_and_grad = args.use_value_and_grad
     if use_value_and_grad:
-        from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm
         def forward_fn(data):
             loss = vl_gpt(*data)
             return loss
@@ -215,7 +215,8 @@ def main(args):
             loss, grads = grad_fn(data)
             if args.use_parallel:
                 grads = grad_reducer(grads)
-            # import pdb; pdb.set_trace()
+
+            # FIXME: after adding this branch, time cost increase by ~150ms/step
             if args.clip_grad:
                 grads = clip_grad_norm(grads, args.max_grad_norm)
 

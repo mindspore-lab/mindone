@@ -268,13 +268,13 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
     def prepare_gen_img_embeds(self, image_ids: Tensor):
         return self.gen_aligner(self.gen_embed(image_ids))
 
-    # TODO: image_seq_masks can be extracted from labels != -100 or input_ids == img_placeholder_token
+    # TODO: image_seq_mask can be extracted from labels != -100 or input_ids == img_placeholder_token
     def gen_with_loss(
         self,
         input_ids: Tensor = None,
         # labels: Tensor = None,  # since image tokens are the label and is not available without pre-computing VQ16
-        attention_masks: Optional[Tensor] = None,
-        image_seq_masks: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        image_seq_mask: Optional[Tensor] = None,
         pixel_values: Optional[Tensor] = None,
         image_tokens: Optional[Tensor] = None,
     ):
@@ -286,14 +286,14 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                 Indices should be either be in `[0, .., text_vocab_size + vision_vocab_size]` or -100 (see `input_ids` for docstring).
                 For T2I gen, only compute loss on image sequence. Thusthe value is like
                             [-100, -100, ..., -100, image tokens, -100, -100, ...]
-            attention_masks: shape (bs seq_len), where 1 for valid input seq, 0 for padded seq
-            image_seq_masks: 1 - image tokens (exclude BOI and EOI)
+            attention_mask: shape (bs seq_len), where 1 for valid input seq, 0 for padded seq
+            image_seq_mask: 1 - image tokens (exclude BOI and EOI)
             pixel_values: images resized to (384, 384), shape (bs n_images 3 h w)
             image_tokens: image tokens encoded and quantized by VQ16, shape (bs n_images per_img_seq_len)
 
         Note: pre-compute VQ encoded tokens for efficiency
         """
-        # 1. prepare text and image embeddings
+        # 1. prepare text and (vq-vae) image embeddings
         # TODO: consider remove n_images dimension unless we need to generate videos for extension
 
         bs = input_ids.shape[0]
@@ -320,20 +320,20 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         B, S, _ = inputs_embeds.shape
         # these reshape ops is to solve the wierd error in InferShape in MS
         inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
-        image_seq_masks = image_seq_masks.reshape(-1)  # (B, S) -> (B * S)
+        image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
 
-        # another way: inputs_embeds = inputs_embeds * (1 - image_seq_masks) + ops.stop_gradient(image_embeds) * image_seq_masks.to(ms.int)
+        # another way: inputs_embeds = inputs_embeds * (1 - image_seq_mask) + ops.stop_gradient(image_embeds) * image_seq_mask.to(ms.int)
         # FIXME: this inplace op doens't support in graph mode
         # FIXME: check whether need to bprop the graident from image_embedding to LlamModel.embed_tokens (nn.Embedding)
-        inputs_embeds[image_seq_masks] = ops.stop_gradient(image_embeds)
+        inputs_embeds[image_seq_mask] = ops.stop_gradient(image_embeds)
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
-        image_seq_masks = image_seq_masks.reshape(B, S)
+        image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaModel forward
         outputs = self.language_model.model(
-            attention_mask=attention_masks,
+            attention_mask=attention_mask,
             inputs_embeds=inputs_embeds,
             return_dict=False,
         )
@@ -342,7 +342,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # 4. gen head projection
         # since Janus use decouple heads for image and text, only image seq is meaningful input to gen head. mask before linear should save compute cost.
         # TODO: tbc influence on gradient ?
-        image_hidden_states = hidden_states[image_seq_masks].reshape(B, -1, D)
+        image_hidden_states = hidden_states[image_seq_mask].reshape(B, -1, D)
         logits = self.gen_head(image_hidden_states)
 
         # 5. loss compute
@@ -363,8 +363,8 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         self,
         input_ids: Tensor = None,
         labels: Tensor = None,
-        attention_masks: Optional[Tensor] = None,
-        image_seq_masks: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        image_seq_mask: Optional[Tensor] = None,
         pixel_values: Optional[Tensor] = None,
     ):
         r"""only compute loss on the text sequence
@@ -378,88 +378,101 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                 For mm und, only compute loss on text sequence. Thusthe value is like
                     - vqa       [-100, -100, ..., -100, answer tokens,  EOS, -100, ...]
                     - caption   [-100, -100, ..., -100, caption tokens, EOS, -100, ...]
-            attention_masks: shape (bs seq_len), where 1 for valid input seq, 0 for padded seq
+            attention_mask: shape (bs seq_len), where 1 for valid input seq, 0 for padded seq
             pixel_values: images resized to (384, 384)
 
         Note: since sigLIP is trainable in stage 3, so we prefer not to pre-compute sigLIP features
         """
-        # preapre inputs
-        # TODO: consider remove n_images dimension unless we need to generate videos for extension
-        bs, n, c, h, w = pixel_values.shape
+        # 1. prepare text and (sigLIP) image embeddings
+        bs = input_ids.shape[0]
+        _, n, c, h, w = pixel_values.shape
         pixel_values = ops.reshape(pixel_values, (bs * n, c, h, w))
-        # TODO: may stop gradients for vision_model in stage 1 training
-        image_embeds = self.vision_model(pixel_values)
+        # sigLIP is trainable in stage 3 
+        image_embeds = self.vision_model(pixel_values)  # diff gen
         image_embeds = self.aligner(image_embeds)
+
+        image_tokens = token_info[-1]
+        image_tokens = image_tokens.reshape(bs, n, -1)
+
+        _, n, T = image_tokens.shape
+        image_tokens = image_tokens.reshape(bs * n, T)
+        image_embeds = self.gen_aligner(self.gen_embed(image_tokens))
         # [b x n, T2, D] -> [b, n x T2, D]
-        bn, T, D = image_embeds.shape
-        image_embeds = ops.reshape(image_embeds, (bs, n, T, D))
+        _, _, D = image_embeds.shape
+        image_embeds = ops.reshape(image_embeds, (bs, n, T, D))  # TODO: may remove it
         image_embeds = ops.reshape(image_embeds, (bs, n * T, D))
 
+        # TODO: set image (placeholder) tokens to 0? avoid being larger than lm vocab size
         inputs_embeds = self.language_model.get_input_embeddings()(input_ids)
-        inputs_embeds[image_seq_masks] = image_embeds  # bprop? graph support?
 
-        # LlamaModel forward
-        outputs = self.language_model.model(
-            attention_mask=attention_masks,
+        # 2. merge text and image embedding
+        B, S, _ = inputs_embeds.shape
+        # these reshape ops is to solve the wierd error in InferShape in MS
+        inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
+        image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
+        image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
+
+        # FIXME: fix as gen_with_loss to support graph mode 
+        inputs_embeds[image_seq_mask] = ops.stop_gradient(image_embeds)
+
+        inputs_embeds = inputs_embeds.reshape(B, S, D)
+        image_seq_mask = image_seq_mask.reshape(B, S)
+
+        # 3. LlamaForCausalLM forward with loss
+        loss, logits, _  = self.language_model(
             inputs_embeds=inputs_embeds,
+            attention_mask=attention_mask,
             return_dict=False,
         )
-        hidden_states = outputs[0]
-
-        # text head
-        logits = self.language_mode.lm_head(hidden_states)
-
-        loss = None
-        if labels is not None:
-            # Shift so that tokens < n predict n
-            shift_logits = logits[..., :-1, :]
-            shift_labels = labels[..., 1:]
-            # Flatten the tokens
-            shift_logits = shift_logits.view(-1, self.vocab_size)
-            shift_labels = shift_labels.view(-1)
-            # Enable model parallelism
-            loss = self.cross_entropy_loss(shift_logits, shift_labels)
 
         return loss
+
 
     def construct(
         self,
         input_ids: Tensor,
         labels: Optional[Tensor] = None,
-        attention_masks: Optional[Tensor] = None,
-        image_seq_masks: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        image_seq_mask: Optional[Tensor] = None,
         pixel_values: Optional[Tensor] = None,
         image_tokens: Optional[Tensor] = None,
-        is_gen_task=True,  # TODO: compatible with TrainOneStep() ?
+        task_type=2,
     ):
         r"""
         Added for training
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
-
+            task_type: 0 - pure text, 1 - vqa, 2 - t2i
         """
-
-        if is_gen_task:
+        
+        if task_type == 0:
+            # text
+            loss = self.language_model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels, 
+                )[0]
+        elif task_type == 1:
+            # mm understand
+            loss = self.und_with_loss(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                image_seq_mask=image_seq_mask,
+                pixel_values=pixel_values,
+                )
+        elif task_type == 2:
+            # t2i
             loss = self.gen_with_loss(
-                input_ids,
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                image_seq_mask=image_seq_mask,
+                pixel_values=pixel_values,
+                image_tokens=image_tokens,
                 # labels,
-                attention_masks,
-                image_seq_masks,
-                pixel_values,
-                image_tokens,
             )
         else:
-            """
-            loss = self.und_with_loss(
-                input_ids,
-                labels,
-                attention_masks,
-                image_seq_masks,
-                pixel_values,
-                )
-            """
-
-            raise NotImplementedError
+            raise ValueError(f'task type should be one of [0, 1, 2], but get {task_type}')
 
         return loss
 

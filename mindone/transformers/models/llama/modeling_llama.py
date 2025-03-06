@@ -996,7 +996,6 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             logits = ops.cat(logits, axis=-1)
         else:
             logits = self.lm_head(hidden_states)
-        logits = logits.to(ms.float32)
 
         loss = None
         if labels is not None:
@@ -1007,7 +1006,7 @@ class LlamaForCausalLM(LlamaPreTrainedModel):
             shift_logits = shift_logits.view(-1, self.vocab_size)
             shift_labels = shift_labels.view(-1)
             # Enable model parallelism
-            loss = self.cross_entropy_loss(shift_logits, shift_labels)
+            loss = self.cross_entropy_loss(shift_logits.float(), shift_labels)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
