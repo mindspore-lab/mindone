@@ -25,6 +25,4 @@
 
 ::: mindone.diffusers.CogView4Pipeline
 
-## CogView4PipelineOutput
-
 ::: mindone.diffusers.pipelines.cogview4.pipeline_output.CogView4PipelineOutput
