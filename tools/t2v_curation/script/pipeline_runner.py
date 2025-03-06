@@ -69,6 +69,8 @@ def sanitize_filename(s):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("config_path", type=str, help="Path to the input config file, support yaml or json")
+    args = parser.parse_args()
+    return args
 
 def main():
     args = parse_args()
@@ -276,9 +278,9 @@ def main():
                 input_meta_csv = input_meta_csv[:-4] + "_nsfw.csv"
 
                 # nsfw filtering
-                if scoring_filtering['nsfw_scoring']['nsfw_filtering']['run']:
-                    run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --nsfw_filtering')
-                    input_meta_csv = input_meta_csv[:-4] + "_nsfwfiltered.csv"
+                if scoring_filtering['nsfw_filtering']['run']:
+                    run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --safety_check')
+                    input_meta_csv = input_meta_csv[:-4] + "_safe.csv"
             # nsfw scoring
 
         # step 5: captioning
@@ -286,7 +288,6 @@ def main():
         if captioning['run']:
             # qwen2vl captioning
             if captioning['qwen2vl_caption']['run']:
-                num_frames = captioning['qwen2vl_caption']['num_frames']
                 question = captioning['qwen2vl_caption']['question']
                 height = captioning['qwen2vl_caption']['height']
                 width = captioning['qwen2vl_caption']['width']
@@ -295,8 +296,8 @@ def main():
                 worker_num = captioning['qwen2vl_caption']['worker_num']
                 batch_size = captioning['qwen2vl_caption']['batch_size']
                 run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                            f'--log_dir=msrun_log/qwen2vl pipeline/captioning/qwen2vl_caption.py {input_meta_csv} '
-                            f'--num_frames {num_frames} --question "{question}" --height {height} --width {width} '
+                            f'--log_dir=msrun_log/qwen2vl pipeline/captioning/caption_qwen2vl.py {input_meta_csv} '
+                            f'--question "{question}" --height {height} --width {width} '
                             f'--fps {fps} --bs {batch_size} --max_new_tokens {max_new_tokens}')
                 input_meta_csv = input_meta_csv[:-4] + "_caption_qwen2vl.csv"
 

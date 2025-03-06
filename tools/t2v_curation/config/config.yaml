@@ -108,9 +108,9 @@ pipeline_steps:
       use_ascend: true
       worker_num: 2
 
-      lpips_filtering:
-        run: true   # this will only be run if `run` in `lpips_scoring` is also true
-        lpipsmin: 0.2
+    lpips_filtering:
+      run: true   # this will only be run if `run` in `lpips_scoring` is also true
+      lpipsmin: 0.2
 
     nsfw_scoring:
       run: true
@@ -120,14 +120,13 @@ pipeline_steps:
       use_ascend: true
       worker_num: 2
 
-      nsfw_filtering:
-        run: true # this will only be run if `run` in `nsfw_scoring` is also true
+    nsfw_filtering:
+      run: true # this will only be run if `run` in `nsfw_scoring` is also true
 
   captioning:
     run: true
     qwen2vl_caption: # use ascend by default
       run: true
-      num_frames: 4
       question: "Describe the video in details."
       height: 448 # resized video height
       width: 672 # resized video width
