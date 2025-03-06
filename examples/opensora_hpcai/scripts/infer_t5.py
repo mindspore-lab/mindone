@@ -22,7 +22,6 @@ from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.utils.cond_data import read_captions_from_csv, read_captions_from_txt
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
-from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.logger import set_logger
 from mindone.utils.misc import to_abspath
 from mindone.utils.seed import set_random_seed
@@ -127,15 +126,13 @@ def main(args):
         logger.info(f"Num batches: {dataset_size}")
 
     # model initiate and weight loading
-    ckpt_path = args.t5_model_dir
-    text_encoder, tokenizer = get_text_encoder_and_tokenizer("t5", ckpt_path, model_max_length=args.model_max_length)
+    dtype_map = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}
+    text_encoder, tokenizer = get_text_encoder_and_tokenizer(
+        "t5", args.t5_model_name_or_path, dtype=dtype_map[args.dtype], model_max_length=args.model_max_length
+    )
     text_encoder.set_train(False)
     for param in text_encoder.get_parameters():  # freeze latte_model
         param.requires_grad = False
-
-    dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-    if args.dtype in ["fp16", "bf16"]:
-        text_encoder = auto_mixed_precision(text_encoder, amp_level=args.amp_level, dtype=dtype_map[args.dtype])
 
     # infer
     if args.csv_path is not None:
@@ -245,7 +242,9 @@ def parse_args():
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output dir.",
     )
     parser.add_argument("--caption_column", type=str, default="caption", help="caption column num in csv")
-    parser.add_argument("--t5_model_dir", default="models/t5-v1_1-xxl", type=str, help="the T5 cache folder path")
+    parser.add_argument(
+        "--t5_model_name_or_path", default="DeepFloyd/t5-v1_1-xxl", type=str, help="T5 model name or path"
+    )
     parser.add_argument("--model_max_length", type=int, default=120, help="T5's embedded sequence length.")
     # MS new args
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -264,13 +263,6 @@ def parse_args():
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
-    )
-    parser.add_argument(
-        "--amp_level",
-        default="O2",
-        type=str,
-        help="mindspore amp level, O1: most fp32, only layers in whitelist compute in fp16 (dense, conv, etc); \
-            O2: most fp16, only layers in blacklist compute in fp32 (batch norm etc)",
     )
     parser.add_argument(
         "--precision_mode",
@@ -304,7 +296,7 @@ def parse_args():
             parser.set_defaults(
                 **dict(
                     captions=cfg["captions"],
-                    t5_model_dir=cfg["t5_model_dir"],
+                    t5_model_name_or_path=cfg["t5_model_name_or_path"],
                 )
             )
     args = parser.parse_args()
@@ -312,7 +304,6 @@ def parse_args():
     args.csv_path = to_abspath(abs_path, args.csv_path)
     args.prompt_path = to_abspath(abs_path, args.prompt_path)
     args.output_path = to_abspath(abs_path, args.output_path)
-    args.t5_model_dir = to_abspath(abs_path, args.t5_model_dir)
     return args
 
 

@@ -28,7 +28,7 @@ from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from huggingface_hub.utils import EntryNotFoundError
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import nn, ops
 
 from ..utils import (
     SAFE_WEIGHTS_INDEX_NAME,
@@ -36,6 +36,7 @@ from ..utils import (
     WEIGHTS_INDEX_NAME,
     _add_variant,
     _get_model_file,
+    deprecate,
     logging,
 )
 
@@ -73,6 +74,10 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
     """
     Reads a checkpoint file, returning properly formatted errors if they arise.
     """
+    # TODO: We merge the sharded checkpoints in case we're doing quantization. We can revisit this change
+    # when refactoring the _merge_sharded_checkpoints() method later.
+    if isinstance(checkpoint_file, dict):
+        return checkpoint_file
     try:
         file_extension = os.path.basename(checkpoint_file).split(".")[-1]
         if file_extension == SAFETENSORS_FILE_EXTENSION:
@@ -101,7 +106,9 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
             )
 
 
-def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> List[str]:
+def _load_state_dict_into_model(
+    model_to_load, state_dict: OrderedDict, keep_in_fp32_modules=None, dtype=None
+) -> List[str]:
     # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
     #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
@@ -110,8 +117,20 @@ def _load_state_dict_into_model(model_to_load, state_dict: OrderedDict) -> List[
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
-            state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
-            del v
+            _param_info = v.param_info
+            if ops.is_floating_point(v):
+                if (
+                    keep_in_fp32_modules is not None
+                    and any(module_to_keep_in_fp32 in k.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules)
+                    and dtype == ms.float16
+                ):
+                    state_dict[k] = ms.Parameter(v.to(ms.float32))
+                else:
+                    state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
+            else:
+                state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
+            state_dict[k].param_info = _param_info
+            v.param_info = None
         else:
             pass  # unexpect key keeps origin dtype
     ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
@@ -165,6 +184,99 @@ def _fetch_index_file(
     return index_file
 
 
+# Adapted from
+# https://github.com/bghira/SimpleTuner/blob/cea2457ab063f6dedb9e697830ae68a96be90641/helpers/training/save_hooks.py#L64
+def _merge_sharded_checkpoints(sharded_ckpt_cached_folder, sharded_metadata):
+    weight_map = sharded_metadata.get("weight_map", None)
+    if weight_map is None:
+        raise KeyError("'weight_map' key not found in the shard index file.")
+
+    # Collect all unique safetensors files from weight_map
+    files_to_load = set(weight_map.values())
+    is_safetensors = all(f.endswith(".safetensors") for f in files_to_load)
+    merged_state_dict = {}
+
+    # Load tensors from each unique file
+    for file_name in files_to_load:
+        part_file_path = os.path.join(sharded_ckpt_cached_folder, file_name)
+        if not os.path.exists(part_file_path):
+            raise FileNotFoundError(f"Part file {file_name} not found.")
+
+        if is_safetensors:
+            state_dict = ms.load_checkpoint(part_file_path, format="safetensors")
+            for tensor_key in state_dict.keys():
+                if tensor_key in weight_map:
+                    merged_state_dict[tensor_key] = state_dict(tensor_key)
+        else:
+            logger.warning("Currently, only safetensors format is supported.")
+
+    return merged_state_dict
+
+
+def _fetch_index_file_legacy(
+    is_local,
+    pretrained_model_name_or_path,
+    subfolder,
+    use_safetensors,
+    cache_dir,
+    variant,
+    force_download,
+    proxies,
+    local_files_only,
+    token,
+    revision,
+    user_agent,
+    commit_hash,
+):
+    if is_local:
+        index_file = Path(
+            pretrained_model_name_or_path,
+            subfolder or "",
+            SAFE_WEIGHTS_INDEX_NAME if use_safetensors else WEIGHTS_INDEX_NAME,
+        ).as_posix()
+        splits = index_file.split(".")
+        split_index = -3 if ".cache" in index_file else -2
+        splits = splits[:-split_index] + [variant] + splits[-split_index:]
+        index_file = ".".join(splits)
+        if os.path.exists(index_file):
+            deprecation_message = f"This serialization format is now deprecated to standardize the serialization format between `transformers` and `diffusers`. We recommend you to remove the existing files associated with the current variant ({variant}) and re-obtain them by running a `save_pretrained()`."  # noqa: E501
+            deprecate("legacy_sharded_ckpts_with_variant", "1.0.0", deprecation_message, standard_warn=False)
+            index_file = Path(index_file)
+        else:
+            index_file = None
+    else:
+        if variant is not None:
+            index_file_in_repo = Path(
+                subfolder or "",
+                SAFE_WEIGHTS_INDEX_NAME if use_safetensors else WEIGHTS_INDEX_NAME,
+            ).as_posix()
+            splits = index_file_in_repo.split(".")
+            split_index = -2
+            splits = splits[:-split_index] + [variant] + splits[-split_index:]
+            index_file_in_repo = ".".join(splits)
+            try:
+                index_file = _get_model_file(
+                    pretrained_model_name_or_path,
+                    weights_name=index_file_in_repo,
+                    cache_dir=cache_dir,
+                    force_download=force_download,
+                    proxies=proxies,
+                    local_files_only=local_files_only,
+                    token=token,
+                    revision=revision,
+                    subfolder=None,
+                    user_agent=user_agent,
+                    commit_hash=commit_hash,
+                )
+                index_file = Path(index_file)
+                deprecation_message = f"This serialization format is now deprecated to standardize the serialization format between `transformers` and `diffusers`. We recommend you to remove the existing files associated with the current variant ({variant}) and re-obtain them by running a `save_pretrained()`."  # noqa: E501
+                deprecate("legacy_sharded_ckpts_with_variant", "1.0.0", deprecation_message, standard_warn=False)
+            except (EntryNotFoundError, EnvironmentError):
+                index_file = None
+
+    return index_file
+
+
 # ===============================================
 # Sharded loading utils by huggingface Accelerate
 # ===============================================
@@ -187,6 +299,7 @@ def load_checkpoint_and_dispatch(
     model: nn.Cell,
     checkpoint: Union[str, os.PathLike],
     dtype: Optional[Union[str, ms.Type]] = None,
+    keep_in_fp32_modules=None,
     strict: bool = False,
 ):
     """
@@ -286,7 +399,7 @@ def load_checkpoint_and_dispatch(
     with cm:
         for checkpoint_file in checkpoint_files:
             loaded_checkpoint = load_state_dict(checkpoint_file)
-            _ = _load_state_dict_into_model(model, loaded_checkpoint)
+            _ = _load_state_dict_into_model(model, loaded_checkpoint, keep_in_fp32_modules, dtype)
             unexpected_keys.update(set(loaded_checkpoint.keys()) - model_keys)
             del loaded_checkpoint
             gc.collect()
