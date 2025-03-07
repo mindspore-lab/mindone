@@ -1,0 +1,13 @@
+imageio_ffmpeg # scene cut
+mindspore
+mindocr
+tqdm
+numpy
+pandarallel # data parallel
+PyWavelets # image deduplication
+pyyaml
+opencv-python # get video and image information
+ffmpeg-python # get video and image information
+lingua-language-detector # to filter a specific language
+scenedetect
+shapely # ocr
