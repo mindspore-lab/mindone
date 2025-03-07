@@ -89,7 +89,7 @@ class Mint_Conv2d(_Conv):
         bias = self.param_wrapper_b(self.net.bias)
         if self.net.padding_mode != "zeros":
             output = self.net.conv2d(
-                mint.pad(input, self.net._reversed_padding, mode=self.net.padding_mode),
+                mint.pad(x, self.net._reversed_padding, mode=self.net.padding_mode),
                 weight,
                 bias,
                 self.net.stride,
@@ -99,7 +99,7 @@ class Mint_Conv2d(_Conv):
             )
         else:
             output = self.net.conv2d(
-                input, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
+                x, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
             )
         return output
 
@@ -110,7 +110,7 @@ class Mint_Conv3d(_Conv):
         bias = self.param_wrapper_b(self.net.bias)
         if self.net.padding_mode != "zeros":
             output = self.net.conv3d(
-                mint.pad(input, self.net._reversed_padding, mode=self.net.padding_mode),
+                mint.pad(x, self.net._reversed_padding, mode=self.net.padding_mode),
                 weight,
                 bias,
                 self.net.stride,
@@ -120,6 +120,6 @@ class Mint_Conv3d(_Conv):
             )
         else:
             output = self.net.conv3d(
-                input, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
+                x, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
             )
         return output

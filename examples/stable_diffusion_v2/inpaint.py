@@ -45,10 +45,10 @@ def make_batch_sd(image, mask, txt, num_samples=1):
     masked_image = image * (mask < 0.5)
 
     batch = {
-        "image": image.repeat(num_samples, axis=0),
+        "image": image.repeat_interleave(num_samples, dim=0),
         "txt": num_samples * [txt],
-        "mask": mask.repeat(num_samples, axis=0),
-        "masked_image": masked_image.repeat(num_samples, axis=0),
+        "mask": mask.repeat_interleave(num_samples, dim=0),
+        "masked_image": masked_image.repeat_interleave(num_samples, dim=0),
     }
     return batch
 

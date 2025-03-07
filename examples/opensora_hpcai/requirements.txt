@@ -17,3 +17,6 @@ transformers
 av
 mindcv==0.3.0
 beautifulsoup4
+# for T5 tokenizer
+tiktoken
+sentencepiece

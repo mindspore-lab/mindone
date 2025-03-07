@@ -120,6 +120,7 @@ def convert_pt_ms_state_dict(
             )  # remove "model.diffusion_model."
         else:
             raise ValueError(f"incorrect pname {pt_dict_pname}")
+
         print("PT Param Name: ", pt_dict_pname)
         print("MS Param Name: ", ms_dict_pname)
         target_data.append({"name": ms_dict_pname, "data": ms.Tensor(pt_state_dict[pt_dict_pname].detach().numpy())})
@@ -148,13 +149,13 @@ if __name__ == "__main__":
 
     src_pt_ckpt = args.src
     if args.pt_params_naming == "diffuser":
-        pt_unet_names_txt = "../../stable_diffusion_v2/tools/model_conversion/diffusers_unet_v2.txt"
-        pt_mm_names_txt = "torch_mm_params.txt"
+        pt_unet_names_txt = "tools/model_conversion/diffusers_unet_v2.txt"
+        pt_mm_names_txt = "tools/torch_mm_params.txt"
     else:
         raise ValueError(f"Torch naming method {args.pt_params_naming} is not supported.")
 
-    ms_unet_names_txt = "../../stable_diffusion_v2/tools/model_conversion/ms_names_v2.txt"
-    ms_mm_names_txt = "ms_mm_params.txt"
+    ms_unet_names_txt = "tools/model_conversion/ms_names_v2.txt"
+    ms_mm_names_txt = "tools/ms_mm_params.txt"
 
     output_dir = args.target
 

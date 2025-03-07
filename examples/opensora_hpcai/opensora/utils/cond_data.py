@@ -49,7 +49,7 @@ def transform_conditional_images(image_paths, H, W, random_crop=True, normalize=
     if normalize:
 
         def image_norm(image):
-            image = image.mean(dim=0, keepdim=True).repeat(3, 1, 1)
+            image = image.mean(axis=0, keepdims=True).repeat(3, axis=0)
             image -= image.min()
             image /= image.max()
             return image

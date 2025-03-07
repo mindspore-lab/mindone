@@ -13,7 +13,6 @@ from mindspore.nn import GraphCell, GroupNorm, SiLU  # GELU
 from mindspore.train.callback import _CallbackManager
 
 from ..models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm, PositionEmbedding2D, SinusoidalEmbedding
-from ..models.text_encoder.flan_t5_large.t5 import T5LayerNorm
 
 # SORA's whitelist (FP32) operators
 WHITELIST_OPS = [
@@ -25,7 +24,6 @@ WHITELIST_OPS = [
     GroupNorm,
     PositionEmbedding2D,
     SinusoidalEmbedding,
-    T5LayerNorm,
 ]
 
 logger = logging.getLogger(__name__)

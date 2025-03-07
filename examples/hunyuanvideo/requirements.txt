@@ -1,0 +1,16 @@
+opencv-python
+pandas
+numpy
+tqdm
+loguru
+imageio
+imageio-ffmpeg
+safetensors
+mindcv==0.3.0
+tokenizers==0.20.3
+transformers==4.46.3
+gradio
+albumentations>=2.0
+ftfy
+beautifulsoup4
+jsonargparse>=4.36

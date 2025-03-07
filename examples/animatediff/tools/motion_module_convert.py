@@ -76,14 +76,14 @@ if __name__ == "__main__":
     src_pt_ckpt = args.src
     print("mm version: ", args.version)
     if args.version == "v1":
-        torch_names_txt = "./torch_mmv1_params.txt"
-        ms_names_txt = "./ms_mmv1_params.txt"
+        torch_names_txt = "tools/torch_mmv1_params.txt"
+        ms_names_txt = "tools/ms_mmv1_params.txt"
     elif args.version == "v2":
-        torch_names_txt = "./torch_mmv1_params.txt"
-        ms_names_txt = "./ms_mmv1_params.txt"
+        torch_names_txt = "tools/torch_mmv1_params.txt"
+        ms_names_txt = "tools/ms_mmv1_params.txt"
     elif args.version == "v3":
-        torch_names_txt = "./torch_mmv1_params.txt"
-        ms_names_txt = "./ms_mmv1_params.txt"
+        torch_names_txt = "tools/torch_mmv1_params.txt"
+        ms_names_txt = "tools/ms_mmv1_params.txt"
     else:
         print(f"Unsupported version {args.version}")
         raise ValueError

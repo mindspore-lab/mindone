@@ -9,7 +9,7 @@ sp_rank = None
 _is_distribute = False
 
 
-# zhy_test custom pipeline parallel
+# custom pipeline parallel
 pp_group = None
 pp_size = None
 pp_rank = None

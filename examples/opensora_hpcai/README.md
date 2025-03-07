@@ -260,13 +260,12 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safe
 
 Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows.
 
-- **T5**: Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) folder and put it under `models/`
-
-    Convert to ms checkpoint:
-    ```
-    python tools/convert_t5.py --src models/t5-v1_1-xxl/pytorch_model-00001-of-00002.bin  models/t5-v1_1-xxl/pytorch_model-00002-of-00002.bin --target models/t5-v1_1-xxl/model.ckpt
-
-    ```
+- **T5**:
+  You can download and convert the T5 model automatically by running the following command:
+  ```shell
+  python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
+  ```
+  If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
 
 - **VAE**: The model weights are automatically downloaded from Hugging Face during execution.  
 Local `.safetensors` weights can also be used.  
