@@ -31,6 +31,7 @@ from janus.models.modeling_vlm import MultiModalityConfig
 from janus.train.lr_schedule import WarmupCosineDecayLR
 from janus.train.t2i_dataset import create_dataloader_t2i
 from janus.train.text_dataset import create_dataloader_text
+from janus.train.vqa_dataset import create_dataloader_vqa
 from janus.utils.io import set_model_param_dtype
 
 from mindone.trainers.checkpoint import CheckpointManager
@@ -182,6 +183,16 @@ def main(args):
         dataloader = create_dataloader_text(
             dataset_name='pubmedqa',
             data_dir="datasets/PubMedQA",
+            vl_chat_processor=vl_chat_processor,
+            max_token_length=args.max_length,
+            batch_size=args.batch_size,
+            shuffle=args.shuffle,
+            num_samples=args.num_samples,
+        )
+    elif task == 'vqa':
+        dataloader = create_dataloader_vqa(
+            dataset_name="medical-vqa",
+            data_dir="datasets/medical-vqa",
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,

@@ -1,0 +1,27 @@
+lr=1e-4
+end_lr=1e-5
+wd=0.01
+bs=4
+fe=False
+stage=3
+clip_grad=False
+
+python train.py \
+    --model_path ckpts/Janus-Pro-1B --load_weight=True \
+    --task 'vqa' \
+    --training_stage $stage \
+    --learning_rate $lr \
+    --end_learning_rate $end_lr \
+    --batch_size $bs \
+    --weight_decay $wd \
+    --freeze_embedding $fe \
+    --max_length=1024 \
+    --train_steps 10000 \
+    --warmup_steps 50 \
+    --ckpt_save_steps 1000 \
+    --ckpt_max_keep 10 \
+    --use_value_and_grad True \
+    --clip_grad $clip_grad \
+    --output_path outputs/stage${stage}_vqa_medicalvqa_lr${lr}_wd${wd}_bs${bs}_clipgrad${clip_grad} \
+
+    # --num_samples 20 --shuffle=False \

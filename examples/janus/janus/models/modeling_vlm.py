@@ -391,14 +391,8 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_embeds = self.vision_model(pixel_values)  # diff gen
         image_embeds = self.aligner(image_embeds)
 
-        image_tokens = token_info[-1]
-        image_tokens = image_tokens.reshape(bs, n, -1)
-
-        _, n, T = image_tokens.shape
-        image_tokens = image_tokens.reshape(bs * n, T)
-        image_embeds = self.gen_aligner(self.gen_embed(image_tokens))
         # [b x n, T2, D] -> [b, n x T2, D]
-        _, _, D = image_embeds.shape
+        _, T, D = image_embeds.shape
         image_embeds = ops.reshape(image_embeds, (bs, n, T, D))  # TODO: may remove it
         image_embeds = ops.reshape(image_embeds, (bs, n * T, D))
 
@@ -413,17 +407,20 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
 
         # FIXME: fix as gen_with_loss to support graph mode 
-        inputs_embeds[image_seq_mask] = ops.stop_gradient(image_embeds)
+        inputs_embeds[image_seq_mask] = image_embeds # ops.stop_gradient(image_embeds)
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
         image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaForCausalLM forward with loss
-        loss, logits, _  = self.language_model(
+        output = self.language_model(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
+            labels=labels,
             return_dict=False,
         )
+        loss = output[0]
+        # logit = output[1]
 
         return loss
 

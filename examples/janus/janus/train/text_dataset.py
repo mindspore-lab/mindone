@@ -52,9 +52,9 @@ class TextDataset:
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
         
         # FIXME
-        task_dtype = np.array(0, dtype=np.int32)
+        task_type = np.array(0, dtype=np.int32)
 
-        return task_dtype, input_ids, labels, attention_mask 
+        return task_type, input_ids, labels, attention_mask 
 
     @staticmethod
     def create_transform(image_size: int, interpolation: vision.Inter) -> Compose:
@@ -147,7 +147,7 @@ def create_dataloader_text(
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=["task_dtype", "input_ids", "labels", "attention_mask"],
+        column_names=["task_type", "input_ids", "labels", "attention_mask"],
         shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,
