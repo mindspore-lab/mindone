@@ -430,29 +430,29 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
     def construct(
         self,
-        input_ids: Tensor,
+        task_type: Tensor=None,
+        input_ids: Tensor=None,
         labels: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
         image_seq_mask: Optional[Tensor] = None,
         pixel_values: Optional[Tensor] = None,
         image_tokens: Optional[Tensor] = None,
-        task_type=2,
     ):
         r"""
-        Added for training
+        Added for training, and only used in training!
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
-            task_type: 0 - pure text, 1 - vqa, 2 - t2i
+            task_type: shape (bs,), 0 - pure text, 1 - vqa, 2 - t2i
         """
-        
-        if task_type == 0:
+
+        if task_type[0] == 0:
             # text
             loss = self.language_model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 labels=labels, 
                 )[0]
-        elif task_type == 1:
+        elif task_type[0] == 1:
             # mm understand
             loss = self.und_with_loss(
                 input_ids=input_ids,
@@ -461,7 +461,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                 image_seq_mask=image_seq_mask,
                 pixel_values=pixel_values,
                 )
-        elif task_type == 2:
+        elif task_type[0] == 2:
             # t2i
             loss = self.gen_with_loss(
                 input_ids=input_ids,

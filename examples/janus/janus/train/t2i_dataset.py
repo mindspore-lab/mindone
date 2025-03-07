@@ -71,7 +71,9 @@ class TextImageDataset:
         image = self.transform(image)[0]
         image = image[None, ...]  # add temporal axis
 
-        return input_ids, labels, attention_mask, image_seq_mask, image
+        task_dtype = np.array(2, dtype=np.int32)
+
+        return task_dtype, input_ids, labels, attention_mask, image_seq_mask, image
 
     @staticmethod
     def create_transform(image_size: int, interpolation: vision.Inter) -> Compose:
@@ -180,7 +182,7 @@ def create_dataloader_t2i(
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=["input_ids", "labels", "attention_mask", "image_seq_mask", "image"],
+        column_names=["task_dtype", "input_ids", "labels", "attention_mask", "image_seq_mask", "image"],
         shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,

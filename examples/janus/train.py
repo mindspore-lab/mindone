@@ -16,6 +16,7 @@ import mindspore as ms
 from mindspore import nn
 from mindspore._c_expression import reset_op_id
 from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore.nn.utils import no_init_parameters
 
 # from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 # from mindspore.train.callback import TimeMonitor
@@ -29,6 +30,7 @@ from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.models.modeling_vlm import MultiModalityConfig
 from janus.train.lr_schedule import WarmupCosineDecayLR
 from janus.train.t2i_dataset import create_dataloader_t2i
+from janus.train.text_dataset import create_dataloader_text
 from janus.utils.io import set_model_param_dtype
 
 from mindone.trainers.checkpoint import CheckpointManager
@@ -96,7 +98,9 @@ def main(args):
     if args.load_weight:
         vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
     else:
+        # with no_init_parameters():
         vl_gpt = MultiModalityCausalLM(config=config)
+
     if args.ckpt_path is not None:
         parameter_dict = ms.load_checkpoint(args.ckpt_path)
         param_not_load, ckpt_not_load = ms.load_param_into_net(vl_gpt, parameter_dict, strict_load=True)
@@ -171,17 +175,35 @@ def main(args):
     config.save_pretrained(args.output_path)
 
     # 2. prepare dataset and loader
-    dataloader = create_dataloader_t2i(
-        csv_path=args.csv_path,
-        data_dir=args.data_dir,
-        vl_chat_processor=vl_chat_processor,
-        max_token_length=args.max_length,
-        image_size=args.image_size,
-        null_prompt_prob=args.null_prompt_prob,  # TODO: tune 0.01, 0.05
-        batch_size=args.batch_size,
-        shuffle=args.shuffle,
-        num_samples=args.num_samples,
-    )
+    # FIXME: output task_type in dataloader
+    task = args.task
+    if task == 'text':
+        # FIXME: allow setting path
+        dataloader = create_dataloader_text(
+            dataset_name='pubmedqa',
+            data_dir="datasets/PubMedQA",
+            vl_chat_processor=vl_chat_processor,
+            max_token_length=args.max_length,
+            batch_size=args.batch_size,
+            shuffle=args.shuffle,
+            num_samples=args.num_samples,
+        )
+    elif task == 't2i':
+        dataloader = create_dataloader_t2i(
+            csv_path=args.csv_path,
+            data_dir=args.data_dir,
+            vl_chat_processor=vl_chat_processor,
+            max_token_length=args.max_length,
+            image_size=args.image_size,
+            null_prompt_prob=args.null_prompt_prob,  # TODO: tune 0.01, 0.05
+            batch_size=args.batch_size,
+            shuffle=args.shuffle,
+            num_samples=args.num_samples,
+        )
+    else:
+        raise NotImplementedError
+    task_map = {"text": 0, "vqa": 1, "t2i": 2}
+    task_type = task_map[task]
 
     # 3. setup trainer and config hyper-params
     # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # tune
@@ -374,6 +396,7 @@ if __name__ == "__main__":
     )
 
     # training data config
+    parser.add_argument("--task", default='t2i', type=str, help="text, t2i, vqa, or mixed")
     parser.add_argument(
         "--csv_path",
         default="",
