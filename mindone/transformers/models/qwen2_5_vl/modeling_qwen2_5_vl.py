@@ -174,7 +174,7 @@ class Qwen2_5_VLVisionAttention(nn.Cell):
             cos, sin = position_embeddings
         q, k = apply_rotary_pos_emb_vision(q, k, cos, sin)
 
-        attention_mask = mint.full([1, seq_length, seq_length], dtype_to_min(q.dtype), dtype=q.dtype)
+        attention_mask = ops.full([1, seq_length, seq_length], dtype_to_min(q.dtype), dtype=q.dtype)
         for i in range(1, len(cu_seqlens)):
             attention_mask[..., cu_seqlens[i - 1] : cu_seqlens[i], cu_seqlens[i - 1] : cu_seqlens[i]] = 0
 
@@ -1096,14 +1096,14 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             diagonal_attend_mask = mint.arange(target_length, dtype=ms.int32) > cache_position.reshape(-1, 1)
             if config.sliding_window is not None:
                 if not sequence_length > target_length:
                     sliding_attend_mask = mint.arange(target_length, dtype=ms.int32) <= (
                         cache_position.reshape(-1, 1) - config.sliding_window
                     )
-                    diagonal_attend_mask.bitwise_or_(sliding_attend_mask)
+                    diagonal_attend_mask = mint.bitwise_or(diagonal_attend_mask, sliding_attend_mask)
             causal_mask *= diagonal_attend_mask
             causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
