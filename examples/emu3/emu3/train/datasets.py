@@ -8,6 +8,7 @@ import numpy as np
 from emu3.mllm import Emu3Tokenizer
 
 import mindspore as ms
+
 from mindone.data import BaseDataset
 
 
@@ -92,7 +93,7 @@ class Emu3FeatureDataset(BaseDataset):
             response_ids = self.tokenizer.decode(response)
             labels[: len(prompt_ids)] = self.args.ignore_index
             if len(prompt_ids) + len(response_ids) < len(labels):
-                labels[len(prompt_ids)+ len(response_ids) :] = self.args.ignore_index
+                labels[len(prompt_ids) + len(response_ids) :] = self.args.ignore_index
 
         sample["labels"] = labels
         for k, v in sample.items():

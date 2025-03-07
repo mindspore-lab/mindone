@@ -12,12 +12,16 @@ from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.train.datasets import Emu3FeatureDataset
 
 import mindspore as ms
-from mindspore import nn
+
+# from mindone.utils.amp import auto_mixed_precision
+from mindspore.amp import auto_mixed_precision
 
 # from mindone.trainers import get_scheduler
 from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
+
+# from mindspore import nn
 
 
 @dataclass
@@ -48,6 +52,7 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     enable_flash_attention: bool = field(default=True)  # enable flash_attention_2
     gradient_checkpointing: bool = field(default=True)  # activate gradient checkpointing
     is_distribute: bool = field(default=False)  # use data parallel
+    precicion: str = field(default="bf16")  # model precision
 
 
 def update_configs(model_config, args, fields):
@@ -74,13 +79,18 @@ def train():
     if training_args.min_learning_rate is not None:
         training_args.lr_scheduler_kwargs["min_lr"] = training_args.min_learning_rate
 
+    dtype = ms.bfloat16
+    if training_args.dtype == "fp16":
+        dtype = ms.float16
     model = Emu3ForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=model_config,
         attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
-        mindspore_dtype=ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None),
+        mindspore_dtype=dtype,
         use_safetensors=True,
-    )  # AMP O0
+    )
+    model = auto_mixed_precision(model, amp_level="auto", dtype=dtype)
+    print("loaded Emu3 model")
 
     tokenizer = Emu3Tokenizer.from_pretrained(
         model_args.model_name_or_path,
@@ -108,19 +118,6 @@ def train():
 
     else:
         compute_metrics = None
-
-    # class TrainNet(nn.Cell):
-    #     def __init__(self, network):
-    #         super(TrainNet, self).__init__(auto_prefix=False)
-    #         self.network = network
-
-    #     def construct(self, input_ids, attention_mask, labels):
-    #         outputs = self.network(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=False)
-    #         return outputs
-
-    #     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
-    #         self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
-    # model = TrainNet(model)
 
     trainer = Trainer(
         model=model,

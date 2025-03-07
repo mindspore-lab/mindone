@@ -1,5 +1,7 @@
 from typing import Optional
 
+import mindspore as ms
+import mindspore.mint.distributed as dist
 from mindspore.communication import create_group, get_group_size, get_rank
 
 __all__ = ["set_sequence_parallel_group", "get_sequence_parallel_group", "create_parallel_group"]
@@ -20,14 +22,18 @@ def create_parallel_group(shards: int) -> None:
         raise ValueError(
             f"The number of sequence parallel shards must be larger than 1 to enable sequence parallel, but got {shards}."
         )
-
-    device_num = get_group_size()
+    if ms.get_context("mode") == ms.GRAPH_MODE:
+        device_num = get_group_size()
+    else:
+        device_num = dist.get_world_size()
     if device_num % shards != 0:
         raise ValueError(
             f"Total number of devices ({device_num}) must be divisible by the number of sequence parallel shards ({shards})."
         )
-
-    rank_id = get_rank()
+    if ms.get_context("mode") == ms.GRAPH_MODE:
+        rank_id = get_rank()
+    else:
+        rank_id = dist.get_rank()
     sp_group_id = rank_id // shards
     sp_group_rank_ids = list(range(sp_group_id * shards, (sp_group_id + 1) * shards))
     sp_group_name = f"sp_group_{sp_group_id}"

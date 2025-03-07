@@ -3,3 +3,6 @@ tiktoken==0.6.0
 pillow
 omegaconf
 torch
+opencv-python
+ezcolorlog
+mindcv

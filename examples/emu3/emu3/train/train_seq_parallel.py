@@ -7,21 +7,26 @@ from typing import List, Optional
 import transformers as tf
 from emu3.acceleration import create_parallel_group
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
+from emu3.mllm.modeling_emu3 import Emu3RMSNorm
 from emu3.train.datasets import Emu3FeatureDataset
 
 import mindspore as ms
 import mindspore.dataset as ds
-from mindspore import Model, nn
-from mindspore.dataset import create_dataloader
+from mindspore import Model, nn  # amp
+from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
+from mindone.dataset import create_dataloader
+from mindone.trainers import create_optimizer
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
-
-# from mindone.trainers import create_optimizer
 from mindone.trainers.zero import prepare_train_network
 from mindone.transformers.mindspore_adapter import MindSporeArguments
 from mindone.transformers.optimization import get_scheduler
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
 from mindone.utils import count_params, init_train_env, set_logger
+from mindone.utils.amp import auto_mixed_precision
+
+# import json
+
 
 # from mindone.trainers.checkpoint import resume_train_network
 
@@ -51,7 +56,7 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     report_to: List[str] = field(default_factory=list)
     remove_unused_columns: bool = field(default=False)
     min_learning_rate: Optional[float] = field(default=None)
-    image_area: Optional[int] = field(default=None)  # image max resolution, e.g. 720*720, 512*512
+    image_area: Optional[int] = field(default=None)  # image max resolution, e.g. 518440=720*720, 262144=512*512
     max_position_embeddings: Optional[int] = field(default=None)
     output_dir: str = field(default="./outputs")  # output directory for checkpoints
     enable_flash_attention: bool = field(default=True)  # enable flash_attention_2
@@ -60,10 +65,16 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     debug: bool = field(default=False)  # enable pynative synchronize for debugging
     seed: int = field(default=42)
     sequence_parallel_shards: int = field(default=1)  # number of sequential parallelism shards
-    zero_stage: int = field(default=0)
+    ms_zero_stage: int = field(default=0)
     resume: str = field(default=None)
     model_name: str = field(default="emu3")
     clip_grad: bool = field(default=True)
+    loss_scaler_type: str = field(default=None)  # dynamic or static
+    init_loss_scale: float = field(default=1024)
+    loss_scaler_factor: float = field(default=2)
+    scale_window: float = field(default=1000)
+    save_strategy: str = field(default="epoch")
+    # post_init_weight: bool = field(default=False)
 
 
 def update_configs(model_config, args, fields):
@@ -148,13 +159,19 @@ def main():
     #     eval_dataset = Emu3FeatureDataset(data_args, tokenizer=tokenizer, split="test")
 
     batch_size = training_args.per_device_train_batch_size
-    num_epoch = training_args.num_train_epochs  # default=3
+    num_epoch = int(training_args.num_train_epochs)  # default=3
+    if training_args.sequence_parallel_shards > 1:
+        logger.info(
+            f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards."
+        )
     train_dataloader = create_dataloader(
         train_dataset,
         batch_size=batch_size,
         transforms=None,
         device_num=device_num,
         rank_id=shard_rank_id,
+        shuffle=True,
+        num_workers_dataset=training_args.dataloader_num_workers,
     )
 
     # 2. create train network and mix precision
@@ -163,35 +180,41 @@ def main():
     update_configs(model_config, training_args, ["image_area", "max_position_embeddings"])
     if training_args.min_learning_rate is not None:
         training_args.lr_scheduler_kwargs["min_lr"] = training_args.min_learning_rate
+
+    # TODO: if resume
     model_dtype = ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None)
+    # DEBUG
+    # model_config.num_hidden_layers = 1
+    # mdoel_config.attn_implementation="flash_attention_2"
+    # model = Emu3ForCausalLM(model_config)
+    # DEBUG
     model = Emu3ForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=model_config,
         attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
-        mindspore_dtype=model_dtype,
         use_safetensors=True,
-    )  # AMP O0
+    )
+    if model_dtype is not None:
+        model = auto_mixed_precision(
+            model, amp_level="O2", dtype=model_dtype, custom_fp32_cells=[nn.CrossEntropyLoss, Emu3RMSNorm]
+        )
+    else:
+        model_dtype = ms.float32
 
     if training_args.gradient_checkpointing:
         model.gradient_checkpointing_enable()
-    # assert not (args.fp16 and args.bf16)
-    # if args.fp16:
-    #     model = auto_mixed_precision(model, "O2", ms.float16)
-    # if args.bf16:
-    #     model = auto_mixed_precision(model, "O2", ms.bfloat16)
 
     class TrainNetWithLoss(nn.Cell):
         def __init__(self, network):
-            super(TrainNetWithLoss, self).__init__(auto_prefix=False)
+            super(TrainNetWithLoss, self).__init__()
             self.network = network
 
         def construct(self, input_ids, attention_mask, labels):
-            outputs = self.network(input_ids=input_ids, attention_mask=attention_mask, labels=labels, return_dict=False)
-            loss = outputs[0]
+            loss = self.network.construct_with_loss(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
             return loss
 
-        def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
-            self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs)
+        def set_train(self, mode=True):
+            self.network.set_train(mode)
 
     model_with_loss = TrainNetWithLoss(model)
 
@@ -206,30 +229,48 @@ def main():
     )
     # optimizer
     optimizer_kwargs = {
-        "beta1": training_args.adam_beta1,
-        "beta2": training_args.adam_beta2,
+        "name": "adamw",
+        "betas": (training_args.adam_beta1, training_args.adam_beta2),
         "eps": training_args.adam_epsilon,
-        "learning_rate": lr_scheduler,
+        "lr": lr_scheduler,
     }
-    if training_args.optim == "adamw_mindspore":
-        optimizer_kwargs.update({"enable_fuse": getattr(training_args, "adamw_enable_fuse", True)})
-        optimizer = nn.AdamWeightDecay(model_with_loss.trainable_params(), **optimizer_kwargs)
-    elif "adamw_zero" in training_args.optim:
-        from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
+    optimizer = create_optimizer(model_with_loss.trainable_params(), **optimizer_kwargs)
+    # optimizer_kwargs = {
+    #     "beta1": training_args.adam_beta1,
+    #     "beta2": training_args.adam_beta2,
+    #     "eps": training_args.adam_epsilon,
+    #     "learning_rate": lr_scheduler,
+    # }
+    # if training_args.optim == "adamw_mindspore":
+    #     optimizer_kwargs.update({"enable_fuse": getattr(training_args, "adamw_enable_fuse", True)})
+    #     optimizer = nn.AdamWeightDecay(model_with_loss.trainable_params(), **optimizer_kwargs)
+    # elif "adamw_zero" in training_args.optim:
+    #     from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
 
-        optimizer_cls = AdamWeightDecayZeRO1 if training_args.optim == "adamw_zero1_mindspore" else AdamWeightDecayZeRO2
-        optimizer_kwargs.update({"enable_fuse": getattr(training_args, "adamw_enable_fuse", True)})
-        optimizer_kwargs.update({"shard_size": getattr(training_args, "adamw_zero_shard_size", None)})
-        optimizer_kwargs.update({"momentum_dtype": getattr(training_args, "adamw_zero_momentum_dtype", ms.float32)})
-        optimizer = optimizer_cls(model_with_loss.trainable_params(), **optimizer_kwargs)
-    else:
-        raise ValueError
+    #     optimizer_cls = AdamWeightDecayZeRO1 if training_args.optim == "adamw_zero1_mindspore" else AdamWeightDecayZeRO2
+    #     optimizer_kwargs.update({"enable_fuse": getattr(training_args, "adamw_enable_fuse", True)})
+    #     optimizer_kwargs.update({"shard_size": getattr(training_args, "adamw_zero_shard_size", None)})
+    #     optimizer_kwargs.update({"momentum_dtype": getattr(training_args, "adamw_zero_momentum_dtype", ms.float32)})
+    #     optimizer = optimizer_cls(model_with_loss.trainable_params(), **optimizer_kwargs)
+    # else:
+    #     raise ValueError
 
     # trainer
     ema = None
-    loss_scaler = 1.0
     # ema = EMA(model_with_loss.network, **training_args.ema.init_args) if args.train.ema else None
-    # loss_scaler = training_args.loss_scaler
+
+    loss_scaler = None
+    if training_args.loss_scaler_type == "dynamic":
+        loss_scaler = DynamicLossScaleUpdateCell(
+            loss_scale_value=training_args.init_loss_scale,
+            scale_factor=training_args.loss_scale_factor,
+            scale_window=training_args.scale_window,
+        )
+    elif training_args.loss_scaler_type == "static":
+        loss_scaler = nn.FixedLossScaleUpdateCell(training_args.init_loss_scale)
+    else:
+        raise ValueError
+
     net_with_grads = prepare_train_network(
         model_with_loss,
         optimizer=optimizer,
@@ -238,7 +279,7 @@ def main():
         gradient_accumulation_steps=training_args.gradient_accumulation_steps,
         clip_grad=training_args.clip_grad,
         clip_norm=training_args.max_grad_norm,
-        zero_stage=training_args.zero_stage,
+        zero_stage=training_args.ms_zero_stage,
     )
     # net_with_grads = TrainOneStepWrapper(model_with_loss, optimizer)
 
@@ -261,21 +302,20 @@ def main():
 
     # callbacks
     callbacks = [OverflowMonitor()]
-    if training_args.zero_stage == 3 or rank_id == 0:
+    if training_args.ms_zero_stage == 3 or rank_id == 0:
         ckpt_save_dir = (
             os.path.join(training_args.output_dir, f"rank_{rank_id}/ckpt")
-            if training_args.zero_stage == 3
+            if training_args.ms_zero_stage == 3
             else os.path.join(training_args.output_dir, "ckpt")
         )
         callbacks.append(
             EvalSaveCallback(
                 network=model_with_loss.network,
                 model_name=training_args.model_name,
-                rank_id=0 if training_args.zero_stage == 3 else rank_id,  # ZeRO-3 shards across all ranks
+                rank_id=0 if training_args.ms_zero_stage == 3 else rank_id,  # ZeRO-3 shards across all ranks
                 ckpt_save_dir=ckpt_save_dir,
                 ema=ema,
-                step_mode=True,
-                use_step_unit=True,
+                # use_step_unit=True,
                 start_epoch=start_epoch,
                 train_steps=training_args.max_steps,
                 log_interval=training_args.logging_steps,
@@ -307,15 +347,15 @@ def main():
                 f"Number of samples: {dataset_len}",
                 f"Model name: {training_args.model_name}",
                 f"Model dtype: {model_dtype}",
-                f"Num params: {num_params:,})",
+                f"Num params: {num_params:,}",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {training_args.learning_rate:.0e}",
                 f"Batch size: {training_args.per_device_train_batch_size}",
                 f"Max image area: {training_args.image_area}",
                 f"Grad accumulation steps: {training_args.gradient_accumulation_steps}",
                 f"Number of training steps: {num_epoch}",
-                # f"Loss scaler: {args.train.loss_scaler.class_path}", # TODO
-                # f"Init loss scale: {args.train.loss_scaler.init_args.loss_scale_value}",
+                f"Loss scaler: {training_args.loss_scaler_type}",  # TODO
+                f"Init loss scale: {training_args.init_loss_scale}",
                 f"Grad clipping: {training_args.clip_grad}",
                 f"Max grad norm: {training_args.max_grad_norm}",
                 f"EMA: {ema is not None}",
@@ -324,9 +364,11 @@ def main():
         )
         key_info += "\n" + "=" * 50
         print(key_info)
-        parser.save(
-            training_args, os.path.join(training_args.output_dir + "config.yaml"), format="yaml", overwrite=True
-        )
+        # parser.save(
+        #     training_args, os.path.join(training_args.output_dir + "config.yaml"), format="yaml", overwrite=True
+        # )
+        # with open(os.path.join(training_args.output_dir + "config.json"), "w") as f:
+        #     json.dump(training_args.__dict__, f, indent=4)
 
     # 4 .train
     logger.info("Start training...")

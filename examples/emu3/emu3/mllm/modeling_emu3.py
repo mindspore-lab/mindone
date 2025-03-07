@@ -62,7 +62,6 @@ from mindone.transformers.utils import is_flash_attn_2_available  # Ascend
 from mindone.utils.version_control import check_valid_flash_attention
 
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
-FA_MS23_UPDATE = False
 if FLASH_IS_AVAILABLE:
     from mindone.models.modules.flash_attention import MSFlashAttention
 
@@ -105,15 +104,15 @@ class Emu3RMSNorm(nn.Cell):
         Emu3RMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = ms.Parameter(ops.ones(hidden_size))
+        self.weight = ms.Parameter(ops.ones(hidden_size, dtype=ms.float32))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
         hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon) * self.weight
+        return hidden_states.to(input_dtype)
 
 
 ALL_LAYERNORM_LAYERS.append(Emu3RMSNorm)
@@ -361,14 +360,9 @@ class Emu3Attention(nn.Cell):
         past_key_value: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
-        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        if "padding_mask" in kwargs:
-            warnings.warn(
-                "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
-            )
-
         bsz, q_len, _ = hidden_states.shape
+        target_dtype = hidden_states.dtype
 
         if self.config.pretraining_tp > 1:  # never run
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
@@ -397,9 +391,9 @@ class Emu3Attention(nn.Cell):
         value_states = value_states.view((bsz, q_len, self.num_key_value_heads, self.head_dim)).swapaxes(1, 2)
 
         # sequence parallel: scatter BNS'D => BN'SD
-        query_states = self.alltoall(query_states)
-        key_states = self.alltoall(key_states)
-        value_states = self.alltoall(value_states)
+        query_states = self.alltoall(query_states.float()).to(target_dtype)
+        key_states = self.alltoall(key_states.float()).to(target_dtype)
+        value_states = self.alltoall(value_states.float()).to(target_dtype)
         # print(f"query_states {query_states.shape}, key_states {key_states.shape}, value_states {value_states.shape}")
 
         kv_seq_len = key_states.shape[-2]
@@ -423,14 +417,14 @@ class Emu3Attention(nn.Cell):
 
         attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) * self.scaling
 
-        if attn_weights.shape != (bsz, self.num_heads, q_len, kv_seq_len):
+        if self.sp_group_size is None and (attn_weights.shape != (bsz, self.num_heads, q_len, kv_seq_len)):
             raise ValueError(
                 f"Attention weights should be of size {(bsz, self.num_heads, q_len, kv_seq_len)}, but is"
                 f" {attn_weights.shape}"
             )
 
         if attention_mask is not None:
-            if attention_mask.shape != (bsz, 1, q_len, kv_seq_len):
+            if self.sp_group_size is None and (attention_mask.shape != (bsz, 1, q_len, kv_seq_len)):
                 raise ValueError(
                     f"Attention mask should be of size {(bsz, 1, q_len, kv_seq_len)}, but is {attention_mask.shape}"
                 )
@@ -441,7 +435,7 @@ class Emu3Attention(nn.Cell):
         attn_weights = mint.nn.functional.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
-        if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
+        if self.sp_group_size is None and (attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim)):
             raise ValueError(
                 f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
                 f" {attn_output.shape}"
@@ -450,7 +444,7 @@ class Emu3Attention(nn.Cell):
         attn_output = attn_output.swapaxes(1, 2).contiguous()  # BN'SD => BSN'D
 
         # sequence parallel: gather BSN'D => BS'ND
-        attn_output = self.alltoall(attn_output)
+        attn_output = self.alltoall(attn_output.float()).to(target_dtype)
 
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size)
 
@@ -503,12 +497,12 @@ class Emu3FlashAttention2(Emu3Attention):
         past_key_value: Optional[Cache] = None,
         output_attentions: bool = False,
         use_cache: bool = False,
-        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         # Emu3FlashAttention2 attention does not support output_attentions
-        output_attentions = False
+        # output_attentions = False
 
         bsz, q_len, _ = hidden_states.shape
+        target_dtype = hidden_states.dtype
 
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(hidden_states)
@@ -522,9 +516,9 @@ class Emu3FlashAttention2(Emu3Attention):
         value_states = value_states.view(bsz, q_len, self.num_key_value_heads, self.head_dim).swapaxes(1, 2)
 
         # sequence parallel: scatter BNS'D => BN'SD
-        query_states = self.alltoall(query_states)
-        key_states = self.alltoall(key_states)
-        value_states = self.alltoall(value_states)
+        query_states = self.alltoall(query_states.float()).to(target_dtype)
+        key_states = self.alltoall(key_states.float()).to(target_dtype)
+        value_states = self.alltoall(value_states.float()).to(target_dtype)
         # print(f"query_states {query_states.shape}, key_states {key_states.shape}, value_states {value_states.shape}")
 
         kv_seq_len = key_states.shape[-2]
@@ -545,14 +539,12 @@ class Emu3FlashAttention2(Emu3Attention):
         attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)
 
         # sequence parallel: gather BSN'D => BS'ND
-        attn_output = self.alltoall(attn_output)
+        attn_output = self.alltoall(attn_output.float()).to(target_dtype)
 
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
         attn_weights = None
-        if not output_attentions:
-            attn_weights = None
 
         return attn_output, attn_weights, past_key_value
 
@@ -605,7 +597,6 @@ class Emu3DecoderLayer(nn.Cell):
         past_key_value: Optional[Tuple[ms.Tensor]] = None,
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
-        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -621,10 +612,6 @@ class Emu3DecoderLayer(nn.Cell):
                 (see `past_key_values`).
             past_key_value (`Tuple(ms.Tensor)`, *optional*): cached past key and value projection states
         """
-        if "padding_mask" in kwargs:
-            warnings.warn(
-                "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
-            )
 
         residual = hidden_states
 
@@ -638,7 +625,6 @@ class Emu3DecoderLayer(nn.Cell):
             past_key_value=past_key_value,
             output_attentions=output_attentions,
             use_cache=use_cache,
-            **kwargs,
         )
         hidden_states = residual + self.dropout(hidden_states)
 
@@ -650,11 +636,13 @@ class Emu3DecoderLayer(nn.Cell):
 
         outputs = (hidden_states,)
 
-        if output_attentions:
-            outputs += (self_attn_weights,)
+        if not output_attentions:
+            self_attn_weights = None
+        outputs += (self_attn_weights,)
 
-        if use_cache:
-            outputs += (present_key_value,)
+        if not use_cache:
+            present_key_value = None
+        outputs += (present_key_value,)
 
         return outputs
 
@@ -878,11 +866,7 @@ class Emu3Model(Emu3PreTrainedModel):
                 use_cache = False
 
         past_key_values_length = 0
-        # use_legacy_cache = False
         if use_cache:
-            # use_legacy_cache = isinstance(past_key_values, tuple) and self._supports_cache_class
-            # if use_legacy_cache:
-            #     past_key_values = DynamicCache.from_legacy_cache(past_key_values)
             if isinstance(past_key_values, Cache):
                 past_key_values_length = past_key_values.get_usable_length(seq_length)
             else:  # tuple static cache
@@ -900,25 +884,17 @@ class Emu3Model(Emu3PreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        # sequence parallel start: BxSxD => BxS'xD (S'=S/M)
-        print(f"inputs_embeds {inputs_embeds.shape}, position_ids {position_ids.shape} attention_mask {attention_mask}")
-        inputs_embeds = self.split_forward_gather_backward(inputs_embeds)  # BSD => BS'D
-        position_ids = self.split_forward_gather_backward(position_ids)  # BS => BS'
-        attention_mask = self.split_forward_gather_backward(attention_mask)  # BS => BS'
-        print(f"inputs_embeds {inputs_embeds.shape}, position_ids {position_ids.shape} attention_mask {attention_mask}")
+        # 4d mask is passed through the layers
+        attention_mask = _prepare_4d_causal_attention_mask(
+            attention_mask, (batch_size, seq_length), inputs_embeds.to(ms.float16), past_key_values_length
+        )
+        # eager or FA, dtype fixed to fp16 (for FA accuracy)
+        # inverted 4D mask (0 retain, -inf discard)
+        # use cache: shape = [B, 1, q_seq, kv_seq=q_seq+past_kv_seq]
+        # no cache:  shape = [B, 1, q_seq, q_seq]
 
-        if self._use_flash_attention_2:
-            # 4d mask is passed through the layers
-            attention_mask = _prepare_4d_causal_attention_mask(
-                attention_mask, (batch_size, seq_length), inputs_embeds.to(ms.float16), past_key_values_length
-            )  # inverted 4D mask (0 retain, -inf discard)
-            # use cache: shape = [B, 1, q_seq, kv_seq=q_seq+past_kv_seq]
-            # no cache:  shape = [B, 1, q_seq, q_seq]
-        else:  # eager
-            # 4d mask is passed through the layers
-            attention_mask = _prepare_4d_causal_attention_mask(
-                attention_mask, (batch_size, seq_length), inputs_embeds, past_key_values_length
-            )
+        # sequence parallel start: BxSxD => BxS'xD (S'=S/M)
+        inputs_embeds = self.split_forward_gather_backward(inputs_embeds)  # BSD => BS'D
 
         # embed positions
         hidden_states = self.dropout(inputs_embeds)
@@ -960,7 +936,6 @@ class Emu3Model(Emu3PreTrainedModel):
 
         next_cache = None
         if use_cache:
-            # next_cache = next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
             next_cache = next_decoder_cache
 
         if not return_dict:
@@ -1009,10 +984,10 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         self,
         input_ids: ms.Tensor = None,
         attention_mask: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
         past_key_values: Optional[List[ms.Tensor]] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
-        labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,

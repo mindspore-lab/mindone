@@ -4,6 +4,17 @@ Test:
 - inference
 - gradient
 
+Usage:
+
+echo "******** Graph Mode ********"
+msrun --master_port=1234 --worker_num=2 --local_worker_num=2 --log_dir="./log_test_sp_graph" --join True emu3/tests/test_seq_parallel.py --mode 0
+echo "Done. Check the log at './log_test_sp_graph'."
+echo "========================================================================="
+
+echo "******** Pynative Mode ********"
+msrun --master_port=1235 --worker_num=2 --local_worker_num=2 --log_dir="./log_test_sp_pynative" --join True emu3/tests/test_seq_parallel.py --mode 1
+echo "Done. Check the log at './log_test_sp_pynative'."
+
 """
 
 import argparse
@@ -11,8 +22,8 @@ from typing import Tuple
 
 import numpy as np
 from emu3.acceleration import create_parallel_group, get_sequence_parallel_group
+from emu3.mllm import Emu3ForCausalLM
 from emu3.mllm.configuration_emu3 import Emu3Config
-from emu.mllm import Emu3ForCausalLM
 
 import mindspore as ms
 import mindspore.nn as nn
@@ -27,22 +38,21 @@ class MeanNet(nn.Cell):
         self.net = net
 
     def construct(self, *inputs):
-        output = self.net(*inputs)[1]
+        output = self.net(*inputs, return_dict=False)[1]
         return output.mean() * 1024.0
 
 
 def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, ...]:
     seq_len = 10
     vocab_size = 184622
-    input_ids = ops.randint(0, vocab_size, [1, seq_len], dtype=ms.int23)
-    attention_mask = ops.ones_like(input_ids, dtype=ms.int23)
-    labels = None
-    # labels = input_ids.copy() # test training pipeline
+    input_ids = ops.randint(0, vocab_size, (1, seq_len), dtype=ms.int32)
+    attention_mask = ops.ones_like(input_ids, dtype=ms.int32)
+    # labels = None
+    labels = input_ids.copy()  # test training pipeline
     return input_ids, attention_mask, labels
 
 
 def get_network_config():
-    config = dict(num_hidden_layers=1, attn_implementation="eager", post_init_weight=False)
     config = {
         "architectures": ["Emu3ForCausalLM"],
         "attention_dropout": 0.1,
@@ -57,7 +67,7 @@ def get_network_config():
         "eol_token_id": 151846,
         "eos_token_id": 151850,
         "hidden_act": "silu",
-        "hidden_size": 4096,
+        "hidden_size": 64,  # 4096, DEBUG use: 64
         "image_area": 262144,
         "img_token_id": 151851,
         "initializer_range": 0.02,
@@ -65,7 +75,7 @@ def get_network_config():
         "max_position_embeddings": 5120,
         "model_type": "Emu3",
         "num_attention_heads": 32,
-        "num_hidden_layers": 1,  # DEBUG
+        "num_hidden_layers": 1,  # 32, DEBUG use 1
         "num_key_value_heads": 8,
         "pad_token_id": 151643,
         "pretraining_tp": 1,
@@ -77,8 +87,8 @@ def get_network_config():
         "transformers_version": "4.44.0",
         "use_cache": False,
         "vocab_size": 184622,
-        "attn_implementation": "flash_attention_2",
-        "use_return_dict": False,
+        "attn_implementation": "flash_attention_2",  # eager
+        "post_init_weight": False,
     }
     return config
 
@@ -99,18 +109,14 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     ms.set_seed(1024)
     non_parallel_network_cfg = get_network_config()
     config = Emu3Config(**non_parallel_network_cfg)
-    non_parallel_network = Emu3ForCausalLM(config).set_train(False)
-    # if data[-1] is not None:
-    #     non_parallel_network.set_train(True)
+    non_parallel_network = Emu3ForCausalLM(config).to(dtype)
 
     # parallel netowrk
     ms.set_seed(1024)
     create_parallel_group(shards=get_group_size())
     parallel_network_cfg = get_network_config()
     config = Emu3Config(**parallel_network_cfg)
-    parallel_network = Emu3ForCausalLM(config).set_train(False)
-    # if data[-1] is None:
-    #     parallel_network = parallel_network.set_train(True)
+    parallel_network = Emu3ForCausalLM(config).to(dtype)
 
     # load weight
     for (_, w0), (_, w1) in zip(non_parallel_network.parameters_and_names(), parallel_network.parameters_and_names()):
@@ -118,14 +124,21 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
         np.testing.assert_allclose(w0.value().asnumpy(), w1.value().asnumpy())
 
     # test forward
-    non_parallel_out = non_parallel_network(*data)
-    # non_parallel_out_loss = non_parallel_out[0].asnumpy() if non_parallel_out[0] is not None else None
-    non_parallel_out_logits = non_parallel_out[1].asnumpy()
+    non_parallel_out = non_parallel_network(*data, return_dict=False)
+    if len(non_parallel_out) > 1:
+        # non_parallel_out_loss = non_parallel_out[0].asnumpy() if non_parallel_out[0] is not None else None
+        non_parallel_out_logits = non_parallel_out[1].asnumpy()
+    else:
+        non_parallel_out_logits = non_parallel_out[0].asnumpy()
 
-    parallel_out = parallel_network(*data)
-    # parallel_out_loss = parallel_out[0].asnumpy() if parallel_out[0] is not None else None
-    parallel_out_logits = parallel_out[1].asnumpy()
+    parallel_out = parallel_network(*data, return_dict=False)
+    if len(parallel_out) > 1:
+        # parallel_out_loss = parallel_out[0].asnumpy() if parallel_out[0] is not None else None
+        parallel_out_logits = parallel_out[1].asnumpy()
+    else:
+        parallel_out_logits = parallel_out[0].asnumpy()
 
+    print("Testing Forward...")
     assert np.count_nonzero(non_parallel_out_logits) > 0
     np.testing.assert_equal(non_parallel_out_logits.shape, parallel_out_logits.shape)
     np.testing.assert_allclose(non_parallel_out_logits, parallel_out_logits, rtol=1.3e-6, atol=1e-5)
@@ -150,6 +163,7 @@ def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
     for x in parallel_grads:
         syn_parallel_grads.append(reduce(x) / num)
 
+    print("Testing Backward...")
     pass_grads = []
     for grad_0, grad_1 in zip(non_parallel_grads, syn_parallel_grads):
         is_passed = np.allclose(grad_0.asnumpy(), grad_1.asnumpy(), rtol=1.3e-6, atol=1e-5)

@@ -1,7 +1,6 @@
 from typing import Callable, Literal, Tuple, Union
 
-from mindspore import nn, ops, mint
-from mindspore import Tensor
+from mindspore import Tensor, mint, nn, ops
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
 __all__ = ["SplitFowardGatherBackward", "GatherFowardSplitBackward"]
@@ -68,6 +67,7 @@ class GatherFowardSplitBackward(nn.Cell):
         dout = dout * self.scale
         dout = _split(dout, self.dim, self.rank, self.world_size)
         return (dout,)
+
 
 class AlltoAll(nn.Cell):
     def __init__(self, split_dim: int = 2, concat_dim: int = 1, group: str = GlobalComm.WORLD_COMM_GROUP) -> None:
