@@ -81,7 +81,7 @@ To run the script, you can use the following command:
 
 ```bash
 export ASCEND_RT_VISIBLE_DEVICES=0,1
-msrun --worker_num=2 --local_worker_num=2 --master_port=8118 --log_dir=msrun_log --join=True --cluster_time_out=300 examples/qwen/qwq/qwq_32B_generate.py
+msrun --worker_num=2 --local_worker_num=2 --master_port=8118 --log_dir=msrun_log --join=True --cluster_time_out=300 qwq_32B_generate.py
 ```
 
 The result is as follows, some results are omitted for brevity:
