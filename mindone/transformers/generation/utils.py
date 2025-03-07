@@ -28,6 +28,7 @@ from mindone.transformers.generation.logits_process import (
     MinLengthLogitsProcessor,
     MinNewTokensLengthLogitsProcessor,
     PrefixConstrainedLogitsProcessor,
+    RepetitionPenaltyLogitsProcessor,
     TemperatureLogitsWarper,
     TopKLogitsWarper,
     TopPLogitsWarper,
@@ -967,7 +968,7 @@ class GenerationMixin:
         ):
             raise NotImplementedError
         if generation_config.repetition_penalty is not None and generation_config.repetition_penalty != 1.0:
-            raise NotImplementedError
+            processors.append(RepetitionPenaltyLogitsProcessor(penalty=generation_config.repetition_penalty))
         if generation_config.no_repeat_ngram_size is not None and generation_config.no_repeat_ngram_size > 0:
             raise NotImplementedError
         if (
