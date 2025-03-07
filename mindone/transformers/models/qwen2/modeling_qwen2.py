@@ -120,13 +120,12 @@ class Qwen2RMSNorm(nn.Cell):
         self.weight = Parameter(ops.ones(hidden_size))
         self.variance_epsilon = eps
 
-    @ms.jit
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.weight.to(input_dtype) * hidden_states.to(input_dtype)  # FIXME
+        output, _ = ops.rms_norm(
+            hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
+        )
+        return output.to(input_dtype)
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
@@ -330,7 +329,7 @@ class Qwen2Attention(nn.Cell):
             attn_weights = attn_weights + causal_mask
 
         # upcast attention to fp32
-        attn_weights = mint.softmax(attn_weights, axis=-1, dtype=ms.float32).to(query_states.dtype)
+        attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
         attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 

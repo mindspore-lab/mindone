@@ -67,18 +67,18 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 - Wan2.1 Text-to-Video
     - [x] Single-NPU inference code of the 14B and 1.3B models
     - [x] Multi-NPU inference acceleration for the 14B models
-    - [ ] prompt extension
+    - [x] prompt extension
     - [ ] Gradio demo
 - Wan2.1 Image-to-Video
     - [x] Single-NPU inference code of the 14B model
     - [x] Multi-NPU inference acceleration for the 14B model
-    - [ ] prompt extension
+    - [x] prompt extension
     - [ ] Gradio demo
 
 
 ## Quickstart
 
-###  Requirments
+###  Requirements
 
 The code is tested in the following environments
 
@@ -159,18 +159,22 @@ This repository supports two Text-to-Video models (1.3B and 14B) and two resolut
 </table>
 
 
+#### (1) Without Prompt Extension
+
+To facilitate implementation, we will start with a basic version of the inference process that skips the [prompt extension](#2-using-prompt-extension) step.
+
 - Single-NPU inference
 
-```
-python generate.py  \
+```sh
+python generate.py \
     --task t2v-14B \
     --size 1280*720 \
     --ckpt_dir ./Wan2.1-T2V-14B \
     --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage."
 ```
 
-```
-python generate.py  \
+```sh
+python generate.py \
     --task t2v-1.3B \
     --size 832*480 \
     --ckpt_dir ./Wan2.1-T2V-1.3B \
@@ -184,7 +188,7 @@ python generate.py  \
 
 - Multi-NPU inference
 
-```
+```sh
 msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task t2v-14B \
     --size 1280*720 \
@@ -194,6 +198,27 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
 ```
 
  > 💡 We support 720 T2V inference using only 1 card. But using more cards can accelerate the generation process.
+
+#### (2) Using Prompt Extension
+
+Extending the prompts can effectively enrich the details in the generated videos, further enhancing the video quality. Therefore, we recommend enabling prompt extension. We provide the following two methods for prompt extension:
+
+- Using a local model for extension.
+
+  - By default, the Qwen model on HuggingFace is used for this extension. Users can choose Qwen models or other models based on the available GPU memory size.
+  - For text-to-video tasks, you can use models like `Qwen/Qwen2.5-14B-Instruct`, `Qwen/Qwen2.5-7B-Instruct` and `Qwen/Qwen2.5-3B-Instruct`.
+  - For image-to-video tasks, you can use models like `Qwen/Qwen2.5-VL-7B-Instruct` and `Qwen/Qwen2.5-VL-3B-Instruct`.
+  - Larger models generally provide better extension results but require more NPU memory.
+  - You can modify the model used for extension with the parameter `--prompt_extend_model` , allowing you to specify either a local model path or a Hugging Face model. For example:
+
+```sh
+python generate.py \
+    --task t2v-14B \
+    --size 1280*720 \
+    --ckpt_dir ./Wan2.1-T2V-14B \
+    --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage" \
+    --use_prompt_extend --prompt_extend_method 'local_qwen' --prompt_extend_target_lang 'zh'
+```
 
 ### Run Image-to-Video Generation
 
@@ -227,10 +252,11 @@ Similar to Text-to-Video, Image-to-Video supports different resolutions. The spe
     </tbody>
 </table>
 
+#### (1) Without Prompt Extension
 
 - Single-NPU inference
 
-```
+```sh
 python generate.py \
     --task i2v-14B \
     --size 832*480 \
@@ -244,7 +270,7 @@ python generate.py \
 
 - Multi-NPU inference
 
-```
+```sh
 msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task i2v-14B --size 1280*720 \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
@@ -254,6 +280,20 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
 ```
 
  > 💡At least 2 cards are required to run 720P I2V generation to avoid OOM. 8 cards will accelerate the generation process at most.
+
+#### (2) Using Prompt Extension
+
+The process of prompt extension can be referenced [here](#2-using-prompt-extension).
+
+Run with local prompt extension using `Qwen/Qwen2.5-VL-7B-Instruct`:
+```sh
+msrun --worker_num=2 --local_worker_num=2 generate.py \
+    --task i2v-14B --size 1280*720 \
+    --ckpt_dir ./Wan2.1-I2V-14B-720P \
+    --image examples/i2v_input.JPG \
+    --use_prompt_extend --prompt_extend_model Qwen/Qwen2.5-VL-7B-Instruct \
+    --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
+```
 
 ## Performance
 
