@@ -10,14 +10,8 @@ import mindspore.mint.distributed as dist
 
 from mindspore.communication import GlobalComm
 
-ms.set_context(mode=0)
 dist.init_process_group(backend="hccl")
 ms.set_auto_parallel_context(parallel_mode="data_parallel")
-
-rank = dist.get_rank()
-world_size = dist.get_world_size()
-
-print(f"rank:{rank}, world size:{world_size}")
 
 s_time = time.time()
 
