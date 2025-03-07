@@ -575,9 +575,10 @@ def main(args):
             logs = {"loss": loss.item(), "lr": last_lr.item()}
             progress_bar.set_postfix(**logs)
 
-            for tracker_name, tracker in trackers.items():
-                if tracker_name == "tensorboard":
-                    tracker.add_scalars("train", logs, global_step)
+            if is_master(args):
+                for tracker_name, tracker in trackers.items():
+                    if tracker_name == "tensorboard":
+                        tracker.add_scalars("train", logs, global_step)
 
             if global_step >= args.max_train_steps:
                 break
