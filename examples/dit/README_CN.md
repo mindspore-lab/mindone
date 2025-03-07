@@ -20,9 +20,10 @@ DiTs是扩散模型的可扩展架构。作者发现网络复杂性（以Gflops�
 
 ### 配套版本
 
-| mindspore | ascend driver | firmware     | cann toolkit/kernel|
-|:----------:|:---:           | :--:          |:--:|
-| 2.3.1     | 24.1.RC2      | 7.3.0.1.231  | 8.0.RC2.beta1|
+| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |    24.1.0     | 7.5.0.3.220 |     8.0.0.beta1     |
+|   2.3.1   |   24.1.RC2    | 7.3.0.1.231 |    8.0.RC2.beta1    |
 
 ### 环境设置
 
@@ -81,11 +82,19 @@ seed: 42
 ddim_sampling: True
 ```
 
-实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
+实验在MindSpore图模式Ascend 910*上进行验证：
+
+- mindspore 2.5.0
+
+| model name | cards | resolution | scheduler | steps | jit level | graph compile | s/img |
+| :--------: | :---: | :--------: | :----: | :---: |:---------:|:-------------:|:-----:|
+|    dit     |   1   |  256x256   |  ddpm  |  250  |    O1     |    15.74s     |  104  |
+
+- mindspore 2.3.1
 
 | model name | cards | resolution | scheduler | steps | jit level | graph compile | s/img |
 | :--------: | :---: | :--------: | :----: | :---: | :-------: | :-----------: | :---------: |
-|    dit     |   1   |  256x256   |  ddpm  |  250  |    O2     |    82.83s     |   58.45    |
+|    dit     |   1   |  256x256   |  ddpm  |  250  |    O2     |    82.83s     |   58.45s    |
 
 一些生成的示例图像如下所示：
 Some generated example images are shown below:
@@ -133,13 +142,25 @@ bash scripts/run_distributed.sh -h
 
 ## 评估
 
-实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
-| model name | cards | batch size   | resolution  | recompute | sink | jit level | graph compile | s/step | img/s |
-| :--------: | :---: | :-----------:| :--------:  | :--------: | :-------: | :---------------: | :-------: | :-------: | :-----------: |
-|    dit     |   1   |      64      |  256x256    |    OFF    |        ON         |    O2     |  3~5 mins    |   0.89   |     71.91     |
-|    dit     |   1   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   0.95   |     67.37     |
-|    dit     |   4   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   1.03   |    248.52     |
-|    dit     |   8   |     64       |  256x256    |    ON     |        ON         |    O2     |   3~5 mins    |   0.93   |    515.61     |
+实验在MindSpore图模式的Ascend 910*上进行验证：
+
+- mindspore 2.5.0
+
+| model name | cards | resolution | batch size | recompute |   sink   | jit level | graph compile | s/step | img/s  |
+| :--------: | :---: | :--------: | :--------: | :-------: |:--------:|:---------:|:-------------:|:------:|:------:|
+|    dit     |   1   |  256x256   |     64     |    OFF    |    ON    |    O1     |   2~4 mins    |  0.84  | 76.19  |
+|    dit     |   1   |  256x256   |     64     |    ON     |    ON    |    O1     |   2~4 mins    |  1.01  | 63.37  |
+|    dit     |   4   |  256x256   |     64     |    ON     |    ON    |    O1     |   2~4 mins    |  1.07  | 239.25 |
+|    dit     |   8   |  256x256   |     64     |    ON     |    ON    |    O1     |   2~4 mins    |  1.07  | 478.50 |
+
+- mindspore 2.3.1
+
+| model name | cards | resolution | batch size | recompute |   sink   | jit level | graph compile | s/step |    img/s     |
+| :--------: | :---: | :--------: | :--------: | :-------: |:--------:| :-------: | :-----------: |:------:|:------------:|
+|    dit     |   1   |  256x256   |     64     |    OFF    |    ON    |    O2     |   3~5 mins    |  0.89  |    71.91     |
+|    dit     |   1   |  256x256   |     64     |    ON     |    ON    |    O2     |   3~5 mins    |  0.95  |    67.37     |
+|    dit     |   4   |  256x256   |     64     |    ON     |    ON    |    O2     |   3~5 mins    |  1.03  |    248.52    |
+|    dit     |   8   |  256x256   |     64     |    ON     |    ON    |    O2     |   3~5 mins    |  0.93  |    515.61    |
 
 
 # 参考文献

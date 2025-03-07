@@ -108,7 +108,7 @@ def latents_to_rgb(latents):
     weights = (
         (60, -60, 25, -70),
         (60,  -5, 15, -50),
-        (60,  10, -5, -35)
+        (60,  10, -5, -35),
     )
 
     def einsum(tensor1, tensor2):
@@ -120,8 +120,7 @@ def latents_to_rgb(latents):
     weights_tensor = ops.t(ms.Tensor(weights, dtype=latents.dtype))
     biases_tensor = ms.Tensor((150, 140, 130), dtype=latents.dtype)
     rgb_tensor = einsum(latents, weights_tensor) + biases_tensor.unsqueeze(-1).unsqueeze(-1)
-    image_array = rgb_tensor.clamp(0, 255)[0].to(ms.uint8).asnumpy()
-    image_array = image_array.transpose(1, 2, 0)
+    image_array = rgb_tensor.clamp(0, 255)[0].to(ms.uint8).asnumpy().transpose(1, 2, 0)
 
     return Image.fromarray(image_array)
 ```

@@ -171,7 +171,8 @@ class EvalSaveCallback(Callback):
     def _do_ckpt_combine_online(self):
         new_net_to_save = []
         all_gather_op = ops.AllGather(self.optimizer_parallel_group)
-        for param in self.net_to_save:
+        for item in self.net_to_save:
+            param = item["data"]
             if param.parallel_optimizer:
                 new_data = ms.Tensor(all_gather_op(param).asnumpy())
             else:
@@ -194,33 +195,31 @@ class EvalSaveCallback(Callback):
         else:
             cur_epoch = cb_params.cur_epoch_num - 1
 
-        if self.save_training_resume and self.need_save_optimizer:
-            # TODO: resume training for step.
-            ckpt_name = f"train_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "train_resume.ckpt"
-            save_checkpoint(
-                cb_params.train_network,
-                os.path.join(self.ckpt_save_dir, ckpt_name),
-                choice_func=self.choice_func,
-                append_dict={
-                    "epoch_num": cur_epoch,
-                    "cur_step": cur_step,
-                    "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                },
-            )
-            if self.ema is not None:
-                ckpt_name = f"ema_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "ema_resume.ckpt"
+        # if data sink, train step callback will not be invokded
+        if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
+            if self.save_training_resume and self.need_save_optimizer:
+                # TODO: resume training for step.
+                ckpt_name = f"train_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "train_resume.ckpt"
                 save_checkpoint(
-                    self.ema,
+                    cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, ckpt_name),
                     choice_func=self.choice_func,
+                    append_dict={
+                        "epoch_num": cur_epoch,
+                        "cur_step": cur_step,
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                    },
                 )
-
-        if self.ckpt_combine_online:
-            new_net_to_save = self._do_ckpt_combine_online()
-
-        if self.need_save_network:
-            # if data sink, train step callback will not be invokded
-            if self.step_mode and (cur_step % self.ckpt_save_interval == 0 or cur_step == step_num):
+                if self.ema is not None:
+                    ckpt_name = f"ema_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "ema_resume.ckpt"
+                    save_checkpoint(
+                        self.ema,
+                        os.path.join(self.ckpt_save_dir, ckpt_name),
+                        choice_func=self.choice_func,
+                    )
+            if self.ckpt_combine_online:
+                new_net_to_save = self._do_ckpt_combine_online()
+            if self.need_save_network:
                 ckpt_name = (
                     f"{self.model_name}-s{cur_step}.ckpt"
                     if self.use_step_unit
@@ -254,39 +253,37 @@ class EvalSaveCallback(Callback):
                 if self.ema is not None:
                     self.ema.swap_after_eval()
 
-            if cur_step % self.log_interval == 0 or cur_step == step_num:
-                if self.record_lr:
-                    cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
+        if self.is_main_device and cur_step % self.log_interval == 0 or cur_step == step_num:
+            if self.record_lr:
+                cur_lr = self._fetch_optimizer_lr(cb_params)  # get lr
 
-                train_time = time.time() - self.step_start_time
-                step_pref_value = (
-                    [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
+            train_time = time.time() - self.step_start_time
+            step_pref_value = [cur_step, loss, cur_lr, train_time] if self.record_lr else [cur_step, loss, train_time]
+            self.rec.add(*step_pref_value)
+
+            if self.record_lr:
+                _logger.info(
+                    "epoch %d, step %d, lr %.7f, loss %.6f, loss scale %d, global_step %d, step_time(ms) %.1f",
+                    cb_params.cur_epoch_num,
+                    (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                    cur_lr.asnumpy().item(),
+                    loss.asnumpy().item(),
+                    self._get_scaling_value_from_cbp(cb_params),
+                    cur_step,
+                    (train_time * 1000) / self.log_interval,
                 )
-                self.rec.add(*step_pref_value)
+            else:
+                _logger.info(
+                    "epoch %d, step %d, loss %.6f, loss scale %d, global_step %d, step_time(ms) %.1f",
+                    cb_params.cur_epoch_num,
+                    (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
+                    loss.asnumpy().item(),
+                    self._get_scaling_value_from_cbp(cb_params),
+                    cur_step,
+                    (train_time * 1000) / self.log_interval,
+                )
 
-                if self.record_lr:
-                    _logger.info(
-                        "epoch %d, step %d, lr %.7f, loss %.6f, loss scale %d, global_step %d, step_time(ms) %.1f",
-                        cb_params.cur_epoch_num,
-                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
-                        cur_lr.asnumpy().item(),
-                        loss.asnumpy().item(),
-                        self._get_scaling_value_from_cbp(cb_params),
-                        cur_step,
-                        (train_time * 1000) / self.log_interval,
-                    )
-                else:
-                    _logger.info(
-                        "epoch %d, step %d, loss %.6f, loss scale %d, global_step %d, step_time(ms) %.1f",
-                        cb_params.cur_epoch_num,
-                        (cb_params.cur_step_num - 1) % cb_params.batch_num + 1,
-                        loss.asnumpy().item(),
-                        self._get_scaling_value_from_cbp(cb_params),
-                        cur_step,
-                        (train_time * 1000) / self.log_interval,
-                    )
-
-                self.step_start_time = time.time()
+            self.step_start_time = time.time()
 
     def on_train_epoch_begin(self, run_context):
         """
@@ -311,31 +308,29 @@ class EvalSaveCallback(Callback):
         opt = self._get_optimizer_from_cbp(cb_params)
         cur_step = int(opt.global_step.asnumpy().item())
 
-        if self.save_training_resume and self.need_save_optimizer:
-            # TODO: resume training for step.
-            ckpt_name = f"train_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "train_resume.ckpt"
-            save_checkpoint(
-                cb_params.train_network,
-                os.path.join(self.ckpt_save_dir, ckpt_name),
-                choice_func=self.choice_func,
-                append_dict={
-                    "epoch_num": cur_epoch,
-                    "loss_scale": self._get_scaling_value_from_cbp(cb_params),
-                },
-            )
-            if self.ema is not None:
-                ckpt_name = f"ema_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "ema_resume.ckpt"
+        if not self.step_mode and (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
+            if self.save_training_resume and self.need_save_optimizer:
+                # TODO: resume training for step.
+                ckpt_name = f"train_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "train_resume.ckpt"
                 save_checkpoint(
-                    self.ema,
+                    cb_params.train_network,
                     os.path.join(self.ckpt_save_dir, ckpt_name),
                     choice_func=self.choice_func,
+                    append_dict={
+                        "epoch_num": cur_epoch,
+                        "loss_scale": self._get_scaling_value_from_cbp(cb_params),
+                    },
                 )
-
-        if self.ckpt_combine_online:
-            new_net_to_save = self._do_ckpt_combine_online()
-
-        if self.need_save_network and (not self.step_mode):
-            if (cur_epoch % self.ckpt_save_interval == 0) or (cur_epoch == epoch_num):
+                if self.ema is not None:
+                    ckpt_name = f"ema_resume_op_rank_{self.op_rank_id}.ckpt" if self.use_zero else "ema_resume.ckpt"
+                    save_checkpoint(
+                        self.ema,
+                        os.path.join(self.ckpt_save_dir, ckpt_name),
+                        choice_func=self.choice_func,
+                    )
+            if self.ckpt_combine_online:
+                new_net_to_save = self._do_ckpt_combine_online()
+            if self.need_save_network:
                 ckpt_name = (
                     f"{self.model_name}-s{cur_step}.ckpt"
                     if self.use_step_unit
@@ -367,7 +362,7 @@ class EvalSaveCallback(Callback):
                 if self.ema is not None:
                     self.ema.swap_after_eval()
 
-            self.last_epoch_end_time = time.time()
+        self.last_epoch_end_time = time.time()
 
     def on_train_end(self, run_context):
         if self.is_main_device:
