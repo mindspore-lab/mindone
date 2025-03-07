@@ -204,6 +204,13 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 | STDiT3 (Diffusion) | 1.1B       | 30M  | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v3) |
 | VAE                | 384M       | 3M   | [Download](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) |
 
+The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following commands to convert the model weights to the MindSpore format.
+
+<details>
+<summary>Convert to the MindSpore format</summary>
+
 - Convert STDiT3 to MS checkpoint:
 
 ```shell
@@ -213,10 +220,12 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v3/model.safetensors
 - Convert VAE to MS checkpoint:
 
 ```shell
-python convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
+python tools/convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
 ```
 
-- The T5 model is identical to OpenSora 1.0 and can be downloaded from the links below.
+</details>
+
+- The T5 model is identical to OpenSora 1.0 and can be downloaded and converted using the links below.
 
 
 ### Open-Sora 1.1 Model Weights
@@ -231,13 +240,16 @@ python convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --ta
 | 2     | mainly 144p & 240p | 700M       | 10M videos + 2M images     | 100k        | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) |
 | 3     | 144p to 720p       | 700M       | 500K HQ videos + 1M images | 4k          | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3) |
 
-Convert to MS checkpoint:
 
-```
+The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following command to convert the model weights to the MindSpore format.
+
+```shell
 python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safetensors --target models/opensora_v1.1_stage3.ckpt
 ```
 
-- T5 and VAE models are identical to OpenSora 1.0 and can be downloaded from the links below.
+- T5 and VAE models are identical to OpenSora 1.0 and can be downloaded and converted using the links below.
 
 </details>
 
@@ -248,21 +260,24 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safe
 
 Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows.
 
-- T5:
+- **T5**:
   You can download and convert the T5 model automatically by running the following command:
   ```shell
   python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
   ```
   If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
 
-- VAE: Download the safetensor checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main))
+- **VAE**: The model weights are automatically downloaded from Hugging Face during execution.  
+Local `.safetensors` weights can also be used.  
+Alternatively, you can use the following command to convert the model weights to the MindSpore format.
+First, download the `.safetensor` checkpoint from [here](https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main).
+Then execute the following command:
 
-    Convert to ms checkpoint:
-    ```
+    ```shell
     python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
-- STDiT: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
+- **STDiT**: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
     Convert to ms checkpoint:
 
@@ -275,7 +290,7 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
     These model weights are partially initialized from [PixArt-α](https://github.com/PixArt-alpha/PixArt-alpha). The number of
 parameters is 724M. More information about training can be found in HPC-AI Tech's **[report](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_01.md)**. More about the dataset can be found in [datasets.md](https://github.com/hpcaitech/Open-Sora/blob/main/docs/datasets.md) from HPC-AI Tech. HQ means high quality.
 
-- PixArt-α: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
+- **PixArt-α**: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
     Convert to ms checkpoint:
     ```

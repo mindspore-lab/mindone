@@ -6,7 +6,7 @@ python scripts/infer_vae.py \
     --csv_path /path/to/video_caption.csv \
     --video_folder /path/to/video \
     --output_path /path/to/vae_cache \
-    --vae_checkpoint models/sd-vae-ft-ema.ckpt \
+    --vae_checkpoint stabilityai/sd-vae-ft-ema \
     --image_size 576 1024 \
     --transform_name crop_resize \
     --vae_micro_batch_size 64 \

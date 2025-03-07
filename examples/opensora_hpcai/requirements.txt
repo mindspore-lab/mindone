@@ -8,6 +8,7 @@ pillow==9.1.1
 tqdm
 decord
 safetensors
+huggingface_hub
 omegaconf
 pyyaml
 tokenizers
