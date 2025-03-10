@@ -5,12 +5,13 @@ import functools
 import json
 import pathlib
 import queue
-import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
+import decord
 import numpy as np
+from cogvideox.dataset import VideoDatasetWithResizeAndRectangleCrop, VideoDatasetWithResizing
 from tqdm import tqdm
 from transformers import T5Tokenizer
 
@@ -22,11 +23,6 @@ from mindone.diffusers import AutoencoderKLCogVideoX
 from mindone.diffusers.training_utils import init_distributed_device, is_master, set_seed
 from mindone.diffusers.utils import export_to_video, get_logger
 from mindone.transformers import T5EncoderModel
-
-import decord  # isort:skip
-
-from dataset import VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
-
 
 decord.bridge.set_bridge("native")
 
@@ -154,19 +150,24 @@ def get_args() -> Dict[str, Any]:
     )
     parser.add_argument("--target_fps", type=int, default=8, help="Frame rate of output videos.")
     parser.add_argument(
-        "--save_latents_and_embeddings",
+        "--vae_cache",
         action="store_true",
-        help="Whether to encode videos/captions to latents/embeddings and save them in pytorch serializable format.",
+        help="Whether to encode videos to latents and save them in numpy array format.",
+    )
+    parser.add_argument(
+        "--embeddings_cache",
+        action="store_true",
+        help="Whether to encode captions to embeddings and save them in numpy array format.",
     )
     parser.add_argument(
         "--use_slicing",
         action="store_true",
-        help="Whether to enable sliced encoding/decoding in the VAE. Only used if `--save_latents_and_embeddings` is also used.",
+        help="Whether to enable sliced encoding/decoding in the VAE. Only used if `--vae_cache` is also used.",
     )
     parser.add_argument(
         "--use_tiling",
         action="store_true",
-        help="Whether to enable tiled encoding/decoding in the VAE. Only used if `--save_latents_and_embeddings` is also used.",
+        help="Whether to enable tiled encoding/decoding in the VAE. Only used if `--vae_cache` is also used.",
     )
     parser.add_argument("--batch_size", type=int, default=1, help="Number of videos to process at once in the VAE.")
     parser.add_argument(
@@ -246,7 +247,7 @@ def serialize_artifacts(
     prompts: Optional[List[str]] = None,
     prompt_embeds: Optional[ms.Tensor] = None,
 ) -> None:
-    num_frames, height, width = videos.shape[1], videos.shape[3], videos.shape[4]
+    num_frames, height, width = videos.shape[1], videos.shape[2], videos.shape[3]
     metadata = [{"num_frames": num_frames, "height": height, "width": width}]
 
     data_folder_mapper_list = [
@@ -285,6 +286,9 @@ def save_intermediates(output_queue: queue.Queue) -> None:
 def main():
     args = get_args()
     set_seed(args.seed)
+    ms.set_cpu_affinity(True)
+    # Initialize distributed processing
+    init_distributed_device(args)
 
     output_dir = pathlib.Path(args.output_dir)
     tmp_dir = output_dir.joinpath("tmp")
@@ -296,9 +300,6 @@ def main():
     output_queue = queue.Queue()
     save_thread = ThreadPoolExecutor(max_workers=args.num_artifact_workers)
     save_future = save_thread.submit(save_intermediates, output_queue)
-
-    # Initialize distributed processing
-    init_distributed_device(args)
 
     # Create folders where intermediate tensors from each rank will be saved
     images_dir = tmp_dir.joinpath(f"images/{args.rank}")
@@ -319,12 +320,13 @@ def main():
     target_fps = args.target_fps
 
     # 1. Prepare models
-    if args.save_latents_and_embeddings:
-        tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
+    tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
+    if args.embeddings_cache:
         text_encoder = T5EncoderModel.from_pretrained(
             args.model_id, subfolder="text_encoder", mindspore_dtype=weight_dtype
         )
 
+    if args.vae_cache:
         vae = AutoencoderKLCogVideoX.from_pretrained(args.model_id, subfolder="vae", mindspore_dtype=weight_dtype)
 
         if args.use_slicing:
@@ -343,7 +345,8 @@ def main():
         "height_buckets": args.height_buckets,
         "width_buckets": args.width_buckets,
         "frame_buckets": args.frame_buckets,
-        "load_tensors": False,
+        "embeddings_cache": False,
+        "vae_cache": False,
         "random_flip": args.random_flip,
         "image_to_video": args.save_image_latents,
         "tokenizer": tokenizer,
@@ -408,12 +411,9 @@ def main():
     dataloader_iter = dataloader.create_tuple_iterator()
 
     # 4. Compute latents and embeddings and save
-    if args.rank == 0:
-        iterator = tqdm(
-            dataloader_iter, desc="Encoding", total=(rank_dataset_size + args.batch_size - 1) // args.batch_size
-        )
-    else:
-        iterator = dataloader_iter
+    iterator = tqdm(
+        dataloader_iter, desc="Encoding", total=(rank_dataset_size + args.batch_size - 1) // args.batch_size
+    )
 
     for step, batch in enumerate(iterator):
         try:
@@ -432,9 +432,10 @@ def main():
             prompts = batch[1].asnumpy().tolist()
 
             text_input_ids = batch[2]
-
+            prompt_embeds = None
+            video_latents = None
             # Encode videos & images
-            if args.save_latents_and_embeddings:
+            if args.vae_cache:
                 if args.use_slicing:
                     if args.save_image_latents:
                         encoded_slices = [vae._encode(image_slice) for image_slice in images.split(1)]
@@ -453,6 +454,7 @@ def main():
 
                 video_latents = video_latents.to(dtype=weight_dtype).float().asnumpy()
 
+            if args.embeddings_cache:
                 # Encode prompts
                 prompt_embeds = (
                     compute_prompt_embeddings(
@@ -494,16 +496,19 @@ def main():
         except Exception:
             print("-------------------------")
             print(f"An exception occurred while processing data: {args.rank=}, {args.world_size=}, {step=}")
-            traceback.print_exc()
-            print("-------------------------")
+            raise
 
     # 5. Complete distributed processing
-    if args.world_size > 1:
-        ops.Barrier()()
-
     output_queue.put(None)
     save_thread.shutdown(wait=True)
     save_future.result()
+
+    if args.world_size > 1:
+        y = ms.mint.ones((1,), dtype=ms.int32)
+        ms.mint.distributed.all_reduce(y)
+        print(f"All devices have preprocessed, device num is {y.item()}", flush=True)
+        if y.item() != args.world_size:
+            print("[WARNING] Not all device done!")
 
     # 6. Combine results from each rank
     if is_master(args):

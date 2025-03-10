@@ -20,16 +20,21 @@ import math
 import os
 import shutil
 from pathlib import Path
+from time import time
 from typing import Any, Dict, Optional
 
 import numpy as np
 import yaml
+from args import get_args
+from cogvideox.dataset import VideoDatasetWithResizeAndRectangleCrop, VideoDatasetWithResizing
+from cogvideox.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
+from cogvideox.utils import get_optimizer
 from tensorboardX import SummaryWriter
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import context, nn, ops
+from mindspore import context, mint, nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
@@ -38,7 +43,6 @@ from mindone.diffusers import (
     AutoencoderKLCogVideoX,
     CogVideoXDPMScheduler,
     CogVideoXPipeline,
-    CogVideoXTransformer3DModel,
     ConfigMixin,
     SchedulerMixin,
 )
@@ -57,11 +61,6 @@ from mindone.diffusers.training_utils import (
 from mindone.diffusers.utils import convert_unet_state_dict_to_peft, export_to_video
 from mindone.diffusers.utils.logging import get_logger
 from mindone.transformers import T5EncoderModel
-
-from args import get_args  # isort:skip
-from dataset import VideoDatasetWithResizing, VideoDatasetWithResizeAndRectangleCrop  # isort:skip
-from utils import get_optimizer  # isort:skip
-
 
 logger = get_logger(__name__)
 
@@ -151,9 +150,10 @@ def log_validation(
 
 
 class CollateFunction:
-    def __init__(self, weight_dtype: ms.Type, load_tensors: bool, use_rope: bool) -> None:
+    def __init__(self, weight_dtype: ms.Type, vae_cache: bool, embeddings_cache: bool, use_rope: bool) -> None:
         self.weight_dtype = weight_dtype
-        self.load_tensors = load_tensors
+        self.vae_cache = vae_cache
+        self.embeddings_cache = embeddings_cache
         self.use_rope = use_rope
 
     def __call__(self, examples: Dict[str, Any]) -> Dict[str, ms.Tensor]:
@@ -182,6 +182,7 @@ def main(args):
         mode=args.mindspore_mode,
         jit_config={"jit_level": args.jit_level},
     )
+    ms.set_cpu_affinity(True)
 
     # read attr distributed, writer attrs rank/local_rank/world_size:
     #   args.local_rank = mindspore.communication.get_local_rank()
@@ -208,6 +209,26 @@ def main(args):
             os.makedirs(args.output_dir, exist_ok=True)
         os.makedirs(logging_dir, exist_ok=True)
 
+    # enable_sequence_parallelism check
+    enable_sequence_parallelism = getattr(args, "enable_sequence_parallelism", False)
+    sequence_parallel_shards = getattr(args, "sequence_parallel_shards", 1)
+    if enable_sequence_parallelism:
+        if args.world_size <= 1 or args.sequence_parallel_shards <= 1:
+            logging.warning(
+                f"world_size :{args.world_size}, "
+                f"sequence_parallel_shards: {args.sequence_parallel_shards} "
+                f"can not enable enable_sequence_parallelism=True."
+            )
+            enable_sequence_parallelism = False
+            sequence_parallel_shards = 1
+        else:
+            from cogvideox.acceleration import create_parallel_group
+
+            create_parallel_group(sequence_parallel_shards=args.sequence_parallel_shards)
+            ms.set_auto_parallel_context(enable_alltoall=True)
+    else:
+        sequence_parallel_shards = 1
+
     # Prepare models and scheduler
     # Loading order changed for MindSpore adaptation
     tokenizer = AutoTokenizer.from_pretrained(
@@ -229,41 +250,53 @@ def main(args):
     # CogVideoX-2b weights are stored in float16
     # CogVideoX-5b and CogVideoX-5b-I2V weights are stored in bfloat16
     # load_dtype = ms.bfloat16 if "5b" in args.pretrained_model_name_or_path.lower() else ms.float16
-    transformer = CogVideoXTransformer3DModel.from_pretrained(
+    transformer = CogVideoXTransformer3DModel_SP.from_pretrained(
         args.pretrained_model_name_or_path,
         subfolder="transformer",
         mindspore_dtype=weight_dtype,
         revision=args.revision,
         variant=args.variant,
+        enable_sequence_parallelism=enable_sequence_parallelism,
     )
+    transformer.fa_checkpointing = args.fa_gradient_checkpointing
     set_params_requires_grad(transformer, False)
 
     text_encoder, vae = None, None
     # Only load Text-encoder & VAE when they are needed in training or validation. Because currently
     # the MindSpore memory pool does not have the function of releasing memory fragments. Deleting
     # them after loading still causes memory fragments which might result in OOM on devices.
-    if not args.load_tensors or args.validation_prompt is not None:
+    if not args.embeddings_cache:
         text_encoder = T5EncoderModel.from_pretrained(
             args.pretrained_model_name_or_path,
             subfolder="text_encoder",
             mindspore_dtype=weight_dtype,
             revision=args.revision,
         )
+        set_params_requires_grad(text_encoder, False)
 
-        vae = AutoencoderKLCogVideoX.from_pretrained(
-            args.pretrained_model_name_or_path,
-            subfolder="vae",
-            mindspore_dtype=weight_dtype,
-            revision=args.revision,
-            variant=args.variant,
-        )
+    if not args.vae_cache:
+        if enable_sequence_parallelism:
+            vae = AutoencoderKLCogVideoX_SP.from_pretrained(
+                args.pretrained_model_name_or_path,
+                subfolder="vae",
+                mindspore_dtype=weight_dtype,
+                revision=args.revision,
+                variant=args.variant,
+            )
+        else:
+            vae = AutoencoderKLCogVideoX.from_pretrained(
+                args.pretrained_model_name_or_path,
+                subfolder="vae",
+                mindspore_dtype=weight_dtype,
+                revision=args.revision,
+                variant=args.variant,
+            )
 
         if args.enable_slicing:
             vae.enable_slicing()
         if args.enable_tiling:
             vae.enable_tiling()
 
-        set_params_requires_grad(text_encoder, False)
         set_params_requires_grad(vae, False)
 
     if args.gradient_checkpointing:
@@ -280,18 +313,26 @@ def main(args):
 
     # create custom saving & loading hooks so that `accelerator.save_state(...)` serializes in a nice format
     def save_model_hook(models, output_dir):
+        transformer_lora_layers_to_save_new = None
+        if args.zero_stage == 3:
+            all_gather_op = ops.AllGather()
+        for model in models:
+            if isinstance(model, CogVideoXTransformer3DModel_SP):
+                transformer_lora_layers_to_save = get_peft_model_state_dict(model)
+                transformer_lora_layers_to_save_new = {}
+                for name, param in transformer_lora_layers_to_save.items():
+                    if args.zero_stage == 3 and param.parallel_optimizer:
+                        data = ms.Tensor(all_gather_op(param).asnumpy())
+                    else:
+                        data = ms.Tensor(param.asnumpy())
+                    transformer_lora_layers_to_save_new[name] = data
+
+            else:
+                raise ValueError(f"Unexpected save model: {model.__class__}")
         if is_local_master(args):
-            transformer_lora_layers_to_save = None
-
-            for model in models:
-                if isinstance(model, CogVideoXTransformer3DModel):
-                    transformer_lora_layers_to_save = get_peft_model_state_dict(model)
-                else:
-                    raise ValueError(f"Unexpected save model: {model.__class__}")
-
             CogVideoXPipeline.save_lora_weights(
                 output_dir,
-                transformer_lora_layers=transformer_lora_layers_to_save,
+                transformer_lora_layers=transformer_lora_layers_to_save_new,
             )
 
     def load_model_hook(models, input_dir):
@@ -352,10 +393,11 @@ def main(args):
         "height_buckets": args.height_buckets,
         "width_buckets": args.width_buckets,
         "frame_buckets": args.frame_buckets,
-        "load_tensors": args.load_tensors,
+        "embeddings_cache": args.embeddings_cache,
+        "vae_cache": args.vae_cache,
         "random_flip": args.random_flip,
-        "tokenizer": None if args.load_tensors else tokenizer,
-        "max_sequence_length": None if args.load_tensors else transformer_config.max_text_seq_length,
+        "tokenizer": None if args.embeddings_cache else tokenizer,
+        "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
         "use_rotary_positional_embeddings": transformer_config.use_rotary_positional_embeddings,
         "vae_scale_factor_spatial": VAE_SCALE_FACTOR_SPATIAL,
         "patch_size": transformer_config.patch_size,
@@ -371,7 +413,9 @@ def main(args):
             video_reshape_mode=args.video_reshape_mode, **dataset_init_kwargs
         )
 
-    collate_fn = CollateFunction(weight_dtype, args.load_tensors, transformer_config.use_rotary_positional_embeddings)
+    collate_fn = CollateFunction(
+        weight_dtype, args.vae_cache, args.embeddings_cache, transformer_config.use_rotary_positional_embeddings
+    )
 
     train_dataloader = GeneratorDataset(
         train_dataset,
@@ -386,6 +430,7 @@ def main(args):
         output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"]
         if transformer_config.use_rotary_positional_embeddings
         else ["videos", "text_input_ids"],
+        num_parallel_workers=args.dataloader_num_workers,
     )
 
     # Scheduler and math around the number of training steps.
@@ -397,7 +442,11 @@ def main(args):
 
     if args.scale_lr:
         args.learning_rate = (
-            args.learning_rate * args.gradient_accumulation_steps * args.train_batch_size * args.world_size
+            args.learning_rate
+            * args.gradient_accumulation_steps
+            * args.train_batch_size
+            * args.world_size
+            // sequence_parallel_shards
         )
 
     lr_scheduler = get_scheduler(
@@ -448,6 +497,7 @@ def main(args):
         weight_dtype=weight_dtype,
         args=args,
         use_rotary_positional_embeddings=transformer_config.use_rotary_positional_embeddings,
+        enable_sequence_parallelism=enable_sequence_parallelism,
     ).set_train(True)
 
     loss_scaler = DynamicLossScaleUpdateCell(loss_scale_value=65536.0, scale_factor=2, scale_window=2000)
@@ -534,7 +584,11 @@ def main(args):
         transformer.set_train(True)
 
         for step, batch in enumerate(train_dataloader_iter):
-            loss, _, _ = train_step(*batch)
+            train_start = time()
+            transformer_inputs = train_step.network.prepare_transformer_inputs(*batch)
+            loss, overflow, scale_sense = train_step(*transformer_inputs)
+            if overflow:
+                logger.warning(f"Step {step} overflow!, scale_sense is {scale_sense}")
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if train_step.accum_steps == 1 or train_step.cur_accum_step.item() == 0:
@@ -572,12 +626,13 @@ def main(args):
 
             last_lr = optimizer.get_lr()
             last_lr = last_lr[0] if isinstance(last_lr, tuple) else last_lr  # grouped lr scenario
-            logs = {"loss": loss.item(), "lr": last_lr.item()}
+            logs = {"loss": loss.item(), "lr": last_lr.item(), "pre step time": time() - train_start}
             progress_bar.set_postfix(**logs)
 
-            for tracker_name, tracker in trackers.items():
-                if tracker_name == "tensorboard":
-                    tracker.add_scalars("train", logs, global_step)
+            if is_master(args):
+                for tracker_name, tracker in trackers.items():
+                    if tracker_name == "tensorboard":
+                        tracker.add_scalars("train", logs, global_step)
 
             if global_step >= args.max_train_steps:
                 break
@@ -703,6 +758,7 @@ class TrainStepForCogVideo(nn.Cell):
         weight_dtype: ms.Type,
         args: AttrJitWrapper,
         use_rotary_positional_embeddings: bool,
+        enable_sequence_parallelism: bool = False,
     ):
         super().__init__()
 
@@ -719,6 +775,16 @@ class TrainStepForCogVideo(nn.Cell):
 
         self.use_rotary_positional_embeddings = use_rotary_positional_embeddings
         self.args = AttrJitWrapper(**vars(args))
+        self.enable_sequence_parallelism = enable_sequence_parallelism
+        self.sp_group = None
+        self.sp_rank = 0
+        if self.enable_sequence_parallelism:
+            from cogvideox.acceleration import get_sequence_parallel_group
+
+            from mindspore.communication import get_rank
+
+            self.sp_group = get_sequence_parallel_group()
+            self.sp_rank = get_rank(self.sp_group)
 
     def compute_prompt_embeddings(
         self,
@@ -738,56 +804,64 @@ class TrainStepForCogVideo(nn.Cell):
         return prompt_embeds
 
     def diagonal_gaussian_distribution_sample(self, latent_dist: ms.Tensor) -> ms.Tensor:
-        mean, logvar = ops.chunk(latent_dist, 2, axis=1)
-        logvar = ops.clamp(logvar, -30.0, 20.0)
-        std = ops.exp(0.5 * logvar)
+        mean, logvar = mint.chunk(latent_dist, 2, dim=1)
+        logvar = mint.clamp(logvar, min=-30.0, max=20.0)
+        std = mint.exp(0.5 * logvar)
 
-        sample = ops.randn_like(mean, dtype=mean.dtype)
+        sample = mint.randn_like(mean, dtype=mean.dtype)
         x = mean + std * sample
-
         return x
 
-    def construct(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
-        # Encode videos
-        if not self.args.load_tensors:
-            with pynative_no_grad():
-                videos = videos.permute(0, 2, 1, 3, 4).to(self.vae_dtype)  # [B, C, F, H, W]
+    def _broadcast_out(self, x):
+        x = x.contiguous()
+        if self.enable_sequence_parallelism:
+            mint.distributed.broadcast(tensor=x, src=0, group=self.sp_group)
+        return x
+
+    def prepare_transformer_inputs(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
+        with pynative_context(), pynative_no_grad():
+            if not args.vae_cache:
+                videos = videos.permute(0, 2, 1, 3, 4).to(self.vae.dtype)  # [B, C, F, H, W]
                 videos = self.vae.encode(videos)[0]
+            videos = videos.to(self.weight_dtype)
+            videos = self.diagonal_gaussian_distribution_sample(videos) * self.vae_scaling_factor
+            # [B, C, F, H, W] (1, 16, 20, 96, 170) -> [B, F, C, H, W]
+            videos = videos.permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
+            model_input = videos
 
-        videos = self.diagonal_gaussian_distribution_sample(videos) * self.vae_scaling_factor
-        videos = videos.permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
-        videos = videos.to(dtype=self.weight_dtype)
-        model_input = videos
-
-        # Encode prompts
-        if not args.load_tensors:
-            with pynative_no_grad():
+            # Encode prompts
+            if not args.embeddings_cache:
                 prompt_embeds = self.compute_prompt_embeddings(
                     text_input_ids_or_prompt_embeds,
                     dtype=self.weight_dtype,
                 )
-        else:
-            prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
+            else:
+                prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
+            # prompt_embeds(1, 226, 4096)
+            # Sample noise that will be added to the latents
+            noise = mint.randn_like(model_input, dtype=model_input.dtype)
+            batch_size, num_frames, num_channels, height, width = model_input.shape
 
-        # Sample noise that will be added to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
-        batch_size, num_frames, num_channels, height, width = model_input.shape
+            # Sample a random timestep for each image
+            timesteps = mint.randint(0, self.scheduler_num_train_timesteps, (batch_size,), dtype=ms.int32)
 
-        # Sample a random timestep for each image
-        timesteps = ops.randint(
-            0,
-            self.scheduler_num_train_timesteps,
-            (batch_size,),
-            dtype=ms.int64,
-        )
+            # Rotary embeds is Prepared in dataset.
+            if self.use_rotary_positional_embeddings:
+                image_rotary_emb = image_rotary_emb[0].to(self.weight_dtype)  # [2, S, D], (2, 40800, 64)
 
-        # Rotary embeds is Prepared in dataset.
-        if self.use_rotary_positional_embeddings:
-            image_rotary_emb = image_rotary_emb[0].to(self.weight_dtype)  # [2, S, D]
+            # Add noise to the model input according to the noise magnitude at each timestep
+            # (this is the forward diffusion process)
+            noisy_model_input = self.scheduler.add_noise(model_input, noise, timesteps)
 
-        # Add noise to the model input according to the noise magnitude at each timestep
-        # (this is the forward diffusion process)
-        noisy_model_input = self.scheduler.add_noise(model_input, noise, timesteps)
+            model_input = self._broadcast_out(model_input)
+            prompt_embeds = self._broadcast_out(prompt_embeds)
+            noisy_model_input = self._broadcast_out(noisy_model_input)
+            timesteps = self._broadcast_out(timesteps)
+            image_rotary_emb = self._broadcast_out(image_rotary_emb)
+        return model_input, prompt_embeds, noisy_model_input, timesteps, image_rotary_emb
+
+    def construct(self, model_input, prompt_embeds, noisy_model_input, timesteps, image_rotary_emb=None):
+        batch_size = model_input.shape[0]
 
         # Predict the noise residual
         model_output = self.transformer(
@@ -807,9 +881,9 @@ class TrainStepForCogVideo(nn.Cell):
 
         target = model_input
 
-        loss = ops.mean(
+        loss = mint.mean(
             (weights * (model_pred - target) ** 2).reshape(batch_size, -1),
-            axis=1,
+            dim=1,
         )
         loss = loss.mean()
 
