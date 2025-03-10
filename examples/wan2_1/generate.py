@@ -6,19 +6,20 @@ import random
 import sys
 from datetime import datetime
 
+from PIL import Image
+
+import mindspore as ms
+import mindspore.mint.distributed as dist
+from mindspore.communication import GlobalComm
+
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 import wan
-from PIL import Image
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
 from wan.utils.prompt_extend import QwenPromptExpander
 from wan.utils.utils import cache_image, cache_video, str2bool
-
-import mindspore as ms
-import mindspore.mint.distributed as dist
-from mindspore.communication import GlobalComm
 
 EXAMPLE_PROMPT = {
     "t2v-1.3B": {
@@ -166,7 +167,7 @@ def _init_logging(rank):
 
 
 def generate(args):
-    if args.ulysses_sp or args.t5_zero3 or args.dit_zero3:
+    if args.ulysses_sp or args.t5_zero3 or args.dit_zero3 or args.qwen_zero3:
         dist.init_process_group(backend="hccl")
         ms.set_auto_parallel_context(parallel_mode="data_parallel")
 

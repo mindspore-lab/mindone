@@ -68,7 +68,7 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
     - [x] Single-NPU inference code of the 14B and 1.3B models
     - [x] Multi-NPU inference acceleration for the 14B models
     - [x] Prompt extension support
-    - [ ] Gradio demo
+    - [x] Gradio demo
 - Wan2.1 Image-to-Video
     - [x] Single-NPU inference code of the 14B model
     - [x] Multi-NPU inference acceleration for the 14B model
@@ -201,7 +201,7 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
 
 #### (2) Using Prompt Extension
 
-Extending the prompts can effectively enrich the details in the generated videos, further enhancing the video quality. Therefore, we recommend enabling prompt extension. We provide the following two methods for prompt extension:
+Extending the prompts can effectively enrich the details in the generated videos, further enhancing the video quality. Therefore, we recommend enabling prompt extension. We provide the following method for prompt extension:
 
 - Using a local model for extension.
 
@@ -218,7 +218,16 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
     --ckpt_dir ./Wan2.1-T2V-14B \
     --dit_zero3 --t5_zero3 --qwen_zero3 --ulysses_sp \
     --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage" \
-    --use_prompt_extend --prompt_extend_method 'local_qwen' --prompt_extend_target_lang 'zh'
+    --use_prompt_extend --prompt_extend_target_lang 'zh'
+```
+
+#### (3) Running local gradio
+
+- Single-NPU inference (1.3B model only)
+
+```sh
+cd gradio
+python t2v_1.3B_singleNPU.py --ckpt_dir ../Wan2.1-T2V-1.3B
 ```
 
 ### Run Image-to-Video Generation
