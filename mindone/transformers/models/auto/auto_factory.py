@@ -776,7 +776,7 @@ class _LazyAutoMapping(OrderedDict):
             sub_path = os.path.abspath(os.path.dirname(__file__))
             sub_path = str(Path(sub_path).parent.parent.parent.parent)
             sys.path.insert(0, sub_path)
-            self._modules[module_name] = importlib.import_module(f"mindone.transformers.models.{model_type}")
+            self._modules[module_name] = importlib.import_module(f".{module_name}", "mindone.transformers.models")
         if module_name not in self._modules:
             self._modules[module_name] = importlib.import_module(f".{module_name}", "transformers.models")
         return getattribute_from_module(self._modules[module_name], attr)
