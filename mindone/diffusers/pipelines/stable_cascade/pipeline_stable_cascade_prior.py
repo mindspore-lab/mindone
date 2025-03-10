@@ -46,7 +46,7 @@ EXAMPLE_DOC_STRING = """
         ... )
 
         >>> prompt = "an image of a shiba inu, donning a spacesuit and helmet"
-        >>> prior_output = pipe(prompt)
+        >>> prior_output = prior_pipe(prompt)
         ```
 """
 
@@ -138,7 +138,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
             if latents.shape != latent_shape:
                 raise ValueError(f"Unexpected latents shape, got {latents.shape}, expected {latent_shape}")
 
-        latents = latents * scheduler.init_noise_sigma
+        latents = (latents * scheduler.init_noise_sigma).to(dtype)
         return latents
 
     def encode_prompt(
@@ -162,12 +162,14 @@ class StableCascadePriorPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.tensor(text_inputs.input_ids)
+            text_input_ids = text_inputs.input_ids
             attention_mask = ms.tensor(text_inputs.attention_mask)
 
-            untruncated_ids = ms.tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -177,7 +179,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
                 attention_mask = attention_mask[:, : self.tokenizer.model_max_length]
 
             text_encoder_output = self.text_encoder(
-                text_input_ids, attention_mask=attention_mask, output_hidden_states=True
+                ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
             )
             prompt_embeds = text_encoder_output[2][-1]
             if prompt_embeds_pooled is None:
@@ -348,7 +350,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
         return self._num_timesteps
 
     def get_timestep_ratio_conditioning(self, t, alphas_cumprod):
-        s = ms.tensor([0.003])
+        s = ms.tensor([0.008])
         clamp_range = [0, 1]
         min_var = ops.cos(s / (1 + s) * pi * 0.5) ** 2
         var = alphas_cumprod[t]
@@ -538,7 +540,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
         if isinstance(self.scheduler, DDPMWuerstchenScheduler):
             timesteps = timesteps[:-1]
         else:
-            if self.scheduler.config.clip_sample:
+            if hasattr(self.scheduler.config, "clip_sample") and self.scheduler.config.clip_sample:
                 self.scheduler.config.clip_sample = False  # disample sample clipping
                 logger.warning(" set `clip_sample` to be False")
         # 6. Run denoising loop

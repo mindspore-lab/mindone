@@ -13,16 +13,28 @@ import mindspore as ms
 from mindspore import Tensor, nn, ops
 
 sys.path.append("../../stable_diffusion_xl")  # FIXME: loading modules from the SDXL directory
-from gm.modules.attention import (
+from modules.diffusionmodules.util import AlphaBlender
+
+from examples.stable_diffusion_xl.gm.modules.attention import (
     FLASH_IS_AVAILABLE,
     CrossAttention,
     FeedForward,
     MemoryEfficientCrossAttention,
     SpatialTransformer,
 )
-from gm.modules.diffusionmodules.openaimodel import Downsample, ResBlock, Timestep, TimestepBlock, Upsample
-from gm.modules.diffusionmodules.util import conv_nd, normalization, timestep_embedding, zero_module
-from modules.diffusionmodules.util import AlphaBlender
+from examples.stable_diffusion_xl.gm.modules.diffusionmodules.openaimodel import (
+    Downsample,
+    ResBlock,
+    Timestep,
+    TimestepBlock,
+    Upsample,
+)
+from examples.stable_diffusion_xl.gm.modules.diffusionmodules.util import (
+    conv_nd,
+    normalization,
+    timestep_embedding,
+    zero_module,
+)
 
 
 def _positional_encoding(length: int, dim: int, max_period=10000) -> np.ndarray:
@@ -280,9 +292,9 @@ class TemporalTransformer(SpatialTransformer):
 
             time_context = context
             time_context_first_timestep = time_context[::timesteps]
-            time_context = time_context_first_timestep.repeat(h * w, axis=0)  # b ... -> (b n) ...
+            time_context = time_context_first_timestep.repeat_interleave(h * w, dim=0)  # b ... -> (b n) ...
         elif time_context is not None and not self.use_spatial_context:
-            time_context = time_context.repeat(h * w, axis=0)  # b ... -> (b n) ...
+            time_context = time_context.repeat_interleave(h * w, dim=0)  # b ... -> (b n) ...
             if time_context.ndim == 2:
                 time_context = time_context.expand_dims(1)  # b c -> b 1 c
 

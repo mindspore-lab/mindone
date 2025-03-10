@@ -15,13 +15,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the `examples/controlnet` folder and run
-```bash
-pip install -r requirements_sdxl.txt
-```
 
 ## Circle filling dataset
 
@@ -41,7 +37,7 @@ wget https://huggingface.co/datasets/huggingface/documentation-images/resolve/ma
 export MODEL_DIR="stabilityai/stable-diffusion-xl-base-1.0"
 export OUTPUT_DIR="path to save model"
 
-accelerate launch train_controlnet_sdxl.py \
+python train_controlnet_sdxl.py \
  --pretrained_model_name_or_path=$MODEL_DIR \
  --output_dir=$OUTPUT_DIR \
  --dataset_name=fusing/fill50k \
@@ -59,8 +55,6 @@ accelerate launch train_controlnet_sdxl.py \
 To better track our training experiments, we're using the following flags in the command above:
 
 * `validation_image`, `validation_prompt`, and `validation_steps` to allow the script to do a few validation inference runs. This allows us to qualitatively check if the training is progressing as expected.
-
-Our experiments were conducted on a single 40GB A100 GPU.
 
 ### Inference
 

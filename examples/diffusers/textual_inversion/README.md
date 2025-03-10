@@ -16,13 +16,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install .
+pip install -e ".[training]"
 ```
 
-Then cd in the example folder and run:
-```bash
-pip install -r requirements.txt
-```
 
 ### Cat toy example
 
@@ -51,7 +47,7 @@ Now we can launch the training using:
 **___Note: Please follow the [README_sdxl.md](./README_sdxl.md) if you are using the [stable-diffusion-xl](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0).___**
 
 ```bash
-export MODEL_NAME="runwayml/stable-diffusion-v1-5"
+export MODEL_NAME="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export DATA_DIR="./cat"
 
 python textual_inversion.py \
@@ -71,8 +67,6 @@ python textual_inversion.py \
   --lr_warmup_steps=0 \
   --output_dir="textual_inversion_cat"
 ```
-
-A full training run takes ~1 hour on one V100 GPU.
 
 **Note**: As described in [the official paper](https://arxiv.org/abs/2208.01618)
 only one embedding vector is used for the placeholder token, *e.g.* `"<cat-toy>"`.
@@ -96,6 +90,9 @@ from mindone.diffusers import StableDiffusionPipeline
 
 model_id = "path-to-your-trained-model"
 pipe = StableDiffusionPipeline.from_pretrained(model_id, mindspore_dtype=ms.float16)
+
+repo_id_embeds = "path-to-your-learned-embeds"
+pipe.load_textual_inversion(repo_id_embeds)
 
 prompt = "A <cat-toy> backpack"
 

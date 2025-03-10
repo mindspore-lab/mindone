@@ -20,13 +20,9 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
+pip install -e ".[training]"
 ```
 
-Then cd in the `examples/dreambooth` folder and run
-```bash
-pip install -r requirements_sdxl.txt
-```
 
 ### Dog toy example
 
@@ -55,7 +51,7 @@ export INSTANCE_DIR="dog"
 export OUTPUT_DIR="lora-trained-xl"
 export VAE_PATH="madebyollin/sdxl-vae-fp16-fix"
 
-accelerate launch train_dreambooth_lora_sdxl.py \
+python train_dreambooth_lora_sdxl.py \
   --pretrained_model_name_or_path=$MODEL_NAME  \
   --pretrained_vae_model_name_or_path=$VAE_PATH \
   --instance_data_dir=$INSTANCE_DIR \
@@ -77,8 +73,6 @@ accelerate launch train_dreambooth_lora_sdxl.py \
 To better track our training experiments, we're using the following flags in the command above:
 
 * `validation_prompt` and `validation_epochs` to allow the script to do a few validation inference runs. This allows us to qualitatively check if the training is progressing as expected.
-
-Our experiments were conducted on a single 40GB A100 GPU.
 
 ### Inference
 
@@ -175,7 +169,7 @@ For the SDXL model, simple set:
 Other SDXL-like models that use the EDM formulation, such as [playgroundai/playground-v2.5-1024px-aesthetic](https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic), can also be DreamBooth'd with the script. Below is an example command:
 
 ```bash
-accelerate launch train_dreambooth_lora_sdxl.py \
+python train_dreambooth_lora_sdxl.py \
   --pretrained_model_name_or_path="playgroundai/playground-v2.5-1024px-aesthetic"  \
   --instance_data_dir="dog" \
   --output_dir="dog-playground-lora" \
@@ -184,7 +178,7 @@ accelerate launch train_dreambooth_lora_sdxl.py \
   --resolution=1024 \
   --train_batch_size=1 \
   --gradient_accumulation_steps=4 \
-  --learning_rate=1e-5 \
+  --learning_rate=1e-4 \
   --lr_scheduler="constant" \
   --lr_warmup_steps=0 \
   --max_train_steps=500 \

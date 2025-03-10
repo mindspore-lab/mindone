@@ -3,11 +3,10 @@ import logging
 
 from mindspore import Model as MSModel
 from mindspore import context, nn
-from mindspore.nn import GELU, GroupNorm, SiLU
+from mindspore.nn import GroupNorm, SiLU  # GELU
 from mindspore.train.callback import _CallbackManager
 
 from ..models.layers.blocks import Attention, LayerNorm, LlamaRMSNorm, PositionEmbedding2D, SinusoidalEmbedding
-from ..models.text_encoder.flan_t5_large.t5 import T5LayerNorm
 
 # SORA's whitelist (FP32) operators
 WHITELIST_OPS = [
@@ -15,11 +14,10 @@ WHITELIST_OPS = [
     Attention,
     LlamaRMSNorm,
     SiLU,
-    GELU,
+    # GELU,
     GroupNorm,
     PositionEmbedding2D,
     SinusoidalEmbedding,
-    T5LayerNorm,
 ]
 
 logger = logging.getLogger(__name__)

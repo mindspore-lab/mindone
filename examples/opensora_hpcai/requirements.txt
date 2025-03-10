@@ -1,15 +1,11 @@
 opencv-python
 scikit-image
-einops
 ftfy
-regex
 albumentations
 pandas
 imagesize
-toolz
 pillow==9.1.1
 tqdm
-mindcv
 decord
 safetensors
 omegaconf
@@ -17,4 +13,9 @@ pyyaml
 tokenizers
 sentencepiece
 transformers
-pyav
+av
+mindcv==0.3.0
+beautifulsoup4
+# for T5 tokenizer
+tiktoken
+sentencepiece

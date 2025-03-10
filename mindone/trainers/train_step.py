@@ -1,33 +1,34 @@
 """Train step wrapper supporting setting drop overflow update, ema etc"""
+from typing import Optional
 
 from packaging import version
 
 import mindspore as ms
 import mindspore.context as context
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn, ops
 from mindspore.boost.grad_accumulation import gradient_accumulation_op as _grad_accum_op
 from mindspore.boost.grad_accumulation import gradient_clear_op as _grad_clear_op
 from mindspore.common import RowTensor
 from mindspore.common import dtype as mstype
 from mindspore.ops import composite as C
 from mindspore.ops import functional as F
-from mindspore.ops import operations as P
+
+from .ema import EMA
 
 _grad_scale = C.MultitypeFuncGraph("grad_scale")
-reciprocal = P.Reciprocal()
 _grad_overflow = C.MultitypeFuncGraph("_grad_overflow")
 
 
 @_grad_scale.register("Tensor", "Tensor")
 def tensor_grad_scale(scale, grad):
-    return grad * F.cast(reciprocal(scale), F.dtype(grad))
+    return grad * F.cast(mint.reciprocal(scale), F.dtype(grad))
 
 
 @_grad_scale.register("Tensor", "RowTensor")
 def tensor_grad_scale_row_tensor(scale, grad):
     return RowTensor(
         grad.indices,
-        grad.values * F.cast(reciprocal(scale), F.dtype(grad.values)),
+        grad.values * F.cast(mint.reciprocal(scale), F.dtype(grad.values)),
         grad.dense_shape,
     )
 
@@ -55,7 +56,7 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         network,
         optimizer,
         scale_sense=1.0,
-        ema=None,
+        ema: Optional[EMA] = None,
         updates=0,
         drop_overflow_update=True,
         gradient_accumulation_steps=1,
@@ -95,6 +96,12 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
         self.grad_reducer = self.grad_reducer if self.zero_stage == 0 else nn.Identity()
         if self.zero_stage != 0:
             self.zero_helper.split_params()
+            if gradient_accumulation_steps > 1:
+                self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
+
+    def set_train(self, mode: bool = True):
+        # Delegate the setting of training mode behavior to the network.
+        self.network.set_train(mode)
 
     def construct(self, *inputs):
         # compute loss

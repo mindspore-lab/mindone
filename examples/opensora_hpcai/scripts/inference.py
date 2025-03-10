@@ -11,15 +11,16 @@ import yaml
 
 import mindspore as ms
 from mindspore import Tensor, nn
-from mindspore.communication.management import get_group_size, get_rank, init
+from mindspore.communication.management import GlobalComm, get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
+from opensora.acceleration.parallel_states import set_sequence_parallel_group
 from opensora.datasets.aspect import ASPECT_RATIO_MAP, ASPECT_RATIOS, get_image_size, get_num_frames
-from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT_XL_2
+from opensora.models.stdit import STDiT2_XL_2, STDiT3_XL_2, STDiT3_XL_2_DSP, STDiT_XL_2
 from opensora.models.text_encoder.t5 import get_text_encoder_and_tokenizer
 from opensora.models.vae.vae import SD_CONFIG, OpenSoraVAE_V1_2, VideoAutoencoderKL
 from opensora.pipelines import InferPipeline, InferPipelineFiTLike
@@ -50,6 +51,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     jit_level: str = "O0",
+    enable_sequence_parallelism: bool = False,
     debug: bool = False,
 ):
     """
@@ -86,6 +88,10 @@ def init_env(
             gradients_mean=True,
             device_num=device_num,
         )
+
+        if enable_sequence_parallelism:
+            set_sequence_parallel_group(GlobalComm.WORLD_COMM_GROUP)
+            ms.set_auto_parallel_context(enable_alltoall=True)
     else:
         device_num = 1
         rank_id = 0
@@ -94,6 +100,9 @@ def init_env(
             device_target=device_target,
             pynative_synchronize=debug,
         )
+
+        if enable_sequence_parallelism:
+            raise ValueError("`use_parallel` must be `True` when using sequence parallelism.")
 
     try:
         if jit_level in ["O0", "O1", "O2"]:
@@ -133,6 +142,7 @@ def main(args):
         max_device_memory=args.max_device_memory,
         jit_level=args.jit_level,
         debug=args.debug,
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
     )
 
     # 1.1 get captions from cfg or prompt_path
@@ -153,14 +163,23 @@ def main(args):
         latent_condition_frame_length = round(latent_condition_frame_length / 17 * 5)
 
     captions = process_prompts(captions, args.loop)  # in v1.1 and above, each loop can have a different caption
+    start_idx = 0
+    end_idx = len(
+        captions if args.text_embed_folder is None else glob.glob(os.path.join(args.text_embed_folder, "*.npz"))
+    )
+    if not args.enable_sequence_parallelism:
+        # split samples to NPUs as even as possible
+        start_idx, end_idx = distribute_samples(end_idx, rank_id, device_num)
+        if args.reference_path is not None:
+            args.reference_path = args.reference_path[start_idx:end_idx]
+        if args.mask_strategy is not None:
+            args.mask_strategy = args.mask_strategy[start_idx:end_idx]
+        base_data_idx = start_idx
+    else:
+        base_data_idx = 0
 
-    # split samples to NPUs as even as possible
-    start_idx, end_idx = distribute_samples(len(captions), rank_id, device_num)
-    captions = captions[start_idx:end_idx]
-    base_data_idx = start_idx
-
-    if args.use_parallel:
-        print(f"Num captions for rank {rank_id}: {len(captions)}")
+    if args.use_parallel and not args.enable_sequence_parallelism:
+        print(f"Num captions for rank {rank_id}: {end_idx - start_idx}")
 
     # 2. model initiate and weight loading
     # 2.1 vae
@@ -174,6 +193,7 @@ def main(args):
             config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
         )
     elif args.vae_type == "OpenSoraVAE_V1_2":
+        assert os.path.exists(args.vae_checkpoint), f"vae checkopint {args.vae_checkpoint} NOT found"
         vae = OpenSoraVAE_V1_2(
             micro_batch_size=args.vae_micro_batch_size,
             micro_frame_size=args.vae_micro_frame_size,
@@ -208,6 +228,7 @@ def main(args):
         model_max_length=args.model_max_length,
         patchify_conv3d_replace=patchify_conv3d_replace,  # for Ascend
         enable_flashattn=args.enable_flash_attention,
+        enable_sequence_parallelism=args.enable_sequence_parallelism,
     )
     if args.pre_patchify and args.model_version != "v1.1":
         raise ValueError("`pre_patchify=True` can only be used in model version 1.1.")
@@ -239,7 +260,10 @@ def main(args):
         model_name = "STDiT3"
         model_extra_args["qk_norm"] = True
         logger.info(f"{model_name} init")
-        latte_model = STDiT3_XL_2(**model_extra_args)
+        if args.dsp:
+            latte_model = STDiT3_XL_2_DSP(**model_extra_args)
+        else:
+            latte_model = STDiT3_XL_2(**model_extra_args)
     else:
         raise ValueError(f"Unknown model version: {args.model_version}")
 
@@ -268,39 +292,33 @@ def main(args):
 
     # 2.3 text encoder
     if args.text_embed_folder is None:
+        if args.t5_dtype == "fp16":
+            logger.warning("T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32.")
+        # TODO: use FA in T5
         text_encoder, tokenizer = get_text_encoder_and_tokenizer(
-            "t5", args.t5_model_dir, model_max_length=args.model_max_length
+            "t5", args.t5_model_name_or_path, dtype=dtype_map[args.t5_dtype], model_max_length=args.model_max_length
         )
+        captions = captions[start_idx:end_idx]
         num_prompts = len(captions)
         text_tokens, mask = zip(
             *[text_encoder.get_text_tokens_and_mask(caption, return_tensor=False) for caption in captions]
         )
         text_tokens, mask = Tensor(text_tokens, dtype=ms.int32), Tensor(mask, dtype=ms.uint8)
         text_emb = None
-        # TODO: use FA in T5
-        if args.t5_dtype in ["fp16", "bf16"]:
-            if args.t5_dtype == "fp16":
-                logger.warning(
-                    "T5 dtype is fp16, which may lead to video color vibration. Suggest to use bf16 or fp32."
-                )
-            text_encoder = auto_mixed_precision(
-                text_encoder, amp_level="O2", dtype=dtype_map[args.t5_dtype], custom_fp32_cells=WHITELIST_OPS
-            )
         logger.info(f"Num tokens: {mask.asnumpy().sum(2)}")
     else:
-        assert not args.use_parallel, "parallel inference is not supported for t5 cached sampling currently."
         if args.model_version != "v1":
             logger.warning("For embedded captions, only one prompt per video is supported at this moment.")
 
-        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))
+        embed_paths = sorted(glob.glob(os.path.join(args.text_embed_folder, "*.npz")))[start_idx:end_idx]
         prompt_prefix = []
         text_tokens, mask, text_emb = [], [], []
         for fp in embed_paths:
             prompt_prefix.append(os.path.basename(fp)[:-4])
-            dat = np.load(fp)
-            text_tokens.append(dat["tokens"])
-            mask.append(dat["mask"])
-            text_emb.append(dat["text_emb"])
+            with np.load(fp) as dat:
+                text_tokens.append(dat["tokens"])
+                mask.append(dat["mask"])
+                text_emb.append(dat["text_emb"])
         text_tokens = np.concatenate(text_tokens)
         mask = np.concatenate(mask)
         text_emb = np.concatenate(text_emb)
@@ -463,22 +481,26 @@ def main(args):
                 videos.append(to_numpy(samples)[:, args.condition_frame_length if loop_i > 0 else 0 :])
             batch_time = time.time() - start_time
             logger.info(
-                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.2f} step/s"
+                f"Batch time cost: {batch_time:.3f}s, sampling speed: {args.sampling_steps * ns / batch_time:.4f} step/s"
             )
 
         latents = np.concatenate(latents, axis=2)
         if videos:
             videos = np.concatenate(videos, axis=1)
 
+        if args.enable_sequence_parallelism and rank_id > 0:
+            # no need to save images for rank > 1
+            continue
+
         # save result
         for j in range(ns):
-            global_idx = base_data_idx + i + j
             if args.text_embed_folder is None:
+                global_idx = base_data_idx + i + j
                 prompt = "-".join((batch_prompts[j][0].replace("/", "").split(" ")[:10]))
                 save_fp = f"{save_dir}/{global_idx:03d}-{prompt}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{global_idx:03d}-{prompt}.npy"
             else:
-                fn = prompt_prefix[global_idx]
+                fn = prompt_prefix[i + j]
                 save_fp = f"{save_dir}/{fn}.{args.save_format}"
                 latent_save_fp = f"{latent_dir}/{fn}.npy"
 
@@ -524,7 +546,9 @@ def parse_args():
         default="",
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
     )
-    parser.add_argument("--t5_model_dir", default=None, type=str, help="the T5 cache folder path")
+    parser.add_argument(
+        "--t5_model_name_or_path", default="DeepFloyd/t5-v1_1-xxl", type=str, help="T5 model name or path"
+    )
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
@@ -614,6 +638,13 @@ def parse_args():
         type=str2bool,
         help="whether to enable flash attention. Default is False",
     )
+    parser.add_argument(
+        "--enable_sequence_parallelism",
+        default=False,
+        type=str2bool,
+        help="whether to enable sequence parallelism. Default is False",
+    )
+    parser.add_argument("--dsp", default=False, type=str2bool, help="Use DSP instead of SP in sequence parallel.")
     parser.add_argument(
         "--dtype",
         default="fp32",

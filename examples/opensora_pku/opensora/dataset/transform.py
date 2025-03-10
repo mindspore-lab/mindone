@@ -1,9 +1,11 @@
 import html
+import random
 import re
 import urllib.parse as ul
 
 import albumentations
 import ftfy
+import numpy as np
 from bs4 import BeautifulSoup
 
 __all__ = ["create_video_transforms", "t5_text_preprocessing"]
@@ -24,11 +26,12 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
 
         targets = {"image{}".format(i): "image" for i in range(num_frames)}
         mapping = {"bilinear": cv2.INTER_LINEAR, "bicubic": cv2.INTER_CUBIC}
+        max_size = max(h, w)
         if disable_flip:
             # flip is not proper for horizontal motion learning
             pixel_transforms = albumentations.Compose(
                 [
-                    SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
+                    SmallestMaxSize(max_size=max_size, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
                 additional_targets=targets,
@@ -39,7 +42,7 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
             pixel_transforms = albumentations.Compose(
                 [
                     HorizontalFlip(p=0.5),
-                    SmallestMaxSize(max_size=h, interpolation=mapping[interpolation]),
+                    SmallestMaxSize(max_size=max_size, interpolation=mapping[interpolation]),
                     CenterCrop(h, w),
                 ],
                 additional_targets=targets,
@@ -63,6 +66,81 @@ def create_video_transforms(h, w, num_frames, interpolation="bicubic", backend="
         raise NotImplementedError
 
     return pixel_transforms
+
+
+def crop(image, i, j, h, w):
+    if len(image.shape) != 3:
+        raise ValueError("image should be a 3D tensor")
+    return image[i : i + h, j : j + w, ...]
+
+
+def center_crop_th_tw(image, th, tw, top_crop, **kwargs):
+    # input is a 3-d arrary (H, W, C)
+
+    h, w = image.shape[0], image.shape[1]
+    tr = th / tw
+    if h / w > tr:
+        new_h = int(w * tr)
+        new_w = w
+    else:
+        new_h = h
+        new_w = int(h / tr)
+
+    i = 0 if top_crop else int(round((h - new_h) / 2.0))
+    j = int(round((w - new_w) / 2.0))
+    cropped_image = crop(image, i, j, new_h, new_w)
+    return cropped_image
+
+
+def resize(image, h, w, interpolation_mode):
+    resize_func = albumentations.Resize(h, w, interpolation=interpolation_mode)
+
+    return resize_func(image=image)["image"]
+
+
+def get_params(h, w, stride):
+    th, tw = h // stride * stride, w // stride * stride
+
+    i = (h - th) // 2
+    j = (w - tw) // 2
+
+    return i, j, th, tw
+
+
+def spatial_stride_crop_video(image, stride, **kwargs):
+    """
+    Args:
+        image (numpy array): Video clip to be cropped. Size is (H, W, C)
+    Returns:
+        numpy array: cropped video clip by stride.
+            size is (OH, OW, C)
+    """
+    h, w = image.shape[:2]
+    i, j, h, w = get_params(h, w, stride)
+    return crop(image, i, j, h, w)
+
+
+def maxhxw_resize(image, max_hxw, interpolation_mode, **kwargs):
+    """
+        First use the h*w,
+        then resize to the specified size
+    Args:
+        image (numpy array): Video clip to be cropped. Size is (H, W, C)
+    Returns:
+        numpy array: scale resized video clip.
+    """
+    h, w = image.shape[:2]
+    if h * w > max_hxw:
+        scale_factor = np.sqrt(max_hxw / (h * w))
+        tr_h = int(h * scale_factor)
+        tr_w = int(w * scale_factor)
+    else:
+        tr_h = h
+        tr_w = w
+    if h == tr_h and w == tr_w:
+        return image
+    resize_image = resize(image, tr_h, tr_w, interpolation_mode)
+    return resize_image
 
 
 # create text transform(preprocess)
@@ -196,3 +274,220 @@ def clean_caption(caption):
     caption = re.sub(r"^\.\S+$", "", caption)
 
     return caption.strip()
+
+
+#  ------------------------------------------------------------
+#  ---------------------  Sampling  ---------------------------
+#  ------------------------------------------------------------
+class TemporalRandomCrop(object):
+    """Temporally crop the given frame indices at a random location.
+
+    Args:
+        size (int): Desired length of frames will be seen in the model.
+    """
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, total_frames):
+        rand_end = max(0, total_frames - self.size - 1)
+        begin_index = random.randint(0, rand_end)
+        end_index = min(begin_index + self.size, total_frames)
+        return begin_index, end_index
+
+
+class DynamicSampleDuration(object):
+    """Temporally crop the given frame indices at a random location.
+
+    Args:
+        size (int): Desired length of frames will be seen in the model.
+    """
+
+    def __init__(self, t_stride, extra_1):
+        self.t_stride = t_stride
+        self.extra_1 = extra_1
+
+    def __call__(self, t, h, w):
+        if self.extra_1:
+            t = t - 1
+        truncate_t_list = list(range(t + 1))[t // 2 :][:: self.t_stride]  # need half at least
+        truncate_t = random.choice(truncate_t_list)
+        if self.extra_1:
+            truncate_t = truncate_t + 1
+        return 0, truncate_t
+
+
+keywords = [
+    " man ",
+    " woman ",
+    " person ",
+    " people ",
+    "human",
+    " individual ",
+    " child ",
+    " kid ",
+    " girl ",
+    " boy ",
+]
+keywords += [i[:-1] + "s " for i in keywords]
+
+masking_notices = [
+    "Note: The faces in this image are blurred.",
+    "This image contains faces that have been pixelated.",
+    "Notice: Faces in this image are masked.",
+    "Please be aware that the faces in this image are obscured.",
+    "The faces in this image are hidden.",
+    "This is an image with blurred faces.",
+    "The faces in this image have been processed.",
+    "Attention: Faces in this image are not visible.",
+    "The faces in this image are partially blurred.",
+    "This image has masked faces.",
+    "Notice: The faces in this picture have been altered.",
+    "This is a picture with obscured faces.",
+    "The faces in this image are pixelated.",
+    "Please note, the faces in this image have been blurred.",
+    "The faces in this photo are hidden.",
+    "The faces in this picture have been masked.",
+    "Note: The faces in this picture are altered.",
+    "This is an image where faces are not clear.",
+    "Faces in this image have been obscured.",
+    "This picture contains masked faces.",
+    "The faces in this image are processed.",
+    "The faces in this picture are not visible.",
+    "Please be aware, the faces in this photo are pixelated.",
+    "The faces in this picture have been blurred.",
+]
+
+webvid_watermark_notices = [
+    "This video has a faint Shutterstock watermark in the center.",
+    "There is a slight Shutterstock watermark in the middle of this video.",
+    "The video contains a subtle Shutterstock watermark in the center.",
+    "This video features a light Shutterstock watermark at its center.",
+    "A faint Shutterstock watermark is present in the middle of this video.",
+    "There is a mild Shutterstock watermark at the center of this video.",
+    "This video has a slight Shutterstock watermark in the middle.",
+    "You can see a faint Shutterstock watermark in the center of this video.",
+    "A subtle Shutterstock watermark appears in the middle of this video.",
+    "This video includes a light Shutterstock watermark at its center.",
+]
+
+
+high_aesthetic_score_notices_video = [
+    "This video has a high aesthetic quality.",
+    "The beauty of this video is exceptional.",
+    "This video scores high in aesthetic value.",
+    "With its harmonious colors and balanced composition.",
+    "This video ranks highly for aesthetic quality",
+    "The artistic quality of this video is excellent.",
+    "This video is rated high for beauty.",
+    "The aesthetic quality of this video is impressive.",
+    "This video has a top aesthetic score.",
+    "The visual appeal of this video is outstanding.",
+]
+
+low_aesthetic_score_notices_video = [
+    "This video has a low aesthetic quality.",
+    "The beauty of this video is minimal.",
+    "This video scores low in aesthetic appeal.",
+    "The aesthetic quality of this video is below average.",
+    "This video ranks low for beauty.",
+    "The artistic quality of this video is lacking.",
+    "This video has a low score for aesthetic value.",
+    "The visual appeal of this video is low.",
+    "This video is rated low for beauty.",
+    "The aesthetic quality of this video is poor.",
+]
+
+
+high_aesthetic_score_notices_image = [
+    "This image has a high aesthetic quality.",
+    "The beauty of this image is exceptional",
+    "This photo scores high in aesthetic value.",
+    "With its harmonious colors and balanced composition.",
+    "This image ranks highly for aesthetic quality.",
+    "The artistic quality of this photo is excellent.",
+    "This image is rated high for beauty.",
+    "The aesthetic quality of this image is impressive.",
+    "This photo has a top aesthetic score.",
+    "The visual appeal of this image is outstanding.",
+]
+
+low_aesthetic_score_notices_image = [
+    "This image has a low aesthetic quality.",
+    "The beauty of this image is minimal.",
+    "This image scores low in aesthetic appeal.",
+    "The aesthetic quality of this image is below average.",
+    "This image ranks low for beauty.",
+    "The artistic quality of this image is lacking.",
+    "This image has a low score for aesthetic value.",
+    "The visual appeal of this image is low.",
+    "This image is rated low for beauty.",
+    "The aesthetic quality of this image is poor.",
+]
+
+high_aesthetic_score_notices_image_human = [
+    "High-quality image with visible human features and high aesthetic score.",
+    "Clear depiction of an individual in a high-quality image with top aesthetics.",
+    "High-resolution photo showcasing visible human details and high beauty rating.",
+    "Detailed, high-quality image with well-defined human subject and strong aesthetic appeal.",
+    "Sharp, high-quality portrait with clear human features and high aesthetic value.",
+    "High-quality image featuring a well-defined human presence and exceptional aesthetics.",
+    "Visible human details in a high-resolution photo with a high aesthetic score.",
+    "Clear, high-quality image with prominent human subject and superior aesthetic rating.",
+    "High-quality photo capturing a visible human with excellent aesthetics.",
+    "Detailed, high-quality image of a human with high visual appeal and aesthetic value.",
+]
+
+
+def calculate_statistics(data):
+    if len(data) == 0:
+        return None
+    data = np.array(data)
+    mean = np.mean(data)
+    variance = np.var(data)
+    std_dev = np.std(data)
+    minimum = np.min(data)
+    maximum = np.max(data)
+
+    return {"mean": mean, "variance": variance, "std_dev": std_dev, "min": minimum, "max": maximum}
+
+
+def maxhwresize(ori_height, ori_width, max_hxw):
+    if ori_height * ori_width > max_hxw:
+        scale_factor = np.sqrt(max_hxw / (ori_height * ori_width))
+        new_height = int(ori_height * scale_factor)
+        new_width = int(ori_width * scale_factor)
+    else:
+        new_height = ori_height
+        new_width = ori_width
+    return new_height, new_width
+
+
+def add_aesthetic_notice_video(caption, aesthetic_score):
+    if aesthetic_score <= 4.25:
+        notice = random.choice(low_aesthetic_score_notices_video)
+        return random.choice([caption + " " + notice, notice + " " + caption])
+    if aesthetic_score >= 5.75:
+        notice = random.choice(high_aesthetic_score_notices_video)
+        return random.choice([caption + " " + notice, notice + " " + caption])
+    return caption
+
+
+def add_aesthetic_notice_image(caption, aesthetic_score):
+    if aesthetic_score <= 4.25:
+        notice = random.choice(low_aesthetic_score_notices_image)
+        return random.choice([caption + " " + notice, notice + " " + caption])
+    if aesthetic_score >= 5.75:
+        notice = random.choice(high_aesthetic_score_notices_image)
+        return random.choice([caption + " " + notice, notice + " " + caption])
+    return caption
+
+
+def add_high_aesthetic_notice_image(caption):
+    notice = random.choice(high_aesthetic_score_notices_image)
+    return random.choice([caption + " " + notice, notice + " " + caption])
+
+
+def add_high_aesthetic_notice_image_human(caption):
+    notice = random.choice(high_aesthetic_score_notices_image_human)
+    return random.choice([caption + " " + notice, notice + " " + caption])

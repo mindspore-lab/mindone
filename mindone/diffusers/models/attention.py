@@ -17,10 +17,17 @@ import mindspore as ms
 from mindspore import nn, ops
 
 from ..utils import logging
-from .activations import GEGLU, GELU, ApproximateGELU
-from .attention_processor import Attention, JointAttnProcessor
+from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, SwiGLU
+from .attention_processor import Attention, JointAttnProcessor2_0
 from .embeddings import SinusoidalPositionalEmbedding
-from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, LayerNorm, RMSNorm
+from .normalization import (
+    AdaLayerNorm,
+    AdaLayerNormContinuous,
+    AdaLayerNormZero,
+    LayerNorm,
+    RMSNorm,
+    SD35AdaLayerNormZeroX,
+)
 
 logger = logging.get_logger(__name__)
 
@@ -95,13 +102,25 @@ class JointTransformerBlock(nn.Cell):
             processing of `context` conditions.
     """
 
-    def __init__(self, dim, num_attention_heads, attention_head_dim, context_pre_only=False):
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        context_pre_only: bool = False,
+        qk_norm: Optional[str] = None,
+        use_dual_attention: bool = False,
+    ):
         super().__init__()
 
+        self.use_dual_attention = use_dual_attention
         self.context_pre_only = context_pre_only
         context_norm_type = "ada_norm_continous" if context_pre_only else "ada_norm_zero"
 
-        self.norm1 = AdaLayerNormZero(dim)
+        if use_dual_attention:
+            self.norm1 = SD35AdaLayerNormZeroX(dim)
+        else:
+            self.norm1 = AdaLayerNormZero(dim)
 
         if context_norm_type == "ada_norm_continous":
             self.norm1_context = AdaLayerNormContinuous(
@@ -114,19 +133,36 @@ class JointTransformerBlock(nn.Cell):
                 f"Unknown context_norm_type: {context_norm_type}, currently only support `ada_norm_continous`, `ada_norm_zero`"
             )
 
-        processor = JointAttnProcessor()
+        processor = JointAttnProcessor2_0()
 
         self.attn = Attention(
             query_dim=dim,
             cross_attention_dim=None,
             added_kv_proj_dim=dim,
-            dim_head=attention_head_dim // num_attention_heads,
+            dim_head=attention_head_dim,
             heads=num_attention_heads,
-            out_dim=attention_head_dim,
+            out_dim=dim,
             context_pre_only=context_pre_only,
             bias=True,
             processor=processor,
+            qk_norm=qk_norm,
+            eps=1e-6,
         )
+
+        if use_dual_attention:
+            self.attn2 = Attention(
+                query_dim=dim,
+                cross_attention_dim=None,
+                dim_head=attention_head_dim,
+                heads=num_attention_heads,
+                out_dim=dim,
+                bias=True,
+                processor=processor,
+                qk_norm=qk_norm,
+                eps=1e-6,
+            )
+        else:
+            self.attn2 = None
 
         self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
@@ -149,7 +185,12 @@ class JointTransformerBlock(nn.Cell):
         self._chunk_dim = dim
 
     def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor):
-        norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
+        if self.use_dual_attention:
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp, norm_hidden_states2, gate_msa2 = self.norm1(
+                hidden_states, emb=temb
+            )
+        else:
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
 
         norm_encoder_hidden_states, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = (None,) * 5
         if self.context_pre_only:
@@ -167,6 +208,11 @@ class JointTransformerBlock(nn.Cell):
         # Process attention outputs for the `hidden_states`.
         attn_output = gate_msa.unsqueeze(1) * attn_output
         hidden_states = hidden_states + attn_output
+
+        if self.use_dual_attention:
+            attn_output2 = self.attn2(hidden_states=norm_hidden_states2)
+            attn_output2 = gate_msa2.unsqueeze(1) * attn_output2
+            hidden_states = hidden_states + attn_output2
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
@@ -262,6 +308,17 @@ class BasicTransformerBlock(nn.Cell):
         attention_out_bias: bool = True,
     ):
         super().__init__()
+        self.dim = dim
+        self.num_attention_heads = num_attention_heads
+        self.attention_head_dim = attention_head_dim
+        self.dropout = dropout
+        self.cross_attention_dim = cross_attention_dim
+        self.activation_fn = activation_fn
+        self.attention_bias = attention_bias
+        self.double_self_attention = double_self_attention
+        self.norm_elementwise_affine = norm_elementwise_affine
+        self.positional_embeddings = positional_embeddings
+        self.num_positional_embeddings = num_positional_embeddings
         self.only_cross_attention = only_cross_attention
 
         # We keep these boolean flags for backward-compatibility.
@@ -349,7 +406,10 @@ class BasicTransformerBlock(nn.Cell):
                 out_bias=attention_out_bias,
             )  # is self-attn if encoder_hidden_states is none
         else:
-            self.norm2 = None
+            if norm_type == "ada_norm_single":  # For Latte
+                self.norm2 = LayerNorm(dim, norm_eps, norm_elementwise_affine)
+            else:
+                self.norm2 = None
             self.attn2 = None
 
         # 3. Feed-forward
@@ -363,7 +423,7 @@ class BasicTransformerBlock(nn.Cell):
                 "layer_norm",
             )
 
-        elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm", "ada_norm_continuous"]:
+        elif norm_type in ["ada_norm_zero", "ada_norm", "layer_norm"]:
             self.norm3 = LayerNorm(dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
         elif norm_type == "layer_norm_i2vgen":
             self.norm3 = None
@@ -427,10 +487,6 @@ class BasicTransformerBlock(nn.Cell):
             ).chunk(6, axis=1)
             norm_hidden_states = self.norm1(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
-            # Only squeeze axis when it's dim equals to 1. It's different from torch because torch does
-            # nothing when squeezed axis has more than 1 dim but mindspore raised error.
-            if norm_hidden_states.shape[1] == 1:
-                norm_hidden_states = norm_hidden_states.squeeze(1)
         else:
             raise ValueError("Incorrect norm used")
 
@@ -457,6 +513,7 @@ class BasicTransformerBlock(nn.Cell):
             attention_mask=attention_mask,
             **cross_attention_kwargs,
         )
+
         if self.norm_type == "ada_norm_zero":
             attn_output = gate_msa.unsqueeze(1) * attn_output
         elif self.norm_type == "ada_norm_single":
@@ -526,6 +583,56 @@ class BasicTransformerBlock(nn.Cell):
             hidden_states = hidden_states.squeeze(1)
 
         return hidden_states
+
+
+class LuminaFeedForward(nn.Cell):
+    r"""
+    A feed-forward layer.
+
+    Parameters:
+        hidden_size (`int`):
+            The dimensionality of the hidden layers in the model. This parameter determines the width of the model's
+            hidden representations.
+        intermediate_size (`int`): The intermediate dimension of the feedforward layer.
+        multiple_of (`int`, *optional*): Value to ensure hidden dimension is a multiple
+            of this value.
+        ffn_dim_multiplier (float, *optional*): Custom multiplier for hidden
+            dimension. Defaults to None.
+    """
+
+    def __init__(
+        self,
+        dim: int,
+        inner_dim: int,
+        multiple_of: Optional[int] = 256,
+        ffn_dim_multiplier: Optional[float] = None,
+    ):
+        super().__init__()
+        inner_dim = int(2 * inner_dim / 3)
+        # custom hidden_size factor multiplier
+        if ffn_dim_multiplier is not None:
+            inner_dim = int(ffn_dim_multiplier * inner_dim)
+        inner_dim = multiple_of * ((inner_dim + multiple_of - 1) // multiple_of)
+
+        self.linear_1 = nn.Dense(
+            dim,
+            inner_dim,
+            has_bias=False,
+        )
+        self.linear_2 = nn.Dense(
+            inner_dim,
+            dim,
+            has_bias=False,
+        )
+        self.linear_3 = nn.Dense(
+            dim,
+            inner_dim,
+            has_bias=False,
+        )
+        self.silu = FP32SiLU()
+
+    def construct(self, x):
+        return self.linear_2(self.silu(self.linear_1(x)) * self.linear_3(x))
 
 
 class TemporalBasicTransformerBlock(nn.Cell):
@@ -765,7 +872,6 @@ class FeedForward(nn.Cell):
         if inner_dim is None:
             inner_dim = int(dim * mult)
         dim_out = dim_out if dim_out is not None else dim
-        linear_cls = nn.Dense
 
         if activation_fn == "gelu":
             act_fn = GELU(dim, inner_dim, bias=bias)
@@ -775,6 +881,8 @@ class FeedForward(nn.Cell):
             act_fn = GEGLU(dim, inner_dim, bias=bias)
         elif activation_fn == "geglu-approximate":
             act_fn = ApproximateGELU(dim, inner_dim, bias=bias)
+        elif activation_fn == "swiglu":
+            act_fn = SwiGLU(dim, inner_dim, bias=bias)
 
         net = []
         # project in
@@ -782,7 +890,7 @@ class FeedForward(nn.Cell):
         # project dropout
         net.append(nn.Dropout(p=dropout))
         # project out
-        net.append(linear_cls(inner_dim, dim_out, has_bias=bias))
+        net.append(nn.Dense(inner_dim, dim_out, has_bias=bias))
         # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
         if final_dropout:
             net.append(nn.Dropout(p=dropout))

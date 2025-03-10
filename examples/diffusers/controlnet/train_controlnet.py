@@ -785,9 +785,11 @@ def main():
     )
 
     # Prepare everything with our `accelerator`.
-    controlnet.to_float(weight_dtype)
-    for _, cell in controlnet.cells_and_names():
-        cell.to_float(weight_dtype)
+    # TODO: We will update the training methods during mixed precision training to ensure the performance and strategies during the training process.
+    if args.mixed_precision and args.mixed_precision != "no":
+        controlnet.to_float(weight_dtype)
+        for _, cell in controlnet.cells_and_names():
+            cell.to_float(weight_dtype)
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
@@ -1013,7 +1015,9 @@ class TrainStepForControlNet(TrainStep):
 
         # Add noise to the latents according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
+        noisy_latents = self.noise_scheduler.add_noise(latents.float(), noise.float(), timesteps).to(
+            dtype=self.weight_dtype
+        )
 
         # Get the text embedding for conditioning
         encoder_hidden_states = self.text_encoder(input_ids, return_dict=False)[0]

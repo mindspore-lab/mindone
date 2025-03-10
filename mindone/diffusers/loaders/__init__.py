@@ -49,10 +49,17 @@ def text_encoder_attn_modules(text_encoder):
 
 
 _import_structure = {
-    "autoencoder": ["FromOriginalVAEMixin"],
-    "controlnet": ["FromOriginalControlNetMixin"],
+    "single_file_model": ["FromOriginalModelMixin"],
     "ip_adapter": ["IPAdapterMixin"],
-    "lora": ["LoraLoaderMixin", "SD3LoraLoaderMixin", "StableDiffusionXLLoraLoaderMixin"],
+    "lora_pipeline": [
+        "AmusedLoraLoaderMixin",
+        "StableDiffusionLoraLoaderMixin",
+        "SD3LoraLoaderMixin",
+        "StableDiffusionXLLoraLoaderMixin",
+        "LoraLoaderMixin",
+        "FluxLoraLoaderMixin",
+        "CogVideoXLoraLoaderMixin",
+    ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
     "textual_inversion": ["TextualInversionLoaderMixin"],
@@ -61,12 +68,19 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .autoencoder import FromOriginalVAEMixin
-    from .controlnet import FromOriginalControlNetMixin
     from .ip_adapter import IPAdapterMixin
-    from .lora import LoraLoaderMixin, SD3LoraLoaderMixin, StableDiffusionXLLoraLoaderMixin
+    from .lora_pipeline import (
+        AmusedLoraLoaderMixin,
+        CogVideoXLoraLoaderMixin,
+        FluxLoraLoaderMixin,
+        LoraLoaderMixin,
+        SD3LoraLoaderMixin,
+        StableDiffusionLoraLoaderMixin,
+        StableDiffusionXLLoraLoaderMixin,
+    )
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin
+    from .single_file_model import FromOriginalModelMixin
     from .textual_inversion import TextualInversionLoaderMixin
     from .unet import UNet2DConditionLoadersMixin
 else:

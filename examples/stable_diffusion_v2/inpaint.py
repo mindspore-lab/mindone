@@ -45,10 +45,10 @@ def make_batch_sd(image, mask, txt, num_samples=1):
     masked_image = image * (mask < 0.5)
 
     batch = {
-        "image": image.repeat(num_samples, axis=0),
+        "image": image.repeat_interleave(num_samples, dim=0),
         "txt": num_samples * [txt],
-        "mask": mask.repeat(num_samples, axis=0),
-        "masked_image": masked_image.repeat(num_samples, axis=0),
+        "mask": mask.repeat_interleave(num_samples, dim=0),
+        "masked_image": masked_image.repeat_interleave(num_samples, dim=0),
     }
     return batch
 
@@ -126,7 +126,7 @@ def image_grid(imgs, rows, cols):
 
 def main(args):
     # init
-    device_id, _, _ = init_env(
+    rank_id, device_num = init_env(
         args.ms_mode,
         seed=args.seed,
         jit_level=args.jit_level,
@@ -137,7 +137,7 @@ def main(args):
     set_logger(
         name="",
         output_dir=args.save_path,
-        rank=0,
+        rank=rank_id,
         log_level=eval(args.log_level),
     )
 

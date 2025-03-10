@@ -14,19 +14,14 @@ To make sure you can successfully run the latest versions of the example scripts
 ```bash
 git clone https://github.com/mindspore-lab/mindone
 cd mindone
-pip install -e .
-```
-
-Then cd in the example folder and run
-```bash
-pip install -r requirements.txt
+pip install -e ".[training]"
 ```
 
 ## Circle filling dataset
 
 The original dataset is hosted in the [ControlNet repo](https://huggingface.co/lllyasviel/ControlNet/blob/main/training/fill50k.zip). We re-uploaded it to be compatible with `datasets` [here](https://huggingface.co/datasets/fusing/fill50k). Note that `datasets` handles dataloading within the training script.
 
-Our training examples use [Stable Diffusion 1.5](https://huggingface.co/runwayml/stable-diffusion-v1-5) as the original set of ControlNet models were trained from it. However, ControlNet can be trained to augment any Stable Diffusion compatible model (such as [CompVis/stable-diffusion-v1-4](https://huggingface.co/CompVis/stable-diffusion-v1-4)) or [stabilityai/stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1).
+Our training examples use [Stable Diffusion 1.5](https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5) as the original set of ControlNet models were trained from it. However, ControlNet can be trained to augment any Stable Diffusion compatible model (such as [CompVis/stable-diffusion-v1-4](https://huggingface.co/CompVis/stable-diffusion-v1-4)) or [stabilityai/stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1).
 
 ## Training
 
@@ -39,7 +34,7 @@ wget https://huggingface.co/datasets/huggingface/documentation-images/resolve/ma
 ```
 
 ```bash
-export MODEL_DIR="runwayml/stable-diffusion-v1-5"
+export MODEL_DIR="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export OUTPUT_DIR="path to save model"
 
 python train_controlnet.py \
@@ -53,14 +48,10 @@ python train_controlnet.py \
  --train_batch_size=4
 ```
 
-This default configuration requires ~38GB VRAM.
-
-By default, the training script logs outputs to tensorboard.
-
-Gradient accumulation with a smaller batch size can be used to reduce training requirements to ~20 GB VRAM.
+Gradient accumulation with a smaller batch size can be used to reduce training requirements,
 
 ```bash
-export MODEL_DIR="runwayml/stable-diffusion-v1-5"
+export MODEL_DIR="stable-diffusion-v1-5/stable-diffusion-v1-5"
 export OUTPUT_DIR="path to save model"
 
 python train_controlnet.py \

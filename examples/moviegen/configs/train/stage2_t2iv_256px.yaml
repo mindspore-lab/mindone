@@ -1,0 +1,90 @@
+env:
+  mode: 0
+  jit_level: O0
+  seed: 42
+  distributed: False
+  debug: False
+
+model:
+  name: llama-5B
+  pretrained_model_path:
+  enable_flash_attention: True
+  recompute_every_nth_block: 1
+  not_recompute_fa: False
+  dtype: bf16
+
+tae:
+  pretrained: models/tae_ucf101pt_mixkitft-b3b2e364.ckpt
+  use_tile: True
+  dtype: bf16
+
+dataset:
+  csv_path: CSV_PATH
+  video_folder: VIDEO_FOLDER
+  text_emb_folder:
+    ul2: UL2_FOLDER
+    byt5: BYT5_FOLDER
+  empty_text_emb:
+    ul2: EMPTY_TEXT_EMB
+    byt5: EMPTY_TEXT_EMB
+  deterministic_sample: False
+  text_drop_prob: 0.2
+  target_size: [ 256, 455 ]
+  sample_n_frames: 256  # FIXME: add variable frames support.
+  apply_transforms_dataset: True
+  output_columns: [ "video", "ul2_caption", "byt5_caption" ]
+
+dataloader:
+  batch_size:
+    image_batch_size: 1
+    video_batch_size: 1
+  shuffle: True
+  num_workers_dataset: 4
+
+train:
+  steps: 20000
+  output_path: ../../output/stage2_t2iv_256px  # the path is relative to this config
+
+  sequence_parallel:
+    shards: 1
+
+  lr_scheduler:
+    name: constant
+    lr: 1.0e-4
+    warmup_steps: 1000
+
+  lr_reduce_on_plateau:
+    factor: 0.5
+    patience: 50  # in the number of validation steps, i.e., valid.frequency * patience steps
+    mode: min
+    min_delta: 0.01
+    min_lr: 1.0e-6
+
+  optimizer:
+    name: adamw_re
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.1
+
+  loss_scaler:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  ema:
+    ema_decay: 0.9999
+    offloading: True
+
+  settings:
+    zero_stage: 0
+    gradient_accumulation_steps: 1
+    clip_grad: True
+    clip_norm: 1.0
+
+  save:
+    ckpt_save_policy: latest_k
+    ckpt_save_interval: &save_interval 500
+    ckpt_max_keep: 10
+    log_interval: 1
+    save_ema_only: False
+    record_lr: False

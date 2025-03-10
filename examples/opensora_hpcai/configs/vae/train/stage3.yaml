@@ -1,0 +1,49 @@
+# model
+model_type: "OpenSoraVAE_V1_2"
+freeze_vae_2d: False
+pretrained_model_path: "outputs/vae_stage2.ckpt"
+
+# loss
+perceptual_loss_weight: 0.1
+kl_loss_weight: 1.e-6
+use_real_rec_loss: True
+use_z_rec_loss: False
+use_image_identity_loss: False
+mixed_strategy: "mixed_video_image"  # TODO: use mixed_video_random after dynamic shape adaptation
+mixed_image_ratio: 0.2
+
+# data
+dataset_name: "video"
+csv_path: "../videocomposer/datasets/webvid5_copy.csv"
+video_folder: "../videocomposer/datasets/webvid5"
+frame_stride: 1
+num_frames: 17  # TODO: set 33 after dynamic shape adaptation and posterior concat fixed
+image_size: 256
+
+micro_frame_size: 17
+micro_batch_size: 4
+# flip: True
+
+# training recipe
+seed: 42
+use_discriminator: False
+dtype: "bf16"
+batch_size: 1
+clip_grad: True
+max_grad_norm: 1.0
+start_learning_rate: 1.e-5
+scale_lr: False
+weight_decay: 0.
+use_recompute: True
+
+epochs: 400
+ckpt_save_interval: 100
+init_loss_scale: 1.
+
+scheduler: "constant"
+use_ema: False
+
+output_path: "outputs/vae_stage3"
+
+# ms settting
+jit_level: O1

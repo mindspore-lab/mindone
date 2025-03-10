@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import math
 from typing import Callable, Dict, List, Optional, Union
 
 import numpy as np
@@ -38,14 +39,14 @@ EXAMPLE_DOC_STRING = """
         >>> from mindone.diffusers import StableCascadePriorPipeline, StableCascadeDecoderPipeline
 
         >>> prior_pipe = StableCascadePriorPipeline.from_pretrained(
-        ...     "stabilityai/stable-cascade-prior", mindspore_dtype=ms.float16
+        ...     "stabilityai/stable-cascade-prior", mindspore_dtype=ms.float32
         ... )
-        >>> gen_pipe = StableCascadeDecoderPipeline.from_pretrain(
-        ...     "stabilityai/stable-cascade", mindspore_dtype=ms.float16
+        >>> gen_pipe = StableCascadeDecoderPipeline.from_pretrained(
+        ...     "stabilityai/stable-cascade", mindspore_dtype=ms.float32
         ... )
 
         >>> prompt = "an image of a shiba inu, donning a spacesuit and helmet"
-        >>> prior_output = pipe(prompt)
+        >>> prior_output = prior_pipe(prompt)
         >>> images = gen_pipe(prior_output[0], prompt=prompt)
         ```
 """
@@ -145,12 +146,14 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
+            text_input_ids = text_inputs.input_ids
             attention_mask = ms.Tensor(text_inputs.attention_mask)
 
-            untruncated_ids = ms.Tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+            untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
@@ -160,7 +163,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 attention_mask = attention_mask[:, : self.tokenizer.model_max_length]
 
             text_encoder_output = self.text_encoder(
-                text_input_ids, attention_mask=attention_mask, output_hidden_states=True
+                ms.tensor(text_input_ids), attention_mask=attention_mask, output_hidden_states=True
             )
             prompt_embeds = text_encoder_output[2][-1]
             if prompt_embeds_pooled is None:
@@ -277,6 +280,15 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
     @property
     def num_timesteps(self):
         return self._num_timesteps
+
+    def get_timestep_ratio_conditioning(self, t, alphas_cumprod):
+        s = ms.tensor([0.008])
+        clamp_range = [0, 1]
+        min_var = ops.cos(s / (1 + s) * math.pi * 0.5) ** 2
+        var = alphas_cumprod[t]
+        var = var.clamp(*clamp_range)
+        ratio = (((var * min_var) ** 0.5).acos() / (math.pi * 0.5)) * (1 + s) - s
+        return ratio
 
     def __call__(
         self,
@@ -425,10 +437,32 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             batch_size, image_embeddings, num_images_per_prompt, dtype, generator, latents, self.scheduler
         )
 
+        if isinstance(self.scheduler, DDPMWuerstchenScheduler):
+            timesteps = timesteps[:-1]
+        else:
+            if hasattr(self.scheduler.config, "clip_sample") and self.scheduler.config.clip_sample:
+                self.scheduler.config.clip_sample = False  # disample sample clipping
+                logger.warning(" set `clip_sample` to be False")
+
         # 6. Run denoising loop
-        self._num_timesteps = len(timesteps[:-1])
-        for i, t in enumerate(self.progress_bar(timesteps[:-1])):
-            timestep_ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
+        if hasattr(self.scheduler, "betas"):
+            alphas = 1.0 - self.scheduler.betas
+            alphas_cumprod = ops.cumprod(alphas, dim=0)
+        else:
+            alphas_cumprod = []
+
+        self._num_timesteps = len(timesteps)
+        for i, t in enumerate(self.progress_bar(timesteps)):
+            if not isinstance(self.scheduler, DDPMWuerstchenScheduler):
+                if len(alphas_cumprod) > 0:
+                    timestep_ratio = self.get_timestep_ratio_conditioning(t.long(), alphas_cumprod)
+                    timestep_ratio = timestep_ratio.broadcast_to((latents.shape[0],)).to(dtype)
+                else:
+                    timestep_ratio = (
+                        t.float().div(self.scheduler.timesteps[-1]).broadcast_to((latents.shape[0],)).to(dtype)
+                    )
+            else:
+                timestep_ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
 
             # 7. Denoise latents
             predicted_latents = self.decoder(
@@ -449,7 +483,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 )
 
             # 9. Renoise latents to next timestep
-            # TODO: check prev_sample
+            if not isinstance(self.scheduler, DDPMWuerstchenScheduler):
+                timestep_ratio = t
             latents = self.scheduler.step(
                 model_output=predicted_latents,
                 timestep=timestep_ratio,

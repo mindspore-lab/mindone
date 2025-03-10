@@ -1,0 +1,12 @@
+opencv-python>=4.9.0.80
+transformers>=4.49.0
+tokenizers>=0.20.3
+torch
+tqdm
+imageio
+easydict
+ftfy
+dashscope
+imageio-ffmpeg
+gradio>=5.0.0
+numpy>=1.23.5,<2
