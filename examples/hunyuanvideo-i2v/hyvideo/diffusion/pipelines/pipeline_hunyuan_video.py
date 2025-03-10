@@ -927,7 +927,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
         if i2v_mode and i2v_condition_type == "latent_concat":
             if img_latents.shape[2] == 1:
-                img_latents_concat = img_latents.repeat(1, 1, video_length, 1, 1)
+                img_latents_concat = img_latents.tile((1, 1, video_length, 1, 1))
             else:
                 img_latents_concat = img_latents
             img_latents_concat[:, :, 1:, ...] = 0

@@ -335,7 +335,7 @@ if __name__ == "__main__":
 
     # test_hyvtransformer()
     test_hyvtransformer(
-        pt_ckpt="ckpts/hunyuan-video-t2i-720p/transformers/mp_rank_00_model_states.pt", dtype=ms.bfloat16, debug=False
+        pt_ckpt="ckpts/hunyuan-video-i2v-720p/transformers/mp_rank_00_model_states.pt", dtype=ms.bfloat16, debug=False
     )
     # test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 
