@@ -21,9 +21,16 @@ from PIL import Image
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -183,3 +190,43 @@ class CogVideoXImageToVideoPipelineFastTests(PipelineTesterMixin, unittest.TestC
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class CogVideoXImageToVideoPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_cogvideox(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.cogvideo.pipeline_cogvideox_image2video.CogVideoXImageToVideoPipeline"
+        )
+        pipe = pipe_cls.from_pretrained("THUDM/CogVideoX-5b-I2V", mindspore_dtype=ms_dtype)
+
+        prompt = "A painting of a squirrel eating a burger."
+        image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images",
+            "astronaut.jpg",
+            subfolder="diffusers",
+        )
+
+        torch.manual_seed(0)
+        videos = pipe(
+            image=image,
+            prompt=prompt,
+            height=480,
+            width=720,
+            num_frames=16,
+            num_inference_steps=2,
+        )[0]
+
+        video = videos[0]
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"cogvideox_image2video_{dtype}.npy",
+            subfolder="cogvideo",
+        )
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL
