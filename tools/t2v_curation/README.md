@@ -73,11 +73,12 @@ python pipeline/datasets/imagededup/setup.py build_ext --inplace
 ```
 
 #### Scoring Model Setup
-If aesthetic scoring or CLIP matching is needed, download the models
-and set up according to the guideline [here](./pipeline/scoring/README.md).
+You may need to first download pretrained models if aesthetic
+scoring, OCR, LPIPS scoring, or NSFW filtering is needed.
+For instructions, follow the guideline [here](./pipeline/scoring/README.md).
 
 #### Captioning Model Setup
-Follow the guideline [here](./pipeline/captioning/README.md).
+You may refer to the guideline [here](./pipeline/captioning/README.md).
 
 #### Customize Pipeline Steps
 Enable or disable specific pipeline steps via setting `run`

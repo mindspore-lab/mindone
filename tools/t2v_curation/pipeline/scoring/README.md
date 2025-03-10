@@ -21,14 +21,9 @@ find that an aesthetic score above 4.5 can be considered
 as fair.
 
 For videos, we extract the first, last, and the middle 
-frames for evaluation. The script also supports image 
-as input.
+frames for evaluation.
 
-First, download the CLIP model [here](https://github.com/openai/CLIP).
-By default, you can put them in the folder 
-`./pretrained_models/`.
-
-Then, download the scoring model using the following command to `./pretrained_models/aesthetic.pth`.
+For usage, first download the scoring model using the following command to `./pretrained_models/aesthetic.pth`.
 
 ```bash
 wget https://github.com/christophschuhmann/improved-aesthetic-predictor/raw/main/sac+logos+ava1-l14-linearMSE.pth -O pretrained_models/aesthetic.pth
@@ -42,7 +37,6 @@ python -m tools.pth_to_ckpt --model aesthetic \
  --save_path 'pretrained_models/aesthetic.ckpt' \
  --show_pth --show_ckpt --convert --value
 ```
-
 
 Then, run the following command if using CPU. **Make sure** the meta file has column `path` (path to the sample).
 ```bash
@@ -66,11 +60,7 @@ Here, we use the [CLIP](https://github.com/openai/CLIP) model, which is trained 
 For videos, we extract the first, last, and the middle frame and compare it with the caption. 
 We record the highest score among the three as the matching score.
 
-First, download the [CLIP ViT-L/14 model](https://ascend-repo-modelzoo.obs.cn-east-2.myhuaweicloud.com/MindFormers/clip/clip_vit_l_14.ckpt) 
-and the [tokenizer](https://github.com/openai/CLIP/blob/main/clip/bpe_simple_vocab_16e6.txt.gz). By default, you can put them in the folder 
-`./pretrained_models/`.
-
-Then, run the following command if using CPU. **Make sure** the meta file has the column `path` (path to the sample).
+For usage, run the following command if using CPU. **Make sure** the meta file has the column `path` (path to the sample).
 For matching scores for captions, the meta file should also have the column `text` (caption of the sample).
 For option filtering, the argument `--option` must be provided
 ```bash
@@ -105,7 +95,6 @@ By default, you can put them in the folder
 `./pretrained_models/`.
 
 Run the following command for inference. **Make sure** the meta file has the column `path` (path to the sample).
-
 
 ```bash
 export PYTHONPATH=$(pwd)
@@ -159,7 +148,6 @@ extraction issues.
 If only one or no frame is extracted from a video, 
 a score of -1 is assigned, indicating insufficient 
 data to compute LPIPS.
-
 
 To calculate the LPIPS score, first download the [LPIPS model](https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt). 
 By default, you can put it in the folder `./pretrained_models/` and you may rename the model as `lpips.ckpt`.
@@ -221,8 +209,10 @@ This should output `/path/to/meta_nsfw.csv` with column `nsfw`.
 
 ## Filtering
 Once scores are obtained, it is simple to filter samples based on these scores. Here is an example to remove
-samples of aesthetic score < 5.0.
+samples of aesthetic score < 4.0.
 ```
-python -m pipeline.datasets.datautil /path/to/meta.csv --aesmin 5
+python -m pipeline.datasets.datautil /path/to/meta.csv --aesmin 4
 ```
-This should output `/path/to/meta_aesmin5.0.csv` with column `aes` >= 5.0
+This should output `/path/to/meta_aesmin4.0.csv` with column `aes` >= 4.0
+
+[Here](../pipeline/datasets/README.md) you may find more filtering options.
