@@ -11,8 +11,10 @@ from transformers import AutoProcessor, AutoTokenizer
 
 import mindspore as ms
 from mindspore import Tensor
+from mindspore.communication import GlobalComm
 from mindspore.nn.utils import no_init_parameters
 
+from mindone.trainers.zero import prepare_network
 from mindone.transformers import Qwen2_5_VLForConditionalGeneration, Qwen2ForCausalLM
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
 
@@ -146,7 +148,7 @@ class QwenPromptExpander(PromptExpander):
         "Qwen2.5_14B": "Qwen/Qwen2.5-14B-Instruct",
     }
 
-    def __init__(self, model_name=None, is_vl=False, **kwargs):
+    def __init__(self, model_name=None, is_vl=False, qwen_zero3=False, **kwargs):
         """
         Args:
             model_name: Use predefined model names such as 'QwenVL2.5_7B' and 'Qwen2.5_14B',
@@ -179,12 +181,20 @@ class QwenPromptExpander(PromptExpander):
                 self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                     self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="flash_attention_2"
                 )
+            if qwen_zero3:
+                self.model = prepare_network(
+                    self.model, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP
+                )
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             with no_init_parameters():
-                # TODO: change to eager & use cache
+                # TODO: change to flash attention & use cache
                 self.model = Qwen2ForCausalLM.from_pretrained(
                     self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="eager", use_cache=False
+                )
+            if qwen_zero3:
+                self.model = prepare_network(
+                    self.model, zero_stage=3, optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP
                 )
 
     @staticmethod

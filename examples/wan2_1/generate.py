@@ -132,6 +132,12 @@ def _parse_args():
 
     # extra for mindspore
     parser.add_argument("--ulysses_sp", action="store_true", default=False, help="turn on ulysses parallelism in DiT.")
+    parser.add_argument(
+        "--qwen_zero3",
+        action="store_true",
+        default=False,
+        help="Whether to use ZeRO3 for Qwen model for prompt expansion.",
+    )
 
     args = parser.parse_args()
 
@@ -186,12 +192,9 @@ def generate(args):
 
     if args.use_prompt_extend:
         if args.prompt_extend_method == "local_qwen":
-            if rank == 0:
-                prompt_expander = QwenPromptExpander(
-                    model_name=args.prompt_extend_model, is_vl="i2v" in args.task, device=rank
-                )
-            else:
-                prompt_expander = None
+            prompt_expander = QwenPromptExpander(
+                model_name=args.prompt_extend_model, is_vl="i2v" in args.task, qwen_zero3=args.qwen_zero3, device=rank
+            )
         else:
             raise NotImplementedError(f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
 
@@ -214,19 +217,15 @@ def generate(args):
         logging.info(f"Input prompt: {args.prompt}")
         if args.use_prompt_extend:
             logging.info("Extending prompt ...")
-            if rank == 0:
-                prompt_output = prompt_expander(
-                    args.prompt, tar_lang=args.prompt_extend_target_lang, seed=args.base_seed
-                )
-                if prompt_output.status is False:
-                    logging.info(f"Extending prompt failed: {prompt_output.message}")
-                    logging.info("Falling back to original prompt.")
-                    input_prompt = args.prompt
-                else:
-                    input_prompt = prompt_output.prompt
-                input_prompt = [input_prompt]
+            prompt_output = prompt_expander(args.prompt, tar_lang=args.prompt_extend_target_lang, seed=args.base_seed)
+            if prompt_output.status is False:
+                logging.info(f"Extending prompt failed: {prompt_output.message}")
+                logging.info("Falling back to original prompt.")
+                input_prompt = args.prompt
             else:
-                input_prompt = [None]
+                input_prompt = prompt_output.prompt
+
+            input_prompt = [input_prompt]
             # TODO: GlobalComm.INITED -> mint.is_initialzed
             if GlobalComm.INITED:
                 dist.broadcast_object_list(input_prompt, src=0)
@@ -268,19 +267,17 @@ def generate(args):
         img = Image.open(args.image).convert("RGB")
         if args.use_prompt_extend:
             logging.info("Extending prompt ...")
-            if rank == 0:
-                prompt_output = prompt_expander(
-                    args.prompt, tar_lang=args.prompt_extend_target_lang, image=img, seed=args.base_seed
-                )
-                if prompt_output.status is False:
-                    logging.info(f"Extending prompt failed: {prompt_output.message}")
-                    logging.info("Falling back to original prompt.")
-                    input_prompt = args.prompt
-                else:
-                    input_prompt = prompt_output.prompt
-                input_prompt = [input_prompt]
+            prompt_output = prompt_expander(
+                args.prompt, tar_lang=args.prompt_extend_target_lang, image=img, seed=args.base_seed
+            )
+            if prompt_output.status is False:
+                logging.info(f"Extending prompt failed: {prompt_output.message}")
+                logging.info("Falling back to original prompt.")
+                input_prompt = args.prompt
             else:
-                input_prompt = [None]
+                input_prompt = prompt_output.prompt
+
+            input_prompt = [input_prompt]
             # TODO: GlobalComm.INITED -> mint.is_initialzeds
             if GlobalComm.INITED:
                 dist.broadcast_object_list(input_prompt, src=0)
