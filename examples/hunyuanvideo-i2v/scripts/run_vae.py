@@ -39,7 +39,7 @@ def vae_reconstruction(vae, input, dtype=None, sample_posterior=True):
 
 
 def process_image(args, vae, dtype):
-    image_path = args.image_pathx
+    image_path = args.image_path
     input_x = np.array(Image.open(image_path))  # (h w c)
     assert input_x.shape[2] == 3, f"Expect the input image has three channels, but got shape {input_x.shape}"
     x_vae = preprocess_image(input_x, args.height, args.width)  # use image as a single-frame video
