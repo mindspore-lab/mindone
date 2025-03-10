@@ -69,10 +69,6 @@ def parse_args():
     parser.add_argument("--option", type=str, default=None, help="Option filtering string")
 
     parser.add_argument("--skip_if_existing", action="store_true")
-
-    parser.add_argument("--config", type=str, default="pipeline/scoring/clip/configs/clip_vit_l_14.yaml", help="YAML config files for ms backend.")
-    parser.add_argument("--ckpt_path_clip", type=str, default="pretrained_models/clip_vit_l_14.ckpt", help = "load clip model checkpoint.")
-    parser.add_argument("--tokenizer_path", type=str, default="pretrained_models/bpe_simple_vocab_16e6.txt.gz", help="load clip tokenizer checkpoint.")
     args = parser.parse_args()
 
     return args
