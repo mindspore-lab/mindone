@@ -108,7 +108,7 @@ def main():
                 detector = split_video['scene_detection']['detector']
                 max_cutscene_len = split_video['scene_detection']['max_cutscene_len']
                 command = f'python -m pipeline.splitting.scene_detect {input_meta_csv} --detector {detector}'
-                if max_cutscene_len is not None or max_cutscene_len == "None": # just to play safe
+                if max_cutscene_len is not None or max_cutscene_len != "None": # just to play safe
                     command += f' --max_cutscene_len {max_cutscene_len}'
                 run_command(command)
 
@@ -122,15 +122,15 @@ def main():
                 input_meta_csv = input_meta_csv[:-4] + "_timestamp.csv" # inferred csv name from scene detection
                 save_dir = config['paths']['ROOT_CLIPS']
                 command = f"python -m pipeline.splitting.cut {input_meta_csv} --save_dir {save_dir}"
-                if min_seconds is not None or min_seconds == "None":
+                if min_seconds is not None or min_seconds != "None":
                     command += f' --min_seconds {min_seconds}'
-                if max_seconds is not None or max_seconds == "None":
+                if max_seconds is not None or max_seconds != "None":
                     command += f' --max_seconds {max_seconds}'
-                if target_fps is not None or target_fps == "None":
+                if target_fps is not None or target_fps != "None":
                     command += f' --target_fps {target_fps}'
-                if shorter_size is not None or shorter_size == "None":
+                if shorter_size is not None or shorter_size != "None":
                     command += f' --shorter_size {shorter_size}'
-                if drop_invalid_timestamps is not None or drop_invalid_timestamps == "None":
+                if drop_invalid_timestamps is not None or drop_invalid_timestamps != "None":
                     command += f' --drop_invalid_timestamps {drop_invalid_timestamps}'
                 run_command(command)
 
@@ -184,27 +184,6 @@ def main():
                     run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --matchmin {matchmin}')
                     input_meta_csv = input_meta_csv[:-4] + f"_matchmin{matchmin:.1f}.csv"
 
-            # aesthetic scoring
-            if scoring_filtering['aesthetic_scoring']['run']:
-                bs = scoring_filtering['aesthetic_scoring']['batch_size']
-                num_frames = scoring_filtering['aesthetic_scoring']['num_frames']
-                if scoring_filtering['aesthetic_scoring']['use_ascend']:
-                    worker_num = scoring_filtering['aesthetic_scoring']['worker_num']
-                    run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
-                                f'--log_dir=msrun_log/aes pipeline/scoring/aesthetic/inference.py {input_meta_csv} '
-                                f'--bs {bs} --num_frames {num_frames}')
-                else:
-                    run_command(f'python -m pipeline.scoring.aesthetic.inference {input_meta_csv} --use_cpu '
-                                f'--bs {bs} --num_frames {num_frames}')
-                input_meta_csv = input_meta_csv[:-4] + "_aes.csv"
-
-                # aesthetic filtering
-                if scoring_filtering['aesthetic_filtering']['run']:
-                    aesmin = scoring_filtering['aesthetic_filtering']['aesmin']
-                    output_meta_csv = input_meta_csv[:-4] + f"_aesmin{aesmin:.1f}.csv"
-                    run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --aesmin {aesmin} --output {output_meta_csv}')
-                    input_meta_csv = output_meta_csv
-
             # ocr scoring
             if scoring_filtering['ocr_scoring']['run']:
                 num_boxes = scoring_filtering['ocr_scoring']['num_boxes']
@@ -223,21 +202,24 @@ def main():
                 # ocr filtering
                 if scoring_filtering['ocr_filtering']['run']:
                     ocr_box_max = scoring_filtering['ocr_filtering']['ocr_box_max']
-                    if ocr_box_max is not None or ocr_box_max == "None":
+                    if ocr_box_max is not None or ocr_box_max != "None":
                         output_meta_csv = input_meta_csv[:-4] + f"_ocrboxmax{int(ocr_box_max)}.csv"
-                        run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --ocr_box_max {ocr_box_max} --output {output_meta_csv}')
+                        run_command(
+                            f'python -m pipeline.datasets.datautil {input_meta_csv} --ocr_box_max {ocr_box_max} --output {output_meta_csv}')
                         input_meta_csv = input_meta_csv[:-4] + f"_ocrboxmax{int(ocr_box_max)}.csv"
 
                     ocr_single_max = scoring_filtering['ocr_filtering']['ocr_single_max']
-                    if ocr_single_max is not None or ocr_single_max == "None":
+                    if ocr_single_max is not None or ocr_single_max != "None":
                         output_meta_csv = input_meta_csv[:-4] + f"_ocrsinglemax{ocr_single_max:.1f}.csv"
-                        run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --ocr_single_max {ocr_single_max} --output {output_meta_csv}')
+                        run_command(
+                            f'python -m pipeline.datasets.datautil {input_meta_csv} --ocr_single_max {ocr_single_max} --output {output_meta_csv}')
                         input_meta_csv = input_meta_csv[:-4] + f"_ocrsinglemax{ocr_single_max:.1f}.csv"
 
                     ocr_total_max = scoring_filtering['ocr_filtering']['ocr_total_max']
-                    if ocr_total_max is not None or ocr_total_max == "None":
+                    if ocr_total_max is not None or ocr_total_max != "None":
                         output_meta_csv = input_meta_csv[:-4] + f"_ocrtotalmax{ocr_total_max:.1f}.csv"
-                        run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --ocr_total_max {ocr_total_max} --output {output_meta_csv}')
+                        run_command(
+                            f'python -m pipeline.datasets.datautil {input_meta_csv} --ocr_total_max {ocr_total_max} --output {output_meta_csv}')
                         input_meta_csv = input_meta_csv[:-4] + f"_ocrtotalmax{ocr_total_max:.1f}.csv"
 
             # lpips scoring
@@ -259,7 +241,29 @@ def main():
                 if scoring_filtering['lpips_filtering']['run']:
                     lpipsmin = scoring_filtering['lpips_filtering']['lpipsmin']
                     output_meta_csv = input_meta_csv[:-4] + f"_lpipsmin{lpipsmin:.1f}.csv"
-                    run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --lpipsmin {lpipsmin} --output {output_meta_csv}')
+                    run_command(
+                        f'python -m pipeline.datasets.datautil {input_meta_csv} --lpipsmin {lpipsmin} --output {output_meta_csv}')
+                    input_meta_csv = output_meta_csv
+
+            # aesthetic scoring
+            if scoring_filtering['aesthetic_scoring']['run']:
+                bs = scoring_filtering['aesthetic_scoring']['batch_size']
+                num_frames = scoring_filtering['aesthetic_scoring']['num_frames']
+                if scoring_filtering['aesthetic_scoring']['use_ascend']:
+                    worker_num = scoring_filtering['aesthetic_scoring']['worker_num']
+                    run_command(f'msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True '
+                                f'--log_dir=msrun_log/aes pipeline/scoring/aesthetic/inference.py {input_meta_csv} '
+                                f'--bs {bs} --num_frames {num_frames}')
+                else:
+                    run_command(f'python -m pipeline.scoring.aesthetic.inference {input_meta_csv} --use_cpu '
+                                f'--bs {bs} --num_frames {num_frames}')
+                input_meta_csv = input_meta_csv[:-4] + "_aes.csv"
+
+                # aesthetic filtering
+                if scoring_filtering['aesthetic_filtering']['run']:
+                    aesmin = scoring_filtering['aesthetic_filtering']['aesmin']
+                    output_meta_csv = input_meta_csv[:-4] + f"_aesmin{aesmin:.1f}.csv"
+                    run_command(f'python -m pipeline.datasets.datautil {input_meta_csv} --aesmin {aesmin} --output {output_meta_csv}')
                     input_meta_csv = output_meta_csv
 
             # nsfw scoring

@@ -64,17 +64,6 @@
         "run": true,
         "matchmin": 20.0
       },
-      "aesthetic_scoring": {
-        "run": true,
-        "num_frames": 1,
-        "batch_size": 64,
-        "use_ascend": true,
-        "worker_num": 2
-      },
-      "aesthetic_filtering": {
-        "run": true,
-        "aesmin": 5.0
-      },
       "ocr_scoring": {
         "run": true,
         "num_boxes": true,
@@ -99,6 +88,17 @@
       "lpips_filtering": {
           "run": true,
           "lpipsmin": 0.2
+      },
+      "aesthetic_scoring": {
+        "run": true,
+        "num_frames": 1,
+        "batch_size": 64,
+        "use_ascend": true,
+        "worker_num": 2
+      },
+      "aesthetic_filtering": {
+        "run": true,
+        "aesmin": 5.0
       },
       "nsfw_scoring": {
         "run": true,

@@ -76,17 +76,6 @@ pipeline_steps:
       run: true # this will only be run if `run` in `option_matching` is also true
       matchmin: 20.0
 
-    aesthetic_scoring:
-      run: true
-      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
-      batch_size: 64
-      use_ascend: true
-      worker_num: 2
-
-    aesthetic_filtering:
-      run: true # this will only be run if `run` in `aesthetic_scoring` is also true
-      aesmin: 5.0 # empirically, video with score above 4.5 is good enough
-
     ocr_scoring:
       run: true
       num_boxes: true # compute and store the total number of boxes
@@ -111,6 +100,17 @@ pipeline_steps:
     lpips_filtering:
       run: true   # this will only be run if `run` in `lpips_scoring` is also true
       lpipsmin: 0.2
+
+    aesthetic_scoring:
+      run: true
+      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
+      batch_size: 64
+      use_ascend: true
+      worker_num: 2
+
+    aesthetic_filtering:
+      run: true # this will only be run if `run` in `aesthetic_scoring` is also true
+      aesmin: 5.0 # empirically, video with score above 4.5 is good enough
 
     nsfw_scoring:
       run: true

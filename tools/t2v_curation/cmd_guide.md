@@ -72,19 +72,32 @@ msrun --worker_num=2 --local_worker_num=2 --join=True \
 python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --matchmin 20
 ```
 
-**4.2.1 Predict LPIPS scores.**
+**4.2.1 Perform OCR recognition.**
+```bash
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/scoring/ocr/inference.py \
+ /path/to/meta.csv \
+ --total_text_percentage
+```
+
+**4.2.2 Filter videos based on total text percentage.**
+```bash
+python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --ocr_total_max 0.1
+```
+
+**4.3.1 Predict LPIPS scores.**
 ```bash
 msrun --worker_num=2 --local_worker_num=2 --join=True \
  --log_dir=msrun_log pipeline/scoring/lpips/inference.py \ 
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 
-**4.2.2 Filter videos based on LPIPS scores.**
+**4.3.2 Filter videos based on LPIPS scores.**
 ```bash
 pyhton -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --lpipsmin 0.2
 ```
 
-**4.3.1 Predict aesthetic scores.**
+**4.4.1 Predict aesthetic scores.**
 ```bash
 python -m scoring.aesthetic.inference ${ROOT_META}/working_meta.csv --use_cpu # cpu
 ```
@@ -95,12 +108,12 @@ msrun --worker_num=2 --local_worker_num=2 --join=True \
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 
-**4.3.2 Filter by aesthetic scores.**
+**4.4.2 Filter by aesthetic scores.**
 ```bash
 python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --aesmin 4.5
 ```
 
-**4.4.1 Determine whether the video is NSFW.**
+**4.5.1 Determine whether the video is NSFW.**
 ```bash
 python -m scoring.nsfw.inference ${ROOT_META}/working_meta.csv --use_cpu # cpu
 ```
@@ -111,7 +124,7 @@ msrun --worker_num=2 --local_worker_num=2 --join=True \
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 
-**4.4.2 Filter out videos flagged NSFW.**
+**4.5.2 Filter out videos flagged NSFW.**
 ```bash
 python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --safety_check
 ```
