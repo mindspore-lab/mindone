@@ -35,6 +35,9 @@ class Bucket:
                 bucket_id_cnt += 1
                 ar_criteria[k1][k2] = dict()
                 for k3, v3 in ASPECT_RATIOS[k1][1].items():
+                    # CogvideoX limit
+                    if v3[0] % 32 != 0 or v3[1] % 32 != 0:
+                        continue
                     ar_criteria[k1][k2][k3] = v3
                     num_bucket += 1
 

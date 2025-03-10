@@ -17,6 +17,7 @@ def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
     dim_size = x.shape[dim]
     start_idx = (dim_size // world_size) * rank
     end_idx = (dim_size // world_size) * (rank + 1)
+    # FIXME: change to mint.narrow
     x = slice_ext_op(x, dim, start_idx, end_idx, 1)
     # tensor_list = x.split(dim_size // world_size, axis=dim)
     # x = tensor_list[rank]

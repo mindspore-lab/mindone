@@ -150,9 +150,9 @@ def log_validation(
 
 
 class CollateFunction:
-    def __init__(self, weight_dtype: ms.Type, latents_cache: bool, embeddings_cache: bool, use_rope: bool) -> None:
+    def __init__(self, weight_dtype: ms.Type, vae_cache: bool, embeddings_cache: bool, use_rope: bool) -> None:
         self.weight_dtype = weight_dtype
-        self.latents_cache = latents_cache
+        self.vae_cache = vae_cache
         self.embeddings_cache = embeddings_cache
         self.use_rope = use_rope
 
@@ -274,7 +274,7 @@ def main(args):
         )
         set_params_requires_grad(text_encoder, False)
 
-    if not args.latents_cache:
+    if not args.vae_cache:
         if enable_sequence_parallelism:
             vae = AutoencoderKLCogVideoX_SP.from_pretrained(
                 args.pretrained_model_name_or_path,
@@ -394,7 +394,7 @@ def main(args):
         "width_buckets": args.width_buckets,
         "frame_buckets": args.frame_buckets,
         "embeddings_cache": args.embeddings_cache,
-        "latents_cache": args.latents_cache,
+        "vae_cache": args.vae_cache,
         "random_flip": args.random_flip,
         "tokenizer": None if args.embeddings_cache else tokenizer,
         "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
@@ -414,7 +414,7 @@ def main(args):
         )
 
     collate_fn = CollateFunction(
-        weight_dtype, args.latents_cache, args.embeddings_cache, transformer_config.use_rotary_positional_embeddings
+        weight_dtype, args.vae_cache, args.embeddings_cache, transformer_config.use_rotary_positional_embeddings
     )
 
     train_dataloader = GeneratorDataset(
@@ -820,7 +820,7 @@ class TrainStepForCogVideo(nn.Cell):
 
     def prepare_transformer_inputs(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
         with pynative_context(), pynative_no_grad():
-            if not args.latents_cache:
+            if not args.vae_cache:
                 videos = videos.permute(0, 2, 1, 3, 4).to(self.vae.dtype)  # [B, C, F, H, W]
                 videos = self.vae.encode(videos)[0]
             videos = videos.to(self.weight_dtype)

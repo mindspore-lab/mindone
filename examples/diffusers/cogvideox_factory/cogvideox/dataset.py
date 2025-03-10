@@ -1,7 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# Must import after torch because this can sometimes lead to a nasty segmentation fault, or stack smashing error
 # Very few bug reports but it happens. Look in decord Github issues for more relevant information.
 import decord
 import numpy as np
@@ -41,7 +40,7 @@ class VideoDataset(object):
         width_buckets: List[int] = None,
         frame_buckets: List[int] = None,
         embeddings_cache: bool = False,
-        latents_cache: bool = False,
+        vae_cache: bool = False,
         random_flip: Optional[float] = None,
         image_to_video: bool = False,
         tokenizer: Optional[PreTrainedTokenizer] = None,
@@ -67,7 +66,7 @@ class VideoDataset(object):
         self.width_buckets = width_buckets or WIDTH_BUCKETS
         self.frame_buckets = frame_buckets or FRAME_BUCKETS
         self.embeddings_cache = embeddings_cache
-        self.latents_cache = latents_cache
+        self.vae_cache = vae_cache
         self.random_flip = random_flip
         self.image_to_video = image_to_video
 
@@ -160,7 +159,7 @@ class VideoDataset(object):
             )
             text_input_ids = text_inputs.input_ids.squeeze()
 
-        if self.latents_cache:
+        if self.vae_cache:
             image, video = self._load_preprocessed_latents(self.video_paths[index])
 
             # This is hardcoded for now.
@@ -217,7 +216,7 @@ class VideoDataset(object):
         with open(video_path, "r", encoding="utf-8") as file:
             video_paths = [self.data_root.joinpath(line.strip()) for line in file.readlines() if len(line.strip()) > 0]
 
-        if not self.latents_cache and any(not path.is_file() for path in video_paths):
+        if not self.vae_cache and any(not path.is_file() for path in video_paths):
             raise ValueError(
                 f"Expected `self.video_column={self.video_column}` to be a path to a file in `self.data_root={self.data_root}` containing line-separated paths to video data but found atleast one path that is not a valid file."  # noqa: E501
             )
@@ -273,7 +272,7 @@ class VideoDataset(object):
 
         if not video_latents_path.exists() or (self.image_to_video and not image_latents_path.exists()):
             raise ValueError(
-                f"When setting the latents_cache parameter to `True`, it is expected that the `{self.data_root}` "
+                f"When setting the vae_cache parameter to `True`, it is expected that the `{self.data_root}` "
                 f"contains two folders named `video_latents` and `prompt_embeds`. "
                 f"However, these folders were not found. "
                 f"Please make sure to have prepared your data correctly using `prepare_data.py`. "

@@ -9,6 +9,9 @@ export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
 # Num of NPUs for training
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_NPUS=8
+# Multiple machines
+MASTER_ADDR="127.0.0.1"
+NODE_RANK="0"
 
 # Training Configurations
 # Experiment with as many hyperparameters as you want!
@@ -21,7 +24,7 @@ SP=True
 SP_SIZE=$NUM_NPUS
 FA_RCP=False
 ENABLE_DYNAMIC_SHAPE=0
-LATENTS_CACHE=1
+VAE_CACHE=1
 EMBEDDINGS_CACHE=1
 OUTPUT_ROOT_DIR=./output_sft
 
@@ -36,8 +39,11 @@ if [ "$NUM_NPUS" -eq 1 ]; then
     LAUNCHER="python"
     EXTRA_ARGS=""
     SP=False
-else
+elif [ "$NUM_NPUS" -le 8 ]; then
     LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=$NUM_NPUS --log_dir="./log_sft" --join=True"
+    EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
+else
+    LAUNCHER="msrun --bind_core=True --worker_num=$NUM_NPUS --local_worker_num=8 --master_addr=${MASTER_ADDR} --node_rank=${NODE_RANK} --log_dir="./log_sft" --join=True"
     EXTRA_ARGS="--distributed --zero_stage $DEEPSPEED_ZERO_STAGE"
 fi
 if [ "$ENABLE_DYNAMIC_SHAPE" -eq 1 ]; then
@@ -50,8 +56,8 @@ if [ "$ENABLE_DYNAMIC_SHAPE" -eq 1 ]; then
   export MS_DISABLE_KERNEL_BACKOFF=0
   EXTRA_ARGS="$EXTRA_ARGS --dynamic_shape --bucket_config=${SCRIPT_DIR}/bucket.yaml"
 fi
-if [ "$LATENTS_CACHE" -eq 1 ]; then
-  EXTRA_ARGS="$EXTRA_ARGS --latents_cache"
+if [ "$VAE_CACHE" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --vae_cache"
 fi
 if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"

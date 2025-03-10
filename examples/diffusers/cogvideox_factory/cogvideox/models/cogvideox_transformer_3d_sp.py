@@ -272,7 +272,7 @@ class CogVideoXTransformer3DModel_SP(ModelMixin, ConfigMixin, PeftAdapterMixin):
             use_positional_embeddings=not use_rotary_positional_embeddings,
             use_learned_positional_embeddings=use_learned_positional_embeddings,
         )
-        self.embedding_dropout = nn.Dropout(p=dropout)
+        self.embedding_dropout = mint.nn.Dropout(p=dropout)
 
         # 2. Time embeddings and ofs embedding(Only CogVideoX1.5-5B I2V have)
         self.time_proj = Timesteps(inner_dim, flip_sin_to_cos, freq_shift)
@@ -321,7 +321,7 @@ class CogVideoXTransformer3DModel_SP(ModelMixin, ConfigMixin, PeftAdapterMixin):
             # For CogVideoX 1.5
             output_dim = patch_size * patch_size * patch_size_t * out_channels
 
-        self.proj_out = nn.Dense(inner_dim, output_dim)
+        self.proj_out = mint.nn.Linear(inner_dim, output_dim)
 
         self._gradient_checkpointing = False
         self.set_sequence_parallelism(enable_sequence_parallelism)

@@ -59,11 +59,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default="bf16",
         choices=["no", "fp16", "bf16"],
-        help=(
-            "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10.and an Nvidia Ampere GPU. "
-            "Default to the value of accelerate config of the current system or the flag passed with the `accelerate.launch` command. Use this "
-            "argument to override the accelerate config."
-        ),
+        help="Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16).",
     )
     parser.add_argument(
         "--enable_sequence_parallelism",

@@ -31,6 +31,15 @@ MAX_SEQUENCE_LENGTH=224
 TARGET_FPS=8
 BATCH_SIZE=1
 DTYPE=bf16
+VAE_CACHE=1
+EMBEDDINGS_CACHE=1
+
+if [ "$VAE_CACHE" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --vae_cache"
+fi
+if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
+fi
 
 # To create a folder-style dataset structure without pre-encoding videos and captions
 # For Image-to-Video finetuning, make sure to pass `--save_image_latents`
@@ -51,9 +60,6 @@ CMD_WITHOUT_PRE_ENCODING="\
       --dtype $DTYPE \
       $EXTRA_ARGS
 "
-
-CMD_WITH_PRE_ENCODING="$CMD_WITHOUT_PRE_ENCODING --save_embeddings "
-CMD_WITH_PRE_ENCODING="$CMD_WITH_PRE_ENCODING --save_latents "
 
 # Select which you'd like to run
 CMD=$CMD_WITH_PRE_ENCODING

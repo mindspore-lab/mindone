@@ -191,7 +191,7 @@ def main(args):
         )
         set_params_requires_grad(text_encoder, False)
 
-    if not args.latents_cache:
+    if not args.vae_cache:
         if enable_sequence_parallelism:
             vae = AutoencoderKLCogVideoX_SP.from_pretrained(
                 args.pretrained_model_name_or_path,
@@ -282,7 +282,7 @@ def main(args):
     VAE_SCALE_FACTOR_SPATIAL = 2 ** (len(vae_config.config.block_out_channels) - 1)
 
     all_buckets = None
-    if not args.latents_cache and args.bucket_config:
+    if not args.vae_cache and args.bucket_config:
         with open(args.bucket_config, "r") as f:
             config = yaml.safe_load(f)
             all_buckets = Bucket(config["bucket_config"])
@@ -299,7 +299,7 @@ def main(args):
         "width_buckets": args.width_buckets,
         "frame_buckets": args.frame_buckets,
         "embeddings_cache": args.embeddings_cache,
-        "latents_cache": args.latents_cache,
+        "vae_cache": args.vae_cache,
         "random_flip": args.random_flip,
         "tokenizer": None if args.embeddings_cache else tokenizer,
         "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
@@ -401,6 +401,11 @@ def main(args):
     # It might be a design flaw of MindSpore optimizer which should be fixed, but now we just avoid it.
     transformer_parameters = transformer.trainable_params()
     num_trainable_parameters = sum(param.numel() for param in transformer_parameters)
+
+    # Bias and time_embedding does not set optimizer parallelism
+    for param in transformer_parameters:
+        if "bias" in param.name or "time_embedding" in param.name:
+            param.parallel_optimizer = False
 
     optimizer = get_optimizer(
         params_to_optimize=transformer_parameters,
@@ -670,7 +675,7 @@ class TrainStepForCogVideo(nn.Cell):
 
     def prepare_transformer_inputs(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
         with pynative_context(), pynative_no_grad():
-            if not args.latents_cache:
+            if not args.vae_cache:
                 videos = videos.permute(0, 2, 1, 3, 4).to(self.vae.dtype)  # [B, C, F, H, W]
                 videos = self.vae.encode(videos)[0]
             videos = videos.to(self.weight_dtype)

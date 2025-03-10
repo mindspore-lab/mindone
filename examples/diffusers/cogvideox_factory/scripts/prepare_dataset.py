@@ -150,24 +150,24 @@ def get_args() -> Dict[str, Any]:
     )
     parser.add_argument("--target_fps", type=int, default=8, help="Frame rate of output videos.")
     parser.add_argument(
-        "--save_latents",
+        "--vae_cache",
         action="store_true",
-        help="Whether to encode videos to latents and save them in pytorch serializable format.",
+        help="Whether to encode videos to latents and save them in numpy array format.",
     )
     parser.add_argument(
-        "--save_embeddings",
+        "--embeddings_cache",
         action="store_true",
-        help="Whether to encode captions to embeddings and save them in pytorch serializable format.",
+        help="Whether to encode captions to embeddings and save them in numpy array format.",
     )
     parser.add_argument(
         "--use_slicing",
         action="store_true",
-        help="Whether to enable sliced encoding/decoding in the VAE. Only used if `--save_latents` is also used.",
+        help="Whether to enable sliced encoding/decoding in the VAE. Only used if `--vae_cache` is also used.",
     )
     parser.add_argument(
         "--use_tiling",
         action="store_true",
-        help="Whether to enable tiled encoding/decoding in the VAE. Only used if `--save_latents` is also used.",
+        help="Whether to enable tiled encoding/decoding in the VAE. Only used if `--vae_cache` is also used.",
     )
     parser.add_argument("--batch_size", type=int, default=1, help="Number of videos to process at once in the VAE.")
     parser.add_argument(
@@ -321,12 +321,12 @@ def main():
 
     # 1. Prepare models
     tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
-    if args.save_embeddings:
+    if args.embeddings_cache:
         text_encoder = T5EncoderModel.from_pretrained(
             args.model_id, subfolder="text_encoder", mindspore_dtype=weight_dtype
         )
 
-    if args.save_latents:
+    if args.vae_cache:
         vae = AutoencoderKLCogVideoX.from_pretrained(args.model_id, subfolder="vae", mindspore_dtype=weight_dtype)
 
         if args.use_slicing:
@@ -346,7 +346,7 @@ def main():
         "width_buckets": args.width_buckets,
         "frame_buckets": args.frame_buckets,
         "embeddings_cache": False,
-        "latents_cache": False,
+        "vae_cache": False,
         "random_flip": args.random_flip,
         "image_to_video": args.save_image_latents,
         "tokenizer": tokenizer,
@@ -435,7 +435,7 @@ def main():
             prompt_embeds = None
             video_latents = None
             # Encode videos & images
-            if args.save_latents:
+            if args.vae_cache:
                 if args.use_slicing:
                     if args.save_image_latents:
                         encoded_slices = [vae._encode(image_slice) for image_slice in images.split(1)]
@@ -454,7 +454,7 @@ def main():
 
                 video_latents = video_latents.to(dtype=weight_dtype).float().asnumpy()
 
-            if args.save_embeddings:
+            if args.embeddings_cache:
                 # Encode prompts
                 prompt_embeds = (
                     compute_prompt_embeddings(

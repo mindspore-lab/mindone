@@ -1,7 +1,5 @@
 # CogVideoX Factory 🧪
 
-[Read in English](./README_en.md)
-
 在 Ascend 硬件下对 Cog 系列视频模型进行微调以实现自定义视频生成 ⚡️📼
 
 > 我们的开发和验证基于Ascend 910*硬件，相关环境如下：
@@ -132,11 +130,13 @@ MAX_SEQUENCE_LENGTH=224
 在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 LoRA 微调为例。
 
 > [!TIP]
-> 由于模型和框架的限制，对于训练我们暂时推荐分阶段的训练流程，即先通过[`prepare_dateset.sh`](./scripts/prepare_dataset.sh)预处理数据集，然后读取预处理后的数据集通过`train*.sh`进行正式训练。
+> 由于模型的限制，对于固定shape的训练我们推荐分阶段的训练流程，即先进行[预处理数据](#预处理数据)缓存数据，然后读取缓存通过`train*.sh`进行正式训练。
 >
-> 在正式训练阶段，需要增加`--embeddings_cache`参数以支持text embeddings预处理，`--latents_cache`参数以支持vae预处理。建议增加参数`--mindspore_mode=0`以进行静态图训练加速，在`train*.sh`里可通过设置参数`MINDSPORE_MODE=0`实现。
+> 在正式训练阶段，需要增加`--embeddings_cache`参数以支持text embeddings预处理，`--vae_cache`参数以支持vae预处理。
 >
 > 具体情况参见[与原仓的差异 & 功能限制](#与原仓的差异功能限制)
+>
+> 多分辨率场景，推荐增加`--embeddings_cache`参数以支持text embeddings预处理，视频处理部分我们提供了一种分桶训练的方法，即将数据原始数据按实际数据的分辨率和帧数处理成一些设定好的BatchSize，分辨率和帧数。详情参见[启用分桶训练](#启用分桶训练)
 
 ### 预处理数据
 
@@ -176,24 +176,52 @@ BATCH_SIZE=1
 DTYPE=bf16
 ```
 
-- 配置缓存数据，配置`--save_embeddings`缓存`text_encoder`输出，配置`--save_latents`缓存`vae`输出，建议都缓存。
+- 配置缓存数据，固定shape建议都缓存，多分辨率场景建议缓存`EMBEDDINGS_CACHE`。
 
 ```shell
-CMD_WITH_PRE_ENCODING="$CMD_WITHOUT_PRE_ENCODING --save_embeddings "
-CMD_WITH_PRE_ENCODING="$CMD_WITH_PRE_ENCODING --save_latents "
+VAE_CACHE=1
+EMBEDDINGS_CACHE=1
 ```
 
 然后正式运行`prepare_dateset.sh`，输出预处理后的数据集至`OUTPUT_DIR`
 
+### 启用分桶训练
+
+多分辨率场景，我们提供了一种分桶训练的方法，即将数据原始数据按实际数据的分辨率和帧数处理成一些设定好的BatchSize，分辨率和帧数。
+
+训练时，在[`train_text_to_video_sft.sh`](./scripts/train_text_to_video_sft.sh)中配置`ENABLE_DYNAMIC_SHAPE=1`。分桶的配置文件需要使用`--bucket_config`传入，默认为[`./scripts/bucket.yaml`](./scripts/bucket.yaml)。
+
+例如，配置支持480p和720p两种分辨率，bucket配置文件可以是：
+
+```yaml
+bucket_config:
+  # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
+  # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
+  "480p": { 1: [ 0.5, 89 ], 37: [0.4, 8], 53: [0.4, 3], 101: [0.3, 2], 197: [1.0, 1], 381: [1.0, 1]}
+  "720p": { 1: [ 0.1, 36 ], 37: [0.5, 2], 53: [0.2, 1] , 77: [0.4, 1] }
+```
+
+配置结构 `"resolution": { num_frames: [ keep_prob, batch_size ] }`,resolution是分辨率，具体shape可参考[`aspect.py`](cogvideox/datasets/aspect.py)；
+keep_prob为视频满足该分辨率和帧数要求下分配到该桶的概率；batch_size为训练时的batch_size。
+
+该算法参考自[Open-Sora](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_03.md#more-data-and-better-multi-stage-training)。
+
 ### 正式训练
 
-执行卡数及并行配置。注意当`SP=True`时`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数，`SP_SIZE`不能是1：
+- 执行卡数及并行配置。注意当`SP=True`时`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数，`SP_SIZE`不能是1：
 
 ```shell
 NUM_NPUS=8
 SP=True
 SP_SIZE=$NUM_NPUS
 DEEPSPEED_ZERO_STAGE=3
+```
+
+- 多机训练配置，`MASTER_ADDR`是主节点的物理IP地址，默认是`127.0.0.1`，`NODE_RANK`是第几个节点，从0开始计数。
+
+```shell
+MASTER_ADDR="127.0.0.1"
+NODE_RANK="0"
 ```
 
 - 选择训练的超参数。让我们以学习率和优化器类型的超参数遍历为例：
@@ -224,7 +252,7 @@ DEEPSPEED_ZERO_STAGE=3
 - 是否使用数据缓存,推荐都打开：
 
   ```shell
-  LATENTS_CACHE=1
+  VAE_CACHE=1
   EMBEDDINGS_CACHE=1
   ```
 

@@ -89,7 +89,7 @@ def _get_dataset_args(parser: argparse.ArgumentParser) -> None:
         help="CogVideoX1.5 need to guarantee that ((num_frames - 1) // self.vae_scale_factor_temporal + 1) % patch_size_t == 0, such as 53",
     )
     parser.add_argument(
-        "--latents_cache",
+        "--vae_cache",
         action="store_true",
         help="Whether to use a pre-encoded tensor dataset of latents instead of videos. "
         "The expected format is that saved by running the `prepare_dataset.py` script.",
@@ -115,7 +115,7 @@ def _get_dataset_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--pin_memory",
         action="store_true",
-        help="Whether or not to use the pinned memory setting in pytorch dataloader.",
+        help="Whether or not to use the pinned memory setting in dataloader.",
     )
     parser.add_argument(
         "--dynamic_shape",
@@ -201,11 +201,7 @@ def _get_training_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         default=None,
         choices=["no", "fp16", "bf16"],
-        help=(
-            "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >= 1.10.and an Nvidia Ampere GPU. "
-            "Default to the value of accelerate config of the current system or the flag passed with the `accelerate.launch` command. Use this "
-            "argument to override the accelerate config."
-        ),
+        help="Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16)",
     )
     parser.add_argument(
         "--output_dir",
@@ -489,14 +485,6 @@ def _get_configuration_args(parser: argparse.ArgumentParser) -> None:
         type=str,
         default="logs",
         help="Directory where logs are stored.",
-    )
-    parser.add_argument(
-        "--allow_tf32",
-        action="store_true",
-        help=(
-            "Whether or not to allow TF32 on Ampere GPUs. Can be used to speed up training. For more information, see"
-            " https://pytorch.org/docs/stable/notes/cuda.html#tensorfloat-32-tf32-on-ampere-devices"
-        ),
     )
     parser.add_argument(
         "--nccl_timeout",

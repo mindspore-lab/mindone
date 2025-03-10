@@ -18,7 +18,7 @@ LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw_bf16")
 MAX_TRAIN_STEPS=("3000")
 FA_RCP=False
-LATENTS_CACHE=1
+VAE_CACHE=1
 EMBEDDINGS_CACHE=1
 OUTPUT_ROOT_DIR=./output_lora
 
@@ -37,8 +37,8 @@ else
     EXTRA_ARGS="--distributed"
 fi
 
-if [ "$LATENTS_CACHE" -eq 1 ]; then
-  EXTRA_ARGS="$EXTRA_ARGS --latents_cache"
+if [ "$VAE_CACHE" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --vae_cache"
 fi
 if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
