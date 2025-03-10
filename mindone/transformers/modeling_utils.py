@@ -53,6 +53,7 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
+from mindspore.nn.utils import no_init_parameters
 
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
@@ -63,7 +64,7 @@ from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 if is_safetensors_available():
     from safetensors import safe_open
 
-    from mindone.safetensors.mindspore import load_file as safe_load_file
+    # from mindone.safetensors.mindspore import load_file as safe_load_file
     from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
@@ -251,7 +252,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
                     "you save your model with the `save_pretrained` method."
                 )
-            return safe_load_file(checkpoint_file)
+            return ms.load_checkpoint(checkpoint_file, format="safetensors")
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -2055,8 +2056,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         config = cls._autoset_attn_implementation(
             config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
         )
-
-        model = cls(config, *model_args, **model_kwargs)
+        with no_init_parameters():
+            model = cls(config, *model_args, **model_kwargs)
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
