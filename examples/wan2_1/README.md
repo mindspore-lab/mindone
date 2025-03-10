@@ -212,10 +212,11 @@ Extending the prompts can effectively enrich the details in the generated videos
   - You can modify the model used for extension with the parameter `--prompt_extend_model` , allowing you to specify either a local model path or a Hugging Face model. For example:
 
 ```sh
-python generate.py \
+msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task t2v-14B \
     --size 1280*720 \
     --ckpt_dir ./Wan2.1-T2V-14B \
+    --dit_zero3 --t5_zero3 --qwen_zero3 --ulysses_sp \
     --prompt "Two anthropomorphic cats in comfy boxing gear and bright gloves fight intensely on a spotlighted stage" \
     --use_prompt_extend --prompt_extend_method 'local_qwen' --prompt_extend_target_lang 'zh'
 ```
@@ -290,6 +291,7 @@ Run with local prompt extension using `Qwen/Qwen2.5-VL-7B-Instruct`:
 msrun --worker_num=2 --local_worker_num=2 generate.py \
     --task i2v-14B --size 1280*720 \
     --ckpt_dir ./Wan2.1-I2V-14B-720P \
+    --dit_zero3 --t5_zero3 --qwen_zero3 --ulysses_sp \
     --image examples/i2v_input.JPG \
     --use_prompt_extend --prompt_extend_model Qwen/Qwen2.5-VL-7B-Instruct \
     --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
