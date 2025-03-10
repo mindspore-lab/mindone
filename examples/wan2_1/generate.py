@@ -70,6 +70,12 @@ def _validate_args(args):
         args.size in SUPPORTED_SIZES[args.task]
     ), f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
 
+    # Not implemented warning
+    if args.t5_cpu:
+        logging.warning("`t5_cpu` is not supported currently.")
+    if args.offload_model:
+        logging.warning("`offload_model` is not supported currently.")
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="Generate a image or video from a text prompt or image using Wan")
