@@ -39,10 +39,10 @@ pip install -r requirements.txt
 
 ### Configuration
 
-The pipeline is configured using a `config.yaml` file located
-in the `config/` directory. This file allows you to specify paths, 
-enable or disable pipeline steps, and set parameters for each
-processing stage.
+The pipeline is configured using a `config.yaml` or `config.json` 
+file located in the `config/` directory. This file allows you to 
+specify paths, enable or disable pipeline steps, and set parameters 
+for each processing stage.
 
 #### Set Root Paths
 In `config.yaml`, modify the following paths to match your 
@@ -53,6 +53,17 @@ paths:
   ROOT_VIDEO: "/path/to/video/folder" # Directory containing the original video files.
   ROOT_CLIPS: "/path/to/video/clips/folder" # Directory where video clips will be stored.
   ROOT_META: "/path/to/meta/folder" # Directory for metadata CSV files.
+```
+
+Similarly, modify the following if using `config.json`:
+
+```bash
+"paths": {
+    "ROOT_VIDEO": "/path/to/video/folder",
+    "ROOT_CLIPS": "/path/to/video/clips/folder",
+    "ROOT_META": "/path/to/meta/folder",
+    "PYTHONPATH": "$(pwd)" # no need to modify this
+  },
 ```
 
 #### Deduplication Setup
