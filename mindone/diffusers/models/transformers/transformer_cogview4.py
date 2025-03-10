@@ -120,6 +120,28 @@ class CogView4AttnProcessor:
 
         self.apply_rotary_emb = apply_rotary_emb
 
+    def apply_rotary_emb_for_image_part(
+        self,
+        hidden_state: ms.Tensor,
+        image_rotary_emb: ms.Tensor,
+        start_index: int,
+        axis: int = 2,
+        use_real_unbind_dim: int = -1,
+    ) -> ms.Tensor:
+        """
+        Equivalence of expression(when axis=2):
+            `hidden_state[:, :, start_index:, :] = self.apply_rotary_emb(hidden_state[:, :, start_index:, :], image_rotary_emb)`
+        Rewrite it since implement above might call ops.ScatterNdUpdate which is super slow!
+        """
+        hidden_state_text, hidden_state_image = ops.split(
+            hidden_state, (start_index, hidden_state.shape[axis] - start_index), axis=axis
+        )
+        hidden_state_image = self.apply_rotary_emb(
+            hidden_state_image, image_rotary_emb, use_real_unbind_dim=use_real_unbind_dim
+        )
+        hidden_state = ops.cat([hidden_state_text, hidden_state_image], axis=axis)
+        return hidden_state
+
     def __call__(
         self,
         attn: Attention,
@@ -148,12 +170,16 @@ class CogView4AttnProcessor:
 
         # 3. Rotational positional embeddings applied to latent stream
         if image_rotary_emb is not None:
-            query[:, :, text_seq_length:, :] = self.apply_rotary_emb(
-                query[:, :, text_seq_length:, :], image_rotary_emb, use_real_unbind_dim=-2
+            # query[:, :, text_seq_length:, :] = self.apply_rotary_emb(
+            #     query[:, :, text_seq_length:, :], image_rotary_emb, use_real_unbind_dim=-2
+            # )
+            # key[:, :, text_seq_length:, :] = self.apply_rotary_emb(
+            #     key[:, :, text_seq_length:, :], image_rotary_emb, use_real_unbind_dim=-2
+            # )
+            query = self.apply_rotary_emb_for_image_part(
+                query, image_rotary_emb, text_seq_length, use_real_unbind_dim=-2
             )
-            key[:, :, text_seq_length:, :] = self.apply_rotary_emb(
-                key[:, :, text_seq_length:, :], image_rotary_emb, use_real_unbind_dim=-2
-            )
+            key = self.apply_rotary_emb_for_image_part(key, image_rotary_emb, text_seq_length, use_real_unbind_dim=-2)
 
         # 4. Attention
         hidden_states = attn.scaled_dot_product_attention(
