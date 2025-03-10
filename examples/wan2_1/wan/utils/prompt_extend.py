@@ -188,9 +188,13 @@ class QwenPromptExpander(PromptExpander):
         else:
             self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
             with no_init_parameters():
-                # TODO: change to flash attention & use cache
+                # TODO: change to flash attention & use cache & do sampling
                 self.model = Qwen2ForCausalLM.from_pretrained(
-                    self.model_name, mindspore_dtype=ms.bfloat16, attn_implementation="eager", use_cache=False
+                    self.model_name,
+                    mindspore_dtype=ms.bfloat16,
+                    attn_implementation="eager",
+                    use_cache=False,
+                    do_sample=False,
                 )
             if qwen_zero3:
                 self.model = prepare_network(
