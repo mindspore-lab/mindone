@@ -215,4 +215,4 @@ python -m pipeline.datasets.datautil /path/to/meta.csv --aesmin 4
 ```
 This should output `/path/to/meta_aesmin4.0.csv` with column `aes` >= 4.0
 
-[Here](../pipeline/datasets/README.md) you may find more filtering options.
+[Here](../datasets/README.md) you may find more filtering options.
