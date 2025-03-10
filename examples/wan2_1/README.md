@@ -67,12 +67,12 @@ prompt: Summer beach vacation style, a white cat wearing sunglasses sits on a su
 - Wan2.1 Text-to-Video
     - [x] Single-NPU inference code of the 14B and 1.3B models
     - [x] Multi-NPU inference acceleration for the 14B models
-    - [x] prompt extension
+    - [x] Prompt extension support
     - [ ] Gradio demo
 - Wan2.1 Image-to-Video
     - [x] Single-NPU inference code of the 14B model
     - [x] Multi-NPU inference acceleration for the 14B model
-    - [x] prompt extension
+    - [x] Prompt extension support
     - [ ] Gradio demo
 
 
@@ -297,17 +297,57 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
     --prompt "Summer beach vacation style, a white cat wearing sunglasses sits on a surfboard. The fluffy-furred feline gazes directly at the camera with a relaxed expression. Blurred beach scenery forms the background featuring crystal-clear waters, distant green hills, and a blue sky dotted with white clouds. The cat assumes a naturally relaxed posture, as if savoring the sea breeze and warm sunlight. A close-up shot highlights the feline's intricate details and the refreshing atmosphere of the seaside."
 ```
 
+### Run Image-to-Video Generation
+
+Wan2.1 is a unified model for both image and video generation. Since it was trained on both types of data, it can also generate images. The command for generating images is similar to video generation, as follows:
+
+#### (1) Without Prompt Extension
+
+- Single-NPU inference
+```sh
+python generate.py \
+    --task t2i-14B \
+    --size 1024*1024 \
+    --ckpt_dir ./Wan2.1-T2V-14B \
+    --prompt '一个朴素端庄的美人'
+```
+
+- Multi-NPU inference
+
+```sh
+msrun --worker_num=2 --local_worker_num=2 generate.py \
+    --task t2i-14B \
+    --size 1024*1024 \
+    --ckpt_dir ./Wan2.1-T2V-14B \
+    --dit_zero3 --t5_zero3 --ulysses_sp \
+    --prompt '一个朴素端庄的美人'
+```
+
+#### (2) With Prompt Extention
+
+- Multi-NPU inference
+```sh
+msrun --worker_num=2 --local_worker_num=2 generate.py \
+    --task t2i-14B \
+    --size 1024*1024 \
+    --ckpt_dir ./Wan2.1-T2V-14B \
+    --dit_zero3 --t5_zero3 --qwen_zero3 --ulysses_sp \
+    --prompt '一个朴素端庄的美人' \
+    --use_prompt_extend
+```
+
 ## Performance
 
 Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
 
-|     model    |  h x w x f |     cards | steps | npu peak memory  |   s/video  |
-|:------------:|:------------:|:------------:|:------------:|:------------:|:------------:|
-| T2V-1.3B   |      832x480x81 |  1   | 50    |  21GB    |  ~235   |
-| T2V-14B   |        1280x720x81 |  1   |  50   |  52.2GB  | ~4650    |
-| T2V-14B   |        1280x720x81 |  4   |  50   |  22.6GB  | ~1220    |
-| I2V-14B   |        832x480x81 |  1   |  40  |    50GB  | ~1150   |
-| I2V-14B   |        1280x720x81 |  4   | 40  |     25GB    | ~1000        |
+| model        | h x w x f   | cards | steps | npu peak memory  |   s/video   |
+|:------------:|:-----------:|:-----:|:-----:|:----------------:|:-----------:|
+| T2V-1.3B     | 832x480x81  |  1    | 50    |  21GB            | ~235        |
+| T2V-14B      | 1280x720x81 |  1    | 50    |  52.2GB          | ~4650       |
+| T2V-14B      | 1280x720x81 |  4    | 50    |  22.6GB          | ~1220       |
+| I2V-14B      | 832x480x81  |  1    | 40    |  50GB            | ~1150       |
+| I2V-14B      | 1280x720x81 |  4    | 40    |  25GB            | ~1000       |
+| T2I-14B      | 1024x1024x1 |  1    | 50    |  40GB            | ~85         |
 
 
 ## Citation
