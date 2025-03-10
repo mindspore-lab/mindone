@@ -247,6 +247,39 @@ class TemperatureLogitsWarper(LogitsProcessor):
         return scores_processed
 
 
+class RepetitionPenaltyLogitsProcessor(LogitsProcessor):
+    r"""
+    [`LogitsProcessor`] that prevents the repetition of previous tokens through a penalty. This penalty is applied at
+    most once per token. Note that, for decoder-only models like most LLMs, the considered tokens include the prompt.
+
+    In the original [paper](https://arxiv.org/pdf/1909.05858.pdf), the authors suggest the use of a penalty of around
+    1.2 to achieve a good balance between truthful generation and lack of repetition. To penalize and reduce
+    repetition, use `penalty` values above 1.0, where a higher value penalizes more strongly. To reward and encourage
+    repetition, use `penalty` values between 0.0 and 1.0, where a lower value rewards more strongly.
+
+    Args:
+        penalty (`float`):
+            The parameter for repetition penalty. 1.0 means no penalty. Above 1.0 penalizes previously generated
+            tokens. Between 0.0 and 1.0 rewards previously generated tokens.
+    """
+
+    def __init__(self, penalty: float):
+        if not isinstance(penalty, float) or not (penalty > 0):
+            raise ValueError(f"`penalty` has to be a strictly positive float, but is {penalty}")
+
+        self.penalty = penalty
+
+    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
+    def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
+        score = mint.gather(scores, 1, input_ids)
+
+        # if score < 0 then repetition penalty has to be multiplied to reduce the token probabilities
+        score = mint.where(score < 0, score * self.penalty, score / self.penalty)
+
+        scores_processed = scores.scatter(1, input_ids, score)
+        return scores_processed
+
+
 class TopPLogitsWarper(LogitsWarper):
     """
     [`LogitsWarper`] that performs top-p, i.e. restricting to top tokens summing to prob_cut_off <= prob_cut_off. Often
