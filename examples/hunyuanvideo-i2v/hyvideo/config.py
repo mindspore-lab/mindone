@@ -430,12 +430,12 @@ def add_inference_args(parser: argparse.ArgumentParser):
         "--model-base",
         type=str,
         default="ckpts",
-        help="Root path of all the models, including t2v models and extra models.",
+        help="Root path of all the models, including t2i models and extra models.",
     )
     group.add_argument(
         "--dit-weight",
         type=str,
-        default="ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt",
+        default="ckpts/hunyuan-video-t2i-720p/transformers/mp_rank_00_model_states.pt",
         help="Path to the HunyuanVideo model. If None, search the model in the args.model_root."
         "1. If it is a file, load the model directly. It supports torch checkpoint (.pt) and mindspore checkpoint (.ckpt)."
         "2. If it is a directory, search the model in the directory. Support two types of models: "
@@ -465,7 +465,7 @@ def add_inference_args(parser: argparse.ArgumentParser):
         type=str,
         default="540p",
         choices=["540p", "720p"],
-        help="Root path of all the models, including t2v models and extra models.",
+        help="Root path of all the models, including t2v(t2i) models and extra models.",
     )
     group.add_argument(
         "--load-key",

@@ -61,7 +61,7 @@ class Inference(object):
         Initialize the Inference pipeline.
 
         Args:
-            pretrained_model_path (str or pathlib.Path): The model path, including t2v, text encoder and vae checkpoints.
+            pretrained_model_path (str or pathlib.Path): The model path, including t2v(t2i), text encoder and vae checkpoints.
             args (argparse.Namespace): The arguments for the pipeline.
             device (int): The device for inference. Default is 0.
         """
@@ -75,6 +75,7 @@ class Inference(object):
             "dtype": PRECISION_TO_TYPE[args.precision],
             "attn_mode": args.attn_mode,
             "use_conv2d_patchify": args.use_conv2d_patchify,
+            "i2v_condition_type": args.i2v_condition_type,
         }
         in_channels = args.latent_channels
         out_channels = args.latent_channels
@@ -202,11 +203,13 @@ class Inference(object):
         load_key = args.load_key
         if args.i2v_mode:
             dit_weight = Path(args.i2v_dit_weight)
+            task_name = "t2i"
         else:
             dit_weight = Path(args.dit_weight)
+            task_name = "t2v"
 
         if dit_weight is None:
-            model_dir = pretrained_model_path / f"t2v_{args.model_resolution}"
+            model_dir = pretrained_model_path / f"{task_name}_{args.model_resolution}"
             files = list(model_dir.glob("*.pt"))
             if len(files) == 0:
                 raise ValueError(f"No model weights found in {model_dir}")

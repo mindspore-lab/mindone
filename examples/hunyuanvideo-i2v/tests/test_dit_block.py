@@ -209,18 +209,17 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     # args
     args = edict()
     DEBUG_CONFIG = {
-        "HYVideo-T/2-cfgdistill": {
+        "HYVideo-T/2": {
             "mm_double_blocks_depth": 1,
             "mm_single_blocks_depth": 1,
             "rope_dim_list": [4, 14, 14],  # [16, 56, 56], list sum = head_dim = pe_dim
             "hidden_size": 6 * 32,
             "heads_num": 6,
             "mlp_width_ratio": 1,
-            "guidance_embed": True,
         },
     }
     model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
-    args.model = "HYVideo-T/2-cfgdistill"
+    args.model = "HYVideo-T/2"
     if depth is not None:
         model_cfg[args.model]["mm_double_blocks_depth"] = depth
         model_cfg[args.model]["mm_single_blocks_depth"] = depth
@@ -256,6 +255,12 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     guidance = np.array([7.0 * 1000 for _ in range(bs)], dtype=np.float32)
     text_mask[0, :4] = 1
 
+    # i2v
+    # semantic_images = np.random.normal(size=(bs, 3, T * 4, H * 8, W * 8)).astype(np.float32)
+    # img_latents = np.random.normal(size=(bs, C, 1, H, W)).astype(np.float32)
+    # i2v_mode = True
+    # i2v_stability = True
+
     # tensor
     video_latent = ms.Tensor(video_latent)
     t = ms.Tensor(t)
@@ -267,7 +272,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     guidance = ms.Tensor(guidance)
 
     # model
-    factor_kwargs = {"dtype": dtype}
+    factor_kwargs = {"dtype": dtype, "i2v_condition_type": "token_replace"}
     net = HYVideoDiffusionTransformer(
         text_states_dim=args.text_states_dim,
         text_states_dim_2=args.text_states_dim_2,
@@ -330,7 +335,7 @@ if __name__ == "__main__":
 
     # test_hyvtransformer()
     test_hyvtransformer(
-        pt_ckpt="ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt", dtype=ms.bfloat16, debug=False
+        pt_ckpt="ckpts/hunyuan-video-t2i-720p/transformers/mp_rank_00_model_states.pt", dtype=ms.bfloat16, debug=False
     )
     # test_hyvtransformer(pt_ckpt='ckpts/transformer_depth1.pt', pt_np='tests/pt_pretrained_hyvtransformer_ge.npy', dtype=ms.float32, debug=False, depth=1)
 
