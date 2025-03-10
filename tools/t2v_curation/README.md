@@ -1,10 +1,10 @@
-# Data Processing
+# Video-Text Data Processing Pipeline
 >Automatic T2V HQ Data Curation Pipeline v1.0 MindSpore version.
-
- ![pipeline](./assets/data_pipeline_baseline.png)
+>
+<img width="850" alt="data_pipeline_demo" src="https://github.com/user-attachments/assets/a7828e69-59b9-49f2-b762-a50ac5bd86a1" />
 
 ## Overview
-This pipeline is designed gather video-text pairs to train video generation models 
+This pipeline is designed to gather video-text pairs to train video generation models 
 based on text inputs. 
 
 First, raw videos — whether sourced from the internet or public 
@@ -71,7 +71,7 @@ Follow the guideline [here](./pipeline/captioning/README.md).
 #### Customize Pipeline Steps
 Enable or disable specific pipeline steps via setting `run`
 and adjust their parameters as needed. We recommend keeping
-the default for the most parts. If you are interested in option
+the default for most parts. If you are interested in option
 filtering, you may set `run` under `option_filtering` to `true`
 and provide the video type you would like to keep under `option`.
 
@@ -107,12 +107,7 @@ For more information, please refer to:
 - [Scoring and Filtering](./pipeline/scoring/README.md)
 - [Captioning](./pipeline/captioning/README.md)
 
-## TODO
-- [ ] Feature: better video splitting techniques
-- [ ] Feature: further deduplication
-- [ ] Documentation: example walkthrough & webpage
-
 ## Acknowledgement
 This pipeline for video/image data processing pipeline in MindSpore is mostly 
 based on the [work](https://github.com/hpcaitech/Open-Sora/blob/main/docs/data_processing.md) by HPC-AI OpenSora. We thank them for their generous
-support to the open source community.
+support of the open source community.
