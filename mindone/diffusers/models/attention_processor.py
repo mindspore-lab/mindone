@@ -576,9 +576,6 @@ class Attention(nn.Cell):
         if attention_mask_dtype == ms.bool_:
             attention_mask = attention_mask.bool()
 
-        if attention_mask_dtype == ms.bool_:
-            attention_mask = attention_mask.bool()
-
         return attention_mask
 
     def norm_encoder_hidden_states(self, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
