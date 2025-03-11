@@ -296,7 +296,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
             if clip_skip is None:
                 prompt_outputs = text_encoder.encode(
-                    text_inputs, data_type=data_type, semantic_images=semantic_images, model_return_dict=False
+                    text_inputs, data_type=data_type, semantic_images=semantic_images, model_return_dict=True
                 )
                 prompt_embeds = prompt_outputs.hidden_state
             else:
@@ -304,7 +304,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     text_inputs,
                     output_hidden_states=True,
                     data_type=data_type,
-                    model_return_dict=False,
+                    model_return_dict=True,
                     semantic_images=semantic_images,
                 )
                 # Access the `hidden_states` first, that contains a tuple of
@@ -379,7 +379,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                 uncond_image = None
 
             negative_prompt_outputs = text_encoder.encode(
-                uncond_input, data_type=data_type, semantic_images=uncond_image, model_return_dict=False
+                uncond_input, data_type=data_type, semantic_images=uncond_image, model_return_dict=True
             )
             negative_prompt_embeds = negative_prompt_outputs.hidden_state
 
