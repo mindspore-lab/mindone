@@ -194,6 +194,9 @@ class TextEncoder(nn.Cell):
             padding_side="right",
             logger=self.logger,
         )
+        # to avoid: Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+        if hasattr(self.model, "generation_config") and self.model.generation_config is not None:
+            self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
         self.dtype = PRECISION_TO_TYPE[self.precision]
 
     def __repr__(self):
