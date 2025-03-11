@@ -369,7 +369,7 @@ class TextEncoder(nn.Cell):
                     text_crop_start = crop_start - 1 + self.prompt_template_video.get("image_emb_len", 576)
                     image_crop_start = self.prompt_template_video.get("image_emb_start", 5)
                     image_crop_end = self.prompt_template_video.get("image_emb_end", 581)
-                    batch_indices, last_double_return_token_indices = ops.where(
+                    batch_indices, last_double_return_token_indices = mint.where(
                         Tensor(batch_encoding["input_ids"])
                         == self.prompt_template_video.get("double_return_token_id", 271)
                     )
