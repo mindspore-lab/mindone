@@ -9,7 +9,7 @@ from transformers.utils import ModelOutput
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops
 
-from mindone.transformers import CLIPTextModel, LlamaModel
+from mindone.transformers import CLIPTextModel, LlamaModel, LlavaConfig, LlavaForConditionalGeneration
 from mindone.transformers.models.llama.modeling_llama import ALL_LAYERNORM_LAYERS
 from mindone.utils.amp import auto_mixed_precision
 
@@ -35,9 +35,9 @@ def load_text_encoder(
         text_encoder = LlamaModel.from_pretrained(text_encoder_path, use_flash_attention_2=True)
         text_encoder.final_layer_norm = text_encoder.norm
     elif text_encoder_type == "llm-i2v":
-        from .llm_i2v import LlavaForConditionalGeneration
-
-        text_encoder = LlavaForConditionalGeneration.from_pretrained(text_encoder_path, low_cpu_mem_usage=True)
+        config = LlavaConfig.from_pretrained(text_encoder_path, mindspore_dtype=ms.float16)
+        config.text_config._attn_implementation = "flash_attention_2"
+        text_encoder = LlavaForConditionalGeneration.from_pretrained(text_encoder_path, text_config=config.text_config)
     else:
         raise ValueError(f"Unsupported text encoder type: {text_encoder_type}")
 

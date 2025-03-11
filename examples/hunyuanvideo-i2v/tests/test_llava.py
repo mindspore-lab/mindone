@@ -21,8 +21,7 @@ sys.path.insert(0, mindone_lib_path)
 # from mindone.transformers import AutoProcessor
 from transformers import AutoProcessor
 
-from mindone.transformers.models.llava import LlavaForConditionalGeneration
-from mindone.transformers.models.llava.configuration_llava import LlavaConfig
+from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
 
 
 def test():
@@ -61,7 +60,6 @@ def test():
         )
         print("num hidden state: ", len(outputs.hidden_states[-1]))
         print("last hidden state: ", outputs.hidden_states[-1].shape)
-        import pdb; pdb.set_trace()
     else:
         config = LlavaConfig.from_pretrained(model_path, mindspore_dtype=ms.float16)
 
