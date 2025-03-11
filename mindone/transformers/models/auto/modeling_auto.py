@@ -31,7 +31,6 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("bit", "BitModel"),
         ("blip-2", "Blip2Model"),
         ("clip", "CLIPModel"),
-        ("clip_text_model", "CLIPTextModel"),
         ("clip_vision_model", "CLIPVisionModel"),
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
