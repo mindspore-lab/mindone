@@ -908,7 +908,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         upscaled = ops.interpolate(image, (height, width), mode="bilinear", align_corners=True)
 
-        noise_level = ms.Tensor([noise_level] * upscaled.shape[0])
+        noise_level = ms.tensor([noise_level] * upscaled.shape[0])
         noise = randn_tensor(upscaled.shape, generator=generator, dtype=upscaled.dtype)
         upscaled = self.image_noising_scheduler.add_noise(upscaled, noise, timesteps=noise_level)
 

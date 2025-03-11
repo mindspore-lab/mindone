@@ -139,7 +139,7 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(images=image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         image_embeddings = self.image_encoder(image)[0]
@@ -171,7 +171,7 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
                 feature_extractor_input = self.image_processor.numpy_to_pil(image)
             safety_checker_input = self.feature_extractor(feature_extractor_input, return_tensors="np")
             image, has_nsfw_concept = self.safety_checker(
-                images=image, clip_input=ms.Tensor(safety_checker_input.pixel_values).to(dtype)
+                images=image, clip_input=ms.tensor(safety_checker_input.pixel_values).to(dtype)
             )
         return image, has_nsfw_concept
 

@@ -489,7 +489,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
                 dtype = ms.float64
             else:
                 dtype = ms.int64
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 

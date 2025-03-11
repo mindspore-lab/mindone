@@ -549,7 +549,7 @@ class StableDiffusionLatentUpscalePipeline(DiffusionPipeline, StableDiffusionMix
         # (see below notes from the author):
         # "the This step theoretically can make the model work better on out-of-distribution inputs, but mostly just
         # seems to make it match the input less, so it's turned off by default."
-        noise_level = ms.Tensor([0.0], dtype=ms.int32)
+        noise_level = ms.tensor([0.0], dtype=ms.int32)
         noise_level = ops.cat([noise_level] * image.shape[0])
         inv_noise_level = (noise_level**2 + 1) ** (-0.5)
 

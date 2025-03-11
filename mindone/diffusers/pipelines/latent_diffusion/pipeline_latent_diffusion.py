@@ -29,44 +29,8 @@ from mindone.transformers.modeling_outputs import BaseModelOutput
 
 from ...models import AutoencoderKL, UNet2DConditionModel, UNet2DModel, VQModel
 from ...schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import dtype_to_max, dtype_to_min, randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
-
-_MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
-_MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
-_MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
-_MIN_BF16 = ms.tensor(float.fromhex("-0x1.fe00000000000p+127"), dtype=ms.bfloat16)
-
-_MAX_FP16 = ms.tensor(np.finfo(np.float16).max, dtype=ms.float16)
-_MAX_FP32 = ms.tensor(np.finfo(np.float32).max, dtype=ms.float32)
-_MAX_FP64 = ms.tensor(np.finfo(np.float64).max, dtype=ms.float64)
-_MAX_BF16 = ms.tensor(float.fromhex("0x1.fe00000000000p+127"), dtype=ms.bfloat16)
-
-
-def dtype_to_min(dtype):
-    if dtype == ms.float16:
-        return _MIN_FP16
-    if dtype == ms.float32:
-        return _MIN_FP32
-    if dtype == ms.float64:
-        return _MIN_FP64
-    if dtype == ms.bfloat16:
-        return _MIN_BF16
-    else:
-        raise ValueError(f"Only support get minimum value of (float16, ), but got {dtype}")
-
-
-def dtype_to_max(dtype):
-    if dtype == ms.float16:
-        return _MAX_FP16
-    if dtype == ms.float32:
-        return _MAX_FP32
-    if dtype == ms.float64:
-        return _MAX_FP64
-    if dtype == ms.bfloat16:
-        return _MAX_BF16
-    else:
-        raise ValueError(f"Only support get maximum value of (float16, ), but got {dtype}")
 
 
 class LDMTextToImagePipeline(DiffusionPipeline):
@@ -187,12 +151,12 @@ class LDMTextToImagePipeline(DiffusionPipeline):
             uncond_input = self.tokenizer(
                 [""] * batch_size, padding="max_length", max_length=77, truncation=True, return_tensors="np"
             )
-            uncond_input_ids = ms.Tensor(uncond_input.input_ids)
+            uncond_input_ids = ms.tensor(uncond_input.input_ids)
             negative_prompt_embeds = self.bert(uncond_input_ids)[0]
 
         # get prompt text embeddings
         text_input = self.tokenizer(prompt, padding="max_length", max_length=77, truncation=True, return_tensors="np")
-        text_input_ids = ms.Tensor(text_input.input_ids)
+        text_input_ids = ms.tensor(text_input.input_ids)
         prompt_embeds = self.bert(text_input_ids)[0]
 
         # get the initial random noise unless the user supplied it
@@ -583,7 +547,7 @@ class LDMBertPreTrainedModel(MSPreTrainedModel):
     @property
     def dummy_inputs(self):
         pad_token = self.config.pad_token_id
-        input_ids = ms.Tensor([[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]])
+        input_ids = ms.tensor([[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]])
         dummy_inputs = {
             "attention_mask": input_ids.ne(pad_token),
             "input_ids": input_ids,

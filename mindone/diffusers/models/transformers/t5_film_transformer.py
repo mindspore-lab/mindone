@@ -207,7 +207,7 @@ class DecoderLayer(nn.Cell):
 
         if encoder_hidden_states is not None:
             encoder_extended_attention_mask = ops.where(
-                encoder_attention_mask > 0, ms.Tensor(0.0), ms.Tensor(-1e10)
+                encoder_attention_mask > 0, ms.tensor(0.0), ms.tensor(-1e10)
             ).to(encoder_hidden_states.dtype)
 
             hidden_states = self.layer[1](
