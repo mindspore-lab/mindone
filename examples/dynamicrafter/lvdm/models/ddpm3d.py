@@ -9,7 +9,7 @@ from lvdm.modules.networks.util import rearrange_in_gn5d_bs, rearrange_out_gn5d
 import mindspore as ms
 from mindspore import Parameter, Tensor
 from mindspore import dtype as mstype
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from mindone.utils.config import instantiate_from_config
 from mindone.utils.misc import default, exists, extract_into_tensor
@@ -89,7 +89,6 @@ class DDPM(nn.Cell):
             self.monitor = monitor
         if ckpt_path is not None:
             self.init_from_ckpt(ckpt_path, ignore_keys=ignore_keys, only_model=load_only_unet)
-        self.isnan = ops.IsNan()
         self.register_schedule(
             given_betas=given_betas,
             beta_schedule=beta_schedule,
@@ -106,8 +105,8 @@ class DDPM(nn.Cell):
         self.logvar = Tensor(np.full(shape=(self.num_timesteps,), fill_value=logvar_init).astype(np.float32))
         if self.learn_logvar:
             self.logvar = Parameter(self.logvar, requires_grad=True)
-        self.mse_mean = nn.MSELoss(reduction="mean")
-        self.mse_none = nn.MSELoss(reduction="none")
+        self.mse_mean = mint.nn.MSELoss(reduction="mean")
+        self.mse_none = mint.nn.MSELoss(reduction="none")
 
     def register_schedule(
         self,
@@ -320,8 +319,8 @@ class LatentDiffusion(DDPM):
         if self.encoder_type == "2d" and z.dim() == 5:
             b, _, t, _, _ = z.shape
             # z = rearrange(z, 'b c t h w -> (b t) c h w')
-            z = ops.transpose(z, (0, 2, 1, 3, 4))  # (b c t h w) -> (b t c h w)
-            z = ops.reshape(z, (-1, z.shape[2], z.shape[3], z.shape[4]))  # (b t c h w) -> ((b t) c h w)
+            z = mint.permute(z, (0, 2, 1, 3, 4))  # (b c t h w) -> (b t c h w)
+            z = mint.reshape(z, (-1, z.shape[2], z.shape[3], z.shape[4]))  # (b t c h w) -> ((b t) c h w)
             reshape_back = True
         else:
             reshape_back = False
@@ -335,11 +334,11 @@ class LatentDiffusion(DDPM):
                 frame_z = 1.0 / self.scale_factor * z[index : index + 1, :, :, :]
                 frame_result = self.first_stage_model.decode(frame_z)
                 results.append(frame_result)
-            results = ops.cat(results, axis=0)
+            results = mint.cat(results, dim=0)
 
         if reshape_back:
-            results = ops.reshape(results, (b, t, *results.shape[1:]))  # ((b t) c h w) -> (b t c h w)
-            results = ops.transpose(results, (0, 2, 1, 3, 4))  # (b t c h w) -> (b c t h w)
+            results = mint.reshape(results, (b, t, *results.shape[1:]))  # ((b t) c h w) -> (b t c h w)
+            results = mint.permute(results, (0, 2, 1, 3, 4))  # (b t c h w) -> (b c t h w)
         return results
 
     def decode_first_stage(self, z, **kwargs):
@@ -349,8 +348,8 @@ class LatentDiffusion(DDPM):
         if self.encoder_type == "2d" and x.dim() == 5:
             b, _, t, _, _ = x.shape
             # x = rearrange(x, 'b c t h w -> (b t) c h w')
-            x = ops.transpose(x, (0, 2, 1, 3, 4))  # (b t c h w)
-            x = ops.reshape(x, (-1, *x.shape[2:]))  # ((b t) c h w)
+            x = mint.permute(x, (0, 2, 1, 3, 4))  # (b t c h w)
+            x = mint.reshape(x, (-1, *x.shape[2:]))  # ((b t) c h w)
             reshape_back = True
         else:
             reshape_back = False
@@ -365,11 +364,11 @@ class LatentDiffusion(DDPM):
                     self.scale_factor * self.first_stage_model.encode(x[index : index + 1, :, :, :])
                 )
                 results.append(frame_result)
-            results = ops.cat(results, axis=0)
+            results = mint.cat(results, dim=0)
 
         if reshape_back:
-            results = ops.reshape(results, (b, t, *results.shape[1:]))  # (b t c h w)
-            results = ops.transpose(results, (0, 2, 1, 3, 4))  # (b c t h w)
+            results = mint.reshape(results, (b, t, *results.shape[1:]))  # (b t c h w)
+            results = mint.permute(results, (0, 2, 1, 3, 4))  # (b c t h w)
 
         return results
 
@@ -402,7 +401,7 @@ class LatentDiffusion(DDPM):
         B, C, H, W = x.shape
         if C != 3:
             # b h w c -> b c h w
-            x = ops.transpose(x, (0, 3, 1, 2))
+            x = mint.permute(x, (0, 3, 1, 2))
 
         z = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
 
@@ -413,13 +412,13 @@ class LatentDiffusion(DDPM):
         B, F, C, H, W = x.shape
         if C != 3:
             raise ValueError("Expect input shape (b f 3 h w), but get {}".format(x.shape))
-        x = ops.reshape(x, (-1, C, H, W))
+        x = mint.reshape(x, (-1, C, H, W))
 
         z = ops.stop_gradient(self.scale_factor * self.first_stage_model.encode(x))
 
         # (b*f c h w) -> (b f c h w) -> (b c f h w )
-        z = ops.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
-        z = ops.transpose(z, (0, 2, 1, 3, 4))
+        z = mint.reshape(z, (B, F, z.shape[1], z.shape[2], z.shape[3]))
+        z = mint.permute(z, (0, 2, 1, 3, 4))
 
         return z
 
@@ -469,7 +468,7 @@ class LatentDiffusion(DDPM):
         t = self.uniform_int(
             (x.shape[0],), Tensor(0, dtype=mstype.int32), Tensor(self.num_timesteps, dtype=mstype.int32)
         )
-        noise = ops.randn_like(z)
+        noise = mint.randn_like(z)
         noisy_latents, snr = self.add_noise(z, noise, t)
 
         # 3. get condition embeddings
@@ -493,11 +492,11 @@ class LatentDiffusion(DDPM):
         loss_sample = self.reduce_loss(loss_element)
 
         if self.snr_gamma is not None:
-            snr_gamma = ops.ones_like(snr) * self.snr_gamma
+            snr_gamma = mint.ones_like(snr) * self.snr_gamma
             # TODO: for v-pred, .../ (snr+1)
             # TODO: for beta zero rescale, consider snr=0
             # min{snr, gamma} / snr
-            loss_weight = ops.stack((snr, snr_gamma), axis=0).min(axis=0) / snr
+            loss_weight = mint.stack((snr, snr_gamma), dim=0).min(axis=0) / snr
             loss = (loss_weight * loss_sample).mean()
         else:
             loss = loss_sample.mean()
@@ -506,7 +505,7 @@ class LatentDiffusion(DDPM):
         """
         # can be used to place more weights to high-score samples
         logvar_t = self.logvar[t]
-        loss = loss_simple / ops.exp(logvar_t) + logvar_t
+        loss = loss_simple / mint.exp(logvar_t) + logvar_t
         loss = self.l_simple_weight * loss.mean()
         """
 
@@ -542,7 +541,7 @@ class LatentDiffusionWithEmbedding(LatentDiffusion):
         z = ops.stop_gradient(self.scale_factor * x)
 
         # (b f c h w) -> (b c f h w )
-        z = ops.transpose(z, (0, 2, 1, 3, 4))
+        z = mint.permute(z, (0, 2, 1, 3, 4))
         return z
 
     def get_condition_embeddings(self, text_tokens, control=None):
@@ -596,13 +595,13 @@ class DiffusionWrapper(nn.Cell):
         if self.conditioning_key is None:
             out = self.diffusion_model(x, t, **kwargs)
         elif self.conditioning_key == "concat":
-            x_concat = ops.concat((x, c_concat), axis=1)
+            x_concat = mint.cat((x, c_concat), dim=1)
             out = self.diffusion_model(x_concat, t, **kwargs)
         elif self.conditioning_key == "crossattn":  # t2v task
             context = c_crossattn
             out = self.diffusion_model(x, t, context=context, **kwargs)
         elif self.conditioning_key == "hybrid":
-            x_concat = ops.concat((x, c_concat), axis=1)
+            x_concat = mint.cat((x, c_concat), dim=1)
             context = c_crossattn
             out = self.diffusion_model(x_concat, t, context=context, **kwargs)
         elif self.conditioning_key == "crossattn-adm":

@@ -8,8 +8,7 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 
 import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint
 from mindspore.communication.management import get_group_size, get_rank, init
 
 sys.path.append("../stable_diffusion_v2/")
@@ -116,33 +115,33 @@ def image_guided_synthesis(
     img_emb = model.image_proj_model(img_emb)
 
     cond_emb = model.get_learned_conditioning(prompts)
-    cond = {"c_crossattn": [ops.cat([cond_emb, img_emb], axis=1)]}
+    cond = {"c_crossattn": [mint.cat([cond_emb, img_emb], dim=1)]}
     if model.model.conditioning_key == "hybrid":
         z = model.get_latent_z(videos)  # b c t h w
         if loop or interp:
-            img_cat_cond = ops.zeros_like(z)
+            img_cat_cond = mint.zeros_like(z)
             img_cat_cond[:, :, 0, :, :] = z[:, :, 0, :, :]
             img_cat_cond[:, :, -1, :, :] = z[:, :, -1, :, :]
         else:
             img_cat_cond = z[:, :, :1, :, :]
-            img_cat_cond = ops.repeat_interleave(img_cat_cond, repeats=z.shape[2], axis=2)
+            img_cat_cond = mint.repeat_interleave(img_cat_cond, repeats=z.shape[2], dim=2)
         cond["c_concat"] = [img_cat_cond]  # b c 1 h w
     if unconditional_guidance_scale != 1.0:
         if model.uncond_type == "empty_seq":
             prompts = batch_size * [""]
             uc_emb = model.get_learned_conditioning(prompts)
         elif model.uncond_type == "zero_embed":
-            uc_emb = ops.zeros_like(cond_emb)
-        uc_img_emb = model.embedder(ops.zeros_like(img))  # b l c
+            uc_emb = mint.zeros_like(cond_emb)
+        uc_img_emb = model.embedder(mint.zeros_like(img))  # b l c
         uc_img_emb = model.image_proj_model(uc_img_emb)
-        uc = {"c_crossattn": [ops.cat([uc_emb, uc_img_emb], axis=1)]}
+        uc = {"c_crossattn": [mint.cat([uc_emb, uc_img_emb], dim=1)]}
         if model.model.conditioning_key == "hybrid":
             uc["c_concat"] = [img_cat_cond]
     else:
         uc = None
 
     if multiple_cond_cfg and cfg_img != 1.0:
-        uc_2 = {"c_crossattn": [ops.cat([uc_emb, img_emb], axis=1)]}
+        uc_2 = {"c_crossattn": [mint.cat([uc_emb, img_emb], dim=1)]}
         if model.model.conditioning_key == "hybrid":
             uc_2["c_concat"] = [img_cat_cond]
         kwargs.update({"unconditional_conditioning_img_nonetext": uc_2})
@@ -181,7 +180,7 @@ def image_guided_synthesis(
         batch_images = model.decode_first_stage(samples)
         batch_variants.append(batch_images)
     # variants, batch, c, t, h, w
-    batch_variants = ops.stack(batch_variants)
+    batch_variants = mint.stack(batch_variants)
     return batch_variants.permute(1, 0, 2, 3, 4, 5)
 
 
@@ -228,7 +227,7 @@ def main(args):
     model.set_train(False)
 
     # mixed precision setting
-    WHITELIST_OPS = [nn.GroupNorm, nn.LayerNorm]
+    WHITELIST_OPS = [mint.nn.GroupNorm, mint.nn.LayerNorm]
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:
         model = auto_mixed_precision(
@@ -265,7 +264,7 @@ def main(args):
         videos = data_list[indice : indice + args.bs]
         filenames = filename_list[indice : indice + args.bs]
         if isinstance(videos, list):
-            videos = ops.stack(videos, axis=0)
+            videos = mint.stack(videos, dim=0)
         else:
             videos = videos.unsqueeze(0)
 
