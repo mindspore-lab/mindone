@@ -92,7 +92,13 @@ class LlavaMultiModalProjector(nn.Cell):
         super().__init__()
 
         self.linear_1 = mint.nn.Linear(config.vision_config.hidden_size, config.text_config.hidden_size, bias=True)
-        self.act = ACT2FN[config.projector_hidden_act]
+        # self.act = ACT2FN[config.projector_hidden_act]  # %3 mre
+        # self.act = mint.nn.GELU() # 3% mre
+        if config.projector_hidden_act == "gelu":
+            self.act = nn.GELU()  # 0% mre
+        else:
+            self.act = ACT2FN[config.projector_hidden_act]
+
         self.linear_2 = mint.nn.Linear(config.text_config.hidden_size, config.text_config.hidden_size, bias=True)
 
     def construct(self, image_features):
@@ -129,6 +135,8 @@ class LlavaPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["LlavaVisionAttention"]
     _skip_keys_device_placement = "past_key_values"
+    # NOTE: this is to avoid (right) padding in utils.py/generation used for ms graph adaptation
+    _supports_cache_class = True
     _supports_flash_attn_2 = True
 
     def _init_weights(self, cell):
@@ -251,7 +259,6 @@ LLAVA_INPUTS_DOCSTRING = r"""
 class LlavaForConditionalGeneration(LlavaPreTrainedModel):
     def __init__(self, config: LlavaConfig):
         super().__init__(config)
-        # self.vision_tower = AutoModel.from_config(config.vision_config)
         self.vision_tower = CLIPVisionModel(config.vision_config)
 
         self.multi_modal_projector = LlavaMultiModalProjector(config)
@@ -446,6 +453,8 @@ class LlavaForConditionalGeneration(LlavaPreTrainedModel):
             if vision_feature_select_strategy is not None
             else self.config.vision_feature_select_strategy
         )
+
+        # TODO: support DynamicCache
 
         if inputs_embeds is None:
             # 1. Extra the input embeddings
