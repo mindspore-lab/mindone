@@ -659,7 +659,7 @@ def parse_args():
     # special case
     parser.add_argument("--shard", type=int, default=None, help="shard the dataset")
     parser.add_argument("--sort", type=str, default=None, help="sort by column")
-    parser.add_argument("--sort-ascending", type=str, default=None, help="sort by column (ascending order)")
+    parser.add_argument("--sort_ascending", type=str, default=None, help="sort by column (ascending order)")
     parser.add_argument("--difference", type=str, default=None, help="get difference from the dataset")
     parser.add_argument(
         "--intersection", type=str, default=None, help="keep the paths in csv from the dataset and merge columns"
@@ -671,8 +671,8 @@ def parse_args():
     parser.add_argument("--video-info", action="store_true", help="get the basic information of each video")
     parser.add_argument("--ext", action="store_true", help="check if the file exists")
     parser.add_argument(
-        "--load-caption", type=str, default=None, choices=["json", "txt"], help="load the caption from json or txt"
-    )
+        "--load-caption", type=str, default="json", choices=["json"], help="load the caption from json"
+    ) # currently support json only
 
     # path processing
     parser.add_argument("--relpath", type=str, default=None, help="modify the path to relative path by root given")
@@ -787,7 +787,7 @@ def get_output_path(args, input_name):
     if args.clean_caption:
         name += "_clean"
     if args.merge_cmotion:
-        name += "_cmcaption"
+        name += "_cmotion"
     if args.append_text is not None:
         name += "_appendtext"
     if args.score_to_text:
@@ -809,7 +809,7 @@ def get_output_path(args, input_name):
     if args.hwmax is not None:
         name += f"_hwmax{int(args.hwmax)}"
     if args.ocr_box_max is not None:
-        name += f"_ocrboxmax{int(args)}"
+        name += f"_ocrboxmax{int(args.ocr_box_max)}"
     if args.ocr_single_max is not None:
         name += f"_ocrsinglemax{args.ocr_single_max:.1f}"
     if args.ocr_total_max is not None:
