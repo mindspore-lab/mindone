@@ -9,6 +9,7 @@ export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
 # Num of NPUs for training
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_NPUS=8
+
 # Multiple machines
 MASTER_ADDR="127.0.0.1"
 NODE_RANK="0"
@@ -33,6 +34,14 @@ MINDSPORE_MODE=0
 JIT_LEVEL=O1
 AMP_LEVEL=O2
 DEEPSPEED_ZERO_STAGE=3
+
+# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
+# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
+#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
+DATA_ROOT="preprocessed-dataset"
+CAPTION_COLUMN="prompts.txt"
+VIDEO_COLUMN="videos.txt"
+MODEL_NAME_OR_PATH="THUDM/CogVideoX1.5-5b"
 
 # Prepare launch cmd according to NUM_NPUS
 if [ "$NUM_NPUS" -eq 1 ]; then
@@ -63,14 +72,6 @@ if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
 fi
 
-# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
-# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
-#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
-DATA_ROOT="preprocessed-dataset"
-CAPTION_COLUMN="prompts.txt"
-VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX1.5-5b"
-
 # Launch experiments with different hyperparameters
 for learning_rate in "${LEARNING_RATES[@]}"; do
   for lr_schedule in "${LR_SCHEDULES[@]}"; do
@@ -79,7 +80,7 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
         output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
 
         cmd="$LAUNCHER ${SCRIPT_DIR}/cogvideox_text_to_video_sft.py \
-          --pretrained_model_name_or_path $MODEL_PATH \
+          --pretrained_model_name_or_path $MODEL_NAME_OR_PATH \
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
           --video_column $VIDEO_COLUMN \

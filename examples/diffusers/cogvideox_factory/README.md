@@ -105,10 +105,10 @@ MINDSPORE_MODE=0
 JIT_LEVEL=O1
 ```
 
-- 配置模型及推理结果参数。`MODEL_PATH`默认是`THUDM/CogVideoX1.5-5b`，兼容[CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的CogVideoX 模型家族保持一致。`TRANSFORMER_PATH`和`LORA_PATH`可以不传，这时会使用`MODEL_PATH`里的权重；`TRANSFORMER_PATH`和`LORA_PATH`配置需要二选一：
+- 配置模型及推理结果参数。`MODEL_NAME_OR_PATH`默认是`THUDM/CogVideoX1.5-5b`，兼容[CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的CogVideoX 模型家族保持一致。`TRANSFORMER_PATH`和`LORA_PATH`可以不传，这时会使用`MODEL_NAME_OR_PATH`里的权重；`TRANSFORMER_PATH`和`LORA_PATH`配置需要二选一：
 
 ```shell
-MODEL_PATH="THUDM/CogVideoX1.5-5b"
+MODEL_NAME_OR_PATH="THUDM/CogVideoX1.5-5b"
 # TRANSFORMER_PATH and LORA_PATH only choose one to set.
 TRANSFORMER_PATH=""
 LORA_PATH=""
@@ -127,10 +127,10 @@ MAX_SEQUENCE_LENGTH=224
 
 ## 训练
 
-在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 LoRA 微调为例。
+在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 SFT 微调为例。
 
 > [!TIP]
-> 由于模型的限制，对于固定shape的训练我们推荐分阶段的训练流程，即先进行[预处理数据](#预处理数据)缓存数据，然后读取缓存通过`train*.sh`进行正式训练。
+> 由于模型的特点：文本编码器及视频编码器只需要推理且文本编码器参数量较大，对于固定shape的训练我们推荐分阶段的训练流程，即先进行[预处理数据](#预处理数据)缓存数据，然后读取缓存通过`train*.sh`进行正式训练。
 >
 > 在正式训练阶段，需要增加`--embeddings_cache`参数以支持text embeddings预处理，`--vae_cache`参数以支持vae预处理。
 >
@@ -144,12 +144,19 @@ MAX_SEQUENCE_LENGTH=224
 
 - 配置用于预处理prompts和videos的模型：
 ```shell
-MODEL_ID="THUDM/CogVideoX1.5-5b"
+MODEL_NAME_OR_PATH="THUDM/CogVideoX1.5-5b"
 ```
 
 - 配置用于预处理数据的NPU数量：
 ```shell
 NUM_NPUS=8
+```
+
+- 配置缓存数据，固定shape建议都缓存，多分辨率场景建议缓存`EMBEDDINGS_CACHE`。
+
+```shell
+VAE_CACHE=1
+EMBEDDINGS_CACHE=1
 ```
 
 - 配置待处理数据集读取配置和输出路径, `CAPTION_COLUMN`，`VIDEO_COLUMN`需要是`DATA_ROOT`实际prompt和video的文件路径，具体要求见[数据集规范](./assets/dataset_zh.md)：
@@ -160,27 +167,26 @@ VIDEO_COLUMN="videos.txt"
 OUTPUT_DIR="/path/to/my/datasets/preprocessed-dataset"
 ```
 
-- 配置prompts和videos预处理的相关参数（注意必须与正式训练的配置一致）：
+- 配置videos预处理的相关参数，`VAE_CACHE=1`时生效，注意必须与正式训练的配置一致：
+
 ```shell
 HEIGHT_BUCKETS="768"
 WIDTH_BUCKETS="1360"
 FRAME_BUCKETS="77"
 MAX_NUM_FRAMES="77"
-MAX_SEQUENCE_LENGTH=224
 TARGET_FPS=8
+```
+
+- 配置prompts预处理的相关参数，`EMBEDDINGS_CACHE=1`时生效，注意必须与正式训练的配置一致：
+
+```shell
+MAX_SEQUENCE_LENGTH=224
 ```
 
 - 配置预处理流程的批量大小、指定计算的数据类型：
 ```shell
 BATCH_SIZE=1
 DTYPE=bf16
-```
-
-- 配置缓存数据，固定shape建议都缓存，多分辨率场景建议缓存`EMBEDDINGS_CACHE`。
-
-```shell
-VAE_CACHE=1
-EMBEDDINGS_CACHE=1
 ```
 
 然后正式运行`prepare_dateset.sh`，输出预处理后的数据集至`OUTPUT_DIR`
@@ -197,14 +203,17 @@ EMBEDDINGS_CACHE=1
 bucket_config:
   # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
   # Setting [ keep_prob, batch_size ] to [ 0.0, 0 ] forces longer videos into smaller resolution buckets
-  "480p": { 1: [ 0.5, 89 ], 37: [0.4, 8], 53: [0.4, 3], 101: [0.3, 2], 197: [1.0, 1], 381: [1.0, 1]}
-  "720p": { 1: [ 0.1, 36 ], 37: [0.5, 2], 53: [0.2, 1] , 77: [0.4, 1] }
+  "480p": { 37: [0.4, 8], 53: [0.4, 3], 101: [0.3, 2], 197: [1.0, 1], 381: [1.0, 1]}
+  "720p": { 37: [0.5, 2], 53: [0.2, 1] , 77: [0.4, 1] }
 ```
 
 配置结构 `"resolution": { num_frames: [ keep_prob, batch_size ] }`,resolution是分辨率，具体shape可参考[`aspect.py`](cogvideox/datasets/aspect.py)；
 keep_prob为视频满足该分辨率和帧数要求下分配到该桶的概率；batch_size为训练时的batch_size。
 
 该算法参考自[Open-Sora](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_03.md#more-data-and-better-multi-stage-training)。
+
+> [!WARNING]
+> 由于MindSpore的bug，开启分桶训练暂不能使用SP。如需试用，请安装使用MindSpore开发版[MindSpore master daily](https://repo.mindspore.cn/mindspore/mindspore/version/202503/20250311/master_20250311010111_d8f6bcc25ba2aa51d5d4e8a1a8aeab31b382435e_newest/)。
 
 ### 正式训练
 
@@ -249,6 +258,12 @@ NODE_RANK="0"
   VIDEO_COLUMN="videos.txt"
   ```
 
+- 配置模型：`MODEL_NAME_OR_PATH`默认是`THUDM/CogVideoX1.5-5b`，兼容[CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)，在联网环境会自动下载权重及配置文件，这里也能传入本地的权重及配置文件路径，结构需要和HuggingFace的CogVideoX 模型家族保持一致。
+
+  ```shell
+  MODEL_NAME_OR_PATH="THUDM/CogVideoX1.5-5b"
+  ```
+
 - 是否使用数据缓存,推荐都打开：
 
   ```shell
@@ -264,7 +279,7 @@ NODE_RANK="0"
         for steps in "${MAX_TRAIN_STEPS[@]}"; do
           output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
           cmd="$LAUNCHER cogvideox/cogvideox_text_to_video_sft.py \
-            --pretrained_model_name_or_path $MODEL_PATH \
+            --pretrained_model_name_or_path $MODEL_NAME_OR_PATH \
             --data_root $DATA_ROOT \
             --caption_column $CAPTION_COLUMN \
             --video_column $VIDEO_COLUMN \
