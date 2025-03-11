@@ -92,7 +92,7 @@ page for the full list.
 
 First, download the DB++ model [here](https://download.mindspore.cn/toolkits/mindocr/dbnet/dbnetpp_resnet50_ch_en_general-884ba5b9.ckpt).
 By default, you can put them in the folder 
-`./pretrained_models/`.
+`./pretrained_models/` and you may rename the model as `dbnetpp.ckpt`.
 
 Run the following command for inference. **Make sure** the meta file has the column `path` (path to the sample).
 

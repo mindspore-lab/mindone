@@ -113,7 +113,7 @@ based on your needs. Refer to [Command Line Workflow](./cmd_guide.md)
 for more details.
 
 ## Further Reading
-For more information, please refer to:
+For more information, please refer to
 - [Dataset Management](./pipeline/datasets/README.md)
 - [Scene Detection and Video Splitting](./pipeline/splitting/README.md)
 - [Scoring and Filtering](./pipeline/scoring/README.md)
