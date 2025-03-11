@@ -18,10 +18,12 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
+from hyvideo.utils.helpers import set_model_param_dtype
+
 # from mindone.transformers import AutoProcessor
 from transformers import AutoTokenizer, CLIPImageProcessor
+
 from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
-from hyvideo.utils.helpers import set_model_param_dtype
 
 
 def test():
@@ -62,7 +64,7 @@ def test():
     model = LlavaForConditionalGeneration.from_pretrained(model_path, text_config=config.text_config)
 
     # to avoid: Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
-    model.generation_config.pad_token_id = processor.tokenizer.pad_token_id
+    model.generation_config.pad_token_id = tokenizer.pad_token_id
 
     if dtype != ms.float32:
         set_model_param_dtype(model, dtype=dtype)
@@ -81,7 +83,7 @@ def test():
         np.save("tests/llava_ftr_fp16.npy", outputs.hidden_states[-1].asnumpy())
     else:
         output = model.generate(**inputs, max_new_tokens=200, do_sample=False, use_cache=False)
-        print(processor.decode(output[0][2:], skip_special_tokens=True))
+        print(image_processor.decode(output[0][2:], skip_special_tokens=True))
 
 
 if __name__ == "__main__":
