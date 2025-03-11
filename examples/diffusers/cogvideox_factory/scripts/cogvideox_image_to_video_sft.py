@@ -382,7 +382,7 @@ def main(args):
             * args.gradient_accumulation_steps
             * args.train_batch_size
             * args.world_size
-            // sequence_parallel_shards
+            / sequence_parallel_shards
         )
 
     lr_scheduler = get_scheduler(
