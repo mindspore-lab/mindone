@@ -23,23 +23,22 @@ from transformers import AutoTokenizer, CLIPImageProcessor
 from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
 from hyvideo.utils.helpers import set_model_param_dtype
 
-ms.set_context(mode=0)
-
 
 def test():
-    model_path = "ckpts/text_encoder_i2v"
-    # model_path = "ckpts/llava-llama-3-8b-v1_1-transformers"
+    # model_path = "ckpts/text_encoder_i2v"
+    model_path = "ckpts/llava-llama-3-8b-v1_1-transformers"
     dtype = ms.float16
     # model_path = 'ckpts/llava_tiny'
     image_processor = CLIPImageProcessor.from_pretrained(model_path)
-    tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="right")
+    tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="left")
 
     # run
     prompt = (
         "<|start_header_id|>user<|end_header_id|>\n\n<image>\nWhat are these?<|eot_id|>"
         "<|start_header_id|>assistant<|end_header_id|>\n\n"
     )
-    image_file = "./assets/demo/i2v/imgs/0.jpg"
+    # image_file = "./assets/demo/i2v/imgs/0.jpg"
+    image_file = "./000000039769.jpg"
     raw_image = Image.open(image_file)
     inputs = tokenizer(
         [prompt],
@@ -53,9 +52,7 @@ def test():
 
     inputs_img = image_processor(images=[raw_image], return_tensors="np")  # .to(ms.float16)
 
-    inputs["pixel_values"] = ms.tensor(inputs_img["pixel_values"]).to(ms.float16)
-
-    # inputs .to(ms.float16)
+    inputs["pixel_values"] = ms.tensor(inputs_img["pixel_values"]).to(dtype)
 
     feature_only = False
     config = LlavaConfig.from_pretrained(model_path)
@@ -64,7 +61,7 @@ def test():
     model = LlavaForConditionalGeneration.from_pretrained(model_path, text_config=config.text_config)
 
     # to avoid: Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
-    model.generation_config.pad_token_id = processor.tokenizer.pad_token_id
+    model.generation_config.pad_token_id = tokenizer.pad_token_id
 
     if dtype != ms.float32:
         set_model_param_dtype(model, dtype=dtype)
@@ -83,7 +80,7 @@ def test():
         np.save("tests/llava_ftr_fp16.npy", outputs.hidden_states[-1].asnumpy())
     else:
         output = model.generate(**inputs, max_new_tokens=200, do_sample=False, use_cache=False)
-        print(processor.decode(output[0][2:], skip_special_tokens=True))
+        print(tokenizer.decode(output[0][2:], skip_special_tokens=True))
 
 
 if __name__ == "__main__":
