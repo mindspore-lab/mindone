@@ -568,10 +568,10 @@ class Attention(nn.Cell):
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:
-                attention_mask = attention_mask.repeat_interleave(head_size, axis=0)
+                attention_mask = attention_mask.repeat_interleave(head_size, dim=0)
         elif out_dim == 4:
             attention_mask = attention_mask.unsqueeze(1)
-            attention_mask = attention_mask.repeat_interleave(head_size, axis=1)
+            attention_mask = attention_mask.repeat_interleave(head_size, dim=1)
 
         if attention_mask_dtype == ms.bool_:
             attention_mask = attention_mask.bool()
@@ -3062,8 +3062,8 @@ class StableAudioAttnProcessor2_0:
         if kv_heads != attn.heads:
             # if GQA or MQA, repeat the key/value heads to reach the number of query heads.
             heads_per_kv_head = attn.heads // kv_heads
-            key = ops.repeat_interleave(key, heads_per_kv_head, axis=1)
-            value = ops.repeat_interleave(value, heads_per_kv_head, axis=1)
+            key = ops.repeat_interleave(key, heads_per_kv_head, dim=1)
+            value = ops.repeat_interleave(value, heads_per_kv_head, dim=1)
 
         if attn.norm_q is not None:
             query = attn.norm_q(query)

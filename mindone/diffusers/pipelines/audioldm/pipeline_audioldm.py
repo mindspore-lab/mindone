@@ -16,17 +16,17 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
-import mindspore as ms
-from mindspore import ops
-from ....transformers import ClapTextModelWithProjection, SpeechT5HifiGan
 from transformers import RobertaTokenizer, RobertaTokenizerFast
 
+import mindspore as ms
+from mindspore import ops
+
+from ....transformers import ClapTextModelWithProjection, SpeechT5HifiGan
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline, StableDiffusionMixin
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -146,12 +146,8 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             attention_mask = ms.Tensor(text_inputs.attention_mask)
             untruncated_ids = ms.Tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(
-                text_input_ids, untruncated_ids
-            ):
-                removed_text = self.tokenizer.batch_decode(
-                    untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1]
-                )
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+                removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLAP can only handle sequences up to"
                     f" {self.tokenizer.model_max_length} tokens: {removed_text}"
@@ -207,7 +203,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             )
 
             uncond_input_ids = ms.Tensor(uncond_input.input_ids)
-            attention_mask =  ms.Tensor(uncond_input.attention_mask)
+            attention_mask = ms.Tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
                 uncond_input_ids,
@@ -324,7 +320,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                     f" {negative_prompt_embeds.shape}."
                 )
 
-    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents with width->self.vocoder.config.model_in_dim
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents with width->self.vocoder.config.model_in_dim # noqa: E501
     def prepare_latents(self, batch_size, num_channels_latents, height, dtype, generator, latents=None):
         shape = (
             batch_size,

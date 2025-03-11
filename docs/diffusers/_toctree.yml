@@ -188,6 +188,8 @@
         title: CogVideoXTransformer3DModel
       - local: api/models/cogview3plus_transformer2d
         title: CogView3PlusTransformer2DModel
+      - local: api/models/cogview4_transformer2d
+        title: CogView4Transformer2DModel
       - local: api/models/dit_transformer2d
         title: DiTTransformer2DModel
       - local: api/models/flux_transformer
@@ -272,6 +274,8 @@
       title: CogVideoX
     - local: api/pipelines/cogview3
       title: CogView3
+    - local: api/pipelines/cogview4
+      title: CogView4
     - local: api/pipelines/consistency_models
       title: Consistency Models
     - local: api/pipelines/controlnet

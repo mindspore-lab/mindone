@@ -628,7 +628,7 @@ def spectrogram_batch(
     padded window can be obtained from `window_function()`. The FFT input buffer may be larger than the analysis frame,
     typically the next power of two.
 
-    Note: This function is designed for efficient batch processing of multiple waveforms but retains compatibility with individual waveform processing methods like `librosa.stft`.
+    Note: This function is designed for efficient batch processing of multiple waveforms but retains compatibility with individual waveform processing methods like `librosa.stft`. # noqa: E501
 
     Args:
         waveform_list (`List[np.ndarray]` with arrays of shape `(length,)`):
@@ -976,9 +976,6 @@ def amplitude_to_db_batch(
         spectrogram = np.clip(spectrogram, a_min=max_values - db_range, a_max=None)
 
     return spectrogram
-
-
-### deprecated functions below this line ###
 
 
 def get_mel_filter_banks(

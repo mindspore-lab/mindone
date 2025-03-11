@@ -971,18 +971,18 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
         elif self.need_save_optimizer(args):
             optimizer_file = os.path.join(output_dir, "optimizer.ckpt")
         ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
-
-        # Loss Scaler states
-        loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")
-        loss_scaler_states = {"scale_sense": self.scale_sense}
-        if self.loss_scaling_manager:
-            loss_scaler_states.update(
-                {
-                    "cur_iter": self.loss_scaling_manager.cur_iter,
-                    "last_overflow_iter": self.loss_scaling_manager.last_overflow_iter,
-                }
-            )
-        ms.save_checkpoint(loss_scaler_states, loss_scaler_file)
+        if is_master(args):
+            # Loss Scaler states
+            loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")
+            loss_scaler_states = {"scale_sense": self.scale_sense}
+            if self.loss_scaling_manager:
+                loss_scaler_states.update(
+                    {
+                        "cur_iter": self.loss_scaling_manager.cur_iter,
+                        "last_overflow_iter": self.loss_scaling_manager.last_overflow_iter,
+                    }
+                )
+            ms.save_checkpoint(loss_scaler_states, loss_scaler_file)
 
     def load_state(self, args, input_dir, optimizer_state_filter=lambda x: True):
         # Optimizer states

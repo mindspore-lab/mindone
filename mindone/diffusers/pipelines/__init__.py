@@ -29,6 +29,7 @@ _import_structure = {
     ],
     "consistency_models": ["ConsistencyModelPipeline"],
     "cogview3": ["CogView3PlusPipeline"],
+    "cogview4": ["CogView4Pipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -218,6 +219,7 @@ if TYPE_CHECKING:
         CogVideoXVideoToVideoPipeline,
     )
     from .cogview3 import CogView3PlusPipeline
+    from .cogview4 import CogView4Pipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
