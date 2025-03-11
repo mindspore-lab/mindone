@@ -1,0 +1,33 @@
+model:
+  target: glv.models.unet.UNet3DConditionModel
+  params:
+    sample_size: 32
+    in_channels: 5
+    out_channels: 4
+    center_input_sample: False
+    flip_sin_to_cos: True
+    freq_shift: 0
+    down_block_types:
+    - "CrossAttnDownBlock3D"
+    - "CrossAttnDownBlock3D"
+    - "CrossAttnDownBlock3D"
+    - "DownBlock3D"
+    mid_block_type: "UNetMidBlock3DCrossAttn"
+    up_block_types:
+    - "UpBlock3D"
+    - "CrossAttnUpBlock3D"
+    - "CrossAttnUpBlock3D"
+    - "CrossAttnUpBlock3D"
+    only_cross_attention: False
+    block_out_channels: [ 320, 640, 1280, 1280 ]
+    layers_per_block: 2
+    downsample_padding: 1
+    mid_block_scale_factor: 1
+    act_fn: "silu"
+    norm_num_groups: 32
+    norm_eps: 1e-5
+    cross_attention_dim: 1024
+    attention_head_dim: [ 5, 10, 20, 20 ]
+    dual_cross_attention: False
+    use_linear_projection: True
+    num_class_embeds: null
