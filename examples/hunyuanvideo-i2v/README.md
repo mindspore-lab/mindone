@@ -13,7 +13,7 @@ Here is the development plan of the project:
     - [ ] Training
 - HunyuanVideo (13B):
     - [x] Inference
-    - [x] Training stage 1: T2I 256px
+    - [ ] Training stage 1: T2I 256px
     - [ ] Training stage 2: T2I  256px 512px (buckts)
     - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckts)
     - [ ] LoRA finetune
@@ -27,7 +27,7 @@ Here is the development plan of the project:
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.4.1   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
 
 </div>
 
