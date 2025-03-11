@@ -78,7 +78,7 @@ def test():
         )
 
         output = model.generate(**inputs, max_new_tokens=200, do_sample=False)
-        print(processor.decode(output[0][2:], skip_special_tokens=True))
+        print(image_processor.decode(output[0][2:], skip_special_tokens=True))
 
 
 if __name__ == "__main__":

@@ -337,7 +337,7 @@ class TextEncoder(nn.Cell):
                 return TextEncoderModelOutput(last_hidden_state, attention_mask, outputs_hidden_states)
             return TextEncoderModelOutput(last_hidden_state, attention_mask)
         else:
-            image_outputs = self.processor(semantic_images, return_tensors="np")["pixel_values"]
+            image_outputs = ms.tensor(self.processor(semantic_images, return_tensors="np")["pixel_values"])
             attention_mask = Tensor(batch_encoding["attention_mask"]) if use_attention_mask else None
             outputs = self.model(
                 input_ids=Tensor(batch_encoding["input_ids"]),

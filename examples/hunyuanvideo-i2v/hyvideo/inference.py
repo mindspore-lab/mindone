@@ -610,7 +610,9 @@ class HunyuanVideoSampler(Inference):
                     vision.Normalize([0.5], [0.5], is_hwc=False),
                 ]
             )
-            semantic_image_pixel_values = [ref_image_transform(semantic_image) for semantic_image in semantic_images]
+            semantic_image_pixel_values = [
+                ms.tensor(ref_image_transform(semantic_image)[0]) for semantic_image in semantic_images
+            ]
             semantic_image_pixel_values = mint.cat(semantic_image_pixel_values).unsqueeze(0).unsqueeze(2)
 
             img_latents = self.pipeline.vae.encode(semantic_image_pixel_values, sample_posterior=False)  # B, C, F, H, W
