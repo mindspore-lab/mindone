@@ -170,7 +170,7 @@ def test_singlestream_block(pt_ckpt: str = None, pt_np: str = None):
         print(diff)
 
 
-def test_token_refiner(pt_ckpt=None, pt_np=None, attn_mode="vanilla", dtype=ms.float32):
+def test_token_refiner(pt_ckpt=None, pt_np=None, attn_mode="flash", dtype=ms.float32):
     token_shape = (bs, max_text_len, emb_dim) = 1, 32, 64
     x = np.random.normal(size=token_shape).astype(np.float32)
     t = np.array([1000.0 for _ in range(bs)], dtype=np.float32)
@@ -278,7 +278,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
         text_states_dim_2=args.text_states_dim_2,
         in_channels=C,
         use_conv2d_patchify=True,
-        attn_mode="vanilla",
+        attn_mode="flash",
         **model_cfg[args.model],
         **factor_kwargs,
     )

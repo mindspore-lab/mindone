@@ -560,6 +560,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         # self.dtype = dtype
         self.use_recompute = use_recompute
         self.num_no_recompute = num_no_recompute
+        assert attn_mode == "flash", "vanilla attention is not supported now"
         print("attn_mode: ", attn_mode)
 
         # Text projection. Default to linear projection.
