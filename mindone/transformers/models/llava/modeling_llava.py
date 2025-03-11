@@ -430,8 +430,10 @@ class LlavaForConditionalGeneration(LlavaPreTrainedModel):
         >>> processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
         "USER:  \nWhat's the content of the image? ASSISTANT: The image features a busy city street with a stop sign prominently displayed"
         ```"""
-
-        assert not use_cache, "kv cache is not implemented"
+        if use_cache is not None:
+            assert not use_cache, "kv cache is not implemented"
+        else:
+            use_cache = False
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (

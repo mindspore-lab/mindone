@@ -23,6 +23,8 @@ from transformers import AutoTokenizer, CLIPImageProcessor
 
 from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
 
+ms.set_context(mode=0)
+
 
 def test():
     model_path = "ckpts/text_encoder_i2v"
@@ -35,7 +37,7 @@ def test():
         "<|start_header_id|>user<|end_header_id|>\n\n<image>\nWhat are these?<|eot_id|>"
         "<|start_header_id|>assistant<|end_header_id|>\n\n"
     )
-    image_file = "./example.jpg"
+    image_file = "./assets/demo/i2v/imgs/0.jpg"
     raw_image = Image.open(image_file)
     inputs = tokenizer(
         [prompt],
