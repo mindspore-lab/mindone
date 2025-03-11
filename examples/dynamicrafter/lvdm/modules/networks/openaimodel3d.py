@@ -15,8 +15,7 @@ from lvdm.modules.networks.util import (
 )
 
 import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint, nn
 from mindspore.common.initializer import initializer
 
 from mindone.utils.version_control import is_old_ms_version
@@ -81,11 +80,11 @@ class Upsample(nn.Cell):
     def construct(self, x, emb=None, context=None, target_size=None):
         if target_size is None:
             if self.dims == 3:
-                x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))(x)
+                x = mint.nn.functional.interpolate(x, (x.shape[2] * 2, x.shape[3] * 2, x.shape[4] * 2))
             else:
-                x = ops.ResizeNearestNeighbor((x.shape[2] * 2, x.shape[3] * 2))(x)
+                x = mint.nn.functional.interpolate(x, (x.shape[2] * 2, x.shape[3] * 2))
         else:
-            x = ops.ResizeNearestNeighbor(size=target_size)(x)
+            x = mint.nn.functional.interpolate(x, size=target_size)
 
         if self.use_conv:
             x = self.conv(x)
@@ -165,13 +164,12 @@ class ResBlock(TimestepBlock):
         self.dtype = dtype
         self.use_temporal_conv = use_temporal_conv
         self.identity = Identity()
-        self.split = ops.Split(1, 2)
 
         # self.in_layers_norm = normalization(channels, norm_in_5d=norm_in_5d)
         self.in_layers_norm = normalization(
             channels
         )  # TODO: this is group norm actually, wrong naming. but renaming requires update of ckpt param name or mapping dict.
-        self.in_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.in_layers_silu = mint.nn.SiLU().to_float(self.dtype)
         self.in_layers_conv = conv_nd(
             dims, channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad"
         ).to_float(self.dtype)
@@ -186,19 +184,19 @@ class ResBlock(TimestepBlock):
             self.h_upd = self.x_upd = self.identity
 
         self.emb_layers = nn.SequentialCell(
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             linear(
                 emb_channels, 2 * self.out_channels if use_scale_shift_norm else self.out_channels, dtype=self.dtype
             ),
         )
 
         self.out_layers_norm = normalization(self.out_channels)
-        self.out_layers_silu = nn.SiLU().to_float(self.dtype)
+        self.out_layers_silu = mint.nn.SiLU().to_float(self.dtype)
 
         if is_old_ms_version():
             self.out_layers_drop = nn.Dropout(keep_prob=self.dropout)
         else:
-            self.out_layers_drop = nn.Dropout(p=1.0 - self.dropout)
+            self.out_layers_drop = mint.nn.Dropout(p=1.0 - self.dropout)
 
         self.out_layers_conv = zero_module(
             conv_nd(dims, self.out_channels, self.out_channels, 3, padding=1, has_bias=True, pad_mode="pad").to_float(
@@ -242,10 +240,10 @@ class ResBlock(TimestepBlock):
 
         emb_out = self.emb_layers(emb)
         while len(emb_out.shape) < len(h.shape):
-            emb_out = ops.expand_dims(emb_out, -1)
+            emb_out = mint.unsqueeze(emb_out, dim=-1)
 
         if self.use_scale_shift_norm:
-            scale, shift = self.split(emb_out)
+            scale, shift = mint.split(emb_out, emb_out.shape[1] // 2, dim=1)
             h = self.out_layers_norm(h) * (1 + scale) + shift
             h = self.out_layers_silu(h)
             h = self.out_layers_drop(h)
@@ -268,7 +266,7 @@ class ResBlock(TimestepBlock):
 
 
 # SiLU fp32 compute
-class SiLU(nn.SiLU):
+class SiLU(mint.nn.SiLU):
     def construct(self, input_x):
         dtype = input_x.dtype
         return super().construct(input_x.to(ms.float32)).to(dtype)
@@ -283,41 +281,33 @@ class TemporalConvBlock(nn.Cell):
         self.out_dim = out_dim
         self.dtype = dtype
         th_kernel_shape = (3, 1, 1) if not spatial_aware else (3, 3, 1)
-        th_padding_shape = (1, 1, 0, 0, 0, 0) if not spatial_aware else (1, 1, 1, 1, 0, 0)
+        th_padding_shape = (1, 0, 0) if not spatial_aware else (1, 1, 0)
         tw_kernel_shape = (3, 1, 1) if not spatial_aware else (3, 1, 3)
-        tw_padding_shape = (1, 1, 0, 0, 0, 0) if not spatial_aware else (1, 1, 0, 0, 1, 1)
+        tw_padding_shape = (1, 0, 0) if not spatial_aware else (1, 0, 1)
 
         # conv layers
         self.conv1 = nn.SequentialCell(
             normalization(in_dim),
             SiLU(),
-            nn.Conv3d(
-                in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            mint.nn.Conv3d(in_dim, out_dim, th_kernel_shape, padding=th_padding_shape, bias=True).to_float(ms.float16),
         )
         self.conv2 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
-            nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            nn.Dropout(1 - dropout) if is_old_ms_version() else mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, tw_kernel_shape, padding=tw_padding_shape, bias=True).to_float(ms.float16),
         )
         self.conv3 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
-            nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            nn.Dropout(1 - dropout) if is_old_ms_version() else mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, th_kernel_shape, padding=th_padding_shape, bias=True).to_float(ms.float16),
         )
         self.conv4 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
-            nn.Dropout(1 - dropout) if is_old_ms_version() else nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            nn.Dropout(1 - dropout) if is_old_ms_version() else mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, tw_kernel_shape, padding=tw_padding_shape, bias=True).to_float(ms.float16),
         )
 
         # zero out the last layer params,so the conv block is identity
@@ -471,13 +461,13 @@ class UNetModel(nn.Cell):
         # Time embedding blocks
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
         if fs_condition:
             self.fps_embedding = nn.SequentialCell(
                 linear(model_channels, time_embed_dim, dtype=self.dtype),
-                nn.SiLU().to_float(self.dtype),
+                mint.nn.SiLU().to_float(self.dtype),
                 linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
             )
             self.fps_embedding[-1].weight.set_data(
@@ -720,7 +710,7 @@ class UNetModel(nn.Cell):
 
         self.out = nn.SequentialCell(
             normalization(ch),
-            nn.SiLU(),
+            mint.nn.SiLU(),
             zero_module(conv_nd(dims, model_channels, out_channels, 3, padding=1, has_bias=True, pad_mode="pad")),
         )
 
@@ -734,16 +724,16 @@ class UNetModel(nn.Cell):
         _, l_context, _ = context.shape
         if l_context == 77 + t * 16:  # !!! HARD CODE here
             context_text, context_img = context[:, :77, :], context[:, 77:, :]
-            context_text = context_text.repeat_interleave(repeats=t, dim=0)
+            context_text = mint.repeat_interleave(context_text, repeats=t, dim=0)
 
             # context_img = rearrange(context_img, 'b (t l) c -> (b t) l c', t=t)
             b, tl, c = context_img.shape
-            context_img = ops.reshape(context_img, (b * t, tl // t, c))  # (b*t l c)
+            context_img = mint.reshape(context_img, (b * t, tl // t, c))  # (b*t l c)
 
-            context = ops.cat([context_text, context_img], axis=1)
+            context = mint.cat([context_text, context_img], dim=1)
         else:
-            context = context.repeat_interleave(repeats=t, dim=0)
-        emb = emb.repeat_interleave(repeats=t, dim=0)
+            context = mint.repeat_interleave(context, repeats=t, dim=0)
+        emb = mint.repeat_interleave(emb, repeats=t, dim=0)
 
         # always in shape (b t) c h w, except for temporal layer
         x = rearrange_out_gn5d(x)
@@ -755,7 +745,7 @@ class UNetModel(nn.Cell):
             fs_emb = timestep_embedding(fs, self.model_channels, repeat_only=False).astype(x.dtype)
 
             fs_embed = self.fps_embedding(fs_emb)
-            fs_embed = fs_embed.repeat_interleave(repeats=t, dim=0)
+            fs_embed = mint.repeat_interleave(fs_embed, repeats=t, dim=0)
             emb = emb + fs_embed
 
         h = x.astype(self.dtype)
@@ -776,7 +766,7 @@ class UNetModel(nn.Cell):
         h = self.middle_block(h, emb, context=context, batch_size=b)
         for i, module in enumerate(self.output_blocks):
             hs_pop = hs[-(i + 1)]
-            h = ops.cat([h, hs_pop], axis=1)
+            h = mint.cat([h, hs_pop], dim=1)
             h = module(h, emb, context=context, batch_size=b)
         h = h.astype(x.dtype)
         y = self.out(h)

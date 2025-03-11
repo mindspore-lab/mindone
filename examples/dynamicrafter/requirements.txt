@@ -3,3 +3,4 @@ ftfy
 tdqm
 imageio
 omegaconf
+transformers

@@ -1,15 +1,14 @@
 import numpy as np
 
 import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import initializer
 
 
 class Identity(nn.Cell):
     def __init__(self):
         super().__init__()
-        self.identity = ops.Identity()
+        self.identity = mint.nn.Identity()
 
     def construct(self, x):
         return self.identity(x)
@@ -19,18 +18,25 @@ def linear(in_channel, out_channel, dtype=ms.float32):
     """
     Create a linear module.
     """
-    return nn.Dense(in_channel, out_channel).to_float(dtype)
+    return mint.nn.Linear(in_channel, out_channel).to_float(dtype)
 
 
 class conv_nd(nn.Cell):
     def __init__(self, dims, *args, **kwargs):
         super().__init__()
+        if dims == 2 or dims == 3:
+            # adpat for mint.nn.Conv2d or mint.nn.Conv3d
+            if "has_bias" in kwargs:
+                kwargs["bias"] = kwargs.pop("has_bias")
+            if "pad_mode" in kwargs:
+                kwargs.pop("pad_mode")
+
         if dims == 1:
             self.conv = nn.Conv1d(*args, **kwargs)
         elif dims == 2:
-            self.conv = nn.Conv2d(*args, **kwargs)
+            self.conv = mint.nn.Conv2d(*args, **kwargs)
         elif dims == 3:
-            self.conv = nn.Conv3d(*args, **kwargs)
+            self.conv = mint.nn.Conv3d(*args, **kwargs)
         else:
             raise ValueError(f"unsupported dimensions: {dims}")
 
@@ -61,7 +67,7 @@ class avg_pool_nd(nn.Cell):
         if dims == 1:
             self.avgpool = nn.AvgPool1d(*args, **kwargs)
         elif dims == 2:
-            self.avgpool = nn.AvgPool2d(*args, **kwargs)
+            self.avgpool = mint.nn.AvgPool2d(*args, **kwargs)
         elif dims == 3:
             self.avgpool = ops.AvgPool3D(*args, **kwargs)
         else:
@@ -87,16 +93,15 @@ def normalization(channels, norm_in_5d=False):
 class SiLU(nn.Cell):
     def __init__(self):
         super(SiLU, self).__init__()
-        self.sigmoid = ops.Sigmoid()
 
     def construct(self, x):
         # TODO: test use fp16 instead
         # force sigmoid to use fp32
         # return x * self.sigmoid(x.astype(ms.float32)).astype(x.dtype)
-        return x * self.sigmoid(x)
+        return x * mint.sigmoid(x)
 
 
-class GroupNorm32(nn.GroupNorm):
+class GroupNorm32(mint.nn.GroupNorm):
     def construct(self, x, video_length=None):
         # video_length: just a placeholder
         ori_dtype = x.dtype
@@ -108,8 +113,8 @@ class GroupNorm32(nn.GroupNorm):
 def rearrange_in_gn5d_bs(x, b):
     # (b*f c h w) -> (b f c h w) -> (b c f h w)
     bf, c, h, w = x.shape
-    x = ops.reshape(x, (b, bf // b, c, h, w))
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (b, bf // b, c, h, w))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
 
     return x
 
@@ -117,8 +122,8 @@ def rearrange_in_gn5d_bs(x, b):
 def rearrange_in_gn5d(x, video_length):
     # (b*f c h w) -> (b f c h w) -> (b c f h w) for GN5D
     bf, c, h, w = x.shape
-    x = ops.reshape(x, (bf // video_length, video_length, c, h, w))
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (bf // video_length, video_length, c, h, w))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
 
     return x
 
@@ -126,13 +131,13 @@ def rearrange_in_gn5d(x, video_length):
 def rearrange_out_gn5d(x):
     # (b c f h w) -> (b f c h w) -> (b*f c h w)
     b, c, f, h, w = x.shape
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
-    x = ops.reshape(x, (-1, c, h, w))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (-1, c, h, w))
 
     return x
 
 
-class NonInflatedGroupNorm(nn.GroupNorm):
+class NonInflatedGroupNorm(mint.nn.GroupNorm):
     """
     compute GroupNorm in 5D based on the input in shape (b*f c h w) using the same way defined in AnimateDiff when use_inflated_groupnom=False,
     i.e. reshape to 5d tensor and normalize and reshape back
@@ -152,13 +157,13 @@ class NonInflatedGroupNorm(nn.GroupNorm):
 
         if x_ndim == 5:
             # (b c f h w) -> (b c f h*w)
-            x = ops.reshape(x, (x_shape[0], x_shape[1], x_shape[2], -1))
+            x = mint.reshape(x, (x_shape[0], x_shape[1], x_shape[2], -1))
 
         out = super().construct(x.astype(ms.float32)).astype(ori_dtype)
 
         if x_ndim == 5:
             # (b c f h*w) -> (b c f h w)
-            out = ops.reshape(out, (x_shape[0], x_shape[1], x_shape[2], x_shape[3], x_shape[4]))
+            out = mint.reshape(out, (x_shape[0], x_shape[1], x_shape[2], x_shape[3], x_shape[4]))
 
         out = rearrange_out_gn5d(out)
 
@@ -176,15 +181,15 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
     """
     if not repeat_only:
         half = dim // 2
-        freqs = ops.exp(
-            -ops.log(ms.Tensor(max_period, ms.float32)) * ms.numpy.arange(start=0, stop=half, dtype=ms.float32) / half
+        freqs = mint.exp(
+            -mint.log(ms.Tensor(max_period, ms.float32)) * ms.numpy.arange(start=0, stop=half, dtype=ms.float32) / half
         )
         args = timesteps[:, None] * freqs[None]
-        embedding = ops.concat((ops.cos(args), ops.sin(args)), axis=-1)
+        embedding = mint.cat((mint.cos(args), mint.sin(args)), dim=-1)
         if dim % 2:
-            embedding = ops.concat((embedding, ops.ZerosLike()(embedding[:, :1])), axis=-1)
+            embedding = mint.cat((embedding, mint.zeros_like(embedding[:, :1])), dim=-1)
     else:
-        embedding = ops.reshape(timesteps.repeat(dim), (-1, dim))
+        embedding = mint.reshape(timesteps.repeat(dim), (-1, dim))
     return embedding
 
 
@@ -216,10 +221,10 @@ def make_ddim_timesteps(ddim_discr_method="uniform", num_ddim_timesteps=50, num_
 def make_ddim_sampling_parameters(alphacums, ddim_timesteps, eta=0.0, verbose=False):
     # select alphas for computing the variance schedule
     alphas = alphacums[ddim_timesteps]
-    alphas_prev = ops.concat((ms.numpy.array([alphacums[0]]), alphacums[ddim_timesteps[:-1]]))
+    alphas_prev = mint.cat((ms.numpy.array([alphacums[0]]), alphacums[ddim_timesteps[:-1]]))
 
     # according the the formula provided in https://arxiv.org/abs/2010.02502
-    sigmas = eta * ops.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
+    sigmas = eta * mint.sqrt((1 - alphas_prev) / (1 - alphas) * (1 - alphas / alphas_prev))
     if verbose:
         print(f"Selected alphas for ddim sampler: a_t: {alphas}; a_(t-1): {alphas_prev}")
         print(
