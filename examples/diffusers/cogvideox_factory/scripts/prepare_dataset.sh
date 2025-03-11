@@ -12,11 +12,9 @@ DATA_ROOT="/path/to/my/datasets/video-dataset"  # This needs to be the path to t
 CAPTION_COLUMN="prompt.txt"
 VIDEO_COLUMN="videos.txt"
 OUTPUT_DIR="preprocessed-dataset"
-HEIGHT_BUCKETS="768"
-WIDTH_BUCKETS="1360"
-# Need to change to multiple of 8, when training SP=True
-FRAME_BUCKETS="77"
-MAX_NUM_FRAMES="77"
+H=768
+W=1360
+F=77
 MAX_SEQUENCE_LENGTH=224
 TARGET_FPS=8
 BATCH_SIZE=1
@@ -48,10 +46,10 @@ CMD="\
       --caption_column $CAPTION_COLUMN \
       --video_column $VIDEO_COLUMN \
       --output_dir $OUTPUT_DIR \
-      --height_buckets $HEIGHT_BUCKETS \
-      --width_buckets $WIDTH_BUCKETS \
-      --frame_buckets $FRAME_BUCKETS \
-      --max_num_frames $MAX_NUM_FRAMES \
+      --height_buckets $H \
+      --width_buckets $W \
+      --frame_buckets $F \
+      --max_num_frames $F \
       --max_sequence_length $MAX_SEQUENCE_LENGTH \
       --target_fps $TARGET_FPS \
       --batch_size $BATCH_SIZE \

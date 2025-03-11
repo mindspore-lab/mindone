@@ -170,10 +170,9 @@ OUTPUT_DIR="/path/to/my/datasets/preprocessed-dataset"
 - 配置videos预处理的相关参数，`VAE_CACHE=1`时生效，注意必须与正式训练的配置一致：
 
 ```shell
-HEIGHT_BUCKETS="768"
-WIDTH_BUCKETS="1360"
-FRAME_BUCKETS="77"
-MAX_NUM_FRAMES="77"
+H=768
+W=1360
+F=77
 TARGET_FPS=8
 ```
 
@@ -223,7 +222,6 @@ keep_prob为视频满足该分辨率和帧数要求下分配到该桶的概率�
 NUM_NPUS=8
 SP=True
 SP_SIZE=$NUM_NPUS
-DEEPSPEED_ZERO_STAGE=3
 ```
 
 - 多机训练配置，`MASTER_ADDR`是主节点的物理IP地址，默认是`127.0.0.1`，`NODE_RANK`是第几个节点，从0开始计数。
@@ -236,10 +234,11 @@ NODE_RANK="0"
 - 选择训练的超参数。让我们以学习率和优化器类型的超参数遍历为例：
 
   ```shell
-  LEARNING_RATES=("1e-4" "1e-3")
+  MIXED_PRECISION="bf16"
+  LEARNING_RATES=("1e-5")
   LR_SCHEDULES=("cosine_with_restarts")
-  OPTIMIZERS=("adamw" "adam")
-  MAX_TRAIN_STEPS=("3000")
+  OPTIMIZERS=("adamw_bf16")
+  MAX_TRAIN_STEPS=("100000")
   ```
 
 - 配置混合精度、ZeRO和MindSpore JIT加速配置：
@@ -264,6 +263,21 @@ NODE_RANK="0"
   MODEL_NAME_OR_PATH="THUDM/CogVideoX1.5-5b"
   ```
 
+- 动态shape配置，默认使用[`./scripts/bucket.yaml`](./scripts/bucket.yaml)分桶配置：
+
+  ```shell
+  ENABLE_DYNAMIC_SHAPE=0
+  ```
+
+- 视频和文本输入配置，注意ENABLE_DYNAMIC_SHAPE=1时HWF配置不生效，使用[`./scripts/bucket.yaml`](./scripts/bucket.yaml)中分桶配置；当`SP=True`时`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数：
+
+  ```shell
+  H=768
+  W=1360
+  F=77
+  MAX_SEQUENCE_LENGTH=224
+  ```
+
 - 是否使用数据缓存,推荐都打开：
 
   ```shell
@@ -271,29 +285,28 @@ NODE_RANK="0"
   EMBEDDINGS_CACHE=1
   ```
 
-- 运行实验，遍历不同的超参数：
+  - 运行实验，遍历不同的超参数：
   ```shell
   for learning_rate in "${LEARNING_RATES[@]}"; do
     for lr_schedule in "${LR_SCHEDULES[@]}"; do
       for optimizer in "${OPTIMIZERS[@]}"; do
         for steps in "${MAX_TRAIN_STEPS[@]}"; do
           output_dir="${OUTPUT_ROOT_DIR}/cogvideox-sft__optimizer_${optimizer}__steps_${steps}__lr-schedule_${lr_schedule}__learning-rate_${learning_rate}/"
-          cmd="$LAUNCHER cogvideox/cogvideox_text_to_video_sft.py \
+
+          cmd="$LAUNCHER ${SCRIPT_DIR}/cogvideox_text_to_video_sft.py \
             --pretrained_model_name_or_path $MODEL_NAME_OR_PATH \
             --data_root $DATA_ROOT \
             --caption_column $CAPTION_COLUMN \
             --video_column $VIDEO_COLUMN \
-            --height_buckets 768 \
-            --width_buckets 1360 \
-            --frame_buckets 77 \
-            --max_num_frames 77 \
+            --height_buckets $H \
+            --width_buckets $W \
+            --frame_buckets $F \
+            --max_num_frames $F \
+            --max_sequence_length=$MAX_SEQUENCE_LENGTH \
             --gradient_accumulation_steps 1 \
             --dataloader_num_workers 2 \
-            --validation_prompt_separator ::: \
-            --num_validation_videos 1 \
-            --validation_epochs 1 \
             --seed 42 \
-            --mixed_precision bf16 \
+            --mixed_precision $MIXED_PRECISION \
             --output_dir $output_dir \
             --train_batch_size 1 \
             --max_train_steps $steps \
@@ -319,6 +332,7 @@ NODE_RANK="0"
             --enable_sequence_parallelism $SP \
             --sequence_parallel_shards $SP_SIZE \
             $EXTRA_ARGS"
+
           echo "Running command: $cmd"
           eval $cmd
           echo -ne "-------------------- Finished executing script --------------------\n\n"
