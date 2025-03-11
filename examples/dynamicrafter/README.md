@@ -48,7 +48,7 @@ We provide image to video generation with three resolutions: 576x1024, 320x512, 
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+| 2.5.0     | 24.1.RC2      | 7.3.0.1.231 | 8.0.0.beta1       |
 
 ```shell
 pip install -r requirements.txt
@@ -116,12 +116,12 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 We evaluate the inference performance of image-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-Experiments are tested on ascend 910* with [mindspore 2.4.0 1119](https://repo.mindspore.cn/mindspore/mindspore/version/202411/20241119/master_20241119010040_b355f51f1710bb48d01d675c61b8305f14a9dcd4_newest/unified/aarch64/) graph mode.
+Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
 
 | model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
 |:-------------:|:------------:    |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.48 | 74 |
-| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.42  | 21 |
+| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.34 | 67 |
+| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.40  | 20 |
 | dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.24 | 12 |
 
 

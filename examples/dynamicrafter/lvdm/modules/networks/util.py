@@ -24,16 +24,19 @@ def linear(in_channel, out_channel, dtype=ms.float32):
 class conv_nd(nn.Cell):
     def __init__(self, dims, *args, **kwargs):
         super().__init__()
+        if dims == 2 or dims == 3:
+            # adpat for mint.nn.Conv2d or mint.nn.Conv3d
+            if "has_bias" in kwargs:
+                kwargs["bias"] = kwargs.pop("has_bias")
+            if "pad_mode" in kwargs:
+                kwargs.pop("pad_mode")
+
         if dims == 1:
             self.conv = nn.Conv1d(*args, **kwargs)
         elif dims == 2:
-            if "has_bias" in kwargs:
-                kwargs["bias"] = kwargs.pop("has_bias")  # adpat for mint.nn.Conv2d
-            if "pad_mode" in kwargs:
-                kwargs.pop("pad_mode")  # adpat for mint.nn.Conv2d
             self.conv = mint.nn.Conv2d(*args, **kwargs)
         elif dims == 3:
-            self.conv = nn.Conv3d(*args, **kwargs)
+            self.conv = mint.nn.Conv3d(*args, **kwargs)
         else:
             raise ValueError(f"unsupported dimensions: {dims}")
 

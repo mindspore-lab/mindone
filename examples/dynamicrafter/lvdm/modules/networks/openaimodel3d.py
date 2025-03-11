@@ -281,41 +281,33 @@ class TemporalConvBlock(nn.Cell):
         self.out_dim = out_dim
         self.dtype = dtype
         th_kernel_shape = (3, 1, 1) if not spatial_aware else (3, 3, 1)
-        th_padding_shape = (1, 1, 0, 0, 0, 0) if not spatial_aware else (1, 1, 1, 1, 0, 0)
+        th_padding_shape = (1, 0, 0) if not spatial_aware else (1, 1, 0)
         tw_kernel_shape = (3, 1, 1) if not spatial_aware else (3, 1, 3)
-        tw_padding_shape = (1, 1, 0, 0, 0, 0) if not spatial_aware else (1, 1, 0, 0, 1, 1)
+        tw_padding_shape = (1, 0, 0) if not spatial_aware else (1, 0, 1)
 
         # conv layers
         self.conv1 = nn.SequentialCell(
             normalization(in_dim),
             SiLU(),
-            nn.Conv3d(
-                in_dim, out_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            mint.nn.Conv3d(in_dim, out_dim, th_kernel_shape, padding=th_padding_shape, bias=True).to_float(ms.float16),
         )
         self.conv2 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else mint.nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            mint.nn.Conv3d(out_dim, in_dim, tw_kernel_shape, padding=tw_padding_shape, bias=True).to_float(ms.float16),
         )
         self.conv3 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else mint.nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim, in_dim, th_kernel_shape, pad_mode="pad", padding=th_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            mint.nn.Conv3d(out_dim, in_dim, th_kernel_shape, padding=th_padding_shape, bias=True).to_float(ms.float16),
         )
         self.conv4 = nn.SequentialCell(
             normalization(out_dim),
             SiLU(),
             nn.Dropout(1 - dropout) if is_old_ms_version() else mint.nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim, in_dim, tw_kernel_shape, pad_mode="pad", padding=tw_padding_shape, has_bias=True
-            ).to_float(ms.float16),
+            mint.nn.Conv3d(out_dim, in_dim, tw_kernel_shape, padding=tw_padding_shape, bias=True).to_float(ms.float16),
         )
 
         # zero out the last layer params,so the conv block is identity
