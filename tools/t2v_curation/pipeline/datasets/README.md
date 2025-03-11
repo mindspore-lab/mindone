@@ -151,24 +151,3 @@ You can also use `python -m pipeline.datasets.datautil --help` to see usage.
 | `--matchmin MATCHMIN`        | `_matchmin`     | Filter the dataset by minimum clip score                       |
 | `--lpipsmin LPIPSMIN`        | `_lpipsmin`     | Filter the dataset by minimum LPIPS score                      |
 | `--safety_check`             | `_safe`         | Filter out the videos flagged NSFW                             |
-
-
-## Analyze datasets
-
-You can get the basic information about a `.csv` 
-dataset by using the following commands:
-
-```bash
-# examine the first 10 rows of the CSV file
-head -n 10 DATA1.csv
-# count the number of data in the CSV file (approximately)
-wc -l DATA1.csv
-```
-
-For the dataset provided in a `.csv` or `.parquet` 
-file, you can analyze the dataset using the following 
-commands. Plots will be saved automatically.
-
-```bash
-pyhton -m pipeline.datasets.analyze DATA_info.csv
-```
