@@ -191,7 +191,7 @@ class TextEncoder(nn.Cell):
         self.tokenizer, self.tokenizer_path, self.processor = load_tokenizer(
             tokenizer_type=self.tokenizer_type,
             tokenizer_path=self.tokenizer_path,
-            padding_side="right",
+            padding_side="left",
             logger=self.logger,
         )
         # to avoid: Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.

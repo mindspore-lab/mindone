@@ -32,7 +32,7 @@ def test():
     dtype = ms.float16
     # model_path = 'ckpts/llava_tiny'
     image_processor = CLIPImageProcessor.from_pretrained(model_path)
-    tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="right")
+    tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="left")
 
     # run
     prompt = (
@@ -83,7 +83,7 @@ def test():
         np.save("tests/llava_ftr_fp16.npy", outputs.hidden_states[-1].asnumpy())
     else:
         output = model.generate(**inputs, max_new_tokens=200, do_sample=False, use_cache=False)
-        print(image_processor.decode(output[0][2:], skip_special_tokens=True))
+        print(tokenizer.decode(output[0][2:], skip_special_tokens=True))
 
 
 if __name__ == "__main__":
