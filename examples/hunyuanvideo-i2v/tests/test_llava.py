@@ -19,28 +19,37 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
 sys.path.insert(0, mindone_lib_path)
 
 # from mindone.transformers import AutoProcessor
-from transformers import AutoProcessor
+from transformers import AutoTokenizer, CLIPImageProcessor
 
 from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
 
 
 def test():
-    model_path = "ckpts/llava-llama-3-8b-v1_1-transformers"
+    model_path = "ckpts/text_encoder_i2v"
     # model_path = 'ckpts/llava_tiny'
-    processor = AutoProcessor.from_pretrained(model_path)
+    image_processor = CLIPImageProcessor.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, padding_side="right")
 
     # run
     prompt = (
         "<|start_header_id|>user<|end_header_id|>\n\n<image>\nWhat are these?<|eot_id|>"
         "<|start_header_id|>assistant<|end_header_id|>\n\n"
     )
-    image_file = "./000000039769.jpg"
+    image_file = "./example.jpg"
     raw_image = Image.open(image_file)
-
-    inputs = processor(text=prompt, images=raw_image, return_tensors="np")  # .to(ms.float16)
+    inputs = tokenizer(
+        [prompt],
+        truncation=True,
+        max_length=256,
+        padding="max_length",
+        return_tensors="np",
+    )
     inputs["input_ids"] = ms.tensor(inputs["input_ids"], dtype=ms.int32)
     inputs["attention_mask"] = ms.tensor(inputs["attention_mask"], dtype=ms.bool_)
-    inputs["pixel_values"] = ms.tensor(inputs["pixel_values"]).to(ms.float16)
+
+    inputs_img = image_processor(images=[raw_image], return_tensors="np")  # .to(ms.float16)
+
+    inputs["pixel_values"] = ms.tensor(inputs_img["pixel_values"]).to(ms.float16)
 
     # inputs .to(ms.float16)
 
