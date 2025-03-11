@@ -23,8 +23,6 @@ from transformers import AutoTokenizer, CLIPImageProcessor
 
 from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
 
-ms.set_context(mode=0)
-
 
 def test():
     model_path = "ckpts/text_encoder_i2v"
