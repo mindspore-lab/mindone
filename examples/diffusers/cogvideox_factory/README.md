@@ -64,6 +64,12 @@ huggingface-cli download   --repo-type dataset Wild-Heart/Disney-VideoGeneration
 
 # 对 CogVideoX 模型进行文本到视频的完整微调
 ./train_text_to_video_sft.sh
+
+# 对 CogVideoX 模型进行图像到视频的 LoRA 微调
+./train_image_to_video_lora.sh
+
+# 对 CogVideoX 模型进行图像到视频的完整微调
+./train_image_to_video_sft.sh
 ```
 
 假设您的 LoRA 已保存到本地，并且路径为 `/path/to/my-awesome-lora`，现在我们可以使用微调模型进行推理：
@@ -127,7 +133,7 @@ MAX_SEQUENCE_LENGTH=224
 
 ## 训练
 
-在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 LoRA 微调为例。
+在开始训练之前，请你检查是否按照[数据集规范](./assets/dataset_zh.md)准备好了数据集。 我们提供了适用于文本到视频 (text-to-video) 和图像到视频 (image-to-video) 生成的训练脚本，兼容 [CogVideoX 模型家族](https://huggingface.co/collections/THUDM/cogvideo-66c08e62f1685a3ade464cce)。正式训练可以通过 `train*.sh` 脚本启动，具体取决于你想要训练的任务。让我们以文本到视频的 LoRA 微调为例。
 
 > [!TIP]
 > 由于模型的限制，对于固定shape的训练我们推荐分阶段的训练流程，即先进行[预处理数据](#预处理数据)缓存数据，然后读取缓存通过`train*.sh`进行正式训练。
@@ -181,6 +187,12 @@ DTYPE=bf16
 ```shell
 VAE_CACHE=1
 EMBEDDINGS_CACHE=1
+```
+
+- 当执行图像到视频的生成训练时，当`VAE_CACHE=1`时需要配置额外缓存图片数据
+
+```shell
+SAVE_IMAGE_LATENTS=1
 ```
 
 然后正式运行`prepare_dateset.sh`，输出预处理后的数据集至`OUTPUT_DIR`
