@@ -234,6 +234,10 @@ def infer(args: argparse.Namespace) -> None:
         )
 
     if args.transformer_ckpt_path:
+        # for finetuned model, we use the fixed vae scale for i2v and t2v
+        pipe.vae.config.invert_scale_latents = False
+
+    if args.transformer_ckpt_path:
         ckpt = ms.load_checkpoint(args.transformer_ckpt_path)
         processed_ckpt = {name[12:]: value for name, value in ckpt.items()}  # remove "transformer." prefix
         param_not_load, ckpt_not_load = ms.load_param_into_net(pipe.transformer, processed_ckpt)
