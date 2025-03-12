@@ -116,13 +116,20 @@ class FlashAttentionVarLen(nn.Cell):
         """
         # preapre layout. (B S N D) -> (T N D)
         bs, max_seq_len, heads_num, head_dim = q.shape
+        ori_dtype = q.dtype
         q = q.reshape((-1, heads_num, head_dim))
         k = k.reshape((-1, heads_num, head_dim))
         v = v.reshape((-1, heads_num, head_dim))
 
-        _, _, _, out = self.flash_attention(q, k, v, actual_seq_qlen=actual_seq_qlen, actual_seq_kvlen=actual_seq_kvlen)
+        _, _, _, out = self.flash_attention(
+            q.to(ms.bloat16),
+            k.to(ms.bloat16),
+            v.to(ms.bloat16),
+            actual_seq_qlen=actual_seq_qlen,
+            actual_seq_kvlen=actual_seq_kvlen,
+        )
 
         # (T N D) -> (B S N*D)
         out = out.reshape((bs, max_seq_len, heads_num * head_dim))
 
-        return out
+        return out.to(ori_dtype)

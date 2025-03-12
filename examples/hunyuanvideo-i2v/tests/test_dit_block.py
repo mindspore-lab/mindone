@@ -300,7 +300,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
             SinusoidalEmbedding,
         ]
         print("custom fp32 cell for dit: ", whitelist_ops)
-        model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
+        net = auto_mixed_precision(net, amp_level="O2", dtype=dtype, custom_fp32_cells=whitelist_ops)
 
     # run
 
