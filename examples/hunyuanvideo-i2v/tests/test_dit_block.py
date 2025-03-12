@@ -303,12 +303,6 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
         model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
 
     # run
-    start = time.time()
-    out = net(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
-    print("time cost: ", time.time() - start)
-
-    print(out.shape)
-    print(out.mean(), out.std())
 
     if pt_np:
         if pt_np.endswith(".npy"):
@@ -344,6 +338,13 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
             noise_pred_torch = data["noise_pred"]
             diff = _diff_res(noise_pred_ms, noise_pred_torch)
             print(diff)
+    else:
+        start = time.time()
+        out = net(video_latent, t, text_states, text_mask, text_states_2, freqs_cos, freqs_sin, guidance)
+        print("time cost: ", time.time() - start)
+
+        print(out.shape)
+        print(out.mean(), out.std())
 
 
 def test_nd_rope():
