@@ -93,7 +93,9 @@ export_to_video(video, "output.mp4", fps=8)
 
 ## 推理
 
-我们提供了脚本[`run_infer.sh`](./run_infer.sh)用以执行单卡、多卡并行推理。
+我们提供了脚本[`run_infer_text_to_video.sh`](./run_infer_text_to_video.sh)和[`run_infer_image_to_video.sh`](./run_infer_image_to_video.sh)用以执行单卡、多卡并行推理。
+
+以`run_infer_text_to_video.sh`为例，
 
 - 执行卡数及并行配置。注意当`SP=True`时，`MAX_SEQUENCE_LENGTH`必须是`SP_SIZE`的倍数，`SP_SIZE`不能是1：
 
@@ -129,7 +131,7 @@ MAX_SEQUENCE_LENGTH=224
 > H, W, F配置最好和训练保持一致；
 > 开SP时，MAX_SEQUENCE_LENGTH必须是SP的倍数。
 
-然后正式运行`run_infer.sh`，输出结果至`OUTPUT_DIR`。
+然后正式运行`run_infer_text_to_video.sh`，输出结果至`OUTPUT_DIR`。
 
 ## 训练
 

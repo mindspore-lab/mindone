@@ -9,6 +9,7 @@ from mindspore.communication import get_rank
 
 from mindone import diffusers
 from mindone.diffusers.training_utils import init_distributed_device, set_seed
+from mindone.diffusers.utils import load_image
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
 from mindone.models.modules.parallel import PARALLEL_MODULES
 from mindone.trainers.zero import _prepare_network
@@ -99,6 +100,9 @@ def parse_args() -> argparse.Namespace:
         help="prompt, if None, will set default prompt.",
     )
     parser.add_argument(
+        "--image_path", type=str, required=None, help="Image path of the image for image-to-video generation."
+    )
+    parser.add_argument(
         "--transformer_ckpt_path",
         type=str,
         default=None,
@@ -173,6 +177,11 @@ def infer(args: argparse.Namespace) -> None:
     dtype = (
         ms.float16 if args.mixed_precision == "fp16" else ms.bfloat16 if args.mixed_precision == "bf16" else ms.float32
     )
+    if args.image_path is None:
+        pipe_ = diffusers.CogVideoXPipeline
+    else:
+        pipe_ = diffusers.CogVideoXImageToVideoPipeline
+
     if enable_sequence_parallelism:
         from cogvideox.models import AutoencoderKLCogVideoX_SP, CogVideoXTransformer3DModel_SP
         from transformers import AutoTokenizer
@@ -214,9 +223,9 @@ def infer(args: argparse.Namespace) -> None:
             revision=args.revision,
         )
 
-        pipe = diffusers.CogVideoXPipeline(tokenizer, text_encoder, vae, transformer, scheduler)
+        pipe = pipe_(tokenizer, text_encoder, vae, transformer, scheduler)
     else:
-        pipe = diffusers.CogVideoXPipeline.from_pretrained(
+        pipe = pipe_.from_pretrained(
             args.pretrained_model_name_or_path,
             mindspore_dtype=dtype,
             use_safetensors=True,
@@ -251,6 +260,7 @@ def infer(args: argparse.Namespace) -> None:
         "enhancing the peaceful and magical atmosphere of this unique musical performance."
     )
     prompt = prompt if args.prompt is None else args.prompt
+    image = load_image(image=args.image_path) if args.image_path is not None else None
     latents = None
     if enable_sequence_parallelism:
         shape = (
@@ -262,14 +272,26 @@ def infer(args: argparse.Namespace) -> None:
         )
         latents = randn_tensor(shape, dtype=dtype)
         ms.mint.distributed.broadcast(latents, src=0, group=sp_group)
-    video = pipe(
-        prompt=prompt,
-        height=args.height,
-        width=args.width,
-        num_frames=args.frame,
-        max_sequence_length=args.max_sequence_length,
-        latents=latents,
-    )[0][0]
+
+    if image is None:
+        video = pipe(
+            prompt=prompt,
+            height=args.height,
+            width=args.width,
+            num_frames=args.frame,
+            max_sequence_length=args.max_sequence_length,
+            latents=latents,
+        )[0][0]
+    else:
+        video = pipe(
+            prompt=prompt,
+            image=image,
+            height=args.height,
+            width=args.width,
+            num_frames=args.frame,
+            max_sequence_length=args.max_sequence_length,
+            latents=latents,
+        )[0][0]
 
     if is_main_device:
         if args.npy_output_path is not None:
