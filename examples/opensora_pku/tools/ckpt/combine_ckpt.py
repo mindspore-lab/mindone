@@ -25,7 +25,7 @@ def main():
         else args.strategy_ckpt
     )
     assert os.path.exists(strategy_file), f"{strategy_file} does not exist!"
-    ms.transform_checkpoints(args.src, args.dest, "full_", strategy_file, None)
+    ms.convert_checkpoints(args.src, args.dest, "full_", strategy_file, None)
 
     output_path = os.path.join(args.dest, "rank_0", "full_0.ckpt")
     assert os.path.isfile(output_path)

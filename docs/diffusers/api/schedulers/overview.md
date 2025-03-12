@@ -44,6 +44,14 @@ Many schedulers are implemented from the [k-diffusion](https://github.com/crowso
 | LMS Karras          | [`LMSDiscreteScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/lms_discrete/#mindone.diffusers.LMSDiscreteScheduler)                                  | init with `use_karras_sigmas=True`                                           |
 | N/A                 | [`DEISMultistepScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/deis/#mindone.diffusers.schedulers.scheduling_deis_multistep.DEISMultistepScheduler) |                                                                              |
 | N/A                 | [`UniPCMultistepScheduler`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/unipc/#mindone.diffusers.UniPCMultistepScheduler)                                   |                                                                              |
+## Noise schedules and schedule types
+| A1111/k-diffusion        | 🤗 Diffusers                                                               |
+|--------------------------|----------------------------------------------------------------------------|
+| Karras                   | init with `use_karras_sigmas=True`                                         |
+| sgm_uniform              | init with `timestep_spacing="trailing"`                                    |
+| simple                   | init with `timestep_spacing="trailing"`                                    |
+| exponential              | init with `timestep_spacing="linspace"`, `use_exponential_sigmas=True`     |
+| beta                     | init with `timestep_spacing="linspace"`, `use_beta_sigmas=True`            |
 
 All schedulers are built from the base [`SchedulerMixin`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/schedulers/overview/#mindone.diffusers.SchedulerMixin) class which implements low level utilities shared by all schedulers.
 
