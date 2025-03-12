@@ -362,15 +362,16 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
 
         image = image.unsqueeze(2)  # [B, C, F, H, W]
 
-        if isinstance(generator, list):
-            image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(image[i].unsqueeze(0))[0], generator[i])
-                for i in range(batch_size)
-            ]
-        else:
-            image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0))[0], generator) for img in image
-            ]
+        with pynative_context():
+            if isinstance(generator, list):
+                image_latents = [
+                    retrieve_latents(self.vae, self.vae.encode(image[i].unsqueeze(0))[0], generator[i])
+                    for i in range(batch_size)
+                ]
+            else:
+                image_latents = [
+                    retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0))[0], generator) for img in image
+                ]
 
         image_latents = ops.cat(image_latents, axis=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
 

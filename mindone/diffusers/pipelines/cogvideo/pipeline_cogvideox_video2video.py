@@ -359,21 +359,22 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
             )
 
         if latents is None:
-            if isinstance(generator, list):
-                if len(generator) != batch_size:
-                    raise ValueError(
-                        f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                        f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-                    )
+            with pynative_context():
+                if isinstance(generator, list):
+                    if len(generator) != batch_size:
+                        raise ValueError(
+                            f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
+                            f" size of {batch_size}. Make sure the batch size matches the length of the generators."
+                        )
 
-                init_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(video[i].unsqueeze(0))[0], generator[i])
-                    for i in range(batch_size)
-                ]
-            else:
-                init_latents = [
-                    retrieve_latents(self.vae, self.vae.encode(vid.unsqueeze(0))[0], generator) for vid in video
-                ]
+                    init_latents = [
+                        retrieve_latents(self.vae, self.vae.encode(video[i].unsqueeze(0))[0], generator[i])
+                        for i in range(batch_size)
+                    ]
+                else:
+                    init_latents = [
+                        retrieve_latents(self.vae, self.vae.encode(vid.unsqueeze(0))[0], generator) for vid in video
+                    ]
 
             init_latents = ops.cat(init_latents, axis=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
             init_latents = self.vae.config.scaling_factor * init_latents
