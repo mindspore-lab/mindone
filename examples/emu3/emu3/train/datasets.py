@@ -13,7 +13,7 @@ from mindone.data import BaseDataset
 
 
 class Emu3FeatureDataset(BaseDataset):
-    def __init__(self, args, tokenizer: "Emu3Tokenizer", split: str = "train", task: str = "img_gen"):
+    def __init__(self, args, tokenizer: "Emu3Tokenizer", split: str = "train"):
         super().__init__()
 
         self.args = args
@@ -33,8 +33,10 @@ class Emu3FeatureDataset(BaseDataset):
         assert not self.args.apply_loss_on_only_vision or not self.args.apply_loss_on_only_text
         self.bov = tokenizer.encode(args.visual_token_pattern.format(token_id=0))[0]
         self.eov = tokenizer.encode(args.visual_token_pattern.format(token_id=args.codebook_size - 1))[0]
-
-        self.task = task  # "img_gen" or "vqa"
+        if self.args.apply_loss_on_only_text:
+            self.task = "vqa"
+        else:
+            self.task = "img_gen"
         self.chat_template = "You are a helpful assistant. USER: {image_prompt}{text_prompt}. ASSISTANT:"
         # self.special_token_ids = [
         #     151643,  # pad_token_id
@@ -70,35 +72,43 @@ class Emu3FeatureDataset(BaseDataset):
             # image generation template
             input = self.tokenizer.bos_token + prompt + image_prompt
         else:  # vqa
+            prompt = data["texts"]
             response = data["response"]
-            vt_prompts = self.chat_template.format(image_prompt, prompt)  # instruction + input vision & text prompts
+            vt_prompts = self.chat_template.format(image_prompt=image_prompt, text_prompt=prompt)  # instruction + input vision & text prompts
             input = vt_prompts + response  # instruction + input vision & text prompts + response
-
-        sample = self.tokenizer(
-            input,
-            padding="max_length",
-            return_token_type_ids=False,
-            return_tensors="np",
-        )  # keys: "input_ids", "attention_mask"
+        if self.task == "img_gen":
+            sample = self.tokenizer(
+                input,
+                padding="max_length",
+                return_token_type_ids=False,
+                return_tensors="np",
+            )  # keys: "input_ids", "attention_mask"
+        else:
+            sample = self.tokenizer(
+                text=vt_prompts,
+                text_pair=response,
+                padding="max_length",
+                return_token_type_ids=False,
+                return_tensors="np",
+            )  # keys: "input_ids", "attention_mask"
 
         labels = sample["input_ids"]
+        # mask labels
         if self.args.apply_loss_on_only_vision:  # image generation
             labels = np.where(np.logical_and(labels >= self.bov, labels <= self.eov), labels, self.args.ignore_index)
         elif self.args.apply_loss_on_only_text:  # vqa
-            # simply ignore visual ids, ignore special ids
-            # visual_mask = np.logical_and(labels >= self.bov, labels <= self.eov)
-            # special_mask = np.array([label in self.special_token_ids for label in labels], dtype=np.bool_)
-            # labels = np.where((visual_mask or special_mask), self.args.ignore_index, labels)
-            prompt_ids = self.tokenizer.decode(vt_prompts)
-            response_ids = self.tokenizer.decode(response)
-            labels[: len(prompt_ids)] = self.args.ignore_index
-            if len(prompt_ids) + len(response_ids) < len(labels):
-                labels[len(prompt_ids) + len(response_ids) :] = self.args.ignore_index
+            prompt_ids = self.tokenizer.encode(vt_prompts)
+            response_ids = self.tokenizer.encode(response)
+            labels[..., : len(prompt_ids)] = self.args.ignore_index # maks input text and vision prompts
+            if (len(prompt_ids) + len(response_ids)) < labels.shape[-1]: # mask remaining padding tokens
+                labels[..., len(prompt_ids) + len(response_ids) :] = self.args.ignore_index
 
         sample["labels"] = labels
         for k, v in sample.items():
-            sample[k] = ms.Tensor(v.squeeze(0), dtype=ms.int32)
-
+            if k != "attention_mask":
+                sample[k] = np.squeeze(sample[k], axis=0).astype(np.int32)
+            else:
+                sample[k] = np.squeeze(sample[k], axis=0).astype(np.bool_)
         return (
             sample["input_ids"],
             sample["attention_mask"],
