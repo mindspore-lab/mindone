@@ -218,6 +218,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
             "mlp_width_ratio": 1,
         },
     }
+    enable_ms_amp = True
     model_cfg = DEBUG_CONFIG if debug else HUNYUAN_VIDEO_CONFIG
     args.model = "HYVideo-T/2"
     if depth is not None:
@@ -272,7 +273,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     guidance = ms.Tensor(guidance)
 
     # model
-    factor_kwargs = {"dtype": dtype, "i2v_condition_type": "token_replace"}
+    factor_kwargs = {"dtype": dtype, "i2v_condition_type": "token_replace", "guidance_embed": True}
     net = HYVideoDiffusionTransformer(
         text_states_dim=args.text_states_dim,
         text_states_dim_2=args.text_states_dim_2,
@@ -288,7 +289,7 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     if pt_ckpt:
         net.load_from_checkpoint(pt_ckpt)
 
-    if dtype != ms.float32:
+    if enable_ms_amp and dtype != ms.float32:
         from hyvideo.modules.embed_layers import SinusoidalEmbedding
         from hyvideo.modules.norm_layers import LayerNorm, RMSNorm
 
