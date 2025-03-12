@@ -11,7 +11,7 @@ sys.path.insert(0, mindone_lib_path)
 
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images, set_model_param_dtype
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoConfig
 
 from mindspore.nn.utils import no_init_parameters
 

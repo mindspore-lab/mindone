@@ -16,7 +16,8 @@ import mindspore as ms
 from mindspore import nn
 from mindspore._c_expression import reset_op_id
 from mindspore.communication.management import get_group_size, get_rank, init
-from mindspore.nn.utils import no_init_parameters
+
+# from mindspore.nn.utils import no_init_parameters
 
 # from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 # from mindspore.train.callback import TimeMonitor
@@ -39,12 +40,12 @@ from mindone.trainers.checkpoint import CheckpointManager
 # from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.train_step import TrainOneStepWrapper
+from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm
 
 # from mindone.trainers.zero import prepare_train_network
 from mindone.utils.config import str2bool
 from mindone.utils.logger import set_logger
 from mindone.utils.seed import set_random_seed
-from mindone.transformers.mindspore_adapter.clip_grad import clip_grad_norm
 
 logger = logging.getLogger(__name__)
 
@@ -178,10 +179,10 @@ def main(args):
     # 2. prepare dataset and loader
     # FIXME: output task_type in dataloader
     task = args.task
-    if task == 'text':
+    if task == "text":
         # FIXME: allow setting path
         dataloader = create_dataloader_text(
-            dataset_name='pubmedqa',
+            dataset_name="pubmedqa",
             data_dir="datasets/PubMedQA",
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
@@ -189,7 +190,7 @@ def main(args):
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
-    elif task == 'vqa':
+    elif task == "vqa":
         dataloader = create_dataloader_vqa(
             dataset_name="medical-vqa",
             data_dir="datasets/medical-vqa",
@@ -199,22 +200,21 @@ def main(args):
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
-    elif task == 't2i':
+    elif task == "t2i":
         dataloader = create_dataloader_t2i(
             csv_path=args.csv_path,
             data_dir=args.data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             image_size=args.image_size,
-            null_prompt_prob=args.null_prompt_prob,  # TODO: tune 0.01, 0.05
+            null_prompt_prob=args.null_prompt_prob,
             batch_size=args.batch_size,
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
     else:
         raise NotImplementedError
-    task_map = {"text": 0, "vqa": 1, "t2i": 2}
-    task_type = task_map[task]
+    # task_map = {"text": 0, "vqa": 1, "t2i": 2}
 
     # 3. setup trainer and config hyper-params
     # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # tune
@@ -236,6 +236,7 @@ def main(args):
 
     use_value_and_grad = args.use_value_and_grad
     if use_value_and_grad:
+
         def forward_fn(data):
             loss = vl_gpt(*data)
             return loss
@@ -243,7 +244,7 @@ def main(args):
         grad_fn = ms.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=False)
         if args.use_parallel:
             grad_reducer = nn.DistributedGradReducer(optimizer.parameters)
-        
+
         def train_step(data):
             loss, grads = grad_fn(data)
             if args.use_parallel:
@@ -407,7 +408,7 @@ if __name__ == "__main__":
     )
 
     # training data config
-    parser.add_argument("--task", default='t2i', type=str, help="text, t2i, vqa, or mixed")
+    parser.add_argument("--task", default="t2i", type=str, help="text, t2i, vqa, or mixed")
     parser.add_argument(
         "--csv_path",
         default="",

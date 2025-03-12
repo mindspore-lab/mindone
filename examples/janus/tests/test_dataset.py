@@ -9,7 +9,7 @@ sys.path.insert(0, mindone_lib_path)
 from janus.models import VLChatProcessor
 from janus.train.t2i_dataset import TextImageDataset, create_dataloader_t2i
 from janus.train.text_dataset import TextDataset, create_dataloader_text
-from janus.train.vqa_dataset import VqaDataset # , create_dataloader_text
+from janus.train.vqa_dataset import VqaDataset  # , create_dataloader_text
 
 
 def test():
@@ -52,9 +52,11 @@ def test_dataloader():
 def test_text_dataset():
     model_path = "ckpts/Janus-Pro-1B"
     vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
-    ds = TextDataset("pubmedqa", "datasets/PubMedQA",
+    ds = TextDataset(
+        "pubmedqa",
+        "datasets/PubMedQA",
         vl_chat_processor=vl_chat_processor,
-        )
+    )
     for i in range(10):
         task_type, input_ids, labels, attention_mask = ds.__getitem__(i)
         print(task_type)
@@ -66,7 +68,8 @@ def test_text_dataloader():
     vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
 
     dl = create_dataloader_text(
-        "pubmedqa", "datasets/PubMedQA",
+        "pubmedqa",
+        "datasets/PubMedQA",
         vl_chat_processor=vl_chat_processor,
         batch_size=2,
     )
@@ -80,19 +83,19 @@ def test_text_dataloader():
         print(f"time cost: {dur * 1000} ms")
         start = time.time()
 
+
 def test_vqa_dataset():
     model_path = "ckpts/Janus-Pro-1B"
     vl_chat_processor = VLChatProcessor.from_pretrained(model_path)
-    ds = VqaDataset("medical-vqa", "datasets/medical-vqa",
+    ds = VqaDataset(
+        "medical-vqa",
+        "datasets/medical-vqa",
         vl_chat_processor=vl_chat_processor,
-        )
+    )
     for i in range(10):
         task_type, input_ids, labels, attention_mask, image_seq_mask, image = ds.__getitem__(i)
         print(task_type)
         print(input_ids, labels, attention_mask)
-        import pdb; pdb.set_trace()
-
-
 
 
 if __name__ == "__main__":
@@ -101,4 +104,3 @@ if __name__ == "__main__":
     # test_text_dataset()
     # test_text_dataloader()
     test_vqa_dataset()
-

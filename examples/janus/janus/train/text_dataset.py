@@ -1,14 +1,10 @@
-import csv
 import logging
-import os
-import random
-from typing import Any, Dict, List, Tuple
 from copy import deepcopy
+from typing import Tuple
 
 import numpy as np
-from janus.models import VLChatProcessor
-from PIL import Image
 from datasets import load_dataset
+from janus.models import VLChatProcessor
 
 import mindspore as ms
 from mindspore.dataset.transforms import Compose, vision
@@ -19,15 +15,14 @@ logger = logging.getLogger(__name__)
 class TextDataset:
     def __init__(
         self,
-        dataset_name = None,
-        data_dir = None,
+        dataset_name=None,
+        data_dir=None,
         vl_chat_processor: VLChatProcessor = None,
         max_token_length: int = 1024,
         num_samples: int = -1,
     ) -> None:
-        
-        if dataset_name == 'pubmedqa': 
-            self.dataset = load_dataset(data_dir, 'pqa_labeled', split='train') 
+        if dataset_name == "pubmedqa":
+            self.dataset = load_dataset(data_dir, "pqa_labeled", split="train")
         else:
             raise NotImplementedError
 
@@ -39,7 +34,6 @@ class TextDataset:
         self.vl_chat_processor = vl_chat_processor
         self.max_token_length = max_token_length
 
-
     def __len__(self) -> int:
         return self.length
 
@@ -50,11 +44,11 @@ class TextDataset:
 
         # process text
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
-        
+
         # FIXME
         task_type = np.array(0, dtype=np.int32)
 
-        return task_type, input_ids, labels, attention_mask 
+        return task_type, input_ids, labels, attention_mask
 
     @staticmethod
     def create_transform(image_size: int, interpolation: vision.Inter) -> Compose:
@@ -81,12 +75,12 @@ class TextDataset:
             sft_format=self.vl_chat_processor.sft_format,
             system_prompt=self.vl_chat_processor.system_prompt,
         )
-        # print("D--: ", prompt) 
+        # print("D--: ", prompt)
 
         vlcp = self.vl_chat_processor
 
         # left padding (default), same as inference. eos will be added
-        '''
+        """
         input_ids = vlcp.tokenizer.encode(
             prompt,
             add_special_tokens=True,
@@ -99,7 +93,7 @@ class TextDataset:
 
         attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
         attention_mask[input_ids == vlcp.pad_id] = 0
-        '''
+        """
         inputs = vlcp.tokenizer(
             prompt,
             add_special_tokens=True,
@@ -110,7 +104,7 @@ class TextDataset:
         )
         input_ids = np.array(inputs["input_ids"], dtype=np.int32)
         attention_mask = np.array(inputs["attention_mask"], dtype=np.bool)
-        
+
         # make labels
         # label, only train on answer seq
         ignore_index = -100
@@ -158,4 +152,3 @@ def create_dataloader_text(
     dataloader = dataloader.batch(batch_size, drop_remainder=True)
 
     return dataloader
-

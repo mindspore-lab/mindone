@@ -371,7 +371,7 @@ class VLChatProcessor(ProcessorMixin):
         for prepare in prepare_list:
             n_images.append(len(prepare.num_image_tokens))
             seq_lens.append(len(prepare))
-        
+
         if max_length is None:
             input_token_max_len = max(seq_lens)
         else:

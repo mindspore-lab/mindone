@@ -387,7 +387,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         bs = input_ids.shape[0]
         _, n, c, h, w = pixel_values.shape
         pixel_values = ops.reshape(pixel_values, (bs * n, c, h, w))
-        # sigLIP is trainable in stage 3 
+        # sigLIP is trainable in stage 3
         image_embeds = self.vision_model(pixel_values)  # diff gen
         image_embeds = self.aligner(image_embeds)
 
@@ -406,8 +406,8 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
 
-        # FIXME: fix as gen_with_loss to support graph mode 
-        inputs_embeds[image_seq_mask] = image_embeds # ops.stop_gradient(image_embeds)
+        # FIXME: fix as gen_with_loss to support graph mode
+        inputs_embeds[image_seq_mask] = image_embeds  # ops.stop_gradient(image_embeds)
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
         image_seq_mask = image_seq_mask.reshape(B, S)
@@ -424,11 +424,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         return loss
 
-
     def construct(
         self,
-        task_type: Tensor=None,
-        input_ids: Tensor=None,
+        task_type: Tensor = None,
+        input_ids: Tensor = None,
         labels: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
         image_seq_mask: Optional[Tensor] = None,
@@ -447,8 +446,8 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             loss = self.language_model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                labels=labels, 
-                )[0]
+                labels=labels,
+            )[0]
         elif task_type[0] == 1:
             # mm understand
             loss = self.und_with_loss(
@@ -457,7 +456,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                 labels=labels,
                 image_seq_mask=image_seq_mask,
                 pixel_values=pixel_values,
-                )
+            )
         elif task_type[0] == 2:
             # t2i
             loss = self.gen_with_loss(
@@ -469,7 +468,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                 # labels,
             )
         else:
-            raise ValueError(f'task type should be one of [0, 1, 2], but get {task_type}')
+            raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
 
         return loss
 

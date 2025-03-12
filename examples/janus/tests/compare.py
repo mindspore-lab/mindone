@@ -1,6 +1,7 @@
 import numpy as np
-import torch
+
 import mindspore as ms
+
 
 def calc_diff(ms_val, pt_val, eps=1e-8, relax=False):
     if isinstance(ms_val, ms.Tensor):
@@ -11,14 +12,18 @@ def calc_diff(ms_val, pt_val, eps=1e-8, relax=False):
     max_ae = abs_diff.max()
 
     rel_diff = abs_diff / (np.fabs(pt_val) + eps)
-	
+
     # relax
     if relax:
         rel_diff = abs_diff / (np.fabs(pt_val))
         tot = np.prod(rel_diff.shape)
         n_nan = np.isnan(rel_diff).sum()
         n_inf = np.isinf(rel_diff).sum()
-        print('# values: {}, # nan values: {}, # inf values:{}, (nan+inf)/tot'.format(tot, n_nan, n_inf, (n_nan + n_inf) / tot ))
+        print(
+            "# values: {}, # nan values: {}, # inf values:{}, (nan+inf)/tot: {}".format(
+                tot, n_nan, n_inf, (n_nan + n_inf) / tot
+            )
+        )
         rel_diff = rel_diff[~np.isnan(rel_diff)]
         rel_diff = rel_diff[~np.isinf(rel_diff)]
 

@@ -1,15 +1,12 @@
-import csv
 import logging
 import os
-import random
-from typing import Any, Dict, List, Tuple
 from copy import deepcopy
+from typing import Tuple
 
 import numpy as np
+from datasets import load_dataset
 from janus.models import VLChatProcessor
 from janus.utils.io import load_pil_images
-from PIL import Image
-from datasets import load_dataset
 
 import mindspore as ms
 from mindspore.dataset.transforms import Compose, vision
@@ -20,16 +17,15 @@ logger = logging.getLogger(__name__)
 class VqaDataset:
     def __init__(
         self,
-        dataset_name = None,
-        data_dir = None,
+        dataset_name=None,
+        data_dir=None,
         vl_chat_processor: VLChatProcessor = None,
         max_token_length: int = 1024,
         num_samples: int = -1,
     ) -> None:
-        
-        if dataset_name == 'medical-vqa': 
+        if dataset_name == "medical-vqa":
             self.image_dir = os.path.join(data_dir, "vqa-rad/images")
-            self.dataset = load_dataset(data_dir, split='train') 
+            self.dataset = load_dataset(data_dir, split="train")
             # filter data
             self.dataset = self.filter_samples(self.dataset)
         else:
@@ -42,44 +38,42 @@ class VqaDataset:
         self.length = len(self.dataset)
         self.vl_chat_processor = vl_chat_processor
         self.max_token_length = max_token_length
-        
+
     def filter_samples(self, dataset):
-        samle = {'quesiton': None, 'answer': None, "image_path": None}
-        num_src_samples = len(dataset) 
-        print('num src samples: ', num_src_samples)
+        num_src_samples = len(dataset)
+        print("num src samples: ", num_src_samples)
 
         indices_to_keep = []
-        for idx, record in enumerate(dataset): 
-            image_path = os.path.join(self.image_dir, record['image'])
+        for idx, record in enumerate(dataset):
+            image_path = os.path.join(self.image_dir, record["image"])
             # filter out record without image
             if os.path.exists(image_path):
                 indices_to_keep.append(idx)
-        
+
         print("num samples after filtering: ", len(indices_to_keep))
 
         return dataset.select(indices_to_keep)
-
-                
 
     def __len__(self) -> int:
         return self.length
 
     def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         record = self.dataset[int(idx)]
-        assert record["conversations"][0]['from'] == 'human'
+        assert record["conversations"][0]["from"] == "human"
         question = record["conversations"][0]["value"]
         answer = record["conversations"][1]["value"]
-        image_path = os.path.join(self.image_dir, record['image'])
+        image_path = os.path.join(self.image_dir, record["image"])
 
         # preprocess
         ds_image_tag = "<image>"  # image tag used in the original dataset
         assert question.count(ds_image_tag) == 1, "the question should contain one image exactly"
-        question = question.replace(f"\n<image>", "").replace("<image>\n", "").replace("<image>", "")
-        janus_image_tag = self.vl_chat_processor.image_tag
+        question = question.replace("\n<image>", "").replace("<image>\n", "").replace("<image>", "")
+        # janus_image_tag = self.vl_chat_processor.image_tag
 
+        input_ids, labels, attention_mask, image_seq_mask, image = self.prepare_sft_inputs_and_label(
+            question, answer, image_path
+        )
 
-        input_ids, labels, attention_mask, image_seq_mask, image = self.prepare_sft_inputs_and_label(question, answer, image_path)
-        
         # FIXME
         task_type = np.array(1, dtype=np.int32)
 
@@ -96,7 +90,6 @@ class VqaDataset:
             ]
         )
 
-
     def prepare_sft_inputs_and_label(self, question, answer, image_path):
         # convert to sft prompt
         conversation = [
@@ -109,11 +102,11 @@ class VqaDataset:
         ]
 
         vlcp = self.vl_chat_processor
-        # print("D--: ", prompt) 
+        # print("D--: ", prompt)
         pil_images = load_pil_images(conversation)
         # FIXME: use numpy
         # ---------------- start ----------------- #
-        '''
+        """
         prepare_inputs = vlcp(conversations=conversation, images=pil_images, force_batchify=True,
             max_length=self.max_token_length)
 
@@ -123,7 +116,7 @@ class VqaDataset:
         image = prepare_inputs.pixel_values.asnumpy()[0]
         image_seq_mask = prepare_inputs.images_seq_mask.asnumpy()[0]
         prompt = prepare_inputs.sft_format
-        '''
+        """
         # ---------------- end ----------------- #
 
         # apply sft format
@@ -147,7 +140,7 @@ class VqaDataset:
 
         # load images
         image = vlcp.image_processor(pil_images, return_tensors="np")["pixel_values"]
-        image = np.stack(image) # list -> np [1, 3, 384, 384]
+        image = np.stack(image)  # list -> np [1, 3, 384, 384]
 
         # pad to pre-set max_length or max seq len in the current batch
         padded_input_ids = np.ones((self.max_token_length), dtype=np.int32) * vlcp.pad_id
@@ -158,7 +151,7 @@ class VqaDataset:
         padded_input_ids[-seq_len:] = input_ids
         attention_mask[-seq_len:] = 1
         image_seq_mask[-seq_len:] = input_ids == vlcp.image_id
-  
+
         input_ids = padded_input_ids
 
         # print("D--: prompt", sft_format)
@@ -207,7 +200,7 @@ def add_image_token(
             end = int(index)
 
         # original text tokens
-        input_slices.append(input_ids[start : end])
+        input_slices.append(input_ids[start:end])
         # import pdb; pdb.set_trace()
 
         # add boi, image tokens, eoi and set the mask as False
@@ -226,7 +219,7 @@ def add_image_token(
 
     return input_ids, num_image_tokens
 
-        
+
 def create_dataloader_vqa(
     dataset_name: str,
     data_dir: str,
@@ -260,4 +253,3 @@ def create_dataloader_vqa(
     dataloader = dataloader.batch(batch_size, drop_remainder=True)
 
     return dataloader
-
