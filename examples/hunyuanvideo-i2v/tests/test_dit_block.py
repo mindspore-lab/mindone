@@ -289,7 +289,18 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
         net.load_from_checkpoint(pt_ckpt)
 
     if dtype != ms.float32:
-        amp.auto_mixed_precision(net, amp_level="O2", dtype=dtype)
+        from hyvideo.modules.embed_layers import SinusoidalEmbedding
+        from hyvideo.modules.norm_layers import LayerNorm, RMSNorm
+
+        from mindone.utils.amp import auto_mixed_precision
+
+        whitelist_ops = [
+            LayerNorm,
+            RMSNorm,
+            SinusoidalEmbedding,
+        ]
+        print("custom fp32 cell for dit: ", whitelist_ops)
+        model = auto_mixed_precision(model, amp_level=args.amp_level, dtype=dtype, custom_fp32_cells=whitelist_ops)
 
     # run
     start = time.time()
