@@ -73,7 +73,7 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     init_loss_scale: float = field(default=1024)
     loss_scaler_factor: float = field(default=2)
     scale_window: float = field(default=1000)
-    save_strategy: str = field(default="epoch")
+    save_strategy: str = field(default="steps")
     # post_init_weight: bool = field(default=False)
 
 
@@ -158,7 +158,7 @@ def main():
     # if (data_args.eval_data_path is not None) and training_args.do_eval:
     #     eval_dataset = Emu3FeatureDataset(data_args, tokenizer=tokenizer, split="test")
 
-    batch_size = training_args.per_device_train_batch_size
+    batch_size = training_args.per_device_train_batch_size * device_num
     num_epoch = int(training_args.num_train_epochs)  # default=3
     if training_args.sequence_parallel_shards > 1:
         logger.info(
@@ -210,7 +210,18 @@ def main():
             self.network = network
 
         def construct(self, input_ids, attention_mask, labels):
-            loss = self.network.construct_with_loss(input_ids=input_ids, attention_mask=attention_mask, labels=labels)
+            loss = self.network(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                position_ids = None,
+                past_key_values = None,
+                inputs_embeds = None,
+                use_cache = False,
+                output_attentions = False,
+                output_hidden_states = None,
+                return_dict = False,
+                )
             return loss
 
         def set_train(self, mode=True):
@@ -235,25 +246,6 @@ def main():
         "lr": lr_scheduler,
     }
     optimizer = create_optimizer(model_with_loss.trainable_params(), **optimizer_kwargs)
-    # optimizer_kwargs = {
-    #     "beta1": training_args.adam_beta1,
-    #     "beta2": training_args.adam_beta2,
-    #     "eps": training_args.adam_epsilon,
-    #     "learning_rate": lr_scheduler,
-    # }
-    # if training_args.optim == "adamw_mindspore":
-    #     optimizer_kwargs.update({"enable_fuse": getattr(training_args, "adamw_enable_fuse", True)})
-    #     optimizer = nn.AdamWeightDecay(model_with_loss.trainable_params(), **optimizer_kwargs)
-    # elif "adamw_zero" in training_args.optim:
-    #     from mindone.transformers.mindspore_adapter import AdamWeightDecayZeRO1, AdamWeightDecayZeRO2
-
-    #     optimizer_cls = AdamWeightDecayZeRO1 if training_args.optim == "adamw_zero1_mindspore" else AdamWeightDecayZeRO2
-    #     optimizer_kwargs.update({"enable_fuse": getattr(training_args, "adamw_enable_fuse", True)})
-    #     optimizer_kwargs.update({"shard_size": getattr(training_args, "adamw_zero_shard_size", None)})
-    #     optimizer_kwargs.update({"momentum_dtype": getattr(training_args, "adamw_zero_momentum_dtype", ms.float32)})
-    #     optimizer = optimizer_cls(model_with_loss.trainable_params(), **optimizer_kwargs)
-    # else:
-    #     raise ValueError
 
     # trainer
     ema = None
@@ -315,9 +307,9 @@ def main():
                 rank_id=0 if training_args.ms_zero_stage == 3 else rank_id,  # ZeRO-3 shards across all ranks
                 ckpt_save_dir=ckpt_save_dir,
                 ema=ema,
-                # use_step_unit=True,
+                use_step_unit=True if training_args.save_strategy == "steps" else False,
                 start_epoch=start_epoch,
-                train_steps=training_args.max_steps,
+                train_steps=num_training_steps,
                 log_interval=training_args.logging_steps,
                 ckpt_max_keep=training_args.save_total_limit,
                 ckpt_save_interval=training_args.save_steps,
@@ -330,7 +322,7 @@ def main():
     #             args.train.output_path, file_name="result_val.log", metric_names=["eval_loss", "eval_loss_smoothed"]
     #         )
     #     )
-    callbacks.append(StopAtStepCallback(train_steps=training_args.num_train_epochs, global_step=global_step))
+    callbacks.append(StopAtStepCallback(train_steps=num_training_steps, global_step=global_step))
 
     # print out key info and save config
     if rank_id == 0:
@@ -350,11 +342,11 @@ def main():
                 f"Num params: {num_params:,}",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {training_args.learning_rate:.0e}",
-                f"Batch size: {training_args.per_device_train_batch_size}",
+                f"Batch size: {batch_size}",
                 f"Max image area: {training_args.image_area}",
                 f"Grad accumulation steps: {training_args.gradient_accumulation_steps}",
-                f"Number of training steps: {num_epoch}",
-                f"Loss scaler: {training_args.loss_scaler_type}",  # TODO
+                f"Number of training steps: {num_training_steps}",
+                f"Loss scaler: {training_args.loss_scaler_type}",
                 f"Init loss scale: {training_args.init_loss_scale}",
                 f"Grad clipping: {training_args.clip_grad}",
                 f"Max grad norm: {training_args.max_grad_norm}",

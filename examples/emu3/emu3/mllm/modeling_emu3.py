@@ -63,7 +63,7 @@ from mindone.utils.version_control import check_valid_flash_attention
 
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 if FLASH_IS_AVAILABLE:
-    from mindone.models.modules.flash_attention import MSFlashAttention
+    from mindone.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
 _CONFIG_FOR_DOC = "Emu3Config"
 
@@ -476,15 +476,14 @@ class Emu3FlashAttention2(Emu3Attention):
 
         # sequence parallel
         num_heads = self.num_heads // self.sp_group_size if self.sp_group_size is not None else self.num_heads
-
+        self.fa_dtype = ms.float16
         if self.enable_flash_attention:
             # Q: (b s n d) -> (b n s d)  #  b - batch_size, s - seq_len, n - num_head, d - head dim
             self.flash_attention = MSFlashAttention(
-                head_dim=self.head_dim,
+                scale_value=self.head_dim**-0.5,
                 head_num=num_heads,
-                attention_dropout=dropout_rate,
+                keep_prob=1-dropout_rate,
                 input_layout="BNSD",  # BSH or BNSD
-                dtype=ms.float16,
             )
         else:
             self.flash_attention = None
@@ -499,7 +498,6 @@ class Emu3FlashAttention2(Emu3Attention):
         use_cache: bool = False,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         # Emu3FlashAttention2 attention does not support output_attentions
-        # output_attentions = False
 
         bsz, q_len, _ = hidden_states.shape
         target_dtype = hidden_states.dtype
@@ -534,7 +532,8 @@ class Emu3FlashAttention2(Emu3Attention):
 
         if attention_mask is not None:
             attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        attn_output = self.flash_attention(query_states, key_states, value_states, mask=attention_mask)
+        attn_output = self.flash_attention(query_states.to(self.fa_dtype), key_states.to(self.fa_dtype), value_states.to(self.fa_dtype), None, None, None, mask=attention_mask)[3]
+        attn_output = attn_output.to(target_dtype)
 
         attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)
 
@@ -956,6 +955,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         self.model = Emu3Model(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.loss_fct = CrossEntropyLoss()
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -991,7 +991,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = False,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -1100,16 +1100,15 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         logits = logits.float()
 
         loss = None
-        if labels is not None:
+        if labels is not None: # training pipeline
             # Shift so that tokens < n predict n
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
-            # Enable model parallelism
-            loss = loss_fct(shift_logits.float(), shift_labels)
+            loss = self.loss_fct(shift_logits.float(), shift_labels)
+            return loss
 
         if not return_dict:
             output = (logits,) + outputs[1:]
