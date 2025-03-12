@@ -300,9 +300,39 @@ def test_hyvtransformer(pt_ckpt=None, pt_np=None, debug=True, dtype=ms.float32, 
     print(out.mean(), out.std())
 
     if pt_np:
-        pt_out = np.load(pt_np)
-        diff = _diff_res(out.asnumpy(), pt_out)
-        print(diff)
+        if pt_np.endswith(".npy"):
+            pt_out = np.load(pt_np)
+            diff = _diff_res(out.asnumpy(), pt_out)
+            print(diff)
+        elif pt_np.endswith(".npz"):
+            data = np.load(pt_np)
+
+            latent_model_input = ms.Tensor(data["latent_model_input"], dtype=dtype)
+            t_expand = ms.Tensor(data["t_expand"], dtype=ms.int32)
+            prompt_embeds = ms.Tensor(data["prompt_embeds"], dtype=dtype)
+            prompt_mask = ms.Tensor(data["prompt_mask"], dtype=ms.bool_)
+            prompt_embeds_2 = ms.Tensor(data["prompt_embeds_2"], dtype=dtype)
+            freqs_cos = ms.Tensor(data["freqs_cos"], dtype=ms.float32)
+            freqs_sin = ms.Tensor(data["freqs_sin"], dtype=ms.float32)
+            guidance_expand = ms.Tensor(data["guidance_expand"], dtype=ms.float32)
+
+            noise_pred_ms = (
+                net(
+                    latent_model_input,
+                    t_expand,
+                    text_states=prompt_embeds,
+                    text_mask=prompt_mask,
+                    text_states_2=prompt_embeds_2,
+                    freqs_cos=freqs_cos,
+                    freqs_sin=freqs_sin,
+                    guidance=guidance_expand,
+                )
+                .float()
+                .asnumpy()
+            )
+            noise_pred_torch = data["noise_pred"]
+            diff = _diff_res(noise_pred_ms, noise_pred_torch)
+            print(diff)
 
 
 def test_nd_rope():
