@@ -16,7 +16,8 @@ specific video categories of interest. Following this, we incorporate
 Next, these videos undergo an evaluation process where multiple 
 scores are predicted using existing models. These scores include 
 aesthetic scoring, OCR (Optical Character Recognition) for text 
-detection, and LPIPS scoring to assess motion. 
+detection, LPIPS scoring to assess motion, and a safety
+checker to determine if the video is appropriate. 
 Only videos that meet satisfactory evaluation criteria advance 
 to the captioning step.
 

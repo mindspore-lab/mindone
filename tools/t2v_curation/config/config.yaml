@@ -36,7 +36,7 @@ meta_steps:
     cut_videos:
       run: true
       min_seconds: 2 # if not null, clip shorter than min_seconds is ignored
-      max_seconds: 30 # if not null, clip longer than max_seconds is truncated
+      max_seconds: 20 # if not null, clip longer than max_seconds is truncated
       target_fps: null # target fps of clips
       shorter_size: null # resize the shorter size by keeping ratio; will not do upscale
       drop_invalid_timestamps: null # drop rows with invalid timestamps
@@ -78,8 +78,8 @@ pipeline_steps:
 
     ocr_scoring:
       run: true
-      num_boxes: true # compute and store the total number of boxes
-      max_single_percentage: true # compute and store the maximum single text box area percentage
+      num_boxes: false # compute and store the total number of boxes
+      max_single_percentage: false # compute and store the maximum single text box area percentage
       total_text_percentage: true # compute and store the total text area percentage
       worker_num: 2
 
@@ -87,7 +87,7 @@ pipeline_steps:
       run: true # this will only be run if `run` in `ocr_scoring` is also true
       ocr_box_max: null # filter out videos with too many text boxes
       ocr_single_max: null # filter out videos with large single text box (max single box percentage)
-      ocr_total_max: 0.2 # filter out videos with large total text boxes (total area of all text boxes)
+      ocr_total_max: 0.15 # filter out videos with large total text boxes (total area of all text boxes)
 
     lpips_scoring:
       run: true
@@ -110,7 +110,7 @@ pipeline_steps:
 
     aesthetic_filtering:
       run: true # this will only be run if `run` in `aesthetic_scoring` is also true
-      aesmin: 5.0 # empirically, video with score above 4.5 is good enough
+      aesmin: 4.5 # empirically, video with score above 4.5 is good enough
 
     nsfw_scoring:
       run: true
@@ -142,8 +142,8 @@ pipeline_steps:
       remove_empty_caption: true
 
     matching_with_captions:
-      run: true
-      num_frames: 1 # number of frames to extract for scoring, support 1, 2, 3
+      run: false # qwen2-vl caption is usually good enough
+      num_frames: 3 # number of frames to extract for scoring, support 1, 2, 3
       batch_size: 64
       use_ascend: true
       worker_num: 2

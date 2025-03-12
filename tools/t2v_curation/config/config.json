@@ -27,7 +27,7 @@
       "cut_videos": {
         "run": true,
         "min_seconds": 2,
-        "max_seconds": 30,
+        "max_seconds": 20,
         "target_fps": null,
         "shorter_size": null,
         "drop_invalid_timestamps": null
@@ -66,8 +66,8 @@
       },
       "ocr_scoring": {
         "run": true,
-        "num_boxes": true,
-        "max_single_percentage": true,
+        "num_boxes": false,
+        "max_single_percentage": false,
         "total_text_percentage": true,
         "worker_num": 2
       },
@@ -75,7 +75,7 @@
         "run": true,
         "ocr_box_max": null,
         "ocr_single_max": null,
-        "ocr_total_max": 0.2
+        "ocr_total_max": 0.15
       },
       "lpips_scoring": {
         "run": true,
@@ -98,7 +98,7 @@
       },
       "aesthetic_filtering": {
         "run": true,
-        "aesmin": 5.0
+        "aesmin": 4.5
       },
       "nsfw_scoring": {
         "run": true,
@@ -131,8 +131,8 @@
         "remove_empty_caption": true
       },
       "matching_with_captions": {
-        "run": true,
-        "num_frames": 1,
+        "run": false,
+        "num_frames": 3,
         "batch_size": 64,
         "use_ascend": true,
         "worker_num": 2
