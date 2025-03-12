@@ -112,7 +112,7 @@ def test_attn():
     # print(out.shape)
 
 
-def test_dualstream_block(pt_ckpt=None, pt_np=None, dtype=None):
+def test_dualstream_block(pt_ckpt=None, pt_np=None, dtype=ms.float32):
     img = ms.Tensor(img_)
     txt = ms.Tensor(txt_)
     vec = ms.Tensor(vec_)

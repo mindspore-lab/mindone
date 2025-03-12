@@ -203,8 +203,6 @@ class MMDoubleStreamBlock(nn.Cell):
             )
         else:
             img_modulated = modulate(img_modulated, shift=img_mod1_shift, scale=img_mod1_scale)
-        # AMP: matmul and add/sum ops, should be bf16
-        img_modulated = modulate(img_modulated, shift=img_mod1_shift, scale=img_mod1_scale)
 
         img_qkv = self.img_attn_qkv(img_modulated)
         # "B L (K H D) -> K B L H D", K=3, H=self.heads_num
