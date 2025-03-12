@@ -13,9 +13,7 @@ Here is the development plan of the project:
     - [ ] Training
 - HunyuanVideo (13B):
     - [x] Inference
-    - [ ] Training stage 1: T2I 256px
-    - [ ] Training stage 2: T2I  256px 512px (buckts)
-    - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckts)
+    - [ ] Training
     - [ ] LoRA finetune
 
 
@@ -71,7 +69,7 @@ If you want change to another prompt, please set `--prompt` to the new prompt. -
 
 To run the image-to-video inference on a single prompt, please use the following command:
 ```bash
-bash scripts/hyvideo/run_i2v_sample.sh
+bash scripts/hyvideo-i2v/run_sample_image2video_stability.sh # or run_sample_image2video_dynamic.sh
 ```
 If you want change to another prompt, please set `--prompt` to the new prompt.
 
