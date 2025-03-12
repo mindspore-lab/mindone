@@ -176,6 +176,7 @@ class Inference(object):
                 apply_final_norm=args.apply_final_norm,
                 logger=logger,
                 image_embed_interleave=image_embed_interleave,
+                enable_ms_amp=False,
             )
             if args.text_encoder_2 is not None:
                 text_encoder_2 = TextEncoder(
@@ -184,6 +185,7 @@ class Inference(object):
                     text_encoder_precision=args.text_encoder_precision_2,
                     tokenizer_type=args.tokenizer_2,
                     logger=logger,
+                    enable_ms_amp=True,
                 )
 
         return cls(

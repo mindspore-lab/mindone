@@ -23,6 +23,7 @@ def load_text_encoder(
     text_encoder_precision=None,
     text_encoder_path=None,
     logger=None,
+    enable_ms_amp: bool = False,
 ):
     if text_encoder_path is None:
         text_encoder_path = TEXT_ENCODER_PATH[text_encoder_type]
@@ -47,15 +48,19 @@ def load_text_encoder(
         dtype = PRECISION_TO_TYPE[text_encoder_precision]
         if dtype != ms.float32:
             set_model_param_dtype(text_encoder, dtype=dtype)
-
-        amp_level = "O2"
-        custom_fp32_cells = ALL_LAYERNORM_LAYERS
-        text_encoder = auto_mixed_precision(
-            text_encoder, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells
-        )
-        logger.info(
-            f"Set text encoder mixed precision to {amp_level} with dtype={dtype}, custom fp32_cells {custom_fp32_cells}"
-        )
+        if enable_ms_amp:
+            logger.info("Use MS auto mixed precision for text encoder")
+            amp_level = "O2"
+            custom_fp32_cells = ALL_LAYERNORM_LAYERS
+            text_encoder = auto_mixed_precision(
+                text_encoder, amp_level=amp_level, dtype=dtype, custom_fp32_cells=custom_fp32_cells
+            )
+            logger.info(
+                f"Set text encoder mixed precision to {amp_level} with dtype={dtype}, custom fp32_cells {custom_fp32_cells}"
+            )
+        else:
+            logger.info(f"Set text encoder precision to {text_encoder_precision}")
+            text_encoder = text_encoder.to(dtype)
 
     text_encoder.set_train(False)
 
@@ -125,6 +130,7 @@ class TextEncoder(nn.Cell):
         apply_final_norm: bool = False,
         image_embed_interleave=None,
         logger=None,
+        enable_ms_amp: bool = False,
     ):
         super().__init__()
         self.text_encoder_type = text_encoder_type
@@ -143,6 +149,7 @@ class TextEncoder(nn.Cell):
         self.apply_final_norm = apply_final_norm
         self.logger = logger
         self.i2v_mode = i2v_mode
+        self.enable_ms_amp = enable_ms_amp
 
         self.image_embed_interleave = image_embed_interleave
         self.use_template = self.prompt_template is not None
@@ -186,6 +193,7 @@ class TextEncoder(nn.Cell):
             text_encoder_precision=self.precision,
             text_encoder_path=self.model_path,
             logger=self.logger,
+            enable_ms_amp=self.enable_ms_amp,
         )
 
         self.tokenizer, self.tokenizer_path, self.processor = load_tokenizer(
