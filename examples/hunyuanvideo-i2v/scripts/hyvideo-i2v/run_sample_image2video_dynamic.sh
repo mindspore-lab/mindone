@@ -12,7 +12,6 @@ python3 sample_image2video.py \
     --flow-shift 17.0 \
     --embedded-cfg-scale 6.0 \
     --seed 0 \
-    --use-cpu-offload \
     --save-path ./results \
     --ms-mode 1 \
 
