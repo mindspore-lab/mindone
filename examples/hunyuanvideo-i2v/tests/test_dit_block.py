@@ -108,7 +108,7 @@ def test_attn():
     # print(out.shape)
 
 
-def test_dualstream_block(pt_ckpt=None, pt_np=None):
+def test_dualstream_block(pt_ckpt=None, pt_np=None, dtype=ms.bfloat16):
     img = ms.Tensor(img_)
     txt = ms.Tensor(txt_)
     vec = ms.Tensor(vec_)
@@ -118,28 +118,56 @@ def test_dualstream_block(pt_ckpt=None, pt_np=None):
 
     print("input sum: ", img.sum())
     block = MMDoubleStreamBlock(
-        hidden_size=hidden_size,
+        hidden_size=3072,  # hidden size
         heads_num=N,
-        mlp_width_ratio=1,
+        mlp_width_ratio=4.0,
         qkv_bias=True,
+        dtype=dtype,
+        condition_type="token_replace",
     )
     if pt_ckpt:
         load_pt_checkpoint(block, pt_ckpt)
 
-    img_out, txt_out = block(img, txt, vec, freqs_cis=freqs_cis)
-    # out = block(img, txt, vec, freqs_cis_cos=freqs_cis_cos, freqs_cis_sin=freqs_cis_sin)
-    print(img_out.shape)
-    print(img_out.mean(), img_out.std())
-    print(txt.shape)
-    print(txt_out.mean(), txt_out.std())
-
     if pt_np:
-        pt_dict = np.load(pt_np)
-        pt_img_out, pt_txt_out = pt_dict["img_out"], pt_dict["txt_out"]
-        img_diff = _diff_res(img_out.asnumpy(), pt_img_out)
-        txt_diff = _diff_res(txt_out.asnumpy(), pt_txt_out)
-        print("img diff: ", img_diff)
-        print("txt diff: ", txt_diff)
+        if pt_np.endswith(".npy"):
+            pt_dict = np.load(pt_np)
+            pt_img_out, pt_txt_out = pt_dict["img_out"], pt_dict["txt_out"]
+            img_diff = _diff_res(img_out.asnumpy(), pt_img_out)
+            txt_diff = _diff_res(txt_out.asnumpy(), pt_txt_out)
+            print("img diff: ", img_diff)
+            print("txt diff: ", txt_diff)
+        elif pt_np.endswith(".npz"):
+            data = np.load(pt_np)
+            img = ms.tensor(data["img"], dtype=dtype)
+            txt = ms.tensor(data["txt"], dtype=dtype)
+            vec = ms.tensor(data["vec"], dtype=dtype)
+            freqs_cis = ms.tensor(data["freqs_cis"][0]), ms.Tensor(data["freqs_cis"][1])
+            token_replace_vec = ms.tensor(data["token_replace_vec"], dtype=dtype)
+            frist_frame_token_num = data["frist_frame_token_num"]
+            actual_seq_qlen = ms.tensor(data["cu_seqlens_q"][1:], dtype=dtype)
+            actual_seq_kvlen = ms.tensor(data["cu_seqlens_kv"][1:], dtype=dtype)
+            img_out, txt_out = block(
+                img,
+                txt,
+                vec,
+                freqs_cis=freqs_cis,
+                token_replace_vec=token_replace_vec,
+                actual_seq_qlen=actual_seq_qlen,
+                actual_seq_kvlen=actual_seq_kvlen,
+                frist_frame_token_num=frist_frame_token_num,
+            )
+            pt_img_out, pt_txt_out = data["output_img"], pt_dict["output_txt"]
+            img_diff = _diff_res(img_out.asnumpy(), pt_img_out)
+            txt_diff = _diff_res(txt_out.asnumpy(), pt_txt_out)
+            print("img diff: ", img_diff)
+            print("txt diff: ", txt_diff)
+    else:
+        img_out, txt_out = block(img, txt, vec, freqs_cis=freqs_cis)
+        # out = block(img, txt, vec, freqs_cis_cos=freqs_cis_cos, freqs_cis_sin=freqs_cis_sin)
+        print(img_out.shape)
+        print(img_out.mean(), img_out.std())
+        print(txt.shape)
+        print(txt_out.mean(), txt_out.std())
 
 
 def test_singlestream_block(pt_ckpt: str = None, pt_np: str = None):
@@ -370,7 +398,7 @@ if __name__ == "__main__":
     ms.set_context(mode=1)
     # ms.set_context(mode=0, jit_syntax_level=ms.STRICT)
     # test_attn()
-    # test_dualstream_block('tests/dual_stream.pth', 'tests/pt_dual_stream.npz')
+    test_dualstream_block("ckpts/transformer_depth1.pt", "forward_double_block_ms.npz", ms.bfloat16)
     # test_singlestream_block('tests/single_stream.pth', 'tests/pt_single_stream.npy')
     # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy')
     # test_token_refiner('tests/token_refiner.pth', 'tests/pt_token_refiner.npy', attn_mode='vanilla', dtype=ms.float16)
