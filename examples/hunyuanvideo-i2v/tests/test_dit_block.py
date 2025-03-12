@@ -75,7 +75,7 @@ def _convert_ckpt(pt_ckpt, rename_norm=False):
     return save_fn
 
 
-def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key="model_state_dict"):
+def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key="model_state_dict", remove_prefix=None):
     """
     model param dtype
     """
@@ -87,6 +87,10 @@ def load_pt_checkpoint(model, ckpt_path, dtype=ms.float32, load_key="model_state
 
     for pname in sd:
         np_val = sd[pname].cpu().detach().float().numpy()
+        if remove_prefix is not None and pname.startswith(remove_prefix):
+            pname = pname[len(remove_prefix) :]
+        else:
+            pname = pname
         parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=dtype))
 
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, parameter_dict, strict_load=True)
@@ -126,7 +130,7 @@ def test_dualstream_block(pt_ckpt=None, pt_np=None, dtype=ms.bfloat16):
         condition_type="token_replace",
     )
     if pt_ckpt:
-        load_pt_checkpoint(block, pt_ckpt)
+        load_pt_checkpoint(block, pt_ckpt, load_key="module", remove_prefix="double_blocks.0.")
 
     if pt_np:
         if pt_np.endswith(".npy"):
