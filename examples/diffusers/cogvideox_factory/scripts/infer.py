@@ -266,7 +266,9 @@ def infer(args: argparse.Namespace) -> None:
         shape = (
             1,
             (args.frame - 1) // pipe.vae_scale_factor_temporal + 1,
-            pipe.transformer.config.in_channels,
+            pipe.transformer.config.in_channels
+            if args.image_path is None
+            else pipe.transformer.config.in_channels // 2,
             args.height // pipe.vae_scale_factor_spatial,
             args.width // pipe.vae_scale_factor_spatial,
         )
