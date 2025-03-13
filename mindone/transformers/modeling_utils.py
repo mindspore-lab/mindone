@@ -92,13 +92,18 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _get_pt2ms_mapped_kv(mappings, has_prefix_module, expects_prefix_module, loaded_keys, expected_keys, prefix):
+def _get_pt2ms_mapped_kv(mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix):
     if has_prefix_module and not expects_prefix_module:
-        loaded_keys = [mappings.get(s[len(prefix)+1:], (s[len(prefix+1):], lambda x: x))[0] if s.startswith(prefix) else mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
+        loaded_keys = [
+            mappings.get(s[len(prefix) + 1 :], (s[len(prefix + 1) :], lambda x: x))[0]
+            if s.startswith(prefix)
+            else mappings.get(s, (s, lambda x: x))[0]
+            for s in loaded_keys
+        ]
         loaded_keys = [".".join([prefix, s]) for s in loaded_keys]
     elif not has_prefix_module and expects_prefix_module:
-        loaded_keys = [mappings.get(s[len(prefix)+1:], (s[len(prefix)+1:], lambda x: x))[0] for s in loaded_keys]
-        loaded_keys = [s[len(prefix)+1:] if s.startswith(prefix) else s for s in loaded_keys]
+        loaded_keys = [mappings.get(s[len(prefix) + 1 :], (s[len(prefix) + 1 :], lambda x: x))[0] for s in loaded_keys]
+        loaded_keys = [s[len(prefix) + 1 :] if s.startswith(prefix) else s for s in loaded_keys]
     else:
         loaded_keys = [mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
     return loaded_keys
@@ -2182,7 +2187,9 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             has_prefix_module = False
             expects_prefix_module = False
 
-        loaded_keys = _get_pt2ms_mapped_kv(pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, expected_keys)
+        loaded_keys = _get_pt2ms_mapped_kv(
+            pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, expected_keys
+        )
 
         # key re-naming operations are never done on the keys
         # that are loaded, but always on the keys of the newly initialized model
