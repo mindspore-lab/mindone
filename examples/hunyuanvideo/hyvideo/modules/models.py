@@ -210,6 +210,7 @@ class MMDoubleStreamBlock(nn.Cell):
         # ), f"cu_seqlens_q.shape:{cu_seqlens_q.shape}, img.shape[0]:{img.shape[0]}"
 
         # attention computation start
+
         attn = self.compute_attention(
             q,
             k,
