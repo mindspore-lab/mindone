@@ -5,6 +5,7 @@ import mindspore as ms
 
 from mindone.safetensors.mindspore import load_file
 from mindone.utils.amp import auto_mixed_precision
+from mindspore.nn.utils import no_init_parameters
 
 from ..constants import PRECISION_TO_TYPE, VAE_PATH
 from ..utils.helpers import set_model_param_dtype
@@ -48,10 +49,11 @@ def load_vae(
             f"Loading 3D VAE model ({type}) (trainable={trainable}, tiling={tiling}, slicing={slicing}) from: {path}"
         )
     config = AutoencoderKLCausal3D.load_config(path)
-    if sample_size:
-        vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size, **factor_kwargs)
-    else:
-        vae = AutoencoderKLCausal3D.from_config(config, **factor_kwargs)
+    with no_init_parameters():
+        if sample_size:
+            vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size, **factor_kwargs)
+        else:
+            vae = AutoencoderKLCausal3D.from_config(config, **factor_kwargs)
 
     if checkpoint is None:
         vae_ckpt = Path(path) / "model.safetensors"

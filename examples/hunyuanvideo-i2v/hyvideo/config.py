@@ -601,7 +601,7 @@ def add_inference_args(parser: argparse.ArgumentParser):
         "This argument is required if `prompt` is a .txt file.",
     )
     # mindspore args
-    group.add_argument("--ms-mode", type=int, default=0, help="0 graph, 1 pynative")
+    group.add_argument("--ms-mode", type=int, default=1, help="0 graph, 1 pynative")
     group.add_argument(
         "--jit-level",
         type=str,

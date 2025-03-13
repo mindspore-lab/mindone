@@ -17,6 +17,7 @@ from PIL import Image
 
 import mindspore as ms
 from mindspore import amp, mint
+from mindspore.nn.utils import no_init_parameters
 from mindspore.dataset import transforms, vision
 
 from mindone.utils.amp import auto_mixed_precision
@@ -92,16 +93,17 @@ class Inference(object):
 
         if args.embedded_cfg_scale:
             factor_kwargs["guidance_embed"] = True
-
-        model = load_model(
-            name=args.model,
-            zero_stage=args.zero_stage,
-            text_states_dim=args.text_states_dim,
-            text_states_dim_2=args.text_states_dim_2,
-            in_channels=in_channels,
-            out_channels=out_channels,
-            factor_kwargs=factor_kwargs,
-        )
+        
+        with no_init_parameters():
+            model = load_model(
+                name=args.model,
+                zero_stage=args.zero_stage,
+                text_states_dim=args.text_states_dim,
+                text_states_dim_2=args.text_states_dim_2,
+                in_channels=in_channels,
+                out_channels=out_channels,
+                factor_kwargs=factor_kwargs,
+            )
         if args.use_fp8:
             raise NotImplementedError("fp8 is not supported yet.")
 

@@ -27,8 +27,8 @@ from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration
 
 
 def test():
-    model_path = "ckpts/text_encoder_i2v"
-    # model_path = "ckpts/llava-llama-3-8b-v1_1-transformers"
+    # model_path = "ckpts/text_encoder_i2v"
+    model_path = "ckpts/llava-llama-3-8b-v1_1-transformers"
     dtype = ms.float16
     # model_path = 'ckpts/llava_tiny'
     image_processor = CLIPImageProcessor.from_pretrained(model_path)
@@ -39,7 +39,8 @@ def test():
         "<|start_header_id|>user<|end_header_id|>\n\n<image>\nWhat are these?<|eot_id|>"
         "<|start_header_id|>assistant<|end_header_id|>\n\n"
     )
-    image_file = "./assets/demo/i2v/imgs/0.jpg"
+    # image_file = "./assets/demo/i2v/imgs/0.jpg"
+    image_file = "./000000039769.jpg"
     raw_image = Image.open(image_file)
     inputs = tokenizer(
         [prompt],
@@ -53,9 +54,7 @@ def test():
 
     inputs_img = image_processor(images=[raw_image], return_tensors="np")  # .to(ms.float16)
 
-    inputs["pixel_values"] = ms.tensor(inputs_img["pixel_values"]).to(ms.float16)
-
-    # inputs .to(ms.float16)
+    inputs["pixel_values"] = ms.tensor(inputs_img["pixel_values"]).to(dtype)
 
     feature_only = False
     config = LlavaConfig.from_pretrained(model_path)

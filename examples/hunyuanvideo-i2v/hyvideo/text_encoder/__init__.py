@@ -312,7 +312,6 @@ class TextEncoder(nn.Cell):
                 return_dict=model_return_dict,
             )
 
-            # import pdb; pdb.set_trace()
             # clip:  last_hidden_state [1 77 768], pooler_output[1 768], hidden_states None, attentions=None
             # llm: last_hidden_state, past_key_values, hidden_states, attentions,
             if hidden_state_skip_layer is not None:
