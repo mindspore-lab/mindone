@@ -3,7 +3,18 @@ import re
 
 from mindone.utils.config import str2bool
 
-from .constants import *
+from .constants import (
+    DATA_TYPE,
+    FLOW_LOSS_WEIGHT,
+    FLOW_PATH_TYPE,
+    FLOW_PREDICT_TYPE,
+    FLOW_SNR_TYPE,
+    PRECISIONS,
+    PROMPT_TEMPLATE,
+    TEXT_ENCODER_PATH,
+    TOKENIZER_PATH,
+    VAE_PATH,
+)
 from .modules.models import HUNYUAN_VIDEO_CONFIG
 
 
@@ -225,8 +236,7 @@ def add_optimizer_args(parser: argparse.ArgumentParser):
 
 
 def add_train_args(parser: argparse.ArgumentParser):
-    group = parser.add_argument_group(title="HunyuanVideo train args")
-
+    pass
     return parser
 
 

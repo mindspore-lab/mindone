@@ -197,7 +197,7 @@ class Transport:
             self.shift = self.image_shift
         elif data_type == "video":
             self.shift = self.video_shift
-        if model_kwargs == None:
+        if model_kwargs is None:
             model_kwargs = {}
 
         t, x0, x1 = self.sample(x1, n_tokens)
