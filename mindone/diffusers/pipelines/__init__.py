@@ -192,6 +192,7 @@ _import_structure = {
         "WuerstchenPriorPipeline",
     ],
     "pipeline_utils": [
+        "AudioPipelineOutput",
         "DiffusionPipeline",
         "ImagePipelineOutput",
         "StableDiffusionMixin",
@@ -313,7 +314,7 @@ if TYPE_CHECKING:
         StableDiffusionXLPAGInpaintPipeline,
         StableDiffusionXLPAGPipeline,
     )
-    from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
+    from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .sana import SanaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline

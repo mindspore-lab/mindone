@@ -264,6 +264,8 @@
       title: Allegro
     - local: api/pipelines/animatediff
       title: AnimateDiff
+    - local: api/pipelines/audioldm
+      title: AudioLDM
     - local: api/pipelines/aura_flow
       title: AuraFlow
     - local: api/pipelines/auto_pipeline
