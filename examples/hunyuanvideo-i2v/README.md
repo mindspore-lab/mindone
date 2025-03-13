@@ -44,6 +44,7 @@ https://github.com/user-attachments/assets/7dcf295d-4356-4490-b281-ec1d5d69866b
 
 https://github.com/user-attachments/assets/73315093-5c58-4b2c-8231-154f36124f76
 
+To generate the above videos, please refer to the [Image-to-Video Inference](#run-image-to-video-inference) section.
 ## 🚀 Quick Start
 
 ### Checkpoints
