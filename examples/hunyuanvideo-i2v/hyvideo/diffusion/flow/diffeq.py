@@ -4,25 +4,27 @@ import warnings
 from enum import Enum
 
 import numpy as np
-import torch
 from hyvideo.utils.ms_utils import no_grad
 
+import mindspore as ms
+from mindspore import mint, nn, ops
 
-@no_grad
+
 def find_event(interp_fn, sign0, t0, t1, event_fn, tol):
-    # Num iterations for the secant method until tolerance is within target.
-    nitrs = torch.ceil(torch.log((t1 - t0) / tol) / math.log(2.0))
+    with no_grad():
+        # Num iterations for the secant method until tolerance is within target.
+        nitrs = mint.ceil(mint.log((t1 - t0) / tol) / math.log(2.0))
 
-    for _ in range(nitrs.long()):
-        t_mid = (t1 + t0) / 2.0
-        y_mid = interp_fn(t_mid)
-        sign_mid = torch.sign(event_fn(t_mid, y_mid))
-        same_as_sign0 = sign0 == sign_mid
-        t0 = torch.where(same_as_sign0, t_mid, t0)
-        t1 = torch.where(same_as_sign0, t1, t_mid)
-    event_t = (t0 + t1) / 2.0
+        for _ in range(nitrs.long()):
+            t_mid = (t1 + t0) / 2.0
+            y_mid = interp_fn(t_mid)
+            sign_mid = mint.sign(event_fn(t_mid, y_mid))
+            same_as_sign0 = sign0 == sign_mid
+            t0 = mint.where(same_as_sign0, t_mid, t0)
+            t1 = mint.where(same_as_sign0, t1, t_mid)
+        event_t = (t0 + t1) / 2.0
 
-    return event_t, interp_fn(event_t)
+        return event_t, interp_fn(event_t)
 
 
 class FixedGridODESolver(metaclass=abc.ABCMeta):
@@ -40,7 +42,6 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
         self.func = func
         self.y0 = y0
         self.dtype = y0.dtype
-        self.device = y0.device
         self.step_size = step_size
         self.interp = interp
         self.perturb = perturb
@@ -66,8 +67,8 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
             start_time = t[0]
             end_time = t[-1]
 
-            niters = torch.ceil((end_time - start_time) / step_size + 1).item()
-            t_infer = torch.arange(0, niters, dtype=t.dtype, device=t.device) * step_size + start_time
+            niters = math.ceil((end_time - start_time) / step_size + 1)
+            t_infer = mint.arange(0, niters, dtype=t.dtype) * step_size + start_time
             t_infer[-1] = t[-1]
 
             return t_infer
@@ -82,7 +83,7 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
         time_grid = self.grid_constructor(self.func, self.y0, t)
         assert time_grid[0] == t[0] and time_grid[-1] == t[-1]
 
-        solution = torch.empty(len(t), *self.y0.shape, dtype=self.y0.dtype, device=self.y0.device)
+        solution = mint.empty(len(t), *self.y0.shape, dtype=self.y0.dtype)
         solution[0] = self.y0
 
         j = 1
@@ -111,11 +112,11 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
             self.step_size is not None
         ), "Event handling for fixed step solvers currently requires `step_size` to be provided in options."
 
-        t0 = t0.type_as(self.y0.abs())
+        t0 = t0.to(self.y0.abs())
         y0 = self.y0
         dt = self.step_size
 
-        sign0 = torch.sign(event_fn(t0, y0))
+        sign0 = mint.sign(event_fn(t0, y0))
         max_itrs = 20000
         itr = 0
         while True:
@@ -124,7 +125,7 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
             dy, f0 = self._step_func(self.func, t0, dt, t1, y0)
             y1 = y0 + dy
 
-            sign1 = torch.sign(event_fn(t1, y1))
+            sign1 = mint.sign(event_fn(t1, y1))
 
             if sign0 != sign1:
                 if self.interp == "linear":
@@ -141,7 +142,7 @@ class FixedGridODESolver(metaclass=abc.ABCMeta):
 
             if itr >= max_itrs:
                 raise RuntimeError(f"Reached maximum number of iterations {max_itrs}.")
-        solution = torch.stack([self.y0, y1], dim=0)
+        solution = mint.stack([self.y0, y1], dim=0)
         return event_time, solution
 
     def _cubic_hermite_interp(self, t0, y0, f0, t1, y1, f1, t):
@@ -202,20 +203,19 @@ def _select_initial_step(func, t0, y0, order, rtol, atol, norm, f0=None):
     """
 
     dtype = y0.dtype
-    device = y0.device
     t_dtype = t0.dtype
     t0 = t0.to(t_dtype)
 
     if f0 is None:
         f0 = func(t0, y0)
 
-    scale = atol + torch.abs(y0) * rtol
+    scale = atol + mint.abs(y0) * rtol
 
     d0 = norm(y0 / scale).abs()
     d1 = norm(f0 / scale).abs()
 
     if d0 < 1e-5 or d1 < 1e-5:
-        h0 = torch.tensor(1e-6, dtype=dtype, device=device)
+        h0 = ms.tensor(1e-6, dtype=dtype)
     else:
         h0 = 0.01 * d0 / d1
     h0 = h0.abs()
@@ -223,33 +223,33 @@ def _select_initial_step(func, t0, y0, order, rtol, atol, norm, f0=None):
     y1 = y0 + h0 * f0
     f1 = func(t0 + h0, y1)
 
-    d2 = torch.abs(norm((f1 - f0) / scale) / h0)
+    d2 = mint.abs(norm((f1 - f0) / scale) / h0)
 
     if d1 <= 1e-15 and d2 <= 1e-15:
-        h1 = torch.max(torch.tensor(1e-6, dtype=dtype, device=device), h0 * 1e-3)
+        h1 = mint.max(ms.tensor(1e-6, dtype=dtype), h0 * 1e-3)
     else:
         h1 = (0.01 / max(d1, d2)) ** (1.0 / float(order + 1))
     h1 = h1.abs()
 
-    return torch.min(100 * h0, h1).to(t_dtype)
+    return mint.min(100 * h0, h1).to(t_dtype)
 
 
 def _compute_error_ratio(error_estimate, rtol, atol, y0, y1, norm):
-    error_tol = atol + rtol * torch.max(y0.abs(), y1.abs())
+    error_tol = atol + rtol * mint.max(y0.abs(), y1.abs())
     return norm(error_estimate / error_tol).abs()
 
 
-@torch.no_grad()
 def _optimal_step_size(last_step, error_ratio, safety, ifactor, dfactor, order):
     """Calculate the optimal size for the next step."""
-    if error_ratio == 0:
-        return last_step * ifactor
-    if error_ratio < 1:
-        dfactor = torch.ones((), dtype=last_step.dtype, device=last_step.device)
-    error_ratio = error_ratio.type_as(last_step)
-    exponent = torch.tensor(order, dtype=last_step.dtype, device=last_step.device).reciprocal()
-    factor = torch.min(ifactor, torch.max(safety / error_ratio**exponent, dfactor))
-    return last_step * factor
+    with no_grad():
+        if error_ratio == 0:
+            return last_step * ifactor
+        if error_ratio < 1:
+            dfactor = mint.ones((), dtype=last_step.dtype)
+        error_ratio = error_ratio.type_as(last_step)
+        exponent = mint.reciprocal(ms.tensor(order, dtype=last_step.dtype))
+        factor = mint.min(ifactor, mint.max(safety / error_ratio**exponent, dfactor))
+        return last_step * factor
 
 
 def _decreasing(t):
@@ -257,7 +257,7 @@ def _decreasing(t):
 
 
 def _assert_one_dimensional(name, t):
-    assert t.ndimension() == 1, "{} must be one dimensional".format(name)
+    assert t.ndim == 1, "{} must be one dimensional".format(name)
 
 
 def _assert_increasing(name, t):
@@ -265,7 +265,7 @@ def _assert_increasing(name, t):
 
 
 def _assert_floating(name, t):
-    if not torch.is_floating_point(t):
+    if not t.dtype == ms.float32:
         raise TypeError("`{}` must be a floating point Tensor but is a {}".format(name, t.type()))
 
 
@@ -276,8 +276,8 @@ def _tuple_tol(name, tol, shapes):
         return tol
     tol = tuple(tol)
     assert len(tol) == len(shapes), "If using tupled {} it must have the same length as the tuple y0".format(name)
-    tol = [torch.as_tensor(tol_).expand(shape.numel()) for tol_, shape in zip(tol, shapes)]
-    return torch.cat(tol)
+    tol = [ms.tensor(tol_).expand(ops.numel(shape)) for tol_, shape in zip(tol, shapes)]
+    return mint.cat(tol)
 
 
 def _flat_to_shape(tensor, length, shapes):
@@ -291,34 +291,34 @@ def _flat_to_shape(tensor, length, shapes):
     return tuple(tensor_list)
 
 
-class _TupleFunc(torch.nn.Module):
+class _TupleFunc(nn.Cell):
     def __init__(self, base_func, shapes):
         super(_TupleFunc, self).__init__()
         self.base_func = base_func
         self.shapes = shapes
 
-    def forward(self, t, y):
+    def construct(self, t, y):
         f = self.base_func(t, _flat_to_shape(y, (), self.shapes))
-        return torch.cat([f_.reshape(-1) for f_ in f])
+        return mint.cat([f_.reshape(-1) for f_ in f])
 
 
-class _TupleInputOnlyFunc(torch.nn.Module):
+class _TupleInputOnlyFunc(nn.Cell):
     def __init__(self, base_func, shapes):
         super(_TupleInputOnlyFunc, self).__init__()
         self.base_func = base_func
         self.shapes = shapes
 
-    def forward(self, t, y):
+    def construct(self, t, y):
         return self.base_func(t, _flat_to_shape(y, (), self.shapes))
 
 
-class _ReverseFunc(torch.nn.Module):
+class _ReverseFunc(nn.Cell):
     def __init__(self, base_func, mul=1.0):
         super(_ReverseFunc, self).__init__()
         self.base_func = base_func
         self.mul = mul
 
-    def forward(self, t, y):
+    def construct(self, t, y):
         return self.mul * self.base_func(-t, y)
 
 
@@ -328,17 +328,17 @@ class Perturb(Enum):
     NEXT = 2
 
 
-class _PerturbFunc(torch.nn.Module):
+class _PerturbFunc(nn.Cell):
     def __init__(self, base_func):
         super(_PerturbFunc, self).__init__()
         self.base_func = base_func
 
-    def forward(self, t, y, *, perturb=Perturb.NONE):
+    def construct(self, t, y, *, perturb=Perturb.NONE):
         assert isinstance(perturb, Perturb), "perturb argument must be of type Perturb enum"
         # This dtype change here might be buggy.
         # The exact time value should be determined inside the solver,
         # but this can slightly change it due to numerical differences during casting.
-        if torch.is_complex(t):
+        if ops.is_complex(t):
             t = t.real
         t = t.to(y.abs().dtype)
         if perturb is Perturb.NEXT:
@@ -366,13 +366,13 @@ def _check_inputs(func, y0, t, rtol, atol, method, options, event_fn, SOLVERS):
 
     # Normalise to tensor (non-tupled) input
     shapes = None
-    is_tuple = not isinstance(y0, torch.Tensor)
+    is_tuple = not ms.is_tensor(y0)
     if is_tuple:
-        assert isinstance(y0, tuple), "y0 must be either a torch.Tensor or a tuple"
+        assert isinstance(y0, tuple), "y0 must be either a ms.tensor or a tuple"
         shapes = [y0_.shape for y0_ in y0]
         rtol = _tuple_tol("rtol", rtol, shapes)
         atol = _tuple_tol("atol", atol, shapes)
-        y0 = torch.cat([y0_.reshape(-1) for y0_ in y0])
+        y0 = mint.cat([y0_.reshape(-1) for y0_ in y0])
         func = _TupleFunc(func, shapes)
         if event_fn is not None:
             event_fn = _TupleInputOnlyFunc(event_fn, shapes)
@@ -453,15 +453,11 @@ def _check_inputs(func, y0, t, rtol, atol, method, options, event_fn, SOLVERS):
     _assert_increasing("t", t)
 
     # Tol checking
-    if torch.is_tensor(rtol):
+    if ms.is_tensor(rtol):
         assert not rtol.requires_grad, "rtol cannot require gradient"
-    if torch.is_tensor(atol):
+    if ms.is_tensor(atol):
         assert not atol.requires_grad, "atol cannot require gradient"
 
-    # Backward compatibility: Allow t and y0 to be on different devices
-    if t.device != y0.device:
-        warnings.warn("t is not on the same device as y0. Coercing to y0.device.")
-        t = t.to(y0.device)
     # ~Backward compatibility
 
     # Add perturb argument to func.
@@ -506,22 +502,19 @@ def _check_inputs(func, y0, t, rtol, atol, method, options, event_fn, SOLVERS):
     return shapes, func, y0, t, rtol, atol, method, options, event_fn, t_is_reversed
 
 
-class _StitchGradient(torch.autograd.Function):
+class _StitchGradient(nn.Cell):
     @staticmethod
-    def forward(ctx, x1, out):
+    def construct(ctx, x1, out):
         return out
 
     @staticmethod
-    def backward(ctx, grad_out):
+    def bprop(ctx, grad_out):
         return grad_out, None
 
 
 def _nextafter(x1, x2):
-    with torch.no_grad():
-        if hasattr(torch, "nextafter"):
-            out = torch.nextafter(x1, x2)
-        else:
-            out = np_nextafter(x1, x2)
+    with no_grad():
+        out = np_nextafter(x1, x2)
     return _StitchGradient.apply(x1, out)
 
 
@@ -530,16 +523,16 @@ def np_nextafter(x1, x2):
         "torch.nextafter is only available in PyTorch 1.7 or newer."
         "Falling back to numpy.nextafter. Upgrade PyTorch to remove this warning."
     )
-    x1_np = x1.detach().cpu().numpy()
-    x2_np = x2.detach().cpu().numpy()
-    out = torch.tensor(np.nextafter(x1_np, x2_np)).to(x1)
+    x1_np = x1.asnumpy()
+    x2_np = x2.asnumpy()
+    out = ms.tensor(np.nextafter(x1_np, x2_np)).to(x1)
     return out
 
 
 def _check_timelike(name, timelike, can_grad):
-    assert isinstance(timelike, torch.Tensor), "{} must be a torch.Tensor".format(name)
+    assert ms.is_tensor(timelike), "{} must be a ms.tensor".format(name)
     _assert_floating(name, timelike)
-    assert timelike.ndimension() == 1, "{} must be one dimensional".format(name)
+    assert timelike.ndim == 1, "{} must be one dimensional".format(name)
     if not can_grad:
         assert not timelike.requires_grad, "{} cannot require gradient".format(name)
     diff = timelike[1:] > timelike[:-1]
@@ -552,7 +545,7 @@ def _flip_option(options, option_name):
     except KeyError:
         pass
     else:
-        if isinstance(option_value, torch.Tensor):
+        if ms.is_tensor(option_value):
             options[option_name] = -option_value
         # else: an error will be raised when the option is attempted to be used in Solver.__init__, but we defer raising
         # the error until then to keep things tidy.
