@@ -12,7 +12,7 @@ Here is the development plan of the project:
     - [ ] Evalution
     - [ ] Training
 - HunyuanVideo (13B):
-    - [x] Inference
+    - [x] Inference (w. and w.o. LoRA weight)
     - [ ] Training
     - [ ] LoRA finetune
 
@@ -72,6 +72,8 @@ To run the image-to-video inference on a single prompt, please use the following
 bash scripts/hyvideo-i2v/run_sample_image2video_stability.sh # or run_sample_image2video_dynamic.sh
 ```
 If you want change to another prompt, please set `--prompt` to the new prompt.
+
+To run image-to-video inference with LoRA weight, please refer to `scripts/hyvideo-i2v/run_sample_image2video_lora.sh`.
 
 
 ## Acknowledgements
