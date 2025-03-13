@@ -2188,7 +2188,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             expects_prefix_module = False
 
         loaded_keys = _get_pt2ms_mapped_kv(
-            pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, expected_keys
+            pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix
         )
 
         # key re-naming operations are never done on the keys
