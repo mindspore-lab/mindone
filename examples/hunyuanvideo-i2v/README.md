@@ -36,6 +36,13 @@ Here is the development plan of the project:
     ```shell
     pip install -r requirements.txt
     ```
+## 🎥 Demo
+
+The following videos are generated based on MindSpore and Ascend 910*.
+
+https://github.com/user-attachments/assets/7dcf295d-4356-4490-b281-ec1d5d69866b
+
+https://github.com/user-attachments/assets/73315093-5c58-4b2c-8231-154f36124f76
 
 ## 🚀 Quick Start
 
