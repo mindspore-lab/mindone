@@ -27,7 +27,7 @@ meta_steps:
 
   split_video:
     # if set to false, none of the below will be run
-    run: true # may set to false if the videos have already been cut to clips. e.g., Panda-70M clips
+    run: false # TODO: may set to true if the input videos are too long or not semantically consistent
     scene_detection:
       run: true
       detector: adaptive # option: adaptive / content
