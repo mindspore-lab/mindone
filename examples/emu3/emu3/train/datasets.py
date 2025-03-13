@@ -56,9 +56,10 @@ class Emu3FeatureDataset(BaseDataset):
     def __getitem__(self, index: int):
         path = osp.join(self.path_prefix, self.filelist[index])
         data = ms.load_checkpoint(path)  # {"name": name, "images": token_ids, "texts": prompt}
-
-        image_tokens = data["images"].asnumpy()
-        image_prompt = self.format_image_prompt(image_tokens)
+        image_prompt = ""
+        if isinstance(data["images"], ms.Tensor):
+            image_tokens = data["images"].asnumpy()
+            image_prompt = self.format_image_prompt(image_tokens)
 
         # structure:
         # [BOS] {caption text} [SOV] {meta text} [SOT] {vision tokens} [EOV] [EOS].

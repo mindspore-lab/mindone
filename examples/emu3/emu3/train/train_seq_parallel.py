@@ -10,6 +10,11 @@ from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.modeling_emu3 import Emu3RMSNorm
 from emu3.train.datasets import Emu3FeatureDataset
 
+if ms.__version__ <= "2.5":
+    from mindspore.mint.nn import CrossEntropyLoss
+else:
+    from mindspore.nn import CrossEntropyLoss
+
 import mindspore as ms
 import mindspore.dataset as ds
 from mindspore import Model, nn  # amp
@@ -26,8 +31,6 @@ from mindone.utils import count_params, init_train_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
 
 # import json
-
-
 # from mindone.trainers.checkpoint import resume_train_network
 
 
@@ -58,6 +61,7 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     min_learning_rate: Optional[float] = field(default=None)
     image_area: Optional[int] = field(default=None)  # image max resolution, e.g. 518440=720*720, 262144=512*512
     max_position_embeddings: Optional[int] = field(default=None)
+    num_hidden_layers: Optional[int] = field(default=32)
     output_dir: str = field(default="./outputs")  # output directory for checkpoints
     enable_flash_attention: bool = field(default=True)  # enable flash_attention_2
     gradient_checkpointing: bool = field(default=True)  # activate gradient checkpointing
@@ -71,7 +75,7 @@ class TrainingArguments(MindSporeArguments, tf_TrainingArguments):
     clip_grad: bool = field(default=True)
     loss_scaler_type: str = field(default=None)  # dynamic or static
     init_loss_scale: float = field(default=1024)
-    loss_scaler_factor: float = field(default=2)
+    loss_scale_factor: float = field(default=2)
     scale_window: float = field(default=1000)
     save_strategy: str = field(default="steps")
     # post_init_weight: bool = field(default=False)
@@ -177,7 +181,7 @@ def main():
     # 2. create train network and mix precision
     # load pre-trained model and tokenizer (usually Emu3-Stage1)
     model_config = Emu3Config.from_pretrained(model_args.model_name_or_path)
-    update_configs(model_config, training_args, ["image_area", "max_position_embeddings"])
+    update_configs(model_config, training_args, ["image_area", "max_position_embeddings", "num_hidden_layers"])
     if training_args.min_learning_rate is not None:
         training_args.lr_scheduler_kwargs["min_lr"] = training_args.min_learning_rate
 
@@ -191,12 +195,13 @@ def main():
     model = Emu3ForCausalLM.from_pretrained(
         model_args.model_name_or_path,
         config=model_config,
+        mindspore_dtype=model_dtype,
         attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
         use_safetensors=True,
     )
     if model_dtype is not None:
         model = auto_mixed_precision(
-            model, amp_level="O2", dtype=model_dtype, custom_fp32_cells=[nn.CrossEntropyLoss, Emu3RMSNorm]
+            model, amp_level="O2", dtype=model_dtype, custom_fp32_cells=[CrossEntropyLoss, Emu3RMSNorm]
         )
     else:
         model_dtype = ms.float32
@@ -219,7 +224,7 @@ def main():
                 inputs_embeds = None,
                 use_cache = False,
                 output_attentions = False,
-                output_hidden_states = None,
+                output_hidden_states = False,
                 return_dict = False,
                 )
             return loss

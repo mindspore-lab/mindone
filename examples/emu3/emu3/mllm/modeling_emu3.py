@@ -38,11 +38,9 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, initializer
 from mindspore.communication import get_group_size
-from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache  # , get_max_length, get_seq_length, update
-from mindone.transformers.mindspore_adapter import recompute_except_output
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import (
     _MIN_FP16,
@@ -64,6 +62,11 @@ from mindone.utils.version_control import check_valid_flash_attention
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 if FLASH_IS_AVAILABLE:
     from mindone.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
+
+if ms.__version__ <= "2.5":
+    from mindspore.mint.nn import CrossEntropyLoss
+else:
+    from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 _CONFIG_FOR_DOC = "Emu3Config"
 
@@ -809,6 +812,14 @@ class Emu3Model(Emu3PreTrainedModel):
     def set_input_embeddings(self, value):
         self.embed_tokens = value
 
+    def recompute(self, cell, **recompute_kwargs):
+        if not cell._has_config_recompute:
+            cell.recompute(**recompute_kwargs)
+        if isinstance(cell, nn.CellList):
+            self.recompute(cell[-1])
+        elif ms.get_context("mode") == ms.GRAPH_MODE:
+            cell.add_flags(output_no_recompute=True)
+
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
         self.gradient_checkpointing = True
         if gradient_checkpointing_kwargs is None:
@@ -819,10 +830,9 @@ class Emu3Model(Emu3PreTrainedModel):
         for decoder_layer in self.layers:
             assert isinstance(decoder_layer, Emu3DecoderLayer)
             for name, cell in decoder_layer.name_cells().items():
-                # cell._recompute()
-                recompute_except_output(cell, **gradient_checkpointing_kwargs)
-        recompute_except_output(self.embed_tokens, **gradient_checkpointing_kwargs)
-        recompute_except_output(self.norm, **gradient_checkpointing_kwargs)
+                self.recompute(cell, **gradient_checkpointing_kwargs)
+        self.recompute(self.embed_tokens, **gradient_checkpointing_kwargs)
+        self.recompute(self.norm, **gradient_checkpointing_kwargs)
 
         logger.info(f"{self.__class__.__name__}: enable recompute.")
 
@@ -1107,7 +1117,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
             # Flatten the tokens
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
-            loss = self.loss_fct(shift_logits.float(), shift_labels)
+            loss = self.loss_fct(shift_logits, shift_labels)
             return loss
 
         if not return_dict:

@@ -7,11 +7,13 @@ Test:
 Usage:
 
 echo "******** Graph Mode ********"
+export ASCEND_RT_VISIBLE_DEVICES=0,1
 msrun --master_port=1234 --worker_num=2 --local_worker_num=2 --log_dir="./log_test_sp_graph" --join True emu3/tests/test_seq_parallel.py --mode 0
 echo "Done. Check the log at './log_test_sp_graph'."
 echo "========================================================================="
 
 echo "******** Pynative Mode ********"
+export ASCEND_RT_VISIBLE_DEVICES=0,1
 msrun --master_port=1235 --worker_num=2 --local_worker_num=2 --log_dir="./log_test_sp_pynative" --join True emu3/tests/test_seq_parallel.py --mode 1
 echo "Done. Check the log at './log_test_sp_pynative'."
 
@@ -38,17 +40,19 @@ class MeanNet(nn.Cell):
         self.net = net
 
     def construct(self, *inputs):
-        output = self.net(*inputs, return_dict=False)[1]
+        output = self.net(*inputs, return_dict=False)
+        if isinstance(output, tuple): # no label
+            output = output[0] # logits
         return output.mean() * 1024.0
 
 
-def get_sample_data(dtype: ms.Type = ms.float32) -> Tuple[Tensor, ...]:
+def get_sample_data(dtype: ms.Type = ms.int32) -> Tuple[Tensor, ...]:
     seq_len = 10
     vocab_size = 184622
-    input_ids = ops.randint(0, vocab_size, (1, seq_len), dtype=ms.int32)
-    attention_mask = ops.ones_like(input_ids, dtype=ms.int32)
-    # labels = None
-    labels = input_ids.copy()  # test training pipeline
+    input_ids = ops.randint(0, vocab_size, (1, seq_len), dtype=dtype)
+    attention_mask = ops.ones_like(input_ids, dtype=dtype)
+    labels = None # inference pipeline
+    # labels = input_ids.copy()  # test training pipeline
     return input_ids, attention_mask, labels
 
 
@@ -104,7 +108,7 @@ def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
     run_parallel_network(data, dtype=dtype)
 
 
-def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float32):
+def run_parallel_network(data: Tuple[Tensor, ...], dtype: ms.Type = ms.float16):
     # non parallel network
     ms.set_seed(1024)
     non_parallel_network_cfg = get_network_config()

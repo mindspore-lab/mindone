@@ -30,7 +30,7 @@ Output dataset
 
 Usage:
 cd examples/emu3
-python emu3/train/prepare_data.py --model-path DIR-TO-Emu3-VisionTokenizer --data-path DIR-TO-DATA.json --output-path DATA-DIR
+python emu3/train/prepare_vision_data.py --model-path DIR-TO-Emu3-VisionTokenizer --data-path DIR-TO-DATA.json --output-path DATA-DIR
 """
 
 import argparse
@@ -76,13 +76,15 @@ def prepare_args():
     return args
 
 
-def smart_resize(image, image_area: int = 720 * 720):
+def smart_resize(image, image_area: int = 720 * 720, factor: int = 8):
     w, h = image.size
-    current_area = h * w
+    h_bar = round(h / factor) * factor
+    w_bar = round(w / factor) * factor
+    current_area = h_bar * w_bar
     target_ratio = (image_area / current_area) ** 0.5
 
-    th = int(round(h * target_ratio))
-    tw = int(round(w * target_ratio))
+    th = int(round(h * target_ratio / factor) * factor)
+    tw = int(round(w * target_ratio / factor) * factor)
 
     image = image.resize((tw, th))
     return image
@@ -111,12 +113,12 @@ def main():
         image = Image.open(img_dir).convert("RGB")
         image = smart_resize(image, args.image_area)
 
-        image = image_processor(image, return_tensors="np")["pixel_values"]
+        image = image_processor(image, do_resize=False, return_tensors="np")["pixel_values"]
         with no_grad():
             image = ms.Tensor(image, dtype=image_tokenizer.dtype)
             token_ids = image_tokenizer.encode(image)
 
-        token_ids = token_ids.squeeze(0).asnumpy()
+        token_ids = token_ids.squeeze(0)
         data = {"name": name, "images": token_ids, "texts": prompt}
 
         ms.save_checkpoint([], f"{args.output_path}/feature/{name}.ckpt", append_dict=data)
