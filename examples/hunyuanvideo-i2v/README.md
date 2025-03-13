@@ -43,7 +43,7 @@ The following videos are generated based on MindSpore and Ascend 910B.
 |  Reference Image | Generated Video |
 |:----------------:|:----------------:|
 | <img src="https://github.com/user-attachments/assets/051a662d-ec52-4cc2-b746-be0d36d8c041" width="90%">         |  <video src="https://github.com/user-attachments/assets/7dcf295d-4356-4490-b281-ec1d5d69866b" width="100%"> </video>        |
-｜ <img src="https://github.com/user-attachments/assets/c385a11f-60c7-4919-b0f1-bc5e715f673c" width="90%">         |       <video src="https://github.com/user-attachments/assets/73315093-5c58-4b2c-8231-154f36124f76" width="100%"> </video>        |
+|  <img src="https://github.com/user-attachments/assets/c385a11f-60c7-4919-b0f1-bc5e715f673c" width="90%">         |       <video src="https://github.com/user-attachments/assets/73315093-5c58-4b2c-8231-154f36124f76" width="100%"> </video>        |
 
 To generate the above videos, please refer to the [Image-to-Video Inference](#run-image-to-video-inference) section.
 
