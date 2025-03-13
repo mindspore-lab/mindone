@@ -76,8 +76,7 @@ class Inference(object):
             "use_conv2d_patchify": args.use_conv2d_patchify,
             "i2v_condition_type": args.i2v_condition_type,
         }
-        in_channels = args.latent_channels
-        out_channels = args.latent_channels
+
         dtype = factor_kwargs["dtype"]
         rank_id = kwargs.get("rank_id", 0)
         if args.i2v_mode and args.i2v_condition_type == "latent_concat":
