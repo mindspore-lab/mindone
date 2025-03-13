@@ -52,6 +52,7 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
+from .models.gpt2 import GPT2LMHeadModel
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
