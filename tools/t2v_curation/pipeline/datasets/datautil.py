@@ -43,7 +43,7 @@ def get_info(path):
             return get_image_info(path)
         else:
             return get_video_info(path)
-    except:
+    except Exception:
         return 0, 0, 0, np.nan, np.nan, np.nan
 
 
@@ -58,7 +58,7 @@ def get_image_info(path, backend="pillow"):
             hw = height * width
             aspect_ratio = height / width if width > 0 else np.nan
             return num_frames, height, width, aspect_ratio, fps, hw
-        except:
+        except Exception:
             return 0, 0, 0, np.nan, np.nan, np.nan
     elif backend == "cv2":
         try:
@@ -70,7 +70,7 @@ def get_image_info(path, backend="pillow"):
             hw = height * width
             aspect_ratio = height / width if width > 0 else np.nan
             return num_frames, height, width, aspect_ratio, fps, hw
-        except:
+        except Exception:
             return 0, 0, 0, np.nan, np.nan, np.nan
     else:
         raise ValueError
@@ -88,7 +88,7 @@ def get_video_info(path):
         hw = height * width
         aspect_ratio = height / width if width > 0 else np.nan
         return num_frames, height, width, aspect_ratio, fps, hw
-    except:
+    except Exception:
         return 0, 0, 0, np.nan, np.nan, np.nan
     else:
         raise ValueError
@@ -211,8 +211,8 @@ def basic_clean(text):
 
 
 BAD_PUNCT_REGEX = re.compile(
-    r"[" + "#®•©™&@·º½¾¿¡§~" + "\)" + "\(" + "\]" + "\[" + "\}" + "\{" + "\|" + "\\" + "\/" + "\*" + r"]{1,}"
-)  # noqa
+    r"[#®•©™&@·º½¾¿¡§~\)\(\]\[\}\{\|\\/\*]+"
+)
 
 
 def clean_caption(caption):
@@ -356,7 +356,7 @@ def load_caption(path, ext):
             data = json.load(f)
         caption = data["caption"]
         return caption
-    except:
+    except Exception:
         return ""
 
 
@@ -428,7 +428,7 @@ def read_data(input_paths):
             input_name += "+"
         print(f"Loaded {len(data[-1])} samples from '{input_path}'.")
     if len(data) == 0:
-        print(f"No samples to process. Exit.")
+        print("No samples to process. Exit.")
         exit()
     data = pd.concat(data, ignore_index=True, sort=False)
     print(f"Total number of samples: {len(data)}")
@@ -833,7 +833,7 @@ def get_output_path(args, input_name):
     if args.lpipsmin is not None:
         name += f"_lpipsmin{args.lpipsmin:.1f}"
     if args.safety_check:
-        name += f"_safe"
+        name += "_safe"
 
     if args.img_only:
         name += "_img"

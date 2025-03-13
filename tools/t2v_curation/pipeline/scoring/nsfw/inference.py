@@ -21,6 +21,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
 sys.path.insert(0, mindone_lib_path)
 
+# noqa: E402
 from mindone.transformers import CLIPModel
 
 

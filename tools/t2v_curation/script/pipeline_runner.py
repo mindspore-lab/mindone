@@ -202,11 +202,11 @@ def main():
                 total_text_percentage = scoring_filtering["ocr_scoring"]["total_text_percentage"]
                 command = f"msrun --worker_num=1 --local_worker_num=1 --join=True --log_dir=msrun_log/ocr pipeline/scoring/ocr/inference.py {input_meta_csv}"
                 if num_boxes:
-                    command += f" --num_boxes"
+                    command += " --num_boxes"
                 if max_single_percentage:
-                    command += f" --max_single_percentage"
+                    command += " --max_single_percentage"
                 if total_text_percentage:
-                    command += f" --total_text_percentage"
+                    command += " --total_text_percentage"
                 run_command(command)
                 input_meta_csv = input_meta_csv[:-4] + "_ocr.csv"
 

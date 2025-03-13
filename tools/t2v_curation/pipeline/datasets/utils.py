@@ -1,15 +1,8 @@
-import math
 import os
-import re
-import warnings
-from fractions import Fraction
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import List
 
-import av
 import numpy as np
 from PIL import Image
-
-import mindspore as ms
 
 MAX_NUM_FRAMES = 2500
 
@@ -307,7 +300,7 @@ def extract_frames(
                     frame = container[idx].asnumpy()
                     img = Image.fromarray(frame)
                     frames.append(img)
-                except Exception as e:
+                except Exception:
                     try:
                         print(f"[Warning] Error reading frame {idx} from {video_path}. Try reading the first frame.")
                         frame = container[0].asnumpy()
@@ -430,7 +423,7 @@ def extract_frames(
                 if not ret or frame is None:  # failure case
                     print(f"[Warning] Error reading frame {idx} from {video_path}")
                     try:
-                        print(f"[Warning] Try reading first frame.")
+                        print("[Warning] Try reading first frame.")
                         cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                         ret, frame = cap.read()
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)

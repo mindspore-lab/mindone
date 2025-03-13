@@ -1,7 +1,6 @@
 import glob
 import logging
 import os
-import sys
 from pathlib import Path
 from time import time
 from typing import List, Union
@@ -577,7 +576,6 @@ class TextDetector(object):
         """
         # preprocess
         data = self.preprocess(img_or_path)
-        fn = os.path.basename(data.get("img_path", "input.png")).rsplit(".", 1)[0]
         logger.info(f"Original image shape: {data['image_ori'].shape}")
         logger.info(f"After det preprocess: {data['image'].shape}")
 

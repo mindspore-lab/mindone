@@ -13,13 +13,13 @@ import mindspore as ms
 import mindspore.dataset as ds
 import mindspore.nn as nn
 import mindspore.ops as ops
-from mindspore import Tensor, load_checkpoint, load_param_into_net, save_checkpoint
+from mindspore import Tensor, load_checkpoint, load_param_into_net
 from mindspore.mint.distributed import all_gather, get_rank, get_world_size, init_process_group
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
 sys.path.insert(0, mindone_lib_path)
-
+# noqa: E402
 from mindone.transformers import CLIPModel
 
 

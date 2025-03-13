@@ -5,7 +5,7 @@ import torch
 from pipeline.scoring.aesthetic.inference import AestheticScorer
 
 from mindspore import Tensor
-from mindspore.train.serialization import load_checkpoint, load_param_into_net, save_checkpoint
+from mindspore.train.serialization import load_checkpoint, save_checkpoint
 
 
 def show_params(params, value):

@@ -11,7 +11,7 @@ from tqdm import tqdm
 import mindspore as ms
 import mindspore.dataset as ds
 import mindspore.ops as ops
-from mindspore import Tensor, context
+from mindspore import Tensor
 from mindspore.mint.distributed import all_gather, get_rank, get_world_size, init_process_group
 
 

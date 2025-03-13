@@ -12,13 +12,13 @@ from transformers import AutoProcessor
 
 import mindspore as ms
 import mindspore.dataset as ds
-from mindspore import Tensor, context, ops
+from mindspore import Tensor, ops
 from mindspore.mint.distributed import all_gather, get_rank, get_world_size, init_process_group
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
 sys.path.insert(0, mindone_lib_path)
-
+# noqa: E402
 from mindone.transformers import CLIPModel
 
 

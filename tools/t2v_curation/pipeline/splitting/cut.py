@@ -34,7 +34,7 @@ def process_single_row(row, args):
             scene_list = [None]
         if args.drop_invalid_timestamps:
             return True
-    except Exception as e:
+    except Exception:
         if args.drop_invalid_timestamps:
             return False
 
@@ -50,7 +50,7 @@ def process_single_row(row, args):
         if min_size <= shorter_size:
             shorter_size = None
 
-    save_path_list = split_video(
+    split_video(
         video_path,
         scene_list,
         save_dir=save_dir,
