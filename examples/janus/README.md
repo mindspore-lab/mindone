@@ -32,6 +32,8 @@ We provide an efficient MindSpore implementation of [JanusPro](https://github.co
 
 ## News
 
+**2025.03.12**: We have reproduced the multi-modal training pipelines referring to the JanusPro [paper](https://github.com/deepseek-ai/Janus), see [docs/training.md](docs/training.md).
+
 **2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU.
 
 

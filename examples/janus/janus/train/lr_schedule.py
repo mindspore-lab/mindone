@@ -72,5 +72,4 @@ class WarmupCosineDecayLR(LRScheduler):
             # TODO: support cycle
             group_lrs = [self.lr_seq[-1] for lr in self._last_lr]
 
-        # print('D--: ', cur_step, group_lrs)
         return group_lrs

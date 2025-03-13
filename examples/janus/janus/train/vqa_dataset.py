@@ -23,7 +23,7 @@ class VqaDataset:
         max_token_length: int = 1024,
         num_samples: int = -1,
     ) -> None:
-        if dataset_name == "medical-vqa":
+        if dataset_name.lower() == "medical-vqa":
             self.image_dir = os.path.join(data_dir, "vqa-rad/images")
             self.dataset = load_dataset(data_dir, split="train")
             # filter data
@@ -102,22 +102,7 @@ class VqaDataset:
         ]
 
         vlcp = self.vl_chat_processor
-        # print("D--: ", prompt)
         pil_images = load_pil_images(conversation)
-        # FIXME: use numpy
-        # ---------------- start ----------------- #
-        """
-        prepare_inputs = vlcp(conversations=conversation, images=pil_images, force_batchify=True,
-            max_length=self.max_token_length)
-
-
-        input_ids = prepare_inputs.input_ids.asnumpy()[0].astype(np.int32)
-        attention_mask = prepare_inputs.attention_mask.asnumpy()[0]
-        image = prepare_inputs.pixel_values.asnumpy()[0]
-        image_seq_mask = prepare_inputs.images_seq_mask.asnumpy()[0]
-        prompt = prepare_inputs.sft_format
-        """
-        # ---------------- end ----------------- #
 
         # apply sft format
         sft_format = vlcp.apply_sft_template_for_multi_turn_prompts(
@@ -154,9 +139,6 @@ class VqaDataset:
 
         input_ids = padded_input_ids
 
-        # print("D--: prompt", sft_format)
-        # import pdb; pdb.set_trace()
-
         # make labels
         # label, only train on answer seq
         ignore_index = -100
@@ -192,8 +174,6 @@ def add_image_token(
 
     start = 0
     for index in image_indices:
-        # import pdb; pdb.set_trace()
-        # print("D--: add spec", vlcp.add_special_token)
         if vlcp.add_special_token:
             end = int(index + 1)
         else:
@@ -201,7 +181,6 @@ def add_image_token(
 
         # original text tokens
         input_slices.append(input_ids[start:end])
-        # import pdb; pdb.set_trace()
 
         # add boi, image tokens, eoi and set the mask as False
         input_slices.append(vlcp.image_start_id * np.ones((1), dtype=np.int32))

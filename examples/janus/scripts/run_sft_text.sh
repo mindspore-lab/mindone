@@ -8,6 +8,8 @@ stage=3
 python train.py \
     --model_path ckpts/Janus-Pro-1B --load_weight=True \
     --task 'text' \
+    --dataset_name 'pubmedqa' \
+    --data_dir 'datasets/PubMedQA' \
     --training_stage $stage \
     --learning_rate $lr \
     --end_learning_rate $end_lr \
@@ -19,7 +21,6 @@ python train.py \
     --warmup_steps 50 \
     --ckpt_save_steps 1000 \
     --ckpt_max_keep 10 \
-    --use_value_and_grad True \
     --clip_grad $clip_grad \
     --output_path outputs/stage${stage}_text_pubmed_lr${lr}_wd${wd}_bs${bs} \
 

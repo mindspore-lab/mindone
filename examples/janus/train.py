@@ -182,8 +182,8 @@ def main(args):
     if task == "text":
         # FIXME: allow setting path
         dataloader = create_dataloader_text(
-            dataset_name="pubmedqa",
-            data_dir="datasets/PubMedQA",
+            dataset_name=args.dataset_name,
+            data_dir=args.data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,
@@ -192,8 +192,8 @@ def main(args):
         )
     elif task == "vqa":
         dataloader = create_dataloader_vqa(
-            dataset_name="medical-vqa",
-            data_dir="datasets/medical-vqa",
+            dataset_name=args.dataset_name,
+            data_dir=args.data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,
@@ -369,7 +369,7 @@ if __name__ == "__main__":
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--use_value_and_grad",
-        default=False,
+        default=True,
         type=str2bool,
         help="if False, use mindone wrapped trainer. if True, use custom step based on `value_and_grad` api",
     )
@@ -414,6 +414,9 @@ if __name__ == "__main__":
         default="",
         type=str,
         help="path to csv annotation, contain `image_path` and `text_en` column for image path and caption respectively",
+    )
+    parser.add_argument(
+        "--dataset_name", default="", type=str, help="dataset name, used for the right vqa and text dataset loader"
     )
     parser.add_argument(
         "--data_dir",

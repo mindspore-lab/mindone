@@ -21,7 +21,7 @@ class TextDataset:
         max_token_length: int = 1024,
         num_samples: int = -1,
     ) -> None:
-        if dataset_name == "pubmedqa":
+        if dataset_name.lower() == "pubmedqa":
             self.dataset = load_dataset(data_dir, "pqa_labeled", split="train")
         else:
             raise NotImplementedError
@@ -75,7 +75,6 @@ class TextDataset:
             sft_format=self.vl_chat_processor.sft_format,
             system_prompt=self.vl_chat_processor.system_prompt,
         )
-        # print("D--: ", prompt)
 
         vlcp = self.vl_chat_processor
 
