@@ -102,7 +102,7 @@ def _get_pt2ms_mapped_kv(mappings, has_prefix_module, expects_prefix_module, loa
         ]
         loaded_keys = [".".join([prefix, s]) for s in loaded_keys]
     elif not has_prefix_module and expects_prefix_module:
-        loaded_keys = [mappings.get(s[len(prefix) + 1 :], (s[len(prefix) + 1 :], lambda x: x))[0] for s in loaded_keys]
+        loaded_keys = [mappings.get(".".join([prefix, s]), (".".join([prefix, s]), lambda x: x))[0] for s in loaded_keys]
         loaded_keys = [s[len(prefix) + 1 :] if s.startswith(prefix) else s for s in loaded_keys]
     else:
         loaded_keys = [mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
