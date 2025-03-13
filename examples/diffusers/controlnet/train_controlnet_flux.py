@@ -32,6 +32,7 @@ from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import _no_grad, jit_class, nn, ops
+from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
@@ -47,7 +48,6 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.transformers import CLIPTextModel, T5EncoderModel
-from mindone.utils.amp import auto_mixed_precision
 
 logger = logging.getLogger(__name__)
 
@@ -418,18 +418,6 @@ def parse_args(input_args=None):
             "operator fusion optimizations, using an operator-by-operator execution method. This is an experimental "
             "optimization level, which is continuously being improved. O2: Enables extreme performance optimization, "
             "using a sinking execution method. Only effective when args.mindspore_mode is 0"
-        ),
-    )
-    parser.add_argument(
-        "--amp_level",
-        type=str,
-        default="O2",
-        choices=["O0", "O1", "O2", "O3"],
-        help=(
-            "Level of auto mixed precision(amp). Supports [O0, O1, O2, O3]. O0: Do not change. O1: Convert cells"
-            "and operators in whitelist to lower precision operations, and keep full precision operations for "
-            "the rest. O2: Keep full precision operations for cells and operators in blacklist, and convert "
-            "the rest to lower precision operations. O3: Cast network to lower precision."
         ),
     )
     parser.add_argument(
@@ -963,15 +951,13 @@ def main():
 
     # Make sure the trainable params are in float32. and do AMP wrapper manually
     if weight_dtype != ms.float32:
-        # cast_training_params([flux_controlnet], dtype=ms.float32)
-        flux_controlnet = auto_mixed_precision(flux_controlnet, amp_level=args.amp_level, dtype=weight_dtype)
+        flux_controlnet = auto_mixed_precision(flux_controlnet, amp_level="auto", dtype=weight_dtype)
 
     def compute_embeddings(
         batch,
         proportion_empty_prompts,
         text_encoders,
         tokenizers,
-        # flux_controlnet_pipeline,
         weight_dtype,
         is_train=True,
     ):
