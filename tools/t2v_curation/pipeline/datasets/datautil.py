@@ -210,9 +210,7 @@ def basic_clean(text):
     return text.strip()
 
 
-BAD_PUNCT_REGEX = re.compile(
-    r"[#®•©™&@·º½¾¿¡§~\)\(\]\[\}\{\|\\/\*]+"
-)
+BAD_PUNCT_REGEX = re.compile(r"[#®•©™&@·º½¾¿¡§~\)\(\]\[\}\{\|\\/\*]+")
 
 
 def clean_caption(caption):
