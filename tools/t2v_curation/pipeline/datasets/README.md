@@ -13,8 +13,8 @@ You can use the following commands to manage the dataset.
 
 ## Dataset to CSV
 
-As a starting point, `convert.py` is used to convert 
-the dataset (i.e., videos or images in a folder) to a CSV file. You can use the following 
+As a starting point, `convert.py` is used to convert
+the dataset (i.e., videos or images in a folder) to a CSV file. You can use the following
 commands to convert the dataset to a CSV file:
 
 ```bash
@@ -58,7 +58,7 @@ We use `datautil.py` to manage the dataset.
 
 ### Basic Usage
 
-You can use the following commands to process the `.csv` 
+You can use the following commands to process the `.csv`
 or `.parquet` files. The output file will be saved in the same directory as the input, with different suffixes indicating the processed method.
 
 ```bash
@@ -87,8 +87,8 @@ python -m pipeline.datasets.datautil DATA.csv --video-info --remove-empty-captio
 
 ### Score Filtering
 
-To examine and filter the dataset by 
-aesthetic score or CLIP matching score, 
+To examine and filter the dataset by
+aesthetic score or CLIP matching score,
 you can use the following commands:
 
 ```bash

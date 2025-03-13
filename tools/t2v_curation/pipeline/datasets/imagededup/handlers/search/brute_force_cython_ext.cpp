@@ -1518,10 +1518,10 @@ static const char *__pyx_f[] = {
 /* #### Code section: numeric_typedefs ### */
 
 /* "brute_force_cython_ext.pyx":7
- * 
- * 
+ *
+ *
  * ctypedef unsigned long long ull             # <<<<<<<<<<<<<<
- * 
+ *
  * cdef extern from 'builtin/builtin.h':
  */
 typedef unsigned PY_LONG_LONG __pyx_t_22brute_force_cython_ext_ull;
@@ -2396,7 +2396,7 @@ static int __pyx_m_traverse(PyObject *m, visitproc visit, void *arg) {
 /* #### Code section: module_code ### */
 
 /* "string.from_py":13
- * 
+ *
  * @cname("__pyx_convert_string_from_py_6libcpp_6string_std__in_string")
  * cdef string __pyx_convert_string_from_py_6libcpp_6string_std__in_string(object o) except *:             # <<<<<<<<<<<<<<
  *     cdef Py_ssize_t length = 0
@@ -2427,7 +2427,7 @@ static std::string __pyx_convert_string_from_py_6libcpp_6string_std__in_string(P
  *     cdef Py_ssize_t length = 0
  *     cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)             # <<<<<<<<<<<<<<
  *     return string(data, length)
- * 
+ *
  */
   __pyx_t_1 = __Pyx_PyObject_AsStringAndSize(__pyx_v_o, (&__pyx_v_length)); if (unlikely(__pyx_t_1 == ((char const *)NULL))) __PYX_ERR(1, 15, __pyx_L1_error)
   __pyx_v_data = __pyx_t_1;
@@ -2436,8 +2436,8 @@ static std::string __pyx_convert_string_from_py_6libcpp_6string_std__in_string(P
  *     cdef Py_ssize_t length = 0
  *     cdef const char* data = __Pyx_PyObject_AsStringAndSize(o, &length)
  *     return string(data, length)             # <<<<<<<<<<<<<<
- * 
- * 
+ *
+ *
  */
   try {
     __pyx_t_2 = std::string(__pyx_v_data, __pyx_v_length);
@@ -2449,7 +2449,7 @@ static std::string __pyx_convert_string_from_py_6libcpp_6string_std__in_string(P
   goto __pyx_L0;
 
   /* "string.from_py":13
- * 
+ *
  * @cname("__pyx_convert_string_from_py_6libcpp_6string_std__in_string")
  * cdef string __pyx_convert_string_from_py_6libcpp_6string_std__in_string(object o) except *:             # <<<<<<<<<<<<<<
  *     cdef Py_ssize_t length = 0
@@ -2465,7 +2465,7 @@ static std::string __pyx_convert_string_from_py_6libcpp_6string_std__in_string(P
 }
 
 /* "vector.from_py":45
- * 
+ *
  * @cname("__pyx_convert_vector_from_py_std_3a__3a_string")
  * cdef vector[X] __pyx_convert_vector_from_py_std_3a__3a_string(object o) except *:             # <<<<<<<<<<<<<<
  *     cdef vector[X] v
@@ -2554,7 +2554,7 @@ static std::vector<std::string>  __pyx_convert_vector_from_py_std_3a__3a_string(
  *     for item in o:
  *         v.push_back(<X>item)             # <<<<<<<<<<<<<<
  *     return v
- * 
+ *
  */
     __pyx_t_5 = __pyx_convert_string_from_py_6libcpp_6string_std__in_string(__pyx_v_item); if (unlikely(PyErr_Occurred())) __PYX_ERR(1, 48, __pyx_L1_error)
     try {
@@ -2578,14 +2578,14 @@ static std::vector<std::string>  __pyx_convert_vector_from_py_std_3a__3a_string(
  *     for item in o:
  *         v.push_back(<X>item)
  *     return v             # <<<<<<<<<<<<<<
- * 
- * 
+ *
+ *
  */
   __pyx_r = __pyx_v_v;
   goto __pyx_L0;
 
   /* "vector.from_py":45
- * 
+ *
  * @cname("__pyx_convert_vector_from_py_std_3a__3a_string")
  * cdef vector[X] __pyx_convert_vector_from_py_std_3a__3a_string(object o) except *:             # <<<<<<<<<<<<<<
  *     cdef vector[X] v
@@ -2686,7 +2686,7 @@ static std::vector<__pyx_t_22brute_force_cython_ext_ull>  __pyx_convert_vector_f
  *     for item in o:
  *         v.push_back(<X>item)             # <<<<<<<<<<<<<<
  *     return v
- * 
+ *
  */
     __pyx_t_5 = __Pyx_PyInt_As_unsigned_PY_LONG_LONG(__pyx_v_item); if (unlikely((__pyx_t_5 == (unsigned PY_LONG_LONG)-1) && PyErr_Occurred())) __PYX_ERR(1, 48, __pyx_L1_error)
     try {
@@ -2710,14 +2710,14 @@ static std::vector<__pyx_t_22brute_force_cython_ext_ull>  __pyx_convert_vector_f
  *     for item in o:
  *         v.push_back(<X>item)
  *     return v             # <<<<<<<<<<<<<<
- * 
- * 
+ *
+ *
  */
   __pyx_r = __pyx_v_v;
   goto __pyx_L0;
 
   /* "vector.from_py":45
- * 
+ *
  * @cname("__pyx_convert_vector_from_py___pyx_t_22brute_force_cython_ext_ull")
  * cdef vector[X] __pyx_convert_vector_from_py___pyx_t_22brute_force_cython_ext_ull(object o) except *:             # <<<<<<<<<<<<<<
  *     cdef vector[X] v
@@ -2737,7 +2737,7 @@ static std::vector<__pyx_t_22brute_force_cython_ext_ull>  __pyx_convert_vector_f
 }
 
 /* "string.to_py":31
- * 
+ *
  * @cname("__pyx_convert_PyObject_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyObject_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
@@ -2768,7 +2768,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyObject_string_to_py_6libcpp_6stri
   goto __pyx_L0;
 
   /* "string.to_py":31
- * 
+ *
  * @cname("__pyx_convert_PyObject_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyObject_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyObject_FromStringAndSize(s.data(), s.size())
@@ -2787,7 +2787,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyObject_string_to_py_6libcpp_6stri
 }
 
 /* "string.to_py":37
- * 
+ *
  * @cname("__pyx_convert_PyUnicode_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyUnicode_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size())
@@ -2818,7 +2818,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyUnicode_string_to_py_6libcpp_6str
   goto __pyx_L0;
 
   /* "string.to_py":37
- * 
+ *
  * @cname("__pyx_convert_PyUnicode_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyUnicode_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyUnicode_FromStringAndSize(s.data(), s.size())
@@ -2837,7 +2837,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyUnicode_string_to_py_6libcpp_6str
 }
 
 /* "string.to_py":43
- * 
+ *
  * @cname("__pyx_convert_PyStr_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyStr_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyStr_FromStringAndSize(s.data(), s.size())
@@ -2868,7 +2868,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyStr_string_to_py_6libcpp_6string_
   goto __pyx_L0;
 
   /* "string.to_py":43
- * 
+ *
  * @cname("__pyx_convert_PyStr_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyStr_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyStr_FromStringAndSize(s.data(), s.size())
@@ -2887,7 +2887,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyStr_string_to_py_6libcpp_6string_
 }
 
 /* "string.to_py":49
- * 
+ *
  * @cname("__pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyBytes_FromStringAndSize(s.data(), s.size())
@@ -2918,7 +2918,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyBytes_string_to_py_6libcpp_6strin
   goto __pyx_L0;
 
   /* "string.to_py":49
- * 
+ *
  * @cname("__pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyBytes_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyBytes_FromStringAndSize(s.data(), s.size())
@@ -2937,11 +2937,11 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyBytes_string_to_py_6libcpp_6strin
 }
 
 /* "string.to_py":55
- * 
+ *
  * @cname("__pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size())
- * 
+ *
  */
 
 static CYTHON_INLINE PyObject *__pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string(std::string const &__pyx_v_s) {
@@ -2957,7 +2957,7 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyByteArray_string_to_py_6libcpp_6s
  * @cname("__pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string(const string& s):
  *     return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size())             # <<<<<<<<<<<<<<
- * 
+ *
  */
   __Pyx_XDECREF(__pyx_r);
   __pyx_t_1 = __Pyx_PyByteArray_FromStringAndSize(__pyx_v_s.data(), __pyx_v_s.size()); if (unlikely(!__pyx_t_1)) __PYX_ERR(1, 56, __pyx_L1_error)
@@ -2967,11 +2967,11 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyByteArray_string_to_py_6libcpp_6s
   goto __pyx_L0;
 
   /* "string.to_py":55
- * 
+ *
  * @cname("__pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string")
  * cdef inline object __pyx_convert_PyByteArray_string_to_py_6libcpp_6string_std__in_string(const string& s):             # <<<<<<<<<<<<<<
  *     return __Pyx_PyByteArray_FromStringAndSize(s.data(), s.size())
- * 
+ *
  */
 
   /* function exit code */
@@ -2987,14 +2987,14 @@ static CYTHON_INLINE PyObject *__pyx_convert_PyByteArray_string_to_py_6libcpp_6s
 
 /* "brute_force_cython_ext.pyx":12
  *     int psnip_builtin_popcountll(unsigned long long) nogil
- * 
+ *
  * def query(vector[string] all_filenames,             # <<<<<<<<<<<<<<
  *           vector[ull] all_hashes,
  *           ull query_hash_val,
  */
 
 /* Python wrapper */
-static PyObject *__pyx_pw_22brute_force_cython_ext_1query(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_22brute_force_cython_ext_1query(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -3002,7 +3002,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
 static PyMethodDef __pyx_mdef_22brute_force_cython_ext_1query = {"query", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_22brute_force_cython_ext_1query, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_22brute_force_cython_ext_1query(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_22brute_force_cython_ext_1query(PyObject *__pyx_self,
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -3169,7 +3169,7 @@ static PyObject *__pyx_pf_22brute_force_cython_ext_query(CYTHON_UNUSED PyObject 
 
   /* "brute_force_cython_ext.pyx":23
  *     cdef ull i
- * 
+ *
  *     for i in range(all_hashes.size()):             # <<<<<<<<<<<<<<
  *         hash_val = all_hashes[i]
  *         dist = psnip_builtin_popcountll(hash_val ^ query_hash_val)  # requires hash_val and query_hash_val to be integers
@@ -3180,7 +3180,7 @@ static PyObject *__pyx_pf_22brute_force_cython_ext_query(CYTHON_UNUSED PyObject 
     __pyx_v_i = __pyx_t_4;
 
     /* "brute_force_cython_ext.pyx":24
- * 
+ *
  *     for i in range(all_hashes.size()):
  *         hash_val = all_hashes[i]             # <<<<<<<<<<<<<<
  *         dist = psnip_builtin_popcountll(hash_val ^ query_hash_val)  # requires hash_val and query_hash_val to be integers
@@ -3212,7 +3212,7 @@ static PyObject *__pyx_pf_22brute_force_cython_ext_query(CYTHON_UNUSED PyObject 
  *         if dist <= maxdist:
  *             filename = all_filenames[i]             # <<<<<<<<<<<<<<
  *             matches.append((filename.decode('utf-8'), dist))
- * 
+ *
  */
       __pyx_v_filename = (__pyx_v_all_filenames[__pyx_v_i]);
 
@@ -3220,7 +3220,7 @@ static PyObject *__pyx_pf_22brute_force_cython_ext_query(CYTHON_UNUSED PyObject 
  *         if dist <= maxdist:
  *             filename = all_filenames[i]
  *             matches.append((filename.decode('utf-8'), dist))             # <<<<<<<<<<<<<<
- * 
+ *
  *     return matches
  */
       __pyx_t_1 = __Pyx_decode_cpp_string(__pyx_v_filename, 0, PY_SSIZE_T_MAX, NULL, NULL, PyUnicode_DecodeUTF8); if (unlikely(!__pyx_t_1)) __PYX_ERR(0, 28, __pyx_L1_error)
@@ -3250,7 +3250,7 @@ static PyObject *__pyx_pf_22brute_force_cython_ext_query(CYTHON_UNUSED PyObject 
 
   /* "brute_force_cython_ext.pyx":30
  *             matches.append((filename.decode('utf-8'), dist))
- * 
+ *
  *     return matches             # <<<<<<<<<<<<<<
  */
   __Pyx_XDECREF(__pyx_r);
@@ -3260,7 +3260,7 @@ static PyObject *__pyx_pf_22brute_force_cython_ext_query(CYTHON_UNUSED PyObject 
 
   /* "brute_force_cython_ext.pyx":12
  *     int psnip_builtin_popcountll(unsigned long long) nogil
- * 
+ *
  * def query(vector[string] all_filenames,             # <<<<<<<<<<<<<<
  *           vector[ull] all_hashes,
  *           ull query_hash_val,
@@ -3335,7 +3335,7 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
 
   /* "brute_force_cython_ext.pyx":12
  *     int psnip_builtin_popcountll(unsigned long long) nogil
- * 
+ *
  * def query(vector[string] all_filenames,             # <<<<<<<<<<<<<<
  *           vector[ull] all_hashes,
  *           ull query_hash_val,
@@ -3709,7 +3709,7 @@ if (!__Pyx_RefNanny) {
 
   /* "brute_force_cython_ext.pyx":12
  *     int psnip_builtin_popcountll(unsigned long long) nogil
- * 
+ *
  * def query(vector[string] all_filenames,             # <<<<<<<<<<<<<<
  *           vector[ull] all_hashes,
  *           ull query_hash_val,

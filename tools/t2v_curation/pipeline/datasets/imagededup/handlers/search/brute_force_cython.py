@@ -35,7 +35,7 @@ class BruteForceCython:
         filenames = []
         hash_vals = []
         for filename, hash_val in self.hash_dict.items():
-            filenames.append(filename.encode('utf-8'))
+            filenames.append(filename.encode("utf-8"))
             hash_vals.append(int(hash_val, 16))
 
         return brute_force_cython_ext.query(

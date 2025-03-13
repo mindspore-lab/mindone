@@ -11,10 +11,8 @@ import cv2
 import numpy as np
 import pandas as pd
 from PIL import Image
-from tqdm import tqdm
-
 from pipeline.datasets.utils import IMG_EXTENSIONS
-
+from tqdm import tqdm
 
 tqdm.pandas()
 
@@ -33,6 +31,7 @@ def apply(df, func, **kwargs):
 
 
 TRAIN_COLUMNS = ["path", "text", "num_frames", "fps", "height", "width", "aspect_ratio", "resolution", "text_len"]
+
 
 # ======================================================
 # --info
@@ -124,18 +123,20 @@ CAPTION_PREFIX = [
     "the image captures",
 ]
 
+
 def remove_caption_prefix(caption):
     # remove new lines with spaces
-    caption = caption.replace('\n', ' ')
-    caption = re.sub(' +', ' ', caption)
+    caption = caption.replace("\n", " ")
+    caption = re.sub(" +", " ", caption)
     caption = caption.strip()
     for prefix in CAPTION_PREFIX:
         if caption.startswith(prefix) or caption.startswith(prefix.lower()):
-            caption = caption[len(prefix):].strip()
+            caption = caption[len(prefix) :].strip()
             if caption and caption[0].islower():
                 caption = caption[0].upper() + caption[1:]
             return caption
     return caption
+
 
 # ======================================================
 # --merge-cmotion
@@ -470,7 +471,6 @@ def main(args):
     if args.lang is not None:
         detect_lang = build_lang_detector(args.lang)
 
-
     # IO-related
     if args.load_caption is not None:
         assert "path" in data.columns
@@ -601,7 +601,7 @@ def main(args):
         data = data[data["match"] >= args.matchmin]
     if args.lpipsmin is not None:
         assert "lpips" in data.columns
-        data = data[data['lpips'] >= args.lpipsmin]
+        data = data[data["lpips"] >= args.lpipsmin]
     if args.safety_check:
         assert "nsfw" in data.columns
         data = data[data["nsfw"] == 0]
@@ -672,7 +672,7 @@ def parse_args():
     parser.add_argument("--ext", action="store_true", help="check if the file exists")
     parser.add_argument(
         "--load-caption", type=str, default="json", choices=["json"], help="load the caption from json"
-    ) # currently support json only
+    )  # currently support json only
 
     # path processing
     parser.add_argument("--relpath", type=str, default=None, help="modify the path to relative path by root given")
@@ -715,9 +715,21 @@ def parse_args():
     parser.add_argument("--fmax", type=int, default=None, help="filter the dataset by maximum number of frames")
     parser.add_argument("--hwmax", type=int, default=None, help="filter the dataset by maximum resolution")
     parser.add_argument("--aesmin", type=float, default=None, help="filter the dataset by minimum aes score")
-    parser.add_argument("--ocr_box_max", type=float, default=None, help="filter the dataset by maximum number of text boxes recognized via OCR")
-    parser.add_argument("--ocr_single_max", type=float, default=None, help="filter the dataset by maximum single text box area percentage")
-    parser.add_argument("--ocr_total_max", type=float, default=None, help="filter the dataset by maximum total text box area percentage")
+    parser.add_argument(
+        "--ocr_box_max",
+        type=float,
+        default=None,
+        help="filter the dataset by maximum number of text boxes recognized via OCR",
+    )
+    parser.add_argument(
+        "--ocr_single_max",
+        type=float,
+        default=None,
+        help="filter the dataset by maximum single text box area percentage",
+    )
+    parser.add_argument(
+        "--ocr_total_max", type=float, default=None, help="filter the dataset by maximum total text box area percentage"
+    )
     parser.add_argument("--matchmin", type=float, default=None, help="filter the dataset by minimum match score")
     parser.add_argument("--fpsmax", type=float, default=None, help="filter the dataset by maximum fps")
     parser.add_argument("--img-only", action="store_true", help="only keep the image data")

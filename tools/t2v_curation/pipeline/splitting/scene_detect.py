@@ -1,14 +1,15 @@
 import argparse
 import os
 
+import cv2
 import numpy as np
 import pandas as pd
 from pandarallel import pandarallel
 from scenedetect import AdaptiveDetector, ContentDetector, detect
 from tqdm import tqdm
-import cv2
 
 tqdm.pandas()
+
 
 def convert_frames_to_timecode(frames, fps):
     total_seconds = frames / fps
@@ -18,22 +19,23 @@ def convert_frames_to_timecode(frames, fps):
     milliseconds = int((total_seconds % 1) * 1000)
     return f"{hours:02}:{minutes:02}:{seconds:02}.{milliseconds:03}"
 
-def process_single_row(row, detector_type='adaptive', max_cutscene_len=None):
-    assert detector_type in ['adaptive', 'content'], f"Detector type should be 'adaptive' or 'content', got {detector_type}."
+
+def process_single_row(row, detector_type="adaptive", max_cutscene_len=None):
+    assert detector_type in [
+        "adaptive",
+        "content",
+    ], f"Detector type should be 'adaptive' or 'content', got {detector_type}."
 
     video_path = row["path"]
 
     # default option in hpcai-OpenSora
-    if detector_type == 'adaptive':
+    if detector_type == "adaptive":
         detector = AdaptiveDetector(
             adaptive_threshold=3.0,
         )
     # default option in Panda-70M
-    elif detector_type == 'content':
-        detector = ContentDetector(
-            threshold=25,
-            min_scene_len=15
-        )
+    elif detector_type == "content":
+        detector = ContentDetector(threshold=25, min_scene_len=15)
 
     try:
         scene_list = detect(video_path, detector, start_in_scene=True)
@@ -54,8 +56,10 @@ def process_single_row(row, detector_type='adaptive', max_cutscene_len=None):
                 end_frame_idx.append(new_end_frame_idx)
 
             cutscenes = [(end_frame_idx[i], end_frame_idx[i + 1]) for i in range(len(end_frame_idx) - 1)]
-            timestamps = [(convert_frames_to_timecode(start, fps), convert_frames_to_timecode(end, fps)) for start, end in
-                          cutscenes]
+            timestamps = [
+                (convert_frames_to_timecode(start, fps), convert_frames_to_timecode(end, fps))
+                for start, end in cutscenes
+            ]
 
             return True, str(timestamps)
     except Exception as e:
@@ -67,10 +71,14 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str)
     parser.add_argument("--num_workers", type=int, default=None, help="#workers for pandarallel")
-    parser.add_argument('--detector', type=str, default='adaptive', choices=['adaptive', 'content'],
-                        help='Type of scene detector to use (adaptive or content).')
-    parser.add_argument('--max_cutscene_len', type=float, default=None,
-                        help='Maximum length for the cut scenes')
+    parser.add_argument(
+        "--detector",
+        type=str,
+        default="adaptive",
+        choices=["adaptive", "content"],
+        help="Type of scene detector to use (adaptive or content).",
+    )
+    parser.add_argument("--max_cutscene_len", type=float, default=None, help="Maximum length for the cut scenes")
     args = parser.parse_args()
     return args
 
@@ -88,7 +96,9 @@ def main():
         pandarallel.initialize(progress_bar=True)
 
     meta = pd.read_csv(meta_path)
-    ret = meta.parallel_apply(process_single_row, axis=1, detector_type=args.detector, max_cutscene_len=args.max_cutscene_len)
+    ret = meta.parallel_apply(
+        process_single_row, axis=1, detector_type=args.detector, max_cutscene_len=args.max_cutscene_len
+    )
 
     succ, timestamps = list(zip(*ret))
     meta["timestamp"] = timestamps

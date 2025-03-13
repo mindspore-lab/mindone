@@ -1,22 +1,21 @@
-from multiprocessing import cpu_count
 import sys
-from typing import Callable, Dict, Union, Tuple
+from multiprocessing import cpu_count
+from typing import Callable, Dict, Tuple, Union
 
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
-from tqdm import tqdm
-
 from pipeline.datasets.imagededup.handlers.search.bktree import BKTree
 from pipeline.datasets.imagededup.handlers.search.brute_force import BruteForce
 from pipeline.datasets.imagededup.handlers.search.brute_force_cython import BruteForceCython
 from pipeline.datasets.imagededup.utils.general_utils import parallelise
 from pipeline.datasets.imagededup.utils.logger import return_logger
+from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
 
 logger = return_logger(__name__)
 
 
 def cosine_similarity_chunk(t: Tuple) -> np.ndarray:
-    return cosine_similarity(t[0][t[1][0]: t[1][1]], t[0]).astype('float16')
+    return cosine_similarity(t[0][t[1][0] : t[1][1]], t[0]).astype("float16")
 
 
 def get_cosine_similarity(
@@ -32,9 +31,7 @@ def get_cosine_similarity(
         return cosine_similarity(X)
 
     else:
-        logger.info(
-            'Large feature matrix thus calculating cosine similarities in chunks...'
-        )
+        logger.info("Large feature matrix thus calculating cosine similarities in chunks...")
         start_idxs = list(range(0, n_rows, chunk_size))
         end_idxs = start_idxs[1:] + [n_rows]
 
@@ -47,8 +44,7 @@ def get_cosine_similarity(
             )
         else:
             cos_sim = tuple(
-                cosine_similarity_chunk((X, idxs))
-                for idxs in tqdm(zip(start_idxs, end_idxs), total=len(start_idxs))
+                cosine_similarity_chunk((X, idxs)) for idxs in tqdm(zip(start_idxs, end_idxs), total=len(start_idxs))
             )
         return np.vstack(cos_sim)
 
@@ -61,9 +57,7 @@ class HashEval:
         distance_function: Callable,
         verbose: bool = True,
         threshold: int = 5,
-        search_method: str = 'brute_force_cython'
-        if not sys.platform == 'win32'
-        else 'bktree',
+        search_method: str = "brute_force_cython" if not sys.platform == "win32" else "bktree",
         num_dist_workers: int = cpu_count(),
     ) -> None:
         """
@@ -78,9 +72,9 @@ class HashEval:
         self.query_results_map = None
         self.num_dist_workers = num_dist_workers
 
-        if search_method == 'bktree':
+        if search_method == "bktree":
             self._fetch_nearest_neighbors_bktree()
-        elif search_method == 'brute_force':
+        elif search_method == "brute_force":
             self._fetch_nearest_neighbors_brute_force()
         else:
             self._fetch_nearest_neighbors_brute_force_cython()
@@ -100,9 +94,7 @@ class HashEval:
         res = [i for i in res if i[0] != query_key]  # to avoid self retrieval
         return res
 
-    def _get_query_results(
-        self, search_method_object: Union[BruteForce, BKTree]
-    ) -> None:
+    def _get_query_results(self, search_method_object: Union[BruteForce, BKTree]) -> None:
         """
         Get result for the query using specified search object. Populate the global query_results_map.
 
@@ -117,42 +109,39 @@ class HashEval:
                 [self.threshold] * len(self.queries),
             )
         )
-        result_map_list = parallelise(
-            self._searcher, args, self.verbose, num_workers=self.num_dist_workers
-        )
+        result_map_list = parallelise(self._searcher, args, self.verbose, num_workers=self.num_dist_workers)
         result_map = dict(zip(list(self.queries.keys()), result_map_list))
 
         self.query_results_map = {
-            k: [i for i in sorted(v, key=lambda tup: tup[1], reverse=False)]
-            for k, v in result_map.items()
+            k: [i for i in sorted(v, key=lambda tup: tup[1], reverse=False)] for k, v in result_map.items()
         }  # {'filename.jpg': [('dup1.jpg', 3)], 'filename2.jpg': [('dup2.jpg', 10)]}
 
     def _fetch_nearest_neighbors_brute_force(self) -> None:
         """
         Wrapper function to retrieve results for all queries in dataset using brute-force search.
         """
-        logger.info('Start: Retrieving duplicates using Brute force algorithm')
+        logger.info("Start: Retrieving duplicates using Brute force algorithm")
         brute_force = BruteForce(self.test, self.distance_invoker)
         self._get_query_results(brute_force)
-        logger.info('End: Retrieving duplicates using Brute force algorithm')
+        logger.info("End: Retrieving duplicates using Brute force algorithm")
 
     def _fetch_nearest_neighbors_brute_force_cython(self) -> None:
         """
         Wrapper function to retrieve results for all queries in dataset using brute-force search.
         """
-        logger.info('Start: Retrieving duplicates using Cython Brute force algorithm')
+        logger.info("Start: Retrieving duplicates using Cython Brute force algorithm")
         brute_force_cython = BruteForceCython(self.test, self.distance_invoker)
         self._get_query_results(brute_force_cython)
-        logger.info('End: Retrieving duplicates using Cython Brute force algorithm')
+        logger.info("End: Retrieving duplicates using Cython Brute force algorithm")
 
     def _fetch_nearest_neighbors_bktree(self) -> None:
         """
         Wrapper function to retrieve results for all queries in dataset using a BKTree search.
         """
-        logger.info('Start: Retrieving duplicates using BKTree algorithm')
+        logger.info("Start: Retrieving duplicates using BKTree algorithm")
         built_tree = BKTree(self.test, self.distance_invoker)  # construct bktree
         self._get_query_results(built_tree)
-        logger.info('End: Retrieving duplicates using BKTree algorithm')
+        logger.info("End: Retrieving duplicates using BKTree algorithm")
 
     def retrieve_results(self, scores: bool = False) -> Dict:
         """

@@ -1,22 +1,16 @@
 import sys
 import warnings
-
+from multiprocessing import cpu_count
 from pathlib import PurePath
 from typing import Dict, List, Optional
 
-from multiprocessing import cpu_count
 import numpy as np
 import pywt
-from scipy.fftpack import dct
-
 from pipeline.datasets.imagededup.handlers.search.retrieval import HashEval
-from pipeline.datasets.imagededup.utils.general_utils import (
-    get_files_to_remove,
-    save_json,
-    parallelise,
-)
-from pipeline.datasets.imagededup.utils.image_utils import preprocess_image, check_image_array_hash
+from pipeline.datasets.imagededup.utils.general_utils import get_files_to_remove, parallelise, save_json
+from pipeline.datasets.imagededup.utils.image_utils import check_image_array_hash, preprocess_image
 from pipeline.datasets.imagededup.utils.logger import return_logger
+from scipy.fftpack import dct
 
 logger = return_logger(__name__)
 
@@ -68,9 +62,7 @@ class Hashing:
         Returns:
             hamming_distance: Hamming distance between the two hashes.
         """
-        hash1_bin = bin(int(hash1, 16))[2:].zfill(
-            64
-        )  # zfill ensures that len of hash is 64 and pads MSB if it is < A
+        hash1_bin = bin(int(hash1, 16))[2:].zfill(64)  # zfill ensures that len of hash is 64 and pads MSB if it is < A
         hash2_bin = bin(int(hash2, 16))[2:].zfill(64)
         return np.sum([i != j for i, j in zip(hash1_bin, hash2_bin)])
 
@@ -85,7 +77,7 @@ class Hashing:
         Returns:
             An hexadecimal hash string.
         """
-        return ''.join('%0.2x' % x for x in np.packbits(hash_mat))
+        return "".join("%0.2x" % x for x in np.packbits(hash_mat))
 
     def encode_image(self, image_array: Optional[np.ndarray] = None) -> str:
         """
@@ -106,11 +98,9 @@ class Hashing:
         """
         try:
             check_image_array_hash(image_array)  # Do sanity checks on array
-            image_pp = preprocess_image(
-                image=image_array, target_size=self.target_size, grayscale=True
-                )
+            image_pp = preprocess_image(image=image_array, target_size=self.target_size, grayscale=True)
         except (ValueError, TypeError):
-            raise ValueError('Error processing the provided image array!')
+            raise ValueError("Error processing the provided image array!")
 
         return self._hash_func(image_pp) if isinstance(image_pp, np.ndarray) else None
 
@@ -134,24 +124,25 @@ class Hashing:
         ```
         """
         if not paths or not image_arrays:
-            raise ValueError('Please provide both paths and image arrays!')
+            raise ValueError("Please provide both paths and image arrays!")
 
         if len(paths) != len(image_arrays):
-            raise ValueError('Paths and image arrays must have the same length!')
+            raise ValueError("Paths and image arrays must have the same length!")
 
-        logger.info(f'Start: Calculating hashes...')
+        logger.info(f"Start: Calculating hashes...")
 
         # Use parallel processing if num_enc_workers > 0
         if num_enc_workers > 0:
-            hashes = parallelise(function=self.encode_image, data=image_arrays, num_workers=num_enc_workers,
-                                 verbose=self.verbose)
+            hashes = parallelise(
+                function=self.encode_image, data=image_arrays, num_workers=num_enc_workers, verbose=self.verbose
+            )
         else:
             hashes = [self.encode_image(image_array=img) for img in image_arrays]
 
         # Create the dictionary mapping paths to hashes
         hash_dict = {path: hash for path, hash in zip(paths, hashes) if hash}
 
-        logger.info(f'End: Calculating hashes!')
+        logger.info(f"End: Calculating hashes!")
         return hash_dict
 
     def _hash_algo(self, image_array: np.ndarray):
@@ -177,9 +168,9 @@ class Hashing:
             ValueError: If invalid value is provided.
         """
         if not isinstance(thresh, int):
-            raise TypeError('Threshold must be an int between 0 and 64')
+            raise TypeError("Threshold must be an int between 0 and 64")
         elif thresh < 0 or thresh > 64:
-            raise ValueError('Threshold must be an int between 0 and 64')
+            raise ValueError("Threshold must be an int between 0 and 64")
         else:
             return None
 
@@ -189,8 +180,8 @@ class Hashing:
         max_distance_threshold: int = 10,
         scores: bool = False,
         outfile: Optional[str] = None,
-        search_method: str = 'brute_force_cython' if not sys.platform == 'win32' else 'bktree',
-        num_dist_workers: int = cpu_count()
+        search_method: str = "brute_force_cython" if not sys.platform == "win32" else "bktree",
+        num_dist_workers: int = cpu_count(),
     ) -> Dict:
         """
         Take in dictionary {filename: encoded image}, detects duplicates below the given hamming distance threshold
@@ -212,7 +203,7 @@ class Hashing:
             if scores is False, then a dictionary of the form {'image1.jpg': ['image1_duplicate1.jpg',
             'image1_duplicate2.jpg'], 'image2.jpg':['image1_duplicate1.jpg',..], ..}
         """
-        logger.info('Start: Evaluating hamming distances for getting duplicates')
+        logger.info("Start: Evaluating hamming distances for getting duplicates")
 
         result_set = HashEval(
             test=encoding_map,
@@ -221,10 +212,10 @@ class Hashing:
             verbose=self.verbose,
             threshold=max_distance_threshold,
             search_method=search_method,
-            num_dist_workers=num_dist_workers
+            num_dist_workers=num_dist_workers,
         )
 
-        logger.info('End: Evaluating hamming distances for getting duplicates')
+        logger.info("End: Evaluating hamming distances for getting duplicates")
 
         self.results = result_set.retrieve_results(scores=scores)
         if outfile:
@@ -238,10 +229,10 @@ class Hashing:
         max_distance_threshold: int = 10,
         scores: bool = False,
         outfile: Optional[str] = None,
-        search_method: str = 'brute_force_cython' if not sys.platform == 'win32' else 'bktree',
+        search_method: str = "brute_force_cython" if not sys.platform == "win32" else "bktree",
         recursive: Optional[bool] = False,
         num_enc_workers: int = cpu_count(),
-        num_dist_workers: int = cpu_count()
+        num_dist_workers: int = cpu_count(),
     ) -> Dict:
         """
         Find duplicates for each file. Takes in path of the directory or encoding dictionary in which duplicates are to
@@ -295,24 +286,26 @@ class Hashing:
                 search_method=search_method,
                 recursive=recursive,
                 num_enc_workers=num_enc_workers,
-                num_dist_workers=num_dist_workers
+                num_dist_workers=num_dist_workers,
             )
         elif encoding_map:
             if recursive:
-                warnings.warn('recursive parameter is irrelevant when using encodings.', SyntaxWarning)
-            
-            warnings.warn('Parameter num_enc_workers has no effect since encodings are already provided', RuntimeWarning)
-            
+                warnings.warn("recursive parameter is irrelevant when using encodings.", SyntaxWarning)
+
+            warnings.warn(
+                "Parameter num_enc_workers has no effect since encodings are already provided", RuntimeWarning
+            )
+
             result = self._find_duplicates_dict(
                 encoding_map=encoding_map,
                 max_distance_threshold=max_distance_threshold,
                 scores=scores,
                 outfile=outfile,
                 search_method=search_method,
-                num_dist_workers=num_dist_workers
+                num_dist_workers=num_dist_workers,
             )
         else:
-            raise ValueError('Provide either an image directory or encodings!')
+            raise ValueError("Provide either an image directory or encodings!")
         return result
 
     def _find_duplicates_dir(
@@ -321,10 +314,10 @@ class Hashing:
         max_distance_threshold: int = 10,
         scores: bool = False,
         outfile: Optional[str] = None,
-        search_method: str = 'brute_force_cython' if not sys.platform == 'win32' else 'bktree',
+        search_method: str = "brute_force_cython" if not sys.platform == "win32" else "bktree",
         recursive: Optional[bool] = False,
         num_enc_workers: int = cpu_count(),
-        num_dist_workers: int = cpu_count()
+        num_dist_workers: int = cpu_count(),
     ) -> Dict:
         """
         Take in path of the directory in which duplicates are to be detected below the given hamming distance
@@ -354,7 +347,7 @@ class Hashing:
             scores=scores,
             outfile=outfile,
             search_method=search_method,
-            num_dist_workers=num_dist_workers
+            num_dist_workers=num_dist_workers,
         )
         return results
 
@@ -366,7 +359,7 @@ class Hashing:
         outfile: Optional[str] = None,
         recursive: Optional[bool] = False,
         num_enc_workers: int = cpu_count(),
-        num_dist_workers: int = cpu_count()
+        num_dist_workers: int = cpu_count(),
     ) -> List:
         """
         Give out a list of image file names to remove based on the hamming distance threshold threshold. Does not
@@ -409,7 +402,7 @@ class Hashing:
             scores=False,
             recursive=recursive,
             num_enc_workers=num_enc_workers,
-            num_dist_workers=num_dist_workers
+            num_dist_workers=num_dist_workers,
         )
         files_to_remove = get_files_to_remove(result)
         if outfile:
@@ -476,9 +469,7 @@ class PHash(Hashing):
         dct_coef = dct(dct(image_array, axis=0), axis=1)
 
         # retain top left 8 by 8 dct coefficients
-        dct_reduced_coef = dct_coef[
-            : self.__coefficient_extract[0], : self.__coefficient_extract[1]
-        ]
+        dct_reduced_coef = dct_coef[: self.__coefficient_extract[0], : self.__coefficient_extract[1]]
 
         # median of coefficients excluding the DC term (0th term)
         # mean_coef_val = np.mean(np.ndarray.flatten(dct_reduced_coef)[1:])
@@ -653,7 +644,7 @@ class WHash(Hashing):
         """
         super().__init__(verbose)
         self.target_size = (256, 256)
-        self.__wavelet_func = 'haar'
+        self.__wavelet_func = "haar"
 
     def _hash_algo(self, image_array):
         """

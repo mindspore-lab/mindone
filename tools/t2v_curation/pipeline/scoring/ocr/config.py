@@ -1,5 +1,6 @@
 import argparse
 
+
 def str2bool(v):
     if isinstance(v, bool):
         return v
@@ -10,16 +11,21 @@ def str2bool(v):
     else:
         raise argparse.ArgumentTypeError("Boolean value expected.")
 
+
 def create_parser():
     parser = argparse.ArgumentParser(description="Inference Config Args")
     # csv path
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
     # OCR options - compute total # of boxes, max single box percentage, total text area percentage
-    parser.add_argument('--num_boxes', action='store_true', help='Compute and store the total number of boxes')
-    parser.add_argument('--max_single_percentage', action='store_true',
-                        help='Compute and store the maximum single text box area percentage')
-    parser.add_argument('--total_text_percentage', action='store_true',
-                        help='Compute and store the total text area percentage')
+    parser.add_argument("--num_boxes", action="store_true", help="Compute and store the total number of boxes")
+    parser.add_argument(
+        "--max_single_percentage",
+        action="store_true",
+        help="Compute and store the maximum single text box area percentage",
+    )
+    parser.add_argument(
+        "--total_text_percentage", action="store_true", help="Compute and store the total text area percentage"
+    )
     # batch size
     parser.add_argument("--bs", type=int, default=1, help="Batch size")  # larger batch size meaningless
     # skip ocr if the file already exists
@@ -164,6 +170,7 @@ def create_parser():
     parser.add_argument("--kie_batch_num", type=int, default=8)
 
     return parser
+
 
 def parse_args():
     parser = create_parser()

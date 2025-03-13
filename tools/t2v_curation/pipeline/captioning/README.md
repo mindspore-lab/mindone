@@ -1,7 +1,7 @@
 # Video Captioning
 
-Human labeling of videos is expensive and time-consuming. 
-We adopt powerful image captioning models to generate 
+Human labeling of videos is expensive and time-consuming.
+We adopt powerful image captioning models to generate
 captions for videos. Empirically, we observe that Qwen2-VL
 consistently provide high-quality captions for videos.
 Qwen2-VL-72B model showcases top-tier performance across
@@ -41,16 +41,14 @@ We support the following arguments for Qwen2-VL captioning:
 - `bs`: Batch size. Default 1.
 - `skip_if_existing`: Skip processing if output already exists. Default False.
 
-**NOTE:** When running large-scale parallel inference, 
-the default `HCCL_CONNECT_TIMEOUT` setting might be 
-insufficient, potentially causing runtime errors with 
-AllGather operations. To avoid this issue, consider 
-setting `export HCCL_CONNECT_TIMEOUT=7200` (corresponds to 
-7200 seconds) or adjusting it according to your 
+**NOTE:** When running large-scale parallel inference,
+the default `HCCL_CONNECT_TIMEOUT` setting might be
+insufficient, potentially causing runtime errors with
+AllGather operations. To avoid this issue, consider
+setting `export HCCL_CONNECT_TIMEOUT=7200` (corresponds to
+7200 seconds) or adjusting it according to your
 specific needs.
 
 Additionally, an empty caption will be generated if the
-input exceeds the memory usage limit. You may try to 
+input exceeds the memory usage limit. You may try to
 reduce the height, width, or fps to avoid this issue.
-
-

@@ -1,11 +1,12 @@
 import argparse
 import os
+
 import numpy as np
 import pandas as pd
-from pipeline.datasets.imagededup.methods import PHash, AHash, DHash, WHash
+from pipeline.datasets.imagededup.methods import AHash, DHash, PHash, WHash
+from pipeline.datasets.utils import extract_frames, is_video, pil_loader
 from tqdm import tqdm
 
-from pipeline.datasets.utils import extract_frames, pil_loader, is_video
 
 class VideoTextDataset:
     def __init__(self, meta_path):
@@ -14,7 +15,7 @@ class VideoTextDataset:
 
     def __getitem__(self, index):
         sample = self.meta.iloc[index]
-        path = sample['path']
+        path = sample["path"]
 
         # extract the middle frame
         if not is_video(path):
@@ -29,16 +30,26 @@ class VideoTextDataset:
     def __len__(self):
         return len(self.meta)
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
     parser.add_argument("--skip_if_existing", action="store_true")
-    parser.add_argument("--hash", type=str, default='phash',
-                        help="Hash algorithm to use, choose from 'phash', 'ahash', 'dhash', or 'whash'")
-    parser.add_argument("--threshold", type=int, default=15,
-                help='Max distance threshold for detecting duplication after encoding and hashing, between 1 to 64')
+    parser.add_argument(
+        "--hash",
+        type=str,
+        default="phash",
+        help="Hash algorithm to use, choose from 'phash', 'ahash', 'dhash', or 'whash'",
+    )
+    parser.add_argument(
+        "--threshold",
+        type=int,
+        default=15,
+        help="Max distance threshold for detecting duplication after encoding and hashing, between 1 to 64",
+    )
     args = parser.parse_args()
     return args
+
 
 def main():
     args = parse_args()
@@ -59,13 +70,13 @@ def main():
         exit()
 
     dataset = VideoTextDataset(meta_path)
-    if args.hash == 'phash':
+    if args.hash == "phash":
         hasher = PHash()
-    elif args.hash == 'ahash':
+    elif args.hash == "ahash":
         hasher = AHash()
-    elif args.hash == 'dhash':
+    elif args.hash == "dhash":
         hasher = DHash()
-    elif args.hash == 'whash':
+    elif args.hash == "whash":
         hasher = WHash()
     else:
         print(f"Invalid hash {args.hash}. Must be one of 'phash', 'ahash', 'dhash', 'whash'. Exit.")
@@ -81,7 +92,7 @@ def main():
     duplicates = hasher.find_duplicates_to_remove(encoding_map=encodings, max_distance_threshold=args.threshold)
     duplicate_paths = set(duplicates)
 
-    deduplicated_meta = dataset.meta[~dataset.meta['path'].isin(duplicate_paths)]
+    deduplicated_meta = dataset.meta[~dataset.meta["path"].isin(duplicate_paths)]
     deduplicated_meta.to_csv(out_path, index=False)
     print(f"Deduplicated videos saved to '{out_path}'.")
 

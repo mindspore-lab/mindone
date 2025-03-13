@@ -1,9 +1,9 @@
 import argparse
 import os
+import subprocess
 from functools import partial
 
 import pandas as pd
-import subprocess
 from imageio_ffmpeg import get_ffmpeg_exe
 from pandarallel import pandarallel
 from scenedetect import FrameTimecode
@@ -11,11 +11,13 @@ from tqdm import tqdm
 
 tqdm.pandas()
 
+
 def print_log(s, logger=None):
     if logger is not None:
         logger.info(s)
     else:
         print(s)
+
 
 def process_single_row(row, args):
     video_path = row["path"]
@@ -61,6 +63,7 @@ def process_single_row(row, args):
 
     return True
 
+
 def split_video(
     video_path,
     scene_list,
@@ -73,17 +76,17 @@ def split_video(
     logger=None,
 ):
     """
-        scenes shorter than min_seconds will be ignored;
-        scenes longer than max_seconds will be cut to save the beginning max_seconds.
-        Currently, the saved file name pattern is f'{fname}_scene-{idx}'.mp4
+    scenes shorter than min_seconds will be ignored;
+    scenes longer than max_seconds will be cut to save the beginning max_seconds.
+    Currently, the saved file name pattern is f'{fname}_scene-{idx}'.mp4
 
-        Args:
-            scene_list (List[Tuple[FrameTimecode, FrameTimecode]]): each element is (s, t): start and end of a scene.
-            min_seconds (float | None)
-            max_seconds (float | None)
-            target_fps (int | None)
-            shorter_size (int | None)
-        """
+    Args:
+        scene_list (List[Tuple[FrameTimecode, FrameTimecode]]): each element is (s, t): start and end of a scene.
+        min_seconds (float | None)
+        max_seconds (float | None)
+        target_fps (int | None)
+        shorter_size (int | None)
+    """
     FFMPEG_PATH = get_ffmpeg_exe()
 
     save_path_list = []
@@ -125,7 +128,7 @@ def split_video(
 
         cmd += ["-map", "0:v", save_path]
 
-        proc = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr = subprocess.STDOUT)
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         proc.communicate()
 
         if os.path.exists(save_path):
@@ -134,6 +137,7 @@ def split_video(
                 print_log(f"Video clip saved to '{save_path}'", logger)
 
     return save_path_list
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -154,6 +158,7 @@ def parse_args():
     parser.add_argument("--drop_invalid_timestamps", action="store_true", help="drop rows with invalid timestamps")
     args = parser.parse_args()
     return args
+
 
 def main():
     args = parse_args()
@@ -184,6 +189,7 @@ def main():
         assert args.meta_path.endswith("timestamp.csv"), "Only support *timestamp.csv"
         meta.to_csv(args.meta_path.replace("timestamp.csv", "correct_timestamp.csv"), index=False)
         print(f"Corrected timestamp file saved to '{args.meta_path.replace('timestamp.csv', 'correct_timestamp.csv')}'")
+
 
 if __name__ == "__main__":
     main()

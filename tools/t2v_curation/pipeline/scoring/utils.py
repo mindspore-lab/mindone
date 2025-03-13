@@ -1,11 +1,12 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 NUM_FRAMES_POINTS = {
     1: (0.5,),
     2: (0.25, 0.75),
     3: (0.1, 0.5, 0.9),
 }
+
 
 def merge_scores(gathered_list: list, meta: pd.DataFrame, column):
     # reorder

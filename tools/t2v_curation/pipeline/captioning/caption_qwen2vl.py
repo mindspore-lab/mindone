@@ -4,15 +4,14 @@ import sys
 
 import numpy as np
 import pandas as pd
-import mindspore as ms
-import mindspore.mint as mint
-import mindspore.dataset as ds
-from mindspore.mint.distributed import init_process_group, get_rank, get_world_size
-from mindspore.mint.distributed import all_gather, all_gather_object
+from pipeline.scoring.utils import merge_scores
 from tqdm import tqdm
 from transformers import AutoProcessor
 
-from pipeline.scoring.utils import merge_scores
+import mindspore as ms
+import mindspore.dataset as ds
+import mindspore.mint as mint
+from mindspore.mint.distributed import all_gather, all_gather_object, get_rank, get_world_size, init_process_group
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
@@ -21,6 +20,7 @@ sys.path.insert(0, mindone_lib_path)
 from mindone.transformers import Qwen2VLForConditionalGeneration
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
 
+
 class VideoTextDataset:
     def __init__(self, meta_path):
         self.meta_path = meta_path
@@ -28,27 +28,27 @@ class VideoTextDataset:
 
     def __getitem__(self, index):
         sample = self.meta.iloc[index]
-        path = sample['path']
+        path = sample["path"]
         return path, index
 
     def __len__(self):
         return len(self.meta)
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
-    parser.add_argument("--pretrained_model_name_or_path", type=str,
-                        default="Qwen/Qwen2-VL-7B-Instruct")
+    parser.add_argument("--pretrained_model_name_or_path", type=str, default="Qwen/Qwen2-VL-7B-Instruct")
     parser.add_argument("--question", type=str, default="Describe the video in details.")
-    parser.add_argument("--height", type=int, default=448, help = "resized video height")
-    parser.add_argument("--width", type=int, default=672, help = "resized video width")
-    parser.add_argument("--fps", type=int, default=4, help = "fps to sample from video")
+    parser.add_argument("--height", type=int, default=448, help="resized video height")
+    parser.add_argument("--width", type=int, default=672, help="resized video width")
+    parser.add_argument("--fps", type=int, default=4, help="fps to sample from video")
     parser.add_argument("--bs", type=int, default=1, help="Batch size")
-    parser.add_argument("--skip_if_existing", action="store_true",
-                        help="Skip processing if output CSV already exists.")
+    parser.add_argument("--skip_if_existing", action="store_true", help="Skip processing if output CSV already exists.")
     parser.add_argument("--max_new_tokens", type=int, default=200, help="Max tokens to generate")
     args = parser.parse_args()
     return args
+
 
 def main():
     args = parse_args()
@@ -73,20 +73,14 @@ def main():
 
     print("Loading Qwen2VLForConditionalGeneration Model")
     model = Qwen2VLForConditionalGeneration.from_pretrained(
-        args.pretrained_model_name_or_path,
-        mindspore_dtype = ms.float16,
-        attn_implementation = "flash_attention_2"
+        args.pretrained_model_name_or_path, mindspore_dtype=ms.float16, attn_implementation="flash_attention_2"
     ).set_train(False)
     print("Loading AutoProcessor")
     processor = AutoProcessor.from_pretrained(args.pretrained_model_name_or_path)
 
     raw_dataset = VideoTextDataset(meta_path)
     dataset = ds.GeneratorDataset(
-        source=raw_dataset,
-        column_names=["video_path", "index"],
-        shuffle=False,
-        num_shards=rank_size,
-        shard_id=rank_id
+        source=raw_dataset, column_names=["video_path", "index"], shuffle=False, num_shards=rank_size, shard_id=rank_id
     )
     dataset = dataset.batch(args.bs, drop_remainder=False)
     iterator = dataset.create_dict_iterator(num_epochs=1, output_numpy=True)
@@ -134,8 +128,9 @@ def main():
                         inputs[key] = inputs[key].to(ms.int32)
 
                 generated_ids = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
-                output_text = processor.batch_decode(generated_ids, skip_special_tokens=True,
-                                                     clean_up_tokenization_spaces=False)[0]
+                output_text = processor.batch_decode(
+                    generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+                )[0]
             except Exception as e:
                 print(f"Error processing video {video_path}: {e}")
                 output_text = ""
@@ -157,12 +152,13 @@ def main():
             meta_local = merge_scores([(indices_list_all, caption_list_all)], raw_dataset.meta, column="text")
     elif rank_size == 1:
         meta_local = raw_dataset.meta.copy()
-        meta_local['text'] = caption_list
+        meta_local["text"] = caption_list
 
     if rank_id == 0:
         meta_local.to_csv(out_path, index=False)
         print(meta_local.head())
         print(f"New meta with captions saved to '{out_path}'.")
+
 
 if __name__ == "__main__":
     main()

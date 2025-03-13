@@ -1,5 +1,5 @@
-from setuptools import setup, Extension
 from Cython.Build import cythonize
+from setuptools import Extension, setup
 
 extensions = [
     Extension(
@@ -11,6 +11,6 @@ extensions = [
 ]
 
 setup(
-    name='brute_force_cython_ext',
+    name="brute_force_cython_ext",
     ext_modules=cythonize(extensions),
 )

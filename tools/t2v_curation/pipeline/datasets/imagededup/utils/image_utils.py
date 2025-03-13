@@ -1,13 +1,11 @@
 from pathlib import PurePath
-from typing import List, Union, Tuple
+from typing import List, Tuple, Union
 
 import numpy as np
 from PIL import Image
-
 from pipeline.datasets.imagededup.utils.logger import return_logger
 
-
-IMG_FORMATS = ['JPEG', 'PNG', 'BMP', 'MPO', 'PPM', 'TIFF', 'GIF', 'WEBP']
+IMG_FORMATS = ["JPEG", "PNG", "BMP", "MPO", "PPM", "TIFF", "GIF", "WEBP"]
 logger = return_logger(__name__)
 
 
@@ -19,8 +17,7 @@ def _check_3_dim(image_arr_shape: Tuple) -> None:
         image_arr_shape: Shape of the image numpy array.
     """
     assert image_arr_shape[2] == 3, (
-        f'Received image array with shape: {image_arr_shape}, expected image array shape is '
-        f'(x, y, 3)'
+        f"Received image array with shape: {image_arr_shape}, expected image array shape is " f"(x, y, 3)"
     )
 
 
@@ -48,8 +45,8 @@ def _raise_wrong_dim_value_error(image_arr_shape: Tuple) -> None:
         image_arr_shape: Image array shape.
     """
     raise ValueError(
-        f'Received image array with shape: {image_arr_shape}, expected number of image array dimensions are 3 for '
-        f'rgb image and 2 for grayscale image!'
+        f"Received image array with shape: {image_arr_shape}, expected number of image array dimensions are 3 for "
+        f"rgb image and 2 for grayscale image!"
     )
 
 
@@ -89,9 +86,7 @@ def expand_image_array_cnn(image_arr: np.ndarray) -> np.ndarray:
         _raise_wrong_dim_value_error(image_arr_shape)
 
 
-def preprocess_image(
-    image, target_size: Tuple[int, int] = None, grayscale: bool = False
-) -> np.ndarray:
+def preprocess_image(image, target_size: Tuple[int, int] = None, grayscale: bool = False) -> np.ndarray:
     """
     Take as input an image as numpy array or Pillow format. Returns an array version of optionally resized and grayed
     image.
@@ -105,21 +100,21 @@ def preprocess_image(
         A numpy array of the processed image.
     """
     if isinstance(image, np.ndarray):
-        image = image.astype('uint8')
+        image = image.astype("uint8")
         image_pil = Image.fromarray(image)
 
     elif isinstance(image, Image.Image):
         image_pil = image
     else:
-        raise ValueError('Input is expected to be a numpy array or a pillow object!')
+        raise ValueError("Input is expected to be a numpy array or a pillow object!")
 
     if target_size:
         image_pil = image_pil.resize(target_size, Image.LANCZOS)
 
     if grayscale:
-        image_pil = image_pil.convert('L')
+        image_pil = image_pil.convert("L")
 
-    return np.array(image_pil).astype('uint8')
+    return np.array(image_pil).astype("uint8")
 
 
 def load_image(
@@ -143,19 +138,19 @@ def load_image(
 
         # validate image format
         if img.format not in img_formats:
-            logger.warning(f'Invalid image format {img.format}!')
+            logger.warning(f"Invalid image format {img.format}!")
             return None
 
         else:
-            if img.mode != 'RGB':
+            if img.mode != "RGB":
                 # convert to RGBA first to avoid warning
                 # we ignore alpha channel if available
-                img = img.convert('RGBA').convert('RGB')
+                img = img.convert("RGBA").convert("RGB")
 
             img = preprocess_image(img, target_size=target_size, grayscale=grayscale)
 
             return img
 
     except Exception as e:
-        logger.warning(f'Invalid image file {image_file}:\n{e}')
+        logger.warning(f"Invalid image file {image_file}:\n{e}")
         return None

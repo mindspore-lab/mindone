@@ -2,18 +2,20 @@ import logging
 import os
 
 import mindcv
+
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
 
 _logger = logging.getLogger(__name__)
 
+
 class LPIPS(nn.Cell):
     # learned perceptual metric
     def __init__(self, use_dropout=True):
         super().__init__()
         self.scaling_layer = ScalingLayer()
-        self.chns = [64, 128, 256, 512, 512] # vgg16 features
+        self.chns = [64, 128, 256, 512, 512]  # vgg16 features
         self.lin0 = NetLinLayer(self.chns[0], use_dropout=use_dropout)
         self.lin1 = NetLinLayer(self.chns[1], use_dropout=use_dropout)
         self.lin2 = NetLinLayer(self.chns[2], use_dropout=use_dropout)
@@ -31,8 +33,10 @@ class LPIPS(nn.Cell):
     def load_from_pretrained(self, ckpt_path):
         # load directly ms ckpt
         if not os.path.exists(ckpt_path):
-            raise ValueError(f"Checkpoint not found: {ckpt_path}. You may download it at"
-                             f"https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt")
+            raise ValueError(
+                f"Checkpoint not found: {ckpt_path}. You may download it at"
+                f"https://download-mindspore.osinfra.cn/toolkits/mindone/autoencoders/lpips_vgg-426bf45c.ckpt"
+            )
 
         state_dict = ms.load_checkpoint(ckpt_path)
         m, u = ms.load_param_into_net(self, state_dict)
@@ -48,12 +52,13 @@ class LPIPS(nn.Cell):
     def construct(self, input, target):
         in0_input, in1_input = (self.scaling_layer(input), self.scaling_layer(target))
         outs0, outs1 = self.net(in0_input), self.net(in1_input)
-        val = 0 # ms.Tensor(0, dtype=input.dtype)
+        val = 0  # ms.Tensor(0, dtype=input.dtype)
         lins = [self.lin0, self.lin1, self.lin2, self.lin3, self.lin4]
         for kk in range(len(self.chns)):
-            diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk]))**2
-            val += ops.mean(lins[kk](diff), axis = [2, 3], keep_dims = True)
+            diff = (normalize_tensor(outs0[kk]) - normalize_tensor(outs1[kk])) ** 2
+            val += ops.mean(lins[kk](diff), axis=[2, 3], keep_dims=True)
         return val
+
 
 class ScalingLayer(nn.Cell):
     def __init__(self):
@@ -64,24 +69,19 @@ class ScalingLayer(nn.Cell):
     def construct(self, inp):
         return (inp - self.shift) / self.scale
 
+
 class NetLinLayer(nn.Cell):
-    """ A single linear layer which does a 1x1 conv """
+    """A single linear layer which does a 1x1 conv"""
+
     def __init__(self, chn_in, chn_out=1, use_dropout=False, dtype=ms.float32):
         super(NetLinLayer, self).__init__()
-        layers = (
-            [
-                nn.Dropout(p=0.5).to_float(dtype)
-            ]
-            if (use_dropout)
-            else []
-        )
-        layers += [
-            nn.Conv2d(chn_in, chn_out, 1, stride=1, padding=0, has_bias=False).to_float(dtype)
-        ]
+        layers = [nn.Dropout(p=0.5).to_float(dtype)] if (use_dropout) else []
+        layers += [nn.Conv2d(chn_in, chn_out, 1, stride=1, padding=0, has_bias=False).to_float(dtype)]
         self.model = nn.SequentialCell(layers)
 
     def construct(self, x):
         return self.model(x)
+
 
 class vgg16(nn.Cell):
     def __init__(self, requires_grad=False, pretrained=True):

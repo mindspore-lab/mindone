@@ -2,7 +2,7 @@
 
 Below is a sample example command line workflow.
 You may run the pipeline step by step or run certain steps
-based on your needs. 
+based on your needs.
 
 
 ### 0. set up
@@ -53,7 +53,7 @@ python -m pipeline.datasets.deduplication ${ROOT_META}/meta_clips_info_fmin1.csv
 ```
 
 ### 4. Scoring and filtering
-For convenience, we assume `working_meta.csv` is the input file 
+For convenience, we assume `working_meta.csv` is the input file
 under the `${ROOT_META}` directory for all commands below.
 
 **4.1.1 Calculate matching scores with an option.**
@@ -88,7 +88,7 @@ python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --ocr_total_m
 **4.3.1 Predict LPIPS scores.**
 ```bash
 msrun --worker_num=2 --local_worker_num=2 --join=True \
- --log_dir=msrun_log pipeline/scoring/lpips/inference.py \ 
+ --log_dir=msrun_log pipeline/scoring/lpips/inference.py \
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 
@@ -104,7 +104,7 @@ python -m scoring.aesthetic.inference ${ROOT_META}/working_meta.csv --use_cpu # 
 
 ```bash
 msrun --worker_num=2 --local_worker_num=2 --join=True \
- --log_dir=msrun_log pipeline/scoring/aesthetic/inference.py \ 
+ --log_dir=msrun_log pipeline/scoring/aesthetic/inference.py \
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 
@@ -120,7 +120,7 @@ python -m scoring.nsfw.inference ${ROOT_META}/working_meta.csv --use_cpu # cpu
 
 ```bash
 msrun --worker_num=2 --local_worker_num=2 --join=True \
- --log_dir=msrun_log pipeline/scoring/nsfw/inference.py \ 
+ --log_dir=msrun_log pipeline/scoring/nsfw/inference.py \
  ${ROOT_META}/working_meta.csv # Ascend
 ```
 

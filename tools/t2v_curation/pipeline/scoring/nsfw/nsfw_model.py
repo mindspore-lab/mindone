@@ -3,6 +3,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 
+
 class Normalization(nn.Cell):
     def __init__(self, shape):
         super().__init__()

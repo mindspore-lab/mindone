@@ -1,25 +1,28 @@
-import re
-import mindspore as ms
-import numpy as np
-from PIL import Image
-
 import math
 import os
+import re
 import warnings
 from fractions import Fraction
 from typing import Any, Dict, List, Optional, Tuple, Union
+
 import av
+import numpy as np
+from PIL import Image
+
+import mindspore as ms
 
 MAX_NUM_FRAMES = 2500
 
 IMG_EXTENSIONS = (".jpg", ".jpeg", ".png", ".ppm", ".bmp", ".pgm", ".tif", ".tiff", ".webp")
 VID_EXTENSIONS = (".mp4", ".avi", ".mov", ".mkv")
 
+
 # from torchvision.datasets.folder
 def pil_loader(path: str) -> Image.Image:
     with open(path, "rb") as f:
         img = Image.open(f)
         return img.convert("RGB")
+
 
 def is_video(filename):
     ext = os.path.splitext(filename)[-1].lower()
@@ -34,7 +37,7 @@ def extract_frames(
     backend="opencv",
     return_length=False,
     num_frames=None,
-    return_timestamps=False, # only for `seconds`
+    return_timestamps=False,  # only for `seconds`
 ):
     """
     Extract frames from a video using the specified backend.
@@ -76,12 +79,12 @@ def extract_frames(
     def handle_frame_read_error(prev_frame, frames, return_length, total_frames):
         if prev_frame is not None:
             print("[Info] Previous frame exists. Skipping appending any frame.")
-            return True # continue processing
+            return True  # continue processing
         else:
             print("[Warning] No previous frame available. Creating a black frame.")
             frame = create_black_frame()
             frames.append(frame)
-            return False # finish processing
+            return False  # finish processing
 
     if not os.path.isfile(video_path):
         raise FileNotFoundError(f"Video file not found: {video_path}")
@@ -146,10 +149,10 @@ def extract_frames(
                             else:
                                 raise ValueError("No frame found at the specified timestamp.")
                         except Exception as e:
-                            print(
-                                f"[Warning] Error reading frame at {t:.2f}s from {video_path}: {e}."
+                            print(f"[Warning] Error reading frame at {t:.2f}s from {video_path}: {e}.")
+                            continue_processing = handle_frame_read_error(
+                                prev_frame, frames, return_length, total_frames
                             )
-                            continue_processing = handle_frame_read_error(prev_frame, frames, return_length, total_frames)
                             if not continue_processing:
                                 if return_length and return_timestamps:
                                     return frames, total_frames, frame_timestamps
@@ -199,7 +202,7 @@ def extract_frames(
                         frames.append(frame)
                     except Exception:
                         print(f"[Warning] Error reading first frame from {video_path}. Returning a black frame.")
-                        frames = [create_black_frame()] # end here directly
+                        frames = [create_black_frame()]  # end here directly
                         if return_length:
                             return frames, total_frames
                         return frames
@@ -267,9 +270,7 @@ def extract_frames(
                         frame_timestamps.append(t)
                         prev_frame = img
                     except Exception as e:
-                        print(
-                            f"[Warning] Error reading frame at index {idx} from {video_path}: {e}."
-                        )
+                        print(f"[Warning] Error reading frame at index {idx} from {video_path}: {e}.")
                         continue_processing = handle_frame_read_error(prev_frame, frames, return_length, total_frames)
                         if not continue_processing:
                             if return_length and return_timestamps:
@@ -314,7 +315,7 @@ def extract_frames(
                         frames.append(frame)
                     except Exception:
                         print(f"[Warning] Error reading first frame from {video_path}. Returning a black frame.")
-                        frames = [create_black_frame()] # end here directly
+                        frames = [create_black_frame()]  # end here directly
                         if return_length:
                             return frames, total_frames
                         return frames
@@ -382,10 +383,10 @@ def extract_frames(
                         cap.set(cv2.CAP_PROP_POS_MSEC, ms)
                         ret, frame = cap.read()
                         if not ret or frame is None:
-                            print(
-                                f"[Warning] Error reading frame at {t:.2f}s from {video_path}."
+                            print(f"[Warning] Error reading frame at {t:.2f}s from {video_path}.")
+                            continue_processing = handle_frame_read_error(
+                                prev_frame, frames, return_length, total_frames
                             )
-                            continue_processing = handle_frame_read_error(prev_frame, frames, return_length, total_frames)
                             if not continue_processing:
                                 if return_length and return_timestamps:
                                     return frames, total_frames, frame_timestamps
@@ -426,7 +427,7 @@ def extract_frames(
 
                 cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
                 ret, frame = cap.read()
-                if not ret or frame is None: # failure case
+                if not ret or frame is None:  # failure case
                     print(f"[Warning] Error reading frame {idx} from {video_path}")
                     try:
                         print(f"[Warning] Try reading first frame.")
@@ -437,12 +438,13 @@ def extract_frames(
                         frames.append(frame)
                     except Exception as e:
                         print(
-                            f"[Warning] Error in reading first frame from {video_path}: {e}. Returning a black frame.")
-                        frames = [create_black_frame()] # end here directly
+                            f"[Warning] Error in reading first frame from {video_path}: {e}. Returning a black frame."
+                        )
+                        frames = [create_black_frame()]  # end here directly
                         if return_length:
                             return frames, total_frames
                         return frames
-                else: # success case
+                else:  # success case
                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img = Image.fromarray(frame)
                     frames.append(img)

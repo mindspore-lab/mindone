@@ -8,12 +8,12 @@
 In many cases, raw videos contain several scenes and are
 too long for training. Thus, it is essential to split them
 into shorter
-clips based on scenes. 
+clips based on scenes.
 Here, we provide guidelines for scene detection and video splitting.
 
 ## Prepare Meta Files
 At this step, you should have a raw video dataset prepared.
-A meta file of the dataset information is needed for 
+A meta file of the dataset information is needed for
 data processing. To create a meta file from a video folder, run:
 
 ```bash
@@ -22,9 +22,9 @@ python -m pipeline.datasets.convert video /path/to/video/folder --output /path/t
 This should output a `.csv` file with column `path`.
 
 If you already have a meta file for the videos and want to keep the information.
-**Make sure** the meta file has column `id`, which is the 
+**Make sure** the meta file has column `id`, which is the
 id for each video, and the video is named as `{id}.mp4`.
-The following command will add a new column `path` to the 
+The following command will add a new column `path` to the
 meta file.
 
 ```bash

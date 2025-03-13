@@ -4,18 +4,18 @@ import sys
 
 import numpy as np
 import pandas as pd
-import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
-import mindspore.dataset as ds
-from mindspore import Tensor, load_checkpoint, load_param_into_net
-from mindspore.mint.distributed import init_process_group, get_rank, get_world_size, all_gather
+from pipeline.datasets.utils import extract_frames, is_video, pil_loader
+from pipeline.scoring.nsfw.nsfw_model import NSFWModel
+from pipeline.scoring.utils import NUM_FRAMES_POINTS, merge_scores
 from tqdm import tqdm
 from transformers import AutoProcessor
 
-from pipeline.datasets.utils import extract_frames, pil_loader, is_video
-from pipeline.scoring.nsfw.nsfw_model import NSFWModel
-from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
+import mindspore as ms
+import mindspore.dataset as ds
+import mindspore.nn as nn
+import mindspore.ops as ops
+from mindspore import Tensor, load_checkpoint, load_param_into_net
+from mindspore.mint.distributed import all_gather, get_rank, get_world_size, init_process_group
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
@@ -23,8 +23,9 @@ sys.path.insert(0, mindone_lib_path)
 
 from mindone.transformers import CLIPModel
 
+
 class VideoTextDataset:
-    def __init__(self, meta_path, transform = None, num_frames = 1):
+    def __init__(self, meta_path, transform=None, num_frames=1):
         self.meta_path = meta_path
         self.meta = pd.read_csv(meta_path)
         self.transform = transform
@@ -32,14 +33,14 @@ class VideoTextDataset:
 
     def __getitem__(self, index):
         sample = self.meta.iloc[index]
-        path = sample['path']
+        path = sample["path"]
 
         # extract frames
         if not is_video(path):
             images = [pil_loader(path)]
         else:
             num_frames = sample["num_frames"] if "num_frames" in sample else None
-            images = extract_frames(path, points = self.points, backend = "decord", num_frames = num_frames)
+            images = extract_frames(path, points=self.points, backend="decord", num_frames=num_frames)
 
         # transform & stack
         if self.transform is not None:
@@ -51,6 +52,7 @@ class VideoTextDataset:
     def __len__(self):
         return len(self.meta)
 
+
 class NSFWDetector(nn.Cell):
     def __init__(self, ckpt_path="pretrained_models/nsfw_model.ckpt", threshold=0.2):
         super().__init__()
@@ -60,7 +62,7 @@ class NSFWDetector(nn.Cell):
         self.nsfw_model = NSFWModel()
 
         params = load_checkpoint(ckpt_path)
-        params = {'nsfw_model.' + key: value for key, value in params.items()}
+        params = {"nsfw_model." + key: value for key, value in params.items()}
         load_param_into_net(self.nsfw_model, params)
 
         self.threshold = threshold
@@ -72,26 +74,27 @@ class NSFWDetector(nn.Cell):
         nsfw_scores = self.nsfw_model(image_features)
         return nsfw_scores
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
 
     parser.add_argument("--use_cpu", action="store_true", help="Whether to use CPU")
     parser.add_argument("--bs", type=int, default=64, help="Batch size")
-    parser.add_argument("--num_frames", type=int, default=1,
-                        help="Number of frames to extract; support 1, 2, or 3.")
+    parser.add_argument("--num_frames", type=int, default=1, help="Number of frames to extract; support 1, 2, or 3.")
 
-    parser.add_argument("--skip_if_existing", action="store_true",
-                        help="Skip processing if output CSV already exists.")
+    parser.add_argument("--skip_if_existing", action="store_true", help="Skip processing if output CSV already exists.")
 
-    parser.add_argument("--ckpt_path_nsfw", type=str,
-                        default="pretrained_models/nsfw_model.ckpt",
-                        help="Checkpoint for the NSFW model.")
-    parser.add_argument("--threshold", type=float, default=0.2,
-                        help="Threshold above which a frame is flagged as NSFW.")
+    parser.add_argument(
+        "--ckpt_path_nsfw", type=str, default="pretrained_models/nsfw_model.ckpt", help="Checkpoint for the NSFW model."
+    )
+    parser.add_argument(
+        "--threshold", type=float, default=0.2, help="Threshold above which a frame is flagged as NSFW."
+    )
 
     args = parser.parse_args()
     return args
+
 
 def main():
     args = parse_args()
@@ -113,17 +116,10 @@ def main():
         ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
         init_process_group()
 
-    detector = NSFWDetector(
-        ckpt_path=args.ckpt_path_nsfw,
-        threshold=args.threshold
-    )
+    detector = NSFWDetector(ckpt_path=args.ckpt_path_nsfw, threshold=args.threshold)
     preprocess = detector.processor
 
-    raw_dataset = VideoTextDataset(
-        meta_path=args.meta_path,
-        transform=preprocess,
-        num_frames=args.num_frames
-    )
+    raw_dataset = VideoTextDataset(meta_path=args.meta_path, transform=preprocess, num_frames=args.num_frames)
 
     if not args.use_cpu:
         rank_id = get_rank()
@@ -136,11 +132,7 @@ def main():
             shard_id=rank_id,
         )
     else:
-        dataset = ds.GeneratorDataset(
-            source=raw_dataset,
-            column_names=["index", "images"],
-            shuffle=False
-        )
+        dataset = ds.GeneratorDataset(source=raw_dataset, column_names=["index", "images"], shuffle=False)
 
     dataset = dataset.batch(args.bs, drop_remainder=False)
     iterator = dataset.create_dict_iterator(num_epochs=1)
@@ -184,11 +176,7 @@ def main():
         nsfw_list_all = scores_list
 
     if args.use_cpu or (not args.use_cpu and rank_id == 0):
-        meta_local = merge_scores(
-            [(indices_list_all, nsfw_list_all)],
-            raw_dataset.meta,
-            column="nsfw"
-        )
+        meta_local = merge_scores([(indices_list_all, nsfw_list_all)], raw_dataset.meta, column="nsfw")
         meta_local.to_csv(out_path, index=False)
         print(meta_local.head())
         print(f"New meta with NSFW flags saved to '{out_path}'.")

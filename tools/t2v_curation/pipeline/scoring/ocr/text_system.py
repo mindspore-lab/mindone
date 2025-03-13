@@ -1,23 +1,24 @@
-import logging
 import glob
+import logging
 import os
 import sys
-from time import time
-from typing import Union, List
 from pathlib import Path
-from shapely.geometry import Polygon
+from time import time
+from typing import List, Union
 
 import cv2
 import numpy as np
+from mindocr import build_model, build_postprocess
+from mindocr.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+from mindocr.data.transforms import create_transforms, run_transforms
+from shapely.geometry import Polygon
 
 import mindspore as ms
 from mindspore import ops
 from mindspore.common import dtype as mstype
-from mindocr import build_model, build_postprocess
-from mindocr.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
-from mindocr.data.transforms import create_transforms, run_transforms
 
 logger = logging.getLogger("mindocr")
+
 
 def get_image_paths(img_dir: str) -> List[str]:
     """
@@ -54,6 +55,7 @@ def get_ckpt_file(ckpt_dir):
             logger.warning(f"More than one .ckpt files found in {ckpt_dir}. Pick {ckpt_load_path}")
 
     return ckpt_load_path
+
 
 def crop_text_region(img, points, box_type="quad", rotate_if_vertical=True):  # polygon_type='poly'):
     # box_type: quad or poly
@@ -99,6 +101,7 @@ def crop_text_region(img, points, box_type="quad", rotate_if_vertical=True):  # 
         crop_img = crop_img_box(img, np.array(box))
         return crop_img
 
+
 algo_to_model_name = {
     "DB": "dbnet_resnet50",
     "DB++": "dbnetpp_resnet50",
@@ -112,6 +115,7 @@ algo_to_model_name = {
     "SVTR": "svtr_tiny",
     "SVTR_PPOCRv3_CH": "svtr_ppocrv3_ch",
 }
+
 
 class Preprocessor(object):
     def __init__(self, task="det", algo="DB", **kwargs):
@@ -300,6 +304,7 @@ class Preprocessor(object):
 
         return output
 
+
 class Postprocessor(object):
     def __init__(self, task="det", algo="DB", rec_char_dict_path=None, **kwargs):
         # algo = algo.lower()
@@ -434,6 +439,7 @@ class Postprocessor(object):
             )
             return output
 
+
 def order_points_clockwise(points):
     rect = np.zeros((4, 2), dtype=np.float32)
     s = points.sum(axis=1)
@@ -445,6 +451,7 @@ def order_points_clockwise(points):
     rect[3] = tmp[np.argmax(diff)]
 
     return rect
+
 
 def validate_det_res(det_res, img_shape, order_clockwise=True, min_poly_points=3, min_area=3):
     polys = det_res["polys"].copy()
@@ -498,6 +505,7 @@ def validate_det_res(det_res, img_shape, order_clockwise=True, min_poly_points=3
     # TODO: sort polygons from top to bottom, left to right
 
     return new_det_res
+
 
 class TextDetector(object):
     def __init__(self, args):
@@ -587,6 +595,7 @@ class TextDetector(object):
         det_res_final = validate_det_res(det_res, data["image_ori"].shape[:2], min_poly_points=3, min_area=3)
 
         return det_res_final, data
+
 
 class TextRecognizer(object):
     def __init__(self, args):

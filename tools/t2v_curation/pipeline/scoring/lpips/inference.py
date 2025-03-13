@@ -1,24 +1,22 @@
 import argparse
 import os
 
-
 import numpy as np
 import pandas as pd
+from pipeline.datasets.utils import extract_frames
+from pipeline.scoring.lpips.lpips import LPIPS
+from pipeline.scoring.utils import merge_scores
+from tqdm import tqdm
 
 import mindspore as ms
 import mindspore.dataset as ds
 import mindspore.ops as ops
 from mindspore import Tensor, context
-from mindspore.mint.distributed import init_process_group, get_rank, get_world_size, all_gather
-from tqdm import tqdm
-
-from pipeline.datasets.utils import extract_frames
-from pipeline.scoring.lpips.lpips import LPIPS
-from pipeline.scoring.utils import merge_scores
+from mindspore.mint.distributed import all_gather, get_rank, get_world_size, init_process_group
 
 
 class VideoTextDataset:
-    def __init__(self, meta_path, seconds = 1, target_size=(224, 224)):
+    def __init__(self, meta_path, seconds=1, target_size=(224, 224)):
         self.meta_path = meta_path
         self.meta = pd.read_csv(meta_path)
         self.seconds = seconds
@@ -39,6 +37,7 @@ class VideoTextDataset:
     def __len__(self):
         return len(self.meta)
 
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
@@ -46,11 +45,11 @@ def parse_args():
     # REMARK: batch size should be 1 unless all video clips are of the same length and the same resolution
     # we recommend keeping bs = 1
     parser.add_argument("--bs", type=int, default=1, help="Batch size")
-    parser.add_argument("--seconds", type=int, default=1, help="Interval (in seconds) at which frames are sampled from the video.")
-    parser.add_argument("--target_height", type=int, default=224,
-                        help="Target image height to be processed")
-    parser.add_argument("--target_width", type=int, default=224,
-                        help="Target image width to be processed")
+    parser.add_argument(
+        "--seconds", type=int, default=1, help="Interval (in seconds) at which frames are sampled from the video."
+    )
+    parser.add_argument("--target_height", type=int, default=224, help="Target image height to be processed")
+    parser.add_argument("--target_width", type=int, default=224, help="Target image width to be processed")
     parser.add_argument("--skip_if_existing", action="store_true")
     parser.add_argument(
         "--lpips_ckpt_path",
@@ -87,16 +86,13 @@ def main():
     model.load_from_pretrained(args.lpips_ckpt_path)
     model.set_train(False)
 
-    dataset_generator = (
-        VideoTextDataset(
-            meta_path=args.meta_path,
-            seconds = args.seconds,
-            target_size=(args.target_height, args.target_width))
+    dataset_generator = VideoTextDataset(
+        meta_path=args.meta_path, seconds=args.seconds, target_size=(args.target_height, args.target_width)
     )
     if not args.use_cpu:
         dataset = ds.GeneratorDataset(
             source=dataset_generator,
-            column_names=['index', 'images', 'timestamps'],
+            column_names=["index", "images", "timestamps"],
             shuffle=False,
             num_shards=rank_size,
             shard_id=rank_id,
@@ -104,7 +100,7 @@ def main():
     else:
         dataset = ds.GeneratorDataset(
             source=dataset_generator,
-            column_names=['index', 'images', 'timestamps'],
+            column_names=["index", "images", "timestamps"],
             shuffle=False,
         )
     dataset = dataset.batch(args.bs, drop_remainder=False)
@@ -167,6 +163,7 @@ def main():
         meta_new = merge_scores([(indices_list_all, scores_list_all)], dataset_generator.meta, column="lpips")
         meta_new.to_csv(out_path, index=False)
         print(f"New meta with LPIPS motion scores saved to '{out_path}'.")
+
 
 if __name__ == "__main__":
     main()

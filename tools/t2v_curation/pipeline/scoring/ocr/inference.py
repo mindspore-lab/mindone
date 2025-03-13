@@ -1,19 +1,20 @@
 import os
 import warnings
-import pandas as pd
+
 import numpy as np
-import mindspore as ms
-import mindspore.ops as ops
-import mindspore.dataset as ds
-from mindspore import Tensor
-from mindspore.mint.distributed import init_process_group, get_rank, get_world_size
-from mindspore.mint.distributed import all_gather, all_gather_object
+import pandas as pd
+from config import parse_args
+from pipeline.datasets.utils import extract_frames, is_video, pil_loader
+from pipeline.scoring.utils import merge_scores
+from text_system import TextSystem
 from tqdm import tqdm
 
-from pipeline.datasets.utils import extract_frames, pil_loader, is_video
-from pipeline.scoring.utils import merge_scores
-from config import parse_args
-from text_system import TextSystem
+import mindspore as ms
+import mindspore.dataset as ds
+import mindspore.ops as ops
+from mindspore import Tensor
+from mindspore.mint.distributed import all_gather, all_gather_object, get_rank, get_world_size, init_process_group
+
 
 class VideoTextDataset:
     # By default, we use the middle frame for OCR
@@ -24,7 +25,7 @@ class VideoTextDataset:
 
     def __getitem__(self, index):
         sample = self.meta.iloc[index]
-        path = sample['path']
+        path = sample["path"]
 
         # extract frames
         if not is_video(path):
@@ -38,13 +39,14 @@ class VideoTextDataset:
             images = [self.transform(img) for img in images]
 
         # height and width if exist
-        height = sample['height'] if 'height' in sample else -1
-        width = sample['width'] if 'width' in sample else -1
+        height = sample["height"] if "height" in sample else -1
+        width = sample["width"] if "width" in sample else -1
 
         return index, images, height, width
 
     def __len__(self):
         return len(self.meta)
+
 
 def main():
     args = parse_args()
@@ -72,10 +74,10 @@ def main():
     rank_size = get_world_size()
     dataset = ds.GeneratorDataset(
         source=raw_dataset,
-        column_names=['index', 'images', 'height', 'width'],
+        column_names=["index", "images", "height", "width"],
         shuffle=False,
         num_shards=rank_size,
-        shard_id=rank_id
+        shard_id=rank_id,
     )
     # DO NOT set Batch size > 1 unless all the images have the same shape, else error
     dataset = dataset.batch(args.bs, drop_remainder=False)
@@ -93,8 +95,8 @@ def main():
     compute_total_text_area_percentage = args.total_text_percentage
 
     # check for 'height' and 'width' columns if needed
-    if (compute_max_single_text_box_area_percentage or compute_total_text_area_percentage):
-        if 'height' not in raw_dataset.meta.columns or 'width' not in raw_dataset.meta.columns:
+    if compute_max_single_text_box_area_percentage or compute_total_text_area_percentage:
+        if "height" not in raw_dataset.meta.columns or "width" not in raw_dataset.meta.columns:
             warnings.warn(
                 "Columns 'height' and 'width' are not available in the input CSV. "
                 "Cannot compute text area percentages."
@@ -119,7 +121,7 @@ def main():
 
             # OCR
             boxes, text_scores, _ = text_system(image)
-            ocr_result = repr({"boxes": boxes, "texts": text_scores}) # as string for storing in csv
+            ocr_result = repr({"boxes": boxes, "texts": text_scores})  # as string for storing in csv
             batch_ocr_results.append(ocr_result)
 
             if compute_num_boxes:
@@ -128,7 +130,11 @@ def main():
                 num_boxes = None
             batch_num_boxes.append(num_boxes)
 
-            if (compute_max_single_text_box_area_percentage or compute_total_text_area_percentage) and height is not None and width is not None:
+            if (
+                (compute_max_single_text_box_area_percentage or compute_total_text_area_percentage)
+                and height is not None
+                and width is not None
+            ):
                 image_area = height * width
 
                 box_areas = []
@@ -147,7 +153,9 @@ def main():
                 if compute_max_single_text_box_area_percentage:
                     if box_areas:
                         max_single_text_box_area = max(box_areas)
-                        max_single_text_box_area_percentage = max_single_text_box_area / image_area if image_area > 0 else 0
+                        max_single_text_box_area_percentage = (
+                            max_single_text_box_area / image_area if image_area > 0 else 0
+                        )
                     else:
                         max_single_text_box_area_percentage = 0
                 else:
@@ -184,7 +192,9 @@ def main():
         # max_single_percentage_list
         if compute_max_single_text_box_area_percentage:
             max_single_percentage_list = Tensor(np.array(max_single_percentage_list), dtype=ms.float32)
-            max_single_percentage_list_all = [Tensor(np.zeros(max_single_percentage_list.shape, dtype=np.float32)) for _ in range(rank_size)]
+            max_single_percentage_list_all = [
+                Tensor(np.zeros(max_single_percentage_list.shape, dtype=np.float32)) for _ in range(rank_size)
+            ]
             all_gather(max_single_percentage_list_all, max_single_percentage_list)
             max_single_percentage_list_all = ops.Concat(axis=0)(max_single_percentage_list_all).asnumpy().tolist()
         else:
@@ -193,7 +203,9 @@ def main():
         # total_text_percentage_list
         if compute_total_text_area_percentage:
             total_text_percentage_list = Tensor(np.array(total_text_percentage_list), dtype=ms.float32)
-            total_text_percentage_list_all = [Tensor(np.zeros(total_text_percentage_list.shape, dtype=np.float32)) for _ in range(rank_size)]
+            total_text_percentage_list_all = [
+                Tensor(np.zeros(total_text_percentage_list.shape, dtype=np.float32)) for _ in range(rank_size)
+            ]
             all_gather(total_text_percentage_list_all, total_text_percentage_list)
             total_text_percentage_list_all = ops.Concat(axis=0)(total_text_percentage_list_all).asnumpy().tolist()
         else:
@@ -210,26 +222,29 @@ def main():
             if compute_num_boxes:
                 meta_local = merge_scores([(indices_list_all, num_boxes_list_all)], meta_local, column="num_boxes")
             if compute_max_single_text_box_area_percentage:
-                meta_local = merge_scores([(indices_list_all, max_single_percentage_list_all)], meta_local,
-                                          column="max_single_percentage")
+                meta_local = merge_scores(
+                    [(indices_list_all, max_single_percentage_list_all)], meta_local, column="max_single_percentage"
+                )
             if compute_total_text_area_percentage:
-                meta_local = merge_scores([(indices_list_all, total_text_percentage_list_all)], meta_local,
-                                          column="total_text_percentage")
+                meta_local = merge_scores(
+                    [(indices_list_all, total_text_percentage_list_all)], meta_local, column="total_text_percentage"
+                )
 
-    elif rank_size == 1: # store directly without gathering
+    elif rank_size == 1:  # store directly without gathering
         meta_local = raw_dataset.meta.copy()
-        meta_local['ocr'] = ocr_results_list
+        meta_local["ocr"] = ocr_results_list
         if compute_num_boxes:
-            meta_local['num_boxes'] = num_boxes_list
+            meta_local["num_boxes"] = num_boxes_list
         if compute_max_single_text_box_area_percentage:
-            meta_local['max_single_percentage'] = max_single_percentage_list
+            meta_local["max_single_percentage"] = max_single_percentage_list
         if compute_total_text_area_percentage:
-            meta_local['total_text_percentage'] = total_text_percentage_list
+            meta_local["total_text_percentage"] = total_text_percentage_list
 
     if rank_id == 0:
         meta_local.to_csv(out_path, index=False)
         print(meta_local)
         print(f"New meta with OCR results saved to '{out_path}'.")
+
 
 if __name__ == "__main__":
     main()

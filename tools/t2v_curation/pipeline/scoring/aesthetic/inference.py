@@ -4,17 +4,17 @@ import sys
 
 import numpy as np
 import pandas as pd
-import mindspore as ms
-import mindspore.nn as nn
-import mindspore.ops as ops
-import mindspore.dataset as ds
-from mindspore import Tensor, load_checkpoint, save_checkpoint, load_param_into_net
-from mindspore.mint.distributed import init_process_group, get_rank, get_world_size, all_gather
+from pipeline.datasets.utils import extract_frames, is_video, pil_loader
+from pipeline.scoring.utils import NUM_FRAMES_POINTS, merge_scores
 from tqdm import tqdm
 from transformers import AutoProcessor
 
-from pipeline.datasets.utils import extract_frames, pil_loader, is_video
-from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
+import mindspore as ms
+import mindspore.dataset as ds
+import mindspore.nn as nn
+import mindspore.ops as ops
+from mindspore import Tensor, load_checkpoint, load_param_into_net, save_checkpoint
+from mindspore.mint.distributed import all_gather, get_rank, get_world_size, init_process_group
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
@@ -22,8 +22,9 @@ sys.path.insert(0, mindone_lib_path)
 
 from mindone.transformers import CLIPModel
 
+
 class VideoTextDataset:
-    def __init__(self, meta_path, transform = None, num_frames = 3):
+    def __init__(self, meta_path, transform=None, num_frames=3):
         self.meta_path = meta_path
         self.meta = pd.read_csv(meta_path)
         self.transform = transform
@@ -31,14 +32,14 @@ class VideoTextDataset:
 
     def __getitem__(self, index):
         sample = self.meta.iloc[index]
-        path = sample['path']
+        path = sample["path"]
 
         # extract frames
         if not is_video(path):
             images = [pil_loader(path)]
         else:
             num_frames = sample["num_frames"] if "num_frames" in sample else None
-            images = extract_frames(path, points = self.points, backend = "decord", num_frames = num_frames)
+            images = extract_frames(path, points=self.points, backend="decord", num_frames=num_frames)
 
         # transform & stack
         if self.transform is not None:
@@ -50,26 +51,30 @@ class VideoTextDataset:
     def __len__(self):
         return len(self.meta)
 
+
 class MLP(nn.Cell):
     def __init__(self, input_size):
         super().__init__()
         self.input_size = input_size
-        self.layers = nn.SequentialCell([
-            nn.Dense(self.input_size, 1024),
-            nn.Dropout(p = 0.2),
-            nn.Dense(1024, 128),
-            nn.Dropout(p = 0.2),
-            nn.Dense(128, 64),
-            nn.Dropout(p = 0.1),
-            nn.Dense(64, 16),
-            nn.Dense(16, 1),
-        ])
+        self.layers = nn.SequentialCell(
+            [
+                nn.Dense(self.input_size, 1024),
+                nn.Dropout(p=0.2),
+                nn.Dense(1024, 128),
+                nn.Dropout(p=0.2),
+                nn.Dense(128, 64),
+                nn.Dropout(p=0.1),
+                nn.Dense(64, 16),
+                nn.Dense(16, 1),
+            ]
+        )
 
     def construct(self, x):
         return self.layers(x)
 
+
 class AestheticScorer(nn.Cell):
-    def __init__(self, input_size = 768):
+    def __init__(self, input_size=768):
         super().__init__()
         self.mlp = MLP(input_size)
         self.clip = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
@@ -77,9 +82,10 @@ class AestheticScorer(nn.Cell):
 
     def construct(self, x):
         image_features = self.clip.get_image_features(x)
-        normalize = ops.L2Normalize(axis = -1)
+        normalize = ops.L2Normalize(axis=-1)
         image_features = normalize(image_features).astype(ms.float32)
         return self.mlp(image_features)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -91,12 +97,14 @@ def parse_args():
 
     parser.add_argument("--skip_if_existing", action="store_true")
 
-    parser.add_argument("--ckpt_path_aes", type=str, default="pretrained_models/aesthetic.ckpt",
-                        help="load aesthetic model checkpoint.")
+    parser.add_argument(
+        "--ckpt_path_aes", type=str, default="pretrained_models/aesthetic.ckpt", help="load aesthetic model checkpoint."
+    )
 
     args = parser.parse_args()
 
     return args
+
 
 def main():
     args = parse_args()
@@ -115,7 +123,7 @@ def main():
     # graph mode with Ascend
     if not args.use_cpu:
         ms.set_context(mode=ms.GRAPH_MODE, device_target="Ascend")
-        ms.set_auto_parallel_context(parallel_mode = ms.ParallelMode.DATA_PARALLEL)
+        ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
         init_process_group()
 
     model = AestheticScorer()
@@ -127,12 +135,13 @@ def main():
     if not args.use_cpu:
         rank_id = get_rank()
         rank_size = get_world_size()
-        dataset = ds.GeneratorDataset(source=raw_dataset, column_names=['index', 'images'], shuffle=False,
-                                      num_shards = rank_size, shard_id = rank_id)
+        dataset = ds.GeneratorDataset(
+            source=raw_dataset, column_names=["index", "images"], shuffle=False, num_shards=rank_size, shard_id=rank_id
+        )
     else:
-        dataset = ds.GeneratorDataset(source = raw_dataset, column_names = ['index', 'images'], shuffle = False)
+        dataset = ds.GeneratorDataset(source=raw_dataset, column_names=["index", "images"], shuffle=False)
     dataset = dataset.batch(args.bs, drop_remainder=False)
-    iterator = dataset.create_dict_iterator(num_epochs = 1)
+    iterator = dataset.create_dict_iterator(num_epochs=1)
 
     # compute aesthetic scores
     indices_list = []
@@ -142,7 +151,7 @@ def main():
         indices = batch["index"]
         images = batch["images"]
 
-        B, N, _, C, H, W = images.shape # (batch_size, num_frames, 1, channels, height, width)
+        B, N, _, C, H, W = images.shape  # (batch_size, num_frames, 1, channels, height, width)
         reshape = ops.Reshape()
         images = reshape(images, (B * N, C, H, W))
         scores = model(images)
@@ -163,7 +172,7 @@ def main():
         all_gather(indices_list_all, indices_list)
         all_gather(scores_list_all, scores_list)
 
-        concat = ops.Concat(axis = 0)
+        concat = ops.Concat(axis=0)
         indices_list_all = concat(indices_list_all).asnumpy().tolist()
         scores_list_all = concat(scores_list_all).asnumpy().tolist()
     else:
@@ -172,9 +181,10 @@ def main():
 
     if args.use_cpu or (not args.use_cpu and rank_id == 0):
         meta_local = merge_scores([(indices_list_all, scores_list_all)], raw_dataset.meta, column="aes")
-        meta_local.to_csv(out_path, index = False)
+        meta_local.to_csv(out_path, index=False)
         print(meta_local)
         print(f"New meta with aesthetic scores saved to '{out_path}'.")
+
 
 if __name__ == "__main__":
     main()
