@@ -10,8 +10,7 @@ from hyvideo.modules import load_model
 from hyvideo.modules.posemb_layers import get_nd_rotary_pos_embed
 from hyvideo.text_encoder import TextEncoder
 from hyvideo.utils.data_utils import align_to, generate_crop_size_list, get_closest_ratio
-
-# from hyvideo.utils.lora_utils import load_lora_for_pipeline
+from hyvideo.utils.lora_utils import load_lora_for_pipeline
 from hyvideo.vae import load_vae
 from loguru import logger
 from PIL import Image
@@ -337,10 +336,13 @@ class HunyuanVideoSampler(Inference):
         if args.i2v_mode:
             self.default_negative_prompt = NEGATIVE_PROMPT_I2V
             if args.use_lora:
-                raise NotImplementedError("i2v mode does not support lora yet.")
-                # self.pipeline = load_lora_for_pipeline(
-                #     self.pipeline, args.lora_path, LORA_PREFIX_TRANSFORMER="Hunyuan_video_I2V_lora", alpha=args.lora_scale,)
-                # logger.info(f"load lora {args.lora_path} into pipeline, lora scale is {args.lora_scale}.")
+                self.pipeline = load_lora_for_pipeline(
+                    self.pipeline,
+                    args.lora_path,
+                    LORA_PREFIX_TRANSFORMER="Hunyuan_video_I2V_lora",
+                    alpha=args.lora_scale,
+                )
+                logger.info(f"load lora {args.lora_path} into pipeline, lora scale is {args.lora_scale}.")
         else:
             self.default_negative_prompt = NEGATIVE_PROMPT
         self.default_negative_prompt = NEGATIVE_PROMPT
