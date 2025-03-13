@@ -17,8 +17,8 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.transformers import Qwen2VLForConditionalGeneration # noqa: E402
-from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info # noqa: E402
+from mindone.transformers import Qwen2VLForConditionalGeneration  # noqa: E402
+from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info  # noqa: E402
 
 
 class VideoTextDataset:
