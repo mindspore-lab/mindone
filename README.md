@@ -5,6 +5,7 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all"
 
 ## News
+- [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus) 🔥
 - [2024.11.06] MindONE [v0.2.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.2.0) is released
 
 ## Quick tour
@@ -70,6 +71,3 @@ mindone diffusers is under active development, most tasks were tested with minds
 | [pipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines) | support text2image,text2video,text2audio tasks 30+
 | [models](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/models) | support audoencoder & transformers base models same as hf diffusers
 | [schedulers](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/schedulers) | support ddpm & dpm solver 10+ schedulers same as hf diffusers
-
-#### TODO
-* [ ] hf diffusers 0.30.0 version adaption

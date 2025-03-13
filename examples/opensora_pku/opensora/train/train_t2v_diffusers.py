@@ -535,7 +535,7 @@ def main(args):
             latent_diffusion_with_loss,
             optimizer,
             zero_stage=args.zero_stage,
-            op_group=GlobalComm.WORLD_COMM_GROUP,
+            optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP,
             comm_fusion=comm_fusion_dict,
             scale_sense=loss_scaler,
             drop_overflow_update=args.drop_overflow_update,

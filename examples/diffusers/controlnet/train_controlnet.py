@@ -1015,7 +1015,9 @@ class TrainStepForControlNet(TrainStep):
 
         # Add noise to the latents according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
-        noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
+        noisy_latents = self.noise_scheduler.add_noise(latents.float(), noise.float(), timesteps).to(
+            dtype=self.weight_dtype
+        )
 
         # Get the text embedding for conditioning
         encoder_hidden_states = self.text_encoder(input_ids, return_dict=False)[0]

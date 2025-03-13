@@ -4,7 +4,7 @@ import numpy as np
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import Parameter, Tensor, ops
+from mindspore import Parameter, Tensor, mint, ops
 from mindspore.common.initializer import TruncatedNormal, initializer
 
 from ._common import LayerNorm, QuickGELU
@@ -28,12 +28,9 @@ class MultiheadAttention(nn.Cell):
         self.embed_dim = d_model
         self.num_heads = n_head
         self.head_dim = self.embed_dim // self.num_heads
-        self.in_proj = nn.Dense(self.embed_dim, 3 * self.embed_dim).to_float(dtype)
-        self.out_proj = nn.Dense(self.embed_dim, self.embed_dim).to_float(dtype)
-        self.split = ops.Split(-1, 3)
-        self.expand_dims = ops.ExpandDims()
-        self.softmax = nn.Softmax(-1)
-        self.transpose = ops.Transpose()
+        self.in_proj = mint.nn.Linear(self.embed_dim, 3 * self.embed_dim).to_float(dtype)
+        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim).to_float(dtype)
+        self.softmax = mint.nn.Softmax(-1)
         self.scaling = self.head_dim**-0.5
 
     def construct(self, query, key, value, attn_mask):
@@ -42,18 +39,18 @@ class MultiheadAttention(nn.Cell):
         q = qkv[0:1]
         k = qkv[1:2]
         v = qkv[2:3]
-        q = ops.Squeeze(0)(q)
-        k = ops.Squeeze(0)(k)
-        v = ops.Squeeze(0)(v)
+        q = mint.squeeze(q, dim=0)
+        k = mint.squeeze(k, dim=0)
+        v = mint.squeeze(v, dim=0)
         q = q * self.scaling
         q = q.view(tgt_len, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         k = k.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
         v = v.view(-1, bsz * self.num_heads, self.head_dim).transpose((1, 0, 2))  # (bs) x (HW + 1) x h
-        attn_output_weights = ops.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
-        attn_output_weights += self.expand_dims(attn_mask, 0)
+        attn_output_weights = mint.matmul(q, k.transpose((0, 2, 1)))  # bs x (HW + 1) x (HW + 1)
+        attn_output_weights += mint.unsqueeze(attn_mask, 0)
         attn_output_weights = self.softmax(attn_output_weights)  # bs x (HW + 1) x (HW + 1)
-        attn_output = ops.matmul(attn_output_weights, v)  # bs x (HW + 1) x h
-        attn_output = self.transpose(attn_output, (1, 0, 2))
+        attn_output = mint.matmul(attn_output_weights, v)  # bs x (HW + 1) x h
+        attn_output = mint.permute(attn_output, (1, 0, 2))
         attn_output = attn_output.view(tgt_len, bsz, embed_dim)
         attn_output = self.out_proj(attn_output)
         return attn_output
@@ -73,8 +70,8 @@ class ResidualAttentionBlock(nn.Cell):
     def __init__(self, d_model, n_head, attn_mask, epsilon, use_quick_gelu, dtype=ms.float32):
         super(ResidualAttentionBlock, self).__init__()
         self.attn = AttentionWithMask(d_model, n_head, attn_mask, dtype=dtype)
-        self.ln_1 = LayerNorm([d_model], epsilon=epsilon).to_float(dtype)
-        self.c_fc = nn.Dense(d_model, d_model * 4).to_float(dtype)
+        self.ln_1 = LayerNorm([d_model], eps=epsilon).to_float(dtype)
+        self.c_fc = mint.nn.Linear(d_model, d_model * 4).to_float(dtype)
 
         # In original implementation, CLIP uses fast_gelu. but OpenCLIP uses gelu, referring to:
         # https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/blob/main/config.json
@@ -82,11 +79,11 @@ class ResidualAttentionBlock(nn.Cell):
         if use_quick_gelu:
             self.gelu = QuickGELU()
         else:
-            self.gelu = nn.GELU()
+            self.gelu = mint.nn.GELU()
 
-        self.c_proj = nn.Dense(d_model * 4, d_model).to_float(dtype)
+        self.c_proj = mint.nn.Linear(d_model * 4, d_model).to_float(dtype)
         self.mlp = nn.SequentialCell([self.c_fc, self.gelu, self.c_proj])
-        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(dtype)
+        self.ln_2 = LayerNorm([d_model], eps=epsilon).to_float(dtype)
 
     def construct(self, x):
         x = x + self.attn(self.ln_1(x))
@@ -139,7 +136,6 @@ class TextEncoder(nn.Cell):
         self.vocab_size = vocab_size
         self.embedding_table = Parameter(initializer(TruncatedNormal(0.02), [vocab_size, width], dtype=self.dtype))
         self.gather = ops.Gather()
-        self.reshape = ops.Reshape()
         self.cast = ops.Cast()
         # require_grad = False?
         self.positional_embedding = Parameter(
@@ -166,7 +162,7 @@ class TextEncoder(nn.Cell):
         flatten_id = text.flatten()
         gather_result = self.gather(self.embedding_table, flatten_id, 0)
 
-        x = self.reshape(gather_result, (bsz, ctx_len, -1))
+        x = mint.reshape(gather_result, (bsz, ctx_len, -1))
         x = x + self.positional_embedding
         x = x.transpose(1, 0, 2)
         x = self.transformer_layer(x)
@@ -188,19 +184,22 @@ class OpenCLIPResidualAttentionBlock(nn.Cell):
     ):
         super().__init__()
         self.dtype = dtype
-        self.ln_1 = LayerNorm((d_model,), epsilon=epsilon).to_float(self.dtype)
+        self.ln_1 = LayerNorm((d_model,), eps=epsilon).to_float(self.dtype)
         self.attn = MultiheadAttention(d_model, n_head, dtype=dtype)
         if is_cross_attention:
-            self.ln_1_kv = LayerNorm((d_model,), epsilon=epsilon).to_float(self.dtype)
+            self.ln_1_kv = LayerNorm((d_model,), eps=epsilon).to_float(self.dtype)
 
-        self.ln_2 = LayerNorm([d_model], epsilon=epsilon).to_float(self.dtype)
+        self.ln_2 = LayerNorm([d_model], eps=epsilon).to_float(self.dtype)
         mlp_width = int(d_model * mlp_ratio)
         self.mlp = nn.SequentialCell(
             OrderedDict(
                 [
-                    ("c_fc", nn.Dense(d_model, mlp_width).to_float(self.dtype)),
-                    ("gelu", QuickGELU().to_float(self.dtype) if use_quick_gelu else nn.GELU().to_float(self.dtype)),
-                    ("c_proj", nn.Dense(mlp_width, d_model).to_float(self.dtype)),
+                    ("c_fc", mint.nn.Linear(d_model, mlp_width).to_float(self.dtype)),
+                    (
+                        "gelu",
+                        QuickGELU().to_float(self.dtype) if use_quick_gelu else mint.nn.GELU().to_float(self.dtype),
+                    ),
+                    ("c_proj", mint.nn.Linear(mlp_width, d_model).to_float(self.dtype)),
                 ]
             )
         )
@@ -238,13 +237,13 @@ class OpenClipTextEncoder(nn.Cell):
         self.width = width
         self.layers = layers
         self.vocab_size = vocab_size
-        self.token_embedding = nn.Embedding(vocab_size, width).to_float(self.dtype)
+        self.token_embedding = mint.nn.Embedding(vocab_size, width).to_float(self.dtype)
 
         self.transformer = OpenCLIPTransformer(width, layers, heads, epsilon, use_quick_gelu, dtype=self.dtype)
         self.positional_embedding = Parameter(
             initializer(TruncatedNormal(0.01), [context_length, width], dtype=self.dtype)
         )
-        self.ln_final = nn.LayerNorm((self.width,), epsilon=epsilon).to_float(self.dtype)
+        self.ln_final = mint.nn.LayerNorm((self.width,), eps=epsilon).to_float(self.dtype)
         self.attn_mask = ms.Tensor(self.build_attntion_mask(context_length), dtype=self.dtype)
 
     @staticmethod
