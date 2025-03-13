@@ -58,7 +58,6 @@ if __name__ == "__main__":
     )
     parser.add_argument("--linewidth", default=1.0, type=float, help="curve line width")
     parser.add_argument("--y_max", default=None, type=float, help="y max value")
-    parser.add_argument("--x_max", default=None, type=int, help="x max value, duration")
     args = parser.parse_args()
 
-    plot(args.input, args.output, args.smooth, args.alpha, linewidth=args.linewidth, duration=args.x_max, y_max=args.y_max)
+    plot(args.input, args.output, args.smooth, args.alpha, linewidth=args.linewidth, y_max=args.y_max)
