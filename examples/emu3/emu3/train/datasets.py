@@ -33,10 +33,10 @@ class Emu3FeatureDataset(BaseDataset):
         assert not self.args.apply_loss_on_only_vision or not self.args.apply_loss_on_only_text
         self.bov = tokenizer.encode(args.visual_token_pattern.format(token_id=0))[0]
         self.eov = tokenizer.encode(args.visual_token_pattern.format(token_id=args.codebook_size - 1))[0]
-        if self.args.apply_loss_on_only_text:
-            self.task = "vqa"
-        else:
+        if self.args.apply_loss_on_only_vision:
             self.task = "img_gen"
+        else:
+            self.task = "vqa"
         self.chat_template = "You are a helpful assistant. USER: {image_prompt}{text_prompt}. ASSISTANT:"
         # self.special_token_ids = [
         #     151643,  # pad_token_id
@@ -57,7 +57,7 @@ class Emu3FeatureDataset(BaseDataset):
         path = osp.join(self.path_prefix, self.filelist[index])
         data = ms.load_checkpoint(path)  # {"name": name, "images": token_ids, "texts": prompt}
         image_prompt = ""
-        if isinstance(data["images"], ms.Tensor):
+        if data["images"].dtype == ms.int32:
             image_tokens = data["images"].asnumpy()
             image_prompt = self.format_image_prompt(image_tokens)
 
@@ -81,6 +81,7 @@ class Emu3FeatureDataset(BaseDataset):
             sample = self.tokenizer(
                 input,
                 padding="max_length",
+                truncation=True,
                 return_token_type_ids=False,
                 return_tensors="np",
             )  # keys: "input_ids", "attention_mask"
@@ -89,6 +90,7 @@ class Emu3FeatureDataset(BaseDataset):
                 text=vt_prompts,
                 text_pair=response,
                 padding="max_length",
+                truncation=True,
                 return_token_type_ids=False,
                 return_tensors="np",
             )  # keys: "input_ids", "attention_mask"
@@ -100,9 +102,9 @@ class Emu3FeatureDataset(BaseDataset):
         elif self.args.apply_loss_on_only_text:  # vqa
             prompt_ids = self.tokenizer.encode(vt_prompts)
             response_ids = self.tokenizer.encode(response)
-            labels[..., : len(prompt_ids)] = self.args.ignore_index # maks input text and vision prompts
-            if (len(prompt_ids) + len(response_ids)) < labels.shape[-1]: # mask remaining padding tokens
-                labels[..., len(prompt_ids) + len(response_ids) :] = self.args.ignore_index
+            labels = np.ones_like(sample[input_ids]) * self.args.ignore_index
+            padding_start = min(len(prompt_ids) + len(response_ids), labels.shape[-1])
+            labels[..., len(prompt_ids) : padding_start] = sample[input_ids][..., len(prompt_ids) : padding_start]
 
         sample["labels"] = labels
         for k, v in sample.items():
