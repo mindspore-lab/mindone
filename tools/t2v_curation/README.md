@@ -30,6 +30,28 @@ high aesthetic quality, significant video motion, and strong
 semantic consistency. You may refer to the 
 [Further Reading](#further-reading) section for more details.
 
+## Supported and Planned Features
+- [x] **Dataset Management**
+  - [x] Converting & Information Gathering
+  - [x] Filtering
+- [ ] **Scene Detection and Video Splitting**
+  - [x] Adaptive Detector Support
+  - [x] Content Detector Support
+  - [x] Scene Cut Support
+  - [ ] Improved Scene Detection Method
+- [ ] **Video De-duplication**
+  - [x] Method 1: hashing
+  - [ ] Method 2: ISC
+- [x] **Scoring**
+  - [x] Aesthetic Scoring
+  - [x] Matching Scoring
+  - [x] OCR Detection
+  - [x] LPIPS Motion Scoring
+  - [x] NSFW Checking
+- [x] **Qwen2-VL Captioning**
+- [x] **Config via JSON or YAML**
+- [x] **Multi-NPU Processing**
+
 ## Requirement
 Run the following command to install the required packages:
 ```bash
