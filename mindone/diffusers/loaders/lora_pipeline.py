@@ -2143,7 +2143,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                     new_weight = ops.zeros_like(expanded_module.weight.data, dtype=module_weight.dtype)
                     slices = tuple(slice(0, dim) for dim in module_weight.shape)
                     new_weight[slices] = module_weight
-                    tmp_state_dict = {"weight": new_weight}
+                    tmp_state_dict = {"weight": ms.Parameter(new_weight)}
                     if module_bias is not None:
                         tmp_state_dict["bias"] = module_bias
                     ms.load_param_into_net(expanded_module, tmp_state_dict, strict_load=True)

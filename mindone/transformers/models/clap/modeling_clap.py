@@ -1685,6 +1685,8 @@ class ClapTextModel(ClapPreTrainedModel):
 
         self.pooler = ClapTextPooler(config) if add_pooling_layer else None
 
+        self.is_decoder = config.is_decoder
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1736,7 +1738,7 @@ class ClapTextModel(ClapPreTrainedModel):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if self.config.is_decoder:
+        if self.is_decoder:
             use_cache = use_cache if use_cache is not None else self.config.use_cache
         else:
             use_cache = False
@@ -1744,7 +1746,7 @@ class ClapTextModel(ClapPreTrainedModel):
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
         elif input_ids is not None:
-            self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
+            # self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
             input_shape = input_ids.shape
         elif inputs_embeds is not None:
             input_shape = inputs_embeds.shape[:-1]
@@ -1773,7 +1775,7 @@ class ClapTextModel(ClapPreTrainedModel):
 
         # If a 2D or 3D attention mask is provided for the cross-attention
         # we need to make broadcastable to [batch_size, num_heads, seq_length, seq_length]
-        if self.config.is_decoder and encoder_hidden_states is not None:
+        if self.is_decoder and encoder_hidden_states is not None:
             encoder_batch_size, encoder_sequence_length, _ = encoder_hidden_states.shape
             encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
             if encoder_attention_mask is None:
