@@ -178,7 +178,7 @@ class GPT2Attention(nn.Cell):
         attn_weights = mint.matmul(query, key.swapaxes(-1, -2))
 
         if self.scale_attn_weights:
-            attn_weights = attn_weights / mint.sqrt(value.shape[-1]).to(attn_weights.dtype)
+            attn_weights = attn_weights / mint.sqrt(ms.tensor(value.shape[-1])).to(attn_weights.dtype)
 
         # Layer-wise attention scaling
         if self.scale_attn_by_inverse_layer_idx:

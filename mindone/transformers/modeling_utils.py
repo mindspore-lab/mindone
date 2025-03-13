@@ -92,17 +92,16 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
-    if key_pt.startswith(prefix):
-        key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
-        key_ms = prefix + key_ms
+def _get_pt2ms_mapped_kv(mappings, has_prefix_module, expects_prefix_module, loaded_keys, expected_keys, prefix):
+    if has_prefix_module and not expects_prefix_module:
+        loaded_keys = [mappings.get(s[len(prefix)+1:], (s[len(prefix+1):], lambda x: x))[0] if s.startswith(prefix) else mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
+        loaded_keys = [".".join([prefix, s]) for s in loaded_keys]
+    elif not has_prefix_module and expects_prefix_module:
+        loaded_keys = [mappings.get(s[len(prefix)+1:], (s[len(prefix)+1:], lambda x: x))[0] for s in loaded_keys]
+        loaded_keys = [s[len(prefix)+1:] if s.startswith(prefix) else s for s in loaded_keys]
     else:
-        key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
-
-    if value_pt is None:
-        return key_ms, None
-    else:
-        return key_ms, value_mapping(value_pt)
+        loaded_keys = [mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
+    return loaded_keys
 
 
 def _convert_state_dict(m, state_dict_pt, prefix=""):
@@ -2170,7 +2169,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         # Mapping loaded_keys from pt to ms
         pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [_get_pt2ms_mapped_kv(pt2ms_mappings, s, None, "")[0] for s in loaded_keys]
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -2183,6 +2181,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         else:
             has_prefix_module = False
             expects_prefix_module = False
+
+        loaded_keys = _get_pt2ms_mapped_kv(pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, expected_keys)
 
         # key re-naming operations are never done on the keys
         # that are loaded, but always on the keys of the newly initialized model
