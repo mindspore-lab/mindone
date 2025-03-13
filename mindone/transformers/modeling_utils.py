@@ -95,7 +95,7 @@ def _get_pt2ms_mappings(m):
 def _get_pt2ms_mapped_kv(mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix):
     if has_prefix_module and not expects_prefix_module:
         loaded_keys = [
-            mappings.get(s[len(prefix) + 1 :], (s[len(prefix + 1) :], lambda x: x))[0]
+            mappings.get(s[len(prefix) + 1 :], (s[len(prefix) + 1 :], lambda x: x))[0]
             if s.startswith(prefix)
             else mappings.get(s, (s, lambda x: x))[0]
             for s in loaded_keys
@@ -293,25 +293,25 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
 
 
 def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
-    # add prefix to the name of parameters
-    if len(start_prefix) > 0:
-        for name, param in model_to_load.parameters_and_names():
-            if param.name != name:
-                logger.error(
-                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
-                    f"There are several possible reasons for this misalignment:\n"
-                    f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
-                    f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
-                    f"If you encounter this error, please report it to the developer."
-                )
-            param.name = start_prefix + name
+    # # add prefix to the name of parameters
+    # if len(start_prefix) > 0:
+    #     for name, param in model_to_load.parameters_and_names():
+    #         if param.name != name:
+    #             logger.error(
+    #                 f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
+    #                 f"There are several possible reasons for this misalignment:\n"
+    #                 f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
+    #                 f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
+    #                 f"If you encounter this error, please report it to the developer."
+    #             )
+    #         param.name = start_prefix + name
 
     # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
     #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
-    local_state = {start_prefix + k: v for k, v in model_to_load.parameters_and_names()}
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
