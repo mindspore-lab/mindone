@@ -19,8 +19,8 @@ from mindspore.mint.distributed import all_gather, get_rank, get_world_size, ini
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../.."))
 sys.path.insert(0, mindone_lib_path)
-# noqa: E402
-from mindone.transformers import CLIPModel
+
+from mindone.transformers import CLIPModel # noqa: E402
 
 
 class VideoTextDataset:
