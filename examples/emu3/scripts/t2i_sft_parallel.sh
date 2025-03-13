@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8  # TO REPLACE
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7  # TO REPLACE
 NPUS=8                                  # TO REPLACE
 MASTER_PORT=9000                        # TO REPLACE
 DATAPATH="your data path (json file)"   # TO REPLACE
@@ -38,8 +38,4 @@ python emu3/train/train.py \
     --logging_steps 1 \
     --gradient_checkpointing True \
     --save_strategy steps \
-    --run_name ${EXP_NAME} \
-    # --eval_strategy no \
-    # --report_to wandb tensorboard \
-    # --deepspeed scripts/zero3.json \
-    # --tf32 True \
+    --run_name ${EXP_NAME}

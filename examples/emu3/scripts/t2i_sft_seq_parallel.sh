@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8  # TO REPLACE
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7  # TO REPLACE
 NPUS=8                                  # TO REPLACE
 MASTER_PORT=9000                        # TO REPLACE
 DATAPATH="your data path (json file)"   # TO REPLACE
@@ -9,12 +9,12 @@ LOG_DIR=outputs/parallel_logs/${EXP_NAME}
 
 msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_port=${MASTER_PORT} --log_dir=${LOG_DIR} \
 python emu3/train/train_seq_parallel.py \
-    --model_name_or_path BAAI/Emu3-Gen \
+    --model_name_or_path BAAI/Emu3-Stage1 \
     --mode 1 \
     --debug False \
     --fp16 True \
-    --sequence_parallel_shards ${NPU} \
-    --ms_zero_stage 2 \
+    --sequence_parallel_shards ${NPUS} \
+    --ms_zero_stage 3 \
     --optim adamw_mindspore \
     --jit_level O1 \
     --is_distribute True \
@@ -43,7 +43,7 @@ python emu3/train/train_seq_parallel.py \
     --warmup_steps 30 \
     --lr_scheduler_type "cosine_with_min_lr" \
     --logging_steps 1 \
-    --gradient_checkpointing False \
+    --gradient_checkpointing True \
     --run_name ${EXP_NAME} \
     --loss_scaler_type dynamic \
     --max_device_memory "59GB"

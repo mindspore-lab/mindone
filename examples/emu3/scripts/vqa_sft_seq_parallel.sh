@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7,8  # TO REPLACE
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7  # TO REPLACE
 NPUS=8                                  # TO REPLACE
 MASTER_PORT=9000                        # TO REPLACE
 DATAPATH="your data path (json file)"   # TO REPLACE
@@ -13,7 +13,7 @@ python emu3/train/train_seq_parallel.py \
     --mode 1 \
     --debug False \
     --fp16 True \
-    --sequence_parallel_shards ${NPU} \
+    --sequence_parallel_shards ${NPUS} \
     --ms_zero_stage 3 \
     --optim adamw_mindspore \
     --jit_level O1 \

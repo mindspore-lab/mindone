@@ -61,7 +61,7 @@ from mindone.utils.version_control import check_valid_flash_attention
 
 FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 if FLASH_IS_AVAILABLE:
-    from mindone.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
+    from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
 if ms.__version__ <= "2.5":
     from mindspore.mint.nn import CrossEntropyLoss
@@ -535,7 +535,7 @@ class Emu3FlashAttention2(Emu3Attention):
 
         if attention_mask is not None:
             attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        attn_output = self.flash_attention(query_states.to(self.fa_dtype), key_states.to(self.fa_dtype), value_states.to(self.fa_dtype), None, None, None, mask=attention_mask)[3]
+        attn_output = self.flash_attention(query_states.to(self.fa_dtype), key_states.to(self.fa_dtype), value_states.to(self.fa_dtype), None, None, None, attention_mask)[3]
         attn_output = attn_output.to(target_dtype)
 
         attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)

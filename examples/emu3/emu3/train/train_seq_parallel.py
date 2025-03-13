@@ -9,18 +9,12 @@ from emu3.acceleration import create_parallel_group
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.modeling_emu3 import Emu3RMSNorm
 from emu3.train.datasets import Emu3FeatureDataset
-
-if ms.__version__ <= "2.5":
-    from mindspore.mint.nn import CrossEntropyLoss
-else:
-    from mindspore.nn import CrossEntropyLoss
-
 import mindspore as ms
 import mindspore.dataset as ds
 from mindspore import Model, nn  # amp
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
-from mindone.dataset import create_dataloader
+from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
@@ -29,6 +23,12 @@ from mindone.transformers.optimization import get_scheduler
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
 from mindone.utils import count_params, init_train_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
+
+
+if ms.__version__ <= "2.5":
+    from mindspore.mint.nn import CrossEntropyLoss
+else:
+    from mindspore.nn import CrossEntropyLoss
 
 # import json
 # from mindone.trainers.checkpoint import resume_train_network
