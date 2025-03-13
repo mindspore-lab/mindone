@@ -194,6 +194,9 @@ class TextEncoder(nn.Cell):
             padding_side="right",
             logger=self.logger,
         )
+        # to avoid: Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+        if hasattr(self.model, "generation_config") and self.model.generation_config is not None:
+            self.model.generation_config.pad_token_id = self.tokenizer.pad_token_id
         self.dtype = PRECISION_TO_TYPE[self.precision]
 
     def __repr__(self):
@@ -301,7 +304,6 @@ class TextEncoder(nn.Cell):
                 return_dict=model_return_dict,
             )
 
-            # import pdb; pdb.set_trace()
             # clip:  last_hidden_state [1 77 768], pooler_output[1 768], hidden_states None, attentions=None
             # llm: last_hidden_state, past_key_values, hidden_states, attentions,
             if hidden_state_skip_layer is not None:
@@ -369,7 +371,7 @@ class TextEncoder(nn.Cell):
                     text_crop_start = crop_start - 1 + self.prompt_template_video.get("image_emb_len", 576)
                     image_crop_start = self.prompt_template_video.get("image_emb_start", 5)
                     image_crop_end = self.prompt_template_video.get("image_emb_end", 581)
-                    batch_indices, last_double_return_token_indices = ops.where(
+                    batch_indices, last_double_return_token_indices = mint.where(
                         Tensor(batch_encoding["input_ids"])
                         == self.prompt_template_video.get("double_return_token_id", 271)
                     )

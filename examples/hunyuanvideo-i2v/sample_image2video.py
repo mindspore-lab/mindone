@@ -10,6 +10,7 @@ from loguru import logger
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
+from mindone.utils.logger import set_logger
 from mindone.visualize.videos import save_videos
 
 # from hyvideo.utils.file_utils import save_videos_grid
@@ -31,7 +32,7 @@ def main():
     save_dir = args.save_path if args.save_path_suffix == "" else f"{args.save_path}_{args.save_path_suffix}"
     if not os.path.exists(args.save_path):
         os.makedirs(save_dir, exist_ok=True)
-
+    set_logger(name="", output_dir=save_dir, rank=0)
     # ms env init
     rank_id, _ = init_env(
         args.ms_mode,

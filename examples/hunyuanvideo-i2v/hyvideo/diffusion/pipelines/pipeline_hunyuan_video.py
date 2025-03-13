@@ -296,7 +296,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
             if clip_skip is None:
                 prompt_outputs = text_encoder.encode(
-                    text_inputs, data_type=data_type, semantic_images=semantic_images, model_return_dict=False
+                    text_inputs, data_type=data_type, semantic_images=semantic_images, model_return_dict=True
                 )
                 prompt_embeds = prompt_outputs.hidden_state
             else:
@@ -304,7 +304,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     text_inputs,
                     output_hidden_states=True,
                     data_type=data_type,
-                    model_return_dict=False,
+                    model_return_dict=True,
                     semantic_images=semantic_images,
                 )
                 # Access the `hidden_states` first, that contains a tuple of
@@ -379,7 +379,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                 uncond_image = None
 
             negative_prompt_outputs = text_encoder.encode(
-                uncond_input, data_type=data_type, semantic_images=uncond_image, model_return_dict=False
+                uncond_input, data_type=data_type, semantic_images=uncond_image, model_return_dict=True
             )
             negative_prompt_embeds = negative_prompt_outputs.hidden_state
 
@@ -970,11 +970,13 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
                 # expand the latents if we are doing classifier free guidance
                 if i2v_mode and i2v_condition_type == "token_replace":
-                    latents = mint.concat([img_latents, latents[:, :, 1:, :, :]], dim=2)
+                    latents = mint.concat([img_latents.to(latents.dtype), latents[:, :, 1:, :, :]], dim=2)
 
                 # expand the latents if we are doing classifier free guidance
                 if i2v_mode and i2v_condition_type == "latent_concat":
-                    latent_model_input = mint.concat([latents, img_latents_concat, mask_concat], dim=1)
+                    latent_model_input = mint.concat(
+                        [latents, img_latents_concat.to(latents.dtype), mask_concat.to(latents.dtype)], dim=1
+                    )
                 else:
                     latent_model_input = latents
 
@@ -1026,7 +1028,7 @@ class HunyuanVideoPipeline(DiffusionPipeline):
                     latents = self.scheduler.step(
                         noise_pred[:, :, 1:, :, :], t, latents[:, :, 1:, :, :], **extra_step_kwargs, return_dict=False
                     )[0]
-                    latents = mint.concat([img_latents, latents], dim=2)
+                    latents = mint.concat([img_latents.to(latents.dtype), latents], dim=2)
                 else:
                     latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
                 if callback_on_step_end is not None:
