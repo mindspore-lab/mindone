@@ -8,9 +8,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers import FluxControlNetPipeline
-
-from mindone.diffusers.models import FluxControlNetModel
+from mindone.diffusers import FluxControlNetPipeline, FluxControlNetModel
 
 from mindone.diffusers.utils.testing_utils import (
     load_downloaded_image_from_hf_hub,
@@ -254,9 +252,6 @@ class FluxControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestC
         inputs = self.get_inputs()
         torch.manual_seed(0)
         image = pipe(**inputs)[0][0]
-
-        # from PIL import Image
-        # expected_image = Image.open(f'flux_controlnet_{dtype}.jpg')
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

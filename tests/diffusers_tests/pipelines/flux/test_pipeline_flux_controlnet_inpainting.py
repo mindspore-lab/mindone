@@ -240,12 +240,19 @@ class FluxControlNetInpaintPipelineIntegrationTests(PipelineTesterMixin, unittes
             subfolder=None,
             repo_type="model",
         )
-        init_image = load_image(
-            "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo.png"
+        init_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_input.png",
+            subfolder="stable_diffusion_xl",
+            repo_type="dataset",
         )
-        mask_image = load_image(
-            "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo_mask.png"
+        mask_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_mask.png",
+            subfolder="stable_diffusion_xl",
+            repo_type="dataset",
         )
+
         inputs = {
             "prompt": "A girl holding a sign that says InstantX",
             "image": init_image,
@@ -278,12 +285,9 @@ class FluxControlNetInpaintPipelineIntegrationTests(PipelineTesterMixin, unittes
         torch.manual_seed(0)
         image = pipe(**inputs)[0][0]
 
-        # from PIL import Image
-        # expected_image = Image.open(f'flux_controlnet_inpainting_{dtype}.jpg')
-
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'flux_controlnet_image_{dtype}.npy',
+            f'flux_controlnet_inpainting_{dtype}.npy',
             subfolder="flux",
         )
 

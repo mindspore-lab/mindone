@@ -22,10 +22,9 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers import AutoPipelineForText2Image
+from mindone.diffusers import StableDiffusionPAGPipeline
 
 from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
     load_downloaded_numpy_from_hf_hub,
     slow,
 )
@@ -205,7 +204,7 @@ class StableDiffusionPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.T
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipeline = AutoPipelineForText2Image.from_pretrained(
+        pipeline = StableDiffusionPAGPipeline.from_pretrained(
             "stable-diffusion-v1-5/stable-diffusion-v1-5",
             mindspore_dtype=ms_dtype
         )
@@ -214,9 +213,6 @@ class StableDiffusionPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.T
         inputs = self.get_inputs()
         torch.manual_seed(0)
         image = pipeline(**inputs)[0][0]
-
-        # from PIL import Image
-        # expected_image = Image.open(f'pag_sd_{dtype}.jpg')
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

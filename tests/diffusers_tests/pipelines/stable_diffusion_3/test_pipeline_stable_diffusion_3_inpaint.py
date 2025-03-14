@@ -6,12 +6,11 @@ from PIL import Image
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
-from transformers import CLIPTextConfig
 
 import mindspore as ms
 
 from mindone.diffusers import (
-    AutoPipelineForText2Image,
+    StableDiffusionXLControlNetPAGPipeline,
     ControlNetModel,
     AutoencoderKL,
 )
@@ -76,7 +75,7 @@ class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin
             mindspore_dtype=ms_dtype
         )
 
-        pipeline = AutoPipelineForText2Image.from_pretrained(
+        pipeline = StableDiffusionXLControlNetPAGPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0",
             controlnet=controlnet,
             vae=vae,
@@ -87,9 +86,6 @@ class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin
         inputs = self.get_inputs()
         torch.manual_seed(0)
         image = pipeline(**inputs)[0][0]
-
-        from PIL import Image
-        expected_image = Image.open(f'stable_diffusion_3_inpaint_{dtype}.jpg')
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

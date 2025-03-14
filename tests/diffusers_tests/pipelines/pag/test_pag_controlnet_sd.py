@@ -11,7 +11,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import (
-    AutoPipelineForText2Image,
+    StableDiffusionControlNetPAGPipeline,
     ControlNetModel,
 )
 
@@ -256,20 +256,15 @@ class StableDiffusionControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, 
             "lllyasviel/sd-controlnet-canny",
             mindspore_dtype=ms_dtype
         )
-
-        pipeline = AutoPipelineForText2Image.from_pretrained(
+        pipeline = StableDiffusionControlNetPAGPipeline.from_pretrained(
             "stable-diffusion-v1-5/stable-diffusion-v1-5",
             controlnet=controlnet,
-            mindspore_dtype=ms_dtype,
-            enable_pag=True
+            mindspore_dtype=ms_dtype
         )
 
         inputs = self.get_inputs()
         torch.manual_seed(0)
         image = pipeline(**inputs)[0][0]
-
-        # from PIL import Image
-        # expected_image = Image.open(f'pag_sd_controlnet_{dtype}.jpg')
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

@@ -229,15 +229,17 @@ class FluxControlNetImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestC
 class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
 
     def get_inputs(self):
-        # control_image = load_image("https://huggingface.co/InstantX/SD3-Controlnet-Canny/resolve/main/canny.jpg")
         control_image = load_downloaded_image_from_hf_hub(
             "InstantX/FLUX.1-dev-Controlnet-Canny",
             "canny.jpg",
             subfolder=None,
             repo_type="model",
         )
-        init_image = load_image(
-            "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
+        init_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "combined_i2i_input.jpg",
+            subfolder="kandinsky2_2",
+            repo_type="dataset",
         )
 
         inputs = {
@@ -277,9 +279,6 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
         inputs = self.get_inputs()
         torch.manual_seed(0)
         image = pipe(**inputs)[0][0]
-
-        # from PIL import Image
-        # expected_image = Image.open(f'flux_controlnet_image_{dtype}.jpg')
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
