@@ -1,0 +1,34 @@
+env:
+  mode: 0
+  jit_level: O0
+  seed: 42
+  distributed: False
+  debug: False
+
+model:
+  name: llama-5B
+  pretrained_model_path:
+  enable_flash_attention: True
+  dtype: bf16
+
+tae:
+  pretrained: models/tae_ucf101pt_mixkitft-b3b2e364.ckpt
+  use_tile: True
+  dtype: bf16
+
+# Inference parameters
+num_sampling_steps: 50
+sample_method: linear-quadratic
+image_size: [ 256, 256 ]
+num_frames: 1   # image
+text_emb:
+  ul2_dir:
+  metaclip_dir:
+  byt5_dir:
+batch_size: 10
+
+# Saving options
+output_path: ../../samples  # the path is relative to this config
+append_timestamp: True
+save_format: png
+save_latent: False

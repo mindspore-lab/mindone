@@ -1,0 +1,43 @@
+# model
+pretrained: "models/tae_vae2d.ckpt"
+
+# loss
+perceptual_loss_weight: 1.0
+kl_loss_weight: 1.e-6
+use_outlier_penalty_loss: False  # OPL bring no benefit in our experiments
+mixed_strategy: "mixed_video_image"
+mixed_image_ratio: 0.2
+
+# data
+csv_path: "../videocomposer/datasets/webvid5_copy.csv"
+folder: "../videocomposer/datasets/webvid5"
+sample_stride: 1
+sample_n_frames: 16
+image_size: 256
+crop_size: 256
+# flip: True
+
+# training recipe
+seed: 42
+batch_size: 1
+clip_grad: True
+max_grad_norm: 1.0
+start_learning_rate: 1.e-5
+scale_lr: False
+weight_decay: 0.
+
+dtype: "fp32"
+use_recompute: False
+
+epochs: 2000
+ckpt_save_interval: 50
+init_loss_scale: 1024.
+loss_scaler_type: dynamic
+
+scheduler: "constant"
+use_ema: False
+
+output_path: "outputs/tae_train"
+
+# ms setting
+jit_level: O0

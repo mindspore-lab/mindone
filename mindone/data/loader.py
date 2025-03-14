@@ -3,6 +3,7 @@ from typing import List, Optional, Union
 import mindspore as ms
 from mindspore.communication import get_local_rank, get_local_rank_size
 
+from ..utils.version_control import MS_VERSION
 from .dataset import BaseDataset
 
 
@@ -10,6 +11,7 @@ def create_dataloader(
     dataset: BaseDataset,
     batch_size: int = 1,
     transforms: Optional[Union[List[dict], dict]] = None,
+    batch_transforms: Optional[Union[List[dict], dict]] = None,
     project_columns: Optional[List[str]] = None,
     shuffle: bool = False,
     num_workers: int = 4,
@@ -18,7 +20,7 @@ def create_dataloader(
     drop_remainder: bool = True,
     python_multiprocessing: bool = True,
     prefetch_size: int = 16,
-    max_rowsize: int = 64,
+    max_rowsize: Optional[int] = None,
     device_num: int = 1,
     rank_id: int = 0,
     debug: bool = False,
@@ -37,6 +39,8 @@ def create_dataloader(
                         "input_columns": [List of columns to apply transforms to],  # Optional
                         "output_columns": [List of output columns]                  # Optional, only used if different from the `input columns`
                     }
+        batch_transforms: Optional transformations to apply to the dataset. Identical to `transforms` but applied to
+                          batches.
         project_columns: Optional list of output columns names from transformations.
                          These names can be used for column selection or sorting in a specific order.
         shuffle: Whether to randomly sample data. Default is False.
@@ -48,8 +52,14 @@ def create_dataloader(
         python_multiprocessing: Whether to use Python multiprocessing for data transformations. This option could be
                                 beneficial if the Python operation is computational heavy. Default is True.
         prefetch_size: The number of samples to prefetch (per device). Default is 16.
-        max_rowsize: Maximum size of row in MB that is used for shared memory allocation to copy data between processes.
-                     This is only used if `python_multiprocessing` is set to `True`. Default is 64.
+        max_rowsize: Maximum size of row in MB for shared memory allocation to copy data among processes.
+                     This is only used if `python_multiprocessing` is set to `True`.
+                     Values:
+                        - `None` (default):
+                            - For MindSpore 2.3 and above: Uses -1 (dynamic allocation).
+                            - For MindSpore 2.2 and below: Uses 64MB.
+                        - `-1`: (MindSpore 2.3+ only) Allocates memory dynamically.
+                        - Positive integer: Sets a specific maximum row size in MB.
         device_num: The number of devices to distribute the dataset across. Default is 1.
         rank_id: The rank ID of the current device. Default is 0.
         debug: Whether to enable debug mode. Default is False.
@@ -80,8 +90,12 @@ def create_dataloader(
         shuffle=shuffle,
     )
 
+    if max_rowsize is None:
+        # MS 2.3 and above: allocate memory dynamically
+        max_rowsize = -1 if MS_VERSION >= "2.3" else 64
+
     if transforms is not None:
-        if not isinstance(transforms, list):
+        if isinstance(transforms, dict):
             transforms = [transforms]
 
         for transform in transforms:
@@ -108,5 +122,16 @@ def create_dataloader(
             dataloader = dataloader.batch(
                 batch_size, drop_remainder=drop_remainder, num_parallel_workers=num_workers_batch
             )
+            if batch_transforms is not None:
+                if isinstance(batch_transforms, dict):
+                    batch_transforms = [batch_transforms]
+
+                for batch_transform in batch_transforms:
+                    dataloader = dataloader.map(
+                        **batch_transform,
+                        python_multiprocessing=python_multiprocessing,
+                        num_parallel_workers=num_workers,
+                        max_rowsize=max_rowsize,
+                    )
 
     return dataloader
