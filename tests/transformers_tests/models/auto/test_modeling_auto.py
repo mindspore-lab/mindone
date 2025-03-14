@@ -31,15 +31,13 @@ sys.path.append(str(Path(__file__).parent.parent.parent.parent / "utils"))
 
 
 if is_mindspore_available():
-    from transformers import AutoConfig, LlamaConfig
+    from transformers import AutoConfig
 
     from mindone.transformers import (
         AutoModel,
-        AutoModelForCausalLM,
         AutoModelForMaskedLM,
         BertForMaskedLM,
         BertModel,
-        LlamaForCausalLM,
     )
 
 
