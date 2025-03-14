@@ -11,7 +11,7 @@ import numpy as np
 import mindspore as ms
 from mindspore import Tensor
 from mindspore import dtype as mstype
-from mindspore import ops
+from mindspore import mint, ops
 
 from .diffusion_utils import (
     LossType,
@@ -58,29 +58,29 @@ class GaussianDiffusion:
 
         alphas = 1.0 - betas
         self.alphas_cumprod = to_mindspore(np.cumprod(alphas, axis=0))
-        self.alphas_cumprod_prev = ops.cat([ops.ones(1), self.alphas_cumprod[:-1]])
-        self.alphas_cumprod_next = ops.cat([self.alphas_cumprod[1:], ops.zeros(1)])
+        self.alphas_cumprod_prev = mint.cat([mint.ones(1), self.alphas_cumprod[:-1]])
+        self.alphas_cumprod_next = mint.cat([self.alphas_cumprod[1:], mint.zeros(1)])
         assert self.alphas_cumprod_prev.shape == (self.num_timesteps,)
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod = ops.sqrt(self.alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = ops.sqrt(1.0 - self.alphas_cumprod)
-        self.log_one_minus_alphas_cumprod = ops.log(1.0 - self.alphas_cumprod)
-        self.sqrt_recip_alphas_cumprod = ops.sqrt(1.0 / self.alphas_cumprod)
-        self.sqrt_recipm1_alphas_cumprod = ops.sqrt(1.0 / self.alphas_cumprod - 1)
+        self.sqrt_alphas_cumprod = mint.sqrt(self.alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = mint.sqrt(1.0 - self.alphas_cumprod)
+        self.log_one_minus_alphas_cumprod = mint.log(1.0 - self.alphas_cumprod)
+        self.sqrt_recip_alphas_cumprod = mint.sqrt(1.0 / self.alphas_cumprod)
+        self.sqrt_recipm1_alphas_cumprod = mint.sqrt(1.0 / self.alphas_cumprod - 1)
 
         # calculations for posterior q(x_{t-1} | x_t, x_0)
         self.posterior_variance = self.betas * (1.0 - self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         # below: log calculation clipped because the posterior variance is 0 at the beginning of the diffusion chain
         self.posterior_log_variance_clipped = (
-            ops.log(ops.cat([self.posterior_variance[1].unsqueeze(0), self.posterior_variance[1:]]))
+            mint.log(mint.cat([self.posterior_variance[1].unsqueeze(0), self.posterior_variance[1:]]))
             if len(self.posterior_variance) > 1
             else ms.Tensor([])
         )
 
-        self.posterior_mean_coef1 = self.betas * ops.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
+        self.posterior_mean_coef1 = self.betas * mint.sqrt(self.alphas_cumprod_prev) / (1.0 - self.alphas_cumprod)
         self.posterior_mean_coef2 = (
-            (1.0 - self.alphas_cumprod_prev) * ops.sqrt(to_mindspore(alphas)) / (1.0 - self.alphas_cumprod)
+            (1.0 - self.alphas_cumprod_prev) * mint.sqrt(to_mindspore(alphas)) / (1.0 - self.alphas_cumprod)
         )
 
     def q_mean_variance(self, x_start, t):
@@ -159,20 +159,20 @@ class GaussianDiffusion:
             extra = None
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
-            model_output, model_var_values = ops.split(model_output, C, axis=1)
+            model_output, model_var_values = mint.split(model_output, C, dim=1)
             min_log = _extract_into_tensor(self.posterior_log_variance_clipped, t, x.shape)
-            max_log = _extract_into_tensor(ops.log(self.betas), t, x.shape)
+            max_log = _extract_into_tensor(mint.log(self.betas), t, x.shape)
             # The model_var_values is [-1, 1] for [min_var, max_var].
             frac = (model_var_values + 1) / 2
             model_log_variance = frac * max_log + (1 - frac) * min_log
-            model_variance = ops.exp(model_log_variance)
+            model_variance = mint.exp(model_log_variance)
         else:
             model_variance, model_log_variance = {
                 # for fixedlarge, we set the initial (log-)variance like so
                 # to get a better decoder log likelihood.
                 ModelVarType.FIXED_LARGE: (
-                    ops.cat([self.posterior_variance[1].unsqueeze(0), self.betas[1:]]),
-                    ops.log(ops.cat([self.posterior_variance[1].unsqueeze(0), self.betas[1:]])),
+                    mint.cat([self.posterior_variance[1].unsqueeze(0), self.betas[1:]]),
+                    mint.log(mint.cat([self.posterior_variance[1].unsqueeze(0), self.betas[1:]])),
                 ),
                 ModelVarType.FIXED_SMALL: (
                     self.posterior_variance,
@@ -287,7 +287,7 @@ class GaussianDiffusion:
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         if cond_fn is not None:
             out["mean"] = self.condition_mean(cond_fn, out, x, t, model_kwargs=model_kwargs)
-        sample = out["mean"] + nonzero_mask * ops.exp(0.5 * out["log_variance"]) * noise
+        sample = out["mean"] + nonzero_mask * mint.exp(0.5 * out["log_variance"]) * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
 
     def p_sample_loop(
@@ -409,10 +409,10 @@ class GaussianDiffusion:
 
         alpha_bar = _extract_into_tensor(self.alphas_cumprod, t, x.shape)
         alpha_bar_prev = _extract_into_tensor(self.alphas_cumprod_prev, t, x.shape)
-        sigma = eta * ops.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * ops.sqrt(1 - alpha_bar / alpha_bar_prev)
+        sigma = eta * mint.sqrt((1 - alpha_bar_prev) / (1 - alpha_bar)) * mint.sqrt(1 - alpha_bar / alpha_bar_prev)
         # Equation 12.
         noise = ops.randn_like(x)
-        mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_prev) + ops.sqrt(1 - alpha_bar_prev - sigma**2) * eps
+        mean_pred = out["pred_xstart"] * mint.sqrt(alpha_bar_prev) + mint.sqrt(1 - alpha_bar_prev - sigma**2) * eps
         nonzero_mask = (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))  # no noise when t == 0
         sample = mean_pred + nonzero_mask * sigma * noise
         return {"sample": sample, "pred_xstart": out["pred_xstart"]}
@@ -450,7 +450,7 @@ class GaussianDiffusion:
         alpha_bar_next = _extract_into_tensor(self.alphas_cumprod_next, t, x.shape)
 
         # Equation 12. reversed
-        mean_pred = out["pred_xstart"] * ops.sqrt(alpha_bar_next) + ops.sqrt(1 - alpha_bar_next) * eps
+        mean_pred = out["pred_xstart"] * mint.sqrt(alpha_bar_next) + mint.sqrt(1 - alpha_bar_next) * eps
 
         return {"sample": mean_pred, "pred_xstart": out["pred_xstart"]}
 
@@ -556,7 +556,7 @@ class GaussianDiffusion:
 
         # At the first timestep return the decoder NLL,
         # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
-        output = ops.where((t == 0), decoder_nll, kl)
+        output = mint.where((t == 0), decoder_nll, kl)
         return {"output": output, "pred_xstart": out["pred_xstart"]}
 
     def training_losses(self, model, x_start, t, model_kwargs=None, noise=None):
@@ -604,12 +604,12 @@ class GaussianDiffusion:
             ]:
                 if x_t.dim() == 4:
                     assert model_output.shape == (B, C * 2, *x_t.shape[2:])
-                    model_output, model_var_values = ops.split(model_output, C, axis=1)
-                    frozen_out = ops.cat([model_output.copy(), model_var_values], axis=1)
+                    model_output, model_var_values = mint.split(model_output, C, dim=1)
+                    frozen_out = mint.cat([model_output.copy(), model_var_values], dim=1)
                 else:
                     assert model_output.shape == (B, F, C * 2, *x_t.shape[3:])
-                    model_output, model_var_values = ops.split(model_output, C, axis=2)
-                    frozen_out = ops.cat([model_output.copy(), model_var_values], axis=2)
+                    model_output, model_var_values = mint.split(model_output, C, dim=2)
+                    frozen_out = mint.cat([model_output.copy(), model_var_values], dim=2)
                 # Learn the variance using the variational bound, but don't let
                 # it affect our mean prediction.
                 terms["vb"] = self._vb_terms_bpd(

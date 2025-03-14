@@ -35,7 +35,7 @@ class _Conv(nn.Cell):
             split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
-            if self.net.bias:
+            if self.net.bias is not None:
                 self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, optimizer_parallel_group, cell_type)
                 if self.param_wrapper_b.need_rewrite:
                     self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
@@ -89,7 +89,7 @@ class Mint_Conv2d(_Conv):
         bias = self.param_wrapper_b(self.net.bias)
         if self.net.padding_mode != "zeros":
             output = self.net.conv2d(
-                mint.pad(input, self.net._reversed_padding, mode=self.net.padding_mode),
+                mint.pad(x, self.net._reversed_padding, mode=self.net.padding_mode),
                 weight,
                 bias,
                 self.net.stride,
@@ -99,7 +99,7 @@ class Mint_Conv2d(_Conv):
             )
         else:
             output = self.net.conv2d(
-                input, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
+                x, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
             )
         return output
 
@@ -110,7 +110,7 @@ class Mint_Conv3d(_Conv):
         bias = self.param_wrapper_b(self.net.bias)
         if self.net.padding_mode != "zeros":
             output = self.net.conv3d(
-                mint.pad(input, self.net._reversed_padding, mode=self.net.padding_mode),
+                mint.pad(x, self.net._reversed_padding, mode=self.net.padding_mode),
                 weight,
                 bias,
                 self.net.stride,
@@ -120,6 +120,6 @@ class Mint_Conv3d(_Conv):
             )
         else:
             output = self.net.conv3d(
-                input, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
+                x, weight, bias, self.net.stride, self.net.padding, self.net.dilation, self.net.groups
             )
         return output

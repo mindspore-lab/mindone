@@ -31,6 +31,7 @@ dependencies = [
     "omegaconf",
     "opencv-python",
     "sentencepiece",
+    "trampoline",
     "numpy<2.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",
@@ -76,10 +77,10 @@ Source = "https://github.com/mindspore-lab/mindone"
 [tool.hatch.envs.default]
 python = "3.8"
 
-[tool.hatch.version]
-# Since we always work in dev(or editable) mode at this stage, it makes sense to keep the version file.
-# In the future, we will deprecate the version file and use hatch-vcs to determine the project version.
-path = "mindone/version.py"
+[tool.hatch.metadata.hooks.custom]
+path = ".hatch_metadata_hooks.py"
+base-version = "0.3.0.dev0"
+build-type = "dev"  # ['dev', 'release']
 
 [tool.hatch.build.targets.sdist]
 exclude = [

@@ -84,7 +84,16 @@ def parse_args():
         help="Grouping strategy for weight decay. If `norm_and_bias`, weight decay filter list is [beta, gamma, bias]. \
                 If None, filter list is [layernorm, bias]. Default: norm_and_bias",
     )
-
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument("--weight_decay", default=1e-6, type=float, help="Weight decay.")
     parser.add_argument("--seed", default=3407, type=int, help="data path")
     parser.add_argument("--warmup_steps", default=1000, type=int, help="warmup steps")

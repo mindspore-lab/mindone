@@ -1,4 +1,5 @@
 wget -c https://download.mindspore.cn/toolkits/mindone/stable_diffusion/sd_v1.5-d0ab7146.ckpt
+mv sd_v1.5-d0ab7146.ckpt models/stable_diffusion
 
 # Convert SD dreambooth model
 wget https://civitai.com/api/download/models/78755 -P models/torch_ckpts/ --content-disposition --no-check-certificate

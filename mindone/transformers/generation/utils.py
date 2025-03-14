@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Un
 
 from transformers import logging
 from transformers.generation.configuration_utils import GenerationConfig, GenerationMode
-from transformers.generation.utils import GenerateNonBeamOutput
 from transformers.tokenization_utils import ExtensionsTrie
 from transformers.utils.generic import ModelOutput
 
@@ -15,7 +14,14 @@ import mindspore as ms
 import mindspore.numpy as mnp
 from mindspore import ops
 
-from mindone.transformers.cache_utils import Cache, get_seq_length, init_static_cache, reset
+from mindone.transformers.cache_utils import (
+    Cache,
+    DynamicCache,
+    EncoderDecoderCache,
+    get_seq_length,
+    init_static_cache,
+    reset,
+)
 from mindone.transformers.generation.logits_process import (
     LogitNormalization,
     LogitsProcessorList,
@@ -141,6 +147,10 @@ class GenerateEncoderDecoderOutput(ModelOutput):
     past_key_values: Optional[Tuple[Tuple[Tuple[ms.Tensor]]]] = None
 
 
+# Typing shortcuts
+GenerateNonBeamOutput = Union[GenerateDecoderOnlyOutput, GenerateEncoderDecoderOutput]
+
+
 class GenerationMixin:
     def prepare_inputs_for_generation(self, *args, **kwargs):
         raise NotImplementedError(
@@ -155,6 +165,7 @@ class GenerationMixin:
         """
 
         # priority: `generation_config` argument > `model.generation_config` (the default generation config)
+        using_model_generation_config = False
         if generation_config is None:
             # legacy: users may modify the model configuration to control generation. To trigger this legacy behavior,
             # three conditions must be met
@@ -162,9 +173,20 @@ class GenerationMixin:
             # 2) the generation config must have seen no modification since its creation (the hash is the same);
             # 3) the user must have set generation parameters in the model config.
             if (
-                self.generation_config._from_model_config
-                and self.generation_config._original_object_hash == hash(self.generation_config)
-                and self.config._has_non_default_generation_parameters()
+                self.generation_config._from_model_config  # 1)
+                and self.generation_config._original_object_hash == hash(self.generation_config)  # 2)
+                and (
+                    (
+                        hasattr(
+                            self.config, "_get_non_default_generation_parameters"
+                        )  # NOTE: requires transformers >= 4.45.0
+                        and len(self.config._get_non_default_generation_parameters()) > 0
+                    )
+                    or (
+                        hasattr(self.config, "_has_non_default_generation_parameters")
+                        and self.config._has_non_default_generation_parameters()
+                    )
+                )  # 3)
             ):
                 new_generation_config = GenerationConfig.from_model_config(self.config)
                 if new_generation_config != self.generation_config:
@@ -176,6 +198,7 @@ class GenerationMixin:
                     )
                     self.generation_config = new_generation_config
             generation_config = self.generation_config
+            using_model_generation_config = True
 
         # will mutate the object with `.update`. As such, passing these arguments through `kwargs` is disabled.
         strict_kwargs = kwargs.pop("strict_kwargs", False)
@@ -192,6 +215,16 @@ class GenerationMixin:
         else:
             generation_config = copy.deepcopy(generation_config)
             model_kwargs = generation_config.update(**kwargs)
+            # If `generation_config` is provided, let's fallback ALL special tokens to the default values for the model
+            if not using_model_generation_config:
+                if generation_config.bos_token_id is None:
+                    generation_config.bos_token_id = self.generation_config.bos_token_id
+                if generation_config.eos_token_id is None:
+                    generation_config.eos_token_id = self.generation_config.eos_token_id
+                if generation_config.pad_token_id is None:
+                    generation_config.pad_token_id = self.generation_config.pad_token_id
+                if generation_config.decoder_start_token_id is None:
+                    generation_config.decoder_start_token_id = self.generation_config.decoder_start_token_id
 
         return generation_config, model_kwargs
 
@@ -337,7 +370,7 @@ class GenerationMixin:
             for argument, value in model_kwargs.items()
             if not any(argument.startswith(p) for p in irrelevant_prefix)
         }
-        encoder_signature = set(inspect.signature(encoder.forward).parameters)
+        encoder_signature = set(inspect.signature(encoder.construct).parameters)
         encoder_accepts_wildcard = "kwargs" in encoder_signature or "model_kwargs" in encoder_signature
         if not encoder_accepts_wildcard:
             encoder_kwargs = {
@@ -420,8 +453,10 @@ class GenerationMixin:
             cache = model_kwargs["past_key_values"]
             if isinstance(cache, Tuple):
                 past_length = get_seq_length(cache)
+            elif hasattr(cache, "get_seq_length") and cache.get_seq_length() is not None:
+                past_length = cache.get_seq_length()
 
-        if model_kwargs.get("attention_mask", None) is not None:
+        if isinstance(cache, Tuple) and (model_kwargs.get("attention_mask", None) is not None):
             attention_mask = model_kwargs["attention_mask"]
             if "inputs_embeds" in model_kwargs:
                 max_len = model_kwargs["inputs_embeds"].shape[1]
@@ -438,7 +473,7 @@ class GenerationMixin:
             else:
                 cur_len = input_ids.shape[-1]
 
-            cache_position = ops.arange(past_length, cur_len, ms.int32)
+            cache_position = ops.arange(past_length, cur_len, dtype=ms.int32)
 
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
@@ -854,19 +889,20 @@ class GenerationMixin:
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
 
-                cur_lens = attention_mask.sum(-1)
-                for batch_idx in range(attention_mask.shape[0]):
-                    cur_len = int(cur_lens[batch_idx])
-                    if cur_len < attention_mask.shape[-1]:
-                        attention_mask[batch_idx, cur_len] = 1
-                    else:
-                        attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
-                        attention_mask[batch_idx, -1:] = 1
-                model_kwargs["attention_mask"] = attention_mask
-
-                # model_kwargs["attention_mask"] = ops.cat(
-                #     [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
-                # )
+                if not self._supports_default_dynamic_cache():  # use tuple cache
+                    cur_lens = attention_mask.sum(-1)
+                    for batch_idx in range(attention_mask.shape[0]):
+                        cur_len = int(cur_lens[batch_idx])
+                        if cur_len < attention_mask.shape[-1]:
+                            attention_mask[batch_idx, cur_len] = 1
+                        else:
+                            attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
+                            attention_mask[batch_idx, -1:] = 1
+                    model_kwargs["attention_mask"] = attention_mask
+                else:  # use Cache class
+                    model_kwargs["attention_mask"] = ops.cat(
+                        [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
+                    )
         else:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
@@ -1113,6 +1149,8 @@ class GenerationMixin:
         **model_kwargs,
     ) -> Tuple[ms.Tensor, Dict[str, Any]]:
         """Expands tensors from [batch_size, ...] to [batch_size * expand_size, ...]"""
+        if expand_size == 1:
+            return input_ids, model_kwargs
 
         def _expand_dict_for_generation(dict_to_expand):
             for key in dict_to_expand:
@@ -1395,8 +1433,16 @@ class GenerationMixin:
             input_ids_length=input_ids_length,
         )
 
+        # 7. Prepare the cache.
+        # - `model_kwargs` may be updated in place with a cache as defined by the parameters in `generation_config`.
+        # - different models have a different cache name expected by the model (default = "past_key_values")
+        # - `max_length`, prepared above, is used to determine the maximum cache length
         use_dynamic_cache_by_default = False
-        if generation_config.cache_implementation is not None and model_kwargs.get("past_key_values") is not None:
+        if "mamba" in self.__class__.__name__.lower():
+            cache_name = "cache_params"  # TODO: support MambaCache
+        else:
+            cache_name = "past_key_values"
+        if generation_config.cache_implementation is not None and model_kwargs.get(cache_name) is not None:
             raise ValueError(
                 "Passing both `cache_implementation` (used to initialize certain caches) and `past_key_values` (a "
                 "Cache object) is unsupported. Please use only one of the two."
@@ -1408,7 +1454,7 @@ class GenerationMixin:
                         "This model does not support `cache_implementation='static'`. Please check the following "
                         "issue: https://github.com/huggingface/transformers/issues/28981"
                     )
-                model_kwargs["past_key_values"] = self._get_cache(
+                model_kwargs[cache_name] = self._get_cache(
                     generation_config.cache_implementation,
                     getattr(generation_config, "num_beams", 1) * batch_size,
                     generation_config.max_length,
@@ -1423,8 +1469,30 @@ class GenerationMixin:
                 raise NotImplementedError("Not support Quantized Cache")
         # Use DynamicCache instance by default. This will avoid back and forth from legacy format that
         # keeps copying the cache thus using much more memory
-        elif generation_config.cache_implementation is None and self._supports_default_dynamic_cache():
-            raise NotImplementedError
+        elif (
+            generation_config.cache_implementation is None
+            and self._supports_default_dynamic_cache()
+            and model_kwargs.get("use_cache", False)
+        ):
+            past = model_kwargs.get(cache_name, None)
+
+            requires_cross_attention_cache = (
+                self.config.is_encoder_decoder or model_kwargs.get("encoder_outputs") is not None
+            )
+            if past is None:
+                model_kwargs[cache_name] = (
+                    DynamicCache()
+                    if not requires_cross_attention_cache
+                    else EncoderDecoderCache(DynamicCache(), DynamicCache())
+                )
+                use_dynamic_cache_by_default = True
+            elif isinstance(past, tuple):
+                model_kwargs[cache_name] = (
+                    DynamicCache.from_legacy_cache(past)
+                    if not requires_cross_attention_cache
+                    else EncoderDecoderCache.from_legacy_cache(past)
+                )
+                use_dynamic_cache_by_default = True
 
         # Use static tuple cache by default.
         elif (
@@ -1432,7 +1500,7 @@ class GenerationMixin:
             and not self._supports_default_dynamic_cache()
             and model_kwargs.get("use_cache", False)
         ):
-            past = model_kwargs.get("past_key_values", None)
+            past = model_kwargs.get(cache_name, None)
             max_batch_size, max_cache_len, cache_dtype = (
                 getattr(generation_config, "num_beams", 1) * batch_size,
                 generation_config.max_length,
@@ -1447,18 +1515,18 @@ class GenerationMixin:
             )
 
             if need_new_cache:
-                model_kwargs["past_key_values"] = init_static_cache(
+                model_kwargs[cache_name] = init_static_cache(
                     config=self.config,
                     max_batch_size=max_batch_size,
                     max_cache_len=max_cache_len,
                     dtype=cache_dtype,
                 )
             else:
-                model_kwargs["past_key_values"] = reset(past)
+                model_kwargs[cache_name] = reset(past)
 
         self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
 
-        # 7. determine generation mode
+        # 8. determine generation mode
         generation_mode = generation_config.get_generation_mode(assistant_model)
 
         if streamer is not None and (generation_config.num_beams > 1):
@@ -1466,7 +1534,7 @@ class GenerationMixin:
                 "`streamer` cannot be used with beam search (yet!). Make sure that `num_beams` is set to 1."
             )
 
-        # 8. prepare distribution pre_processing samplers
+        # 9. prepare logits processors and stopping criteria
         prepared_logits_processor = self._get_logits_processor(
             generation_config=generation_config,
             input_ids_seq_length=input_ids_length,
@@ -1478,7 +1546,6 @@ class GenerationMixin:
             negative_prompt_attention_mask=negative_prompt_attention_mask,
         )
 
-        # 9. prepare stopping criteria
         prepared_stopping_criteria = self._get_stopping_criteria(
             generation_config=generation_config, stopping_criteria=stopping_criteria, tokenizer=tokenizer, **kwargs
         )
@@ -1526,10 +1593,9 @@ class GenerationMixin:
 
         # Convert to legacy cache if needed
         if use_dynamic_cache_by_default and generation_config.return_legacy_cache:
-            # if isinstance(result, ModelOutput) and hasattr(result, "past_key_values"):
-            #     if isinstance(result.past_key_values, DynamicCache):
-            #         result.past_key_values = result.past_key_values.to_legacy_cache()
-            raise NotImplementedError
+            if isinstance(result, ModelOutput) and hasattr(result, "past_key_values"):
+                if isinstance(result.past_key_values, DynamicCache):  # TODO: add EncoderDecoderCache
+                    result.past_key_values = result.past_key_values.to_legacy_cache()
 
         return result
 
@@ -1629,28 +1695,29 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        (
-            padded_input_ids,
-            padded_inputs_embeds,
-            padded_labels,
-            padded_position_ids,
-            padded_attention_mask,
-        ) = self._padding_inputs(
-            generation_config,
-            input_ids,
-            model_kwargs.get("inputs_embeds", None),
-            model_kwargs.get("labels", None),
-            model_kwargs.get("position_ids", None),
-            model_kwargs.get("attention_mask", None),
-        )
-        input_ids = padded_input_ids
-        model_kwargs["attention_mask"] = padded_attention_mask
-        if model_kwargs.get("inputs_embeds", None) is not None:
-            model_kwargs["inputs_embeds"] = padded_inputs_embeds
-        if model_kwargs.get("labels", None) is not None:
-            model_kwargs["labels"] = padded_labels
-        if model_kwargs.get("position_ids", None) is not None:
-            model_kwargs["position_ids"] = padded_position_ids
+        if not self._supports_default_dynamic_cache():  # if tuple cache
+            (
+                padded_input_ids,
+                padded_inputs_embeds,
+                padded_labels,
+                padded_position_ids,
+                padded_attention_mask,
+            ) = self._padding_inputs(
+                generation_config,
+                input_ids,
+                model_kwargs.get("inputs_embeds", None),
+                model_kwargs.get("labels", None),
+                model_kwargs.get("position_ids", None),
+                model_kwargs.get("attention_mask", None),
+            )
+            input_ids = padded_input_ids
+            model_kwargs["attention_mask"] = padded_attention_mask
+            if model_kwargs.get("inputs_embeds", None) is not None:
+                model_kwargs["inputs_embeds"] = padded_inputs_embeds
+            if model_kwargs.get("labels", None) is not None:
+                model_kwargs["labels"] = padded_labels
+            if model_kwargs.get("position_ids", None) is not None:
+                model_kwargs["position_ids"] = padded_position_ids
 
         # keep track of which sequences are already finished
         batch_size = input_ids.shape[0]
@@ -1697,7 +1764,8 @@ class GenerationMixin:
                     past_key_values=outputs[1] if model_inputs.get("use_cache", False) else None,
                 )
 
-            if model_kwargs.get("attention_mask", None) is not None:
+            # Tuple static cache
+            if (not self._supports_default_dynamic_cache()) and (model_kwargs.get("attention_mask", None) is not None):
                 attention_mask = model_kwargs["attention_mask"]
                 cur_idx = int(attention_mask.sum(-1).max()) - 1
 
