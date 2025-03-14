@@ -122,10 +122,10 @@ class TextImageDataset:
             "text + image tokens exceeds max token length, please adjust max_length or num image token"
         )
 
-        attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
+        attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool_)
         attention_mask[input_ids == vlcp.pad_id] = 0
 
-        image_seq_mask = np.zeros(shape=[len(input_ids)], dtype=np.bool)
+        image_seq_mask = np.zeros(shape=[len(input_ids)], dtype=np.bool_)
         image_seq_mask[input_ids == vlcp.image_id] = 1
 
         # label, only train on vision seq

@@ -129,8 +129,8 @@ class VqaDataset:
 
         # pad to pre-set max_length or max seq len in the current batch
         padded_input_ids = np.ones((self.max_token_length), dtype=np.int32) * vlcp.pad_id
-        attention_mask = np.zeros((self.max_token_length), dtype=np.bool)
-        image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool)
+        attention_mask = np.zeros((self.max_token_length), dtype=np.bool_)
+        image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
 
         seq_len = len(input_ids)
         padded_input_ids[-seq_len:] = input_ids
