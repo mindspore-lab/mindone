@@ -336,6 +336,10 @@
       title: Lumina-T2X
     - local: api/pipelines/marigold
       title: Marigold
+    - local: api/pipelines/mochi
+      title: Mochi 1 Preview
+    - local: api/pipelines/musicldm
+      title: MusicLDM
     - local: api/pipelines/pag
       title: PAG
     - local: api/pipelines/pixart
