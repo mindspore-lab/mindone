@@ -131,17 +131,8 @@ Have Fun!
 
 ### Training
 
-We reproduce the training pipline referring to the [JanusPro](https://arxiv.org/abs/2501.17811) paper. Here we provide an example for i2v sft.
+Please refer to [training.md](docs/training.md)
 
-1. Download the demo images from [here](https://dit.hunyuan.tencent.com/download/HunyuanDiT/data_demo.zip), and extract to `datasets` folder.
-
-2. Add the annotation csv file by `cp data_demo/jade/csvfile/image_text_en.csv datasets/data_demo/jade/csvfile/.`  
-
-3. Run the fine-tune script as follows:
-
-```
-bash scripts/run_sft_t2i.sh
-```
 
 ## 4. Performance
 
