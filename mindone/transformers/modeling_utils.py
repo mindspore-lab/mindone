@@ -53,7 +53,6 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
-from mindspore.nn.utils import no_init_parameters
 
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
@@ -2056,8 +2055,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         config = cls._autoset_attn_implementation(
             config, use_flash_attention_2=use_flash_attention_2, mindspore_dtype=mindspore_dtype
         )
-        with no_init_parameters():
-            model = cls(config, *model_args, **model_kwargs)
+
+        model = cls(config, *model_args, **model_kwargs)
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
