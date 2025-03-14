@@ -449,7 +449,7 @@ class AnnotationFormatTestMixin:
         detection_params = {
             "images": Image.open(fixtures_path / "000000039769.png"),
             "annotations": detection_annotations,
-            "return_tensors": "pt",
+            "return_tensors": "ms",
         }
 
         with open(fixtures_path / "coco_panoptic_annotations.txt", "r") as f:
