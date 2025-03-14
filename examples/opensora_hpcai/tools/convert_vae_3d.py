@@ -16,9 +16,9 @@ def get_shape_from_str(shape):
 
 def convert(source_fp, target_fp, from_vae2d=False):
     # read param mapping files
-    with open("tools/ms_pnames_vae1.2.txt") as file_ms:
+    with open(os.path.join(os.path.dirname(__file__), "ms_pnames_vae1.2.txt")) as file_ms:
         lines_ms = list(file_ms.readlines())
-    with open("tools/pt_pnames_vae1.2.txt") as file_pt:
+    with open(os.path.join(os.path.dirname(__file__), "pt_pnames_vae1.2.txt")) as file_pt:
         lines_pt = list(file_pt.readlines())
 
     if from_vae2d:
