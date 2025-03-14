@@ -1047,29 +1047,34 @@ def main():
                     raise ValueError(f"Wrong model supplied: {type(model)=}.")
 
     def load_model_hook(models, input_dir):
-        for _ in range(len(models)):
-            # pop models so that they are not loaded again
-            model = models.pop()
-
+        for model in models:
             # load diffusers style into model
             if isinstance(model, SD3Transformer2DModel):
-                load_model = SD3Transformer2DModel.from_pretrained(input_dir, subfolder="transformer")
+                load_model = SD3Transformer2DModel.from_pretrained(
+                    input_dir, subfolder="transformer", mindspore_dtype=model_load_dtype
+                )
                 model.register_to_config(**load_model.config)
 
                 ms.load_param_into_net(model, get_state_dict(load_model, name_prefix="transformer"))
             elif isinstance(model, (CLIPTextModelWithProjection, T5EncoderModel)):
                 try:
-                    load_model = CLIPTextModelWithProjection.from_pretrained(input_dir, subfolder="text_encoder")
+                    load_model = CLIPTextModelWithProjection.from_pretrained(
+                        input_dir, subfolder="text_encoder", mindspore_dtype=model_load_dtype
+                    )
                     model(**load_model.config)
                     ms.load_param_into_net(model, get_state_dict(load_model, name_prefix="text_encoder"))
                 except Exception:
                     try:
-                        load_model = CLIPTextModelWithProjection.from_pretrained(input_dir, subfolder="text_encoder_2")
+                        load_model = CLIPTextModelWithProjection.from_pretrained(
+                            input_dir, subfolder="text_encoder_2", mindspore_dtype=model_load_dtype
+                        )
                         model(**load_model.config)
                         ms.load_param_into_net(model, get_state_dict(load_model, name_prefix="text_encoder_2"))
                     except Exception:
                         try:
-                            load_model = T5EncoderModel.from_pretrained(input_dir, subfolder="text_encoder_3")
+                            load_model = T5EncoderModel.from_pretrained(
+                                input_dir, subfolder="text_encoder_3", mindspore_dtype=model_load_dtype
+                            )
                             model(**load_model.config)
                             ms.load_param_into_net(model, get_state_dict(load_model, name_prefix="text_encoder_3"))
                         except Exception:
