@@ -1,6 +1,8 @@
 import random
 import unittest
 
+import cv2
+from PIL import Image
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
@@ -8,13 +10,26 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import (
+    AutoPipelineForText2Image,
+    ControlNetModel,
+    AutoencoderKL,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
     get_pipeline_components,
+)
+
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
 )
 
 test_cases = [
@@ -26,7 +41,7 @@ test_cases = [
 
 
 @ddt
-class StableDiffusionControlNetPAGPipelineFastTests(
+class StableDiffusionXLControlNetPAGPipelineFastTests(
     PipelineTesterMixin,
     unittest.TestCase,
 ):
@@ -37,16 +52,22 @@ class StableDiffusionControlNetPAGPipelineFastTests(
             "diffusers.models.unets.unet_2d_condition.UNet2DConditionModel",
             "mindone.diffusers.models.unets.unet_2d_condition.UNet2DConditionModel",
             dict(
-                block_out_channels=(4, 8),
+                block_out_channels=(32, 64),
                 layers_per_block=2,
                 sample_size=32,
                 in_channels=4,
                 out_channels=4,
                 down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
                 up_block_types=("CrossAttnUpBlock2D", "UpBlock2D"),
-                cross_attention_dim=8,
+                # SD2-specific config below
+                attention_head_dim=(2, 4),
+                use_linear_projection=True,
+                addition_embed_type="text_time",
+                addition_time_embed_dim=8,
+                transformer_layers_per_block=(1, 2),
+                projection_class_embeddings_input_dim=80,  # 6 * 8 + 32
+                cross_attention_dim=64,
                 time_cond_proj_dim=time_cond_proj_dim,
-                norm_num_groups=2,
             ),
         ],
         [
@@ -54,25 +75,31 @@ class StableDiffusionControlNetPAGPipelineFastTests(
             "diffusers.models.controlnet.ControlNetModel",
             "mindone.diffusers.models.controlnet.ControlNetModel",
             dict(
-                block_out_channels=(4, 8),
+                block_out_channels=(32, 64),
                 layers_per_block=2,
                 in_channels=4,
                 down_block_types=("DownBlock2D", "CrossAttnDownBlock2D"),
-                conditioning_embedding_out_channels=(2, 4),
-                cross_attention_dim=8,
-                norm_num_groups=2,
+                conditioning_embedding_out_channels=(16, 32),
+                # SD2-specific config below
+                attention_head_dim=(2, 4),
+                use_linear_projection=True,
+                addition_embed_type="text_time",
+                addition_time_embed_dim=8,
+                transformer_layers_per_block=(1, 2),
+                projection_class_embeddings_input_dim=80,  # 6 * 8 + 32
+                cross_attention_dim=64,
             ),
         ],
         [
             "scheduler",
-            "diffusers.schedulers.scheduling_ddim.DDIMScheduler",
-            "mindone.diffusers.schedulers.scheduling_ddim.DDIMScheduler",
+            "diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler",
+            "mindone.diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler",
             dict(
                 beta_start=0.00085,
                 beta_end=0.012,
+                steps_offset=1,
                 beta_schedule="scaled_linear",
-                clip_sample=False,
-                set_alpha_to_one=False,
+                timestep_spacing="leading",
             ),
         ],
         [
@@ -80,13 +107,12 @@ class StableDiffusionControlNetPAGPipelineFastTests(
             "diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL",
             "mindone.diffusers.models.autoencoders.autoencoder_kl.AutoencoderKL",
             dict(
-                block_out_channels=[4, 8],
+                block_out_channels=[32, 64],
                 in_channels=3,
                 out_channels=3,
                 down_block_types=["DownEncoderBlock2D", "DownEncoderBlock2D"],
                 up_block_types=["UpDecoderBlock2D", "UpDecoderBlock2D"],
                 latent_channels=4,
-                norm_num_groups=2,
             ),
         ],
         [
@@ -97,18 +123,50 @@ class StableDiffusionControlNetPAGPipelineFastTests(
                 config=CLIPTextConfig(
                     bos_token_id=0,
                     eos_token_id=2,
-                    hidden_size=8,
-                    intermediate_size=16,
+                    hidden_size=32,
+                    intermediate_size=37,
                     layer_norm_eps=1e-05,
-                    num_attention_heads=2,
-                    num_hidden_layers=2,
+                    num_attention_heads=4,
+                    num_hidden_layers=5,
                     pad_token_id=1,
                     vocab_size=1000,
+                    # SD2-specific config below
+                    hidden_act="gelu",
+                    projection_dim=32,
                 ),
             ),
         ],
         [
             "tokenizer",
+            "transformers.models.clip.tokenization_clip.CLIPTokenizer",
+            "transformers.models.clip.tokenization_clip.CLIPTokenizer",
+            dict(
+                pretrained_model_name_or_path="hf-internal-testing/tiny-random-clip",
+            ),
+        ],
+        [
+            "text_encoder_2",
+            "transformers.models.clip.modeling_clip.CLIPTextModelWithProjection",
+            "mindone.transformers.models.clip.modeling_clip.CLIPTextModelWithProjection",
+            dict(
+                config=CLIPTextConfig(
+                    bos_token_id=0,
+                    eos_token_id=2,
+                    hidden_size=32,
+                    intermediate_size=37,
+                    layer_norm_eps=1e-05,
+                    num_attention_heads=4,
+                    num_hidden_layers=5,
+                    pad_token_id=1,
+                    vocab_size=1000,
+                    # SD2-specific config below
+                    hidden_act="gelu",
+                    projection_dim=32,
+                ),
+            ),
+        ],
+        [
+            "tokenizer_2",
             "transformers.models.clip.tokenization_clip.CLIPTokenizer",
             "transformers.models.clip.tokenization_clip.CLIPTokenizer",
             dict(
@@ -127,12 +185,12 @@ class StableDiffusionControlNetPAGPipelineFastTests(
                 "vae",
                 "text_encoder",
                 "tokenizer",
-                "safety_checker",
+                "text_encoder_2",
+                "tokenizer_2",
                 "feature_extractor",
                 "image_encoder",
             ]
         }
-
         return get_pipeline_components(components, self.pipeline_config)
 
     def get_dummy_inputs(self, seed=0):
@@ -174,10 +232,10 @@ class StableDiffusionControlNetPAGPipelineFastTests(
 
         pt_components, ms_components = self.get_dummy_components()
         pt_pipe_cls = get_module(
-            "diffusers.pipelines.pag.pipeline_pag_controlnet_sd.StableDiffusionControlNetPAGPipeline"
+            "diffusers.pipelines.pag.pipeline_pag_controlnet_sd_xl.StableDiffusionXLControlNetPAGPipeline"
         )
         ms_pipe_cls = get_module(
-            "mindone.diffusers.pipelines.pag.pipeline_pag_controlnet_sd.StableDiffusionControlNetPAGPipeline"
+            "mindone.diffusers.pipelines.pag.pipeline_pag_controlnet_sd_xl.StableDiffusionXLControlNetPAGPipeline"
         )
 
         pt_pipe = pt_pipe_cls(**pt_components, pag_applied_layers=["mid", "up", "down"])
@@ -203,3 +261,62 @@ class StableDiffusionControlNetPAGPipelineFastTests(
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
 
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+
+    def get_inputs(self):
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "hf-logo.png",
+            subfolder="sd_controlnet",
+        )
+
+        image = np.array(image)
+        image = cv2.Canny(image, 100, 200)
+        image = image[:, :, None]
+        image = np.concatenate([image, image, image], axis=2)
+        canny_image = Image.fromarray(image)
+
+        inputs = {
+            "prompt": "aerial view, a futuristic research complex in a bright foggy jungle, hard lighting",
+            "controlnet_conditioning_scale": 0.5,
+            "image": canny_image,
+            "pag_scale": 0.3,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+        controlnet = ControlNetModel.from_pretrained(
+            "diffusers/controlnet-canny-sdxl-1.0",
+            mindspore_dtype=ms_dtype
+        )
+        vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", mindspore_dtype=ms_dtype)
+        pipeline = AutoPipelineForText2Image.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            controlnet=controlnet,
+            vae=vae,
+            mindspore_dtype=ms_dtype,
+            enable_pag=True,
+        )
+
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipeline(**inputs)[0][0]
+
+        # from PIL import Image
+        # expected_image = Image.open(f'pag_controlnet_sdxl_{dtype}.jpg')
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f'pag_controlnet_sdxl_{dtype}.npy',
+            subfolder="pag",
+        )
+
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

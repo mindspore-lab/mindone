@@ -7,24 +7,38 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils import load_image
+
+from mindone.diffusers import (
+    FluxControlNetImg2ImgPipeline,
+    FluxControlNetModel,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
 )
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 test_cases = [
-    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
 
 
 @ddt
-class FluxControlImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class FluxControlNetImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
@@ -208,3 +222,69 @@ class FluxControlImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+
+    def get_inputs(self):
+        # control_image = load_image("https://huggingface.co/InstantX/SD3-Controlnet-Canny/resolve/main/canny.jpg")
+        control_image = load_downloaded_image_from_hf_hub(
+            "InstantX/FLUX.1-dev-Controlnet-Canny",
+            "canny.jpg",
+            subfolder=None,
+            repo_type="model",
+        )
+        init_image = load_image(
+            "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
+        )
+
+        inputs = {
+            'prompt': "A girl in city, 25 years old, cool, futuristic",
+            'image': init_image,
+            'control_image': control_image,
+            'control_guidance_start': 0.2,
+            'control_guidance_end': 0.8,
+            'controlnet_conditioning_scale': 1.0,
+            'strength': 0.7,
+            'num_inference_steps': 2,
+            'guidance_scale': 3.5,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_flux_controlnet_img2img_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet = FluxControlNetModel.from_pretrained(
+            "InstantX/FLUX.1-dev-Controlnet-Canny-alpha",
+            mindspore_dtype=ms_dtype
+        )
+
+        pipe = FluxControlNetImg2ImgPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell",
+            controlnet=controlnet,
+            mindspore_dtype=ms_dtype
+        )
+
+        pipe.text_encoder.to(ms_dtype)
+        pipe.controlnet.to(ms_dtype)
+
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        # from PIL import Image
+        # expected_image = Image.open(f'flux_controlnet_image_{dtype}.jpg')
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f'flux_controlnet_image_{dtype}.npy',
+            subfolder="flux",
+        )
+
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
