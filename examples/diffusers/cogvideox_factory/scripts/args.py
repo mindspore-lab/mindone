@@ -380,6 +380,9 @@ def _get_training_args(parser: argparse.ArgumentParser) -> None:
         type=int,
         help="The number of shards in sequence parallel. Default is 1.",
     )
+    parser.add_argument(
+        "--max_sequence_length", type=int, default=226, help="Max sequence length of prompt embeddings."
+    )
 
 
 def _get_optimizer_args(parser: argparse.ArgumentParser) -> None:
@@ -552,6 +555,8 @@ def check_args(args):
         raise ValueError(
             "All of training argument (height_buckets, width_buckets, frame_buckets) should be a one-element list."
         )
+    if args.dynamic_shape and args.vae_cache:
+        raise ValueError("If use dynamic_shape, vae_cache could not be set True.")
 
     if args.pin_memory:
         raise ValueError("MindSpore does not support pin_memory.")

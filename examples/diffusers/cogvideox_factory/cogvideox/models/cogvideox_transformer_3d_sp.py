@@ -142,11 +142,12 @@ class CogVideoXBlock_SP(nn.Cell):
         )
 
         # feed-forward
-        norm_hidden_states = mint.cat([norm_encoder_hidden_states, norm_hidden_states], dim=1)
-        ff_output = self.ff(norm_hidden_states)
+        # norm_hidden_states = mint.cat([norm_encoder_hidden_states, norm_hidden_states], dim=1)
+        ff_hidden_states = self.ff(norm_hidden_states)
+        ff_encoder_hidden_states = self.ff(norm_encoder_hidden_states)
 
-        hidden_states = hidden_states + gate_ff * ff_output[:, text_seq_length:]
-        encoder_hidden_states = encoder_hidden_states + enc_gate_ff * ff_output[:, :text_seq_length]
+        hidden_states = hidden_states + gate_ff * ff_hidden_states
+        encoder_hidden_states = encoder_hidden_states + enc_gate_ff * ff_encoder_hidden_states
 
         return hidden_states, encoder_hidden_states
 

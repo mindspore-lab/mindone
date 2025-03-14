@@ -70,7 +70,7 @@ def get_args() -> Dict[str, Any]:
         help="Whether or not to distributed process",
     )
     parser.add_argument(
-        "--model_id",
+        "--pretrained_model_name_or_path",
         type=str,
         default="THUDM/CogVideoX-2b",
         help="Hugging Face model ID to use for tokenizer, text encoder and VAE.",
@@ -320,14 +320,16 @@ def main():
     target_fps = args.target_fps
 
     # 1. Prepare models
-    tokenizer = T5Tokenizer.from_pretrained(args.model_id, subfolder="tokenizer")
+    tokenizer = T5Tokenizer.from_pretrained(args.pretrained_model_name_or_path, subfolder="tokenizer")
     if args.embeddings_cache:
         text_encoder = T5EncoderModel.from_pretrained(
-            args.model_id, subfolder="text_encoder", mindspore_dtype=weight_dtype
+            args.pretrained_model_name_or_path, subfolder="text_encoder", mindspore_dtype=weight_dtype
         )
 
     if args.vae_cache:
-        vae = AutoencoderKLCogVideoX.from_pretrained(args.model_id, subfolder="vae", mindspore_dtype=weight_dtype)
+        vae = AutoencoderKLCogVideoX.from_pretrained(
+            args.pretrained_model_name_or_path, subfolder="vae", mindspore_dtype=weight_dtype
+        )
 
         if args.use_slicing:
             vae.enable_slicing()
