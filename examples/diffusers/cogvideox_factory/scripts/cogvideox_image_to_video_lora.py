@@ -42,7 +42,7 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindone.diffusers import (
     AutoencoderKLCogVideoX,
     CogVideoXDPMScheduler,
-    CogVideoXPipeline,
+    CogVideoXImageToVideoPipeline,
     ConfigMixin,
     SchedulerMixin,
 )
@@ -88,7 +88,7 @@ class pynative_context(contextlib.ContextDecorator):
 
 def log_validation(
     trackers,
-    pipe: CogVideoXPipeline,
+    pipe: CogVideoXImageToVideoPipeline,
     args: Dict[str, Any],
     pipeline_args: Dict[str, Any],
     epoch,
@@ -160,15 +160,18 @@ class CollateFunction:
         text_input_ids = [x["text_input_ids"] for x in examples]
         text_input_ids = np.stack(text_input_ids)
 
+        images = [x["image"] for x in examples]
+        images = np.stack(images)
+
         videos = [x["video"] for x in examples]
         videos = np.stack(videos)
 
         if self.use_rope:
             rotary_positional_embeddings = [x["rotary_positional_embeddings"] for x in examples]
             rotary_positional_embeddings = np.stack(rotary_positional_embeddings)
-            return videos, text_input_ids, rotary_positional_embeddings
+            return images, videos, text_input_ids, rotary_positional_embeddings
         else:
-            return videos, text_input_ids
+            return images, videos, text_input_ids
 
 
 def set_params_requires_grad(m: nn.Cell, requires_grad: bool):
@@ -330,7 +333,7 @@ def main(args):
             else:
                 raise ValueError(f"Unexpected save model: {model.__class__}")
         if is_local_master(args):
-            CogVideoXPipeline.save_lora_weights(
+            CogVideoXImageToVideoPipeline.save_lora_weights(
                 output_dir,
                 transformer_lora_layers=transformer_lora_layers_to_save_new,
             )
@@ -342,7 +345,7 @@ def main(args):
             else:
                 raise ValueError(f"Unexpected save model: {model.__class__}")
 
-        lora_state_dict = CogVideoXPipeline.lora_state_dict(input_dir)
+        lora_state_dict = CogVideoXImageToVideoPipeline.lora_state_dict(input_dir)
 
         transformer_state_dict = {
             f'{k.replace("transformer.", "")}': v for k, v in lora_state_dict.items() if k.startswith("transformer.")
@@ -396,6 +399,7 @@ def main(args):
         "embeddings_cache": args.embeddings_cache,
         "vae_cache": args.vae_cache,
         "random_flip": args.random_flip,
+        "image_to_video": True,
         "tokenizer": None if args.embeddings_cache else tokenizer,
         "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
         "use_rotary_positional_embeddings": transformer_config.use_rotary_positional_embeddings,
@@ -427,9 +431,9 @@ def main(args):
         batch_size=args.train_batch_size,
         per_batch_map=lambda examples, batch_info: collate_fn(examples),
         input_columns=["examples"],
-        output_columns=["videos", "text_input_ids", "rotary_positional_embeddings"]
+        output_columns=["images", "videos", "text_input_ids", "rotary_positional_embeddings"]
         if transformer_config.use_rotary_positional_embeddings
-        else ["videos", "text_input_ids"],
+        else ["images", "videos", "text_input_ids"],
         num_parallel_workers=args.dataloader_num_workers,
     )
 
@@ -497,6 +501,7 @@ def main(args):
         weight_dtype=weight_dtype,
         args=args,
         use_rotary_positional_embeddings=transformer_config.use_rotary_positional_embeddings,
+        ofs_embed_dim=transformer_config.ofs_embed_dim,
         enable_sequence_parallelism=enable_sequence_parallelism,
     ).set_train(True)
 
@@ -640,7 +645,7 @@ def main(args):
         if is_master(args):
             if args.validation_prompt is not None and (epoch + 1) % args.validation_epochs == 0:
                 pipe_init_kwargs = {} if text_encoder is None else {"text_encoder": text_encoder, "vae": vae}
-                pipe = CogVideoXPipeline.from_pretrained(
+                pipe = CogVideoXImageToVideoPipeline.from_pretrained(
                     args.pretrained_model_name_or_path,
                     transformer=transformer,
                     scheduler=scheduler,
@@ -694,7 +699,7 @@ def main(args):
         transformer = transformer.to(dtype)
         transformer_lora_layers = get_peft_model_state_dict(transformer)
 
-        CogVideoXPipeline.save_lora_weights(
+        CogVideoXImageToVideoPipeline.save_lora_weights(
             save_directory=args.output_dir,
             transformer_lora_layers=transformer_lora_layers,
         )
@@ -705,7 +710,7 @@ def main(args):
         ms.hal.empty_cache()
 
         # Final test inference
-        pipe = CogVideoXPipeline.from_pretrained(
+        pipe = CogVideoXImageToVideoPipeline.from_pretrained(
             args.pretrained_model_name_or_path,
             revision=args.revision,
             variant=args.variant,
@@ -758,6 +763,7 @@ class TrainStepForCogVideo(nn.Cell):
         weight_dtype: ms.Type,
         args: AttrJitWrapper,
         use_rotary_positional_embeddings: bool,
+        ofs_embed_dim: Optional[int],
         enable_sequence_parallelism: bool = False,
     ):
         super().__init__()
@@ -774,6 +780,7 @@ class TrainStepForCogVideo(nn.Cell):
         self.scheduler_num_train_timesteps = scheduler.config.num_train_timesteps
 
         self.use_rotary_positional_embeddings = use_rotary_positional_embeddings
+        self.ofs_embed_dim = ofs_embed_dim
         self.args = AttrJitWrapper(**vars(args))
         self.enable_sequence_parallelism = enable_sequence_parallelism
         self.sp_group = None
@@ -818,16 +825,30 @@ class TrainStepForCogVideo(nn.Cell):
             mint.distributed.broadcast(tensor=x, src=0, group=self.sp_group)
         return x
 
-    def prepare_transformer_inputs(self, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
+    def prepare_transformer_inputs(self, images, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
         with pynative_context(), pynative_no_grad():
             if not args.vae_cache:
+                images = images.permute(0, 2, 1, 3, 4)
+                image_noise_sigma = mint.normal((images.shape[0],), -3.0, 0.5)
+                image_noise_sigma = mint.exp(image_noise_sigma)
+                images = images + mint.randn_like(images) * image_noise_sigma[:, None, None, None, None]
+                images = images.to(self.vae.dtype)
+                images = self.vae.encode(images)[0]
+
                 videos = videos.permute(0, 2, 1, 3, 4).to(self.vae.dtype)  # [B, C, F, H, W]
                 videos = self.vae.encode(videos)[0]
+            images = images.to(self.weight_dtype)
             videos = videos.to(self.weight_dtype)
+            images = self.diagonal_gaussian_distribution_sample(images) * self.vae_scaling_factor
             videos = self.diagonal_gaussian_distribution_sample(videos) * self.vae_scaling_factor
             # [B, C, F, H, W] (1, 16, 20, 96, 170) -> [B, F, C, H, W]
+            images = images.permute(0, 2, 1, 3, 4)
             videos = videos.permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
-            model_input = videos
+
+            padding_shape = (videos.shape[0], videos.shape[1] - 1, *videos.shape[2:])
+            latent_padding = mint.zeros(padding_shape, dtype=images.dtype)
+            images = mint.cat([images, latent_padding], dim=1)
+            images = mint.where(mint.rand(images.shape[0]) < args.noised_image_dropout, mint.zeros_like(images), images)
 
             # Encode prompts
             if not args.embeddings_cache:
@@ -839,8 +860,8 @@ class TrainStepForCogVideo(nn.Cell):
                 prompt_embeds = text_input_ids_or_prompt_embeds.to(dtype=self.weight_dtype)
             # prompt_embeds(1, 226, 4096)
             # Sample noise that will be added to the latents
-            noise = mint.randn_like(model_input, dtype=model_input.dtype)
-            batch_size, num_frames, num_channels, height, width = model_input.shape
+            noise = mint.randn_like(videos, dtype=videos.dtype)
+            batch_size, num_frames, num_channels, height, width = videos.shape
 
             # Sample a random timestep for each image
             timesteps = mint.randint(0, self.scheduler_num_train_timesteps, (batch_size,), dtype=ms.int32)
@@ -851,35 +872,43 @@ class TrainStepForCogVideo(nn.Cell):
 
             # Add noise to the model input according to the noise magnitude at each timestep
             # (this is the forward diffusion process)
-            noisy_model_input = self.scheduler.add_noise(model_input, noise, timesteps)
+            noisy_videos = self.scheduler.add_noise(videos, noise, timesteps)
+            noisy_model_input = mint.cat([noisy_videos, images], dim=2)
+            ofs_emb = (
+                None if self.ofs_embed_dim is None else mint.full((1,), fill_value=2.0, dtype=noisy_model_input.dtype)
+            )
 
-            model_input = self._broadcast_out(model_input)
+            noisy_videos = self._broadcast_out(noisy_videos)
             prompt_embeds = self._broadcast_out(prompt_embeds)
             noisy_model_input = self._broadcast_out(noisy_model_input)
             timesteps = self._broadcast_out(timesteps)
+            ofs_emb = self._broadcast_out(ofs_emb)
             image_rotary_emb = self._broadcast_out(image_rotary_emb)
-        return model_input, prompt_embeds, noisy_model_input, timesteps, image_rotary_emb
+        return videos, noisy_videos, prompt_embeds, noisy_model_input, timesteps, ofs_emb, image_rotary_emb
 
-    def construct(self, model_input, prompt_embeds, noisy_model_input, timesteps, image_rotary_emb=None):
-        batch_size = model_input.shape[0]
+    def construct(
+        self, videos, noisy_videos, prompt_embeds, noisy_model_input, timesteps, ofs_emb, image_rotary_emb=None
+    ):
+        batch_size = noisy_videos.shape[0]
 
         # Predict the noise residual
         model_output = self.transformer(
             hidden_states=noisy_model_input,
             encoder_hidden_states=prompt_embeds,
             timestep=timesteps,
+            ofs=ofs_emb,
             image_rotary_emb=image_rotary_emb,
             return_dict=False,
         )[0]
 
-        model_pred = self.scheduler.get_velocity(model_output, noisy_model_input, timesteps)
+        model_pred = self.scheduler.get_velocity(model_output, noisy_videos, timesteps)
 
         alphas_cumprod = self.scheduler.alphas_cumprod.to(dtype=ms.float32)
         weights = 1 / (1 - alphas_cumprod[timesteps])
         while len(weights.shape) < len(model_pred.shape):
             weights = weights.unsqueeze(-1)
 
-        target = model_input
+        target = videos
 
         loss = mint.mean(
             (weights * (model_pred - target) ** 2).reshape(batch_size, -1),
