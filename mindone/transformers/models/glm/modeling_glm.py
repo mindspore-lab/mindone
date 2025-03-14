@@ -23,7 +23,6 @@ import math
 from typing import Optional, Tuple, Union
 
 import numpy as np
-from transformers import GlmConfig
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging
 
 import mindspore as ms
@@ -42,6 +41,7 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
+from .configuration_glm import GlmConfig
 
 
 class GlmRMSNorm(nn.Cell):
