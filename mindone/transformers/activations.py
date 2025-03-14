@@ -42,7 +42,7 @@ class NewGELUActivation(nn.Cell):
     def construct(self, input: Tensor) -> Tensor:
         return (
             0.5 * input * (1.0 + ops.tanh(ops.sqrt(Tensor(2.0 / math.pi)) * (input + 0.044715 * ops.pow(input, 3.0))))
-        )
+        ).to(input.dtype)
 
 
 class GELUActivation(nn.Cell):
