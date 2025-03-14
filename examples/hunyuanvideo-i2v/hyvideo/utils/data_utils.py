@@ -5,7 +5,6 @@ import random
 import sys
 
 import numpy as np
-from decord import VideoReader, cpu
 from PIL import Image
 
 import mindspore as ms
@@ -45,6 +44,8 @@ def center_crop_th_tw(image, th, tw, top_crop, **kwargs):
 
 
 def read_video(video_path: str, num_frames: int, sample_rate: int) -> ms.Tensor:
+    from decord import VideoReader, cpu
+
     decord_vr = VideoReader(video_path, ctx=cpu(0))
     total_frames = len(decord_vr)
     sample_frames_len = sample_rate * num_frames

@@ -36,6 +36,35 @@ Here is the development plan of the project:
     ```shell
     pip install -r requirements.txt
     ```
+    In case `decord` package is not available, try `pip install eva-decord`.
+    For EulerOS, instructions on ffmpeg and decord installation are as follows.
+
+    <details onclose>
+    <summary>How to install ffmpeg and decord</summary>
+
+    ```
+    1. install ffmpeg 4, referring to https://ffmpeg.org/releases
+        wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
+        tar -xvf ffmpeg-4.0.1.tar.bz2
+        mv ffmpeg-4.0.1 ffmpeg
+        cd ffmpeg
+        ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
+        make -j 64
+        make install
+
+    2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
+        git clone --recursive https://github.com/dmlc/decord
+        cd decord
+        rm build && mkdir build && cd build
+        cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
+        make -j 64
+        make install
+        cd ../python
+        python3 setup.py install --user
+    ```
+
+    </details>
+
 ## 🎥 Demo
 
 The following videos are generated based on MindSpore and Ascend 910B.
