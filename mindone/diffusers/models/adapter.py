@@ -84,9 +84,9 @@ class MultiAdapter(ModelMixin):
                 summing them together. If `None`, equal weights will be used for all adapters.
         """
         if adapter_weights is None:
-            adapter_weights = ms.Tensor([1 / self.num_adapter] * self.num_adapter)
+            adapter_weights = ms.tensor([1 / self.num_adapter] * self.num_adapter)
         else:
-            adapter_weights = ms.Tensor(adapter_weights)
+            adapter_weights = ms.tensor(adapter_weights)
 
         accume_state = None
         for x, w, adapter in zip(xs, adapter_weights, self.adapters):
@@ -592,7 +592,7 @@ class AvgPool2dDownsample(nn.Cell):
     def construct(self, x):
         # ceil_mode
         paddings = ((0, 0),) * (x.ndim - 2) + ((0, x.shape[-2] % 2), (0, x.shape[-1] % 2))
-        paddings = ms.Tensor(paddings, dtype=ms.int64)
+        paddings = ms.tensor(paddings, dtype=ms.int64)
         x = ops.MirrorPad(mode="SYMMETRIC")(x, paddings)
 
         # AvgPool(kernel_size=2, stride=2)

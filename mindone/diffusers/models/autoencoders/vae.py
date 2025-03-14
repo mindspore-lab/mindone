@@ -579,7 +579,7 @@ class VectorQuantizer(nn.Cell):
 
         self.remap = remap
         if self.remap is not None:
-            self.used = ms.Tensor(np.load(self.remap))
+            self.used = ms.tensor(np.load(self.remap))
             self.used: ms.Tensor
             self.re_embed = self.used.shape[0]
             self.unknown_index = unknown_index  # "random" or "extra" or integer
@@ -702,7 +702,7 @@ class DiagonalGaussianDistribution(object):
     def kl(self, parameters: ms.Tensor, other: ms.Tensor = None) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         else:
             if other is None:
                 return 0.5 * ops.sum(
@@ -725,7 +725,7 @@ class DiagonalGaussianDistribution(object):
     def nll(self, parameters: ms.Tensor, sample: ms.Tensor, dims: Tuple[int, ...] = (1, 2, 3)) -> ms.Tensor:
         mean, logvar, var, std = self.init(parameters)
         if self.deterministic:
-            return ms.Tensor([0.0])
+            return ms.tensor([0.0])
         logtwopi = np.log(2.0 * np.pi)
         return 0.5 * ops.sum(
             logtwopi + logvar + ops.pow(sample - mean, 2) / var,

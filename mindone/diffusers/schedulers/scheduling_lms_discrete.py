@@ -172,7 +172,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         sigmas = np.concatenate([sigmas[::-1], [0.0]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
         # setable values
         self.num_inference_steps = None
@@ -311,8 +311,8 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
-        self.timesteps = ms.Tensor(timesteps)
+        self.sigmas = ms.tensor(sigmas)
+        self.timesteps = ms.tensor(timesteps)
         self._step_index = None
         self._begin_index = None
 
@@ -424,7 +424,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ms.Tensor(
+        sigmas = ms.tensor(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))
                 for ppf in [

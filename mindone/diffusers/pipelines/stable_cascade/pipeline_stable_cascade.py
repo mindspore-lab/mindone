@@ -147,7 +147,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             text_input_ids = text_inputs.input_ids
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
 
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -202,8 +202,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
-                attention_mask=ms.Tensor(uncond_input.attention_mask),
+                ms.tensor(uncond_input.input_ids),
+                attention_mask=ms.tensor(uncond_input.attention_mask),
                 output_hidden_states=True,
             )
 

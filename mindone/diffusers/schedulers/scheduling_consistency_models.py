@@ -94,8 +94,8 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
 
         # setable values
         self.num_inference_steps = None
-        self.sigmas = ms.Tensor(sigmas)
-        self.timesteps = ms.Tensor(timesteps)
+        self.sigmas = ms.tensor(sigmas)
+        self.timesteps = ms.tensor(timesteps)
         self.custom_timesteps = False
         self.is_scale_input_called = False
         self._step_index = None
@@ -229,9 +229,9 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         timesteps = self.sigma_to_t(sigmas)
 
         sigmas = np.concatenate([sigmas, [self.config.sigma_min]]).astype(np.float32)
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
         self._step_index = None
         self._begin_index = None

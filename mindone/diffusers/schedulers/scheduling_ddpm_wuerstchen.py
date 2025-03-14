@@ -156,7 +156,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
         if timesteps is None:
             timesteps = ms.tensor(np.linspace(1.0, 0.0, num_inference_steps + 1), dtype=ms.float32)
         if not isinstance(timesteps, ms.Tensor):
-            timesteps = ms.Tensor(timesteps)
+            timesteps = ms.tensor(timesteps)
         self.timesteps = timesteps
 
     def step(

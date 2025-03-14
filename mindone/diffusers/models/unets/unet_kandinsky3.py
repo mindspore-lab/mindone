@@ -214,7 +214,7 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
 
         if not ops.is_tensor(timestep):
             dtype = ms.float32 if isinstance(timestep, float) else ms.int32
-            timestep = ms.Tensor([timestep], dtype=dtype)
+            timestep = ms.tensor([timestep], dtype=dtype)
         elif len(timestep.shape) == 0:
             timestep = timestep[None]
 

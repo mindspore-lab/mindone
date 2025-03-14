@@ -186,7 +186,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
         if image_embeddings is None:
             if not isinstance(image, ms.Tensor):
                 image = self.feature_extractor(images=image, return_tensors="np").pixel_values
-                image = ms.Tensor(image)
+                image = ms.tensor(image)
 
             image = image.to(dtype=dtype)
             image_embeddings = self.image_encoder(image)[0]

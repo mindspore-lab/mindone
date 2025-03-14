@@ -266,7 +266,7 @@ class AuraFlowPipeline(DiffusionPipeline):
                     f" {max_length} tokens: {removed_text}"
                 )
 
-            text_inputs = {k: ms.Tensor(v) for k, v in text_inputs.items()}
+            text_inputs = {k: ms.tensor(v) for k, v in text_inputs.items()}
             prompt_embeds = self.text_encoder(**text_inputs)[0]
             prompt_attention_mask = text_inputs["attention_mask"].unsqueeze(-1).broadcast_to(prompt_embeds.shape)
             prompt_embeds = prompt_embeds * prompt_attention_mask
@@ -299,7 +299,7 @@ class AuraFlowPipeline(DiffusionPipeline):
                 padding="max_length",
                 return_tensors="np",
             )
-            uncond_input = {k: ms.Tensor(v) for k, v in uncond_input.items()}
+            uncond_input = {k: ms.tensor(v) for k, v in uncond_input.items()}
             negative_prompt_embeds = self.text_encoder(**uncond_input)[0]
             negative_prompt_attention_mask = (
                 uncond_input["attention_mask"].unsqueeze(-1).expand(negative_prompt_embeds.shape)
@@ -518,7 +518,7 @@ class AuraFlowPipeline(DiffusionPipeline):
 
                 # aura use timestep value between 0 and 1, with t=1 as noise and t=0 as the image
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = ms.Tensor(t / 1000).broadcast_to((latent_model_input.shape[0],))
+                timestep = ms.tensor(t / 1000).broadcast_to((latent_model_input.shape[0],))
                 timestep = timestep.to(dtype=latents.dtype)
 
                 # predict noise model_output

@@ -269,7 +269,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
 
         timesteps = timestep
         if not ops.is_tensor(timesteps):
-            timesteps = ms.Tensor([timesteps], dtype=ms.int64)
+            timesteps = ms.tensor([timesteps], dtype=ms.int64)
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 

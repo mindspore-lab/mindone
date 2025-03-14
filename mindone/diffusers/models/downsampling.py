@@ -231,7 +231,7 @@ class FirDownsample2D(nn.Cell):
             kernel = [1] * factor
 
         # setup kernel
-        kernel = ms.Tensor(kernel, dtype=ms.float32)
+        kernel = ms.tensor(kernel, dtype=ms.float32)
         if kernel.ndim == 1:
             kernel = ops.outer(kernel, kernel)
         kernel /= ops.sum(kernel)
@@ -280,7 +280,7 @@ class KDownsample2D(nn.Cell):
     def __init__(self, pad_mode: str = "reflect"):
         super().__init__()
         self.pad_mode = pad_mode
-        kernel_1d = ms.Tensor([[1 / 8, 3 / 8, 3 / 8, 1 / 8]])
+        kernel_1d = ms.tensor([[1 / 8, 3 / 8, 3 / 8, 1 / 8]])
         self.pad = kernel_1d.shape[1] // 2 - 1
         self.kernel = kernel_1d.T @ kernel_1d
 
@@ -411,7 +411,7 @@ def downsample_2d(
     if kernel is None:
         kernel = [1] * factor
 
-    kernel = ms.Tensor(kernel, dtype=ms.float32)
+    kernel = ms.tensor(kernel, dtype=ms.float32)
     if kernel.ndim == 1:
         kernel = ops.outer(kernel, kernel)
     kernel /= ops.sum(kernel)

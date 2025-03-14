@@ -264,10 +264,10 @@ class StableAudioPipeline(DiffusionPipeline):
 
         # Cast the inputs to floats
         audio_start_in_s = [float(x) for x in audio_start_in_s]
-        audio_start_in_s = ms.Tensor(audio_start_in_s)
+        audio_start_in_s = ms.tensor(audio_start_in_s)
 
         audio_end_in_s = [float(x) for x in audio_end_in_s]
-        audio_end_in_s = ms.Tensor(audio_end_in_s)
+        audio_end_in_s = ms.tensor(audio_end_in_s)
 
         projection_output = self.projection_model(
             start_seconds=audio_start_in_s,

@@ -222,7 +222,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
 
         self.alphas = 1.0 - self.betas
         self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
-        self.one = ms.Tensor(1.0)
+        self.one = ms.tensor(1.0)
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0
@@ -230,7 +230,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.custom_timesteps = False
         self.num_inference_steps = None
-        self.timesteps = ms.Tensor(np.arange(0, num_train_timesteps)[::-1].copy())
+        self.timesteps = ms.tensor(np.arange(0, num_train_timesteps)[::-1].copy())
 
         self.variance_type = variance_type
 
@@ -321,7 +321,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
                     f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
                 )
 
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
 
     def _get_variance(self, t, predicted_variance=None, variance_type=None):
         prev_t = self.previous_timestep(t)
@@ -563,7 +563,7 @@ class DDPMScheduler(SchedulerMixin, ConfigMixin):
         if self.custom_timesteps:
             index = (self.timesteps == timestep).nonzero()[0][0]
             if index == self.timesteps.shape[0] - 1:
-                prev_t = ms.Tensor(-1)
+                prev_t = ms.tensor(-1)
             else:
                 prev_t = self.timesteps[index + 1]
         else:
