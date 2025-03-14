@@ -17,8 +17,8 @@ from PIL import Image
 
 import mindspore as ms
 from mindspore import amp, mint
-from mindspore.nn.utils import no_init_parameters
 from mindspore.dataset import transforms, vision
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.utils.amp import auto_mixed_precision
 
@@ -93,7 +93,7 @@ class Inference(object):
 
         if args.embedded_cfg_scale:
             factor_kwargs["guidance_embed"] = True
-        
+
         with no_init_parameters():
             model = load_model(
                 name=args.model,

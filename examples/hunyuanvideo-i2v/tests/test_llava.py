@@ -1,17 +1,11 @@
 # flake8: noqa
-import math
 import os
 import sys
-import time
 
 import numpy as np
-from easydict import EasyDict as edict
 from PIL import Image
 
 import mindspore as ms
-from mindspore import amp, ops
-from mindspore.nn.utils import no_init_parameters
-from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 sys.path.insert(0, ".")
 __dir__ = os.path.dirname(os.path.abspath(__file__))
