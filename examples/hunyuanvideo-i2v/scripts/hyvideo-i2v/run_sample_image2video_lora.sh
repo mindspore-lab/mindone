@@ -34,7 +34,6 @@ python3 sample_image2video.py \
    --save-path ./results \
    --use-lora \
    --lora-scale 1.0 \
-   --ms-mode 1 \
 
 # More examples
 #    --prompt "rapid_hair_growth, The hair of the characters in the video is growing rapidly. The character's hair undergoes a dramatic transformation, growing rapidly from a short, straight style to a long, wavy one. Initially, the hair is a light blonde color, but as it grows, it becomes darker and more voluminous. The character's facial features remain consistent throughout the transformation, with a slight change in the shape of the jawline as the hair grows. The clothing changes from a simple, casual outfit to a more elaborate, fashionable ensemble that complements the longer hair. The overall appearance shifts from a casual, everyday look to a more stylish, sophisticated one. The character's expression remains calm and composed throughout the transformation, with a slight smile as the hair grows." \

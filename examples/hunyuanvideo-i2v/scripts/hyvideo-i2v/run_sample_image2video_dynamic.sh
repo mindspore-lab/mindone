@@ -31,7 +31,6 @@ python3 sample_image2video.py \
     --embedded-cfg-scale 6.0 \
     --seed 0 \
     --save-path ./results \
-    --ms-mode 1 \
 
 # More example
 #    --prompt "A girl walks on the road, shooting stars pass by." \
