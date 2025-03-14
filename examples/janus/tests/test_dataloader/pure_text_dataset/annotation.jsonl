@@ -1,0 +1,12 @@
+[
+  [
+    {
+      "role": "<|User|>",
+      "content": "What is the capital of France?"
+    },
+    {
+      "role": "<|Assistant|>",
+      "content": "Paris."
+    }
+  ]
+]
