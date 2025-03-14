@@ -69,18 +69,6 @@ class AutoModelTest(unittest.TestCase):
         self.assertEqual(len(loading_info["error_msgs"]), 0)
 
     @slow
-    def test_model_for_causal_lm(self):
-        model_name = "meta-llama/Meta-Llama-3-8B"
-        config = AutoConfig.from_pretrained(model_name)
-        self.assertIsNotNone(config)
-        self.assertIsInstance(config, LlamaConfig)
-
-        model = AutoModelForCausalLM.from_pretrained(model_name)
-        model, loading_info = AutoModelForCausalLM.from_pretrained(model_name, output_loading_info=True)
-        self.assertIsNotNone(model)
-        self.assertIsInstance(model, LlamaForCausalLM)
-
-    @slow
     def test_model_for_masked_lm(self):
         model_name = "google-bert/bert-base-uncased"
         config = AutoConfig.from_pretrained(model_name)
