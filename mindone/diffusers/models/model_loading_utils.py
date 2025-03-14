@@ -30,7 +30,6 @@ from huggingface_hub.utils import EntryNotFoundError
 import mindspore as ms
 from mindspore import nn, ops
 
-from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
@@ -82,7 +81,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike], variant: Optional[
     try:
         file_extension = os.path.basename(checkpoint_file).split(".")[-1]
         if file_extension == SAFETENSORS_FILE_EXTENSION:
-            return safe_load_file(checkpoint_file)
+            return ms.load_checkpoint(checkpoint_file, format="safetensors")
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -118,17 +117,20 @@ def _load_state_dict_into_model(
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
+            _param_info = v.param_info
             if ops.is_floating_point(v):
                 if (
                     keep_in_fp32_modules is not None
                     and any(module_to_keep_in_fp32 in k.split(".") for module_to_keep_in_fp32 in keep_in_fp32_modules)
                     and dtype == ms.float16
                 ):
-                    v.set_dtype(ms.float32)
+                    state_dict[k] = ms.Parameter(v.to(ms.float32))
                 else:
-                    v.set_dtype(local_state[k].dtype)
+                    state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
             else:
-                v.set_dtype(local_state[k].dtype)
+                state_dict[k] = ms.Parameter(v.to(local_state[k].dtype))
+            state_dict[k].param_info = _param_info
+            v.param_info = None
         else:
             pass  # unexpect key keeps origin dtype
     ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
@@ -201,7 +203,7 @@ def _merge_sharded_checkpoints(sharded_ckpt_cached_folder, sharded_metadata):
             raise FileNotFoundError(f"Part file {file_name} not found.")
 
         if is_safetensors:
-            state_dict = safe_load_file(part_file_path)
+            state_dict = ms.load_checkpoint(part_file_path, format="safetensors")
             for tensor_key in state_dict.keys():
                 if tensor_key in weight_map:
                     merged_state_dict[tensor_key] = state_dict(tensor_key)
