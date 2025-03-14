@@ -47,41 +47,34 @@ snapshot_download(
 
 This will also allow us to push the trained LoRA parameters to the Hugging Face Hub platform.
 
-<details>
-  <summary>
-  WIP: run example in LoRA+DreamBooth instead
-  </summary>
+Now, we can launch training using:
 
-  Now, we can launch training using:
+```bash
+export MODEL_NAME="stabilityai/stable-diffusion-3-medium-diffusers"
+export INSTANCE_DIR="dog"
+export OUTPUT_DIR="trained-sd3"
 
-  ```bash
-  export MODEL_NAME="stabilityai/stable-diffusion-3-medium-diffusers"
-  export INSTANCE_DIR="dog"
-  export OUTPUT_DIR="trained-sd3"
+python train_dreambooth_sd3.py \
+  --pretrained_model_name_or_path=$MODEL_NAME  \
+  --instance_data_dir=$INSTANCE_DIR \
+  --output_dir=$OUTPUT_DIR \
+  --mixed_precision="fp16" \
+  --instance_prompt="a photo of sks dog" \
+  --resolution=1024 \
+  --train_batch_size=1 \
+  --gradient_accumulation_steps=1 \
+  --learning_rate=1e-4 \
+  --lr_scheduler="constant" \
+  --lr_warmup_steps=0 \
+  --max_train_steps=500 \
+  --validation_prompt="A photo of sks dog in a bucket" \
+  --validation_epochs=25 \
+  --seed="0"
+```
 
-  python train_dreambooth_sd3.py \
-    --pretrained_model_name_or_path=$MODEL_NAME  \
-    --instance_data_dir=$INSTANCE_DIR \
-    --output_dir=$OUTPUT_DIR \
-    --mixed_precision="fp16" \
-    --instance_prompt="a photo of sks dog" \
-    --resolution=1024 \
-    --train_batch_size=1 \
-    --gradient_accumulation_steps=1 \
-    --learning_rate=1e-4 \
-    --lr_scheduler="constant" \
-    --lr_warmup_steps=0 \
-    --max_train_steps=500 \
-    --validation_prompt="A photo of sks dog in a bucket" \
-    --validation_epochs=25 \
-    --seed="0"
-  ```
+To better track our training experiments, we're using the following flags in the command above:
 
-  To better track our training experiments, we're using the following flags in the command above:
-
-  * `validation_prompt` and `validation_epochs` to allow the script to do a few validation inference runs. This allows us to qualitatively check if the training is progressing as expected.
-
-</details>
+- `validation_prompt` and `validation_epochs` to allow the script to do a few validation inference runs. This allows us to qualitatively check if the training is progressing as expected.
 
 
 ## LoRA + DreamBooth
