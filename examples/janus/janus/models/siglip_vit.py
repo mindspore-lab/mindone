@@ -174,7 +174,6 @@ class Block(nn.Cell):
         mlp_layer: nn.Cell = Mlp,
     ) -> None:
         super().__init__()
-        # print("D--: Blocks local args: ", locals())
         self.norm1 = norm_layer([dim])
         self.attn = Attention(
             dim,

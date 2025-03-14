@@ -11,7 +11,7 @@ sys.path.insert(0, mindone_lib_path)
 
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.utils.io import load_pil_images, set_model_param_dtype
-from transformers import AutoConfig, AutoModelForCausalLM
+from transformers import AutoConfig
 
 from mindspore.nn.utils import no_init_parameters
 
@@ -85,6 +85,12 @@ if __name__ == "__main__":
     parser.add_argument("--image", type=str, default="images/doge.png", help="path to input image")
     parser.add_argument("--question", type=str, default="explain this meme", help="path to input image")
     parser.add_argument(
+        "--ckpt_path",
+        type=str,
+        default=None,
+        help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path",
+    )
+    parser.add_argument(
         "--model_path",
         type=str,
         default="ckpts/Janus-Pro-1B",
@@ -118,12 +124,22 @@ if __name__ == "__main__":
     language_config = config.language_config
     language_config._attn_implementation = "eager"
     # language_config._attn_implementation = 'flash_attention_2'
-    with no_init_parameters():
-        vl_gpt: MultiModalityCausalLM = AutoModelForCausalLM.from_pretrained(
-            args.model_path, language_config=language_config, trust_remote_code=True
-        )
-    dtype = ms.bfloat16
-    vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+    if args.ckpt_path is not None:
+        with no_init_parameters():
+            vl_gpt = MultiModalityCausalLM(config=config)
+        dtype = ms.bfloat16
+        vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+
+        parameter_dict = ms.load_checkpoint(args.ckpt_path)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(vl_gpt, parameter_dict, strict_load=True)
+        print("net param not load: {}".format(param_not_load))
+        print("ckpt param not load: {}".format(ckpt_not_load))
+    else:
+        with no_init_parameters():
+            vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
+        dtype = ms.bfloat16
+        vl_gpt = set_model_param_dtype(vl_gpt, dtype)
+
     vl_gpt.set_train(False)
 
     # infer
