@@ -21,7 +21,6 @@ python train.py \
     --warmup_steps 50 \
     --ckpt_save_steps 1000 \
     --ckpt_max_keep 10 \
-    --clip_grad $clip_grad \
     --output_path outputs/stage${stage}_text_pubmed_lr${lr}_wd${wd}_bs${bs} \
 
     # --num_samples 20 --shuffle=False \

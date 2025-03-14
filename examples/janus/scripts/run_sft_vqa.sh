@@ -4,7 +4,6 @@ wd=0.01
 bs=4
 fe=False
 stage=3
-clip_grad=False
 
 python train.py \
     --model_path ckpts/Janus-Pro-1B --load_weight=True \
@@ -22,7 +21,6 @@ python train.py \
     --warmup_steps 50 \
     --ckpt_save_steps 1000 \
     --ckpt_max_keep 10 \
-    --clip_grad $clip_grad \
     --output_path outputs/stage${stage}_vqa_medicalvqa_lr${lr}_wd${wd}_bs${bs}_clipgrad${clip_grad} \
 
     # --num_samples 20 --shuffle=False \
