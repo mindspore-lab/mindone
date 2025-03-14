@@ -135,7 +135,7 @@ in between during processing.
 #### Step by Step
 
 You may also run the pipeline step by step or run certain steps
-based on your needs. Refer to [Command Line Workflow](./cmd_guide.md)
+based on your needs. Refer to [Command Line Workflow](./docs/cmd_guide.md)
 for more details.
 
 ## Further Reading
