@@ -2441,8 +2441,6 @@ class SequenceSummary(nn.Cell):
         self.summary_type = getattr(config, "summary_type", "last")
         if self.summary_type == "attn":
             # We should use a standard multi-head attention module with absolute positional embedding for that.
-            # Cf. https://github.com/zihangdai/xlnet/blob/master/modeling.py#L253-L276
-            # We can probably just use the multi-head attention module of PyTorch >=1.1.0
             raise NotImplementedError
 
         self.summary = Identity()
