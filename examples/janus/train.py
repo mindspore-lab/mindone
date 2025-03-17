@@ -33,6 +33,7 @@ from janus.train.lr_schedule import WarmupCosineDecayLR
 from janus.train.t2i_dataset import create_dataloader_t2i
 from janus.train.text_dataset import create_dataloader_text
 from janus.train.vqa_dataset import create_dataloader_vqa
+from janus.train.unified_dataset import create_dataloader_unified
 from janus.utils.io import set_model_param_dtype
 
 from mindone.trainers.checkpoint import CheckpointManager
@@ -177,23 +178,22 @@ def main(args):
     config.save_pretrained(args.output_path)
 
     # 2. prepare dataset and loader
-    # FIXME: output task_type in dataloader
     task = args.task
-    if task == "text":
-        # FIXME: allow setting path
-        dataloader = create_dataloader_text(
+    if task == "vqa":
+        dataloader = create_dataloader_vqa(
             dataset_name=args.dataset_name,
-            data_dir=args.data_dir,
+            data_dir=args.vqa_data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
-    elif task == "vqa":
-        dataloader = create_dataloader_vqa(
+    elif task == "text":
+        # FIXME: allow setting path
+        dataloader = create_dataloader_text(
             dataset_name=args.dataset_name,
-            data_dir=args.data_dir,
+            data_dir=args.text_qa_data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,
@@ -202,8 +202,8 @@ def main(args):
         )
     elif task == "t2i":
         dataloader = create_dataloader_t2i(
-            csv_path=args.csv_path,
-            data_dir=args.data_dir,
+            csv_path=args.t2i_csv_path,
+            data_dir=args.t2i_data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             image_size=args.image_size,
@@ -212,9 +212,25 @@ def main(args):
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
+    elif task == "mixed":
+        dataloader = create_dataloader_unified(
+            vl_chat_processor,
+            t2i_csv_path=args.t2i_csv_path,
+            t2i_data_path=args.t2i_data_path,
+            vqa_data_dir=args.vqa_data_dir,
+            text_qa_data_dir=args.text_qa_data_dir,
+            num_samples_vqa=100,
+            num_samples_puretext=20,
+            num_samples_t2i=80,
+            shuffle=args.shuffle,
+            batch_size=args.batch_size,
+            max_token_length=args.max_length,
+            image_size=args.image_size,
+            null_prompt_prob=args.null_prompt_prob
+        )
     else:
         raise NotImplementedError
-    # task_map = {"text": 0, "vqa": 1, "t2i": 2}
+    # task_map = {"vqa": 0, "text": 1, "t2i": 2}
 
     # 3. setup trainer and config hyper-params
     # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # tune
@@ -410,19 +426,31 @@ if __name__ == "__main__":
     # training data config
     parser.add_argument("--task", default="t2i", type=str, help="text, t2i, vqa, or mixed")
     parser.add_argument(
-        "--csv_path",
+        "--dataset_name", default="", type=str, help="dataset name, used for the right vqa and text dataset loader"
+    )
+    parser.add_argument(
+        "--t2i_csv_path",
         default="",
         type=str,
         help="path to csv annotation, contain `image_path` and `text_en` column for image path and caption respectively",
     )
     parser.add_argument(
-        "--dataset_name", default="", type=str, help="dataset name, used for the right vqa and text dataset loader"
-    )
-    parser.add_argument(
-        "--data_dir",
+        "--t2i_data_dir",
         default="datasets/",
         type=str,
         help="dataset directory contatining the images specified by `image_path` in csv_path",
+    )
+    parser.add_argument(
+        "--text_qa_data_dir",
+        default="datasets/",
+        type=str,
+        help="dataset directory for text qa",
+    )
+    parser.add_argument(
+        "--vqa_data_dir",
+        default="datasets/",
+        type=str,
+        help="dataset directory for text qa",
     )
     parser.add_argument(
         "--num_samples",

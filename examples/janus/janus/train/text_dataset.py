@@ -22,7 +22,7 @@ class TextDataset:
         num_samples: int = -1,
     ) -> None:
         if dataset_name.lower() == "pubmedqa":
-            self.dataset = load_dataset(data_dir, "pqa_labeled", split="train")
+            self.dataset = load_dataset(data_dir, "default", split="train")
         else:
             raise NotImplementedError
 
@@ -45,8 +45,7 @@ class TextDataset:
         # process text
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
 
-        # FIXME
-        task_type = np.array(0, dtype=np.int32)
+        task_type = np.array(1, dtype=np.int32)
 
         return task_type, input_ids, labels, attention_mask
 

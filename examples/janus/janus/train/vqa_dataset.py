@@ -75,7 +75,7 @@ class VqaDataset:
         )
 
         # FIXME
-        task_type = np.array(1, dtype=np.int32)
+        task_type = np.array(0, dtype=np.int32)
 
         return task_type, input_ids, labels, attention_mask, image_seq_mask, image
 
