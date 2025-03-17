@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import _no_grad, jit_class, nn, ops
+from mindspore import nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -45,30 +45,12 @@ from mindone.diffusers.training_utils import (
     init_distributed_device,
     is_master,
     prepare_train_network,
+    pynative_no_grad,
     set_seed,
 )
 from mindone.transformers import CLIPTextModel, T5EncoderModel
 
 logger = logging.getLogger(__name__)
-
-
-@jit_class
-class pynative_no_grad(_no_grad):
-    """
-    A context manager that suppresses gradient memory allocation in PyNative mode.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
-
-    def __enter__(self):
-        if self._pynative:
-            super().__enter__()
-
-    def __exit__(self, *args):
-        if self._pynative:
-            super().__exit__(*args)
 
 
 def do_ckpt_combine_online(net_to_save, optimizer_parallel_group):
