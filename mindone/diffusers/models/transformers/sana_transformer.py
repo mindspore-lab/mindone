@@ -91,7 +91,6 @@ class SanaTransformerBlock(nn.Cell):
     Transformer block introduced in [Sana](https://huggingface.co/papers/2410.10629).
     """
 
-    @ms.lazy_inline
     def __init__(
         self,
         dim: int = 2240,

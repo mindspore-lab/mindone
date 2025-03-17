@@ -20,7 +20,7 @@ import PIL.Image
 from PIL import Image, ImageFilter, ImageOps
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from .configuration_utils import ConfigMixin, register_to_config
 from .utils import CONFIG_NAME, PIL_INTERPOLATION, deprecate
@@ -989,9 +989,16 @@ class PixArtImageProcessor(VaeImageProcessor):
             resized_height = int(orig_height * ratio)
 
             # Resize
-            samples = ops.interpolate(
+            # mindspore interpolate does not support bfloat16
+            cur_dtype = samples.dtype
+            need_upcast = cur_dtype == ms.bfloat16
+            if need_upcast:
+                samples = samples.to(ms.float32)
+            samples = mint.nn.functional.interpolate(
                 samples, size=(resized_height, resized_width), mode="bilinear", align_corners=False
             )
+            if need_upcast:
+                samples = samples.to(cur_dtype)
 
             # Center Crop
             start_x = (resized_width - new_width) // 2
