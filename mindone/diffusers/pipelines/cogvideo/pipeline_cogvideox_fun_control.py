@@ -33,7 +33,7 @@ from ...models.embeddings import get_3d_rotary_pos_embed
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import CogVideoXPipelineOutput
 
@@ -376,8 +376,9 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
     def decode_latents(self, latents: ms.Tensor) -> ms.Tensor:
         latents = latents.permute(0, 2, 1, 3, 4)  # [batch_size, num_channels, num_frames, height, width]
         latents = 1 / self.vae_scaling_factor_image * latents
-
-        frames = self.vae.decode(latents)[0]
+        # vae decode only support pynative
+        with pynative_context():
+            frames = self.vae.decode(latents)[0]
         return frames
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs

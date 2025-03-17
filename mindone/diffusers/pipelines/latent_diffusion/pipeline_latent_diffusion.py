@@ -17,7 +17,6 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from transformers import PretrainedConfig, PreTrainedTokenizer
-from transformers.modeling_outputs import BaseModelOutput
 from transformers.utils import logging
 
 import mindspore as ms
@@ -26,6 +25,7 @@ from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers import MSPreTrainedModel
 from mindone.transformers.activations import ACT2FN
+from mindone.transformers.modeling_outputs import BaseModelOutput
 
 from ...models import AutoencoderKL, UNet2DConditionModel, UNet2DModel, VQModel
 from ...schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler

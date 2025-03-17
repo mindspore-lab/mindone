@@ -16,11 +16,12 @@
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
+import numpy as np
 from transformers.models.clip.configuration_clip import CLIPConfig, CLIPTextConfig, CLIPVisionConfig
 from transformers.utils import ModelOutput, logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...modeling_attn_mask_utils import _create_4d_causal_attention_mask, _prepare_4d_attention_mask
@@ -157,15 +158,17 @@ class CLIPVisionEmbeddings(nn.Cell):
         self.embed_dim = config.hidden_size
         self.image_size = config.image_size
         self.patch_size = config.patch_size
+        # self.class_embedding = ms.Parameter(ops.randn(self.embed_dim), name="class_embedding")
+        self.class_embedding = ms.Parameter(
+            ms.tensor(np.random.normal(size=self.embed_dim).astype(np.float32)), name="class_embedding"
+        )
 
-        self.class_embedding = ms.Parameter(ops.randn(self.embed_dim), name="class_embedding")
-
-        self.patch_embedding = nn.Conv2d(
+        self.patch_embedding = mint.nn.Conv2d(
             in_channels=config.num_channels,
             out_channels=self.embed_dim,
             kernel_size=self.patch_size,
             stride=self.patch_size,
-            has_bias=False,
+            bias=False,
         )
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
@@ -233,10 +236,10 @@ class CLIPAttention(nn.Cell):
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
-        self.k_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.v_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.q_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.out_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.q_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).swapaxes(1, 2)
@@ -325,8 +328,8 @@ class CLIPMLP(nn.Cell):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = nn.Dense(config.hidden_size, config.intermediate_size)
-        self.fc2 = nn.Dense(config.intermediate_size, config.hidden_size)
+        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
@@ -479,7 +482,6 @@ class CLIPEncoder(nn.Cell):
 
             if output_attentions:
                 all_attentions = all_attentions + (layer_outputs[1],)
-
         if output_hidden_states:
             encoder_states = encoder_states + (hidden_states,)
 
@@ -775,8 +777,8 @@ class CLIPModel(CLIPPreTrainedModel):
         self.text_model = CLIPTextTransformer(text_config)
         self.vision_model = CLIPVisionTransformer(vision_config)
 
-        self.visual_projection = nn.Dense(self.vision_embed_dim, self.projection_dim, has_bias=False)
-        self.text_projection = nn.Dense(self.text_embed_dim, self.projection_dim, has_bias=False)
+        self.visual_projection = mint.nn.Linear(self.vision_embed_dim, self.projection_dim, bias=False)
+        self.text_projection = mint.nn.Linear(self.text_embed_dim, self.projection_dim, bias=False)
         self.logit_scale = ms.Parameter(ms.Tensor(self.logit_scale_init_value), name="logit_scale")
 
         # Initialize weights and apply final processing
@@ -975,7 +977,7 @@ class CLIPTextModelWithProjection(CLIPPreTrainedModel):
 
         self.text_model = CLIPTextTransformer(config)
 
-        self.text_projection = nn.Dense(config.hidden_size, config.projection_dim, has_bias=False)
+        self.text_projection = mint.nn.Linear(config.hidden_size, config.projection_dim, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1049,7 +1051,7 @@ class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
 
         self.vision_model = CLIPVisionTransformer(config)
 
-        self.visual_projection = nn.Dense(config.hidden_size, config.projection_dim, has_bias=False)
+        self.visual_projection = mint.nn.Linear(config.hidden_size, config.projection_dim, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
