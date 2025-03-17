@@ -7,9 +7,12 @@ from transformers import GemmaConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -17,9 +20,9 @@ from ..pipeline_test_utils import (
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
-    {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.GRAPH_MODE, "dtype": "float32"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
 
 
@@ -148,3 +151,27 @@ class LuminaText2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             np.linalg.norm(pt_output_with_prompt - ms_output_with_prompt) / np.linalg.norm(pt_output_with_prompt)
             < threshold
         )
+
+
+@slow
+@ddt
+class LuminaText2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_lumina_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.lumina.pipeline_lumina.LuminaText2ImgPipeline")
+        pipe = pipe_cls.from_pretrained("Alpha-VLLM/Lumina-Next-SFT-diffusers", mindspore_dtype=ms_dtype)
+
+        prompt = "A photo of a cat"
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, num_inference_steps=2, guidance_scale=5.0)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"lumina_{dtype}.npy",
+            subfolder="lumina",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
