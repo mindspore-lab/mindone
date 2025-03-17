@@ -65,7 +65,7 @@ class StableAudioPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase
         expected_audio = load_downloaded_numpy_from_hf_hub(
              "The-truth/mindone-testing-arrays",
              f'stable_audio_{dtype}.npy',
-             subfolder="flux",
+             subfolder="stable_audio",
         )
 
         assert np.mean(np.abs(np.array(audio, dtype=np.float32) - expected_audio.T)) < THRESHOLD_PIXEL

@@ -10,7 +10,7 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import (
-    StableDiffusionXLControlNetPAGPipeline,
+    StableDiffusion3InpaintPipeline,
     ControlNetModel,
     AutoencoderKL,
 )
@@ -39,24 +39,31 @@ test_cases = [
 class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
 
     def get_inputs(self):
-        image = load_downloaded_image_from_hf_hub(
-            "hf-internal-testing/diffusers-images",
-            "hf-logo.png",
-            subfolder="sd_controlnet",
+        # img_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo.png"
+        # mask_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo_mask.png"
+        #
+        # from mindone.diffusers.utils.testing_utils import load_image
+        # source = load_image(img_url)
+        # mask = load_image(mask_url)
+
+        source = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_input.png",
+            subfolder="stable_diffusion_xl",
+            repo_type="dataset",
         )
-        image = np.array(image)
-        image = cv2.Canny(image, 100, 200)
-        image = image[:, :, None]
-        image = np.concatenate([image, image, image], axis=2)
-        canny_image = Image.fromarray(image)
+        mask = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_mask.png",
+            subfolder="stable_diffusion_xl",
+            repo_type="dataset",
+        )
 
         inputs = {
-            "prompt": "aerial view, a futuristic research complex in a bright foggy jungle, hard lighting",
-            "controlnet_conditioning_scale": 0.5,
-            "image": canny_image,
-            "pag_scale": 0.3,
+            "prompt": "Face of a yellow cat, high resolution, sitting on a park bench",
+            "image": source,
+            "mask_image": mask,
         }
-
         return inputs
 
     @data(*test_cases)
@@ -65,27 +72,14 @@ class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet = ControlNetModel.from_pretrained(
-            "diffusers/controlnet-canny-sdxl-1.0",
+        pipe = StableDiffusion3InpaintPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-3-medium-diffusers",
             mindspore_dtype=ms_dtype
-        )
-
-        vae = AutoencoderKL.from_pretrained(
-            "madebyollin/sdxl-vae-fp16-fix",
-            mindspore_dtype=ms_dtype
-        )
-
-        pipeline = StableDiffusionXLControlNetPAGPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0",
-            controlnet=controlnet,
-            vae=vae,
-            mindspore_dtype=ms_dtype,
-            enable_pag=True
         )
 
         inputs = self.get_inputs()
         torch.manual_seed(0)
-        image = pipeline(**inputs)[0][0]
+        image = pipe(**inputs)[0][0]
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

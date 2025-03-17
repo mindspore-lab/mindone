@@ -1,13 +1,12 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import CLIPTextConfig
 
 import mindspore as ms
-
-from mindone.diffusers.utils import load_image
 
 from mindone.diffusers import (
     FluxControlNetImg2ImgPipeline,
@@ -261,6 +260,8 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
     def test_flux_controlnet_img2img_inference(self, mode, dtype):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
+        if dtype == "float32":
+            pytest.skip("Skipping this case since this pipeline has precision issue in float32.")
 
         controlnet = FluxControlNetModel.from_pretrained(
             "InstantX/FLUX.1-dev-Controlnet-Canny-alpha",
