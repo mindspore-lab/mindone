@@ -6,7 +6,7 @@ EXP_NAME="Emu3-T2I-SFT-Trial"           # TO REPLACE
 LOG_DIR=outputs/${EXP_NAME}
 
 python emu3/train/train_seq_parallel.py \
-    --model_name_or_path BAAI/Emu3-Gen \
+    --model_name_or_path BAAI/Emu3-Stage1 \
     --mode 1 \
     --debug False \
     --fp16 True \
@@ -22,12 +22,14 @@ python emu3/train/train_seq_parallel.py \
     --apply_loss_on_only_text False \
     --image_area 262144 \
     --max_position_embeddings 1024 \
+    --trainable_hidden_layers 16 \
     --output_dir ${LOG_DIR} \
     --num_train_epochs 4 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 1 \
-    --save_steps 500 \
-    --save_total_limit 10 \
+    --save_steps 1 \
+    --save_strategy epoch \
+    --save_total_limit 5 \
     --learning_rate 1e-5 \
     --min_learning_rate 1e-6 \
     --weight_decay 0.1 \

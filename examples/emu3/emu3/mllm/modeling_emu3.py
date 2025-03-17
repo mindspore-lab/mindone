@@ -485,7 +485,7 @@ class Emu3FlashAttention2(Emu3Attention):
             self.flash_attention = MSFlashAttention(
                 scale_value=self.head_dim**-0.5,
                 head_num=num_heads,
-                keep_prob=1-dropout_rate,
+                keep_prob=1 - dropout_rate,
                 input_layout="BNSD",  # BSH or BNSD
             )
         else:
@@ -535,7 +535,15 @@ class Emu3FlashAttention2(Emu3Attention):
 
         if attention_mask is not None:
             attention_mask = self.convert_mask_to_fa_format(attention_mask)
-        attn_output = self.flash_attention(query_states.to(self.fa_dtype), key_states.to(self.fa_dtype), value_states.to(self.fa_dtype), None, None, None, attention_mask)[3]
+        attn_output = self.flash_attention(
+            query_states.to(self.fa_dtype),
+            key_states.to(self.fa_dtype),
+            value_states.to(self.fa_dtype),
+            None,
+            None,
+            None,
+            attention_mask,
+        )[3]
         attn_output = attn_output.to(target_dtype)
 
         attn_output = attn_output.swapaxes(1, 2)  # b h n d -> b n h d (bsz, q_len, num_heads, head_dim)
@@ -1110,7 +1118,7 @@ class Emu3ForCausalLM(Emu3PreTrainedModel):
         logits = logits.float()
 
         loss = None
-        if labels is not None: # training pipeline
+        if labels is not None:  # training pipeline
             # Shift so that tokens < n predict n
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()

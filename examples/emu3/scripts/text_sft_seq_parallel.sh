@@ -23,16 +23,15 @@ python emu3/train/train_seq_parallel.py \
     --null_prompt_prob 0.05 \
     --apply_loss_on_only_vision False \
     --apply_loss_on_only_text True \
-    --image_area 147456 \
-    --max_position_embeddings 2000 \
-    --num_hidden_layers 32 \
+    --image_area 100 \
+    --max_position_embeddings 2560 \
     --output_dir ${LOG_DIR} \
-    --num_train_epochs 4 \
+    --num_train_epochs 50 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --save_steps 1 \
     --save_strategy "epoch" \
-    --save_total_limit 10 \
+    --save_total_limit 5 \
     --learning_rate 1e-5 \
     --min_learning_rate 1e-6 \
     --weight_decay 0.1 \

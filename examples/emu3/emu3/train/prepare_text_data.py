@@ -55,11 +55,10 @@ import argparse
 import json
 import os
 
-from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
-from PIL import Image
 from tqdm import tqdm
 
 import mindspore as ms
+
 
 def prepare_args():
     parser = argparse.ArgumentParser()
@@ -81,7 +80,6 @@ def main():
 
     with open(args.data_path) as f:
         input_data = json.load(f)
-    base_dir = os.path.dirname(args.data_path)
     cnt = 0
     for inp in tqdm(input_data):
         name = inp["id"]

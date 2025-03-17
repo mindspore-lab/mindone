@@ -41,8 +41,8 @@ class MeanNet(nn.Cell):
 
     def construct(self, *inputs):
         output = self.net(*inputs, return_dict=False)
-        if isinstance(output, tuple): # no label
-            output = output[0] # logits
+        if isinstance(output, tuple):  # no label
+            output = output[0]  # logits
         return output.mean() * 1024.0
 
 
@@ -51,7 +51,7 @@ def get_sample_data(dtype: ms.Type = ms.int32) -> Tuple[Tensor, ...]:
     vocab_size = 184622
     input_ids = ops.randint(0, vocab_size, (1, seq_len), dtype=dtype)
     attention_mask = ops.ones_like(input_ids, dtype=dtype)
-    labels = None # inference pipeline
+    labels = None  # inference pipeline
     # labels = input_ids.copy()  # test training pipeline
     return input_ids, attention_mask, labels
 

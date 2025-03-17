@@ -75,7 +75,9 @@ class Emu3FeatureDataset(BaseDataset):
         else:  # vqa
             prompt = data["texts"]
             response = data["response"]
-            vt_prompts = self.chat_template.format(image_prompt=image_prompt, text_prompt=prompt)  # instruction + input vision & text prompts
+            vt_prompts = self.chat_template.format(
+                image_prompt=image_prompt, text_prompt=prompt
+            )  # instruction + input vision & text prompts
             input = vt_prompts + response  # instruction + input vision & text prompts + response
         if self.task == "img_gen":
             sample = self.tokenizer(
@@ -102,9 +104,9 @@ class Emu3FeatureDataset(BaseDataset):
         elif self.args.apply_loss_on_only_text:  # vqa
             prompt_ids = self.tokenizer.encode(vt_prompts)
             response_ids = self.tokenizer.encode(response)
-            labels = np.ones_like(sample[input_ids]) * self.args.ignore_index
+            labels = np.ones_like(sample["input_ids"]) * self.args.ignore_index
             padding_start = min(len(prompt_ids) + len(response_ids), labels.shape[-1])
-            labels[..., len(prompt_ids) : padding_start] = sample[input_ids][..., len(prompt_ids) : padding_start]
+            labels[..., len(prompt_ids) : padding_start] = sample["input_ids"][..., len(prompt_ids) : padding_start]
 
         sample["labels"] = labels
         for k, v in sample.items():
