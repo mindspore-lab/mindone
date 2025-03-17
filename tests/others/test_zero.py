@@ -78,7 +78,12 @@ def test_zero(x, y, zero_stage=0, comm_fusion=False):
             "allgather": {"bucket_size": 64},
         }
     train_net = prepare_train_network(
-        net, opt, ema=ema, zero_stage=zero_stage, op_group=GlobalComm.WORLD_COMM_GROUP, comm_fusion=comm_fusion_dict
+        net,
+        opt,
+        ema=ema,
+        zero_stage=zero_stage,
+        optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP,
+        comm_fusion=comm_fusion_dict,
     )
 
     for i in range(10):

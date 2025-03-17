@@ -20,7 +20,14 @@ from ..utils import logging
 from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, SwiGLU
 from .attention_processor import Attention, JointAttnProcessor2_0
 from .embeddings import SinusoidalPositionalEmbedding
-from .normalization import AdaLayerNorm, AdaLayerNormContinuous, AdaLayerNormZero, LayerNorm, RMSNorm
+from .normalization import (
+    AdaLayerNorm,
+    AdaLayerNormContinuous,
+    AdaLayerNormZero,
+    LayerNorm,
+    RMSNorm,
+    SD35AdaLayerNormZeroX,
+)
 
 logger = logging.get_logger(__name__)
 
@@ -95,13 +102,25 @@ class JointTransformerBlock(nn.Cell):
             processing of `context` conditions.
     """
 
-    def __init__(self, dim, num_attention_heads, attention_head_dim, context_pre_only=False):
+    def __init__(
+        self,
+        dim: int,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        context_pre_only: bool = False,
+        qk_norm: Optional[str] = None,
+        use_dual_attention: bool = False,
+    ):
         super().__init__()
 
+        self.use_dual_attention = use_dual_attention
         self.context_pre_only = context_pre_only
         context_norm_type = "ada_norm_continous" if context_pre_only else "ada_norm_zero"
 
-        self.norm1 = AdaLayerNormZero(dim)
+        if use_dual_attention:
+            self.norm1 = SD35AdaLayerNormZeroX(dim)
+        else:
+            self.norm1 = AdaLayerNormZero(dim)
 
         if context_norm_type == "ada_norm_continous":
             self.norm1_context = AdaLayerNormContinuous(
@@ -126,7 +145,24 @@ class JointTransformerBlock(nn.Cell):
             context_pre_only=context_pre_only,
             bias=True,
             processor=processor,
+            qk_norm=qk_norm,
+            eps=1e-6,
         )
+
+        if use_dual_attention:
+            self.attn2 = Attention(
+                query_dim=dim,
+                cross_attention_dim=None,
+                dim_head=attention_head_dim,
+                heads=num_attention_heads,
+                out_dim=dim,
+                bias=True,
+                processor=processor,
+                qk_norm=qk_norm,
+                eps=1e-6,
+            )
+        else:
+            self.attn2 = None
 
         self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
@@ -149,7 +185,12 @@ class JointTransformerBlock(nn.Cell):
         self._chunk_dim = dim
 
     def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor):
-        norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
+        if self.use_dual_attention:
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp, norm_hidden_states2, gate_msa2 = self.norm1(
+                hidden_states, emb=temb
+            )
+        else:
+            norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
 
         norm_encoder_hidden_states, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = (None,) * 5
         if self.context_pre_only:
@@ -167,6 +208,11 @@ class JointTransformerBlock(nn.Cell):
         # Process attention outputs for the `hidden_states`.
         attn_output = gate_msa.unsqueeze(1) * attn_output
         hidden_states = hidden_states + attn_output
+
+        if self.use_dual_attention:
+            attn_output2 = self.attn2(hidden_states=norm_hidden_states2)
+            attn_output2 = gate_msa2.unsqueeze(1) * attn_output2
+            hidden_states = hidden_states + attn_output2
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]

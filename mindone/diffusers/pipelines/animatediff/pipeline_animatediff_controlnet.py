@@ -227,7 +227,7 @@ class AnimateDiffControlNetPipeline(
             # dynamically adjust the LoRA scale
             scale_lora_layers(self.text_encoder, lora_scale)
 
-        if prompt is not None and isinstance(prompt, str):
+        if prompt is not None and isinstance(prompt, (str, dict)):
             batch_size = 1
         elif prompt is not None and isinstance(prompt, list):
             batch_size = len(prompt)
@@ -497,8 +497,8 @@ class AnimateDiffControlNetPipeline(
             raise ValueError(
                 "Provide either `prompt` or `prompt_embeds`. Cannot leave both `prompt` and `prompt_embeds` undefined."
             )
-        elif prompt is not None and (not isinstance(prompt, str) and not isinstance(prompt, list)):
-            raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
+        elif prompt is not None and not isinstance(prompt, (str, list, dict)):
+            raise ValueError(f"`prompt` has to be of type `str`, `list` or `dict` but is {type(prompt)}")
 
         if negative_prompt is not None and negative_prompt_embeds is not None:
             raise ValueError(
@@ -664,6 +664,10 @@ class AnimateDiffControlNetPipeline(
     def num_timesteps(self):
         return self._num_timesteps
 
+    @property
+    def interrupt(self):
+        return self._interrupt
+
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
@@ -822,6 +826,7 @@ class AnimateDiffControlNetPipeline(
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
         self._cross_attention_kwargs = cross_attention_kwargs
+        self._interrupt = False
 
         # 2. Define call parameters
         if prompt is not None and isinstance(prompt, str):
@@ -860,6 +865,8 @@ class AnimateDiffControlNetPipeline(
         # to avoid doing two forward passes
         if self.do_classifier_free_guidance:
             prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+
+        prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -940,6 +947,9 @@ class AnimateDiffControlNetPipeline(
         # 8. Denoising loop
         with self.progress_bar(total=self._num_timesteps) as progress_bar:
             for i, t in enumerate(timesteps):
+                if self.interrupt:
+                    continue
+
                 # expand the latents if we are doing classifier free guidance
                 latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
@@ -952,7 +962,6 @@ class AnimateDiffControlNetPipeline(
                 else:
                     control_model_input = latent_model_input
                     controlnet_prompt_embeds = prompt_embeds
-                controlnet_prompt_embeds = controlnet_prompt_embeds.repeat_interleave(num_frames, dim=0)
 
                 if isinstance(controlnet_keep[i], list):
                     cond_scale = [c * s for c, s in zip(controlnet_conditioning_scale, controlnet_keep[i])]

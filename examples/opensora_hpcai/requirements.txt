@@ -8,6 +8,7 @@ pillow==9.1.1
 tqdm
 decord
 safetensors
+huggingface_hub
 omegaconf
 pyyaml
 tokenizers
@@ -16,3 +17,6 @@ transformers
 av
 mindcv==0.3.0
 beautifulsoup4
+# for T5 tokenizer
+tiktoken
+sentencepiece

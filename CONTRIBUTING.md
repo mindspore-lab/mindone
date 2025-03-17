@@ -147,13 +147,12 @@ A reminder for the maintainers on how to deploy.
     git add CHANGELOG.md
     ```
 
-4.  Update version number and create a commit, tag(can also be patch or major).
+4.  Update version number(both in `pyproject.toml` and `mindone/version.py`) and create a commit, tag(can also be patch or major).
 
     ```bash
-    hatch version patch
-    git add mindone/version.py
-    git commit -m "bump version to $(hatch version)"
-    git tag "v$(hatch version)"
+    git add pyproject.toml mindone/version.py
+    git commit -m "bump version to x.x.x"
+    git tag "vx.x.x"
     ```
 
 5.  Push these commits to master/main:

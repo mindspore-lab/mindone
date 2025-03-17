@@ -16,27 +16,35 @@ class Dense(nn.Cell):
         self,
         net: Union[nn.Dense, mint.nn.Linear],
         zero_stage: Literal[0, 1, 2, 3] = 0,
-        op_group: str = GlobalComm.WORLD_COMM_GROUP,
+        optimizer_parallel_group: str = GlobalComm.WORLD_COMM_GROUP,
         cell_type: Optional[mstype.Type] = None,
     ):
         super().__init__(auto_prefix=False)
         self.net = net
-        self.set_param_wrapper(zero_stage, op_group, cell_type)
+        self.set_param_wrapper(zero_stage, optimizer_parallel_group, cell_type)
 
-    def set_param_wrapper(self, zero_stage, op_group, cell_type=None):
+    @property
+    def weight(self):
+        return self.net.weight
+
+    @property
+    def bias(self):
+        return self.net.bias
+
+    def set_param_wrapper(self, zero_stage, optimizer_parallel_group, cell_type=None):
         self.param_wrapper_w = nn.Identity()
         self.param_wrapper_b = nn.Identity()
         if zero_stage == 3:
             # Init parallel settings
             is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-            op_group_size = get_group_size(op_group) if is_parallel else 1
-            op_rank_id = get_rank(op_group) if is_parallel else 0
-            self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, op_group, cell_type)
+            op_group_size = get_group_size(optimizer_parallel_group) if is_parallel else 1
+            op_rank_id = get_rank(optimizer_parallel_group) if is_parallel else 0
+            self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, optimizer_parallel_group, cell_type)
             split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
             if self.net.has_bias:
-                self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, op_group, cell_type)
+                self.param_wrapper_b = ZeroParamWrapper(self.net.bias, zero_stage, optimizer_parallel_group, cell_type)
                 if self.param_wrapper_b.need_rewrite:
                     self.net.bias.assign_value(split_op(self.net.bias)[op_rank_id])
 

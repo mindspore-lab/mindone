@@ -1,35 +1,39 @@
-'''
+"""
 This script is to load mindspore checkpoint and run image generation or vqa or qa after SFT.
 
 Usage:
 cd examples/emu3
 python emu3/train/infer_ms.py \
---model_ckpt outputs/Emu3-VQA-SFT/rank_0/ckpt/emu3-e50.ckpt
+--model_path outputs/Emu3-VQA-SFT
+--ckpt_name emu3-e50.ckpt
 --task vqa \
 --
-'''
-import os
+"""
 import argparse
-import time
 import json
+import os
+import time
 
-from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer, Emu3Config
+from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.processing_emu3 import Emu3Processor
-
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
 from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
-from mindspore import Tensor, nn
-from mindone.utils.seed import set_random_seed
+from mindspore import Tensor, nn, ops
+
+from mindone.utils import set_logger
 from mindone.utils.amp import auto_mixed_precision
+from mindone.utils.config import str2bool
+from mindone.utils.seed import set_random_seed
+
 
 def evaluate(args):
     save_dir = args.output_path
     rank_id = 0
     ms.set_context(
-        mode=args.mode, # only support PYNATIVE using DynamicCache
+        mode=args.mode,  # only support PYNATIVE using DynamicCache
         device_target=args.device_target,
         pynative_synchronize=args.debug,
         jit_config={"jit_level": args.jit_level},
@@ -40,7 +44,7 @@ def evaluate(args):
 
     # 1. Load Models and Processor
     # model path
-    EMU_CKPT = args.model_ckpt
+    EMU_HUB = args.model_path
     VQ_HUB = args.tokenizer_path
     EMU_DTYPE = args.dtype
     VQ_DTYPE = ms.bfloat16
@@ -52,7 +56,7 @@ def evaluate(args):
         # returns JSON object as a dictionary
         config_dict = json.load(f)
     model_config = Emu3Config(**config_dict)
-    model_config.attn_implementation="flash_attention_2"  # optional: "eager"
+    model_config.attn_implementation = "flash_attention_2"  # optional: "eager"
     model = Emu3ForCausalLM(model_config).to(EMU_DTYPE)
     model.set_train(False)
 
@@ -65,10 +69,8 @@ def evaluate(args):
     )
     if args.ckpt_name is not None:
         model_file = os.path.join(ckpt_folder, args.ckpt_name)
-        epoch_num = int(args.ckpt_name.strip()[7:-5])
     else:
         model_file = os.path.join(ckpt_folder, "train_resume.ckpt")
-        epoch_num = state_dict["epoch_num"].item()
     print(f"Loading weights from local pretrained directory: {model_file}")
     state_dict = ms.load_checkpoint(model_file)
     # Check loading keys:
@@ -103,23 +105,25 @@ def evaluate(args):
     # Instantiate the model
     param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=False)
     print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
+    if args.ckpt_name is not None:
+        epoch_num = int(args.ckpt_name.strip()[7:-5])
+    else:
+        epoch_num = state_dict["epoch_num"].item()
     logger.info(f"Loaded checkpoint at Epoch #{epoch_num}")
 
     image_path = os.path.join(save_dir, f"e{epoch_num}")
 
-
     print("Start to load tokenizer...")
     tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
     image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
-    image_tokenizer = Emu3VisionVQModel.from_pretrained(VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE).set_train(
-        False
-    )
+    image_tokenizer = Emu3VisionVQModel.from_pretrained(
+        VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE
+    ).set_train(False)
     image_tokenizer = auto_mixed_precision(
         image_tokenizer, amp_level="O2", dtype=VQ_DTYPE, custom_fp32_cells=[nn.BatchNorm3d]
     )
     processor = Emu3Processor(image_processor, image_tokenizer, tokenizer)
     print("Loaded all models, time elapsed: %.4fs" % (time.time() - start_time))
-
 
     # 2. Prepare Input
     start_time = time.time()
@@ -151,7 +155,7 @@ def evaluate(args):
             return_tensors="np",
             padding="longest",
         )
-        pos_inputs = processor(text=prompt, **kwargs)
+        inputs = processor(text=prompt, **kwargs)
         neg_inputs = processor(text=[NEGATIVE_PROMPT] * len(prompt), **kwargs)
         # prepare hyper parameters
         GENERATION_CONFIG = GenerationConfig(
@@ -164,9 +168,16 @@ def evaluate(args):
             top_k=2048,
         )
 
-        h = Tensor(pos_inputs.image_size[:, 0])
-        w = Tensor(pos_inputs.image_size[:, 1])
+        h = Tensor(inputs.image_size[:, 0])
+        w = Tensor(inputs.image_size[:, 1])
         constrained_fn = processor.build_prefix_constrained_fn(h, w)
+
+        from mindone.transformers.generation.logits_process import (
+            LogitsProcessorList,
+            PrefixConstrainedLogitsProcessor,
+            UnbatchedClassifierFreeGuidanceLogitsProcessor,
+        )
+
         logits_processor = LogitsProcessorList(
             [
                 UnbatchedClassifierFreeGuidanceLogitsProcessor(
@@ -189,7 +200,7 @@ def evaluate(args):
             padding="longest",
             return_tensors="np",
         )
-         # prepare hyper parameters
+        # prepare hyper parameters
         GENERATION_CONFIG = GenerationConfig(
             use_cache=True,
             pad_token_id=tokenizer.pad_token_id,
@@ -206,10 +217,10 @@ def evaluate(args):
     # generate
     start_time = time.time()
     outputs = model.generate(
-        Tensor(pos_inputs.input_ids, dtype=ms.int32),
+        Tensor(inputs.input_ids, dtype=ms.int32),
         GENERATION_CONFIG,
         logits_processor=logits_processor,
-        attention_mask=Tensor(pos_inputs.attention_mask),
+        attention_mask=Tensor(inputs.attention_mask),
     )
 
     print(f"generated_ids length / #steps: {len(outputs[0])}")
@@ -220,7 +231,7 @@ def evaluate(args):
     if args.task == "img-gen":
         # since input_ids are deleted in generate() output
         # need to add input_ids back ahead, which contains visual boi/eoi tokens and meta data for image detokenization
-        outputs = ops.cat((Tensor(pos_inputs.input_ids, dtype=outputs.dtype), outputs), axis=1)
+        outputs = ops.cat((Tensor(inputs.input_ids, dtype=outputs.dtype), outputs), axis=1)
         start_time = time.time()
         for idx_i, out in enumerate(outputs):
             mm_list = processor.decode(out)
@@ -242,14 +253,16 @@ def evaluate(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt_name", type=str, help="model ckpt name, e.g. emu3-e50.ckpt")
     parser.add_argument("--model_path", type=str, help="model path with config.json")
-    parser.add_argument("--tokenizer_path", type=str, default = None, help="tokenizer folder, e.g. BAAI/Emu3-VisionTokenizer")
+    parser.add_argument("--ckpt_name", type=str, default=None, help="model ckpt name, e.g. emu3-e50.ckpt")
+    parser.add_argument(
+        "--tokenizer_path", type=str, default=None, help="tokenizer folder, e.g. BAAI/Emu3-VisionTokenizer"
+    )
     parser.add_argument(
         "--output_path",
         type=str,
         default="output",
-        help="output dir to save the generated videos",
+        help="output dir to save the log and generated image (if applicable)",
     )
     parser.add_argument(
         "--task",

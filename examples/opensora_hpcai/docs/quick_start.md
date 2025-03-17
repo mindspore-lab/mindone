@@ -36,36 +36,58 @@ To enable flash attention, please use mindspore>=2.3-20240422.
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
-- T5: [ms checkpoints download link](https://download-mindspore.osinfra.cn/toolkits/mindone/text_encoders/deepfloyd_t5_v1_1_xxl/)
-
-    Put them under `models/t5-v1_1-xxl` folder. Rename `t5_v1_1_xxl-d35f27a3.ckpt` to `model.ckpt` if error raised.
-
-- VAE:
-
-  **OpenSora v1.2**:
-  Download from [Hugging Face](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) and convert to MS checkpoint:
+- **T5**:
+  You can download and convert the T5 model automatically by running the following command:
   ```shell
-  python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
+  python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
   ```
+  If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
 
-  **OpenSora v1.1 and below**:
-  Download from [Hugging Face](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) and convert to MS checkpoint:
-  ```shell
-  python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt
-  ```
-  For `sd-vae-ft-ema`, run:
-  ```shell
-  python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
-  ```
+- **VAE**:
+The model weights are automatically downloaded from Hugging Face during execution.  
+Local `.safetensors` weights can also be used.  
+Alternatively, you can use the following command to convert the model weights to the MindSpore format.
 
-- STDiT:
+    <details>
+    <summary>Convert to the MindSpore format</summary>
+
+    **OpenSora v1.2**:
+    Download from [Hugging Face](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) and convert to MS checkpoint:
+    ```shell
+    python tools/convert_vae_3d.py --src path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
+    ```
+
+    **OpenSora v1.1 and below**:
+    Download from [Hugging Face](https://huggingface.co/stabilityai/sd-vae-ft-mse-original/tree/main) and convert to MS checkpoint:
+    ```shell
+    python tools/convert_pt2ms.py --src /path/to/vae-ft-mse-840000-ema-pruned.safetensors --target models/sd-vae-ft-mse.ckpt
+    ```
+    For `sd-vae-ft-ema`, run:
+    ```shell
+    python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
+    ```
+
+    </details>
+
+- **STDiT**:
+    OpenSora v1.1 and above support automatic weights download from Hugging Face during execution.
+    Local `.safetensors` weights can also be used.  
+    <ins>OpenSora v1 requires manual conversion</ins>.  
+    You can use the following command to convert the model weights to the MindSpore format.
+    <details>
+    <summary>Convert to the MindSpore format</summary>
+
+    First, download a desired OpenSora model:
     - OpenSora v1.2: [download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v3)
     - OpenSora v1.1: [stage2](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) or [stage3](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3)
     - OpenSora v1: [pth download link](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
-    Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/checkpoint --target models/checkpoint_name.ckpt`
+    Then, convert to MS checkpoint:
+    `python tools/convert_pt2ms.py --src /path/to/checkpoint --target models/checkpoint_name.ckpt`
 
-- PixArt-α: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
+    </details>
+
+- **PixArt-α**: [pth download link](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
     It will be used for better model initialization.

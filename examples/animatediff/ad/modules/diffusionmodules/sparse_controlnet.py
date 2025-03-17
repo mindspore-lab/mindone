@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 
 import mindspore as ms
 import mindspore.nn as nn
-import mindspore.ops as ops
+from mindspore import mint
 
 from mindone.utils.amp import auto_mixed_precision
 
@@ -22,8 +22,8 @@ def rearrange_in(x):
     temporal 5d to spatial 4d
     """
     # b c f h w -> b f c h w -> (b f) c h w
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
-    x = ops.reshape(x, (-1, x.shape[2], x.shape[3], x.shape[4]))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (-1, x.shape[2], x.shape[3], x.shape[4]))
     return x
 
 
@@ -34,8 +34,8 @@ def rearrange_out(x, f):
     f: num frames
     """
     # (b f) c h w -> b f c h w -> b c f h w
-    x = ops.reshape(x, (x.shape[0] // f, f, x.shape[1], x.shape[2], x.shape[3]))
-    x = ops.transpose(x, (0, 2, 1, 3, 4))
+    x = mint.reshape(x, (x.shape[0] // f, f, x.shape[1], x.shape[2], x.shape[3]))
+    x = mint.permute(x, (0, 2, 1, 3, 4))
     return x
 
 
@@ -92,11 +92,11 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
 
     def construct(self, conditioning):
         embedding = self.conv_in(conditioning)
-        embedding = ops.silu(embedding)
+        embedding = mint.nn.functional.silu(embedding)
 
         for block in self.blocks:
             embedding = block(embedding)
-            embedding = ops.silu(embedding)
+            embedding = mint.nn.functional.silu(embedding)
 
         embedding = self.conv_out(embedding)
 
@@ -247,19 +247,19 @@ class SparseControlNetModel(nn.Cell):
         time_embed_dim = model_channels * 4
         self.time_embed = nn.SequentialCell(
             linear(model_channels, time_embed_dim, dtype=self.dtype),
-            nn.SiLU().to_float(self.dtype),
+            mint.nn.SiLU().to_float(self.dtype),
             linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
         )
 
         if self.num_classes is not None:
             if isinstance(self.num_classes, int):
-                self.label_emb = nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
+                self.label_emb = mint.nn.Embedding(num_classes, time_embed_dim).to_float(self.dtype)
             elif self.num_classes == "sequential":
                 assert adm_in_channels is not None
                 self.label_emb = nn.SequentialCell(
                     nn.SequentialCell(
                         linear(adm_in_channels, time_embed_dim, dtype=self.dtype),
-                        nn.SiLU().to_float(self.dtype),
+                        mint.nn.SiLU().to_float(self.dtype),
                         linear(time_embed_dim, time_embed_dim, dtype=self.dtype),
                     )
                 )
@@ -495,8 +495,6 @@ class SparseControlNetModel(nn.Cell):
 
         self._feature_size += ch
 
-        self.cat = ops.Concat(axis=1)
-
         # TODO: optimize where to recompute & fix bug on cell list.
         if use_recompute:
             print("D--: recompute: ", use_recompute)
@@ -553,7 +551,7 @@ class SparseControlNetModel(nn.Cell):
         """
 
         if self.set_noisy_sample_input_to_zero:
-            x = ops.zeros_like(x)
+            x = mint.zeros_like(x)
         assert len(x.shape) == 5, f"UNet3D expect x in shape (b c f h w). but got {x.shape}"
         assert (y is not None) == (
             self.num_classes is not None
@@ -569,10 +567,10 @@ class SparseControlNetModel(nn.Cell):
             emb = emb + self.label_emb(y)
 
         if append_to_context is not None:
-            context = ops.cat([context, append_to_context], axis=1)
+            context = mint.cat([context, append_to_context], dim=1)
 
         if self.concate_conditioning_mask:
-            controlnet_cond = self.cat([controlnet_cond, conditioning_mask])
+            controlnet_cond = mint.concat([controlnet_cond, conditioning_mask], dim=1)
         # controlnet_cond: (b c f h w) -> (b*f c h w)
         controlnet_cond = rearrange_in(controlnet_cond)
         controlnet_cond = self.controlnet_cond_embedding(controlnet_cond)
@@ -631,7 +629,7 @@ class SparseControlNetModel(nn.Cell):
 
         # 6. scaling
         if self.guess_mode and not self.global_pool_conditions:
-            scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
+            scales = mint.linspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
 
             scales = scales * self.conditioning_scale
             input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
@@ -642,9 +640,9 @@ class SparseControlNetModel(nn.Cell):
 
         if self.global_pool_conditions:
             input_block_res_samples = [
-                rearrange_in(ops.mean(rearrange_out(sample, f=F), (2, 3), True)) for sample in input_block_res_samples
+                rearrange_in(mint.mean(rearrange_out(sample, f=F), (2, 3), True)) for sample in input_block_res_samples
             ]
-            mid_block_res_sample = rearrange_in(ops.mean(rearrange_out(mid_block_res_sample, f=F), (2, 3), True))
+            mid_block_res_sample = rearrange_in(mint.mean(rearrange_out(mid_block_res_sample, f=F), (2, 3), True))
 
         return (input_block_res_samples, mid_block_res_sample)
 
@@ -674,7 +672,7 @@ class SparseCtrlUNet3D(UNet3DModel):
         **kwargs,
     ):
         if self.controlnet.set_noisy_sample_input_to_zero:
-            x_c = ops.zeros_like(x)
+            x_c = mint.zeros_like(x)
         else:
             x_c = x
         assert len(x.shape) == 5, f"UNet3D expect x in shape (b c f h w). but got {x.shape}"
@@ -697,10 +695,10 @@ class SparseCtrlUNet3D(UNet3DModel):
             emb_c = emb_c + self.controlnet.label_emb(y)
 
         if append_to_context is not None:
-            context = ops.cat([context, append_to_context], axis=1)
+            context = mint.cat([context, append_to_context], dim=1)
         assert controlnet_cond is not None, "The input control must not be None for SparseCtrlUNet3D!"
         if self.controlnet.concate_conditioning_mask:
-            controlnet_cond = self.controlnet.cat([controlnet_cond, conditioning_mask])
+            controlnet_cond = mint.concat([controlnet_cond, conditioning_mask], dim=1)
         # 0. rearrange inputs to (b*f, ...) for pseudo 3d until we meet temporal transformer (i.e. motion module)
         B, C, F, H, W = x.shape
         if controlnet_cond.shape[0] == 1:
@@ -774,7 +772,7 @@ class SparseCtrlUNet3D(UNet3DModel):
 
         # 3.2 scaling
         if self.controlnet.guess_mode and not self.controlnet.global_pool_conditions:
-            scales = ops.logspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
+            scales = mint.linspace(-1, 0, len(input_block_res_samples) + 1)  # 0.1 to 1.0
 
             scales = scales * self.controlnet.conditioning_scale
             input_block_res_samples = [sample * scale for sample, scale in zip(input_block_res_samples, scales)]
@@ -787,9 +785,9 @@ class SparseCtrlUNet3D(UNet3DModel):
 
         if self.controlnet.global_pool_conditions:
             input_block_res_samples = [
-                rearrange_in(ops.mean(rearrange_out(sample, f=F), (2, 3), True)) for sample in input_block_res_samples
+                rearrange_in(mint.mean(rearrange_out(sample, f=F), (2, 3), True)) for sample in input_block_res_samples
             ]
-            mid_block_res_sample = rearrange_in(ops.mean(rearrange_out(mid_block_res_sample, f=F), (2, 3), True))
+            mid_block_res_sample = rearrange_in(mint.mean(rearrange_out(mid_block_res_sample, f=F), (2, 3), True))
 
         # support controlnet
         for i, in_res in enumerate(input_block_res_samples):
@@ -800,7 +798,7 @@ class SparseCtrlUNet3D(UNet3DModel):
         # 4. up blocks
         hs_index = -1
         for celllist in self.output_blocks:
-            h = self.cat((h, hs[hs_index]))
+            h = mint.concat((h, hs[hs_index]), dim=1)
             for cell in celllist:
                 # h = cell(h, emb, context)
                 if isinstance(cell, VanillaTemporalModule) or (isinstance(cell, ResBlock) and self.norm_in_5d):
