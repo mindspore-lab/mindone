@@ -37,10 +37,10 @@ class Dense(nn.Cell):
         if zero_stage == 3:
             # Init parallel settings
             is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-            optimizer_parallel_group_size = get_group_size(optimizer_parallel_group) if is_parallel else 1
+            op_group_size = get_group_size(optimizer_parallel_group) if is_parallel else 1
             op_rank_id = get_rank(optimizer_parallel_group) if is_parallel else 0
             self.param_wrapper_w = ZeroParamWrapper(self.net.weight, zero_stage, optimizer_parallel_group, cell_type)
-            split_op = ops.Split(0, optimizer_parallel_group_size)
+            split_op = ops.Split(0, op_group_size)
             if self.param_wrapper_w.need_rewrite:
                 self.net.weight.assign_value(split_op(self.net.weight)[op_rank_id])
             if self.net.has_bias:

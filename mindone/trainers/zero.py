@@ -44,11 +44,11 @@ _stage2_reduce_scatter = ops.MultitypeFuncGraph("stage2_reduce_scatter")
 
 
 @_stage2_reduce_scatter.register("Tensor", "Function", "Function", "Tensor", "Bool")
-def _run_stage2_reduce_scatter(optimizer_parallel_group_size, reduce_scatter, allreduce, gradient, need_reduce_scatter):
+def _run_stage2_reduce_scatter(op_group_size, reduce_scatter, allreduce, gradient, need_reduce_scatter):
     if need_reduce_scatter:
-        gradient = reduce_scatter(gradient) / optimizer_parallel_group_size
+        gradient = reduce_scatter(gradient) / op_group_size
     else:
-        gradient = allreduce(gradient) / optimizer_parallel_group_size
+        gradient = allreduce(gradient) / op_group_size
     return gradient
 
 
@@ -56,8 +56,8 @@ _stage1_split_grad = ops.MultitypeFuncGraph("stage1_split_grad")
 
 
 @_stage1_split_grad.register("Function", "Int", "Int", "Function", "Tensor", "Bool")
-def _run_stage1_split_grad(split, optimizer_parallel_group_size, op_rank_id, allreduce, gradient, need_split):
-    gradient = allreduce(gradient) / optimizer_parallel_group_size
+def _run_stage1_split_grad(split, op_group_size, op_rank_id, allreduce, gradient, need_split):
+    gradient = allreduce(gradient) / op_group_size
     if need_split:
         gradient = split(gradient)[op_rank_id]
     return gradient
@@ -124,7 +124,7 @@ class ZeroHelper:
         self.op_reduce_scatter = ops.Identity()
         self.op_allreduce = ops.Identity()
         self.dp_allreduce = ops.Identity()
-        self.optimizer_parallel_group_size = get_group_size(self.optimizer_parallel_group) if self.is_parallel else 1
+        self.op_group_size = get_group_size(self.optimizer_parallel_group) if self.is_parallel else 1
         self.op_rank_id = get_rank(self.optimizer_parallel_group) if self.is_parallel else 0
         self.need_dp = False
         self.dp_group = dp_group
@@ -133,7 +133,7 @@ class ZeroHelper:
         self.need_parameter_split = tuple([False] * len(self.optimizer._parameters))
         self.use_comm_fusion = False
         if self.zero_stage in [1, 2, 3] and self.is_parallel:
-            self.split_op = ops.Split(0, self.optimizer_parallel_group_size)  # optimizer parallel split
+            self.split_op = ops.Split(0, self.op_group_size)  # optimizer parallel split
             self.get_need_parameter_split()
             if comm_fusion is None:
                 self.set_comm_ops()
@@ -165,7 +165,7 @@ class ZeroHelper:
         _logger.info(
             f"Build TrainOneStepWrapper with ZeRO stage: {self.zero_stage}, "
             f"optimizer_offload: {optimizer_offload}, "
-            f"optimizer_parallel_group_size: {self.optimizer_parallel_group_size}, "
+            f"op_group_size: {self.op_group_size}, "
             f"op_rank_id: {self.op_rank_id}, "
             f"dp_group_size: {self.dp_group_size}."
         )
@@ -267,7 +267,7 @@ class ZeroHelper:
         _logger.info(f"dp_allreduce_fusion: {dp_allreduce_info}")
 
     def split_param(self, param):
-        return split_np(param, self.optimizer_parallel_group_size, self.op_rank_id)
+        return split_np(param, self.op_group_size, self.op_rank_id)
 
     def get_optimizer_param_tuples(self):
         param_tuples = []
@@ -292,7 +292,7 @@ class ZeroHelper:
         for i, param in enumerate(self.optimizer._parameters):
             param_split_info = {
                 "split": self.need_parameter_split[i],
-                "group_size": self.optimizer_parallel_group_size,
+                "group_size": self.op_group_size,
                 "rank_id": self.op_rank_id,
             }
             params_split_info_dict[param.name] = param_split_info
@@ -307,7 +307,7 @@ class ZeroHelper:
                 self.need_parameter_split[i] = param.parallel_optimizer
             else:
                 B = param.shape[0]
-                if param.parallel_optimizer and B >= self.optimizer_parallel_group_size and B % self.optimizer_parallel_group_size == 0:
+                if param.parallel_optimizer and B >= self.op_group_size and B % self.op_group_size == 0:
                     if self.zero_stage in [1, 2]:
                         self.need_parameter_split[i] = True
         self.need_parameter_split = tuple(self.need_parameter_split)
@@ -334,8 +334,8 @@ class ZeroHelper:
                 B = param.shape[0]
                 if (
                     self.ori_parameters[i].parallel_optimizer
-                    and B >= self.optimizer_parallel_group_size
-                    and B % self.optimizer_parallel_group_size == 0
+                    and B >= self.op_group_size
+                    and B % self.op_group_size == 0
                 ):
                     param.parallel_optimizer = True
                 else:
@@ -356,7 +356,7 @@ class ZeroHelper:
             gradients = self.hyper_map(
                 ops.partial(
                     _stage2_reduce_scatter,
-                    ms.Tensor(self.optimizer_parallel_group_size, dtype),
+                    ms.Tensor(self.op_group_size, dtype),
                 ),
                 self.zero2_reduce_scatter_list,
                 self.zero2_allreduce_list,
@@ -367,7 +367,7 @@ class ZeroHelper:
             gradients = self.hyper_map(
                 ops.partial(
                     _stage2_reduce_scatter,
-                    ms.Tensor(self.optimizer_parallel_group_size, dtype),
+                    ms.Tensor(self.op_group_size, dtype),
                     self.op_reduce_scatter,
                     self.op_allreduce,
                 ),
@@ -404,7 +404,7 @@ class ZeroHelper:
                 ops.partial(
                     _stage1_split_grad,
                     self.split_op,
-                    self.optimizer_parallel_group_size,
+                    self.op_group_size,
                     self.op_rank_id,
                 ),
                 self.zero1_allreduce_list,
@@ -416,7 +416,7 @@ class ZeroHelper:
                 ops.partial(
                     _stage1_split_grad,
                     self.split_op,
-                    self.optimizer_parallel_group_size,
+                    self.op_group_size,
                     self.op_rank_id,
                     self.op_allreduce,
                 ),
@@ -534,14 +534,14 @@ def prepare_ema(ema, zero_stage: int = 0, optimizer_parallel_group: str = None):
     is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
     if not is_parallel or zero_stage != 3:
         return ema
-    optimizer_parallel_group_size = get_group_size(optimizer_parallel_group)
+    op_group_size = get_group_size(optimizer_parallel_group)
     op_rank_id = get_rank(optimizer_parallel_group)
-    _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {optimizer_parallel_group_size}.")
+    _logger.info(f"Split EMA params: rank_id {op_rank_id}, rank_size {op_group_size}.")
     for net_weight, ema_weight, swap_cache in zip(ema.net_weight, ema.ema_weight, ema.swap_cache):
         if net_weight.shape == ema_weight.shape:
             continue
-        ema_weight.set_data(split_np(ema_weight, optimizer_parallel_group_size, op_rank_id), slice_shape=True)
-        swap_cache.set_data(split_np(swap_cache, optimizer_parallel_group_size, op_rank_id), slice_shape=True)
+        ema_weight.set_data(split_np(ema_weight, op_group_size, op_rank_id), slice_shape=True)
+        swap_cache.set_data(split_np(swap_cache, op_group_size, op_rank_id), slice_shape=True)
     return ema
 
 

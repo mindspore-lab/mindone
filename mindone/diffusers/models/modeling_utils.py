@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import inspect
 import json
 import os
@@ -46,6 +47,7 @@ from ..utils import (
 from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populate_model_card
 from .model_loading_utils import (
     _fetch_index_file,
+    _fetch_index_file_legacy,
     _load_state_dict_into_model,
     load_checkpoint_and_dispatch,
     load_state_dict,
@@ -64,6 +66,15 @@ def _get_pt2ms_mappings(m):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=x.name
             )
+            if "weight_norm_cell" in name:
+                ori_name = name.replace(".weight_norm_cell", "")
+                mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -111,6 +122,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     _supports_gradient_checkpointing = False
     _keys_to_ignore_on_load_unexpected = None
     _no_split_modules = None
+    _keep_in_fp32_modules = None
 
     def __init__(self):
         super().__init__()
@@ -310,11 +322,9 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         weights_name = SAFETENSORS_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
         weights_name = _add_variant(weights_name, variant)
-        weight_name_split = weights_name.split(".")
-        if len(weight_name_split) in [2, 3]:
-            weights_name_pattern = weight_name_split[0] + "{suffix}." + ".".join(weight_name_split[1:])
-        else:
-            raise ValueError(f"Invalid {weights_name} provided.")
+        weights_name_pattern = weights_name.replace(".bin", "{suffix}.bin").replace(
+            ".safetensors", "{suffix}.safetensors"
+        )
 
         os.makedirs(save_directory, exist_ok=True)
 
@@ -530,26 +540,44 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             user_agent=user_agent,
             **kwargs,
         )
+        # no in-place modification of the original config.
+        config = copy.deepcopy(config)
+
+        # Check if `_keep_in_fp32_modules` is not None
+        use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
+
+        if use_keep_in_fp32_modules:
+            keep_in_fp32_modules = cls._keep_in_fp32_modules
+            if not isinstance(keep_in_fp32_modules, list):
+                keep_in_fp32_modules = [keep_in_fp32_modules]
+        else:
+            keep_in_fp32_modules = []
+        #######################################
 
         # Determine if we're loading from a directory of sharded checkpoints.
         is_sharded = False
         index_file = None
         is_local = os.path.isdir(pretrained_model_name_or_path)
-        index_file = _fetch_index_file(
-            is_local=is_local,
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
-            subfolder=subfolder or "",
-            use_safetensors=use_safetensors,
-            cache_dir=cache_dir,
-            variant=variant,
-            force_download=force_download,
-            proxies=proxies,
-            local_files_only=local_files_only,
-            token=token,
-            revision=revision,
-            user_agent=user_agent,
-            commit_hash=commit_hash,
-        )
+        index_file_kwargs = {
+            "is_local": is_local,
+            "pretrained_model_name_or_path": pretrained_model_name_or_path,
+            "subfolder": subfolder or "",
+            "use_safetensors": use_safetensors,
+            "cache_dir": cache_dir,
+            "variant": variant,
+            "force_download": force_download,
+            "proxies": proxies,
+            "local_files_only": local_files_only,
+            "token": token,
+            "revision": revision,
+            "user_agent": user_agent,
+            "commit_hash": commit_hash,
+        }
+        index_file = _fetch_index_file(**index_file_kwargs)
+        # In case the index file was not found we still have to consider the legacy format.
+        # this becomes applicable when the variant is not None.
+        if variant is not None and (index_file is None or not os.path.exists(index_file)):
+            index_file = _fetch_index_file_legacy(**index_file_kwargs)
         if index_file is not None and index_file.is_file():
             is_sharded = True
 
@@ -611,6 +639,17 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
             model = cls.from_config(config, **unused_kwargs)
 
+            # Move the model's data type conversion ahead of the weight loading process to avoid unnecessary
+            # data type conversions of weights that can increase computation time in certain situations.
+            if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
+                raise ValueError(
+                    f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
+                )
+            # When using `use_keep_in_fp32_modules` if we do a global `to()` here, then we will
+            # completely lose the effectivity of `use_keep_in_fp32_modules`.
+            elif mindspore_dtype is not None and not use_keep_in_fp32_modules:
+                model = model.to(mindspore_dtype)
+
             if is_sharded:
                 load_checkpoint_and_dispatch(
                     model,
@@ -636,13 +675,6 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     "mismatched_keys": mismatched_keys,
                     "error_msgs": error_msgs,
                 }
-
-        if mindspore_dtype is not None and not isinstance(mindspore_dtype, ms.Type):
-            raise ValueError(
-                f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
-            )
-        elif mindspore_dtype is not None:
-            model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)
 
@@ -820,12 +852,21 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 for name, module_type in self.cells_and_names()
                 if isinstance(module_type, nn.Embedding)
             ]
-            non_embedding_parameters = [
+            total_parameters = [
                 parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
             ]
-            return sum(p.numel() for p in non_embedding_parameters if p.requires_grad or not only_trainable)
         else:
-            return sum(p.numel() for p in self.get_parameters() if p.requires_grad or not only_trainable)
+            total_parameters = list(self.get_parameters())
+
+        total_numel = []
+
+        for param in total_parameters:
+            if param.requires_grad or not only_trainable:
+                # For 4bit models, we need to multiply the number of parameters by 2 as half of the parameters are
+                # used for the 4bit quantization (uint8 tensors are stored)
+                total_numel.append(param.numel())
+
+        return sum(total_numel)
 
     def _convert_deprecated_attention_blocks(self, state_dict: OrderedDict) -> None:
         deprecated_attention_block_paths = []

@@ -27,6 +27,7 @@ from ...image_processor import VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3LoraLoaderMixin
 from ...models.attention_processor import PAGCFGJointAttnProcessor2_0, PAGJointAttnProcessor2_0
 from ...models.autoencoders import AutoencoderKL
+from ...models.layers_compat import pad
 from ...models.transformers import SD3Transformer2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
@@ -67,7 +68,7 @@ def retrieve_timesteps(
     sigmas: Optional[List[float]] = None,
     **kwargs,
 ):
-    """
+    r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
     custom timesteps. Any kwargs will be supplied to `scheduler.set_timesteps`.
 
@@ -194,6 +195,9 @@ class StableDiffusion3PAGPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSin
             self.transformer.config.sample_size
             if hasattr(self, "transformer") and self.transformer is not None
             else 128
+        )
+        self.patch_size = (
+            self.transformer.config.patch_size if hasattr(self, "transformer") and self.transformer is not None else 2
         )
 
         self.set_pag_applied_layers(
@@ -419,9 +423,7 @@ class StableDiffusion3PAGPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSin
                 max_sequence_length=max_sequence_length,
             )
 
-            clip_prompt_embeds = ops.pad(
-                clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
-            )
+            clip_prompt_embeds = pad(clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
 
             prompt_embeds = ops.cat([clip_prompt_embeds, t5_prompt_embed], axis=-2)
             pooled_prompt_embeds = ops.cat([pooled_prompt_embed, pooled_prompt_2_embed], axis=-1)
@@ -472,7 +474,7 @@ class StableDiffusion3PAGPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSin
                 max_sequence_length=max_sequence_length,
             )
 
-            negative_clip_prompt_embeds = ops.pad(
+            negative_clip_prompt_embeds = pad(
                 negative_clip_prompt_embeds,
                 (0, t5_negative_prompt_embed.shape[-1] - negative_clip_prompt_embeds.shape[-1]),
             )
@@ -512,8 +514,14 @@ class StableDiffusion3PAGPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSin
         callback_on_step_end_tensor_inputs=None,
         max_sequence_length=None,
     ):
-        if height % 8 != 0 or width % 8 != 0:
-            raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
+        if (
+            height % (self.vae_scale_factor * self.patch_size) != 0
+            or width % (self.vae_scale_factor * self.patch_size) != 0
+        ):
+            raise ValueError(
+                f"`height` and `width` have to be divisible by {self.vae_scale_factor * self.patch_size} but are {height} and {width}."
+                f"You can use height {height - height % (self.vae_scale_factor * self.patch_size)} and width {width - width % (self.vae_scale_factor * self.patch_size)}."  # noqa E501
+            )
 
         if callback_on_step_end_tensor_inputs is not None and not all(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs

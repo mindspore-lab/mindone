@@ -27,7 +27,7 @@ class ZeroParamWrapper(nn.Cell):
 
         # Init parallel settings
         self.is_parallel = _get_parallel_mode() == ParallelMode.DATA_PARALLEL
-        self.optimizer_parallel_group_size = get_group_size(self.optimizer_parallel_group) if self.is_parallel else 1
+        self.op_group_size = get_group_size(self.optimizer_parallel_group) if self.is_parallel else 1
         self.allgather = ops.Identity()
         self.reduce_scatter = None
         self.dtype = param.dtype
@@ -42,7 +42,7 @@ class ZeroParamWrapper(nn.Cell):
         """Check the parameter need to split or not."""
         need_rewrite = self.is_parallel
         B = param.shape[0]
-        if not param.parallel_optimizer or B < self.optimizer_parallel_group_size or B % self.optimizer_parallel_group_size != 0:
+        if not param.parallel_optimizer or B < self.op_group_size or B % self.op_group_size != 0:
             need_rewrite = False
         param.parallel_optimizer = need_rewrite
         return need_rewrite
@@ -56,7 +56,7 @@ class ZeroParamWrapper(nn.Cell):
 
     def bprop(self, param, out, dout):
         if self.need_rewrite:
-            r = self.op_reduce_scatter(dout.to(self.dtype)) / self.optimizer_parallel_group_size
+            r = self.op_reduce_scatter(dout.to(self.dtype)) / self.op_group_size
             return (r,)
-        dout = self.allreduce(dout.to(self.dtype)) / self.optimizer_parallel_group_size
+        dout = self.allreduce(dout.to(self.dtype)) / self.op_group_size
         return (dout,)
