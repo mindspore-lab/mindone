@@ -1,4 +1,3 @@
-import json
 import logging
 import math
 import os
@@ -14,6 +13,7 @@ from emu3.train.datasets import Emu3FeatureDataset
 import mindspore as ms
 import mindspore.dataset as ds
 from mindspore import Model, nn  # amp
+from mindspore.nn import CrossEntropyLoss
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
 from mindone.data import create_dataloader
@@ -25,11 +25,6 @@ from mindone.transformers.optimization import get_scheduler
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
 from mindone.utils import count_params, init_train_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
-
-if ms.__version__ <= "2.5":
-    from mindspore.mint.nn import CrossEntropyLoss
-else:
-    from mindspore.nn import CrossEntropyLoss
 
 # from mindone.trainers.checkpoint import resume_train_network
 
@@ -90,12 +85,6 @@ def update_configs(model_config, args, fields):
 
     for f in fields:
         cross_update(model_config, args, f)
-
-
-def save_config(output_dir, model_config):
-    config_file = os.path.join(os.path.join(output_dir + "config.json"))
-    with open(config_file, "w") as f:
-        json.dump(model_config.__dict__, f, indent=4)
 
 
 # def resume_train_net(
@@ -373,7 +362,7 @@ def main():
         )
         key_info += "\n" + "=" * 50
         print(key_info)
-        save_config(training_args.output_dir, model_config)
+        model_config.save_pretrained(save_directory=training_args.output_dir)
 
     # 4 .train
     logger.info("Start training...")

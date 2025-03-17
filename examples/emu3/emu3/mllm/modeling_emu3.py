@@ -63,10 +63,7 @@ FLASH_IS_AVAILABLE = is_flash_attn_2_available and check_valid_flash_attention()
 if FLASH_IS_AVAILABLE:
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
-if ms.__version__ <= "2.5":
-    from mindspore.mint.nn import CrossEntropyLoss
-else:
-    from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
+from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 
 _CONFIG_FOR_DOC = "Emu3Config"
 
