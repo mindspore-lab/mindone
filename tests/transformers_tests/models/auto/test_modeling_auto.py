@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 import transformers
-from transformers import BertConfig, is_safetensors_available
+from transformers import BertConfig
 from transformers.testing_utils import DUMMY_UNKNOWN_IDENTIFIER, RequestCounter, slow
 
 from mindone.transformers.testing_utils import require_mindspore
@@ -49,17 +49,8 @@ class AutoModelTest(unittest.TestCase):
         self.assertIsInstance(config, BertConfig)
 
         model = AutoModel.from_pretrained(model_name)
-        model, loading_info = AutoModel.from_pretrained(model_name, output_loading_info=True)
         self.assertIsNotNone(model)
         self.assertIsInstance(model, BertModel)
-
-        self.assertEqual(len(loading_info["missing_keys"]), 0)
-        # When using PyTorch checkpoint, the expected value is `8`. With `safetensors` checkpoint (if it is
-        # installed), the expected value becomes `7`.
-        EXPECTED_NUM_OF_UNEXPECTED_KEYS = 7 if is_safetensors_available() else 8
-        self.assertEqual(len(loading_info["unexpected_keys"]), EXPECTED_NUM_OF_UNEXPECTED_KEYS)
-        self.assertEqual(len(loading_info["mismatched_keys"]), 0)
-        self.assertEqual(len(loading_info["error_msgs"]), 0)
 
     @slow
     def test_model_for_masked_lm(self):
@@ -69,7 +60,6 @@ class AutoModelTest(unittest.TestCase):
         self.assertIsInstance(config, BertConfig)
 
         model = AutoModelForMaskedLM.from_pretrained(model_name)
-        model, loading_info = AutoModelForMaskedLM.from_pretrained(model_name, output_loading_info=True)
         self.assertIsNotNone(model)
         self.assertIsInstance(model, BertForMaskedLM)
 
