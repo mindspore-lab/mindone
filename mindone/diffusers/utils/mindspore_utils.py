@@ -15,12 +15,14 @@
 MindSpore utilities: Utilities related to MindSpore
 """
 
+import contextlib
+from collections import OrderedDict
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import nn, ops
 
 from . import logging
 
@@ -45,6 +47,24 @@ def dtype_to_min(dtype):
         return _MIN_BF16
     else:
         raise ValueError(f"Only support get minimum value of (bfloat16, float16, float32, float64), but got {dtype}")
+
+
+def get_state_dict(module: nn.Cell, name_prefix="", recurse=True):
+    """
+    A function attempting to achieve an effect similar to torch's `nn.Module.state_dict()`.
+
+    Due to MindSpore's unique parameter naming mechanism, this function performs operations
+    on the prefix of parameter names. This ensures that parameters can be correctly loaded
+    using `mindspore.load_param_into_net()` when there are discrepancies between the parameter
+    names of the target_model and source_model.
+    """
+    param_generator = module.parameters_and_names(name_prefix=name_prefix, expand=recurse)
+
+    param_dict = OrderedDict()
+    for name, param in param_generator:
+        param.name = name
+        param_dict[name] = param
+    return param_dict
 
 
 def randn(
@@ -78,3 +98,24 @@ def randn_tensor(
         latents = randn(shape, generator=generator, dtype=dtype)
 
     return latents
+
+
+@ms.jit_class
+class pynative_context(contextlib.ContextDecorator):
+    """
+    Context Manager to create a temporary PyNative context. When enter this context, we will
+    change os.environ["MS_JIT"] to '0' to enable network run in eager mode. When exit this context,
+    we will resume its prev state. Currently, it CANNOT used inside mindspore.nn.Cell.construct()
+    when `mindspore.context.get_context("mode") == mindspore.context.GRAPH_MODE`. It can be used
+    as decorator.
+    """
+
+    def __init__(self):
+        self._prev_mode = ms.context.get_context("mode")
+
+    def __enter__(self):
+        ms.context.set_context(mode=ms.context.PYNATIVE_MODE)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        ms.context.set_context(mode=self._prev_mode)
+        return False

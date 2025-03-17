@@ -27,8 +27,6 @@ def init_train_env(
     jit_level: Optional[Literal["O0", "O1", "O2"]] = None,
     enable_modelarts: bool = False,
     max_device_memory: str = None,
-    num_workers: int = 1,
-    json_data_path: Optional[str] = None,
 ) -> Tuple[int, int, int]:
     """
     Initialize MindSpore training environment.
@@ -48,10 +46,6 @@ def init_train_env(
                    Default is None and the level selected based on the device.
         enable_modelarts: Whether to enable modelarts (OpenI) support. Default is False.
         max_device_memory (str, default: None): The maximum amount of memory that can be allocated on the Ascend device.
-        num_workers: The number of modelarts workers. Used only when `enable_modelarts` is True. Default is 1.
-        json_data_path: The path of num_samples.json containing a dictionary with 64 parts. Each part is a large
-                        dictionary containing counts of samples of 533 tar packages.
-                        Used only when `enable_modelarts` is True.
 
     Returns:
         A tuple containing the device ID, rank ID and number of devices.
@@ -90,7 +84,6 @@ def init_train_env(
         _logger.info(dict(zip(var_info, var_value)))
 
         if enable_modelarts:
-            # split_and_sync_data(json_data_path, num_workers, device_num, rank_id)
             raise NotImplementedError("ModelArts is not supported yet.")
     else:
         device_num = 1

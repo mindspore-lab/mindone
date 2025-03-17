@@ -68,10 +68,10 @@ IMAGE2IMAGE_EXAMPLE_DOC_STRING = """
         url = "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg"
 
         response = requests.get(url)
-        image = Image.open(BytesIO(response.content)).convert("RGB")
-        image.thumbnail((768, 768))
+        original_image = Image.open(BytesIO(response.content)).convert("RGB")
+        original_image.thumbnail((768, 768))
 
-        image = pipe(prompt=prompt, image=original_image, num_inference_steps=25)[0][0]
+        image = pipe(prompt=prompt, negative_prompt=negative_prompt, image=original_image, num_inference_steps=25)[0][0]
         ```
 """
 
@@ -504,7 +504,7 @@ class KandinskyV22Img2ImgCombinedPipeline(DiffusionPipeline):
         negative_image_embeds = prior_outputs[1]
 
         prompt = [prompt] if not isinstance(prompt, (list, tuple)) else prompt
-        image = [image] if isinstance(prompt, PIL.Image.Image) else image
+        image = [image] if isinstance(image, PIL.Image.Image) else image
 
         if len(prompt) < image_embeds.shape[0] and image_embeds.shape[0] % len(prompt) == 0:
             prompt = (image_embeds.shape[0] // len(prompt)) * prompt
@@ -755,7 +755,7 @@ class KandinskyV22InpaintCombinedPipeline(DiffusionPipeline):
         negative_image_embeds = prior_outputs[1]
 
         prompt = [prompt] if not isinstance(prompt, (list, tuple)) else prompt
-        image = [image] if isinstance(prompt, PIL.Image.Image) else image
+        image = [image] if isinstance(image, PIL.Image.Image) else image
         mask_image = [mask_image] if isinstance(mask_image, PIL.Image.Image) else mask_image
 
         if len(prompt) < image_embeds.shape[0] and image_embeds.shape[0] % len(prompt) == 0:

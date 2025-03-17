@@ -6,9 +6,13 @@ from ..utils import _LazyModule
 _import_structure = {
     "animatediff": [
         "AnimateDiffPipeline",
+        "AnimateDiffControlNetPipeline",
         "AnimateDiffSDXLPipeline",
+        "AnimateDiffSparseControlNetPipeline",
         "AnimateDiffVideoToVideoPipeline",
+        "AnimateDiffVideoToVideoControlNetPipeline",
     ],
+    "aura_flow": ["AuraFlowPipeline"],
     "auto_pipeline": [
         "AutoPipelineForImage2Image",
         "AutoPipelineForInpainting",
@@ -19,8 +23,11 @@ _import_structure = {
         "CogVideoXPipeline",
         "CogVideoXImageToVideoPipeline",
         "CogVideoXVideoToVideoPipeline",
+        "CogVideoXFunControlPipeline",
     ],
     "consistency_models": ["ConsistencyModelPipeline"],
+    "cogview3": ["CogView3PlusPipeline"],
+    "cogview4": ["CogView4Pipeline"],
     "controlnet": [
         "BlipDiffusionControlNetPipeline",
         "StableDiffusionControlNetImg2ImgPipeline",
@@ -37,6 +44,7 @@ _import_structure = {
     ],
     "controlnet_sd3": [
         "StableDiffusion3ControlNetPipeline",
+        "StableDiffusion3ControlNetInpaintingPipeline",
     ],
     "dance_diffusion": ["DanceDiffusionPipeline"],
     "ddim": ["DDIMPipeline"],
@@ -50,7 +58,14 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
-    "flux": ["FluxPipeline"],
+    "flux": [
+        "FluxControlNetPipeline",
+        "FluxControlNetImg2ImgPipeline",
+        "FluxControlNetInpaintPipeline",
+        "FluxImg2ImgPipeline",
+        "FluxInpaintPipeline",
+        "FluxPipeline",
+    ],
     "hunyuandit": ["HunyuanDiTPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
@@ -94,14 +109,17 @@ _import_structure = {
         "MarigoldNormalsPipeline",
     ],
     "pag": [
+        "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
         "KolorsPAGPipeline",
         "HunyuanDiTPAGPipeline",
         "StableDiffusion3PAGPipeline",
         "StableDiffusionPAGPipeline",
+        "StableDiffusionPAGImg2ImgPipeline",
         "StableDiffusionControlNetPAGPipeline",
         "StableDiffusionXLPAGPipeline",
         "StableDiffusionXLPAGInpaintPipeline",
+        "StableDiffusionXLControlNetPAGImg2ImgPipeline",
         "StableDiffusionXLControlNetPAGPipeline",
         "StableDiffusionXLPAGImg2ImgPipeline",
         "PixArtSigmaPAGPipeline",
@@ -111,6 +129,7 @@ _import_structure = {
         "PixArtSigmaPipeline",
     ],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
+    "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
     "stable_cascade": [
         "StableCascadeCombinedPipeline",
         "StableCascadeDecoderPipeline",
@@ -162,10 +181,25 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
-    from .animatediff import AnimateDiffPipeline, AnimateDiffSDXLPipeline, AnimateDiffVideoToVideoPipeline
+    from .animatediff import (
+        AnimateDiffControlNetPipeline,
+        AnimateDiffPipeline,
+        AnimateDiffSDXLPipeline,
+        AnimateDiffSparseControlNetPipeline,
+        AnimateDiffVideoToVideoControlNetPipeline,
+        AnimateDiffVideoToVideoPipeline,
+    )
+    from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
-    from .cogvideo import CogVideoXImageToVideoPipeline, CogVideoXPipeline, CogVideoXVideoToVideoPipeline
+    from .cogvideo import (
+        CogVideoXFunControlPipeline,
+        CogVideoXImageToVideoPipeline,
+        CogVideoXPipeline,
+        CogVideoXVideoToVideoPipeline,
+    )
+    from .cogview3 import CogView3PlusPipeline
+    from .cogview4 import CogView4Pipeline
     from .consistency_models import ConsistencyModelPipeline
     from .controlnet import (
         BlipDiffusionControlNetPipeline,
@@ -177,7 +211,7 @@ if TYPE_CHECKING:
         StableDiffusionXLControlNetPipeline,
     )
     from .controlnet_hunyuandit import HunyuanDiTControlNetPipeline
-    from .controlnet_sd3 import StableDiffusion3ControlNetPipeline
+    from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
     from .controlnet_xs import StableDiffusionControlNetXSPipeline, StableDiffusionXLControlNetXSPipeline
     from .ddim import DDIMPipeline
     from .ddpm import DDPMPipeline
@@ -190,7 +224,14 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
-    from .flux import FluxPipeline
+    from .flux import (
+        FluxControlNetImg2ImgPipeline,
+        FluxControlNetInpaintPipeline,
+        FluxControlNetPipeline,
+        FluxImg2ImgPipeline,
+        FluxInpaintPipeline,
+        FluxPipeline,
+    )
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
@@ -227,8 +268,11 @@ if TYPE_CHECKING:
         KolorsPAGPipeline,
         PixArtSigmaPAGPipeline,
         StableDiffusion3PAGPipeline,
+        StableDiffusionControlNetPAGInpaintPipeline,
         StableDiffusionControlNetPAGPipeline,
+        StableDiffusionPAGImg2ImgPipeline,
         StableDiffusionPAGPipeline,
+        StableDiffusionXLControlNetPAGImg2ImgPipeline,
         StableDiffusionXLControlNetPAGPipeline,
         StableDiffusionXLPAGImg2ImgPipeline,
         StableDiffusionXLPAGInpaintPipeline,
@@ -237,6 +281,7 @@ if TYPE_CHECKING:
     from .pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
+    from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
     from .stable_diffusion import (
         CLIPImageProjection,

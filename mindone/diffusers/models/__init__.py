@@ -22,16 +22,19 @@ _import_structure = {
     "autoencoders.autoencoder_kl": ["AutoencoderKL"],
     "autoencoders.autoencoder_kl_cogvideox": ["AutoencoderKLCogVideoX"],
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
+    "autoencoders.autoencoder_oobleck": ["AutoencoderOobleck"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
     "controlnet": ["ControlNetModel"],
+    "controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnet_hunyuan": ["HunyuanDiT2DControlNetModel", "HunyuanDiT2DMultiControlNetModel"],
     "controlnet_sd3": ["SD3ControlNetModel", "SD3MultiControlNetModel"],
+    "controlnet_sparsectrl": ["SparseControlNetModel"],
     "controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
-    "dual_transformer_2d": ["DualTransformer2DModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
+    "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
     "transformers.cogvideox_transformer_3d": ["CogVideoXTransformer3DModel"],
     "transformers.dit_transformer_2d": ["DiTTransformer2DModel"],
     "transformers.dual_transformer_2d": ["DualTransformer2DModel"],
@@ -40,8 +43,11 @@ _import_structure = {
     "transformers.lumina_nextdit2d": ["LuminaNextDiT2DModel"],
     "transformers.pixart_transformer_2d": ["PixArtTransformer2DModel"],
     "transformers.prior_transformer": ["PriorTransformer"],
+    "transformers.stable_audio_transformer": ["StableAudioDiTModel"],
     "transformers.t5_film_transformer": ["T5FilmDecoder"],
     "transformers.transformer_2d": ["Transformer2DModel"],
+    "transformers.transformer_cogview3plus": ["CogView3PlusTransformer2DModel"],
+    "transformers.transformer_cogview4": ["CogView4Transformer2DModel"],
     "transformers.transformer_flux": ["FluxTransformer2DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
@@ -64,18 +70,24 @@ if TYPE_CHECKING:
         AutoencoderKL,
         AutoencoderKLCogVideoX,
         AutoencoderKLTemporalDecoder,
+        AutoencoderOobleck,
         AutoencoderTiny,
         ConsistencyDecoderVAE,
         VQModel,
     )
     from .controlnet import ControlNetModel
+    from .controlnet_flux import FluxControlNetModel, FluxMultiControlNetModel
     from .controlnet_hunyuan import HunyuanDiT2DControlNetModel, HunyuanDiT2DMultiControlNetModel
     from .controlnet_sd3 import SD3ControlNetModel, SD3MultiControlNetModel
+    from .controlnet_sparsectrl import SparseControlNetModel
     from .controlnet_xs import ControlNetXSAdapter, UNetControlNetXSModel
     from .embeddings import ImageProjection
     from .modeling_utils import ModelMixin
     from .transformers import (
+        AuraFlowTransformer2DModel,
         CogVideoXTransformer3DModel,
+        CogView3PlusTransformer2DModel,
+        CogView4Transformer2DModel,
         DiTTransformer2DModel,
         DualTransformer2DModel,
         FluxTransformer2DModel,
@@ -85,6 +97,7 @@ if TYPE_CHECKING:
         PixArtTransformer2DModel,
         PriorTransformer,
         SD3Transformer2DModel,
+        StableAudioDiTModel,
         T5FilmDecoder,
         Transformer2DModel,
         TransformerTemporalModel,

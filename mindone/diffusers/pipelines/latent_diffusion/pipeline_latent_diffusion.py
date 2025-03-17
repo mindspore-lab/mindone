@@ -17,7 +17,6 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 from transformers import PretrainedConfig, PreTrainedTokenizer
-from transformers.modeling_outputs import BaseModelOutput
 from transformers.utils import logging
 
 import mindspore as ms
@@ -26,6 +25,7 @@ from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers import MSPreTrainedModel
 from mindone.transformers.activations import ACT2FN
+from mindone.transformers.modeling_outputs import BaseModelOutput
 
 from ...models import AutoencoderKL, UNet2DConditionModel, UNet2DModel, VQModel
 from ...schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
@@ -324,7 +324,7 @@ class LDMBertConfig(PretrainedConfig):
         super().__init__(pad_token_id=pad_token_id, **kwargs)
 
 
-def _expand_mask(mask: ms.Tensor, dtype: ms.dtype, tgt_len: Optional[int] = None):
+def _expand_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
     """
