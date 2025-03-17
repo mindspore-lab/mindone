@@ -10,6 +10,7 @@ from . import (
     gemma2,
     glm,
     llama,
+    llava,
     phi3,
     qwen2_vl,
     speecht5,
