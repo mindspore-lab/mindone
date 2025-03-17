@@ -715,7 +715,7 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
 
         for i in range(batch_size):
             attention_mask[i, : effective_sequence_length[i]] = True
-        attention_mask = attention_mask.unsqueeze(1)
+        attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
 
         # 4. Transformer blocks
         for block in self.transformer_blocks:
