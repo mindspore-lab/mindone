@@ -193,7 +193,6 @@ def main(args):
             config=SD_CONFIG, ckpt_path=args.vae_checkpoint, micro_batch_size=args.vae_micro_batch_size
         )
     elif args.vae_type == "OpenSoraVAE_V1_2":
-        assert os.path.exists(args.vae_checkpoint), f"vae checkopint {args.vae_checkpoint} NOT found"
         vae = OpenSoraVAE_V1_2(
             micro_batch_size=args.vae_micro_batch_size,
             micro_frame_size=args.vae_micro_frame_size,
@@ -284,8 +283,6 @@ def main(args):
         )
 
     if args.ckpt_path:
-        logger.info(f"Loading ckpt {args.ckpt_path} into {model_name}")
-        assert os.path.exists(args.ckpt_path), f"{args.ckpt_path} not found."
         latte_model.load_from_checkpoint(args.ckpt_path)
     else:
         logger.warning(f"{model_name} uses random initialization!")
@@ -543,7 +540,6 @@ def parse_args():
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="",
         help="latte checkpoint path. If specified, will load from it, otherwise, will use random initialization",
     )
     parser.add_argument(
@@ -552,7 +548,7 @@ def parse_args():
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="models/sd-vae-ft-ema.ckpt",
+        default="stabilityai/sd-vae-ft-ema",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(

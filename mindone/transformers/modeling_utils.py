@@ -65,7 +65,7 @@ from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 if is_safetensors_available():
     from safetensors import safe_open
 
-    from mindone.safetensors.mindspore import load_file as safe_load_file
+    # from mindone.safetensors.mindspore import load_file as safe_load_file
     from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
@@ -267,7 +267,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
                     "you save your model with the `save_pretrained` method."
                 )
-            return safe_load_file(checkpoint_file)
+            return ms.load_checkpoint(checkpoint_file, format="safetensors")
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
