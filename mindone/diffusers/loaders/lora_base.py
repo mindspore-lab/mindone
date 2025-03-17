@@ -26,16 +26,22 @@ import mindspore as ms
 from mindspore import nn
 
 from mindone.safetensors.mindspore import load_file, save_file
-from mindone.transformers import MSPreTrainedModel
+from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, MSPreTrainedModel
 
 from .._peft.tuners.tuners_utils import BaseTunerLayer
 from ..models.modeling_utils import ModelMixin
 from ..utils import (
     _get_model_file,
+    convert_state_dict_to_diffusers,
+    convert_state_dict_to_peft,
     delete_adapter_layers,
     deprecate,
+    get_adapter_name,
+    get_peft_kwargs,
+    is_peft_version,
     logging,
     recurse_remove_peft_layers,
+    scale_lora_layers,
     set_adapter_layers,
     set_weights_and_activate_adapters,
 )
@@ -288,6 +294,128 @@ def _best_guess_weight_name(
         )
     weight_name = targeted_files[0]
     return weight_name
+
+
+def text_encoder_attn_modules(text_encoder):
+    attn_modules = []
+
+    if isinstance(text_encoder, (CLIPTextModel, CLIPTextModelWithProjection)):
+        for i, layer in enumerate(text_encoder.text_model.encoder.layers):
+            name = f"text_model.encoder.layers.{i}.self_attn"
+            mod = layer.self_attn
+            attn_modules.append((name, mod))
+    else:
+        raise ValueError(f"Do not know how to get attention modules for: {text_encoder.__class__.__name__}")
+
+    return attn_modules
+
+
+def text_encoder_mlp_modules(text_encoder):
+    mlp_modules = []
+
+    if isinstance(text_encoder, (CLIPTextModel, CLIPTextModelWithProjection)):
+        for i, layer in enumerate(text_encoder.text_model.encoder.layers):
+            mlp_mod = layer.mlp
+            name = f"text_model.encoder.layers.{i}.mlp"
+            mlp_modules.append((name, mlp_mod))
+    else:
+        raise ValueError(f"Do not know how to get mlp modules for: {text_encoder.__class__.__name__}")
+
+    return mlp_modules
+
+
+def _load_lora_into_text_encoder(
+    state_dict,
+    network_alphas,
+    text_encoder,
+    prefix=None,
+    lora_scale=1.0,
+    text_encoder_name="text_encoder",
+    adapter_name=None,
+    _pipeline=None,
+):
+    from mindone.diffusers._peft import LoraConfig
+
+    # If the serialization format is new (introduced in https://github.com/huggingface/diffusers/pull/2918),
+    # then the `state_dict` keys should have `unet_name` and/or `text_encoder_name` as
+    # their prefixes.
+    keys = list(state_dict.keys())
+    prefix = text_encoder_name if prefix is None else prefix
+
+    # Safe prefix to check with.
+    if any(text_encoder_name in key for key in keys):
+        # Load the layers corresponding to text encoder and make necessary adjustments.
+        text_encoder_keys = [k for k in keys if k.startswith(prefix) and k.split(".")[0] == prefix]
+        text_encoder_lora_state_dict = {
+            k.replace(f"{prefix}.", ""): v for k, v in state_dict.items() if k in text_encoder_keys
+        }
+
+        if len(text_encoder_lora_state_dict) > 0:
+            logger.info(f"Loading {prefix}.")
+            rank = {}
+            text_encoder_lora_state_dict = convert_state_dict_to_diffusers(text_encoder_lora_state_dict)
+
+            # convert state dict
+            text_encoder_lora_state_dict = convert_state_dict_to_peft(text_encoder_lora_state_dict)
+
+            for name, _ in text_encoder_attn_modules(text_encoder):
+                for module in ("out_proj", "q_proj", "k_proj", "v_proj"):
+                    rank_key = f"{name}.{module}.lora_B.weight"
+                    if rank_key not in text_encoder_lora_state_dict:
+                        continue
+                    rank[rank_key] = text_encoder_lora_state_dict[rank_key].shape[1]
+
+            for name, _ in text_encoder_mlp_modules(text_encoder):
+                for module in ("fc1", "fc2"):
+                    rank_key = f"{name}.{module}.lora_B.weight"
+                    if rank_key not in text_encoder_lora_state_dict:
+                        continue
+                    rank[rank_key] = text_encoder_lora_state_dict[rank_key].shape[1]
+
+            if network_alphas is not None:
+                alpha_keys = [k for k in network_alphas.keys() if k.startswith(prefix) and k.split(".")[0] == prefix]
+                network_alphas = {k.replace(f"{prefix}.", ""): v for k, v in network_alphas.items() if k in alpha_keys}
+
+            lora_config_kwargs = get_peft_kwargs(rank, network_alphas, text_encoder_lora_state_dict, is_unet=False)
+
+            if "use_dora" in lora_config_kwargs:
+                if lora_config_kwargs["use_dora"]:
+                    if is_peft_version("<", "0.9.0"):
+                        raise ValueError(
+                            "You need `peft` 0.9.0 at least to use DoRA-enabled LoRAs. Please upgrade your installation of `peft`."
+                        )
+                else:
+                    if is_peft_version("<", "0.9.0"):
+                        lora_config_kwargs.pop("use_dora")
+
+            if "lora_bias" in lora_config_kwargs:
+                if lora_config_kwargs["lora_bias"]:
+                    if is_peft_version("<=", "0.13.2"):
+                        raise ValueError(
+                            "You need `peft` 0.14.0 at least to use `bias` in LoRAs. Please upgrade your installation of `peft`."
+                        )
+                else:
+                    if is_peft_version("<=", "0.13.2"):
+                        lora_config_kwargs.pop("lora_bias")
+
+            lora_config = LoraConfig(**lora_config_kwargs)
+
+            # adapter_name
+            if adapter_name is None:
+                adapter_name = get_adapter_name(text_encoder)
+
+            # inject LoRA layers and load the state dict
+            # in transformers we automatically check whether the adapter name is already in use or not
+            text_encoder.load_adapter(
+                adapter_name=adapter_name,
+                adapter_state_dict=text_encoder_lora_state_dict,
+                peft_config=lora_config,
+            )
+
+            # scale LoRA layers with `lora_scale`
+            scale_lora_layers(text_encoder, weight=lora_scale)
+
+            text_encoder.to(dtype=text_encoder.dtype)
 
 
 class LoraBaseMixin:
