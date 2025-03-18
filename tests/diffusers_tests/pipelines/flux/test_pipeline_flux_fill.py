@@ -9,9 +9,18 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 from mindspore import ops
 
+from mindone.diffusers import FluxFillPipeline
+
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -192,3 +201,56 @@ class FluxControlPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxControlPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        # TODO: if need download
+        from mindone.diffusers.utils import load_image
+        image = load_downloaded_image_from_hf_hub(
+            "YiYiXu/testing-images",
+            "cup.png",
+            subfolder=None,
+            repo_type='dataset',
+        )
+        mask = load_downloaded_image_from_hf_hub(
+            "YiYiXu/testing-images",
+            "cup_mask.png",
+            subfolder=None,
+            repo_type='dataset',
+        )
+
+        inputs = {
+            "prompt": "a white paper cup",
+            "image": image,
+            "mask_image": mask,
+            'height': 1632,
+            'width': 1232,
+            'guidance_scale': 30,
+            'num_inference_steps': 50,
+            'max_sequence_length': 512,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", mindspore_dtype=ms_dtype)
+
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f'flux_fill_{dtype}.npy',
+            subfolder="flux",
+        )
+
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - np.array(expected_image, dtype=np.float32))) < THRESHOLD_PIXEL
