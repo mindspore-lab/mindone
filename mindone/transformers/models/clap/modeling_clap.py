@@ -766,7 +766,7 @@ class ClapAudioPatchMerging(nn.Cell):
         super().__init__()
         self.input_resolution = input_resolution
         self.dim = dim
-        self.reduction = nn.Dense(4 * dim, 2 * dim, has_bias=True)
+        self.reduction = nn.Dense(4 * dim, 2 * dim, has_bias=False)
         self.norm = norm_layer(4 * dim)
 
     def maybe_pad(self, input_feature, height, width):
