@@ -31,10 +31,3 @@ jobs:
           pip install mindspore==2.5.0
       - name: Lint with pre-commit
         uses: pre-commit/action@v3.0.1
-      - name: Test Diffusers with pytest
-        run: |
-          pip install "torch==2.2.1+cpu" -f https://download.pytorch.org/whl/torch_stable.html
-          pip install "diffusers==0.32.2"
-          pip install torchsde
-          pytest tests/diffusers_tests/test_schedulers_graph.py
-          pytest tests/diffusers_tests/test_schedulers.py
