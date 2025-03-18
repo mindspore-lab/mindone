@@ -13,7 +13,7 @@ NUM_NPUS=8
 # Training Configurations
 # Experiment with as many hyperparameters as you want!
 MIXED_PRECISION="bf16"
-LEARNING_RATES=("1e-5")
+LEARNING_RATES=("2e-5")
 LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw_bf16")
 MAX_TRAIN_STEPS=("3000")
