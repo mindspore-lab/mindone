@@ -174,6 +174,7 @@ def main(args):
         mindspore_dtype=weight_dtype,
         revision=args.revision,
         variant=args.variant,
+        max_text_seq_length=args.max_sequence_length,
         enable_sequence_parallelism=enable_sequence_parallelism,
     )
     transformer.fa_checkpointing = args.fa_gradient_checkpointing
@@ -302,7 +303,7 @@ def main(args):
         "vae_cache": args.vae_cache,
         "random_flip": args.random_flip,
         "tokenizer": None if args.embeddings_cache else tokenizer,
-        "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
+        "max_sequence_length": None if args.embeddings_cache else args.max_sequence_length,
         "use_rotary_positional_embeddings": transformer_config.use_rotary_positional_embeddings,
         "vae_scale_factor_spatial": VAE_SCALE_FACTOR_SPATIAL,
         "patch_size": transformer_config.patch_size,
@@ -528,7 +529,7 @@ def main(args):
         videos_shape = (symbol_batch_size, symbol_frames, channels // 2, symbol_height, symbol_width)
         dummy_videos = ms.Tensor(shape=videos_shape, dtype=weight_dtype)
 
-        num_tokens = transformer_config.max_text_seq_length
+        num_tokens = args.max_sequence_length
         text_encoder_config_path = Path(args.pretrained_model_name_or_path) / "text_encoder" / "config.json"
         text_encoder_config = json.load(open(text_encoder_config_path))
         hidden_size = text_encoder_config["d_model"]
@@ -556,7 +557,9 @@ def main(args):
                 logger.warning(f"Step {step} overflow!, scale_sense is {scale_sense}")
             last_lr = optimizer.get_lr()
             last_lr = last_lr[0] if isinstance(last_lr, tuple) else last_lr  # grouped lr scenario
-            logs = {"loss": loss.item(), "lr": last_lr.item(), "pre step time": time() - train_start}
+            logs = {"loss": loss.item(), "lr": last_lr.item(), "pre_step_time": time() - train_start}
+            if args.dynamic_shape:
+                logs["video_shape"] = batch[0].shape
             progress_bar.set_postfix(**logs)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
@@ -594,6 +597,8 @@ def main(args):
                     logger.info(f"Saved state to {save_path}")
 
             if is_master(args):
+                if args.dynamic_shape:
+                    logs.pop("video_shape")
                 for tracker_name, tracker in trackers.items():
                     if tracker_name == "tensorboard":
                         tracker.add_scalars("train", logs, global_step)

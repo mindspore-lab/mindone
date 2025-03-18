@@ -256,6 +256,7 @@ def main(args):
         mindspore_dtype=weight_dtype,
         revision=args.revision,
         variant=args.variant,
+        max_text_seq_length=args.max_sequence_length,
         enable_sequence_parallelism=enable_sequence_parallelism,
     )
     transformer.fa_checkpointing = args.fa_gradient_checkpointing
@@ -397,7 +398,7 @@ def main(args):
         "vae_cache": args.vae_cache,
         "random_flip": args.random_flip,
         "tokenizer": None if args.embeddings_cache else tokenizer,
-        "max_sequence_length": None if args.embeddings_cache else transformer_config.max_text_seq_length,
+        "max_sequence_length": None if args.embeddings_cache else args.max_sequence_length,
         "use_rotary_positional_embeddings": transformer_config.use_rotary_positional_embeddings,
         "vae_scale_factor_spatial": VAE_SCALE_FACTOR_SPATIAL,
         "patch_size": transformer_config.patch_size,
@@ -663,7 +664,7 @@ def main(args):
                         "use_dynamic_cfg": args.use_dynamic_cfg,
                         "height": args.height,
                         "width": args.width,
-                        "max_sequence_length": transformer_config.max_text_seq_length,
+                        "max_sequence_length": args.max_sequence_length,
                     }
 
                     log_validation(
