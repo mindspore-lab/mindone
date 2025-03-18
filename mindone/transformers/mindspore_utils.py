@@ -17,7 +17,7 @@ from typing import Callable, List, Optional, Set, Tuple, Union
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, Zero, initializer
 
 ALL_LAYERNORM_LAYERS = [nn.LayerNorm]
@@ -72,12 +72,12 @@ class Conv1D(nn.Cell):
     def __init__(self, nf, nx):
         super().__init__()
         self.nf = nf
-        self.weight = ms.Parameter(initializer(Normal(0.02), [nx, nf], dtype=ms.float32), name="weight")
-        self.bias = ms.Parameter(initializer(Zero(), [nf], dtype=ms.float32), name="bias")
+        self.weight = ms.Parameter(initializer(Normal(0.02), [nx, nf]), name="weight")
+        self.bias = ms.Parameter(initializer(Zero(), [nf]), name="bias")
 
     def construct(self, x):
         size_out = x.shape[:-1] + (self.nf,)
-        x = ops.addmm(self.bias, x.view(-1, x.shape[-1]), self.weight)
+        x = mint.addmm(self.bias, x.view(-1, x.shape[-1]), self.weight)
         x = x.view(size_out)
         return x
 

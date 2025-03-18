@@ -21,9 +21,13 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import LTXPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -32,8 +36,10 @@ from ..pipeline_test_utils import (
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.GRAPH_MODE, "dtype": "float32"},
     {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
 
 
@@ -176,3 +182,38 @@ class LTXPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class LTXPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip(" FP32 is not supported since HunyuanVideoPipeline contains nn.Conv3d")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = LTXPipeline.from_pretrained("Lightricks/LTX-Video", mindspore_dtype=ms_dtype)
+
+        prompt = "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage"  # noqa: E501
+        negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            width=704,
+            height=480,
+            num_frames=161,
+            num_inference_steps=50,
+        )[0][0][1]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"ltx_t2v_{dtype}.npy",
+            subfolder="ltx",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

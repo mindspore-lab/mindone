@@ -1,7 +1,6 @@
 import contextlib
 import copy
 import logging
-import math
 import os
 import random
 import time
@@ -172,7 +171,7 @@ def compute_density_for_timestep_sampling(
         u = ops.sigmoid(u)
     elif weighting_scheme == "mode":
         u = ops.rand(batch_size)
-        u = 1 - u - mode_scale * (ops.cos(math.pi * u / 2) ** 2 - 1 + u)
+        u = 1 - u - mode_scale * (ops.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
     else:
         u = ops.rand(batch_size)
     return u
@@ -190,7 +189,7 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
         weighting = (sigmas**-2.0).float()
     elif weighting_scheme == "cosmap":
         bot = 1 - 2 * sigmas + 2 * sigmas**2
-        weighting = 2 / (math.pi * bot)
+        weighting = 2 / (ms.numpy.pi * bot)
     else:
         weighting = ops.ones_like(sigmas)
     return weighting

@@ -22,9 +22,13 @@ from transformers import CLIPTextConfig, LlamaConfig
 
 import mindspore as ms
 
+from mindone.diffusers import HunyuanVideoPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -236,3 +240,38 @@ class HunyuanVideoPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class HunyuanVideoPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip(" FP32 is not supported since HunyuanVideoPipeline contains nn.Conv3d")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "hunyuanvideo-community/HunyuanVideo"
+        pipe = HunyuanVideoPipeline.from_pretrained(model_id, mindspore_dtype=ms_dtype)
+        # transformer_hunyuan_video only support bf16
+        pipe.transformer.to(ms.bfloat16)
+        pipe.vae.enable_tiling()
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt="A cat walks on the grass, realistic",
+            height=320,
+            width=512,
+            num_frames=61,
+            num_inference_steps=30,
+        )[0][0][1]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"hunyuan_video_t2v_{dtype}.npy",
+            subfolder="hunyuan_video",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
