@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-bgd"]
 build-backend = "hatchling.build"
 
 [project]
@@ -77,8 +77,8 @@ Source = "https://github.com/mindspore-lab/mindone"
 [tool.hatch.envs.default]
 python = "3.8"
 
-[tool.hatch.metadata.hooks.custom]
-path = ".hatch_metadata_hooks.py"
+[tool.hatch.version]
+source = "bgd"
 base-version = "0.3.0.dev0"
 build-type = "dev"  # ['dev', 'release']
 
