@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 
-from mindspore import ops
+from mindspore import mint
 
 
 def img_psnr(img1, img2):
@@ -77,8 +77,8 @@ def main():
     VIDEO_LENGTH = 50
     CHANNEL = 3
     SIZE = 64
-    videos1 = ops.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
-    videos2 = ops.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
+    videos1 = mint.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
+    videos2 = mint.zeros(NUMBER_OF_VIDEOS, VIDEO_LENGTH, CHANNEL, SIZE, SIZE)
 
     import json
 

@@ -5,6 +5,7 @@ from typing import Tuple
 from opensora.acceleration.parallel_states import initialize_sequence_parallel_state
 
 import mindspore as ms
+from mindspore import _no_grad
 from mindspore.communication.management import get_group_size, get_rank, init
 
 from mindone.utils.seed import set_random_seed
@@ -170,3 +171,22 @@ def init_env(
     )
     initialize_sequence_parallel_state(sp_size)
     return rank_id, device_num
+
+
+@ms.jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
