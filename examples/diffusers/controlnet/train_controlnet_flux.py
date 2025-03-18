@@ -1164,7 +1164,7 @@ def main():
         # Only show the progress bar once on each machine.
         disable=not is_master(args),
     )
-    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch, do_copy=False)
 
     for epoch in range(first_epoch, args.num_train_epochs):
         flux_controlnet.set_train(True)
