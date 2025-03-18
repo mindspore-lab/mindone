@@ -518,8 +518,8 @@ class FluxTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
             hidden_states,
             [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]],
             dim=1,
-        )
-        
+        )[1]
+
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
 
