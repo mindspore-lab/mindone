@@ -366,7 +366,9 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             num_attention_heads=8,
         )
 
-        self.pos_frequencies = ms.Parameter(ops.full((3, num_attention_heads, attention_head_dim // 2), 0.0))
+        self.pos_frequencies = ms.Parameter(
+            ops.full((3, num_attention_heads, attention_head_dim // 2), 0.0, dtype=ms.float32)
+        )
         self.rope = MochiRoPE()
 
         self.transformer_blocks = nn.CellList(
