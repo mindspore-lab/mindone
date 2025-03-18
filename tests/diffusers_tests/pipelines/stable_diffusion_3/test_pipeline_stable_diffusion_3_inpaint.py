@@ -36,15 +36,10 @@ test_cases = [
 
 @slow
 @ddt
-class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+class StableDiffusion3InpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
 
     def get_inputs(self):
-        # img_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo.png"
-        # mask_url = "https://raw.githubusercontent.com/CompVis/latent-diffusion/main/data/inpainting_examples/overture-creations-5sI6fQgYIuo_mask.png"
-        #
-        # from mindone.diffusers.utils.testing_utils import load_image
-        # source = load_image(img_url)
-        # mask = load_image(mask_url)
+        prompt = "Face of a yellow cat, high resolution, sitting on a park bench"
 
         source = load_downloaded_image_from_hf_hub(
             "The-truth/mindone-testing-arrays",
@@ -60,7 +55,7 @@ class StableDiffusionXLControlNetPAGPipelineIntegrationTests(PipelineTesterMixin
         )
 
         inputs = {
-            "prompt": "Face of a yellow cat, high resolution, sitting on a park bench",
+            "prompt": prompt,
             "image": source,
             "mask_image": mask,
         }

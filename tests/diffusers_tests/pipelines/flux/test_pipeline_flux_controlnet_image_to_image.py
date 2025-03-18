@@ -283,7 +283,7 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'flux_controlnet_image_{dtype}.npy',
+            f'flux_controlnet_image_to_image_{dtype}.npy',
             subfolder="flux",
         )
 

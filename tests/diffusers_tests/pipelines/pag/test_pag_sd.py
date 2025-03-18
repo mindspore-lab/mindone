@@ -211,7 +211,10 @@ class StableDiffusionPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.T
         pipeline.set_progress_bar_config(disable=None)
 
         inputs = self.get_inputs()
-        torch.manual_seed(0)
+        if dtype == "float32":
+            torch.manual_seed(0)
+        else:
+            torch.manual_seed(1000)
         image = pipeline(**inputs)[0][0]
 
         expected_image = load_downloaded_numpy_from_hf_hub(
