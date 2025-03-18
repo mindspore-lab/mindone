@@ -1128,9 +1128,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
         elif "linear1.lora_A.bias" in key or "linear1.lora_B.bias" in key:
             linear1_bias = state_dict.pop(key)
             if "lora_A" in key:
-                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(
-                    ".linear1.lora_A.bias"
-                )
+                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(".linear1.lora_A.bias")
                 state_dict[f"{new_key}.attn.to_q.lora_A.bias"] = linear1_bias
                 state_dict[f"{new_key}.attn.to_k.lora_A.bias"] = linear1_bias
                 state_dict[f"{new_key}.attn.to_v.lora_A.bias"] = linear1_bias
@@ -1138,9 +1136,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             else:
                 split_size = (hidden_size, hidden_size, hidden_size, linear1_bias.shape[0] - 3 * hidden_size)
                 q_bias, k_bias, v_bias, mlp_bias = ops.split(linear1_bias, split_size, axis=0)
-                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(
-                    ".linear1.lora_B.bias"
-                )
+                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(".linear1.lora_B.bias")
                 state_dict[f"{new_key}.attn.to_q.lora_B.bias"] = q_bias
                 state_dict[f"{new_key}.attn.to_k.lora_B.bias"] = k_bias
                 state_dict[f"{new_key}.attn.to_v.lora_B.bias"] = v_bias

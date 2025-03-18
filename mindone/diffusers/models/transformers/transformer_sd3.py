@@ -288,9 +288,10 @@ class SD3Transformer2DModel(
 
     @gradient_checkpointing.setter
     def gradient_checkpointing(self, value):
+        assert value, "You can only set SD3Transformer2DModel.gradient_checkpointing to `True`."
         self._gradient_checkpointing = value
         for block in self.transformer_blocks:
-            block._recompute(value)
+            block.recompute()
 
     def construct(
         self,

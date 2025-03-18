@@ -20,8 +20,6 @@ from huggingface_hub.utils import validate_hf_hub_args
 import mindspore as ms
 from mindspore import nn, ops
 
-from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
-
 from ..utils import deprecate, logging
 from .lora_base import (  # noqa
     LORA_WEIGHT_NAME,
@@ -1779,9 +1777,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                         new_value = int(current_param_weight.shape[1])
                         old_value = getattr(transformer.config, attribute_name)
                         setattr(transformer.config, attribute_name, new_value)
-                        logger.info(
-                            f"Set the {attribute_name} attribute of the model to {new_value} from {old_value}."
-                        )
+                        logger.info(f"Set the {attribute_name} attribute of the model to {new_value} from {old_value}.")
 
     @classmethod
     def _maybe_expand_transformer_param_shape_or_error_(
