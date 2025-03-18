@@ -14,3 +14,4 @@ albumentations>=2.0
 ftfy
 beautifulsoup4
 jsonargparse>=4.36
+decord
