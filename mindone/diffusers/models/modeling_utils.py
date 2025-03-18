@@ -102,7 +102,7 @@ def _convert_state_dict(m, state_dict_pt):
 
 
 def get_parameter_dtype(module: nn.Cell) -> ms.Type:
-    params = tuple(module.get_parameters())
+    params = tuple(module.get_parameters(expand=False))
     if len(params) > 0:
         return params[0].dtype
 
