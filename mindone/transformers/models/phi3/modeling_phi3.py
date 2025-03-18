@@ -758,6 +758,25 @@ class Phi3Model(Phi3PreTrainedModel):
 
         return causal_mask
 
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        if gradient_checkpointing_kwargs is None:
+            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
+            gradient_checkpointing_kwargs = {}
+
+        # llama layers
+        for decoder_layer in self.layers:
+            assert isinstance(decoder_layer, Phi3DecoderLayer)
+            for name, cell in decoder_layer.name_cells().items():
+                if "output_identity" in name:
+                    assert isinstance(cell, nn.Identity)
+                    pass
+                else:
+                    cell.recompute(**gradient_checkpointing_kwargs)
+        self.embed_tokens.recompute(**gradient_checkpointing_kwargs)
+        self.norm.recompute(**gradient_checkpointing_kwargs)
+
+        logger.info(f"{self.__class__.__name__}: enable recompute.")
+
 
 class Phi3ForCausalLM(Phi3PreTrainedModel):
     _tied_weights_keys = ["lm_head.weight"]
