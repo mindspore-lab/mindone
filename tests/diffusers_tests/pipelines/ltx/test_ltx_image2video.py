@@ -21,9 +21,17 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import LTXImageToVideoPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -194,3 +202,49 @@ class LTXImageToVideoPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@ddt
+@slow
+class LTXImageToVideoPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images",
+            filename="watercolor-painting.jpg",
+            subfolder="diffusers",
+            repo_type="dataset",
+        )
+
+        inputs = {
+            "image": image,
+            "prompt": "A young girl stands calmly in the foreground, looking directly at the camera, as a house fire rages in the background. Flames engulf the structure, with smoke billowing into the air. Firefighters in protective gear rush to the scene, a fire truck labeled '38' visible behind them. The girl's neutral expression contrasts sharply with the chaos of the fire, creating a poignant and emotionally charged scene.",  # noqa: E501
+            "negative_prompt": "worst quality, inconsistent motion, blurry, jittery, distorted",
+            "width": 704,
+            "height": 480,
+            "num_frames": 161,
+            "num_inference_steps": 50,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = LTXImageToVideoPipeline.from_pretrained("Lightricks/LTX-Video", mindspore_dtype=ms_dtype)
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"ltx_image2video_{dtype}.npy",
+            subfolder="flix",
+        )
+
+        assert (
+            np.mean(np.abs(np.array(image, dtype=np.float32) - np.array(expected_image, dtype=np.float32)))
+            < THRESHOLD_PIXEL
+        )

@@ -2,15 +2,24 @@ import unittest
 
 import numpy as np
 import torch
+from controlnet_aux import CannyDetector
 from ddt import data, ddt, unpack
 from PIL import Image
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import FluxControlImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -179,3 +188,63 @@ class FluxControlPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxControlImg2ImgPipelineslowTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images",
+            filename="watercolor-painting.jpg",
+            subfolder="diffusers",
+            repo_type="dataset",
+        )
+        control_image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images", filename="robot.png", subfolder=None, repo_type="dataset"
+        )
+        processor = CannyDetector()
+        control_image = processor(
+            control_image, low_threshold=50, high_threshold=200, detect_resolution=1024, image_resolution=1024
+        )
+
+        inputs = {
+            "prompt": "A robot made of exotic candies and chocolates of different kinds. Abstract background",
+            "image": image,
+            "control_image": control_image,
+            "strength": 0.8,
+            "height": 1024,
+            "width": 1024,
+            "num_inference_steps": 50,
+            "guidance_scale": 30.0,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = FluxControlImg2ImgPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-Canny-dev", mindspore_dtype=ms_dtype
+        )
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        from PIL import Image
+
+        expected_image = Image.open(f"flux_control_img2img_{dtype}.png")
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"flux_control_img2img_{dtype}.npy",
+            subfolder="flux",
+        )
+
+        assert (
+            np.mean(np.abs(np.array(image, dtype=np.float32) - np.array(expected_image, dtype=np.float32)))
+            < THRESHOLD_PIXEL
+        )

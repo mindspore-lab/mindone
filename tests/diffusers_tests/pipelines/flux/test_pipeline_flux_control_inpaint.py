@@ -3,14 +3,23 @@ import unittest
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
+from image_gen_aux import DepthPreprocessor
 from PIL import Image
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import FluxControlInpaintPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -181,3 +190,57 @@ class FluxControlPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxControlInpaintPipelineslowTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images", filename="robot.png", subfolder=None, repo_type="dataset"
+        )
+
+        head_mask = np.zeros_like(image)
+        head_mask[65:580, 300:642] = 255
+        mask_image = Image.fromarray(head_mask)
+
+        processor = DepthPreprocessor.from_pretrained("LiheYoung/depth-anything-large-hf")
+        control_image = processor(image)[0].convert("RGB")
+
+        inputs = {
+            "prompt": "a blue robot singing opera with human-like expressions",
+            "image": image,
+            "control_image": control_image,
+            "mask_image": mask_image,
+            "num_inference_steps": 30,
+            "strength": 0.9,
+            "guidance_scale": 10.0,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = FluxControlInpaintPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-Depth-dev",
+            mindspore_dtype=ms_dtype,
+        )
+
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"flux_inpaint_control_{dtype}.npy",
+            subfolder="flux",
+        )
+
+        assert (
+            np.mean(np.abs(np.array(image, dtype=np.float32) - np.array(expected_image, dtype=np.float32)))
+            < THRESHOLD_PIXEL
+        )
