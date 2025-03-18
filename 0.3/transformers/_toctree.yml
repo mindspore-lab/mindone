@@ -1,0 +1,12 @@
+- sections:
+  - local: index
+    title: 🤗 Transformers
+  title: Get started
+- sections:
+  - local: tutorials/finetune
+    title: Fine-tune a pretrained model
+  - local: tutorials/finetune_distribute
+    title: Distributed training and mixed precision
+  - local: tutorials/generation
+    title: Generation with LLMs
+  title: Tutorials
