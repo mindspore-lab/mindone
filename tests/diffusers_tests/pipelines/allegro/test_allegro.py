@@ -21,18 +21,22 @@ from transformers import T5Config
 
 import mindspore as ms
 
+from mindone.diffusers import AllegroPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
 )
 
 test_cases = [
-    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
     {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
 
@@ -170,3 +174,35 @@ class AllegroPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class AllegroPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_allegro(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = AllegroPipeline.from_pretrained("rhymes-ai/Allegro", mindspore_dtype=ms_dtype)
+        pipe.vae.enable_tiling()
+
+        prompt = "A painting of a squirrel eating a burger."
+        torch.manual_seed(0)
+        video = pipe(
+            prompt=prompt,
+            height=720,
+            width=1280,
+            num_frames=88,
+            num_inference_steps=2,
+        )[
+            0
+        ][0]
+
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"t2v_{dtype}.npy",
+            subfolder="allegro",
+        )
+        assert np.linalg.norm(expected_video - video) / np.linalg.norm(expected_video) < THRESHOLD_PIXEL

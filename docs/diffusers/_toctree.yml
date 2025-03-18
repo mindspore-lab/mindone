@@ -264,6 +264,8 @@
       title: Allegro
     - local: api/pipelines/animatediff
       title: AnimateDiff
+    - local: api/pipelines/audioldm
+      title: AudioLDM
     - local: api/pipelines/aura_flow
       title: AuraFlow
     - local: api/pipelines/auto_pipeline
@@ -282,6 +284,10 @@
       title: ControlNet
     - local: api/pipelines/controlnet_flux
       title: ControlNet with Flux.1
+    - local: api/pipelines/flux
+      title: Flux
+    - local: api/pipelines/control_flux_inpaint
+      title: FluxControlInpaint
     - local: api/pipelines/controlnet_hunyuandit
       title: ControlNet with Hunyuan-DiT
     - local: api/pipelines/controlnet_sd3
