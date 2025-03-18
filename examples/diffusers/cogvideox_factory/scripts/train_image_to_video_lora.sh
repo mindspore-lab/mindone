@@ -17,15 +17,29 @@ LEARNING_RATES=("2e-5")
 LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw_bf16")
 MAX_TRAIN_STEPS=("3000")
+
 FA_RCP=False
-VAE_CACHE=1
-EMBEDDINGS_CACHE=1
 OUTPUT_ROOT_DIR=./output_lora
 
 # MindSpore settings
 MINDSPORE_MODE=0
 JIT_LEVEL=O1
 AMP_LEVEL=O2
+
+# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
+# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
+#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
+DATA_ROOT="preprocessed-dataset"
+CAPTION_COLUMN="prompts.txt"
+VIDEO_COLUMN="videos.txt"
+MODEL_PATH="THUDM/CogVideoX1.5-5B-I2V"
+H=768
+W=1360
+F=77
+MAX_SEQUENCE_LENGTH=224
+
+VAE_CACHE=1
+EMBEDDINGS_CACHE=1
 
 # Prepare launch cmd according to NUM_NPUS
 if [ "$NUM_NPUS" -eq 1 ]; then
@@ -43,14 +57,6 @@ fi
 if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
 fi
-
-# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
-# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
-#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
-DATA_ROOT="preprocessed-dataset"
-CAPTION_COLUMN="prompts.txt"
-VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX1.5-5B-I2V"
 
 # Launch experiments with different hyperparameters
 for learning_rate in "${LEARNING_RATES[@]}"; do

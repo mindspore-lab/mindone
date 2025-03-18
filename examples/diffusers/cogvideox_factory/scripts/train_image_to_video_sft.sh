@@ -9,6 +9,9 @@ export PYTHONPATH="${PROJECT_DIR}:${PYTHONPATH}"
 # Num of NPUs for training
 # export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
 NUM_NPUS=8
+SP=True
+SP_SIZE=$NUM_NPUS
+
 # Multiple machines
 MASTER_ADDR="127.0.0.1"
 NODE_RANK="0"
@@ -20,12 +23,9 @@ LEARNING_RATES=("2e-5")
 LR_SCHEDULES=("cosine_with_restarts")
 OPTIMIZERS=("adamw_bf16")
 MAX_TRAIN_STEPS=("100000")
-SP=True
-SP_SIZE=$NUM_NPUS
+
 FA_RCP=False
 ENABLE_DYNAMIC_SHAPE=0
-VAE_CACHE=1
-EMBEDDINGS_CACHE=1
 OUTPUT_ROOT_DIR=./output_sft
 
 # MindSpore settings
@@ -33,6 +33,21 @@ MINDSPORE_MODE=0
 JIT_LEVEL=O1
 AMP_LEVEL=O2
 DEEPSPEED_ZERO_STAGE=3
+
+# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
+# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
+#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
+DATA_ROOT="preprocessed-dataset"
+CAPTION_COLUMN="prompts.txt"
+VIDEO_COLUMN="videos.txt"
+MODEL_PATH="THUDM/CogVideoX1.5-5B-I2V"
+H=768
+W=1360
+F=77
+MAX_SEQUENCE_LENGTH=224
+
+VAE_CACHE=1
+EMBEDDINGS_CACHE=1
 
 # Prepare launch cmd according to NUM_NPUS
 if [ "$NUM_NPUS" -eq 1 ]; then
@@ -63,14 +78,6 @@ if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
 fi
 
-# Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
-# This example assumes you downloaded an already prepared dataset from HF CLI as follows:
-#   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
-DATA_ROOT="preprocessed-dataset"
-CAPTION_COLUMN="prompts.txt"
-VIDEO_COLUMN="videos.txt"
-MODEL_PATH="THUDM/CogVideoX1.5-5B-I2V"
-
 # Launch experiments with different hyperparameters
 for learning_rate in "${LEARNING_RATES[@]}"; do
   for lr_schedule in "${LR_SCHEDULES[@]}"; do
@@ -83,10 +90,11 @@ for learning_rate in "${LEARNING_RATES[@]}"; do
           --data_root $DATA_ROOT \
           --caption_column $CAPTION_COLUMN \
           --video_column $VIDEO_COLUMN \
-          --height_buckets 768 \
-          --width_buckets 1360 \
-          --frame_buckets 77 \
-          --max_num_frames 77 \
+          --height_buckets $H \
+          --width_buckets $W \
+          --frame_buckets $F \
+          --max_num_frames $F \
+          --max_sequence_length=$MAX_SEQUENCE_LENGTH \
           --gradient_accumulation_steps 1 \
           --dataloader_num_workers 2 \
           --seed 42 \
