@@ -45,7 +45,7 @@ def load_model(
             model = prepare_network(
                 model,
                 zero_stage=zero_stage,
-                op_group=GlobalComm.WORLD_COMM_GROUP,
+                optimizer_parallel_group=GlobalComm.WORLD_COMM_GROUP,
             )
 
         # half model parameter

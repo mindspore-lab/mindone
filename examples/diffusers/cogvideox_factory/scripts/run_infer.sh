@@ -20,7 +20,7 @@ JIT_LEVEL=O1
 # Absolute path to where the data is located. Make sure to have read the README for how to prepare data.
 # This example assumes you downloaded an already prepared dataset from HF CLI as follows:
 #   huggingface-cli download --repo-type dataset Wild-Heart/Tom-and-Jerry-VideoGeneration-Dataset --local-dir /path/to/my/datasets/tom-and-jerry-dataset
-MODEL_PATH="THUDM/CogVideoX1.5-5b"
+MODEL_NAME_OR_PATH="THUDM/CogVideoX1.5-5b"
 # TRANSFORMER_PATH and LORA_PATH only choose one to set.
 TRANSFORMER_PATH=""
 LORA_PATH=""
@@ -43,7 +43,7 @@ else
 fi
 
 cmd="$LAUNCHER ${SCRIPT_DIR}/infer.py \
-    --pretrained_model_name_or_path $MODEL_PATH \
+    --pretrained_model_name_or_path $MODEL_NAME_OR_PATH \
     --prompt \"${PROMPT}\" \
     --transformer_ckpt_path \"${TRANSFORMER_PATH}\" \
     --lora_ckpt_path \"${LORA_PATH}\" \

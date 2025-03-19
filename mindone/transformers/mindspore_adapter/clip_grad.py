@@ -6,7 +6,7 @@ from mindspore.ops import functional as F
 _clip_grad_value = ops.MultitypeFuncGraph("_clip_grad_value")
 
 
-@_clip_grad_value.register("Number", "Number", "Tensor")
+@_clip_grad_value.register("Number", "Tensor")
 def __clip_grad_value(max_value, grad):
     """
     Clip gradients.
@@ -25,7 +25,7 @@ def __clip_grad_value(max_value, grad):
 _apply_global_norm = ops.MultitypeFuncGraph("_apply_global_norm")
 
 
-@_apply_global_norm.register("Number", "Tensor", "Tensor")
+@_clip_grad_value.register("Number", "Tensor")
 def __apply_global_norm(clip_coef, x):
     x_dtype = F.dtype(x)
     x = x * clip_coef

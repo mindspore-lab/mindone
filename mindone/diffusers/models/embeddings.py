@@ -239,7 +239,7 @@ class PatchEmbed(nn.Cell):
             pos_embed = ms.Tensor.from_numpy(pos_embed).float().unsqueeze(0)
             persistent = True if pos_embed_max_size else False
             if persistent:
-                self.pos_embed = ms.Parameter(pos_embed, name="pos_embed")
+                self.pos_embed = ms.Parameter(pos_embed, name="pos_embed", requires_grad=False)
             else:
                 self.pos_embed = pos_embed
         else:

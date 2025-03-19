@@ -44,7 +44,6 @@ class TextDataset:
 
         # process text
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
-
         task_type = np.array(1, dtype=np.int32)
 
         return task_type, input_ids, labels, attention_mask
@@ -88,7 +87,6 @@ class TextDataset:
             truncation=True,
         )
         input_ids = np.array(input_ids, np.int32)
-
         attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool_)
         attention_mask[input_ids == vlcp.pad_id] = 0
         """

@@ -19,7 +19,6 @@
 
 
 import mindspore as ms
-
 from typing import Optional
 
 from addict import Dict

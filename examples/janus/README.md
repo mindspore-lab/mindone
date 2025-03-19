@@ -32,6 +32,8 @@ We provide an efficient MindSpore implementation of [JanusPro](https://github.co
 
 ## News
 
+**2025.03.12**: We have reproduced the multi-modal training pipelines referring to the JanusPro [paper](https://github.com/deepseek-ai/Janus), see [docs/training.md](docs/training.md).
+
 **2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU.
 
 
@@ -125,6 +127,12 @@ python demo/app_januspro.py
 On local terminal, run `ssh -L 37906:localhost:37906 user_name@server_ip`, then open `localhost:37906` on the web.
 
 Have Fun!
+
+
+### Training
+
+Please refer to [training.md](docs/training.md)
+
 
 ## 4. Performance
 

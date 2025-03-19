@@ -119,8 +119,6 @@ class CogVideoXBlock_SP(nn.Cell):
         temb: ms.Tensor,
         image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
     ) -> ms.Tensor:
-        text_seq_length = encoder_hidden_states.shape[1]
-
         # norm & modulate
         norm_hidden_states, norm_encoder_hidden_states, gate_msa, enc_gate_msa = self.norm1(
             hidden_states, encoder_hidden_states, temb
@@ -141,12 +139,12 @@ class CogVideoXBlock_SP(nn.Cell):
             hidden_states, encoder_hidden_states, temb
         )
 
-        # feed-forward
-        norm_hidden_states = mint.cat([norm_encoder_hidden_states, norm_hidden_states], dim=1)
-        ff_output = self.ff(norm_hidden_states)
+        # feed-forward, two independent ffns, not concat and slice
+        ff_hidden_states = self.ff(norm_hidden_states)
+        ff_encoder_hidden_states = self.ff(norm_encoder_hidden_states)
 
-        hidden_states = hidden_states + gate_ff * ff_output[:, text_seq_length:]
-        encoder_hidden_states = encoder_hidden_states + enc_gate_ff * ff_output[:, :text_seq_length]
+        hidden_states = hidden_states + gate_ff * ff_hidden_states
+        encoder_hidden_states = encoder_hidden_states + enc_gate_ff * ff_encoder_hidden_states
 
         return hidden_states, encoder_hidden_states
 
