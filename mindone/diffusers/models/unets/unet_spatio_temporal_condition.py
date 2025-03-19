@@ -400,7 +400,8 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
         forward_upsample_size = False
         upsample_size = None
 
-        if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
+        # if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
+        if sample.shape[-2] % default_overall_up_factor != 0 or sample.shape[-1] % default_overall_up_factor != 0:
             logger.info("Forward upsample size to force interpolation output size.")
             forward_upsample_size = True
 

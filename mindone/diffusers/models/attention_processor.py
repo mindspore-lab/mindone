@@ -751,6 +751,8 @@ class Attention(nn.Cell):
             query = query.reshape(-1, query.shape[-2], query.shape[-1])
             key = key.reshape(-1, key.shape[-2], key.shape[-1])
             value = value.reshape(-1, value.shape[-2], value.shape[-1])
+        else:
+            origin_query_shape = None
 
         attention_probs = self.get_attention_scores(query, key, attn_mask)
         hidden_states = ops.bmm(attention_probs, value)
@@ -1919,6 +1921,7 @@ class AuraFlowAttnProcessor2_0:
         attn: Attention,
         hidden_states: ms.Tensor,
         encoder_hidden_states: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         batch_size = hidden_states.shape[0]
 

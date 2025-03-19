@@ -844,7 +844,7 @@ class FluxControlImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSin
         # handle guidance
         if self.transformer.config.guidance_embeds:
             guidance = ops.full([1], guidance_scale, dtype=ms.float32)
-            guidance = guidance.broadcast_to(latents.shape[0])
+            guidance = guidance.broadcast_to((latents.shape[0],))
         else:
             guidance = None
 

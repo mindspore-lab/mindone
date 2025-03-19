@@ -172,7 +172,7 @@ class LTXImageToVideoPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     @unpack
     def test_inference(self, mode, dtype):
         if dtype == "float32":
-            pytest.skip(" FP32 is not supported since HunyuanVideoPipeline contains nn.Conv3d")
+            pytest.skip(" FP32 is not supported since LTXImageToVideoPipeline contains nn.Conv3d")
 
         ms.set_context(mode=mode)
 
@@ -209,9 +209,9 @@ class LTXImageToVideoPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 class LTXImageToVideoPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
     def get_inputs(self):
         image = load_downloaded_image_from_hf_hub(
-            "huggingface/documentation-images",
-            filename="watercolor-painting.jpg",
-            subfolder="diffusers",
+            "a-r-r-o-w/tiny-meme-dataset-captioned",
+            filename="8.png",
+            subfolder="images",
             repo_type="dataset",
         )
 
@@ -241,7 +241,7 @@ class LTXImageToVideoPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
             f"ltx_image2video_{dtype}.npy",
-            subfolder="flix",
+            subfolder="ltx",
         )
 
         assert (

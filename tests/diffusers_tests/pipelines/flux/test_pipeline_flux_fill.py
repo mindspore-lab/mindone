@@ -35,7 +35,7 @@ test_cases = [
 
 
 @ddt
-class FluxControlPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class FluxFillPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
@@ -204,7 +204,7 @@ class FluxControlPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
 @slow
 @ddt
-class FluxControlPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+class FluxFillPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
     def get_inputs(self):
         # TODO: if need download
         image = load_downloaded_image_from_hf_hub(

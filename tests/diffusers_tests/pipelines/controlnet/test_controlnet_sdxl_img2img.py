@@ -54,8 +54,8 @@ class ControlNetPipelineSDXLImg2ImgFastTests(PipelineTesterMixin, unittest.TestC
     pipeline_config = [
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(32, 64),
                 layers_per_block=2,
@@ -302,7 +302,7 @@ class ControlNetPipelineSDXLImg2ImgIntegrationTests(PipelineTesterMixin, unittes
         depth_estimator = depth_estimator_cls.from_pretrained("Intel/dpt-hybrid-midas", revision="refs/pr/7")
         feature_extractor_cls = get_module("transformers.models.dpt.feature_extraction_dpt.DPTFeatureExtractor")
         feature_extractor = feature_extractor_cls.from_pretrained("Intel/dpt-hybrid-midas", revision="refs/pr/7")
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet.ControlNetModel")
         controlnet = controlnet_cls.from_pretrained(
             "diffusers/controlnet-depth-sdxl-1.0-small",
             variant="fp16",

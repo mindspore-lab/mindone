@@ -56,8 +56,8 @@ class AnimateDiffSparseControlNetPipelineFastTests(PipelineTesterMixin, unittest
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_sparsectrl.SparseControlNetModel",
-            "mindone.diffusers.models.controlnet_sparsectrl.SparseControlNetModel",
+            "diffusers.models.controlnets.controlnet_sparsectrl.SparseControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_sparsectrl.SparseControlNetModel",
             dict(
                 block_out_channels=(8, 8),
                 layers_per_block=2,

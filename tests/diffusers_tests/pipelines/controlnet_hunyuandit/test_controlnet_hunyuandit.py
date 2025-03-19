@@ -61,8 +61,8 @@ class HunyuanDiTControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestCa
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_hunyuan.HunyuanDiT2DControlNetModel",
-            "mindone.diffusers.models.controlnet_hunyuan.HunyuanDiT2DControlNetModel",
+            "diffusers.models.controlnets.controlnet_hunyuan.HunyuanDiT2DControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_hunyuan.HunyuanDiT2DControlNetModel",
             dict(
                 sample_size=16,
                 transformer_num_layers=4,

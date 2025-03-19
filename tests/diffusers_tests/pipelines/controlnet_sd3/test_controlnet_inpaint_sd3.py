@@ -61,8 +61,8 @@ class StableDiffusion3ControlInpaintNetPipelineFastTests(PipelineTesterMixin, un
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_sd3.SD3ControlNetModel",
-            "mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel",
+            "diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel",
             dict(
                 sample_size=32,
                 patch_size=1,

@@ -191,7 +191,7 @@ class LTXPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
     @unpack
     def test_inference(self, mode, dtype):
         if dtype == "float32":
-            pytest.skip(" FP32 is not supported since HunyuanVideoPipeline contains nn.Conv3d")
+            pytest.skip(" FP32 is not supported since LTXPipeline contains nn.Conv3d")
 
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)

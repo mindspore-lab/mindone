@@ -234,10 +234,6 @@ class FluxControlImg2ImgPipelineslowTests(PipelineTesterMixin, unittest.TestCase
         torch.manual_seed(0)
         image = pipe(**inputs)[0][0]
 
-        from PIL import Image
-
-        expected_image = Image.open(f"flux_control_img2img_{dtype}.png")
-
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
             f"flux_control_img2img_{dtype}.npy",
