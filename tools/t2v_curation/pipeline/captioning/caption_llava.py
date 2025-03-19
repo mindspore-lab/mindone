@@ -7,11 +7,12 @@ from tqdm import tqdm
 
 from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
 from pipeline.datasets.utils import extract_frames, is_video, pil_loader
+from pipeline.captioning.utils import set_model_param_dtype
 
 import mindspore as ms
 import mindspore.dataset as ds
 import mindspore.mint as mint
-from mindspore.mint.distributed import all_gather, all _gather_object, get_rank, get_world_size, init_process_group
+from mindspore.mint.distributed import all_gather, all_gather_object, get_rank, get_world_size, init_process_group
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
@@ -84,12 +85,13 @@ def main():
     model = LlavaForConditionalGeneration.from_pretrained(args.llava_model_path,
                                                           text_config=config.text_config)
     model.set_train(False)
+    set_model_param_dtype(model, ms.float16)
 
     tokenizer = AutoTokenizer.from_pretrained(args.llava_model_path, padding_side="left")
     image_processor = CLIPImageProcessor.from_pretrained(args.llava_model_path)
     model.generation_config.pad_token_id = tokenizer.pad_token_id
 
-    raw_dataset = VideoTextDataset(meta_path, transform=None, num_frames=args.num_frames)
+    raw_dataset = VideoTextDataset(meta_path)
     dataset = ds.GeneratorDataset(
         source=raw_dataset,
         column_names=["index", "images"],
@@ -131,7 +133,7 @@ def main():
             img_inputs = image_processor(images=images, return_tensors="np")
             inputs["pixel_values"] = ms.Tensor(img_inputs["pixel_values"], dtype=ms.float16)
 
-            generated_ids = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
+            generated_ids = model.generate(**inputs, max_new_tokens=args.max_new_tokens, use_cache=False)
             output_text = tokenizer.decode(generated_ids[0][2:], skip_special_tokens=True)
         except Exception as e:
             print(f"Error processing video at index {idx}: {e}")
