@@ -142,8 +142,10 @@ class TrainOneStepWrapper(nn.Cell):
 
         # grad and optimizer
         self.network = network
-        self.network.set_train()
-        self.network.set_grad()
+
+        # not suitable for multimodal llm
+        # self.network.set_train()
+        # self.network.set_grad()
 
         # self.value_and_grad = ops.value_and_grad(network, grad_position=None, weights=optimizer.parameters)
         self.grad_fn = ops.GradOperation(get_by_list=True, sens_param=True)(self.network, optimizer.parameters)
