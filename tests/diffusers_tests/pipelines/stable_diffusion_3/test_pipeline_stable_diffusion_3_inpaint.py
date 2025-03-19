@@ -1,19 +1,28 @@
+# coding=utf-8
+# Copyright 2024 HuggingFace Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 import random
 import unittest
 
-import cv2
-from PIL import Image
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
+from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers import (
-    StableDiffusion3InpaintPipeline,
-    ControlNetModel,
-    AutoencoderKL,
-)
+from mindone.diffusers import StableDiffusion3InpaintPipeline
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -21,6 +30,7 @@ from ..pipeline_test_utils import (
     THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
+    floats_tensor,
     get_pipeline_components,
 )
 
@@ -36,6 +46,7 @@ test_cases = [
     {"mode": ms.GRAPH_MODE, "dtype": "float32"},
     {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
+
 
 @ddt
 class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
@@ -58,39 +69,43 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
             ),
         ],
         [
-            "test_encoder",
+            "text_encoder",
             "transformer.CLIPTextModelWithProjection",
             "mindone.transformer.CLIPTextModelWithProjection",
             dict(
-                bos_token_id=0,
-                eos_token_id=2,
-                hidden_size=32,
-                intermediate_size=37,
-                layer_norm_eps=1e-05,
-                num_attention_heads=4,
-                num_hidden_layers=5,
-                pad_token_id=1,
-                vocab_size=1000,
-                hidden_act="gelu",
-                projection_dim=32,
+                config=CLIPTextConfig(
+                    bos_token_id=0,
+                    eos_token_id=2,
+                    hidden_size=32,
+                    intermediate_size=37,
+                    layer_norm_eps=1e-05,
+                    num_attention_heads=4,
+                    num_hidden_layers=5,
+                    pad_token_id=1,
+                    vocab_size=1000,
+                    hidden_act="gelu",
+                    projection_dim=32,
+                )
             ),
         ],
         [
-            "test_encoder_2",
+            "text_encoder_2",
             "transformer.CLIPTextModelWithProjection",
             "mindone.transformer.CLIPTextModelWithProjection",
             dict(
-                bos_token_id=0,
-                eos_token_id=2,
-                hidden_size=32,
-                intermediate_size=37,
-                layer_norm_eps=1e-05,
-                num_attention_heads=4,
-                num_hidden_layers=5,
-                pad_token_id=1,
-                vocab_size=1000,
-                hidden_act="gelu",
-                projection_dim=32,
+                config=CLIPTextConfig(
+                    bos_token_id=0,
+                    eos_token_id=2,
+                    hidden_size=32,
+                    intermediate_size=37,
+                    layer_norm_eps=1e-05,
+                    num_attention_heads=4,
+                    num_hidden_layers=5,
+                    pad_token_id=1,
+                    vocab_size=1000,
+                    hidden_act="gelu",
+                    projection_dim=32,
+                )
             ),
         ],
         [
@@ -99,6 +114,7 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
             "mindone.transformers.models.t5.modeling_t5.T5EncoderModel",
             dict(
                 pretrained_model_name_or_path="hf-internal-testing/tiny-random-t5",
+                revision="refs/pr/1",
             ),
         ],
         [
@@ -169,15 +185,16 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
 
         return get_pipeline_components(components, self.pipeline_config)
 
-
     def get_dummy_inputs(self, seed=0):
-        image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
-        mask_image = torch.ones((1, 1, 32, 32))
+        pt_image = floats_tensor((1, 3, 32, 32), rng=random.Random(seed))
+        pt_mask_image = torch.ones((1, 1, 32, 32))
+        ms_image = ms.Tensor(pt_image.numpy())
+        ms_mask_image = ms.Tensor(pt_mask_image.numpy())
 
-        inputs = {
+        pt_inputs = {
             "prompt": "A painting of a squirrel eating a burger",
-            "image": image,
-            "mask_image": mask_image,
+            "image": pt_image,
+            "mask_image": pt_mask_image,
             "height": 32,
             "width": 32,
             "num_inference_steps": 2,
@@ -185,11 +202,23 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
             "output_type": "np",
             "strength": 0.8,
         }
-        return inputs
+
+        ms_inputs = {
+            "prompt": "A painting of a squirrel eating a burger",
+            "image": ms_image,
+            "mask_image": ms_mask_image,
+            "height": 32,
+            "width": 32,
+            "num_inference_steps": 2,
+            "guidance_scale": 5.0,
+            "output_type": "np",
+            "strength": 0.8,
+        }
+        return pt_inputs, ms_inputs
 
     @data(*test_cases)
     @unpack
-    def test_stable_diffusion_3(self, mode, dtype):
+    def test_stable_diffusion_3_inpaint(self, mode, dtype):
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
@@ -204,12 +233,12 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
         pt_pipe = pt_pipe.to(pt_dtype)
         ms_pipe = ms_pipe.to(ms_dtype)
 
-        inputs = self.get_dummy_inputs()
+        pt_inputs, ms_inputs = self.get_dummy_inputs()
 
         torch.manual_seed(0)
-        pt_image = pt_pipe(**inputs)
+        pt_image = pt_pipe(**pt_inputs)
         torch.manual_seed(0)
-        ms_image = ms_pipe(**inputs)
+        ms_image = ms_pipe(**ms_inputs)
 
         pt_image_slice = pt_image.images[0, -3:, -3:, -1]
         ms_image_slice = ms_image[0][0, -3:, -3:, -1]
