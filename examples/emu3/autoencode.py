@@ -70,7 +70,7 @@ images = processor(video, return_tensors="np")["pixel_values"]
 images = Tensor(images).unsqueeze(0)  # [1, Frames, C, H, W]
 
 # image autoencode #
-start_time = time.time()
+
 
 for i in range(images.shape[1]):
     image = images[:, i].to(MS_DTYPE)
@@ -79,10 +79,12 @@ for i in range(images.shape[1]):
         codes = ops.stop_gradient(model.encode(image))
         # decode
         recon = ops.stop_gradient(model.decode(codes))
+    if i == 0: # skip first sample
+        start_time = time.time()
 
 print(
     "Infer %d image reconstruction ==> Time elapsed: %.4fs/img"
-    % (images.shape[1], (time.time() - start_time) / images.shape[1])
+    % (images.shape[1]-1, (time.time() - start_time) / (images.shape[1]-1))
 )
 
 recon = recon.view(-1, *recon.shape[2:])
