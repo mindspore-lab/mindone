@@ -1,9 +1,11 @@
 resolution=$1 # 1024, 512, 256
-ckpt=$2
+num_frames=$2
+ckpt=$3
 
 seed=123
 name=dynamicrafter_${resolution}_seed${seed}
-prompt_dir=prompts/${resolution}/
+prompt_csv=path/to/video_caption.csv
+data_dir=path/to/video_folder
 config=configs/inference_${resolution}_v1.0.yaml
 res_dir="results"
 
@@ -31,7 +33,8 @@ python scripts/inference.py \
     --bs 1 \
     --height $H \
     --width $W \
-    --prompt_dir $prompt_dir \
+    --prompt_csv $prompt_csv \
+    --data_dir $data_dir \
     --config $config \
     --savedir $res_dir/$name \
     --mode 0 \
@@ -41,7 +44,7 @@ python scripts/inference.py \
     --ddim_steps 50 \
     --ddim_eta 1.0 \
     --text_input \
-    --video_length 16 \
+    --video_length $num_frames \
     --frame_stride $FS \
     --ckpt_path $ckpt
 else
@@ -51,7 +54,8 @@ python scripts/inference.py \
     --bs 1 \
     --height $H \
     --width $W \
-    --prompt_dir $prompt_dir \
+    --prompt_csv $prompt_csv \
+    --data_dir $data_dir \
     --config $config \
     --savedir $res_dir/$name \
     --mode 0 \
@@ -61,7 +65,7 @@ python scripts/inference.py \
     --ddim_steps 50 \
     --ddim_eta 1.0 \
     --text_input \
-    --video_length 16 \
+    --video_length $num_frames \
     --frame_stride $FS \
     --ckpt_path $ckpt \
     --timestep_spacing 'uniform_trailing' \

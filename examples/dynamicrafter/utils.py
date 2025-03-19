@@ -1,6 +1,8 @@
 import glob
 import os
+from pathlib import Path
 
+import csv
 import numpy as np
 from PIL import Image
 
@@ -40,7 +42,7 @@ def _load_prompts(prompt_file):
     return prompt_list
 
 
-def load_data_prompts(data_dir, video_size=(256, 256), video_frames=16, interp=False):
+def load_data_prompts(prompt_csv, data_dir, img_col, text_col, video_size=(256, 256), video_frames=16, interp=False):
     transform = transforms.Compose(
         [
             Resize(min(video_size)),
@@ -49,34 +51,22 @@ def load_data_prompts(data_dir, video_size=(256, 256), video_frames=16, interp=F
             Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5), is_hwc=False),
         ]
     )
-    # load prompts
-    prompt_file = _get_filelist(data_dir, ["txt"])
-    assert len(prompt_file) > 0, "Error: found NO prompt file!"
-    # default prompt
-    default_idx = 0
-    default_idx = min(default_idx, len(prompt_file) - 1)
-    if len(prompt_file) > 1:
-        print(f"Warning: multiple prompt files exist. The one {os.path.split(prompt_file[default_idx])[1]} is used.")
-    # only use the first one (sorted by name) if multiple exist
 
-    # load video
-    file_list = _get_filelist(data_dir, ["jpg", "png", "jpeg", "JPEG", "PNG"])
+    with open(prompt_csv, "r") as f:
+        data = list(csv.DictReader(f))
+
+    file_list = [line[img_col] for line in data]
+    prompt_list = [line[text_col] for line in data]
+
     data_list = []
     filename_list = []
-    prompt_list = _load_prompts(prompt_file[default_idx])
     n_samples = len(prompt_list)
     for idx in range(n_samples):
         if interp:
-            image1 = Image.open(file_list[2 * idx]).convert("RGB")
-            image_tensor1 = ms.Tensor(transform(image1)[0]).unsqueeze(1)  # [c,1,h,w]
-            image2 = Image.open(file_list[2 * idx + 1]).convert("RGB")
-            image_tensor2 = ms.Tensor(transform(image2)[0]).unsqueeze(1)  # [c,1,h,w]
-            frame_tensor1 = ops.repeat_interleave(image_tensor1, repeats=video_frames // 2, axis=1)
-            frame_tensor2 = ops.repeat_interleave(image_tensor2, repeats=video_frames // 2, axis=1)
-            frame_tensor = ops.cat([frame_tensor1, frame_tensor2], axis=1)
-            _, filename = os.path.split(file_list[idx * 2])
+            raise NotImplementedError
         else:
-            image = Image.open(file_list[idx]).convert("RGB")
+            img_path = (Path(data_dir) / file_list[idx]).with_suffix(".png")  # TODO: support other img format
+            image = Image.open(img_path).convert("RGB")
             image_tensor = ms.Tensor(transform(image)[0]).unsqueeze(1)  # [c,1,h,w]
             frame_tensor = ops.repeat_interleave(image_tensor, repeats=video_frames, axis=1)
             _, filename = os.path.split(file_list[idx])

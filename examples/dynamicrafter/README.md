@@ -102,6 +102,90 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 | dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.26 | 13 |
 
 
+## 4. Training
+
+### Data preparation
+
+The text-video pair data should be organized as follows, for example.
+
+```text
+.
+├── video_caption.csv
+├── video_folder
+│   ├── part01
+│   │   ├── vid001.mp4
+│   │   ├── vid002.mp4
+│   │   └── ...
+│   └── part02
+│       ├── vid001.mp4
+│       ├── vid002.mp4
+│       └── ...
+```
+
+The `video_folder` contains all the video files. The csv file `video_caption.csv` records the relative video path and its text caption in each line, as follows.
+
+```text
+video,caption
+video_folder/part01/vid001.mp4,a cartoon character is walking through
+video_folder/part01/vid002.mp4,a red and white ball with an angry look on its face
+```
+
+#### Cache Text Embeddings
+
+For acceleration, we pre-compute the text embedding before training. Please set the `csv_path` and `output_path` to your desired paths in `scripts/run/run_infer_text_emb.sh`, and then execute the following command:
+
+```bash
+sh scripts/run/run_infer_text_emb.sh [RESOLUTION] [CSV_PATH] [OUTPUT_PATH]
+```
+> [RESOLUTION] should be 512 or 1024.
+
+Finally, the directory structure of the training data should be:
+```text
+.
+├── video_caption.csv
+├── video_folder
+│   ├── part01
+│   │   ├── vid001.mp4
+│   │   ├── vid002.mp4
+│   │   └── ...
+│   └── part02
+│       ├── vid001.mp4
+│       ├── vid002.mp4
+│       └── ...
+├── text_embed_folder
+│   ├── part01
+│   │   ├── vid001.npz
+│   │   ├── vid002.npz
+│   │   └── ...
+│   └── part02
+│       ├── vid001.npz
+│       ├── vid002.npz
+│       └── ...
+```
+
+### Launch training
+
+Please set all the paths correctly in `run_train.sh`, and then execute the following command:
+
+```shell
+sh scripts/run/run_train.sh [RESUOUTION] [NUM_FRAMES] [OUTPUT_PATH]
+```
+
+> [RESOLUTION] should be 512 or 1024.
+
+### Performance
+
+Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+
+| model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe |
+| :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
+| dynamicrafter  |  1     | 1          | 8x576x1024 | fp32       | OFF      | O1        |    20 mins   | 2.71   | [yaml](configs/training_1024_v1.0.yaml)
+| dynamicrafter  |  1     | 1    | 16x320x512 | fp32       |   OFF    | O1        |      20 mins   | 1.70   | [yaml](configs/training_512_v1.0.yaml)
+
+### Training results
+
+Coming soon...
+
 ## References
 
 [1] Jinbo Xing, et al. DynamiCrafter: Animating Open-domain Images with Video Diffusion Priors. ECCV 2024.

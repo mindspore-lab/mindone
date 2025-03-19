@@ -2,7 +2,6 @@ import logging
 from functools import partial
 
 import numpy as np
-
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.common.initializer import XavierUniform, initializer
@@ -188,10 +187,6 @@ class CrossAttention(nn.Cell):
                 input_layout="BSH",
                 dtype=attn_dtype,
             )
-        # else:
-        #     # TODO: test ms.bfloat16 for vanilla attention
-        #     attn_dtype = ms.float32
-        #     self.attention = Attention(self.head_dim, attn_dtype=attn_dtype)
 
     @staticmethod
     def _rearange_in(x, h):
@@ -393,7 +388,7 @@ class BasicTransformerBlock(nn.Cell):
         unet_chunk_size=2,
     ):
         super().__init__()
-        attn_cls = CrossAttention if attention_cls is None else attention_cls
+        attn_cls = CrossAttention if attention_cls is None else attention_cls  # always CrossAttention, in TemporalTransformer, it's partial(CrossAttention, temporal_length=temporal_length)
         self.disable_self_attn = disable_self_attn
         self.attn1 = attn_cls(
             query_dim=dim,
@@ -426,7 +421,7 @@ class BasicTransformerBlock(nn.Cell):
         self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
 
     def construct(self, x, context=None):
-        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
+        x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x  # self.disable_self_attn always False
         x = self.attn2(self.norm2(x), context=context) + x
         x = self.ff(self.norm3(x)) + x
         return x
@@ -626,17 +621,6 @@ class TemporalTransformer(nn.Cell):
         x = ops.transpose(x, (0, 2, 1))
         if self.use_linear:
             x = self.proj_in(x)
-
-        # TODO: NotImplemented
-        # temp_mask = None
-        # if self.causal_attention:
-        #     # slice the from mask map
-        #     temp_mask = self.mask[:,:t,:t].to(x.device)
-        # if temp_mask is not None:
-        #     mask = temp_mask.to(x.device)
-        #     mask = repeat(mask, 'l i j -> (l bhw) i j', bhw=b*h*w)
-        # else:
-        #     mask = None
 
         if self.only_self_att:
             # x = ops.transpose(x, (0, 2, 1))
