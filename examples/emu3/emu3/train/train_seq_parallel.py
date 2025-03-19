@@ -279,7 +279,7 @@ def main():
     start_epoch, global_step = 0, 0
 
     if training_args.resume is not None:
-        resume_ckpt = os.path.join(training_args.resume, f"rank_{rank_id}", "ckpt", "train_resume.ckpt")
+        resume_ckpt = os.path.join(training_args.resume, f"rank_{rank_id}", "ckpt", "train_resume.ckpt") # zero stage=3
         if not os.path.isfile(resume_ckpt):
             resume_ckpt = os.path.join(training_args.resume, "ckpt", "train_resume.ckpt")
         assert os.path.isfile(
@@ -288,7 +288,7 @@ def main():
         logger.info(f"Loading {resume_ckpt} to resume training")
 
         start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
-            net_with_grads.network, optimizer, resume_ckpt
+            net_with_grads.network, net_with_grads.optimizer, resume_ckpt
         )
         if isinstance(loss_scale, nn.Cell):
             loss_scaler.loss_scale_value = loss_scale
@@ -323,6 +323,7 @@ def main():
                 ckpt_max_keep=training_args.save_total_limit,
                 ckpt_save_interval=training_args.save_steps,
                 step_mode=True if training_args.save_strategy == "steps" else False,  # epoch/steps, default: steps
+                ckpt_combine_online = False # Optional. If False, do offline ckpt combine
             )
         )
     # if rank_id == 0:

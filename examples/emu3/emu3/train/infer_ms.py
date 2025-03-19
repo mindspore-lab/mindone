@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import time
+import logging
 
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.processing_emu3 import Emu3Processor
@@ -38,6 +39,7 @@ from mindone.utils.config import str2bool
 from mindone.utils.params import load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
 
+logger = logging.getLogger(__name__)
 
 def init_env(
     mode: int = ms.PYNATIVE_MODE,
@@ -161,6 +163,7 @@ def evaluate(args):
     logger.info(f"Loaded checkpoint at Epoch #{epoch_num}")
 
     image_path = os.path.join(save_dir, f"e{epoch_num}")
+    os.makedirs(image_path, exist_ok=True)
 
     print("Start to load tokenizer...")
     tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
@@ -324,6 +327,7 @@ def parse_args():
     parser.add_argument("--data_json", default=None)
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument("--mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)")
+    parser.add_argument("--debug", default=False, type=str2bool, help="enable pynative_synchronize")
     parser.add_argument("--seed", type=int, default=42, help="Inference seed")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
