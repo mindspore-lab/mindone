@@ -40,7 +40,7 @@ from mindspore.common.initializer import Normal, initializer
 from mindspore.communication import get_group_size
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache  # , get_max_length, get_seq_length, update
+from mindone.transformers.cache_utils import Cache, DynamicCache  # , get_max_length, get_seq_length, update
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import (
     _MIN_FP16,
@@ -881,6 +881,9 @@ class Emu3Model(Emu3PreTrainedModel):
 
         past_key_values_length = 0
         if use_cache:
+            use_legacy_cache = not isinstance(past_key_values, Cache) and self._supports_cache_class
+            if use_legacy_cache:  # CFG logit processor use
+                past_key_values = DynamicCache.from_legacy_cache(past_key_values)
             if isinstance(past_key_values, Cache):
                 past_key_values_length = past_key_values.get_usable_length(seq_length)
             else:  # tuple static cache
@@ -934,7 +937,7 @@ class Emu3Model(Emu3PreTrainedModel):
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                next_decoder_cache = layer_outputs[2 if output_attentions else 1]
+                next_decoder_cache = layer_outputs[2]
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
@@ -950,6 +953,9 @@ class Emu3Model(Emu3PreTrainedModel):
 
         next_cache = None
         if use_cache:
+            next_cache = (
+                next_decoder_cache.to_legacy_cache() if use_legacy_cache else next_decoder_cache
+            )  # CFG logit processor use
             next_cache = next_decoder_cache
 
         if not return_dict:

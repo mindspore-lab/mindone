@@ -90,14 +90,24 @@ class Emu3VisionVQCausalConv3d(nn.Cell):
         #     self.padding += (p // 2 + p % 2, p // 2),
         # self.padding += (2, 0)
 
-        self.conv = nn.Conv3d(
-            in_channel,
-            out_channel,
-            kernel_size,
-            stride=stride,
-            pad_mode="valid",
-            has_bias=True,
-        ).to_float(conv3d_dtype)
+        if ms.__version__ >= "2.5":
+            self.conv = mint.nn.Conv3d(
+                in_channel,
+                out_channel,
+                kernel_size,
+                stride=stride,
+                padding=0,
+                bias=True,
+            ).to_float(conv3d_dtype)
+        else:
+            self.conv = nn.Conv3d(
+                in_channel,
+                out_channel,
+                kernel_size,
+                stride=stride,
+                pad_mode="valid",
+                has_bias=True,
+            ).to_float(conv3d_dtype)
 
     def construct(self, x: ms.Tensor):
         origin_dtype = x.dtype
@@ -152,9 +162,14 @@ class Emu3VisionVQResnetTemporalBlock(nn.Cell):
                     stride=stride,
                 )
             else:
-                self.nin_shortcut = nn.Conv3d(
-                    in_channels, out_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
-                ).to_float(conv3d_dtype)
+                if ms.__version__ >= "2.5":
+                    self.nin_shortcut = mint.nn.Conv3d(
+                        in_channels, out_channels, kernel_size=1, stride=1, padding=0, bias=True
+                    ).to_float(conv3d_dtype)
+                else:
+                    self.nin_shortcut = nn.Conv3d(
+                        in_channels, out_channels, kernel_size=1, stride=1, padding=0, pad_mode="pad", has_bias=True
+                    ).to_float(conv3d_dtype)
 
     def construct(self, x: ms.Tensor):
         origin_dtype = x.dtype
@@ -666,7 +681,9 @@ class Emu3VisionVQPretrainedModel(MSPreTrainedModel):
     _no_split_modules = ["Emu3VisionVQResnetBlock", "Emu3VisionVQAttnBlock", "Emu3VisionVQResnetTemporalBlock"]
 
     def _init_weights(self, module):
-        if isinstance(module, (nn.Conv2d, nn.Conv3d)):
+        if isinstance(module, (nn.Conv2d, nn.Conv3d)) or (
+            ms.__version__ >= "2.5" and isinstance(module, mint.nn.Conv3d)
+        ):
             module.weight.set_data(
                 initializer(HeNormal(mode="fan_out", nonlinearity="relu"), module.weight.shape, module.weight.dtype)
             )

@@ -19,15 +19,13 @@ from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
+from mindone.trainers.checkpoint import resume_train_network
 from mindone.trainers.zero import prepare_train_network
 from mindone.transformers.mindspore_adapter import MindSporeArguments
 from mindone.transformers.optimization import get_scheduler
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
 from mindone.utils import count_params, init_train_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
-
-# from mindone.trainers.checkpoint import resume_train_network
-
 
 logger = logging.getLogger(__name__)
 
@@ -180,20 +178,19 @@ def main():
     if training_args.min_learning_rate is not None:
         training_args.lr_scheduler_kwargs["min_lr"] = training_args.min_learning_rate
 
-    # TODO: if resume
     model_dtype = ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None)
-    # DEBUG
-    # model_config.num_hidden_layers = 1
-    # mdoel_config.attn_implementation="flash_attention_2"
-    # model = Emu3ForCausalLM(model_config)
-    # DEBUG
-    model = Emu3ForCausalLM.from_pretrained(
-        model_args.model_name_or_path,
-        config=model_config,
-        mindspore_dtype=model_dtype,
-        attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
-        use_safetensors=True,
-    )
+
+    if training_args.resume is not None:
+        model = Emu3ForCausalLM.from_pretrained(
+            model_args.model_name_or_path,
+            config=model_config,
+            mindspore_dtype=model_dtype,
+            attn_implementation="flash_attention_2" if training_args.enable_flash_attention else None,
+            use_safetensors=True,
+        )
+    else:
+        model = Emu3ForCausalLM(model_config).to(model_dtype)
+
     # Optional. Some layers can be frozen to speed up trainining and reduce memory.
     if training_args.trainable_hidden_layers < model_config.num_hidden_layers:
         for layer_id in range(model_config.num_hidden_layers - training_args.trainable_hidden_layers):
@@ -278,21 +275,28 @@ def main():
         clip_norm=training_args.max_grad_norm,
         zero_stage=training_args.ms_zero_stage,
     )
-    # net_with_grads = TrainOneStepWrapper(model_with_loss, optimizer)
 
     start_epoch, global_step = 0, 0
 
-    # TODO
-    # if training_args.resume is not None:
-    #     logger.info(f"Loading train_resume.ckpt in {training_args.resume} to resume training")
-    #     resume_ckpt = os.path.join(training_args.resume, "ckpt", "train_resume.ckpt")
-    #     start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
-    #         model_with_loss.network, optimizer, resume_ckpt
-    #     )  # NOTE: if total training steps is different from original resume checkpoint, optimizer has different shape and encounter error.
-    #     loss_scaler.loss_scale_value = loss_scale
-    #     loss_scaler.cur_iter = cur_iter
-    #     loss_scaler.last_overflow_iter = last_overflow_iter
-    #     global_step = cur_iter
+    if training_args.resume is not None:
+        resume_ckpt = os.path.join(training_args.resume, f"rank_{rank_id}", "ckpt", "train_resume.ckpt")
+        if not os.path.isfile(resume_ckpt):
+            resume_ckpt = os.path.join(training_args.resume, "ckpt", "train_resume.ckpt")
+        assert os.path.isfile(
+            resume_ckpt
+        ), f"{resume_ckpt} is not existing. Failed to load the checkpoint to resume training."
+        logger.info(f"Loading {resume_ckpt} to resume training")
+
+        start_epoch, loss_scale, cur_iter, last_overflow_iter = resume_train_network(
+            net_with_grads.network, optimizer, resume_ckpt
+        )
+        if isinstance(loss_scale, nn.Cell):
+            loss_scaler.loss_scale_value = loss_scale
+            loss_scaler.cur_iter = cur_iter
+            loss_scaler.last_overflow_iter = last_overflow_iter
+            net_with_grads.loss_scaling_manager = loss_scaler
+            net_with_grads.scale_sense = ms.Parameter(loss_scale)
+        global_step = cur_iter
 
     # training model
     train_model = Model(net_with_grads)

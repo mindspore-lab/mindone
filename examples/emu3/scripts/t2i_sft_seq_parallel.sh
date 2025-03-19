@@ -25,7 +25,7 @@ python emu3/train/train_seq_parallel.py \
     --apply_loss_on_only_text False \
     --image_area 262144 \
     --max_position_embeddings 4200 \
-    --trainable_hidden_layers 16 \
+    --trainable_hidden_layers 32 \
     --output_dir ${LOG_DIR} \
     --num_train_epochs 50 \
     --per_device_train_batch_size 1 \
@@ -33,7 +33,7 @@ python emu3/train/train_seq_parallel.py \
     --save_steps 1 \
     --save_strategy epoch \
     --save_total_limit 5 \
-    --learning_rate 1e-5 \
+    --learning_rate 1e-6 \
     --min_learning_rate 1e-6 \
     --weight_decay 0.1 \
     --max_grad_norm 5.0 \
