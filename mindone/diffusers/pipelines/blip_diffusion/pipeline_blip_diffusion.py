@@ -126,8 +126,8 @@ class BlipDiffusionPipeline(DiffusionPipeline):
 
     def get_query_embeddings(self, input_image, src_subject):
         text = self.qformer.tokenizer(src_subject, return_tensors="np", padding=True)
-        input_ids = ms.Tensor(text.input_ids)
-        attention_mask = ms.Tensor(text.attention_mask)
+        input_ids = ms.tensor(text.input_ids)
+        attention_mask = ms.tensor(text.attention_mask)
         return self.qformer(
             image_input=input_image, text_input_ids=input_ids, text_attention_mask=attention_mask, return_dict=False
         )
@@ -177,7 +177,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
         ctx_begin_pos = [self.config.ctx_begin_pos] * batch_size
 
         text_embeddings = self.text_encoder(
-            input_ids=ms.Tensor(tokenized_prompt.input_ids),
+            input_ids=ms.tensor(tokenized_prompt.input_ids),
             ctx_embeddings=query_embeds,
             ctx_begin_pos=ctx_begin_pos,
         )[0]
@@ -255,7 +255,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
         reference_image = self.image_processor.preprocess(
             reference_image, image_mean=self.config.mean, image_std=self.config.std, return_tensors="np"
         )["pixel_values"]
-        reference_image = ms.Tensor(reference_image)
+        reference_image = ms.tensor(reference_image)
 
         if isinstance(prompt, str):
             prompt = [prompt]
@@ -285,7 +285,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             uncond_embeddings = self.text_encoder(
-                input_ids=ms.Tensor(uncond_input.input_ids),
+                input_ids=ms.tensor(uncond_input.input_ids),
                 ctx_embeddings=None,
             )[0]
             # For classifier free guidance, we need to do two forward passes.

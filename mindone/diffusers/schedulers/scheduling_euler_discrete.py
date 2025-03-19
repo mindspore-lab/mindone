@@ -238,14 +238,14 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).flip((0,))
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=float)[::-1].copy()
-        timesteps = ms.Tensor(timesteps).to(dtype=ms.float32)
+        timesteps = ms.tensor(timesteps).to(dtype=ms.float32)
 
         # setable values
         self.num_inference_steps = None
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if timestep_type == "continuous" and prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas])
+            self.timesteps = ms.tensor([0.25 * sigma.log().item() for sigma in sigmas])
         else:
             self.timesteps = timesteps
 
@@ -437,13 +437,13 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
             sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        sigmas = ms.Tensor(sigmas).to(dtype=ms.float32)
+        sigmas = ms.tensor(sigmas).to(dtype=ms.float32)
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas[:-1]])
+            self.timesteps = ms.tensor([0.25 * sigma.log().item() for sigma in sigmas[:-1]])
         else:
-            self.timesteps = ms.Tensor(timesteps.astype(np.float32))
+            self.timesteps = ms.tensor(timesteps.astype(np.float32))
 
         self._step_index = None
         self._begin_index = None
@@ -540,7 +540,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ms.Tensor(
+        sigmas = ms.tensor(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))
                 for ppf in [

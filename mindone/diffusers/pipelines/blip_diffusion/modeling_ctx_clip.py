@@ -14,7 +14,6 @@
 # limitations under the License.
 from typing import Optional, Tuple, Union
 
-import numpy as np
 from transformers.models.clip.configuration_clip import CLIPTextConfig
 
 import mindspore as ms
@@ -24,23 +23,7 @@ from mindone.transformers import CLIPPreTrainedModel
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPooling
 from mindone.transformers.models.clip.modeling_clip import CLIPEncoder
 
-_MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
-_MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
-_MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
-_MIN_BF16 = ms.tensor(float.fromhex("-0x1.fe00000000000p+127"), dtype=ms.bfloat16)
-
-
-def dtype_to_min(dtype):
-    if dtype == ms.float16:
-        return _MIN_FP16
-    if dtype == ms.float32:
-        return _MIN_FP32
-    if dtype == ms.float64:
-        return _MIN_FP64
-    if dtype == ms.bfloat16:
-        return _MIN_BF16
-    else:
-        raise ValueError(f"Only support get minimum value of (float16, ), but got {dtype}")
+from ...utils.mindspore_utils import dtype_to_min
 
 
 def _expand_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):

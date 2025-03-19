@@ -218,8 +218,8 @@ class StableCascadePriorPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
-                attention_mask=ms.Tensor(uncond_input.attention_mask),
+                ms.tensor(uncond_input.input_ids),
+                attention_mask=ms.tensor(uncond_input.attention_mask),
                 output_hidden_states=True,
             )
 

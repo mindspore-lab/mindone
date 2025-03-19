@@ -756,9 +756,9 @@ class AlphaBlender(nn.Cell):
             raise ValueError(f"merge_strategy needs to be in {self.strategies}")
 
         if self.merge_strategy == "fixed":
-            self.mix_factor = ms.Tensor([alpha])
+            self.mix_factor = ms.tensor([alpha])
         elif self.merge_strategy == "learned" or self.merge_strategy == "learned_with_images":
-            self.mix_factor = ms.Parameter(ms.Tensor([alpha]), name="mix_factor")
+            self.mix_factor = ms.Parameter(ms.tensor([alpha]), name="mix_factor")
         else:
             raise ValueError(f"Unknown merge strategy {self.merge_strategy}")
 
