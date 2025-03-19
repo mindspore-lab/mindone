@@ -9,7 +9,7 @@ from jsonargparse.typing import path_type
 import mindspore.dataset as ds
 from mindspore import GRAPH_MODE, Model, Symbol, Tensor, amp
 from mindspore import dtype as mstype
-from mindspore import get_context, nn, set_context, set_seed
+from mindspore import get_context, nn, set_seed
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -78,10 +78,6 @@ def main(args):
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_train_env(**args.env)
     mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
-
-    # Activate dynamic graph mode because bucketing is used
-    if mode == GRAPH_MODE:
-        set_context(graph_kernel_flags="--disable_packet_ops=Reshape")
 
     # 1.1 init model parallel
     shard_rank_id = rank_id
@@ -170,13 +166,19 @@ def main(args):
     # TODO: validation graph?
     # Activate dynamic graph mode because bucketing is used
     if mode == GRAPH_MODE:
-        bs = Symbol(unique=True)
-        video = Tensor(shape=[bs, None, args.model.in_channels if tae is None else 3, None, None], dtype=mstype.float32)
-        # FIXME: fix sequence length
-        ul2_emb = Tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
-        byt5_emb = Tensor(shape=[bs, 128, 1472], dtype=mstype.float32)
-        net_with_grads.set_inputs(video, ul2_emb, byt5_emb)
-        logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
+        if args.train.sequence_parallel.shards <= 1:
+            bs = Symbol(unique=True)
+            video = Tensor(
+                shape=[bs, None, args.model.in_channels if tae is None else 3, None, None], dtype=mstype.float32
+            )
+            ul2_emb = Tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
+            byt5_emb = Tensor(shape=[bs, 128, 1472], dtype=mstype.float32)
+            net_with_grads.set_inputs(video, ul2_emb, byt5_emb)
+            logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
+        elif args.train.sequence_parallel.shards > 1:
+            logger.warning(
+                "Dynamic shape is not supported with sequence parallelism. The graph will be re-compiled for each new shape."
+            )
 
     model = Model(net_with_grads)
 
