@@ -21,6 +21,7 @@ BATCH_SIZE=1
 DTYPE=bf16
 VAE_CACHE=1
 EMBEDDINGS_CACHE=1
+SAVE_IMAGE_LATENTS=0
 
 if [ "$NUM_NPUS" -eq 1 ]; then
     LAUNCHER="python"
@@ -35,6 +36,9 @@ if [ "$VAE_CACHE" -eq 1 ]; then
 fi
 if [ "$EMBEDDINGS_CACHE" -eq 1 ]; then
   EXTRA_ARGS="$EXTRA_ARGS --embeddings_cache"
+fi
+if [ "$SAVE_IMAGE_LATENTS" -eq 1 ]; then
+  EXTRA_ARGS="$EXTRA_ARGS --save_image_latents"
 fi
 
 # To create a folder-style dataset structure without pre-encoding videos and captions

@@ -32,7 +32,7 @@ from ...models import AutoencoderKLCogVideoX, CogVideoXTransformer3DModel
 from ...models.embeddings import get_3d_rotary_pos_embed
 from ...pipelines.pipeline_utils import DiffusionPipeline
 from ...schedulers import CogVideoXDDIMScheduler, CogVideoXDPMScheduler
-from ...utils import logging
+from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import CogVideoXPipelineOutput
@@ -362,15 +362,16 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
 
         image = image.unsqueeze(2)  # [B, C, F, H, W]
 
-        if isinstance(generator, list):
-            image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(image[i].unsqueeze(0))[0], generator[i])
-                for i in range(batch_size)
-            ]
-        else:
-            image_latents = [
-                retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0))[0], generator) for img in image
-            ]
+        with pynative_context():
+            if isinstance(generator, list):
+                image_latents = [
+                    retrieve_latents(self.vae, self.vae.encode(image[i].unsqueeze(0))[0], generator[i])
+                    for i in range(batch_size)
+                ]
+            else:
+                image_latents = [
+                    retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0))[0], generator) for img in image
+                ]
 
         image_latents = ops.cat(image_latents, axis=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
 
@@ -776,6 +777,13 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
         # 8. Create ofs embeds if required
         ofs_emb = None if self.transformer.config.ofs_embed_dim is None else ops.ones((1,), dtype=latents.dtype) * 2.0
 
+        # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
+        # to the transformer and will raise RuntimeError.
+        lora_scale = self.attention_kwargs.pop("scale", None) if self.attention_kwargs is not None else None
+        if lora_scale is not None:
+            # weight the lora layers by setting `lora_scale` for each PEFT layer
+            scale_lora_layers(self.transformer, lora_scale)
+
         # 8. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
 
@@ -844,6 +852,10 @@ class CogVideoXImageToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin)
 
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        if lora_scale is not None:
+            # remove `lora_scale` from each PEFT layer
+            unscale_lora_layers(self.transformer, lora_scale)
 
         if not output_type == "latent":
             # Discard any padding frames that were added for CogVideoX 1.5

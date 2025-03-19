@@ -958,7 +958,12 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
             optimizer_file = os.path.join(output_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
         elif self.need_save_optimizer(args):
             optimizer_file = os.path.join(output_dir, "optimizer.ckpt")
-        ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+        else:
+            optimizer_file = None
+
+        if optimizer_file:
+            ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+
         if is_master(args):
             # Loss Scaler states
             loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")
