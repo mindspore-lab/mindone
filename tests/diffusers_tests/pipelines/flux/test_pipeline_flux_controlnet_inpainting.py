@@ -277,7 +277,6 @@ class FluxControlNetInpaintPipelineIntegrationTests(PipelineTesterMixin, unittes
         if dtype == "float32":
             pytest.skip("Skipping this case since this pipeline has precision issue in float32.")
 
-
         controlnet = FluxControlNetModel.from_pretrained(
             "InstantX/FLUX.1-dev-controlnet-canny", mindspore_dtype=ms_dtype
         )
