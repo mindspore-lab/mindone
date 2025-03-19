@@ -1,13 +1,19 @@
 """
-This script is to load mindspore checkpoint and run image generation or vqa or qa after SFT.
+This script is to load mindspore checkpoint and run image generation or vqa or qa after SFT in parallel mode
 
 Usage:
 cd examples/emu3
-python emu3/train/infer_ms.py \
---model_path outputs/Emu3-VQA-SFT
---ckpt_name emu3-e50.ckpt
+export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+NPUS=8
+MASTER_PORT=9000
+LOG_DIR=output/emu-vqa-e50
+msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_port=${MASTER_PORT} --log_dir=${LOG_DIR} \
+    python emu3/train/infer_ms.py \
+--model_path outputs/Emu3-VQA-SFT \
+--tokenizer_path BAAI/Emu3-Stage1 \
+--ckpt_name emu3-e50.ckpt \
 --task vqa \
---
+--output_path ${LOG_DIR}
 """
 import argparse
 import json
@@ -22,25 +28,107 @@ from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+from mindspore.communication import get_group_size, get_rank, init
+from mindspore.communication.management import GlobalComm
 
+from mindone.trainers.zero import prepare_network
 from mindone.utils import set_logger
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
+from mindone.utils.params import load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
+
+
+def init_env(
+    mode: int = ms.PYNATIVE_MODE,
+    device_target: str = "Ascend",
+    debug: bool = False,
+    seed: int = 42,
+    distributed: bool = False,
+    jit_level: str = None,
+):
+    ms.set_seed(seed)
+
+    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
+        print("Debug mode is on, switching execution mode to PyNative.")
+        mode = ms.PYNATIVE_MODE
+    if jit_level:
+        if ms.__version__ >= "2.3":
+            ms.set_context(jit_config={"jit_level": jit_level})
+        else:
+            print("Compilation optimization (JIT Level) is supported only in MindSpore 2.3 or later.")
+
+    if distributed:
+        ms.set_context(mode=mode, device_target=device_target, ascend_config={})
+        device_id = os.getenv("DEVICE_ID", None)
+        if device_id:
+            ms.set_context(device_id=int(device_id))
+
+        init()
+        device_num = get_group_size()
+        rank_id = get_rank()
+        ms.reset_auto_parallel_context()
+        ms.set_auto_parallel_context(
+            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
+            gradients_mean=True,
+            device_num=device_num,
+        )
+    else:
+        device_num = 1
+        device_id = int(os.getenv("DEVICE_ID", 0))
+        rank_id = 0
+        ms.set_context(
+            mode=mode,
+            device_target=device_target,
+            device_id=device_id,
+            ascend_config={},
+            pynative_synchronize=debug,
+        )
+
+    return device_id, rank_id, device_num
+
+
+def load_net(model, ckpt_folder, ckpt_name):
+    assert os.path.isfile(os.path.join(ckpt_folder, "train_resume.ckpt")) or (
+        ckpt_name is not None and (os.path.isfile(ckpt_folder, ckpt_name))
+    )
+    if ckpt_name is not None:
+        model_file = os.path.join(ckpt_folder, ckpt_name)
+    else:
+        model_file = os.path.join(ckpt_folder, "train_resume.ckpt")
+    print(f"Loading weights from local pretrained directory: {model_file}")
+    state_dict = ms.load_checkpoint(model_file)
+
+    # Instantiate the model
+    param_not_load, ckpt_not_load = load_param_into_net_with_filter(model, state_dict, filter=state_dict.keys())
+    print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
+    if param_not_load or ckpt_not_load:
+        print(
+            f"Exist ckpt params not loaded: {ckpt_not_load} (total: {len(ckpt_not_load)}),\n"
+            f"or net params not loaded: {param_not_load} (total: {len(param_not_load)})"
+        )
+
+    if ckpt_name is not None:
+        epoch_num = int(ckpt_name.strip()[7:-5])
+    else:
+        epoch_num = state_dict["epoch_num"].item()
+
+    return epoch_num
 
 
 def evaluate(args):
     save_dir = args.output_path
-    rank_id = 0
-    ms.set_context(
+    device_id, rank_id, device_num = init_env(
         mode=args.mode,  # only support PYNATIVE using DynamicCache
         device_target=args.device_target,
-        pynative_synchronize=args.debug,
-        jit_config={"jit_level": args.jit_level},
-        device_id=int(os.getenv("DEVICE_ID")),
+        debug=args.debug,
+        seed=args.seed,
+        distributed=args.use_parallel,
+        jit_level=args.jit_level,
     )
     set_random_seed(args.seed)
-    logger = set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+    logger = set_logger(name="", output_dir=args.output_path, rank=0, log_level=eval(args.log_level))
+    logger.info(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
 
     # 1. Load Models and Processor
     # model path
@@ -60,55 +148,16 @@ def evaluate(args):
     model = Emu3ForCausalLM(model_config).to(EMU_DTYPE)
     model.set_train(False)
 
+    if not args.use_parallel and args.zero_stage != 3:
+        logger.info("No need to rewrite network.")
+    else:
+        optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+        model = prepare_network(model, args.zero_stage, optimizer_parallel_group, parallel_modules=None)
+
     # load pretrained checkpoint
     logger.info(f"Loading ckpt in {args.model_path}.")
-    ckpt_folder = os.path.join(args.model_path, "rank_0", "ckpt")
-    assert os.path.isdir(args.model_path) and (
-        os.path.isfile(os.path.join(ckpt_folder, "train_resume.ckpt"))
-        or (args.ckpt_name is not None and (os.path.isfile(ckpt_folder, args.ckpt_name)))
-    )
-    if args.ckpt_name is not None:
-        model_file = os.path.join(ckpt_folder, args.ckpt_name)
-    else:
-        model_file = os.path.join(ckpt_folder, "train_resume.ckpt")
-    print(f"Loading weights from local pretrained directory: {model_file}")
-    state_dict = ms.load_checkpoint(model_file)
-    # Check loading keys:
-    model_state_dict = {k: v for k, v in model.parameters_and_names()}
-    # state_dict_tmp = {}
-    # for k, v in state_dict.items():
-    #     if ("norm" in k) and ("mlp" not in k):  # for LayerNorm but not ModLN's mlp
-    #         k = k.replace(".weight", ".gamma").replace(".bias", ".beta")
-    #     if "adam_" not in k:  # not to load optimizer
-    #         state_dict_tmp[k] = v
-    # state_dict = state_dict_tmp
-    loaded_keys = list(state_dict.keys())
-    expexted_keys = list(model_state_dict.keys())
-    original_loaded_keys = loaded_keys
-    missing_keys = list(set(expexted_keys) - set(loaded_keys))
-    unexpected_keys = list(set(loaded_keys) - set(expexted_keys))
-    mismatched_keys = []
-    for checkpoint_key in original_loaded_keys:
-        if (
-            checkpoint_key in model_state_dict
-            and checkpoint_key in state_dict
-            and state_dict[checkpoint_key].shape != model_state_dict[checkpoint_key].shape
-        ):
-            mismatched_keys.append(
-                (checkpoint_key, state_dict[checkpoint_key].shape, model_state_dict[checkpoint_key].shape)
-            )
-
-    print(
-        f"Loading Emu3 Model...\nmissing_keys: {missing_keys}, \nunexpected_keys: {unexpected_keys}, \nmismatched_keys: {mismatched_keys}"
-    )
-    print(f"state_dict.dtype {state_dict[loaded_keys[0]].dtype}")  # float16
-    # Instantiate the model
-    param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict, strict_load=False)
-    print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
-    if args.ckpt_name is not None:
-        epoch_num = int(args.ckpt_name.strip()[7:-5])
-    else:
-        epoch_num = state_dict["epoch_num"].item()
+    ckpt_folder = os.path.join(args.model_path, f"rank_{rank_id}", "ckpt")
+    epoch_num = load_net(model, ckpt_folder, args.ckpt_name)
     logger.info(f"Loaded checkpoint at Epoch #{epoch_num}")
 
     image_path = os.path.join(save_dir, f"e{epoch_num}")
@@ -301,6 +350,7 @@ def parse_args():
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
+    parser.add_argument("--zero_stage", default=3, type=int, help="zero stage used in training")
     args = parser.parse_args()
     return args
 
