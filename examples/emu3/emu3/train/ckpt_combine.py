@@ -1,5 +1,14 @@
-# Offline checkpoint combine (based on zero stage = 3)
+'''
+Offline checkpoint combine (based on zero stage = 3)
 
+Usage:
+EXP_NAME=T2I-SFT
+python emu3/train/ckpt_combine.py \
+    --checkpoint_dir outputs/parallel_logs/${EXP_NAME} \
+        --ckpt_name emu3-e50.ckpt \
+        --params_info_dir params_info \
+        --group_size 8
+'''
 import argparse
 from mindone.trainers.zero import convert_checkpoints
 

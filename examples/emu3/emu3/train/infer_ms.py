@@ -90,14 +90,14 @@ def init_env(
     return device_id, rank_id, device_num
 
 
-def load_net(model, ckpt_folder, ckpt_name):
-    assert os.path.isfile(os.path.join(ckpt_folder, "train_resume.ckpt")) or (
-        ckpt_name is not None and (os.path.isfile(ckpt_folder, ckpt_name))
-    )
-    if ckpt_name is not None:
-        model_file = os.path.join(ckpt_folder, ckpt_name)
-    else:
-        model_file = os.path.join(ckpt_folder, "train_resume.ckpt")
+def load_net(model, model_file):
+    # assert os.path.isfile(os.path.join(ckpt_folder, "train_resume.ckpt")) or (
+    #     ckpt_name is not None and (os.path.isfile(ckpt_folder, ckpt_name))
+    # )
+    # if ckpt_name is not None:
+    #     model_file = os.path.join(ckpt_folder, ckpt_name)
+    # else:
+    #     model_file = os.path.join(ckpt_folder, "train_resume.ckpt")
     print(f"Loading weights from local pretrained directory: {model_file}")
     state_dict = ms.load_checkpoint(model_file)
 
@@ -120,17 +120,28 @@ def load_net(model, ckpt_folder, ckpt_name):
 
 def evaluate(args):
     save_dir = args.output_path
-    device_id, rank_id, device_num = init_env(
+    rank_id = 0
+    ms.set_context(
         mode=args.mode,  # only support PYNATIVE using DynamicCache
         device_target=args.device_target,
-        debug=args.debug,
-        seed=args.seed,
-        distributed=args.use_parallel,
-        jit_level=args.jit_level,
+        pynative_synchronize=args.debug,
+        jit_config={"jit_level": args.jit_level},
+        device_id=int(os.getenv("DEVICE_ID")),
     )
     set_random_seed(args.seed)
-    logger = set_logger(name="", output_dir=args.output_path, rank=0, log_level=eval(args.log_level))
-    logger.info(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
+    logger = set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
+
+    # device_id, rank_id, device_num = init_env(
+    #     mode=args.mode,  # only support PYNATIVE using DynamicCache
+    #     device_target=args.device_target,
+    #     debug=args.debug,
+    #     seed=args.seed,
+    #     # distributed=args.use_parallel,
+    #     jit_level=args.jit_level,
+    # )
+    # set_random_seed(args.seed)
+    # logger = set_logger(name="", output_dir=args.output_path, rank=0, log_level=eval(args.log_level))
+    # logger.info(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
 
     # 1. Load Models and Processor
     # model path
@@ -150,16 +161,16 @@ def evaluate(args):
     model = Emu3ForCausalLM(model_config).to(EMU_DTYPE)
     model.set_train(False)
 
-    if not args.use_parallel and args.zero_stage != 3:
-        logger.info("No need to rewrite network.")
-    else:
-        optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
-        model = prepare_network(model, args.zero_stage, optimizer_parallel_group, parallel_modules=None)
+    # if not args.use_parallel and args.zero_stage != 3:
+    #     logger.info("No need to rewrite network.")
+    # else:
+    #     optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
+    #     model = prepare_network(model, args.zero_stage, optimizer_parallel_group, parallel_modules=None)
 
     # load pretrained checkpoint
     logger.info(f"Loading ckpt in {args.model_path}.")
-    ckpt_folder = os.path.join(args.model_path, f"rank_{rank_id}", "ckpt")
-    epoch_num = load_net(model, ckpt_folder, args.ckpt_name)
+    # ckpt_folder = os.path.join(args.model_path, f"rank_{rank_id}", "ckpt")
+    epoch_num = load_net(model, args.ckpt_dir)
     logger.info(f"Loaded checkpoint at Epoch #{epoch_num}")
 
     image_path = os.path.join(save_dir, f"e{epoch_num}")
@@ -306,7 +317,7 @@ def evaluate(args):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, help="model path with config.json")
-    parser.add_argument("--ckpt_name", type=str, default=None, help="model ckpt name, e.g. emu3-e50.ckpt")
+    parser.add_argument("--ckpt_dir", type=str, default=None, help="model ckpt diretory, e.g. outputs/rank_group_8/ckpt/emu3-e50.ckpt")
     parser.add_argument(
         "--tokenizer_path", type=str, default=None, help="tokenizer folder, e.g. BAAI/Emu3-VisionTokenizer"
     )
@@ -320,7 +331,7 @@ def parse_args():
         "--task",
         type=str,
         default="vqa",
-        help="inference task, either vqa, img-gen, qa",
+        help="inference task, either vqa, img-gen",
     )
     parser.add_argument("--prompt", default=None, help="Text prompt")
     parser.add_argument("--image", default=None, help="Image path")
@@ -329,7 +340,7 @@ def parse_args():
     parser.add_argument("--mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)")
     parser.add_argument("--debug", default=False, type=str2bool, help="enable pynative_synchronize")
     parser.add_argument("--seed", type=int, default=42, help="Inference seed")
-    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    # parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument(
         "--jit_level",
         default="O0",
@@ -354,7 +365,7 @@ def parse_args():
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    parser.add_argument("--zero_stage", default=3, type=int, help="zero stage used in training")
+    # parser.add_argument("--zero_stage", default=3, type=int, help="zero stage used in training")
     args = parser.parse_args()
     return args
 
