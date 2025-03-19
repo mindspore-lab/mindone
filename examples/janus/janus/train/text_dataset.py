@@ -22,7 +22,7 @@ class TextDataset:
         num_samples: int = -1,
     ) -> None:
         if dataset_name.lower() == "pubmedqa":
-            self.dataset = load_dataset(data_dir, "pqa_labeled", split="train")
+            self.dataset = load_dataset(data_dir, "default", split="train")
         else:
             raise NotImplementedError
 
@@ -44,9 +44,7 @@ class TextDataset:
 
         # process text
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
-
-        # FIXME
-        task_type = np.array(0, dtype=np.int32)
+        task_type = np.array(1, dtype=np.int32)
 
         return task_type, input_ids, labels, attention_mask
 
@@ -89,8 +87,7 @@ class TextDataset:
             truncation=True,
         )
         input_ids = np.array(input_ids, np.int32)
-
-        attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
+        attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool_)
         attention_mask[input_ids == vlcp.pad_id] = 0
         """
         inputs = vlcp.tokenizer(
@@ -102,7 +99,7 @@ class TextDataset:
             truncation=True,
         )
         input_ids = np.array(inputs["input_ids"], dtype=np.int32)
-        attention_mask = np.array(inputs["attention_mask"], dtype=np.bool)
+        attention_mask = np.array(inputs["attention_mask"], dtype=np.bool_)
 
         # make labels
         # label, only train on answer seq
