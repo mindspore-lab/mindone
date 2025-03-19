@@ -939,8 +939,8 @@ class CLIPModel(CLIPPreTrainedModel):
         text_embeds = self.text_projection(text_embeds)
 
         # normalized features
-        image_embeds = image_embeds / image_embeds.norm(ord=2, dim=-1, keepdim=True)
-        text_embeds = text_embeds / text_embeds.norm(ord=2, dim=-1, keepdim=True)
+        image_embeds = image_embeds / mint.norm(image_embeds, p=2, dim=-1, keepdim=True)
+        text_embeds = text_embeds / mint.norm(text_embeds, p=2, dim=-1, keepdim=True)
 
         # cosine similarity as logits
         logit_scale = self.logit_scale.exp()

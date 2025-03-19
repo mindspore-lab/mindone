@@ -1,4 +1,4 @@
-__version__ = "4.42.4"
+__version__ = "4.46.3"
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
