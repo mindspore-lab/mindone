@@ -70,8 +70,8 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
         ],
         [
             "text_encoder",
-            "transformer.CLIPTextModelWithProjection",
-            "mindone.transformer.CLIPTextModelWithProjection",
+            "transformers.models.clip.modeling_clip.CLIPTextModelWithProjection",
+            "mindone.transformers.models.clip.modeling_clip.CLIPTextModelWithProjection",
             dict(
                 config=CLIPTextConfig(
                     bos_token_id=0,
@@ -85,13 +85,13 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
                     vocab_size=1000,
                     hidden_act="gelu",
                     projection_dim=32,
-                )
+                ),
             ),
         ],
         [
             "text_encoder_2",
-            "transformer.CLIPTextModelWithProjection",
-            "mindone.transformer.CLIPTextModelWithProjection",
+            "transformers.models.clip.modeling_clip.CLIPTextModelWithProjection",
+            "mindone.transformers.models.clip.modeling_clip.CLIPTextModelWithProjection",
             dict(
                 config=CLIPTextConfig(
                     bos_token_id=0,
@@ -105,7 +105,7 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
                     vocab_size=1000,
                     hidden_act="gelu",
                     projection_dim=32,
-                )
+                ),
             ),
         ],
         [
