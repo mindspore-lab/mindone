@@ -198,7 +198,9 @@ class StableDiffusionPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.T
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.auto_pipeline.AutoPipelineForInpainting")
-        pipe = pipe_cls.from_pretrained("runwayml/stable-diffusion-v1-5", enable_pag=True, mindspore_dtype=ms_dtype)
+        pipe = pipe_cls.from_pretrained(
+            "stable-diffusion-v1-5/stable-diffusion-v1-5", enable_pag=True, mindspore_dtype=ms_dtype
+        )
 
         torch.manual_seed(0)
         prompt = "A majestic tiger sitting on a bench"

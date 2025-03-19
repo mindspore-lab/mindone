@@ -850,10 +850,10 @@ def get_3d_rotary_pos_embed(
     if grid_type == "linspace":
         start, stop = crops_coords
         grid_size_h, grid_size_w = grid_size
-        grid_h = ops.linspace(start[0], stop[0] * (grid_size_h - 1) / grid_size_h, grid_size_h, dtype=ms.float32)
-        grid_w = ops.linspace(start[1], stop[1] * (grid_size_w - 1) / grid_size_w, grid_size_w, dtype=ms.float32)
+        grid_h = ops.linspace(start[0], stop[0] * (grid_size_h - 1) / grid_size_h, grid_size_h).to(ms.float32)
+        grid_w = ops.linspace(start[1], stop[1] * (grid_size_w - 1) / grid_size_w, grid_size_w).to(ms.float32)
         grid_t = ops.arange(temporal_size, dtype=ms.float32)
-        grid_t = ops.linspace(0, temporal_size * (temporal_size - 1) / temporal_size, temporal_size, dtype=ms.float32)
+        grid_t = ops.linspace(0, temporal_size * (temporal_size - 1) / temporal_size, temporal_size).to(ms.float32)
     elif grid_type == "slice":
         max_h, max_w = max_size
         grid_size_h, grid_size_w = grid_size
@@ -976,8 +976,8 @@ def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True, o
         )
     start, stop = crops_coords
     # scale end by (steps−1)/steps matches np.linspace(..., endpoint=False)
-    grid_h = ops.linspace(start[0], stop[0] * (grid_size[0] - 1) / grid_size[0], grid_size[0], dtype=ms.float32)
-    grid_w = ops.linspace(start[1], stop[1] * (grid_size[1] - 1) / grid_size[1], grid_size[1], dtype=ms.float32)
+    grid_h = ops.linspace(start[0], stop[0] * (grid_size[0] - 1) / grid_size[0], grid_size[0]).to(ms.float32)
+    grid_w = ops.linspace(start[1], stop[1] * (grid_size[1] - 1) / grid_size[1], grid_size[1]).to(ms.float32)
     grid = ops.meshgrid(grid_w, grid_h, indexing="xy")
     grid = ops.stack(grid, axis=0)  # [2, W, H]
 
