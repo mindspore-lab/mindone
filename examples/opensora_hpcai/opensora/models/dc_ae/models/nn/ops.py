@@ -270,7 +270,7 @@ class InterpolateConvUpSampleLayer(nn.Cell):
             x = mint.nn.functional.interpolate(x, scale_factor=self.factor, mode=self.mode)
         elif x.dim() == 5:
             # [B, C, T, H, W] -> [B, C, T*factor, H*factor, W*factor]
-            if self.temporal_upsample and x.size(2) != 1:  # temporal upsample for video input
+            if self.temporal_upsample and x.shape[2] != 1:  # temporal upsample for video input
                 x = chunked_interpolate(x, scale_factor=[self.factor, self.factor, self.factor], mode=self.mode)
             else:
                 x = chunked_interpolate(x, scale_factor=[1, self.factor, self.factor], mode=self.mode)
@@ -692,10 +692,10 @@ class LiteMLA(nn.Cell):
     # @torch.autocast(device_type="cuda", enabled=False)  # TODO: check
     def relu_linear_att(self, qkv: ms.tensor) -> ms.tensor:
         if qkv.ndim == 5:
-            B, _, T, H, W = list(qkv.size())
+            B, _, T, H, W = list(qkv.shape)
             is_video = True
         else:
-            B, _, H, W = list(qkv.size())
+            B, _, H, W = list(qkv.shape)
             is_video = False
 
         if qkv.dtype == ms.float16:
@@ -749,7 +749,7 @@ class LiteMLA(nn.Cell):
 
     # @torch.autocast(device_type="cuda", enabled=False)  # TODO: check
     def relu_quadratic_att(self, qkv: ms.tensor) -> ms.tensor:
-        B, _, H, W = list(qkv.size())
+        B, _, H, W = list(qkv.shape)
 
         qkv = mint.reshape(
             qkv,
@@ -789,10 +789,10 @@ class LiteMLA(nn.Cell):
         qkv = mint.cat(multi_scale_qkv, dim=1)
 
         if qkv.ndim == 4:
-            H, W = list(qkv.size())[-2:]
+            H, W = list(qkv.shape)[-2:]
             # num_tokens = H * W
         elif qkv.ndim == 5:
-            _, _, T, H, W = list(qkv.size())
+            _, _, T, H, W = list(qkv.shape)
             # num_tokens = H * W * T
 
         # if num_tokens > self.dim:
