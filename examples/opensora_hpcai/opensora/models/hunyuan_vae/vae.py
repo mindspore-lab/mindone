@@ -244,7 +244,7 @@ class DecoderCausal3D(nn.Cell):
 
         sample = self.conv_in(sample)
 
-        upscale_dtype = next(iter(self.up_blocks.parameters())).dtype
+        # upscale_dtype = next(iter(self.up_blocks.parameters())).dtype
 
         # middle
         if self.mid_block.add_attention:
@@ -254,7 +254,7 @@ class DecoderCausal3D(nn.Cell):
 
         # sample = auto_grad_checkpoint(self.mid_block, sample, attention_mask)
         sample = self.mid_block(sample, attention_mask)
-        sample = sample.to(upscale_dtype)
+        # sample = sample.to(upscale_dtype)
 
         # up
         for up_block in self.up_blocks:

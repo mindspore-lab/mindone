@@ -1,11 +1,12 @@
+import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Literal, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import load_param_into_net, mint, nn
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
-from mindone.utils.params import load_checkpoint_to_net
+
 # Use this to be compatible with the original diffusers.
 from mindone.diffusers.loaders.single_file_model import FromOriginalModelMixin as FromOriginalVAEMixin
 from mindone.diffusers.models.attention_processor import (
@@ -17,17 +18,16 @@ from mindone.diffusers.models.attention_processor import (
     AttnProcessor,
 )
 from mindone.diffusers.models.modeling_utils import ModelMixin
-from .vae import (
-    DecoderCausal3D,
-    DecoderOutput,
-    DiagonalGaussianDistribution,
-    EncoderCausal3D,
-)
+
+from ...utils.model_utils import load_state_dict
+from .vae import DecoderCausal3D, DecoderOutput, DiagonalGaussianDistribution, EncoderCausal3D
+
+_logger = logging.getLogger(__name__)
 
 
 @dataclass
 class AutoEncoder3DConfig:
-    from_pretrained: str | None
+    from_pretrained: Optional[str]
     act_fn: str = "silu"
     in_channels: int = 3
     out_channels: int = 3
@@ -39,7 +39,7 @@ class AutoEncoder3DConfig:
     time_compression_ratio: int = 4
     spatial_compression_ratio: int = 8
     mid_block_add_attention: bool = True
-    block_out_channels: tuple[int] = (128, 256, 512, 512)
+    block_out_channels: tuple[int, int, int, int] = (128, 256, 512, 512)
     sample_size: int = 256
     sample_tsize: int = 64
     use_slicing: bool = False
@@ -402,9 +402,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         posterior = DiagonalGaussianDistribution(moments)
         return posterior
 
-    def spatial_tiled_decode(
-        self, z: ms.tensor, return_dict: bool = True
-    ) -> Union[DecoderOutput, ms.tensor]:
+    def spatial_tiled_decode(self, z: ms.tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.tensor]:
         r"""
         Decode a batch of images/videos using a tiled decoder.
 
@@ -483,9 +481,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         posterior = DiagonalGaussianDistribution(moments)
         return posterior
 
-    def temporal_tiled_decode(
-        self, z: ms.tensor, return_dict: bool = True
-    ) -> Union[DecoderOutput, ms.tensor]:
+    def temporal_tiled_decode(self, z: ms.tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.tensor]:
         # Split z into overlapping tiles and decode them separately.
 
         B, C, T, H, W = z.shape
@@ -593,13 +589,20 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
 def CausalVAE3D_HUNYUAN(
     from_pretrained: str = None,
-    dtype: ms.dtype = ms.bfloat16,
+    dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
     **kwargs,
 ) -> AutoencoderKLCausal3D:
+    dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[dtype]
     config = AutoEncoder3DConfig(from_pretrained=from_pretrained, **kwargs)
-    model = AutoencoderKLCausal3D(config).to(dtype)  # TODO: check model dtype
+    with nn.no_init_parameters():
+        model = AutoencoderKLCausal3D(config).to(dtype)  # TODO: check model dtype
     if from_pretrained:
-        load_checkpoint_to_net(model, from_pretrained)
-        print(f"loaded CausalVAE3D_HUNYUAN from ckpt path: {from_pretrained}")
+        sd, ckpt_path = load_state_dict(from_pretrained)
+        m, u = load_param_into_net(model, sd)
+        if m or u:
+            _logger.info(f"net param not load {len(m)}: {m}")
+            _logger.info(f"ckpt param not load {len(u)}: {u}")
+        _logger.info(f"Loaded ckpt {ckpt_path} into CausalVAE3D_HUNYUAN.")
+    model.init_parameters_data()
 
     return model

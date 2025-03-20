@@ -1,10 +1,11 @@
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from opensora.models.vae.utils import ChannelChunkConv3d, get_activation, get_conv3d_n_chunks
+
 import mindspore as ms
 from mindspore import mint, nn
 
-from opensora.models.vae.utils import get_activation, ChannelChunkConv3d, get_conv3d_n_chunks
 from mindone.diffusers.models.attention_processor import Attention
 from mindone.diffusers.utils import logging
 
@@ -20,7 +21,9 @@ def chunk_nearest_interpolate(
     limit = INTERPOLATE_NUMEL_LIMIT // np.prod(scale_factor)
     n_chunks = get_conv3d_n_chunks(x.numel(), x.shape[1], limit)
     x_chunks = x.chunk(n_chunks, dim=1)
-    x_chunks = [mint.nn.functional.interpolate(x_chunk, scale_factor=scale_factor, mode="nearest") for x_chunk in x_chunks]
+    x_chunks = [
+        mint.nn.functional.interpolate(x_chunk, scale_factor=scale_factor, mode="nearest") for x_chunk in x_chunks
+    ]
     return mint.cat(x_chunks, dim=1)
 
 
@@ -31,8 +34,62 @@ def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: in
         i_frame = i // n_hw
         mask[i, : (i_frame + 1) * n_hw] = 0
     if batch_size is not None:
-        mask = mask.unsqueeze(0).expand(batch_size, -1, -1)
+        mask = mask.unsqueeze(0).expand((batch_size, -1, -1))
     return mask
+
+
+class MSReplicationPad5D(nn.Cell):
+    def __init__(self, padding):
+        super().__init__()
+        self.padding = padding
+
+    def construct(self, input_tensor):
+        """
+        Pads the last three dimensions of a 5D tensor using replicate padding.
+        self.padding (Tuple[int, int, int, int, int, int]): The padding size in the form (pad_left, pad_right, pad_up, pad_down, pad_front, pad_back).
+
+        Args:
+            input_tensor (Tensor): The input tensor of shape (N, C, D, H, W).
+
+        Returns:
+            Tensor: The padded tensor.
+        """
+        pad_left, pad_right, pad_up, pad_down, pad_front, pad_back = self.padding
+
+        # Pad width (W)
+        if pad_left > 0:
+            left_pad = mint.repeat_interleave(input_tensor[:, :, :, :, :1], repeats=pad_left, dim=4)
+            padded_width = mint.cat((left_pad, input_tensor), dim=4)
+        else:
+            padded_width = input_tensor
+
+        if pad_right > 0:
+            right_pad = mint.repeat_interleave(input_tensor[:, :, :, :, -1:], repeats=pad_right, dim=4)
+            padded_width = mint.cat((padded_width, right_pad), dim=4)
+
+        # Pad height (H)
+        if pad_up > 0:
+            up_pad = mint.repeat_interleave(padded_width[:, :, :, :1, :], repeats=pad_up, dim=3)
+            padded_height = mint.cat((up_pad, padded_width), dim=3)
+        else:
+            padded_height = padded_width
+
+        if pad_down > 0:
+            down_pad = mint.repeat_interleave(padded_width[:, :, :, -1:, :], repeats=pad_down, dim=3)
+            padded_height = mint.cat((padded_height, down_pad), dim=3)
+
+        # Pad depth (D)
+        if pad_front > 0:
+            front_pad = mint.repeat_interleave(padded_height[:, :, :1, :, :], repeats=pad_front, dim=2)
+            padded_depth = mint.cat((front_pad, padded_height), dim=2)
+        else:
+            padded_depth = padded_height
+
+        if pad_back > 0:
+            back_pad = mint.repeat_interleave(padded_height[:, :, -1:, :, :], repeats=pad_back, dim=2)
+            padded_depth = mint.cat((padded_depth, back_pad), dim=2)
+
+        return padded_depth
 
 
 class CausalConv3d(nn.Cell):
@@ -65,10 +122,13 @@ class CausalConv3d(nn.Cell):
         self.time_causal_padding = padding
 
         self.conv = ChannelChunkConv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
+        assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
+        self.pad = MSReplicationPad5D(self.time_causal_padding)
 
     def construct(self, x):
-        x = mint.nn.functional.pad(x, self.time_causal_padding, mode=self.pad_mode)
+        x = self.pad(x)
         return self.conv(x)
+
 
 class UpsampleCausal3D(nn.Cell):
     """
@@ -86,7 +146,7 @@ class UpsampleCausal3D(nn.Cell):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
-        self.upsample_factor = upsample_factor
+        self.upsample_factor = tuple(float(uf) for uf in upsample_factor)  # upsample_factor must be float in MindSpore
         self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, bias=bias)
 
     def construct(
@@ -131,6 +191,7 @@ class UpsampleCausal3D(nn.Cell):
         hidden_states = self.conv(hidden_states)
 
         return hidden_states
+
 
 class DownsampleCausal3D(nn.Cell):
     """
