@@ -13,7 +13,6 @@ from transformers.utils.generic import ExplicitEnum, cached_property
 import mindspore as ms
 from mindspore.communication.management import get_group_size, get_rank
 
-from .debug_utils import DebugOption
 from .mindspore_adapter.utils import _is_parallel
 
 logger = logging.get_logger(__name__)
@@ -728,8 +727,8 @@ class TrainingArguments:
             "choices": ["nccl", "gloo", "mpi", "ccl", "hccl", "cncl"],
         },
     )
-    debug: Union[str, List[DebugOption]] = field(
-        default="",
+    debug: Optional[str] = field(
+        default=None,
         metadata={
             "help": (
                 "Whether or not to enable debug mode. Current options: "
@@ -1221,10 +1220,8 @@ class TrainingArguments:
         if not isinstance(self.warmup_steps, int) or self.warmup_steps < 0 or 0 < self.warmup_steps <= 1:
             raise ValueError("warmup_steps must be either 0 or > 1")
 
-        if isinstance(self.debug, str):
-            self.debug = [DebugOption(s) for s in self.debug.split()]
-        elif self.debug is None:
-            self.debug = []
+        if self.bug is not None:
+            raise NotImplementedError
 
         if self.push_to_hub_token is not None:
             raise NotImplementedError
