@@ -9,7 +9,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...loaders import LoraLoaderMixin
@@ -423,7 +423,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -467,7 +467,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
@@ -486,7 +486,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 images=image,
                 clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if ops.any(ops.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], axis=1), axis=1):
+            if mint.any(mint.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], dim=1), dim=1):
                 logger.warning(
                     "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -657,7 +657,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             image = numpy_to_ms(image)
 
         elif isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
+            image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
         return image
 
@@ -681,9 +681,9 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             dims = image[0].ndim
 
             if dims == 3:
-                image = ops.stack(image, axis=0)
+                image = mint.stack(image, dim=0)
             elif dims == 4:
-                image = ops.concat(image, axis=0)
+                image = mint.concat(image, dim=0)
             else:
                 raise ValueError(f"Image must have 3 or 4 dimensions, instead got {dims}")
 
@@ -869,7 +869,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         dtype = prompt_embeds.dtype
 
@@ -890,7 +890,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         # 6. Prepare intermediate images
         noise_timestep = timesteps[0:1]
-        noise_timestep = noise_timestep.tile((batch_size * num_images_per_prompt,))
+        noise_timestep = mint.tile(noise_timestep, (batch_size * num_images_per_prompt,))
 
         intermediate_images = self.prepare_intermediate_images(
             original_image,
@@ -906,14 +906,14 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         image = self.preprocess_image(image, num_images_per_prompt)
 
-        upscaled = ops.interpolate(image, (height, width), mode="bilinear", align_corners=True)
+        upscaled = mint.nn.functional.interpolate(image, (height, width), mode="bilinear", align_corners=True)
 
         noise_level = ms.Tensor([noise_level] * upscaled.shape[0])
         noise = randn_tensor(upscaled.shape, generator=generator, dtype=upscaled.dtype)
         upscaled = self.image_noising_scheduler.add_noise(upscaled, noise, timesteps=noise_level)
 
         if do_classifier_free_guidance:
-            noise_level = ops.cat([noise_level] * 2)
+            noise_level = mint.cat([noise_level] * 2)
 
         # 8. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -929,9 +929,9 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                model_input = ops.cat([intermediate_images, upscaled], axis=1)
+                model_input = mint.cat([intermediate_images, upscaled], dim=1)
 
-                model_input = ops.cat([model_input] * 2) if do_classifier_free_guidance else model_input
+                model_input = mint.cat([model_input] * 2) if do_classifier_free_guidance else model_input
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = model_input.dtype
@@ -950,14 +950,14 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, axis=1)
-                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, axis=1)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, _ = mint.split(noise_pred_uncond, model_input.shape[1] // 2, dim=1)
+                    noise_pred_text, predicted_variance = mint.split(noise_pred_text, model_input.shape[1] // 2, dim=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                    noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = noise_pred.split(intermediate_images.shape[1], axis=1)
+                    noise_pred, _ = mint.split(noise_pred, intermediate_images.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 # TODO: method of scheduler should not change the dtype of input.
@@ -982,8 +982,8 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         if output_type == "pil":
             # 10. Post-processing
-            image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = mint.clamp((image / 2 + 0.5), 0, 1)
+            image = mint.permute(image, (0, 2, 3, 1)).float()
 
             # 11. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
@@ -999,8 +999,8 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             watermark_detected = None
         else:
             # 10. Post-processing
-            image = (image / 2 + 0.5).clamp(0, 1)
-            image = image.permute(0, 2, 3, 1).float()
+            image = mint.clamp((image / 2 + 0.5), 0, 1)
+            image = mint.permute(image, (0, 2, 3, 1)).float()
 
             # 11. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)

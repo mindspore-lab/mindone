@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import UNet2DConditionLoadersMixin
@@ -132,13 +132,11 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
             )
 
         # input
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[0],
             kernel_size=3,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
         # time
@@ -249,15 +247,13 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # out
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-5)
-        self.conv_act = nn.SiLU()
+        self.conv_act = mint.nn.SiLU()
 
-        self.conv_out = nn.Conv2d(
+        self.conv_out = mint.nn.Conv2d(
             block_out_channels[0],
             out_channels,
             kernel_size=3,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
     @property
@@ -407,6 +403,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
@@ -419,7 +416,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         batch_size, num_frames = sample.shape[:2]
-        timesteps = timesteps.broadcast_to((batch_size,))
+        timesteps = mint.broadcast_to(timesteps, (batch_size,))
 
         t_emb = self.time_proj(timesteps)
 
@@ -430,25 +427,25 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         emb = self.time_embedding(t_emb)
 
-        time_embeds = self.add_time_proj(added_time_ids.flatten())
-        time_embeds = time_embeds.reshape((batch_size, -1))
+        time_embeds = self.add_time_proj(mint.flatten(added_time_ids))
+        time_embeds = mint.reshape(time_embeds, (batch_size, -1))
         time_embeds = time_embeds.to(emb.dtype)
         aug_emb = self.add_embedding(time_embeds)
         emb = emb + aug_emb
 
         # Flatten the batch and frames dimensions
         # sample: [batch, frames, channels, height, width] -> [batch * frames, channels, height, width]
-        sample = sample.flatten(start_dim=0, end_dim=1)
+        sample = mint.flatten(sample, start_dim=0, end_dim=1)
         # Repeat the embeddings num_video_frames times
         # emb: [batch, channels] -> [batch * frames, channels]
-        emb = emb.repeat_interleave(num_frames, dim=0)
+        emb = mint.repeat_interleave(emb, num_frames, dim=0)
         # encoder_hidden_states: [batch, 1, channels] -> [batch * frames, 1, channels]
-        encoder_hidden_states = encoder_hidden_states.repeat_interleave(num_frames, dim=0)
+        encoder_hidden_states = mint.repeat_interleave(encoder_hidden_states, num_frames, dim=0)
 
         # 2. pre-process
         sample = self.conv_in(sample)
 
-        image_only_indicator = ops.zeros((batch_size, num_frames), dtype=sample.dtype)
+        image_only_indicator = mint.zeros((batch_size, num_frames), dtype=sample.dtype)
 
         down_block_res_samples = (sample,)
         for downsample_block in self.down_blocks:
@@ -512,7 +509,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
         sample = self.conv_out(sample)
 
         # 7. Reshape back to original shape
-        sample = sample.reshape(batch_size, num_frames, *sample.shape[1:])
+        sample = mint.reshape(sample, (batch_size, num_frames, *sample.shape[1:]))
 
         if not return_dict:
             return (sample,)

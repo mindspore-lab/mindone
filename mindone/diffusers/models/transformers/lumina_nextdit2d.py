@@ -15,7 +15,7 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -61,7 +61,7 @@ class LuminaNextDiTBlock(nn.Cell):
         super().__init__()
         self.head_dim = dim // num_attention_heads
 
-        self.gate = ms.Parameter(ops.zeros([num_attention_heads]))
+        self.gate = ms.Parameter(mint.zeros([num_attention_heads]))
 
         # Self-attention
         self.attn1 = Attention(
@@ -158,15 +158,15 @@ class LuminaNextDiTBlock(nn.Cell):
         )
         cross_attn_output = cross_attn_output * self.gate.tanh().view(1, 1, -1, 1)
         mixed_attn_output = self_attn_output + cross_attn_output
-        mixed_attn_output = mixed_attn_output.flatten(start_dim=-2)
+        mixed_attn_output = mint.flatten(mixed_attn_output, start_dim=-2)
         # linear proj
         hidden_states = self.attn2.to_out[0](mixed_attn_output)
 
-        hidden_states = residual + gate_msa.unsqueeze(1).tanh() * self.norm2(hidden_states)
+        hidden_states = residual + mint.tanh(mint.unsqueeze(gate_msa, 1)) * self.norm2(hidden_states)
 
-        mlp_output = self.feed_forward(self.ffn_norm1(hidden_states) * (1 + scale_mlp.unsqueeze(1)))
+        mlp_output = self.feed_forward(self.ffn_norm1(hidden_states) * (1 + mint.unsqueeze(scale_mlp, 1)))
 
-        hidden_states = hidden_states + gate_mlp.unsqueeze(1).tanh() * self.ffn_norm2(mlp_output)
+        hidden_states = hidden_states + mint.tanh(mint.unsqueeze(gate_mlp, 1)) * self.ffn_norm2(mlp_output)
 
         return hidden_states
 
@@ -249,7 +249,7 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
             patch_size=patch_size, in_channels=in_channels, embed_dim=hidden_size, bias=True
         )
 
-        self.pad_token = ms.Parameter(ops.zeros((hidden_size,)))
+        self.pad_token = ms.Parameter(mint.zeros((hidden_size,)))
 
         self.time_caption_embed = LuminaCombinedTimestepCaptionEmbedding(
             hidden_size=min(hidden_size, 1024), cross_attention_dim=cross_attention_dim
@@ -327,7 +327,11 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states[:, :sequence_length].view(
             batch_size, height // height_tokens, width // width_tokens, height_tokens, width_tokens, self.out_channels
         )
-        output = hidden_states.permute(0, 5, 1, 3, 2, 4).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
+        output = mint.flatten(
+            mint.flatten(mint.permute(hidden_states, (0, 5, 1, 3, 2, 4)), start_dim=4, end_dim=5),
+            start_dim=2,
+            end_dim=3,
+        )
 
         if not return_dict:
             return (output,)

@@ -18,7 +18,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available, logging
@@ -110,7 +110,7 @@ def rescale_zero_terminal_snr(betas):
     """
     # Convert betas to alphas_bar_sqrt
     alphas = 1.0 - betas
-    alphas_cumprod = ops.cumprod(alphas, dim=0)
+    alphas_cumprod = mint.cumprod(alphas, dim=0)
     alphas_bar_sqrt = alphas_cumprod.sqrt()
 
     # Store old values.
@@ -126,7 +126,7 @@ def rescale_zero_terminal_snr(betas):
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
     alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = ops.cat([alphas_bar[0:1], alphas])
+    alphas = mint.cat([alphas_bar[0:1], alphas])
     betas = 1 - alphas
 
     return betas
@@ -229,7 +229,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             self.betas = rescale_zero_terminal_snr(self.betas)
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         if rescale_betas_zero_snr:
             # Close to 0 without being 0 so first sigma is not inf
@@ -249,7 +249,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         else:
             self.timesteps = timesteps
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1)])
+        self.sigmas = mint.cat([sigmas, mint.zeros(1)])
 
         self.is_scale_input_called = False
         self.use_karras_sigmas = use_karras_sigmas
@@ -262,7 +262,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
     @property
     def init_noise_sigma(self):
         # standard deviation of the initial noise distribution
-        max_sigma = max(self.sigmas) if isinstance(self.sigmas, list) else self.sigmas.max()
+        max_sigma = max(self.sigmas) if isinstance(self.sigmas, list) else mint.max(self.sigmas)
         if self.config.timestep_spacing in ["linspace", "trailing"]:
             return max_sigma
 
@@ -555,7 +555,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if (schedule_timesteps == timestep).sum() > 1:
+        if mint.sum(schedule_timesteps == timestep) > 1:
             pos = 1
         else:
             pos = 0
@@ -705,10 +705,10 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = sigmas[step_indices].flatten()
+        sigma = mint.flatten(sigmas[step_indices])
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples
@@ -728,14 +728,14 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         step_indices = [self.index_for_timestep(t, schedule_timesteps) for t in timesteps]
         alphas_cumprod = self.alphas_cumprod.to(sample.dtype)
         sqrt_alpha_prod = alphas_cumprod[step_indices] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         while len(sqrt_alpha_prod.shape) < len(sample.shape):
-            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
+            sqrt_alpha_prod = mint.unsqueeze(sqrt_alpha_prod, -1)
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[step_indices]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
-            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
+            sqrt_one_minus_alpha_prod = mint.unsqueeze(sqrt_one_minus_alpha_prod, -1)
 
         velocity = sqrt_alpha_prod * noise - sqrt_one_minus_alpha_prod * sample
         return velocity

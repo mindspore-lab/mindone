@@ -27,7 +27,7 @@ from huggingface_hub import create_repo
 from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
 
@@ -64,15 +64,15 @@ def _get_pt2ms_mappings(m):
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
-                ops.expand_dims(x, axis=-2), name=x.name
+                mint.unsqueeze(x, dim=-2), name=x.name
             )
             if "weight_norm_cell" in name:
                 ori_name = name.replace(".weight_norm_cell", "")
                 mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
-                    ops.expand_dims(x, axis=-2), name=x.name
+                    mint.expand_dims(x, dim=-2), name=x.name
                 )
                 mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
-                    ops.expand_dims(x, axis=-2), name=x.name
+                    mint.expand_dims(x, dim=-2), name=x.name
                 )
                 mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):
@@ -84,6 +84,8 @@ def _get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+        elif isinstance(cell, mint.nn.BatchNorm2d):
+            mappings[f"{name}.num_batches_tracked"] = None, lambda x: x.to(ms.float32)
     return mappings
 
 
@@ -859,7 +861,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             embedding_param_names = [
                 f"{name}.weight"
                 for name, module_type in self.cells_and_names()
-                if isinstance(module_type, nn.Embedding)
+                if isinstance(module_type, mint.nn.Embedding)
             ]
             total_parameters = [
                 parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names

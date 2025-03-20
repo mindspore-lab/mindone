@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
@@ -217,8 +217,10 @@ class UNet1DModel(ModelMixin, ConfigMixin):
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             timesteps = ms.tensor([timesteps], dtype=ms.int64)
+        # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -232,7 +234,7 @@ class UNet1DModel(ModelMixin, ConfigMixin):
             timestep_embed = self.time_mlp(timestep_embed)
         else:
             timestep_embed = timestep_embed[..., None]
-            timestep_embed = timestep_embed.tile((1, 1, sample.shape[2])).to(sample.dtype)
+            timestep_embed = mint.tile(timestep_embed, (1, 1, sample.shape[2])).to(sample.dtype)
             timestep_embed = timestep_embed.broadcast_to((sample.shape[:1] + timestep_embed.shape[1:]))
 
         # 2. down

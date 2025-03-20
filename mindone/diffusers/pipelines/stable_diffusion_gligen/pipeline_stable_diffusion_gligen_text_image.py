@@ -21,7 +21,7 @@ import PIL.Image
 from transformers import CLIPFeatureExtractor, CLIPProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...image_processor import VaeImageProcessor
@@ -413,7 +413,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
             )
 
             # Warning for safety checker operations here as it couldn't been done in construct()
-            if ops.any(has_nsfw_concept):
+            if mint.any(has_nsfw_concept):
                 logger.warning(
                     "Potential NSFW content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -534,7 +534,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         Create an inpainting mask based on given boxes. This function generates an inpainting mask using the provided
         boxes to mark regions that need to be inpainted.
         """
-        inpaint_mask = ops.ones((size[0], size[1]))
+        inpaint_mask = mint.ones((size[0], size[1]))
         for box in boxes:
             x0, x1 = box[0] * size[0], box[2] * size[0]
             y0, y1 = box[1] * size[1], box[3] * size[1]
@@ -566,7 +566,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         Based on the input mask corresponding value `0 or 1` for each phrases and image, mask the features
         corresponding to phrases and images.
         """
-        mask = ops.ones((1, max_objs)).to(self.text_encoder.dtype)
+        mask = mint.ones((1, max_objs)).to(self.text_encoder.dtype)
         if has_mask is None:
             return mask
 
@@ -592,9 +592,9 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
 
             outputs = self.image_encoder(**inputs)
             feature = outputs[0]
-            feature = self.image_project(feature).squeeze(0)
+            feature = mint.squeeze(self.image_project(feature), 0)
             feature = (feature / feature.norm()) * normalize_constant
-            feature = feature.unsqueeze(0)
+            feature = mint.unsqueeze(feature, 0)
         else:
             if input is None:
                 return None
@@ -625,12 +625,12 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         images = [None] * len(phrases) if images is None else images
         phrases = [None] * len(images) if phrases is None else phrases
 
-        boxes = ops.zeros((max_objs, 4), dtype=self.text_encoder.dtype)
-        masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)
-        phrases_masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)
-        image_masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)
-        phrases_embeddings = ops.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
-        image_embeddings = ops.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
+        boxes = mint.zeros((max_objs, 4), dtype=self.text_encoder.dtype)
+        masks = mint.zeros((max_objs,), dtype=self.text_encoder.dtype)
+        phrases_masks = mint.zeros((max_objs,), dtype=self.text_encoder.dtype)
+        image_masks = mint.zeros((max_objs,), dtype=self.text_encoder.dtype)
+        phrases_embeddings = mint.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
+        image_embeddings = mint.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
 
         text_features = []
         image_features = []
@@ -649,13 +649,13 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                 image_masks[idx] = 1
 
         input_phrases_mask = self.complete_mask(input_phrases_mask, max_objs)
-        phrases_masks = phrases_masks.unsqueeze(0).tile((repeat_batch, 1)) * input_phrases_mask
+        phrases_masks = mint.tile(mint.unsqueeze(phrases_masks, 0), (repeat_batch, 1)) * input_phrases_mask
         input_images_mask = self.complete_mask(input_images_mask, max_objs)
-        image_masks = image_masks.unsqueeze(0).tile((repeat_batch, 1)) * input_images_mask
-        boxes = boxes.unsqueeze(0).tile((repeat_batch, 1, 1))
-        masks = masks.unsqueeze(0).tile((repeat_batch, 1))
-        phrases_embeddings = phrases_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1))
-        image_embeddings = image_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1))
+        image_masks = mint.tile(mint.unsqueeze(image_masks, 0), (repeat_batch, 1)) * input_images_mask
+        boxes = mint.tile(mint.unsqueeze(boxes, 0), (repeat_batch, 1, 1))
+        masks = mint.tile(mint.unsqueeze(masks, 0), (repeat_batch, 1))
+        phrases_embeddings = mint.tile(mint.unsqueeze(phrases_embeddings, 0), (repeat_batch, 1, 1))
+        image_embeddings = mint.tile(mint.unsqueeze(image_embeddings, 0), (repeat_batch, 1, 1))
 
         out = {
             "boxes": boxes,
@@ -673,20 +673,20 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         Prepare the cross-attention kwargs without information about the grounded input (boxes, mask, image embedding,
         phrases embedding) (All are zero tensor).
         """
-        boxes = ops.zeros((max_objs, 4), dtype=self.text_encoder.dtype)
-        masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)
-        phrases_masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)
-        image_masks = ops.zeros((max_objs,), dtype=self.text_encoder.dtype)
-        phrases_embeddings = ops.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
-        image_embeddings = ops.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
+        boxes = mint.zeros((max_objs, 4), dtype=self.text_encoder.dtype)
+        masks = mint.zeros((max_objs,), dtype=self.text_encoder.dtype)
+        phrases_masks = mint.zeros((max_objs,), dtype=self.text_encoder.dtype)
+        image_masks = mint.zeros((max_objs,), dtype=self.text_encoder.dtype)
+        phrases_embeddings = mint.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
+        image_embeddings = mint.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
 
         out = {
-            "boxes": boxes.unsqueeze(0).tile((repeat_batch, 1, 1)),
-            "masks": masks.unsqueeze(0).tile((repeat_batch, 1)),
-            "phrases_masks": phrases_masks.unsqueeze(0).tile((repeat_batch, 1)),
-            "image_masks": image_masks.unsqueeze(0).tile((repeat_batch, 1)),
-            "phrases_embeddings": phrases_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1)),
-            "image_embeddings": image_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1)),
+            "boxes": mint.tile(mint.unsqueeze(boxes, 0), (repeat_batch, 1, 1)),
+            "masks": mint.tile(mint.unsqueeze(masks, 0), (repeat_batch, 1)),
+            "phrases_masks": mint.tile(mint.unsqueeze(phrases_masks, 0), (repeat_batch, 1)),
+            "image_masks": mint.tile(mint.unsqueeze(image_masks, 0), (repeat_batch, 1)),
+            "phrases_embeddings": mint.tile(mint.unsqueeze(phrases_embeddings, 0), (repeat_batch, 1, 1)),
+            "image_embeddings": mint.tile(mint.unsqueeze(image_embeddings, 0), (repeat_batch, 1, 1)),
         }
 
         return out
@@ -848,7 +848,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
@@ -926,8 +926,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
             gligen_inpaint_mask = self.draw_inpaint_mask_from_boxes(gligen_boxes, gligen_inpaint_latent.shape[2:])
             gligen_inpaint_mask = gligen_inpaint_mask.to(dtype=gligen_inpaint_latent.dtype)
             gligen_inpaint_mask = gligen_inpaint_mask[None, None]
-            gligen_inpaint_mask_addition = ops.cat(
-                (gligen_inpaint_latent * gligen_inpaint_mask, gligen_inpaint_mask), axis=1
+            gligen_inpaint_mask_addition = mint.cat(
+                (gligen_inpaint_latent * gligen_inpaint_mask, gligen_inpaint_mask), dim=1
             )
             # Convert a single mask into a batch of masks with a batch size of 1
             gligen_inpaint_mask_addition = gligen_inpaint_mask_addition.broadcast_to((repeat_batch, -1, -1, -1)).copy()
@@ -951,13 +951,13 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
             for i, t in enumerate(timesteps):
                 if latents.shape[1] != 4:
                     # mindspore.ops.randn_like(x) returns tensor with dtype float32, instead of x.dtype as torch does
-                    latents = ops.randn_like(latents[:, :4], dtype=latents.dtype)
+                    latents = mint.randn_like(latents[:, :4], dtype=latents.dtype)
 
                 if gligen_inpaint_image is not None:
                     gligen_inpaint_latent_with_noise = (
                         self.scheduler.add_noise(
                             gligen_inpaint_latent,
-                            ops.randn_like(gligen_inpaint_latent, dtype=gligen_inpaint_latent.dtype),
+                            mint.randn_like(gligen_inpaint_latent, dtype=gligen_inpaint_latent.dtype),
                             t[None],
                         )
                         .broadcast_to((latents.shape[0], -1, -1, -1))
@@ -968,7 +968,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                     )
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = latent_model_input.dtype
@@ -976,7 +976,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                 latent_model_input = latent_model_input.to(tmp_dtype)
 
                 if gligen_inpaint_image is not None:
-                    latent_model_input = ops.cat((latent_model_input, gligen_inpaint_mask_addition), axis=1)
+                    latent_model_input = mint.cat((latent_model_input, gligen_inpaint_mask_addition), dim=1)
 
                 # predict the noise residual with grounded information
                 noise_pred_with_grounding = self.unet(
@@ -997,8 +997,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                 # perform guidance
                 if do_classifier_free_guidance:
                     # Using noise_pred_text from noise residual with grounded information and noise_pred_uncond from noise residual without grounded information
-                    _, noise_pred_text = noise_pred_with_grounding.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_without_grounding.chunk(2)
+                    _, noise_pred_text = mint.chunk(noise_pred_with_grounding, 2)
+                    noise_pred_uncond, _ = mint.chunk(noise_pred_without_grounding, 2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 else:
                     noise_pred = noise_pred_with_grounding

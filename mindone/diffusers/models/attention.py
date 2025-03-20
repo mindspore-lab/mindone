@@ -14,7 +14,7 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ..utils import logging
 from .activations import GEGLU, GELU, ApproximateGELU, FP32SiLU, LinearActivation, SwiGLU
@@ -40,9 +40,9 @@ def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int,
         )
 
     num_chunks = hidden_states.shape[chunk_dim] // chunk_size
-    ff_output = ops.cat(
-        [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, axis=chunk_dim)],
-        axis=chunk_dim,
+    ff_output = mint.cat(
+        [ff(hid_slice) for hid_slice in mint.chunk(hidden_states, num_chunks, dim=chunk_dim)],
+        dim=chunk_dim,
     )
     return ff_output
 
@@ -62,7 +62,7 @@ class GatedSelfAttentionDense(nn.Cell):
         super().__init__()
 
         # we need a linear projection since we need cat visual feature and obj feature
-        self.linear = nn.Dense(context_dim, query_dim)
+        self.linear = mint.nn.Linear(context_dim, query_dim)
 
         self.attn = Attention(query_dim=query_dim, heads=n_heads, dim_head=d_head)
         self.ff = FeedForward(query_dim, activation_fn="geglu")
@@ -82,8 +82,8 @@ class GatedSelfAttentionDense(nn.Cell):
         n_visual = x.shape[1]
         objs = self.linear(objs)
 
-        x = x + self.alpha_attn.tanh() * self.attn(self.norm1(ops.cat([x, objs], axis=1)))[:, :n_visual, :]
-        x = x + self.alpha_dense.tanh() * self.ff(self.norm2(x))
+        x = x + mint.tanh(self.alpha_attn) * self.attn(self.norm1(mint.cat([x, objs], dim=1)))[:, :n_visual, :]
+        x = x + mint.tanh(self.alpha_dense) * self.ff(self.norm2(x))
 
         return x
 
@@ -215,7 +215,7 @@ class JointTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        attn_output = gate_msa.unsqueeze(1) * attn_output
+        attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
         hidden_states = hidden_states + attn_output
 
         if self.use_dual_attention:
@@ -230,7 +230,7 @@ class JointTransformerBlock(nn.Cell):
             ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
         else:
             ff_output = self.ff(norm_hidden_states)
-        ff_output = gate_mlp.unsqueeze(1) * ff_output
+        ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
 
         hidden_states = hidden_states + ff_output
 
@@ -238,7 +238,7 @@ class JointTransformerBlock(nn.Cell):
         if self.context_pre_only:
             encoder_hidden_states = None
         else:
-            context_attn_output = c_gate_msa.unsqueeze(1) * context_attn_output
+            context_attn_output = mint.unsqueeze(c_gate_msa, 1) * context_attn_output
             encoder_hidden_states = encoder_hidden_states + context_attn_output
 
             norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
@@ -250,7 +250,7 @@ class JointTransformerBlock(nn.Cell):
                 )
             else:
                 context_ff_output = self.ff_context(norm_encoder_hidden_states)
-            encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
+            encoder_hidden_states = encoder_hidden_states + mint.unsqueeze(c_gate_mlp, 1) * context_ff_output
 
         return encoder_hidden_states, hidden_states
 
@@ -452,7 +452,7 @@ class BasicTransformerBlock(nn.Cell):
 
         # 5. Scale-shift for PixArt-Alpha.
         if norm_type == "ada_norm_single":
-            self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+            self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
         # let chunk size default to None
         self._chunk_size = None
@@ -491,9 +491,9 @@ class BasicTransformerBlock(nn.Cell):
         elif self.norm_type == "ada_norm_continuous":
             norm_hidden_states = self.norm1(hidden_states, added_cond_kwargs["pooled_text_emb"])
         elif self.norm_type == "ada_norm_single":
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-            ).chunk(6, axis=1)
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+                (self.scale_shift_table[None] + mint.reshape(timestep, (batch_size, 6, -1))), 6, dim=1
+            )
             norm_hidden_states = self.norm1(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
         else:
@@ -524,13 +524,13 @@ class BasicTransformerBlock(nn.Cell):
         )
 
         if self.norm_type == "ada_norm_zero":
-            attn_output = gate_msa.unsqueeze(1) * attn_output
+            attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
         elif self.norm_type == "ada_norm_single":
             attn_output = gate_msa * attn_output
 
         hidden_states = attn_output + hidden_states
         if hidden_states.ndim == 4 and hidden_states.shape[1] == 1:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         # 1.2 GLIGEN Control
         if gligen_kwargs is not None:
@@ -583,13 +583,13 @@ class BasicTransformerBlock(nn.Cell):
             ff_output = self.ff(norm_hidden_states)
 
         if self.norm_type == "ada_norm_zero":
-            ff_output = gate_mlp.unsqueeze(1) * ff_output
+            ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
         elif self.norm_type == "ada_norm_single":
             ff_output = gate_mlp * ff_output
 
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4 and hidden_states.shape[1] == 1:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         return hidden_states
 
@@ -623,20 +623,20 @@ class LuminaFeedForward(nn.Cell):
             inner_dim = int(ffn_dim_multiplier * inner_dim)
         inner_dim = multiple_of * ((inner_dim + multiple_of - 1) // multiple_of)
 
-        self.linear_1 = nn.Dense(
+        self.linear_1 = mint.nn.Linear(
             dim,
             inner_dim,
-            has_bias=False,
+            bias=False,
         )
-        self.linear_2 = nn.Dense(
+        self.linear_2 = mint.nn.Linear(
             inner_dim,
             dim,
-            has_bias=False,
+            bias=False,
         )
-        self.linear_3 = nn.Dense(
+        self.linear_3 = mint.nn.Linear(
             dim,
             inner_dim,
-            has_bias=False,
+            bias=False,
         )
         self.silu = FP32SiLU()
 
@@ -728,9 +728,9 @@ class TemporalBasicTransformerBlock(nn.Cell):
         batch_frames, seq_length, channels = hidden_states.shape
         batch_size = batch_frames // num_frames
 
-        hidden_states = hidden_states[None, :].reshape(batch_size, num_frames, seq_length, channels)
-        hidden_states = hidden_states.permute(0, 2, 1, 3)
-        hidden_states = hidden_states.reshape(batch_size * seq_length, num_frames, channels)
+        hidden_states = mint.reshape(hidden_states[None, :], (batch_size, num_frames, seq_length, channels))
+        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3))
+        hidden_states = mint.reshape(hidden_states, (batch_size * seq_length, num_frames, channels))
 
         residual = hidden_states
         hidden_states = self.norm_in(hidden_states)
@@ -766,9 +766,9 @@ class TemporalBasicTransformerBlock(nn.Cell):
         else:
             hidden_states = ff_output
 
-        hidden_states = hidden_states[None, :].reshape(batch_size, seq_length, num_frames, channels)
-        hidden_states = hidden_states.permute(0, 2, 1, 3)
-        hidden_states = hidden_states.reshape(batch_size * num_frames, seq_length, channels)
+        hidden_states = mint.reshape(hidden_states[None, :], (batch_size, seq_length, num_frames, channels))
+        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3))
+        hidden_states = mint.reshape(hidden_states, (batch_size * num_frames, seq_length, channels))
 
         return hidden_states
 
@@ -788,7 +788,7 @@ class SkipFFTransformerBlock(nn.Cell):
     ):
         super().__init__()
         if kv_input_dim != dim:
-            self.kv_mapper = nn.Dense(kv_input_dim, dim, has_bias=kv_input_dim_proj_use_bias)
+            self.kv_mapper = mint.nn.Linear(kv_input_dim, dim, bias=kv_input_dim_proj_use_bias)
         else:
             self.kv_mapper = None
 
@@ -827,7 +827,7 @@ class SkipFFTransformerBlock(nn.Cell):
             cross_attention_kwargs = {}
 
         if self.kv_mapper is not None:
-            encoder_hidden_states = self.kv_mapper(ops.silu(encoder_hidden_states))
+            encoder_hidden_states = self.kv_mapper(mint.nn.functional.silu(encoder_hidden_states))
 
         norm_hidden_states = self.norm1(hidden_states)
 
@@ -1121,14 +1121,14 @@ class FreeNoiseTransformerBlock(nn.Cell):
             last_frame_batch_length = num_frames - frame_indices[-1][1]
             frame_indices.append((num_frames - self.context_length, num_frames))
 
-        num_times_accumulated = ops.zeros((1, num_frames, 1))
-        accumulated_values = ops.zeros_like(hidden_states)
+        num_times_accumulated = mint.zeros((1, num_frames, 1))
+        accumulated_values = mint.zeros_like(hidden_states)
 
         for i, (frame_start, frame_end) in enumerate(frame_indices):
             # The reason for slicing here is to ensure that if (frame_end - frame_start) is to handle
             # cases like frame_indices=[(0, 16), (16, 20)], if the user provided a video with 19 frames, or
             # essentially a non-multiple of `context_length`.
-            weights = ops.ones_like(num_times_accumulated[:, frame_start:frame_end])
+            weights = mint.ones_like(num_times_accumulated[:, frame_start:frame_end])
             weights *= frame_weights
 
             hidden_states_chunk = hidden_states[:, frame_start:frame_end]
@@ -1186,15 +1186,15 @@ class FreeNoiseTransformerBlock(nn.Cell):
         # spikes. It is particularly noticeable when the number of frames is high. My understanding is that this comes
         # from tensors being copied - which is why we resort to spliting and concatenating here. I've not particularly
         # looked into this deeply because other memory optimizations led to more pronounced reductions.
-        hidden_states = ops.cat(
+        hidden_states = mint.cat(
             [
-                ops.where(num_times_split > 0, accumulated_split / num_times_split, accumulated_split)
+                mint.where(num_times_split > 0, accumulated_split / num_times_split, accumulated_split)
                 for accumulated_split, num_times_split in zip(
-                    accumulated_values.split(self.context_length, axis=1),
-                    num_times_accumulated.split(self.context_length, axis=1),
+                    mint.split(accumulated_values, self.context_length, dim=1),
+                    mint.split(num_times_accumulated, self.context_length, dim=1),
                 )
             ],
-            axis=1,
+            dim=1,
         ).to(dtype)
 
         # 3. Feed-forward
@@ -1259,12 +1259,12 @@ class FeedForward(nn.Cell):
         # project in
         net.append(act_fn)
         # project dropout
-        net.append(nn.Dropout(p=dropout))
+        net.append(mint.nn.Dropout(p=dropout))
         # project out
-        net.append(nn.Dense(inner_dim, dim_out, has_bias=bias))
+        net.append(mint.nn.Linear(inner_dim, dim_out, bias=bias))
         # FF as used in Vision Transformer, MLP-Mixer, etc. have a final dropout
         if final_dropout:
-            net.append(nn.Dropout(p=dropout))
+            net.append(mint.nn.Dropout(p=dropout))
         self.net = nn.CellList(net)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:

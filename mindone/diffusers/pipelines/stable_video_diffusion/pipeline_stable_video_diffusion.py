@@ -21,7 +21,8 @@ import PIL.Image
 from transformers import CLIPImageProcessor
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
+from mindspore.common.api import _pynative_executor
 
 from mindone.transformers import CLIPVisionModelWithProjection
 
@@ -206,7 +207,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
 
         image = ms.tensor(image).to(dtype=dtype)
         image_embeddings = self.image_encoder(image)[0]
-        image_embeddings = image_embeddings.unsqueeze(1)
+        image_embeddings = mint.unsqueeze(image_embeddings, 1)
 
         # duplicate image embeddings for each generation per prompt, using mps friendly method
         bs_embed, seq_len, _ = image_embeddings.shape
@@ -214,12 +215,12 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         image_embeddings = image_embeddings.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
-            negative_image_embeddings = ops.zeros_like(image_embeddings)
+            negative_image_embeddings = mint.zeros_like(image_embeddings)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            image_embeddings = ops.cat([negative_image_embeddings, image_embeddings])
+            image_embeddings = mint.cat([negative_image_embeddings, image_embeddings])
 
         return image_embeddings
 
@@ -235,12 +236,12 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         image_latents = image_latents.tile((num_videos_per_prompt, 1, 1, 1))
 
         if do_classifier_free_guidance:
-            negative_image_latents = ops.zeros_like(image_latents)
+            negative_image_latents = mint.zeros_like(image_latents)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            image_latents = ops.cat([negative_image_latents, image_latents])
+            image_latents = mint.cat([negative_image_latents, image_latents])
 
         return image_latents
 
@@ -257,7 +258,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         add_time_ids = [fps, motion_bucket_id, noise_aug_strength]
 
         passed_add_embed_dim = self.unet.config.addition_time_embed_dim * len(add_time_ids)
-        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_channels
+        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_features
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
@@ -270,13 +271,13 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         add_time_ids = add_time_ids.tile((batch_size * num_videos_per_prompt, 1))
 
         if do_classifier_free_guidance:
-            add_time_ids = ops.cat([add_time_ids, add_time_ids])
+            add_time_ids = mint.cat([add_time_ids, add_time_ids])
 
         return add_time_ids
 
     def decode_latents(self, latents: ms.Tensor, num_frames: int, decode_chunk_size: int = 14):
         # [batch, frames, channels, height, width] -> [batch*frames, channels, height, width]
-        latents = latents.flatten(start_dim=0, end_dim=1)
+        latents = mint.flatten(latents, start_dim=0, end_dim=1)
 
         latents = 1 / self.vae.config.scaling_factor * latents
 
@@ -294,10 +295,10 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
 
             frame = self.vae.decode(latents[i : i + decode_chunk_size], **decode_kwargs)[0]
             frames.append(frame)
-        frames = ops.cat(frames, axis=0)
+        frames = mint.cat(frames, dim=0)
 
         # [batch*frames, channels, height, width] -> [batch, channels, frames, height, width]
-        frames = frames.reshape(-1, num_frames, *frames.shape[1:]).permute((0, 2, 1, 3, 4))
+        frames = mint.permute(mint.reshape(frames, (-1, num_frames, *frames.shape[1:])), (0, 2, 1, 3, 4))
 
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         frames = frames.float()
@@ -355,7 +356,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
     def do_classifier_free_guidance(self):
         if isinstance(self.guidance_scale, (int, float)):
             return self.guidance_scale > 1
-        return self.guidance_scale.max() > 1
+        return mint.max(self.guidance_scale) > 1
 
     @property
     def num_timesteps(self):
@@ -495,12 +496,13 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         image_latents = image_latents.to(image_embeddings.dtype)
 
         # cast back to fp16 if needed
+        _pynative_executor.sync()
         if needs_upcasting:
             self.vae.to(dtype=ms.float16)
 
         # Repeat the image latents for each frame so we can concatenate them with the noise
         # image_latents [batch, channels, height, width] ->[batch, num_frames, channels, height, width]
-        image_latents = image_latents.unsqueeze(1).tile((1, num_frames, 1, 1, 1))
+        image_latents = mint.tile(mint.unsqueeze(image_latents, 1), (1, num_frames, 1, 1, 1))
 
         # 5. Get Added Time IDs
         added_time_ids = self._get_add_time_ids(
@@ -530,9 +532,9 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         )
 
         # 8. Prepare guidance scale
-        guidance_scale = ms.Tensor.from_numpy(
-            np.linspace(min_guidance_scale, max_guidance_scale, num_frames)
-        ).unsqueeze(0)
+        guidance_scale = mint.unsqueeze(
+            ms.Tensor.from_numpy(np.linspace(min_guidance_scale, max_guidance_scale, num_frames)), 0
+        )
         guidance_scale = guidance_scale.to(latents.dtype)
         guidance_scale = guidance_scale.tile((batch_size * num_videos_per_prompt, 1))
         guidance_scale = _append_dims(guidance_scale, latents.ndim)
@@ -545,11 +547,11 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # Concatenate image_latents over channels dimension
-                latent_model_input = ops.cat([latent_model_input, image_latents], axis=2)
+                latent_model_input = mint.cat([latent_model_input, image_latents], dim=2)
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -562,7 +564,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_cond = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_cond = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_cond - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
@@ -621,7 +623,7 @@ def _resize_with_antialiasing(input, size, interpolation="bicubic", align_corner
 
     input = _gaussian_blur2d(input, ks, sigmas)
 
-    output = ops.interpolate(input, size=size, mode=interpolation, align_corners=align_corners)
+    output = mint.nn.functional.interpolate(input, size=size, mode=interpolation, align_corners=align_corners)
     return output
 
 
@@ -658,14 +660,14 @@ def _filter2d(input, kernel):
     height, width = tmp_kernel.shape[-2:]
 
     padding_shape: List[int] = _compute_padding([height, width])
-    input = ops.pad(input, padding_shape, mode="reflect")
+    input = mint.nn.functional.pad(input, padding_shape, mode="reflect")
 
     # kernel and input tensor reshape to align element-wise or batch-wise params
-    tmp_kernel = tmp_kernel.reshape(-1, 1, height, width)
+    tmp_kernel = mint.reshape(tmp_kernel, (-1, 1, height, width))
     input = input.view(-1, tmp_kernel.shape[0], input.shape[-2], input.shape[-1])
 
     # convolve the tensor with the kernel.
-    output = ops.conv2d(input, tmp_kernel, groups=tmp_kernel.shape[0], padding=0, stride=1)
+    output = mint.nn.functional.conv2d(input, tmp_kernel, groups=tmp_kernel.shape[0], padding=0, stride=1)
 
     out = output.view(b, c, h, w)
     return out
@@ -677,14 +679,14 @@ def _gaussian(window_size: int, sigma):
 
     batch_size = sigma.shape[0]
 
-    x = (ops.arange(window_size, dtype=sigma.dtype) - window_size // 2).broadcast_to((batch_size, -1))
+    x = (mint.arange(window_size, dtype=sigma.dtype) - window_size // 2).broadcast_to((batch_size, -1))
 
     if window_size % 2 == 0:
         x = x + 0.5
 
-    gauss = ops.exp(-x.pow(2.0) / (2 * sigma.pow(2.0)))
+    gauss = mint.exp(-x.pow(2.0) / (2 * sigma.pow(2.0)))
 
-    return gauss / gauss.sum(-1, keepdims=True)
+    return gauss / mint.sum(gauss, -1, keepdim=True)
 
 
 def _gaussian_blur2d(input, kernel_size, sigma):
