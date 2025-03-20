@@ -101,7 +101,7 @@ If you want to run T2V inference using sequence parallel (Ulysses SP), please us
 
 ### Run Image-to-Video Inference
 
-Coming Soon.
+Please find more information about HunyuanVideo Image-to-Video Inference at this [url](https://github.com/mindspore-lab/mindone/tree/master/examples/hunyuanvideo-i2v).
 
 ## 🔑 Training
 
