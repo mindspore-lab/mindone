@@ -99,7 +99,7 @@ def main():
         num_shards=rank_size,
         shard_id=rank_id
     )
-    # Since each sample may contain multiple frames, we use a batch size of 1.
+
     dataset = dataset.batch(1, drop_remainder=False)
     iterator = dataset.create_dict_iterator(num_epochs=1, output_numpy=True)
 
@@ -107,11 +107,9 @@ def main():
     caption_list = []
 
     for batch in tqdm(iterator):
-        # Retrieve the single sample from the batch.
         idx = batch["index"][0]
-        images = batch["images"][0]  # This is a list of PIL images
+        images = batch["images"][0]
 
-        # Build the prompt for Llava.
         prompt = (
             "<|start_header_id|>user<|end_header_id|>\n\n"
             "<image>\n" + args.question + "<|eot_id|>"
