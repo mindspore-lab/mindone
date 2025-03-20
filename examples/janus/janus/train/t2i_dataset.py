@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any, Dict, List, Tuple
 
 import numpy as np
+from datasets import load_dataset
 from janus.models import VLChatProcessor
 from PIL import Image
 
@@ -20,18 +21,28 @@ class TextImageDataset:
         self,
         csv_path: str,
         data_dir: str,
+        parquet_dir: str,
         vl_chat_processor: VLChatProcessor,
         max_token_length: int = 1024,
         image_size: int = 384,
         null_prompt_prob: float = 0.0,
         num_samples: int = -1,
     ) -> None:
-        logger.info(f"loading annotations from `{csv_path}`.")
-        with open(csv_path, "r") as csvfile:
-            self.dataset = list(csv.DictReader(csvfile))
-        if num_samples > 0:
-            logger.info(f"sequential slice dataset samples to {num_samples}")
-            self.dataset = self.dataset[:num_samples]
+        if parquet_dir is None:
+            self.parquet = False
+            logger.info(f"loading annotations from `{csv_path}`.")
+            with open(csv_path, "r") as csvfile:
+                self.dataset = list(csv.DictReader(csvfile))
+            if num_samples > 0:
+                logger.info(f"sequential slice dataset samples to {num_samples}")
+                self.dataset = self.dataset[:num_samples]
+        else:
+            self.parquet = True
+            logger.info(f"loading annotations from `{parquet_dir}`.")
+            self.dataset = load_dataset(parquet_dir, split="test")
+            if num_samples > 0:
+                logger.info(f"sequential slice dataset samples to {num_samples}")
+                self.dataset = self.dataset.select(range(num_samples))
 
         self.length = len(self.dataset)
 
@@ -43,12 +54,13 @@ class TextImageDataset:
         self.transform = self.create_transform(image_size, self.interpolation_mode)
         self.max_token_length = max_token_length
         if image_size != 384:
-            logger.warning(f"JanusPro should be trained using fixed image size of 384, but get {image_size}")
+            logger.warning(
+                f"JanusPro should be trained using fixed image size of 384, but get {image_size}"
+            )
 
-        assert (
-            image_size / 16
-        ) ** 2 == self.vl_chat_processor.num_image_tokens, (
-            "(image_size / vq_downsample_rate)^2 should be equal to number of image tokens set in vl chat processor"
+        assert (image_size / 16) ** 2 == self.vl_chat_processor.num_image_tokens, (
+            "(image_size / vq_downsample_rate)^2 "
+            + " should be equal to number of image tokens set in vl chat processor"
         )
 
     def __len__(self) -> int:
@@ -56,18 +68,29 @@ class TextImageDataset:
 
     def __getitem__(self, idx: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         record = self.dataset[idx]
-        image_path = os.path.join(self.data_dir, record["image_path"])
+        if self.parquet:
+            image = record["image"].convert("RGB")
+        else:
+            image_path = os.path.join(self.data_dir, record["image_path"])
+            image = Image.open(image_path).convert("RGB")
 
         if random.random() < self.null_prompt_prob:
             caption = ""
         else:
-            caption = record["text_en"]
+            if self.parquet:
+                caption = record["caption"]
+            else:
+                caption = record["text_en"]
 
         # process text
-        input_ids, labels, attention_mask, image_seq_mask = self.prepare_sft_inputs_and_label(caption)
+        (
+            input_ids,
+            labels,
+            attention_mask,
+            image_seq_mask,
+        ) = self.prepare_sft_inputs_and_label(caption)
 
         # process image
-        image = Image.open(image_path).convert("RGB")
         image = self.transform(image)[0]
         image = image[None, ...]  # add temporal axis
 
@@ -82,7 +105,9 @@ class TextImageDataset:
                 vision.Resize(image_size, interpolation=interpolation),
                 vision.CenterCrop(image_size),
                 vision.ToTensor(),
-                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
+                vision.Normalize(
+                    mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False
+                ),
             ]
         )
 
@@ -103,7 +128,12 @@ class TextImageDataset:
 
         # TODO: add eos tag?
         vlcp = self.vl_chat_processor
-        prompt = sft_format + vlcp.image_start_tag + (vlcp.image_tag * vlcp.num_image_tokens) + vlcp.image_end_tag
+        prompt = (
+            sft_format
+            + vlcp.image_start_tag
+            + (vlcp.image_tag * vlcp.num_image_tokens)
+            + vlcp.image_end_tag
+        )
         # add image placeholder tokens and padding to max length
         # left padding (default), same as inference. eos will be added
         input_ids = vlcp.tokenizer.encode(
@@ -118,9 +148,7 @@ class TextImageDataset:
 
         assert (
             input_ids == vlcp.image_id
-        ).sum() == vlcp.num_image_tokens, (
-            "text + image tokens exceeds max token length, please adjust max_length or num image token"
-        )
+        ).sum() == vlcp.num_image_tokens, "text + image tokens exceeds max token length, please adjust max_length or num image token"
 
         attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool_)
         attention_mask[input_ids == vlcp.pad_id] = 0
@@ -129,7 +157,9 @@ class TextImageDataset:
         image_seq_mask[input_ids == vlcp.image_id] = 1
 
         # label, only train on vision seq
-        ignore_index = -100  # TODO: read from config? but CE Loss didn't accept setting ignore_index
+        ignore_index = (
+            -100
+        )  # TODO: read from config? but CE Loss didn't accept setting ignore_index
         labels = deepcopy(input_ids)
         labels = np.where(
             (input_ids == vlcp.image_id),
@@ -140,12 +170,16 @@ class TextImageDataset:
         return input_ids, labels, attention_mask, image_seq_mask
 
 
-def _filter_extreme_ratio(dataset: List[Dict[str, Any]], ratio: float = 4.5) -> List[Dict[str, Any]]:
+def _filter_extreme_ratio(
+    dataset: List[Dict[str, Any]], ratio: float = 4.5
+) -> List[Dict[str, Any]]:
     new_dataset = []
     for record in dataset:
         record_ratio = record.get("ratio", None)
         if record_ratio is None:
-            raise ValueError("`ratio` must be provided in dataset column to enable filtering.")
+            raise ValueError(
+                "`ratio` must be provided in dataset column to enable filtering."
+            )
         if abs(record_ratio) > ratio:
             path = record["path"]
             logger.warning(
@@ -182,7 +216,14 @@ def create_dataloader_t2i(
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=["task_type", "input_ids", "labels", "attention_mask", "image_seq_mask", "image"],
+        column_names=[
+            "task_type",
+            "input_ids",
+            "labels",
+            "attention_mask",
+            "image_seq_mask",
+            "image",
+        ],
         shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,
