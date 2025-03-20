@@ -2,7 +2,7 @@ import math
 import numbers
 
 import numpy as np
-from OmniGen.transformer import Phi3Transformer
+from omnigen.transformer import Phi3Transformer
 
 import mindspore as ms
 from mindspore import Parameter, nn, ops
@@ -294,22 +294,22 @@ class OmniGen(nn.Cell, PeftAdapterMixin):
         return latents, num_tokens, shapes
 
     def construct(
-        self,
-        x,
-        timestep,
-        input_ids,
-        input_img_latents,
-        input_image_sizes,
-        attention_mask,
+        self, 
+        x, 
+        timestep, 
+        input_ids, 
+        attention_mask, 
         position_ids,
-        padding_latent=None,
+        input_img_latents = [],
+        input_image_sizes = {},
+        padding_latents = [None],
         past_key_values=None,
-        return_past_key_values=True,
+        return_past_key_values=False
     ):
         """Forward pass of the model"""
         input_is_list = isinstance(x, (list, tuple))
 
-        x, num_tokens, shapes = self.patch_multiple_resolutions(x, padding_latent)
+        x, num_tokens, shapes = self.patch_multiple_resolutions(x, padding_latents)
         time_token = self.time_token(timestep, dtype=x[0].dtype).unsqueeze(1)
         # if input_img_latents is not None:
         input_latents, _, _ = self.patch_multiple_resolutions(input_img_latents, is_input_images=True)

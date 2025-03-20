@@ -1,7 +1,7 @@
 from typing import List, Union
 
 import numpy as np
-from OmniGen import OmniGen, OmniGenProcessor, OmniGenScheduler
+from omnigen import OmniGen, OmniGenProcessor, OmniGenScheduler
 from PIL import Image
 from transformers.models.phi3.configuration_phi3 import Phi3Config
 
@@ -12,7 +12,7 @@ from mindone.diffusers import AutoencoderKL
 from mindone.diffusers._peft import PeftModel
 from mindone.transformers.models.phi3.modeling_phi3 import Phi3LongRoPEScaledRotaryEmbedding
 from mindone.utils.amp import auto_mixed_precision
-
+from mindspore.nn.utils import no_init_parameters
 from .utils import load_ckpt_params
 
 EXAMPLE_DOC_STRING = """
@@ -47,18 +47,17 @@ class OmniGenPipeline:
     @classmethod
     def from_pretrained(cls, model_name, vae_path: str = None):
         config = Phi3Config.from_pretrained(model_name)
-        # print(config)
-
-        model = OmniGen(config)
+        with no_init_parameters():
+            model = OmniGen(config)
         load_ckpt_params(model, "models/omnigen.ckpt")
         model = auto_mixed_precision(
             model, amp_level="O2", dtype=ms.bfloat16, custom_fp32_cells=[Phi3LongRoPEScaledRotaryEmbedding]
         )
 
+        # Load processor
         processor = OmniGenProcessor.from_pretrained(model_name)
 
         # Load VAE
-
         vae = AutoencoderKL.from_pretrained(
             "/home/nthai/.cache/huggingface/hub/models--Shitao--OmniGen-v1/snapshots/58e249c7c7634423c0ba41c34a774af79aa87889/vae"
         )
@@ -67,8 +66,8 @@ class OmniGenPipeline:
 
     def merge_lora(self, lora_path: str):
         model = PeftModel.from_pretrained(self.model, lora_path)
-        model.merge_and_unload()
-        self.model = model
+        model.base_model.merge_and_unload()
+        self.model = model.base_model
 
     def vae_encode(self, x, dtype):
         if self.vae.config.shift_factor is not None:

@@ -150,9 +150,9 @@ class Phi3LongRoPEScaledRotaryEmbedding(Phi3RotaryEmbedding):
             ext_factors = ms.Tensor(self.short_factor, dtype=ms.float32)
 
         inv_freq_shape = ops.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim
-        self.inv_freq = 1.0 / (ext_factors * self.base**inv_freq_shape)
+        inv_freq = 1.0 / (ext_factors * self.base**inv_freq_shape)
 
-        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
+        inv_freq_expanded = inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         # Force float32 since bfloat16 loses precision on long contexts

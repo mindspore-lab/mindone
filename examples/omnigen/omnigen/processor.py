@@ -1,7 +1,7 @@
 import re
 from typing import Dict, List
 
-from OmniGen.utils import center_crop_arr, crop_arr
+from omnigen.utils import center_crop_arr, crop_arr
 from PIL import Image
 from transformers import AutoTokenizer
 
