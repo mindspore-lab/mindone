@@ -78,5 +78,13 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.umt5 import (
+    UMT5EncoderModel,
+    UMT5ForQuestionAnswering,
+    UMT5ForSequenceClassification,
+    UMT5ForTokenClassification,
+    UMT5Model,
+    UMT5PreTrainedModel,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin
