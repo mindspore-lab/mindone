@@ -1220,7 +1220,7 @@ class TrainingArguments:
         if not isinstance(self.warmup_steps, int) or self.warmup_steps < 0 or 0 < self.warmup_steps <= 1:
             raise ValueError("warmup_steps must be either 0 or > 1")
 
-        if self.bug is not None:
+        if self.debug is not None:
             raise NotImplementedError
 
         if self.push_to_hub_token is not None:
