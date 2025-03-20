@@ -8,7 +8,7 @@ from diffusers.utils import BaseOutput
 from ml_dtypes import bfloat16
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 logger = logging.getLogger("ModelingsUnitTest")
 
@@ -117,6 +117,8 @@ def get_pt2ms_mappings(m):
                 mappings[f"{name}.running_mean"] = f"{name}.moving_mean", lambda x: x
                 mappings[f"{name}.running_var"] = f"{name}.moving_variance", lambda x: x
                 mappings[f"{name}.num_batches_tracked"] = None, lambda x: x
+        elif isinstance(cell, mint.nn.BatchNorm2d):
+            mappings[f"{name}.num_batches_tracked"] = None, lambda x: x.to(ms.float32)
     return mappings
 
 

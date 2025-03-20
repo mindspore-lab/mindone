@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import Dict, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput, logging
@@ -36,7 +36,7 @@ class Kandinsky3UNetOutput(BaseOutput):
 class Kandinsky3EncoderProj(nn.Cell):
     def __init__(self, encoder_hid_dim, cross_attention_dim):
         super().__init__()
-        self.projection_linear = nn.Dense(encoder_hid_dim, cross_attention_dim, has_bias=False)
+        self.projection_linear = mint.nn.Linear(encoder_hid_dim, cross_attention_dim, bias=False)
         self.projection_norm = LayerNorm(cross_attention_dim)
 
     def construct(self, x):
@@ -79,7 +79,7 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
             time_embedding_dim, cross_attention_dim, attention_head_dim
         )
 
-        self.conv_in = nn.Conv2d(in_channels, init_channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_in = mint.nn.Conv2d(in_channels, init_channels, kernel_size=3, padding=1)
 
         self.encoder_hid_proj = Kandinsky3EncoderProj(encoder_hid_dim, cross_attention_dim)
 
@@ -139,8 +139,8 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
         self.up_blocks = nn.CellList(self.up_blocks)
 
         self.conv_norm_out = GroupNorm(groups, init_channels)
-        self.conv_act_out = nn.SiLU()
-        self.conv_out = nn.Conv2d(init_channels, out_channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_act_out = mint.nn.SiLU()
+        self.conv_out = mint.nn.Conv2d(init_channels, out_channels, kernel_size=3, padding=1)
 
     @property
     def attn_processors(self) -> Dict[str, AttentionProcessor]:
@@ -210,8 +210,9 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
     def construct(self, sample, timestep, encoder_hidden_states=None, encoder_attention_mask=None, return_dict=False):
         if encoder_attention_mask is not None:
             encoder_attention_mask = (1 - encoder_attention_mask.to(sample.dtype)) * -10000.0
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
+            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
 
+        # todo: unavailable mint interface
         if not ops.is_tensor(timestep):
             dtype = ms.float32 if isinstance(timestep, float) else ms.int32
             timestep = ms.Tensor([timestep], dtype=dtype)
@@ -219,7 +220,7 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
             timestep = timestep[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timestep = timestep.broadcast_to((sample.shape[0],))
+        timestep = mint.broadcast_to(timestep, (sample.shape[0],))
         time_embed_input = self.time_proj(timestep).to(sample.dtype)
         time_embed = self.time_embedding(time_embed_input)
 
@@ -237,7 +238,7 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
 
         for level, up_sample in enumerate(self.up_blocks):
             if level != 0:
-                sample = ops.cat([sample, hidden_states[-level]], axis=1)
+                sample = mint.cat([sample, hidden_states[-level]], dim=1)
             sample = up_sample(sample, time_embed, encoder_hidden_states, encoder_attention_mask)
 
         sample = self.conv_norm_out(sample)
@@ -389,16 +390,17 @@ class Kandinsky3ConditionalGroupNorm(nn.Cell):
         super().__init__()
         self.norm = GroupNorm(groups, normalized_shape, affine=False)
         self.context_mlp = nn.SequentialCell(
-            nn.SiLU(), nn.Dense(context_dim, 2 * normalized_shape, weight_init="zeros", bias_init="zeros")
+            mint.nn.SiLU(),
+            mint.nn.Linear(context_dim, 2 * normalized_shape, weight_init="zeros", bias_init="zeros"),
         )
 
     def construct(self, x, context):
         context = self.context_mlp(context)
 
         for _ in range(len(x.shape[2:])):
-            context = context.unsqueeze(-1)
+            context = mint.unsqueeze(context, -1)
 
-        scale, shift = context.chunk(2, axis=1)
+        scale, shift = mint.chunk(context, 2, dim=1)
         x = self.norm(x) * (scale + 1.0) + shift
         return x
 
@@ -407,8 +409,9 @@ class Kandinsky3Block(nn.Cell):
     def __init__(self, in_channels, out_channels, time_embed_dim, kernel_size=3, norm_groups=32, up_resolution=None):
         super().__init__()
         self.group_norm = Kandinsky3ConditionalGroupNorm(norm_groups, in_channels, time_embed_dim)
-        self.activation = nn.SiLU()
+        self.activation = mint.nn.SiLU()
         if up_resolution is not None and up_resolution:
+            # todo: unavailable mint interface
             self.up_sample = nn.Conv2dTranspose(
                 in_channels, in_channels, kernel_size=2, stride=2, pad_mode="pad", has_bias=True
             )
@@ -416,14 +419,10 @@ class Kandinsky3Block(nn.Cell):
             self.up_sample = nn.Identity()
 
         padding = int(kernel_size > 1)
-        self.projection = nn.Conv2d(
-            in_channels, out_channels, kernel_size=kernel_size, pad_mode="pad", padding=padding, has_bias=True
-        )
+        self.projection = mint.nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding)
 
         if up_resolution is not None and not up_resolution:
-            self.down_sample = nn.Conv2d(
-                out_channels, out_channels, kernel_size=2, stride=2, pad_mode="pad", has_bias=True
-            )
+            self.down_sample = mint.nn.Conv2d(out_channels, out_channels, kernel_size=2, stride=2)
         else:
             self.down_sample = nn.Identity()
 
@@ -455,17 +454,15 @@ class Kandinsky3ResNetBlock(nn.Cell):
             ]
         )
         self.shortcut_up_sample = (
-            nn.Conv2dTranspose(in_channels, in_channels, kernel_size=2, stride=2, pad_mode="pad", has_bias=True)
+            mint.nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride=2)
             if True in up_resolutions
             else nn.Identity()
         )
         self.shortcut_projection = (
-            nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=True)
-            if in_channels != out_channels
-            else nn.Identity()
+            mint.nn.Conv2d(in_channels, out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
         )
         self.shortcut_down_sample = (
-            nn.Conv2d(out_channels, out_channels, kernel_size=2, stride=2, pad_mode="pad", has_bias=True)
+            mint.nn.Conv2d(out_channels, out_channels, kernel_size=2, stride=2)
             if False in up_resolutions
             else nn.Identity()
         )
@@ -497,7 +494,7 @@ class Kandinsky3AttentionPooling(nn.Cell):
         if context_mask is not None:
             context_mask = context_mask.to(dtype=context.dtype)
         context = self.attention(context.mean(axis=1, keep_dims=True), context, context_mask)
-        return x + context.squeeze(1)
+        return x + mint.squeeze(context, 1)
 
 
 class Kandinsky3AttentionBlock(nn.Cell):
@@ -515,21 +512,21 @@ class Kandinsky3AttentionBlock(nn.Cell):
         hidden_channels = expansion_ratio * num_channels
         self.out_norm = Kandinsky3ConditionalGroupNorm(norm_groups, num_channels, time_embed_dim)
         self.feed_forward = nn.SequentialCell(
-            nn.Conv2d(num_channels, hidden_channels, kernel_size=1, has_bias=False),
-            nn.SiLU(),
-            nn.Conv2d(hidden_channels, num_channels, kernel_size=1, has_bias=False),
+            mint.nn.Conv2d(num_channels, hidden_channels, kernel_size=1, bias=False),
+            mint.nn.SiLU(),
+            mint.nn.Conv2d(hidden_channels, num_channels, kernel_size=1, bias=False),
         )
 
     def construct(self, x, time_embed, context=None, context_mask=None, image_mask=None):
         height, width = x.shape[-2:]
         out = self.in_norm(x, time_embed)
-        out = out.reshape(x.shape[0], -1, height * width).permute(0, 2, 1)
+        out = mint.permute(mint.reshape(out, (x.shape[0], -1, height * width)), (0, 2, 1))
         context = context if context is not None else out
         if context_mask is not None:
             context_mask = context_mask.to(dtype=context.dtype)
 
         out = self.attention(out, context, context_mask)
-        out = out.permute(0, 2, 1).unsqueeze(-1).reshape(out.shape[0], -1, height, width)
+        out = mint.reshape(mint.unsqueeze(mint.permute(out, (0, 2, 1)), -1), (out.shape[0], -1, height, width))
         x = x + out
 
         out = self.out_norm(x, time_embed)

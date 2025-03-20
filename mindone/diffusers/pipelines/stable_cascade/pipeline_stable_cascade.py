@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -167,7 +167,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             )
             prompt_embeds = text_encoder_output[2][-1]
             if prompt_embeds_pooled is None:
-                prompt_embeds_pooled = text_encoder_output[0].unsqueeze(1)
+                prompt_embeds_pooled = mint.unsqueeze(text_encoder_output[0], 1)
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
         prompt_embeds_pooled = prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
@@ -208,13 +208,13 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             )
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[2][-1]
-            negative_prompt_embeds_pooled = negative_prompt_embeds_text_encoder_output[0].unsqueeze(1)
+            negative_prompt_embeds_pooled = mint.unsqueeze(negative_prompt_embeds_text_encoder_output[0], 1)
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = negative_prompt_embeds.shape[1]
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             seq_len = negative_prompt_embeds_pooled.shape[1]
@@ -284,7 +284,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
     def get_timestep_ratio_conditioning(self, t, alphas_cumprod):
         s = ms.tensor([0.008])
         clamp_range = [0, 1]
-        min_var = ops.cos(s / (1 + s) * math.pi * 0.5) ** 2
+        min_var = mint.cos(s / (1 + s) * math.pi * 0.5) ** 2
         var = alphas_cumprod[t]
         var = var.clamp(*clamp_range)
         ratio = (((var * min_var) ** 0.5).acos() / (math.pi * 0.5)) * (1 + s) - s
@@ -388,7 +388,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
         )
         if isinstance(image_embeddings, list):
-            image_embeddings = ops.cat(image_embeddings, axis=0)
+            image_embeddings = mint.cat(image_embeddings, dim=0)
 
         if prompt is not None and isinstance(prompt, str):
             batch_size = 1
@@ -419,12 +419,12 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
 
         # The pooled embeds from the prior are pooled again before being passed to the decoder
         prompt_embeds_pooled = (
-            ops.cat([prompt_embeds_pooled, negative_prompt_embeds_pooled])
+            mint.cat([prompt_embeds_pooled, negative_prompt_embeds_pooled])
             if self.do_classifier_free_guidance
             else prompt_embeds_pooled
         )
         effnet = (
-            ops.cat([image_embeddings, ops.zeros_like(image_embeddings)])
+            mint.cat([image_embeddings, mint.zeros_like(image_embeddings)])
             if self.do_classifier_free_guidance
             else image_embeddings
         )
@@ -447,7 +447,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
         # 6. Run denoising loop
         if hasattr(self.scheduler, "betas"):
             alphas = 1.0 - self.scheduler.betas
-            alphas_cumprod = ops.cumprod(alphas, dim=0)
+            alphas_cumprod = mint.cumprod(alphas, dim=0)
         else:
             alphas_cumprod = []
 
@@ -466,8 +466,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
 
             # 7. Denoise latents
             predicted_latents = self.decoder(
-                sample=ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
-                timestep_ratio=ops.cat([timestep_ratio] * 2) if self.do_classifier_free_guidance else timestep_ratio,
+                sample=mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
+                timestep_ratio=mint.cat([timestep_ratio] * 2) if self.do_classifier_free_guidance else timestep_ratio,
                 clip_text_pooled=prompt_embeds_pooled,
                 effnet=effnet,
                 return_dict=False,
@@ -475,8 +475,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
-                predicted_latents_text, predicted_latents_uncond = predicted_latents.chunk(2)
-                predicted_latents = ops.lerp(
+                predicted_latents_text, predicted_latents_uncond = mint.chunk(predicted_latents, 2)
+                predicted_latents = mint.lerp(
                     predicted_latents_uncond,
                     predicted_latents_text,
                     ms.tensor(self.guidance_scale, dtype=predicted_latents_text.dtype),
@@ -511,11 +511,11 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             # 10. Scale and decode the image latents with vq-vae
             # TODO: check self.vqgan.decode(latents).sample.clamp(0, 1)
             latents = self.vqgan.config.scale_factor * latents
-            images = self.vqgan.decode(latents)[0].clamp(0, 1)
+            images = mint.clamp(self.vqgan.decode(latents)[0], 0, 1)
             if output_type == "np":
-                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
+                images = mint.permute(images, (0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
             elif output_type == "pil":
-                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
+                images = mint.permute(images, (0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
                 images = self.numpy_to_pil(images)
         else:
             images = latents

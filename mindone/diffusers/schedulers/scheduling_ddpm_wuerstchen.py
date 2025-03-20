@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -113,7 +113,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
     ):
         self.scaler = scaler
         self.s = ms.tensor([s])
-        self._init_alpha_cumprod = ops.cos(self.s / (1 + self.s) * math.pi * 0.5) ** 2
+        self._init_alpha_cumprod = mint.cos(self.s / (1 + self.s) * math.pi * 0.5) ** 2
 
         # standard deviation of the initial noise distribution
         self.init_noise_sigma = 1.0
@@ -123,8 +123,8 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
             t = 1 - (1 - t) ** self.scaler
         elif self.scaler < 1:
             t = t**self.scaler
-        alpha_cumprod = ops.cos((t + self.s) / (1 + self.s) * math.pi * 0.5) ** 2 / self._init_alpha_cumprod
-        return alpha_cumprod.clamp(0.0001, 0.9999)
+        alpha_cumprod = mint.cos((t + self.s) / (1 + self.s) * math.pi * 0.5) ** 2 / self._init_alpha_cumprod
+        return mint.clamp(alpha_cumprod, 0.0001, 0.9999)
 
     def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         """
@@ -221,6 +221,6 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
         return self.config.num_train_timesteps
 
     def previous_timestep(self, timestep):
-        index = (self.timesteps - timestep[0]).abs().argmin().item()
+        index = mint.argmin(mint.abs((self.timesteps - timestep[0]))).item()
         prev_t = self.timesteps[index + 1][None].broadcast_to((timestep.shape[0],))
         return prev_t

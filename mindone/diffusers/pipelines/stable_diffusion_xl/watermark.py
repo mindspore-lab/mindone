@@ -1,7 +1,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...utils import is_invisible_watermark_available
 
@@ -28,7 +28,7 @@ class StableDiffusionXLWatermarker:
         if images.shape[-1] < 256:
             return images
 
-        images = (255 * (images / 2 + 0.5)).permute(0, 2, 3, 1).float().numpy()
+        images = mint.permute((255 * (images / 2 + 0.5)), (0, 2, 3, 1)).float().numpy()
 
         # Convert RGB to BGR, which is the channel order expected by the watermark encoder.
         images = images[:, :, :, ::-1]
@@ -38,7 +38,7 @@ class StableDiffusionXLWatermarker:
 
         images = np.array(images)
 
-        images = ms.Tensor.from_numpy(images).permute(0, 3, 1, 2)
+        images = mint.permute(ms.Tensor.from_numpy(images), (0, 3, 1, 2))
 
-        images = ops.clamp(2 * (images / 255 - 0.5), min=-1.0, max=1.0)
+        images = mint.clamp(2 * (images / 255 - 0.5), min=-1.0, max=1.0)
         return images

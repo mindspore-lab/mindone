@@ -18,7 +18,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -184,7 +184,9 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
 
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = uncond_text_encoder_hidden_states.shape[1]
-            uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.tile((1, num_images_per_prompt, 1))
+            uncond_text_encoder_hidden_states = mint.tile(
+                uncond_text_encoder_hidden_states, (1, num_images_per_prompt, 1)
+            )
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -324,7 +326,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
                     )
 
         if isinstance(image_embeddings, list):
-            image_embeddings = ops.cat(image_embeddings, axis=0)
+            image_embeddings = mint.cat(image_embeddings, dim=0)
         if isinstance(image_embeddings, np.ndarray):
             image_embeddings = ms.Tensor(image_embeddings).to(dtype=dtype)
         if not isinstance(image_embeddings, ms.Tensor):
@@ -346,10 +348,10 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             negative_prompt,
         )
         text_encoder_hidden_states = (
-            ops.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
+            mint.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
         )
         effnet = (
-            ops.cat([image_embeddings, ops.zeros_like(image_embeddings)])
+            mint.cat([image_embeddings, mint.zeros_like(image_embeddings)])
             if self.do_classifier_free_guidance
             else image_embeddings
         )
@@ -377,16 +379,16 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             ratio = t.broadcast_to((latents.shape[0],)).to(dtype)
             # 7. Denoise latents
             predicted_latents = self.decoder(
-                ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
-                r=ops.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
+                mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
+                r=mint.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
                 effnet=effnet,
                 clip=text_encoder_hidden_states,
             )
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
-                predicted_latents_text, predicted_latents_uncond = predicted_latents.chunk(2)
-                predicted_latents = ops.lerp(
+                predicted_latents_text, predicted_latents_uncond = mint.chunk(predicted_latents, 2)
+                predicted_latents = mint.lerp(
                     predicted_latents_uncond,
                     predicted_latents_text,
                     ms.tensor(self.guidance_scale, dtype=predicted_latents_text.dtype),
@@ -424,11 +426,11 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
         if not output_type == "latent":
             # 10. Scale and decode the image latents with vq-vae
             latents = (self.vqgan.config.scale_factor * latents).to(latents.dtype)
-            images = self.vqgan.decode(latents)[0].clamp(0, 1)
+            images = mint.clamp(self.vqgan.decode(latents)[0], 0, 1)
             if output_type == "np":
-                images = images.permute((0, 2, 3, 1)).float().numpy()
+                images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
             elif output_type == "pil":
-                images = images.permute((0, 2, 3, 1)).float().numpy()
+                images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
                 images = self.numpy_to_pil(images)
         else:
             images = latents

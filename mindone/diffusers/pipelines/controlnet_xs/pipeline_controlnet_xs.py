@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -200,7 +200,7 @@ class StableDiffusionControlNetXSPipeline(
         )
 
         # concatenate for backwards comp
-        prompt_embeds = ops.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
+        prompt_embeds = mint.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
 
         return prompt_embeds
 
@@ -395,7 +395,7 @@ class StableDiffusionControlNetXSPipeline(
             )
 
             # Warning for safety checker operations here as it couldn't been done in construct()
-            if ops.any(has_nsfw_concept):
+            if mint.any(has_nsfw_concept):
                 logger.warning(
                     "Potential NSFW content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -409,9 +409,9 @@ class StableDiffusionControlNetXSPipeline(
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = (image / 2 + 0.5).clamp(0, 1)
+        image = mint.clamp((image / 2 + 0.5), 0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = image.permute(0, 2, 3, 1).float().numpy()
+        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
         return image
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -556,7 +556,7 @@ class StableDiffusionControlNetXSPipeline(
         image = image.to(dtype=dtype)
 
         if do_classifier_free_guidance:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 
@@ -775,7 +775,7 @@ class StableDiffusionControlNetXSPipeline(
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare image
         image = self.prepare_image(
@@ -814,7 +814,7 @@ class StableDiffusionControlNetXSPipeline(
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual
@@ -834,7 +834,7 @@ class StableDiffusionControlNetXSPipeline(
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]

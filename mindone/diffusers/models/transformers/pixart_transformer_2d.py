@@ -14,7 +14,7 @@
 from typing import Any, Dict, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -171,9 +171,11 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
         # 3. Output blocks.
         self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.scale_shift_table = ms.Parameter(
-            ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
+            mint.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
         )
-        self.proj_out = nn.Dense(self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels)
+        self.proj_out = mint.nn.Linear(
+            self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
+        )
 
         self.adaln_single = AdaLayerNormSingle(self.inner_dim, use_additional_conditions=self.use_additional_conditions)
         self.caption_projection = None
@@ -318,12 +320,12 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = mint.unsqueeze(attention_mask, 1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
+            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
 
         # 1. Input
         batch_size = hidden_states.shape[0]
@@ -354,22 +356,22 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
             )
 
         # 3. Output
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        shift, scale = mint.chunk((self.scale_shift_table[None] + embedded_timestep[:, None]), 2, dim=1)
         hidden_states = self.norm_out(hidden_states)
         # Modulation
         hidden_states = hidden_states * (1 + scale) + shift
         hidden_states = self.proj_out(hidden_states)
         if hidden_states.shape[1] == 1:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         # unpatchify
-        hidden_states = hidden_states.reshape(
-            -1, height, width, self.config["patch_size"], self.config["patch_size"], self.out_channels
+        hidden_states = mint.reshape(
+            hidden_states, (-1, height, width, self.config["patch_size"], self.config["patch_size"], self.out_channels)
         )
-        # hidden_states = ops.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
-        output = hidden_states.reshape(
-            -1, self.out_channels, height * self.config["patch_size"], width * self.config["patch_size"]
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
+        output = mint.reshape(
+            hidden_states,
+            (-1, self.out_channels, height * self.config["patch_size"], width * self.config["patch_size"]),
         )
 
         if not return_dict:

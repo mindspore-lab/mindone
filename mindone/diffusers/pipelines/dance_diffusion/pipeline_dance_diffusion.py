@@ -17,6 +17,8 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
+from mindspore import mint
+
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline
@@ -143,7 +145,7 @@ class DanceDiffusionPipeline(DiffusionPipeline):
             # 2. compute previous audio sample: x_t -> t_t-1
             audio = self.scheduler.step(model_output, t, audio)[0]
 
-        audio = audio.clamp(-1, 1).float().numpy()
+        audio = mint.clamp(audio, -1, 1).float().numpy()
 
         audio = audio[:, :, :original_sample_size]
 

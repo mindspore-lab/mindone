@@ -26,7 +26,7 @@ from typing import List, Optional
 
 from tqdm import tqdm
 
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...tuners.tuners_utils import BaseTuner, BaseTunerLayer, check_target_module_exists
 from ...utils import (
@@ -228,7 +228,7 @@ class LoraModel(BaseTuner):
             # no module could be matched
             raise ValueError(
                 f"Target module {target} is not supported. Currently, only the following modules are supported: "
-                "`mindspore.nn.Dense`, `mindspore.nn.Embedding`, `mindspore.nn.Conv2d`."
+                "`mindspore.mint.nn.Linear`, `mindspore.mint.nn.Embedding`, `mindspore.mint.nn.Conv2d`."
             )
 
         return new_module
@@ -472,8 +472,8 @@ class LoraModel(BaseTuner):
 
                     if len(loras_A) == 0:
                         raise ValueError("No matching LoRAs found. Please raise an issue on Github.")
-                    loras_A = ops.cat(loras_A, axis=0)
-                    loras_B = ops.cat(loras_B, axis=1)
+                    loras_A = mint.cat(loras_A, dim=0)
+                    loras_B = mint.cat(loras_B, dim=1)
                     target_lora_A.data[: loras_A.shape[0], :] = loras_A
                     target_lora_B.data[:, : loras_B.shape[1]] = loras_B
                 elif combination_type == "svd":
@@ -519,28 +519,31 @@ class LoraModel(BaseTuner):
         if conv2d:
             conv2d_1x1 = target.weight.shape[2:4] == (1, 1)
             if not conv2d_1x1:
-                delta_weight = delta_weight.flatten(start_dim=1)
+                delta_weight = mint.flatten(delta_weight, start_dim=1)
             else:
-                delta_weight = delta_weight.squeeze()
+                delta_weight = mint.squeeze(delta_weight, dim=None)
         if hasattr(target, "fan_in_fan_out") and target.fan_in_fan_out:
             delta_weight = delta_weight.T
 
         # based on https://github.com/kohya-ss/sd-scripts/blob/main/networks/svd_merge_lora.py#L114-L131
         assert driver is None, "For mindspore.ops.svd, 'driver' is not supported."
+        # todo: unavailable mint interface torch.linalg.svd
         U, S, Vh = ops.svd(delta_weight, full_matrices=full_matrices)
         U = U[:, :new_rank]
         S = S[:new_rank]
+        # todo: unavailable mint interface torch.quantile
         U = U @ ops.diag(S)
         Vh = Vh[:new_rank, :]
         if clamp is not None:
-            dist = ops.cat([U.flatten(), Vh.flatten()])
+            dist = mint.cat([mint.flatten(U), mint.flatten(Vh)])
+            # todo: unavailable mint interface torch.quantile
             hi_val = ops.quantile(dist, clamp)
             low_val = -hi_val
-            U = U.clamp(low_val, hi_val)
-            Vh = Vh.clamp(low_val, hi_val)
+            U = mint.clamp(U, low_val, hi_val)
+            Vh = mint.clamp(Vh, low_val, hi_val)
         if conv2d:
-            U = U.reshape(target_lora_B.data.shape)
-            Vh = Vh.reshape(target_lora_A.data.shape)
+            U = mint.reshape(U, target_lora_B.data.shape)
+            Vh = mint.reshape(Vh, target_lora_A.data.shape)
         return Vh, U
 
     def delete_adapter(self, adapter_name: str) -> None:

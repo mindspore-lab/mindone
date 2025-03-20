@@ -19,7 +19,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -109,7 +109,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1, dtype=sigmas.dtype)])
+        self.sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
         self.is_scale_input_called = False
 
@@ -156,7 +156,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         if not isinstance(sigma, ms.Tensor):
             sigma = ms.tensor(sigma)
 
-        c_noise = 0.25 * ops.log(sigma)
+        c_noise = 0.25 * mint.log(sigma)
 
         return c_noise
 
@@ -218,7 +218,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         sigmas = sigmas.to(ms.float32)
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = ops.cat([sigmas, ops.zeros(1)])
+        self.sigmas = mint.cat([sigmas, mint.zeros(1)])
         self._step_index = None
         self._begin_index = None
 
@@ -250,7 +250,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if (schedule_timesteps == timestep).sum() > 1:
+        if mint.sum(schedule_timesteps == timestep) > 1:
             pos = 1
         else:
             pos = 0
@@ -387,10 +387,10 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = sigmas[step_indices].flatten()
+        sigma = mint.flatten(sigmas[step_indices])
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

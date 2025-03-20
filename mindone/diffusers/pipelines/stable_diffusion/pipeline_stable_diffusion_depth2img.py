@@ -21,7 +21,7 @@ from packaging import version
 from transformers import CLIPTokenizer, DPTFeatureExtractor
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import CLIPTextModel, DPTForDepthEstimation
 
@@ -72,7 +72,7 @@ def preprocess(image):
         image = 2.0 * image - 1.0
         image = ms.Tensor.from_numpy(image)
     elif isinstance(image[0], ms.Tensor):
-        image = ops.cat(image, axis=0)
+        image = mint.cat(image, dim=0)
     return image
 
 
@@ -177,7 +177,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         )
 
         # concatenate for backwards comp
-        prompt_embeds = ops.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
+        prompt_embeds = mint.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
 
         return prompt_embeds
 
@@ -378,9 +378,9 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = (image / 2 + 0.5).clamp(0, 1)
+        image = mint.clamp((image / 2 + 0.5), 0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = image.permute(0, 2, 3, 1).float().numpy()
+        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
         return image
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -491,7 +491,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
                     retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
                     for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
@@ -507,13 +507,13 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             )
             deprecate("len(prompt) != len(image)", "1.0.0", deprecation_message, standard_warn=False)
             additional_image_per_prompt = batch_size // init_latents.shape[0]
-            init_latents = ops.cat([init_latents] * additional_image_per_prompt, axis=0)
+            init_latents = mint.cat([init_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            init_latents = ops.cat([init_latents], axis=0)
+            init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -545,13 +545,14 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         else:
             depth_map = depth_map.to(dtype=dtype)
 
-        depth_map = ops.interpolate(
-            depth_map.unsqueeze(1),
+        depth_map = mint.nn.functional.interpolate(
+            mint.unsqueeze(depth_map, 1),
             size=(height // self.vae_scale_factor, width // self.vae_scale_factor),
             mode="bicubic",
             align_corners=False,
         )
 
+        # todo: unavailable mint interface mint.amin
         depth_min = ops.amin(depth_map, axis=[1, 2, 3], keepdims=True)
         depth_max = ops.amax(depth_map, axis=[1, 2, 3], keepdims=True)
         depth_map = 2.0 * (depth_map - depth_min) / (depth_max - depth_min) - 1.0
@@ -562,7 +563,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             repeat_by = batch_size // depth_map.shape[0]
             depth_map = depth_map.tile((repeat_by, 1, 1, 1))
 
-        depth_map = ops.cat([depth_map] * 2) if do_classifier_free_guidance else depth_map
+        depth_map = mint.cat([depth_map] * 2) if do_classifier_free_guidance else depth_map
         return depth_map
 
     @property
@@ -759,7 +760,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare depth mask
         depth_mask = self.prepare_depth_map(
@@ -792,9 +793,9 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-                latent_model_input = ops.cat([latent_model_input, depth_mask], axis=1)
+                latent_model_input = mint.cat([latent_model_input, depth_mask], dim=1)
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -807,7 +808,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

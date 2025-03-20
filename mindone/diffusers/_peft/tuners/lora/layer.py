@@ -19,7 +19,7 @@ import warnings
 from typing import Any, List, Optional, Union
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn, ops
 from mindspore.common.initializer import HeUniform, Normal, Zero, initializer
 
 from ...utils.other import transpose
@@ -66,6 +66,10 @@ class LoraLayer(BaseTunerLayer):
             in_features, out_features = base_layer.in_channels, base_layer.out_channels
         elif isinstance(base_layer, nn.Embedding):
             in_features, out_features = base_layer.vocab_size, base_layer.embedding_size
+        elif isinstance(base_layer, (mint.nn.Linear, mint.nn.Conv2d)):
+            in_features, out_features = base_layer.in_features, base_layer.out_features
+        elif isinstance(base_layer, mint.nn.Embedding):
+            in_features, out_features = base_layer.num_embeddings, base_layer.embedding_dim
         else:
             raise ValueError(f"Unsupported layer type {type(base_layer)}")
 
@@ -80,14 +84,14 @@ class LoraLayer(BaseTunerLayer):
         self.r[adapter_name] = r
         self.lora_alpha[adapter_name] = lora_alpha
         if lora_dropout > 0.0:
-            lora_dropout_layer = nn.Dropout(p=lora_dropout)
+            lora_dropout_layer = mint.nn.Dropout(p=lora_dropout)
         else:
             lora_dropout_layer = nn.Identity()
 
         self.lora_dropout.update(nn.CellDict({adapter_name: lora_dropout_layer}))
         # Actual trainable parameters
-        self.lora_A[adapter_name] = nn.Dense(self.in_features, r, has_bias=False)
-        self.lora_B[adapter_name] = nn.Dense(r, self.out_features, has_bias=False)
+        self.lora_A[adapter_name] = mint.nn.Linear(self.in_features, r, bias=False)
+        self.lora_B[adapter_name] = mint.nn.Linear(r, self.out_features, bias=False)
         if use_rslora:
             self.scaling[adapter_name] = lora_alpha / math.sqrt(r)
         else:
@@ -309,21 +313,29 @@ class Conv2d(nn.Cell, LoraLayer):
         self.r[adapter_name] = r
         self.lora_alpha[adapter_name] = lora_alpha
         if lora_dropout > 0.0:
-            lora_dropout_layer = nn.Dropout(p=lora_dropout)
+            lora_dropout_layer = mint.nn.Dropout(p=lora_dropout)
         else:
             lora_dropout_layer = nn.Identity()
 
         self.lora_dropout[adapter_name] = lora_dropout_layer
         # Actual trainable parameters
         base_layer = self.get_base_layer()
-        kernel_size = base_layer.kernel_size
-        stride = base_layer.stride
-        pad_mode = base_layer.pad_mode
-        padding = base_layer.padding
-        self.lora_A[adapter_name] = nn.Conv2d(
-            self.in_features, r, kernel_size, stride, pad_mode, padding, has_bias=False
-        )
-        self.lora_B[adapter_name] = nn.Conv2d(r, self.out_features, (1, 1), (1, 1), has_bias=False)
+        if isinstance(base_layer, nn.Conv2d):
+            kernel_size = base_layer.kernel_size
+            stride = base_layer.stride
+            pad_mode = base_layer.pad_mode
+            padding = base_layer.padding
+            self.lora_A[adapter_name] = nn.Conv2d(
+                self.in_features, r, kernel_size, stride, pad_mode, padding, has_bias=False
+            )
+            self.lora_B[adapter_name] = nn.Conv2d(r, self.out_features, (1, 1), (1, 1), has_bias=False)
+        else:
+            kernel_size = base_layer.kernel_size
+            stride = base_layer.stride
+            padding = base_layer.padding
+            self.lora_A[adapter_name] = mint.nn.Conv2d(self.in_features, r, kernel_size, stride, padding, bias=False)
+            self.lora_B[adapter_name] = mint.nn.Conv2d(r, self.out_features, (1, 1), (1, 1), bias=False)
+
         if use_rslora:
             self.scaling[adapter_name] = lora_alpha / math.sqrt(r)
         else:
@@ -403,16 +415,25 @@ class Conv2d(nn.Cell, LoraLayer):
         # https://github.com/bmaltais/kohya_ss/blob/feb6728762a8f463d15ba936d189d4c3abfaa1ab/networks/lora.py#L117
         if self.get_base_layer().weight.shape[2:4] == (1, 1):
             # conv2d 1x1
-            output_tensor = (weight_B.squeeze(3).squeeze(2) @ weight_A.squeeze(3).squeeze(2)).unsqueeze(2).unsqueeze(
-                3
-            ) * self.scaling[adapter]
+            output_tensor = (
+                mint.unsqueeze(
+                    mint.unsqueeze(
+                        (mint.squeeze(mint.squeeze(weight_B, 3), 2) @ mint.squeeze(mint.squeeze(weight_A, 3), 2)), 2
+                    ),
+                    3,
+                )
+                * self.scaling[adapter]
+            )
         else:
             # conv2d 3x3
             output_tensor = (
-                ops.conv2d(
-                    weight_A.permute(1, 0, 2, 3),
-                    weight_B,
-                ).permute(1, 0, 2, 3)
+                mint.permute(
+                    mint.nn.functional.conv2d(
+                        mint.permute(weight_A, (1, 0, 2, 3)),
+                        weight_B,
+                    ),
+                    (1, 0, 2, 3),
+                )
                 * self.scaling[adapter]
             )
         return output_tensor
@@ -462,12 +483,12 @@ def dispatch_default(
     else:
         target_base_layer = target
 
-    if isinstance(target_base_layer, nn.Embedding):
+    if isinstance(target_base_layer, (nn.Embedding, mint.nn.Embedding)):
         raise NotImplementedError("Embedding layer is not yet supported.")
-    elif isinstance(target_base_layer, nn.Conv2d):
+    elif isinstance(target_base_layer, (nn.Conv2d, mint.nn.Conv2d)):
         kwargs.update(lora_config.loftq_config)
         new_module = Conv2d(target, adapter_name, **kwargs)
-    elif isinstance(target_base_layer, nn.Dense):
+    elif isinstance(target_base_layer, (mint.nn.Linear, nn.Dense)):
         if kwargs["fan_in_fan_out"]:
             warnings.warn(
                 "fan_in_fan_out is set to True but the target module is `mindspore.nn.Dense`. "

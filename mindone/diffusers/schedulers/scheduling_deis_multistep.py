@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import deprecate, is_scipy_available
@@ -177,11 +177,11 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         # Currently we only support VP-type noise schedule
-        self.alpha_t = ops.sqrt(self.alphas_cumprod)
-        self.sigma_t = ops.sqrt(1 - self.alphas_cumprod)
-        self.lambda_t = ops.log(self.alpha_t) - ops.log(self.sigma_t)
+        self.alpha_t = mint.sqrt(self.alphas_cumprod)
+        self.sigma_t = mint.sqrt(1 - self.alphas_cumprod)
+        self.lambda_t = mint.log(self.alpha_t) - mint.log(self.sigma_t)
         self.sigmas = ((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5
 
         # standard deviation of the initial noise distribution
@@ -327,18 +327,18 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
-        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
+        sample = mint.reshape(sample, (batch_size, channels * np.prod(remaining_dims).item()))
 
-        abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
+        abs_sample = mint.abs(sample)  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        s = mint.unsqueeze(s, 1)  # (batch_size, 1) because clamp will broadcast along dim=0
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
-        sample = sample.reshape(batch_size, channels, *remaining_dims)
+        sample = mint.reshape(sample, (batch_size, channels, *remaining_dims))
         sample = sample.to(dtype)
 
         return sample
@@ -567,12 +567,12 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma_t, sigma_s = self.sigmas[self.step_index + 1], self.sigmas[self.step_index]
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s, sigma_s = self._sigma_to_alpha_sigma_t(sigma_s)
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s = ops.log(alpha_s) - ops.log(sigma_s)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s = mint.log(alpha_s) - mint.log(sigma_s)
 
         h = lambda_t - lambda_s
         if self.config.algorithm_type == "deis":
-            x_t = (alpha_t / alpha_s).to(dtype) * sample - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * model_output
+            x_t = (alpha_t / alpha_s).to(dtype) * sample - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * model_output
         else:
             raise NotImplementedError("only support log-rho multistep deis now")
         return x_t
@@ -743,7 +743,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        index_candidates_num = (schedule_timesteps == timestep).sum()
+        index_candidates_num = mint.sum(schedule_timesteps == timestep)
 
         if index_candidates_num == 0:
             step_index = len(self.timesteps) - 1
@@ -873,10 +873,10 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = sigmas[step_indices].flatten()
+        sigma = mint.flatten(sigmas[step_indices])
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
         noisy_samples = alpha_t * original_samples + sigma_t * noise

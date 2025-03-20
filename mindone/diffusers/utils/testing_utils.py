@@ -28,7 +28,7 @@ from packaging import version
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from .import_utils import BACKENDS_MAPPING, is_opencv_available
 from .logging import get_logger
@@ -67,7 +67,7 @@ def print_tensor_test(
     if limit_to_slices:
         tensor = tensor[0, -3:, -3:, -1]
 
-    tensor_str = str(tensor.flatten().to(ms.float32)).replace("\n", "")
+    tensor_str = str(mint.flatten(tensor).to(ms.float32)).replace("\n", "")
     # format is usually:
     # expected_slice = np.array([-0.5713, -0.3018, -0.9814, 0.04663, -0.879, 0.76, -1.734, 0.1044, 1.161])
     output_str = tensor_str.replace("tensor", f"{expected_tensor_name} = np.array")

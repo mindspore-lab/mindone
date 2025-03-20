@@ -5,7 +5,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTextModelWithProjection, CLIPTokenizer, CLIPVisionModelWithProjection
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import PriorTransformer
 from ...schedulers import UnCLIPScheduler
@@ -129,18 +129,21 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
         image_embeddings = []
         for cond, weight in zip(images_and_prompts, weights):
             if isinstance(cond, str):
-                image_emb = self(
-                    cond,
-                    num_inference_steps=num_inference_steps,
-                    num_images_per_prompt=num_images_per_prompt,
-                    generator=generator,
-                    latents=latents,
-                    negative_prompt=negative_prior_prompt,
-                    guidance_scale=guidance_scale,
-                )[0].unsqueeze(0)
+                image_emb = mint.unsqueeze(
+                    self(
+                        cond,
+                        num_inference_steps=num_inference_steps,
+                        num_images_per_prompt=num_images_per_prompt,
+                        generator=generator,
+                        latents=latents,
+                        negative_prompt=negative_prior_prompt,
+                        guidance_scale=guidance_scale,
+                    )[0],
+                    0,
+                )
 
             elif isinstance(cond, (PIL.Image.Image, ms.Tensor)):
-                image_emb = self._encode_image(cond, num_images_per_prompt=num_images_per_prompt).unsqueeze(0)
+                image_emb = mint.unsqueeze(self._encode_image(cond, num_images_per_prompt=num_images_per_prompt), 0)
 
             else:
                 raise ValueError(
@@ -149,10 +152,10 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
 
             image_embeddings.append(image_emb * weight)
 
-        image_emb = ops.cat(image_embeddings).sum(axis=0)
+        image_emb = mint.sum(mint.cat(image_embeddings), dim=0)
 
         return KandinskyPriorPipelineOutput(
-            image_embeds=image_emb, negative_image_embeds=ops.randn_like(image_emb, dtype=image_emb.dtype)
+            image_embeds=image_emb, negative_image_embeds=mint.randn_like(image_emb, dtype=image_emb.dtype)
         )
 
     def _encode_image(
@@ -179,13 +182,13 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
 
         if batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] == 0:
             additional_image_per_prompt = batch_size // init_latents.shape[0]
-            init_latents = ops.cat([init_latents] * additional_image_per_prompt, axis=0)
+            init_latents = mint.cat([init_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            init_latents = ops.cat([init_latents], axis=0)
+            init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -198,11 +201,11 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
 
     # Copied from diffusers.pipelines.kandinsky.pipeline_kandinsky_prior.KandinskyPriorPipeline.get_zero_embed
     def get_zero_embed(self, batch_size=1):
-        zero_img = ops.zeros((1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size)).to(
+        zero_img = mint.zeros((1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size)).to(
             dtype=self.image_encoder.dtype
         )
         zero_image_emb = self.image_encoder(zero_img)[0]
-        zero_image_emb = zero_image_emb.tile((batch_size, 1))
+        zero_image_emb = mint.tile(zero_image_emb, (batch_size, 1))
         return zero_image_emb
 
     # Copied from diffusers.pipelines.kandinsky.pipeline_kandinsky_prior.KandinskyPriorPipeline._encode_prompt
@@ -282,11 +285,13 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len)
 
             seq_len = uncond_text_encoder_hidden_states.shape[1]
-            uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.tile((1, num_images_per_prompt, 1))
+            uncond_text_encoder_hidden_states = mint.tile(
+                uncond_text_encoder_hidden_states, (1, num_images_per_prompt, 1)
+            )
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -297,10 +302,10 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_encoder_hidden_states = ops.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_encoder_hidden_states = mint.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_encoder_hidden_states, text_mask
 
@@ -386,7 +391,7 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
             image = [image]
 
         if isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0)
+            image = mint.cat(image, dim=0)
 
         if isinstance(image, ms.Tensor) and image.ndim == 2:
             # allow user to pass image_embeds directly
@@ -394,7 +399,7 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
         elif isinstance(image, ms.Tensor) and image.ndim != 4:
             raise ValueError(
                 f" if pass `image` as pytorch tensor, or a list of pytorch tensor, "
-                f"please make sure each tensor has shape [batch_size, channels, height, width], currently {image[0].unsqueeze(0).shape}"
+                f"please make sure each tensor has shape [batch_size, channels, height, width], currently {mint.unsqueeze(image[0], 0).shape}"
             )
         else:
             image_embeds = self._encode_image(image, num_images_per_prompt)
@@ -404,7 +409,7 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
 
         latents = image_embeds
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = timesteps[:1].tile((batch_size,))
+        latent_timestep = mint.tile(timesteps[:1], (batch_size,))
         latents = self.prepare_latents(
             latents,
             latent_timestep,
@@ -416,7 +421,7 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             predicted_image_embedding = self.prior(
                 latent_model_input,
@@ -427,7 +432,9 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
+                predicted_image_embedding_uncond, predicted_image_embedding_text = mint.chunk(
+                    predicted_image_embedding, 2
+                )
                 predicted_image_embedding = predicted_image_embedding_uncond + guidance_scale * (
                     predicted_image_embedding_text - predicted_image_embedding_uncond
                 )
@@ -453,7 +460,7 @@ class KandinskyV22PriorEmb2EmbPipeline(DiffusionPipeline):
         if negative_prompt is None:
             zero_embeds = self.get_zero_embed(latents.shape[0])
         else:
-            image_embeddings, zero_embeds = image_embeddings.chunk(2)
+            image_embeddings, zero_embeds = mint.chunk(image_embeddings, 2)
 
         if output_type not in ["ms", "np"]:
             raise ValueError(f"Only the output types `ms` and `np` are supported not output_type={output_type}")

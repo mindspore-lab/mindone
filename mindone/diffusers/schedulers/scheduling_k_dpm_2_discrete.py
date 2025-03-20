@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available
@@ -171,7 +171,7 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         #  set all values
         self.set_timesteps(num_train_timesteps, num_train_timesteps)
@@ -183,9 +183,9 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
     def init_noise_sigma(self):
         # standard deviation of the initial noise distribution
         if self.config.timestep_spacing in ["linspace", "trailing"]:
-            return self.sigmas.max()
+            return mint.max(self.sigmas)
 
-        return (self.sigmas.max() ** 2 + 1) ** 0.5
+        return (mint.max(self.sigmas) ** 2 + 1) ** 0.5
 
     @property
     def step_index(self):
@@ -299,8 +299,8 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
         # interpolate sigmas
         sigmas_interpol = sigmas.log().lerp(ms.Tensor(np.roll(sigmas.asnumpy(), 1)).log(), 0.5).exp()
 
-        self.sigmas = ops.cat([sigmas[:1], sigmas[1:].repeat_interleave(2), sigmas[-1:]])
-        self.sigmas_interpol = ops.cat(
+        self.sigmas = mint.cat([sigmas[:1], sigmas[1:].repeat_interleave(2), sigmas[-1:]])
+        self.sigmas_interpol = mint.cat(
             [sigmas_interpol[:1], sigmas_interpol[1:].repeat_interleave(2), sigmas_interpol[-1:]]
         )
 
@@ -312,9 +312,9 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
             [self._sigma_to_t(sigma_interpol, log_sigmas.asnumpy()) for sigma_interpol in sigmas_interpol.asnumpy()]
         )
         timesteps_interpol = ms.tensor(timesteps_interpol, dtype=timesteps.dtype)
-        interleaved_timesteps = ops.stack((timesteps_interpol[1:-1, None], timesteps[1:, None]), axis=-1).flatten()
+        interleaved_timesteps = mint.flatten(mint.stack((timesteps_interpol[1:-1, None], timesteps[1:, None]), dim=-1))
 
-        self.timesteps = ops.cat([timesteps[:1], interleaved_timesteps])
+        self.timesteps = mint.cat([timesteps[:1], interleaved_timesteps])
 
         self.sample = None
 
@@ -330,7 +330,7 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if (schedule_timesteps == timestep).sum() > 1:
+        if mint.sum(schedule_timesteps == timestep) > 1:
             pos = 1
         else:
             pos = 0
@@ -570,10 +570,10 @@ class KDPM2DiscreteScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = sigmas[step_indices].flatten()
+        sigma = mint.flatten(sigmas[step_indices])
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

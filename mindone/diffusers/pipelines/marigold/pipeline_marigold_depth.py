@@ -26,7 +26,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel
 from ...image_processor import PipelineImageInput
@@ -476,7 +476,9 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
         del image
 
-        batch_empty_text_embedding = self.empty_text_embedding.to(dtype=dtype).tile((batch_size, 1, 1))  # [B,1024,2]
+        batch_empty_text_embedding = mint.tile(
+            self.empty_text_embedding.to(dtype=dtype), (batch_size, 1, 1)
+        )  # [B,1024,2]
 
         # 5. Process the denoising loop. All `N * E` latents are processed sequentially in batches of size `batch_size`.
         # The unet model takes concatenated latent spaces of the input image and the predicted modality as an input, and
@@ -496,7 +498,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
             self.scheduler.set_timesteps(num_inference_steps)
             for t in self.progress_bar(self.scheduler.timesteps, leave=False, desc="Diffusion steps..."):
-                batch_latent = ops.cat([batch_image_latent, batch_pred_latent], axis=1)  # [B,8,h,w]
+                batch_latent = mint.cat([batch_image_latent, batch_pred_latent], dim=1)  # [B,8,h,w]
                 noise = self.unet(batch_latent, t, encoder_hidden_states=text, return_dict=False)[0]  # [B,4,h,w]
                 batch_pred_latent = self.scheduler.step(noise, t, batch_pred_latent, generator=generator)[
                     0
@@ -504,7 +506,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
             pred_latents.append(batch_pred_latent)
 
-        pred_latent = ops.cat(pred_latents, axis=0)  # [N*E,4,h,w]
+        pred_latent = mint.cat(pred_latents, dim=0)  # [N*E,4,h,w]
 
         del (
             pred_latents,
@@ -520,12 +522,12 @@ class MarigoldDepthPipeline(DiffusionPipeline):
         # 6. Decode predictions from latent into pixel space. The resulting `N * E` predictions have shape `(PPH, PPW)`,
         # which requires slight postprocessing. Decoding into pixel space happens in batches of size `batch_size`.
         # Model invocation: self.vae.decoder.
-        prediction = ops.cat(
+        prediction = mint.cat(
             [
                 self.decode_prediction(pred_latent[i : i + batch_size])
                 for i in range(0, pred_latent.shape[0], batch_size)
             ],
-            axis=0,
+            dim=0,
         )  # [N*E,1,PPH,PPW]
 
         if not output_latent:
@@ -541,7 +543,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
         # uncertainty maps.
         uncertainty = None
         if ensemble_size > 1:
-            prediction = prediction.reshape(num_images, ensemble_size, *prediction.shape[1:])  # [N,E,1,PH,PW]
+            prediction = mint.reshape(prediction, (num_images, ensemble_size, *prediction.shape[1:]))  # [N,E,1,PH,PW]
             prediction = [
                 self.ensemble_depth(
                     prediction[i],
@@ -553,9 +555,9 @@ class MarigoldDepthPipeline(DiffusionPipeline):
                 for i in range(num_images)
             ]  # [ [[1,1,PH,PW], [1,1,PH,PW]], ... ]
             prediction, uncertainty = zip(*prediction)  # [[1,1,PH,PW], ... ], [[1,1,PH,PW], ... ]
-            prediction = ops.cat(prediction, axis=0)  # [N,1,PH,PW]
+            prediction = mint.cat(prediction, dim=0)  # [N,1,PH,PW]
             if output_uncertainty:
-                uncertainty = ops.cat(uncertainty, axis=0)  # [N,1,PH,PW]
+                uncertainty = mint.cat(uncertainty, dim=0)  # [N,1,PH,PW]
             else:
                 uncertainty = None
 
@@ -604,12 +606,12 @@ class MarigoldDepthPipeline(DiffusionPipeline):
             else:
                 return encoder_output
 
-        image_latent = ops.cat(
+        image_latent = mint.cat(
             [
                 retrieve_latents(self.vae.encode(image[i : i + batch_size])[0])
                 for i in range(0, image.shape[0], batch_size)
             ],
-            axis=0,
+            dim=0,
         )  # [N,4,h,w]
         image_latent = image_latent * self.vae.config.scaling_factor
         image_latent = image_latent.repeat_interleave(ensemble_size, dim=0)  # [N*E,4,h,w]
@@ -632,8 +634,8 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
         prediction = self.vae.decode(pred_latent / self.vae.config.scaling_factor, return_dict=False)[0]  # [B,3,H,W]
 
-        prediction = prediction.mean(axis=1, keep_dims=True)  # [B,1,H,W]
-        prediction = ops.clip(prediction, -1.0, 1.0)  # [B,1,H,W]
+        prediction = mint.mean(prediction, dim=1, keepdim=True)  # [B,1,H,W]
+        prediction = mint.clip(prediction, -1.0, 1.0)  # [B,1,H,W]
         prediction = (prediction + 1.0) / 2.0
 
         return prediction  # [B,1,H,W]
@@ -692,15 +694,15 @@ class MarigoldDepthPipeline(DiffusionPipeline):
             raise ValueError("Pure shift-invariant ensembling is not supported.")
 
         def init_param(depth: ms.Tensor):
-            init_min = depth.reshape(ensemble_size, -1).min(axis=1)
-            init_max = depth.reshape(ensemble_size, -1).max(axis=1)
+            init_min = mint.min(mint.reshape(depth, (ensemble_size, -1)), dim=1)
+            init_max = mint.max(mint.reshape(depth, (ensemble_size, -1)), dim=1)
 
             if scale_invariant and shift_invariant:
-                init_s = 1.0 / (init_max - init_min).clamp(min=1e-6)
+                init_s = 1.0 / mint.clamp((init_max - init_min), min=1e-6)
                 init_t = -init_s * init_min
-                param = ops.cat((init_s, init_t)).numpy()
+                param = mint.cat((init_s, init_t)).numpy()
             elif scale_invariant:
-                init_s = 1.0 / init_max.clamp(min=1e-6)
+                init_s = 1.0 / mint.clamp(init_max, min=1e-6)
                 param = init_s.numpy()
             else:
                 raise ValueError("Unrecognized alignment.")
@@ -725,15 +727,15 @@ class MarigoldDepthPipeline(DiffusionPipeline):
         ) -> Tuple[ms.Tensor, Optional[ms.Tensor]]:
             uncertainty = None
             if reduction == "mean":
-                prediction = ops.mean(depth_aligned, axis=0, keep_dims=True)
+                prediction = mint.mean(depth_aligned, dim=0, keepdim=True)
                 if return_uncertainty:
-                    uncertainty = ops.std(depth_aligned, axis=0, keepdims=True)
+                    uncertainty = mint.std(depth_aligned, dim=0, keepdim=True)
             elif reduction == "median":
                 # ops.median has two return values and does not supported some data-type
-                prediction = ops.median(depth_aligned.float(), axis=0, keepdims=True)[0]
+                prediction = mint.median(depth_aligned.float(), dim=0, keepdim=True)[0]
                 prediction = prediction.to(depth_aligned.dtype)
                 if return_uncertainty:
-                    uncertainty = ops.median(ops.abs(depth_aligned - prediction).float(), axis=0, keepdims=True)[0]
+                    uncertainty = mint.median(mint.abs(depth_aligned - prediction).float(), dim=0, keepdim=True)[0]
                     uncertainty = uncertainty.to(depth_aligned.dtype)
             else:
                 raise ValueError(f"Unrecognized reduction method: {reduction}.")
@@ -743,14 +745,15 @@ class MarigoldDepthPipeline(DiffusionPipeline):
             cost = 0.0
             depth_aligned = align(depth, param)
 
-            for i, j in ops.combinations(ops.arange(ensemble_size)):
+            # todo: unavailable mint interface combinations
+            for i, j in ops.combinations(mint.arange(ensemble_size)):
                 diff = depth_aligned[i] - depth_aligned[j]
                 cost += (diff**2).mean().sqrt().item()
 
             if regularizer_strength > 0:
                 prediction, _ = ensemble(depth_aligned, return_uncertainty=False)
-                err_near = (0.0 - prediction.min()).abs().item()
-                err_far = (1.0 - prediction.max()).abs().item()
+                err_near = mint.abs(0.0 - mint.min(prediction)).item()
+                err_far = mint.abs(1.0 - mint.max(prediction)).item()
                 cost += (err_near + err_far) * regularizer_strength
 
             return cost
@@ -783,14 +786,14 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
         depth, uncertainty = ensemble(depth, return_uncertainty=output_uncertainty)
 
-        depth_max = depth.max()
+        depth_max = mint.max(depth)
         if scale_invariant and shift_invariant:
-            depth_min = depth.min()
+            depth_min = mint.min(depth)
         elif scale_invariant:
             depth_min = 0
         else:
             raise ValueError("Unrecognized alignment.")
-        depth_range = (depth_max - depth_min).clamp(min=1e-6)
+        depth_range = mint.clamp((depth_max - depth_min), min=1e-6)
         depth = (depth - depth_min) / depth_range
         if output_uncertainty:
             uncertainty /= depth_range

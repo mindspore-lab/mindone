@@ -18,7 +18,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -288,7 +288,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if (schedule_timesteps == timestep).sum() > 1:
+        if mint.sum(schedule_timesteps == timestep) > 1:
             pos = 1
         else:
             pos = 0
@@ -375,17 +375,17 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         # 1. Denoise model output using boundary conditions
         denoised = c_out.to(model_output.dtype) * model_output + c_skip.to(sample.dtype) * sample
         if self.config.clip_denoised:
-            denoised = denoised.clamp(-1, 1)
+            denoised = mint.clamp(denoised, -1, 1)
 
         # 2. Sample z ~ N(0, s_noise^2 * I)
         # Noise is not used for onestep sampling.
         if len(self.timesteps) > 1:
             noise = randn_tensor(model_output.shape, dtype=model_output.dtype, generator=generator)
         else:
-            noise = ops.zeros_like(model_output)
+            noise = mint.zeros_like(model_output)
         z = noise * self.config.s_noise
 
-        sigma_hat = sigma_next.clamp(min=sigma_min, max=sigma_max)
+        sigma_hat = mint.clamp(sigma_next, min=sigma_min, max=sigma_max)
 
         # 3. Return noisy sample
         # tau = sigma_hat, eps = sigma_min
@@ -421,10 +421,10 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = sigmas[step_indices].flatten()
+        sigma = mint.flatten(sigmas[step_indices])
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

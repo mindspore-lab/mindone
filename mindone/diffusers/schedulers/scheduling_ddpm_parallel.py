@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -108,7 +108,7 @@ def rescale_zero_terminal_snr(betas):
     """
     # Convert betas to alphas_bar_sqrt
     alphas = 1.0 - betas
-    alphas_cumprod = ops.cumprod(alphas, dim=0)
+    alphas_cumprod = mint.cumprod(alphas, dim=0)
     alphas_bar_sqrt = alphas_cumprod.sqrt()
 
     # Store old values.
@@ -124,7 +124,7 @@ def rescale_zero_terminal_snr(betas):
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
     alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = ops.cat([alphas_bar[0:1], alphas])
+    alphas = mint.cat([alphas_bar[0:1], alphas])
     betas = 1 - alphas
 
     return betas
@@ -221,7 +221,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         elif beta_schedule == "sigmoid":
             # GeoDiff sigmoid schedule
             betas = ms.tensor(np.linspace(-6, 6, num_train_timesteps))
-            self.betas = ops.sigmoid(betas) * (beta_end - beta_start) + beta_start
+            self.betas = mint.sigmoid(betas) * (beta_end - beta_start) + beta_start
         else:
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
@@ -230,7 +230,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
             self.betas = rescale_zero_terminal_snr(self.betas)
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         self.one = ms.tensor(1.0)
 
         # standard deviation of the initial noise distribution
@@ -348,7 +348,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         variance = (1 - alpha_prod_t_prev) / (1 - alpha_prod_t) * current_beta_t
 
         # we always take the log of variance, so clamp it to ensure it's not 0
-        variance = ops.clamp(variance, min=1e-20)
+        variance = mint.clamp(variance, min=1e-20)
 
         if variance_type is None:
             variance_type = self.config.variance_type
@@ -358,18 +358,18 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
             variance = variance
         # for rl-diffuser https://arxiv.org/abs/2205.09991
         elif variance_type == "fixed_small_log":
-            variance = ops.log(variance)
-            variance = ops.exp(0.5 * variance)
+            variance = mint.log(variance)
+            variance = mint.exp(0.5 * variance)
         elif variance_type == "fixed_large":
             variance = current_beta_t
         elif variance_type == "fixed_large_log":
             # Glide max_log
-            variance = ops.log(current_beta_t)
+            variance = mint.log(current_beta_t)
         elif variance_type == "learned":
             return predicted_variance
         elif variance_type == "learned_range":
-            min_log = ops.log(variance)
-            max_log = ops.log(current_beta_t)
+            min_log = mint.log(variance)
+            max_log = mint.log(current_beta_t)
             frac = (predicted_variance + 1) / 2
             variance = frac * max_log + (1 - frac) * min_log
 
@@ -393,18 +393,18 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
             sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
-        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
+        sample = mint.reshape(sample, (batch_size, channels * np.prod(remaining_dims).item()))
 
-        abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
+        abs_sample = mint.abs(sample)  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        s = mint.unsqueeze(s, 1)  # (batch_size, 1) because clamp will broadcast along dim=0
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
-        sample = sample.reshape(batch_size, channels, *remaining_dims)
+        sample = mint.reshape(sample, (batch_size, channels, *remaining_dims))
         sample = sample.to(dtype)
 
         return sample
@@ -440,7 +440,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         prev_t = self.previous_timestep(t)
 
         if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in ["learned", "learned_range"]:
-            model_output, predicted_variance = ops.split(model_output, sample.shape[1], axis=1)
+            model_output, predicted_variance = mint.split(model_output, sample.shape[1], dim=1)
         else:
             predicted_variance = None
 
@@ -474,8 +474,8 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         if self.config.thresholding:
             pred_original_sample = self._threshold_sample(pred_original_sample)
         elif self.config.clip_sample:
-            pred_original_sample = pred_original_sample.clamp(
-                -self.config.clip_sample_range, self.config.clip_sample_range
+            pred_original_sample = mint.clamp(
+                pred_original_sample, -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
@@ -500,7 +500,7 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
                 ) * variance_noise
             elif self.variance_type == "learned_range":
                 variance = self._get_variance(t, predicted_variance=predicted_variance)
-                variance = (ops.exp(0.5 * variance)).to(variance_noise.dtype) * variance_noise
+                variance = (mint.exp(0.5 * variance)).to(variance_noise.dtype) * variance_noise
             else:
                 variance = ((self._get_variance(t, predicted_variance=predicted_variance) ** 0.5)).to(
                     variance_noise.dtype
@@ -548,13 +548,13 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         prev_t = prev_t.view(-1, *([1] * (model_output.ndim - 1)))
 
         if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in ["learned", "learned_range"]:
-            model_output, predicted_variance = ops.split(model_output, sample.shape[1], axis=1)
+            model_output, predicted_variance = mint.split(model_output, sample.shape[1], dim=1)
         else:
             pass
 
         # 1. compute alphas, betas
         alpha_prod_t = self.alphas_cumprod[t]
-        alpha_prod_t_prev = self.alphas_cumprod[ops.clip(prev_t, min=0)]
+        alpha_prod_t_prev = self.alphas_cumprod[mint.clip(prev_t, min=0)]
         alpha_prod_t_prev[prev_t < 0] = ms.tensor(1.0)
 
         beta_prod_t = 1 - alpha_prod_t
@@ -584,8 +584,8 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         if self.config.thresholding:
             pred_original_sample = self._threshold_sample(pred_original_sample)
         elif self.config.clip_sample:
-            pred_original_sample = pred_original_sample.clamp(
-                -self.config.clip_sample_range, self.config.clip_sample_range
+            pred_original_sample = mint.clamp(
+                pred_original_sample, -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
@@ -615,16 +615,16 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 
@@ -638,16 +638,16 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         # while len(sqrt_alpha_prod.shape) < len(sample.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         # while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 

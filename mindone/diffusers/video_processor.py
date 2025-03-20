@@ -19,7 +19,7 @@ import numpy as np
 import PIL
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from .image_processor import VaeImageProcessor, is_valid_image, is_valid_image_imagelist
 
@@ -65,7 +65,7 @@ class VideoProcessor(VaeImageProcessor):
                 "Please concatenate the list along the batch dimension and pass it as a single 5d ms.Tensor",
                 FutureWarning,
             )
-            video = ops.cat(video, axis=0)
+            video = mint.cat(video, dim=0)
 
         # ensure the input is a list of videos:
         # - if it is a batch of videos (5d ms.Tensor or np.ndarray), it is converted to a list of videos (a list of 4d ms.Tensor or np.ndarray)
@@ -81,10 +81,10 @@ class VideoProcessor(VaeImageProcessor):
                 "Input is in incorrect format. Currently, we only support numpy.ndarray, ms.Tensor, PIL.Image.Image"
             )
 
-        video = ops.stack([self.preprocess(img, height=height, width=width) for img in video], axis=0)
+        video = mint.stack([self.preprocess(img, height=height, width=width) for img in video], dim=0)
 
         # move the number of channels before the number of frames.
-        video = video.permute(0, 2, 1, 3, 4)
+        video = mint.permute(video, (0, 2, 1, 3, 4))
 
         return video
 
@@ -101,14 +101,14 @@ class VideoProcessor(VaeImageProcessor):
         batch_size = video.shape[0]
         outputs = []
         for batch_idx in range(batch_size):
-            batch_vid = video[batch_idx].permute(1, 0, 2, 3)
+            batch_vid = mint.permute(video[batch_idx], (1, 0, 2, 3))
             batch_output = self.postprocess(batch_vid, output_type)
             outputs.append(batch_output)
 
         if output_type == "np":
             outputs = np.stack(outputs)
         elif output_type == "pt":
-            outputs = ops.stack(outputs)
+            outputs = mint.stack(outputs)
         elif not output_type == "pil":
             raise ValueError(f"{output_type} does not exist. Please choose one of ['np', 'pt', 'pil']")
 

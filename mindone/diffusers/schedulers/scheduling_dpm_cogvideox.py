@@ -23,7 +23,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -213,7 +213,7 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         # Modify: SNR shift following SD3
         self.alphas_cumprod = self.alphas_cumprod / (snr_shift_scale + (1 - snr_shift_scale) * self.alphas_cumprod)
@@ -454,14 +454,14 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
-            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
+            sqrt_alpha_prod = mint.unsqueeze(sqrt_alpha_prod, -1)
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
-            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
+            sqrt_one_minus_alpha_prod = mint.unsqueeze(sqrt_one_minus_alpha_prod, -1)
 
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples
@@ -472,14 +472,14 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         while len(sqrt_alpha_prod.shape) < len(sample.shape):
-            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
+            sqrt_alpha_prod = mint.unsqueeze(sqrt_alpha_prod, -1)
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
-            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
+            sqrt_one_minus_alpha_prod = mint.unsqueeze(sqrt_one_minus_alpha_prod, -1)
 
         velocity = sqrt_alpha_prod * noise - sqrt_one_minus_alpha_prod * sample
         return velocity

@@ -5,6 +5,8 @@ import PIL.ImageOps
 from packaging import version
 from PIL import Image
 
+from mindspore import mint
+
 if version.parse(version.parse(PIL.__version__).base_version) >= version.parse("9.1.0"):
     PIL_INTERPOLATION = {
         "linear": PIL.Image.Resampling.BILINEAR,
@@ -25,10 +27,10 @@ else:
 
 def ms_to_pil(images):
     """
-    Convert a torch image to a PIL image.
+    Convert a mindspore image to a PIL image.
     """
-    images = (images / 2 + 0.5).clamp(0, 1)
-    images = images.permute(0, 2, 3, 1).float().numpy()
+    images = mint.clamp((images / 2 + 0.5), 0, 1)
+    images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
     images = numpy_to_pil(images)
     return images
 

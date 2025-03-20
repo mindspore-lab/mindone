@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 
@@ -232,11 +232,9 @@ class KandinskyPriorPipeline(DiffusionPipeline):
 
             elif isinstance(cond, (PIL.Image.Image, ms.Tensor)):
                 if isinstance(cond, PIL.Image.Image):
-                    cond = (
-                        ms.tensor(self.image_processor(cond, return_tensors="np").pixel_values[0])
-                        .unsqueeze(0)
-                        .to(dtype=self.image_encoder.dtype)
-                    )
+                    cond = mint.unsqueeze(
+                        ms.tensor(self.image_processor(cond, return_tensors="np").pixel_values[0]), 0
+                    ).to(dtype=self.image_encoder.dtype)
 
                 image_emb = self.image_encoder(cond)[0]
 
@@ -247,7 +245,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
 
             image_embeddings.append(image_emb * weight)
 
-        image_emb = ops.cat(image_embeddings).sum(axis=0, keepdims=True)
+        image_emb = mint.sum(mint.cat(image_embeddings), dim=0, keepdim=True)
 
         out_zero = self(
             negative_prompt,
@@ -274,11 +272,11 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         return latents
 
     def get_zero_embed(self, batch_size=1):
-        zero_img = ops.zeros((1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size)).to(
+        zero_img = mint.zeros((1, 3, self.image_encoder.config.image_size, self.image_encoder.config.image_size)).to(
             dtype=self.image_encoder.dtype
         )
         zero_image_emb = self.image_encoder(zero_img)[0]
-        zero_image_emb = zero_image_emb.tile((batch_size, 1))
+        zero_image_emb = mint.tile(zero_image_emb, (batch_size, 1))
         return zero_image_emb
 
     def _encode_prompt(
@@ -357,11 +355,13 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len)
 
             seq_len = uncond_text_encoder_hidden_states.shape[1]
-            uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.tile((1, num_images_per_prompt, 1))
+            uncond_text_encoder_hidden_states = mint.tile(
+                uncond_text_encoder_hidden_states, (1, num_images_per_prompt, 1)
+            )
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -372,10 +372,10 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_encoder_hidden_states = ops.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_encoder_hidden_states = mint.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_encoder_hidden_states, text_mask
 
@@ -470,7 +470,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(prior_timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             predicted_image_embedding = self.prior(
                 latent_model_input,
@@ -481,7 +481,9 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
+                predicted_image_embedding_uncond, predicted_image_embedding_text = mint.chunk(
+                    predicted_image_embedding, 2
+                )
                 predicted_image_embedding = predicted_image_embedding_uncond + guidance_scale * (
                     predicted_image_embedding_text - predicted_image_embedding_uncond
                 )
@@ -507,7 +509,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         if negative_prompt is None:
             zero_embeds = self.get_zero_embed(latents.shape[0])
         else:
-            image_embeddings, zero_embeds = image_embeddings.chunk(2)
+            image_embeddings, zero_embeds = mint.chunk(image_embeddings, 2)
 
         if output_type not in ["ms", "np"]:
             raise ValueError(f"Only the output types `ms` and `np` are supported not output_type={output_type}")
