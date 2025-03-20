@@ -15,8 +15,8 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
 sys.path.insert(0, mindone_lib_path)
 
-from tools.captioners.PLLaVA.task.eval.eval_utils import load_video
-from tools.captioners.PLLaVA.task.eval.model_utils import load_pllava, pllava_answer
+from tools.captioners.PLLaVA.tasks.eval.eval_utils import load_video
+from tools.captioners.PLLaVA.tasks.eval.model_utils import load_pllava, pllava_answer
 
 
 class VideoTextDataset:

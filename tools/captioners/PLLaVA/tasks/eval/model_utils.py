@@ -1,11 +1,16 @@
 import logging
 import os
-
-from models.pipeline import TextGenerator
-from models.pllava import PllavaConfig, PllavaForConditionalGeneration, PllavaProcessor
+import sys
 
 import mindspore as ms
 from mindspore.nn.utils import no_init_parameters
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+pllava_path = os.path.abspath(os.path.join(__dir__, "../.."))
+sys.path.insert(0, pllava_path)
+
+from models.pipeline import TextGenerator
+from models.pllava import PllavaConfig, PllavaForConditionalGeneration, PllavaProcessor
 
 
 def load_pllava(repo_id, num_frames, pooling_shape, vision_hidden_size=1024, text_hidden_size=4096):
