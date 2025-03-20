@@ -3,23 +3,29 @@ This script is to load mindspore checkpoint and run image generation or vqa or q
 
 Usage:
 cd examples/emu3
-export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
-NPUS=8
-MASTER_PORT=9000
-LOG_DIR=output/emu-vqa-e50
-msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_port=${MASTER_PORT} --log_dir=${LOG_DIR} \
-    python emu3/train/infer_ms.py \
+
+DEVICE_ID=0 python emu3/train/infer_ms.py \
+--model_path outputs/Emu3-T2I-SFT \
+--tokenizer_path BAAI/Emu3-Stage1 \
+--ckpt_dir outputs/Emu3-T2I-SFT/rank_all_8/ckpt/emu3-e50.ckpt \
+--prompt "A girl."
+--task img-gen \
+--output_path output
+
+DEVICE_ID=0 python emu3/train/infer_ms.py \
 --model_path outputs/Emu3-VQA-SFT \
 --tokenizer_path BAAI/Emu3-Stage1 \
---ckpt_name emu3-e50.ckpt \
+--ckpt_dir outputs/Emu3-VQA-SFT/rank_all_8/ckpt/emu3-e50.ckpt \
+--image img_prompt.jpg \
+--prompt "Describe this image."
 --task vqa \
---output_path ${LOG_DIR}
+--output_path output
 """
 import argparse
 import json
+import logging
 import os
 import time
-import logging
 
 from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.processing_emu3 import Emu3Processor
@@ -29,10 +35,7 @@ from transformers.generation.configuration_utils import GenerationConfig
 
 import mindspore as ms
 from mindspore import Tensor, nn, ops
-from mindspore.communication import get_group_size, get_rank, init
-from mindspore.communication.management import GlobalComm
 
-from mindone.trainers.zero import prepare_network
 from mindone.utils import set_logger
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
@@ -41,63 +44,8 @@ from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
 
-def init_env(
-    mode: int = ms.PYNATIVE_MODE,
-    device_target: str = "Ascend",
-    debug: bool = False,
-    seed: int = 42,
-    distributed: bool = False,
-    jit_level: str = None,
-):
-    ms.set_seed(seed)
-
-    if debug and mode == ms.GRAPH_MODE:  # force PyNative mode when debugging
-        print("Debug mode is on, switching execution mode to PyNative.")
-        mode = ms.PYNATIVE_MODE
-    if jit_level:
-        if ms.__version__ >= "2.3":
-            ms.set_context(jit_config={"jit_level": jit_level})
-        else:
-            print("Compilation optimization (JIT Level) is supported only in MindSpore 2.3 or later.")
-
-    if distributed:
-        ms.set_context(mode=mode, device_target=device_target, ascend_config={})
-        device_id = os.getenv("DEVICE_ID", None)
-        if device_id:
-            ms.set_context(device_id=int(device_id))
-
-        init()
-        device_num = get_group_size()
-        rank_id = get_rank()
-        ms.reset_auto_parallel_context()
-        ms.set_auto_parallel_context(
-            parallel_mode=ms.ParallelMode.DATA_PARALLEL,
-            gradients_mean=True,
-            device_num=device_num,
-        )
-    else:
-        device_num = 1
-        device_id = int(os.getenv("DEVICE_ID", 0))
-        rank_id = 0
-        ms.set_context(
-            mode=mode,
-            device_target=device_target,
-            device_id=device_id,
-            ascend_config={},
-            pynative_synchronize=debug,
-        )
-
-    return device_id, rank_id, device_num
-
 
 def load_net(model, model_file):
-    # assert os.path.isfile(os.path.join(ckpt_folder, "train_resume.ckpt")) or (
-    #     ckpt_name is not None and (os.path.isfile(ckpt_folder, ckpt_name))
-    # )
-    # if ckpt_name is not None:
-    #     model_file = os.path.join(ckpt_folder, ckpt_name)
-    # else:
-    #     model_file = os.path.join(ckpt_folder, "train_resume.ckpt")
     print(f"Loading weights from local pretrained directory: {model_file}")
     state_dict = ms.load_checkpoint(model_file)
 
@@ -109,8 +57,8 @@ def load_net(model, model_file):
             f"Exist ckpt params not loaded: {ckpt_not_load} (total: {len(ckpt_not_load)}),\n"
             f"or net params not loaded: {param_not_load} (total: {len(param_not_load)})"
         )
-
-    if ckpt_name is not None:
+    ckpt_name = os.path.basename(model_file)
+    if ckpt_name != "train_resume.ckpt":
         epoch_num = int(ckpt_name.strip()[7:-5])
     else:
         epoch_num = state_dict["epoch_num"].item()
@@ -131,23 +79,11 @@ def evaluate(args):
     set_random_seed(args.seed)
     logger = set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
-    # device_id, rank_id, device_num = init_env(
-    #     mode=args.mode,  # only support PYNATIVE using DynamicCache
-    #     device_target=args.device_target,
-    #     debug=args.debug,
-    #     seed=args.seed,
-    #     # distributed=args.use_parallel,
-    #     jit_level=args.jit_level,
-    # )
-    # set_random_seed(args.seed)
-    # logger = set_logger(name="", output_dir=args.output_path, rank=0, log_level=eval(args.log_level))
-    # logger.info(f"Device_id: {device_id}, rank_id: {rank_id}, device_num: {device_num}")
-
     # 1. Load Models and Processor
     # model path
     EMU_HUB = args.model_path
     VQ_HUB = args.tokenizer_path
-    EMU_DTYPE = args.dtype
+    EMU_DTYPE = ms.float16 if args.dtype == "fp16" else ms.bfloat16
     VQ_DTYPE = ms.bfloat16
     start_time = time.time()
 
@@ -160,12 +96,6 @@ def evaluate(args):
     model_config.attn_implementation = "flash_attention_2"  # optional: "eager"
     model = Emu3ForCausalLM(model_config).to(EMU_DTYPE)
     model.set_train(False)
-
-    # if not args.use_parallel and args.zero_stage != 3:
-    #     logger.info("No need to rewrite network.")
-    # else:
-    #     optimizer_parallel_group = GlobalComm.WORLD_COMM_GROUP
-    #     model = prepare_network(model, args.zero_stage, optimizer_parallel_group, parallel_modules=None)
 
     # load pretrained checkpoint
     logger.info(f"Loading ckpt in {args.model_path}.")
@@ -204,10 +134,6 @@ def evaluate(args):
 
         classifier_free_guidance = 3.0
         prompt = [args.prompt]
-        # prompt = [
-        #     "a portrait of young girl.",
-        #     "a shiba inu",
-        # ]  # NOTE: if OOM, reduce to batch=1, e.g. ["a portrait of young girl."]
         prompt = [p + POSITIVE_PROMPT for p in prompt]
 
         kwargs = dict(
@@ -306,7 +232,6 @@ def evaluate(args):
     else:
         # detokenization
         start_time = time.time()
-        # outputs = outputs[:, inputs.input_ids.shape[-1] :]
         answers = processor.batch_decode(outputs, skip_special_tokens=True)
         for ans in answers:
             print(ans)
@@ -317,7 +242,9 @@ def evaluate(args):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, help="model path with config.json")
-    parser.add_argument("--ckpt_dir", type=str, default=None, help="model ckpt diretory, e.g. outputs/rank_group_8/ckpt/emu3-e50.ckpt")
+    parser.add_argument(
+        "--ckpt_dir", type=str, default=None, help="model ckpt diretory, e.g. outputs/rank_group_8/ckpt/emu3-e50.ckpt"
+    )
     parser.add_argument(
         "--tokenizer_path", type=str, default=None, help="tokenizer folder, e.g. BAAI/Emu3-VisionTokenizer"
     )
@@ -365,7 +292,6 @@ def parse_args():
         default="logging.INFO",
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
-    # parser.add_argument("--zero_stage", default=3, type=int, help="zero stage used in training")
     args = parser.parse_args()
     return args
 

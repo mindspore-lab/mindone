@@ -28,15 +28,16 @@ As a multimodal LLM, Emu3 uses vector quantization to tokenize images into discr
 ## Demos
 Text to Image Generation:
 
-|prompt| generated image|
+|input| generated image|
 |---|---|
-| |
+|prompt: `"a portrait of young girl"`<br> image cnofig: {ratio:1:1, image_area:720x720} | |
+|prompt: `"a shiba inu"`<br> image cnofig: {ratio:16:9, image_area:720x720}| |
 
 Image VQA:
 
 |image| text prompt | response|
 |---|---|---|
-|||
+||`"Please describe the image"`| The image is a closeup of a dog with a happy expression, looking directly at the camera. The dog has a brown and white coat, with a distinctive white stripe running down the center of its face. The background is blurred, with hints of greenery suggesting an outdoor setting. The dog appears to be sitting on grass, with a few yellow flowers visible in the lower part of the image. The overall tone of the image is cheerful and friendly.|
 
 ## Get Started
 ### Requirements
@@ -419,8 +420,8 @@ Experiments are tested on ascend 910* with pynative mode.
 
 |model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | img/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF |  |  |  |
-| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  |  |  |  |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF | 0.50 | 8193 | 2.27-e4 |
+| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  | 0.49 | 8193 | 2.50-e4 |
 
 *note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
 

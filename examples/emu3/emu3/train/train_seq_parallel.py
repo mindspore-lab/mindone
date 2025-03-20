@@ -85,32 +85,6 @@ def update_configs(model_config, args, fields):
         cross_update(model_config, args, f)
 
 
-# def resume_train_net(
-#     train_net: TrainOneStepWrapper, resume_ckpt = None
-# ) -> Tuple[Union[int, None], Union[int, None]]:
-#     if resume_ckpt is None:
-#         return None, None
-
-#     state_dict = ms.load_checkpoint(resume_ckpt)
-#     if "epoch_num" not in state_dict or "cur_step" not in state_dict or "loss_scale" not in state_dict:
-#         raise ValueError("Resume training checkpoint is invalid. Please check the checkpoint file.")
-
-#     start_epoch = state_dict.pop("epoch_num").item()
-#     global_step = state_dict.pop("cur_step").item()
-#     logger.info(f"Resuming training of network from {resume_ckpt} at global step {global_step}")
-
-#     # `EvalSaveCallback` renames `scale_sense` to `loss_scale` when saving the resume checkpoint
-#     train_net.scale_sense = ms.Parameter(state_dict.pop("loss_scale"), name="scale_sense")
-#     param_not_load, ckpt_not_load = load_param_into_net_with_filter(train_net, state_dict, filter=state_dict.keys())
-#     if param_not_load or ckpt_not_load:
-#         logger.warning(
-#             f"Exist ckpt params not loaded: {ckpt_not_load} (total: {len(ckpt_not_load)}),\n"
-#             f"or net params not loaded: {param_not_load} (total: {len(param_not_load)})"
-#         )
-
-#     return start_epoch, global_step
-
-
 def main():
     parser = tf.HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
@@ -279,7 +253,7 @@ def main():
     start_epoch, global_step = 0, 0
 
     if training_args.resume is not None:
-        resume_ckpt = os.path.join(training_args.resume, f"rank_{rank_id}", "ckpt", "train_resume.ckpt") # zero stage=3
+        resume_ckpt = os.path.join(training_args.resume, f"rank_{rank_id}", "ckpt", "train_resume.ckpt")  # zero stage=3
         if not os.path.isfile(resume_ckpt):
             resume_ckpt = os.path.join(training_args.resume, "ckpt", "train_resume.ckpt")
         assert os.path.isfile(
@@ -323,7 +297,7 @@ def main():
                 ckpt_max_keep=training_args.save_total_limit,
                 ckpt_save_interval=training_args.save_steps,
                 step_mode=True if training_args.save_strategy == "steps" else False,  # epoch/steps, default: steps
-                ckpt_combine_online = False # Optional. If False, do offline ckpt combine
+                ckpt_combine_online=False,  # Optional. If False, do offline ckpt combine
             )
         )
     # if rank_id == 0:

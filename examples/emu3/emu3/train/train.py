@@ -12,16 +12,11 @@ from emu3.mllm import Emu3Config, Emu3ForCausalLM, Emu3Tokenizer
 from emu3.train.datasets import Emu3FeatureDataset
 
 import mindspore as ms
-
-# from mindone.utils.amp import auto_mixed_precision
 from mindspore.amp import auto_mixed_precision
 
-# from mindone.trainers import get_scheduler
 from mindone.transformers.mindspore_adapter import MindSporeArguments, init_environment
 from mindone.transformers.trainer import Trainer
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
-
-# from mindspore import nn
 
 
 @dataclass

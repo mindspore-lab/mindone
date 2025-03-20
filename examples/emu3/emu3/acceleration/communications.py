@@ -1,6 +1,6 @@
-from typing import Callable, Literal, Tuple, Union
+from typing import Callable, Literal, Tuple
 
-from mindspore import Tensor, mint, nn, ops
+from mindspore import Tensor, nn, ops
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
 __all__ = ["SplitFowardGatherBackward", "GatherFowardSplitBackward"]
@@ -67,26 +67,3 @@ class GatherFowardSplitBackward(nn.Cell):
         dout = dout * self.scale
         dout = _split(dout, self.dim, self.rank, self.world_size)
         return (dout,)
-
-
-class AlltoAll(nn.Cell):
-    def __init__(self, split_dim: int = 2, concat_dim: int = 1, group: str = GlobalComm.WORLD_COMM_GROUP) -> None:
-        super().__init__()
-        assert split_dim >= 0 and concat_dim >= 0
-        self.split_dim = split_dim
-        self.concat_dim = concat_dim
-        world_size = get_group_size(group)
-        self.alltoall = ops.AlltoAll(
-            split_count=world_size, split_dim=self.split_dim, concat_dim=self.concat_dim, group=group
-        )
-
-    def construct(self, x: Tensor, split_pad: Union[int, Tensor] = 0, concat_pad: Union[int, Tensor] = 0) -> Tensor:
-        if split_pad > 0:
-            padding = (len(x.shape) - self.split_dim - 1) * (0, 0) + (0, split_pad)
-            x = mint.nn.functional.pad(x, padding)
-
-        x = self.alltoall(x)
-
-        if concat_pad > 0:
-            x = x.narrow(self.concat_dim, 0, x.shape[self.concat_dim] - concat_pad)
-        return x

@@ -2,8 +2,6 @@ import time
 
 from emu3.mllm import Emu3ForCausalLM, Emu3Tokenizer
 from emu3.mllm.processing_emu3 import Emu3Processor
-
-# TODO: from mindone.transformers import Emu3ForCausalLM
 from emu3.tokenizer import Emu3VisionVQImageProcessor, Emu3VisionVQModel
 from PIL import Image
 from transformers.generation.configuration_utils import GenerationConfig
@@ -84,7 +82,6 @@ print("Finish generation, time elapsed: %.4fs" % (time.time() - start_time))
 
 # detokenization
 start_time = time.time()
-# outputs = outputs[:, inputs.input_ids.shape[-1] :]
 answers = processor.batch_decode(outputs, skip_special_tokens=True)
 for ans in answers:
     print(ans)

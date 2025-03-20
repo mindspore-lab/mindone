@@ -1,12 +1,3 @@
-# debug use, TODO: delete later
-import os
-import sys
-
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
-sys.path.insert(0, mindone_lib_path)
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, ".")))
-
 import time
 
 from emu3.mllm import Emu3ForCausalLM, Emu3Processor, Emu3Tokenizer

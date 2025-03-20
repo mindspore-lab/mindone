@@ -37,10 +37,6 @@ def getitem(path):
     # structure:
     # [BOS] {caption text} [SOV] {meta text} [SOT] {vision tokens} [EOV] [EOS].
     if task == "img_gen":
-        # p_prob = random.random()
-        # if p_prob < null_prompt_prob:
-        #     prompt = ""
-        # else:
         prompt = data["texts"]
 
         # image generation template
@@ -76,9 +72,14 @@ def getitem(path):
     elif apply_loss_on_only_text:  # vqa
         prompt_ids = tokenizer.encode(vt_prompts)
         response_ids = tokenizer.encode(response)
-        labels[..., : len(prompt_ids)] = ignore_index  # maks input text and vision prompts
-        if (len(prompt_ids) + len(response_ids)) < labels.shape[-1]:  # mask remaining padding tokens
-            labels[..., len(prompt_ids) + len(response_ids) :] = ignore_index
+        # WRONG
+        # labels[..., : len(prompt_ids)] = ignore_index  # maks input text and vision prompts
+        # if (len(prompt_ids) + len(response_ids)) < labels.shape[-1]:  # mask remaining padding tokens
+        #     labels[..., len(prompt_ids) + len(response_ids) :] = ignore_index
+
+        labels = np.ones_like(sample["input_ids"]) * ignore_index
+        padding_start = min(len(prompt_ids) + len(response_ids), labels.shape[-1])
+        labels[..., len(prompt_ids) : padding_start] = sample["input_ids"][..., len(prompt_ids) : padding_start]
 
     sample["labels"] = labels
     for k, v in sample.items():

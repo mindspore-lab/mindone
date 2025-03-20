@@ -38,16 +38,6 @@ class Emu3FeatureDataset(BaseDataset):
         else:
             self.task = "vqa"
         self.chat_template = "You are a helpful assistant. USER: {image_prompt}{text_prompt}. ASSISTANT:"
-        # self.special_token_ids = [
-        #     151643,  # pad_token_id
-        #     151849,  # bos_token_id
-        #     151850,  # eos_token_id
-        #     151851,  # img_token_id
-        #     151852,  # boi_token_id
-        #     151853,  # eoi_token_id
-        #     151846,  # eol_token_id
-        #     151847,  # eof_token_id
-        # ]  # details in Emu3Config
         self.output_columns = ["input_ids", "attention_mask", "labels"]
 
     def __len__(self):

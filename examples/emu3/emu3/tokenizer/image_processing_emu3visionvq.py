@@ -42,9 +42,6 @@ import mindspore
 logger = logging.get_logger(__name__)
 
 
-# TODO: add the followings to transformers #
-
-
 def is_valid_image(img):
     return (
         (is_vision_available() and isinstance(img, PIL.Image.Image))
@@ -135,9 +132,6 @@ def make_list_of_images(images, expected_ndims: int = 3) -> List[ImageInput]:
         "Invalid image type. Expected either PIL.Image.Image, numpy.ndarray, or mindspore.Tensor,"
         f"but got {type(images)}."
     )
-
-
-# from mindone.transformers.utils import to_numpy
 
 
 def to_numpy(obj):
