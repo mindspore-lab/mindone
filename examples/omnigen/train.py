@@ -372,7 +372,7 @@ if __name__ == "__main__":
             ' "constant", "constant_with_warmup"]'
         ),
     )
-    parser.add_argument("--optim", default="adamw_mint", type=str, help="optimizer")
+    parser.add_argument("--optim", default="adamw_re", type=str, help="optimizer")
     parser.add_argument(
         "--betas",
         type=float,

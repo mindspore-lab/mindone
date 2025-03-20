@@ -47,7 +47,6 @@ def torch_to_ms_weight(source_fp, target_fp):
         _name_ms = convert_pt_name_to_ms(_name_pt)
         _source_data = source_data[_name_pt].cpu().detach().numpy()
         target_data.append({"name": _name_ms, "data": ms.Tensor(_source_data)})
-    print(target_data)
     ms.save_checkpoint(target_data, target_fp)
 
 
