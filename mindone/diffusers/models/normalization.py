@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, nn, ops, mint
 from mindspore.common.initializer import initializer
 
 from .activations import get_activation
@@ -155,8 +155,9 @@ class AdaLayerNormZero(nn.Cell):
         if self.emb is not None:
             emb = self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, axis=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(emb, 6, dim=1)
+        # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
 
 
@@ -187,8 +188,9 @@ class AdaLayerNormZeroSingle(nn.Cell):
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa = emb.chunk(3, axis=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        shift_msa, scale_msa, gate_msa = mint.chunk(emb, 3, dim=1)
+        # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa
 
 
@@ -322,8 +324,9 @@ class AdaLayerNormContinuous(nn.Cell):
     def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
         # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
         emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
-        scale, shift = ops.chunk(emb, 2, axis=1)
-        x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        scale, shift = mint.chunk(emb, 2, dim=1)
+        # x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        x = self.norm(x) * (1 + scale).expand_dims(axis=1) + shift.expand_dims(axis=1)
         return x
 
 
