@@ -294,17 +294,17 @@ class OmniGen(nn.Cell, PeftAdapterMixin):
         return latents, num_tokens, shapes
 
     def construct(
-        self, 
-        x, 
-        timestep, 
-        input_ids, 
-        attention_mask, 
+        self,
+        x,
+        timestep,
+        input_ids,
+        attention_mask,
         position_ids,
-        input_img_latents = [],
-        input_image_sizes = {},
-        padding_latents = [None],
+        input_img_latents=[],
+        input_image_sizes={},
+        padding_latents=[None],
         past_key_values=None,
-        return_past_key_values=False
+        return_past_key_values=False,
     ):
         """Forward pass of the model"""
         input_is_list = isinstance(x, (list, tuple))
