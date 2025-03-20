@@ -130,45 +130,6 @@ class AttentionMaskConverter:
         """
         return _expand_mask(mask, dtype, tgt_len)
 
-    @staticmethod
-    def _ignore_causal_mask_sdpa(
-        attention_mask: Optional[ms.Tensor],
-        inputs_embeds: ms.Tensor,
-        past_key_values_length: int,
-        sliding_window: Optional[int] = None,
-        is_training: bool = False,
-    ) -> bool:
-        """
-        Detects whether the optional user-specified attention_mask & the automatically created causal mask can be ignored in case PyTorch's SDPA is used,
-        rather relying on SDPA's `is_causal` argument.
-
-        In case no token is masked in the `attention_mask` argument, if `query_length == 1` or
-        `key_value_length == query_length`, we rather rely on SDPA `is_causal` argument to use causal/non-causal masks,
-        allowing to dispatch to the flash attention kernel (that can otherwise not be used if a custom `attn_mask` is passed).
-        """
-
-        _, query_length = inputs_embeds.shape[0], inputs_embeds.shape[1]
-        key_value_length = query_length + past_key_values_length
-
-        ignore_causal_mask = False
-
-        if attention_mask is None:
-            if (
-                is_training
-                and (query_length == 1 or key_value_length == query_length)
-                and (sliding_window is None or key_value_length < sliding_window)
-            ):
-                ignore_causal_mask = True
-        elif sliding_window is None or key_value_length < sliding_window:
-            if len(attention_mask.shape) == 4:
-                return False
-            elif is_training and ops.all(attention_mask == 1):
-                if query_length == 1 or key_value_length == query_length:
-                    # For query_length == 1, causal attention and bi-directional attention are the same.
-                    ignore_causal_mask = True
-
-        return ignore_causal_mask
-
 
 def to_causal_4d(
     batch_size: int,
@@ -339,55 +300,6 @@ def _prepare_4d_causal_attention_mask(
         )
 
     return attention_mask
-
-
-# Adapted from _prepare_4d_causal_attention_mask
-def _prepare_4d_causal_attention_mask_for_sdpa(
-    attention_mask: Optional[ms.Tensor],
-    input_shape: Union[Tuple, List],
-    inputs_embeds: ms.Tensor,
-    past_key_values_length: int,
-    sliding_window: Optional[int] = None,
-):
-    """
-    Prepares the correct `attn_mask` argument to be used by `scaled_dot_product_attention`.
-
-    In case no token is masked in the `attention_mask` argument, we simply set it to `None` for the cases `query_length == 1` and
-    `key_value_length == query_length`, and rely instead on SDPA `is_causal` argument to use causal/non-causal masks,
-    allowing to dispatch to the flash attention kernel (that can otherwise not be used if a custom `attn_mask` is passed).
-    """
-    attn_mask_converter = AttentionMaskConverter(is_causal=True, sliding_window=sliding_window)
-
-    key_value_length = input_shape[-1] + past_key_values_length
-
-    ignore_causal_mask = AttentionMaskConverter._ignore_causal_mask_sdpa(
-        attention_mask=attention_mask,
-        inputs_embeds=inputs_embeds,
-        past_key_values_length=past_key_values_length,
-        sliding_window=sliding_window,
-    )
-
-    if ignore_causal_mask:
-        expanded_4d_mask = None
-    elif attention_mask is None:
-        expanded_4d_mask = attn_mask_converter.to_causal_4d(
-            input_shape[0], input_shape[-1], key_value_length, dtype=inputs_embeds.dtype, device=inputs_embeds.device
-        )
-    else:
-        if attention_mask.dim() == 4:
-            # in this case we assume that the mask comes already in inverted form and requires no inversion or slicing
-            if attention_mask.max() != 0:
-                raise ValueError("Custom 4D attention mask should be passed in inverted form with max==0`")
-            expanded_4d_mask = attention_mask
-        else:
-            expanded_4d_mask = attn_mask_converter.to_4d(
-                attention_mask,
-                input_shape[-1],
-                dtype=inputs_embeds.dtype,
-                key_value_length=key_value_length,
-            )
-
-    return expanded_4d_mask
 
 
 def _prepare_4d_attention_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):
