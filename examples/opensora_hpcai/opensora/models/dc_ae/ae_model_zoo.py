@@ -4,8 +4,7 @@ import mindspore as ms
 
 from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedModel
 from mindone.utils.params import load_checkpoint_to_net
-# from opensora.registry import MODELS
-# from opensora.utils.ckpt import load_checkpoint
+
 from .models.dc_ae import DCAE, DCAEConfig, dc_ae_f32
 
 __all__ = ["create_dc_ae_model_cfg", "DCAE_HF", "DC_AE"]
@@ -30,12 +29,11 @@ class DCAE_HF(DCAE, PreTrainedModel):
         DCAE.__init__(self, cfg)
 
 
-# @MODELS.register_module("dc_ae")  # TODO: check if this is needed
 def DC_AE(
     model_name: str,
     ms_dtype: ms.dtype = ms.bfloat16,
     from_scratch: bool = False,
-    from_pretrained: str | None = None,
+    from_pretrained: Optional[str] = None,
     is_training: bool = False,
     use_spatial_tiling: bool = False,
     use_temporal_tiling: bool = False,

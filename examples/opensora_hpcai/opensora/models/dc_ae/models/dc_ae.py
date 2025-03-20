@@ -5,7 +5,6 @@ import mindspore as ms
 from mindspore import nn, mint
 from omegaconf import MISSING, OmegaConf
 
-from opensora.acceleration.checkpoint import auto_grad_checkpoint
 from mindone.utils.params import load_checkpoint_to_net
 from ..utils import init_modules
 from .nn.act import build_act
@@ -413,13 +412,11 @@ class Encoder(nn.Cell):
 
     def construct(self, x: ms.tensor) -> ms.tensor:
         x = self.project_in(x)
-        # x = auto_grad_checkpoint(self.project_in, x)
         for stage in self.stages:
             if len(stage.op_list) == 0:
                 continue
-            x = auto_grad_checkpoint(stage, x)
-        # x = self.project_out(x)
-        x = auto_grad_checkpoint(self.project_out, x)
+            x = stage(stage)
+        x = self.project_out(x)
         return x
 
 
@@ -488,17 +485,16 @@ class Decoder(nn.Cell):
         )
 
     def construct(self, x: ms.tensor) -> ms.tensor:
-        x = auto_grad_checkpoint(self.project_in, x)
+        x = self.project_in(x)
         for stage in reversed(self.stages):
             if len(stage.op_list) == 0:
                 continue
-            # x = stage(x)
-            x = auto_grad_checkpoint(stage, x)
+            x = stage(x)
 
         if self.disc_off_grad_ckpt:
             x = self.project_out(x)
         else:
-            x = auto_grad_checkpoint(self.project_out, x)
+            x = self.project_out(x)
         return x
 
 
