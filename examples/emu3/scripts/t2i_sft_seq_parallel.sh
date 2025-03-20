@@ -4,7 +4,7 @@ export ASCEND_RT_VISIBLE_DEVICES=0,1,2,3,4,5,6,7  # TO REPLACE
 NPUS=8                                  # TO REPLACE
 MASTER_PORT=9000                        # TO REPLACE
 DATAPATH="your data path (json file)"   # TO REPLACE
-EXP_NAME="Emu3-T2I-SFT-Trial-16Layer"           # TO REPLACE
+EXP_NAME="Emu3-T2I-SFT-Trial"           # TO REPLACE
 LOG_DIR=outputs/parallel_logs/${EXP_NAME}
 
 msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_port=${MASTER_PORT} --log_dir=${LOG_DIR} \
