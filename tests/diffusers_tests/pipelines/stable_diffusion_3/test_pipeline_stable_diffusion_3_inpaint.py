@@ -292,7 +292,7 @@ class StableDiffusion3InpaintPipelineIntegrationTests(PipelineTesterMixin, unitt
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
             f'stable_diffusion_3_inpaint_{dtype}.npy',
-            subfolder="flux",
+            subfolder="stable_diffusion_3",
         )
 
         assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
