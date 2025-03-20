@@ -160,7 +160,7 @@ def main():
     if rank_id == 0:
         meta_local.to_csv(out_path, index=False)
         print(meta_local.head())
-        print(f"New meta with Llava captions saved to '{out_path}'.")
+        print(f"New meta with captions saved to '{out_path}'.")
 
 
 if __name__ == "__main__":

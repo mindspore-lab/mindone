@@ -336,6 +336,33 @@ def main():
                 )
                 input_meta_csv = input_meta_csv[:-4] + "_caption_qwen2vl.csv"
 
+            # Llava captioning
+            if captioning["llava_caption"]["run"]:
+                question = captioning["llava_caption"]["question"]
+                max_new_tokens = captioning["llava_caption"]["max_new_tokens"]
+                worker_num = captioning["llava_caption"]["worker_num"]
+
+                run_command(
+                    f"msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True "
+                    f"--log_dir=msrun_log/llava pipeline/captioning/caption_llava.py {input_meta_csv} "
+                    f'--question "{question}" --max_new_tokens {max_new_tokens}'
+                )
+                input_meta_csv = input_meta_csv[:-4] + "_caption_llava.csv"
+
+            # pLlava captioning
+            if captioning["pllava_caption"]["run"]:
+                question = captioning["pllava_caption"]["question"]
+                num_frames = captioning["pllava_caption"]["num_frames"]
+                max_new_tokens = captioning["pllava_caption"]["max_new_tokens"]
+                worker_num = captioning["pllava_caption"]["worker_num"]
+
+                run_command(
+                    f"msrun --worker_num={worker_num} --local_worker_num={worker_num} --join=True "
+                    f"--log_dir=msrun_log/pllava pipeline/captioning/caption_pllava.py {input_meta_csv} "
+                    f'--question "{question}" --num_frames {num_frames} --max_new_tokens {max_new_tokens}'
+                )
+                input_meta_csv = input_meta_csv[:-4] + "_caption_pllava.csv"
+
             # clean caption
             if captioning["clean_caption"]["run"]:
                 clean_options = []
