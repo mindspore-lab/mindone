@@ -30,6 +30,7 @@ def main():
     model, processor = load_pllava(
         args.pretrained_model_name_or_path,
         args.num_frames,
+        pooling_shape= (args.num_frames, 12, 12),
     )
 
     SYSTEM = """You are a powerful Video Magic ChatBot, a large vision-language assistant.

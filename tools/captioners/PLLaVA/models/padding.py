@@ -9,7 +9,7 @@ from mindspore import Tensor
 def pad_along_axis(
     x: Tensor,
     value: Optional[Number] = None,
-    multiplier: int = 512,
+    multiplier: int = 1024,
     axis: int = -1,
     shift: int = 0,
     padding_direction: str = "right",
