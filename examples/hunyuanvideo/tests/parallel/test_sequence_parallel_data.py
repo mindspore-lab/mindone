@@ -108,17 +108,27 @@ def main(args):
         )
     dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
     logger.info(f"Num train batches: {dataloader.get_dataset_size()}")
-    save_path = f"./batch0_rank{rank_id}.pkl"
-    save_path = str(Path(save_path).absolute())
+    save_path_prefix = f"./rank{rank_id}_batch"
+    batch_count = 0
+    max_batches_to_save = 5
+
     for batch in dataloader:
+        if batch_count >= max_batches_to_save:
+            break
+
         data = []
         for item in batch:
             item = item.float().asnumpy()
             data.append(item)
+
+        save_path = f"{save_path_prefix}{batch_count}.pkl"
+        save_path = str(Path(save_path).absolute())
+
         with open(save_path, "wb") as f:
             pickle.dump(data, f)
-        break
-    print(f"The first batch data has been saved to {save_path}")
+
+        batch_count += 1
+        print(f"The batch {batch_count} data has been saved to {save_path}")
 
 
 if __name__ == "__main__":

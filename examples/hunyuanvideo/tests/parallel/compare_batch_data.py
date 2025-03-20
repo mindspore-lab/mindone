@@ -31,6 +31,13 @@ def compare_pkl_files(file_path1, file_path2):
 
 
 # Example usage
-file_path1 = "./batch0_rank0.pkl"
-file_path2 = "./batch0_rank1.pkl"
-compare_pkl_files(file_path1, file_path2)
+max_batches_to_save = 5
+for i_batch in range(max_batches_to_save):
+    file_path1 = f"./rank0_batch{i_batch}.pkl"
+    file_path2 = f"./rank1_batch{i_batch}.pkl"
+    print(f"Comparing rank0 and rank1 from batch {i_batch}")
+    compare_pkl_files(file_path1, file_path2)
+
+    if i_batch > 0:
+        print(f"Comparing batch{i_batch} and batch{i_batch-1} from rank0")
+        compare_pkl_files(f"./rank0_batch{i_batch}.pkl", f"./rank0_batch{i_batch-1}.pkl")
