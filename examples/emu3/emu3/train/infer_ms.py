@@ -7,6 +7,7 @@ cd examples/emu3
 DEVICE_ID=0 python emu3/train/infer_ms.py \
 --model_path outputs/Emu3-T2I-SFT \
 --tokenizer_path BAAI/Emu3-Stage1 \
+--vision_tokenizer_path BAAI/Emu3-VisionTokenizer \
 --ckpt_dir outputs/Emu3-T2I-SFT/rank_all_8/ckpt/emu3-e50.ckpt \
 --prompt "A girl."
 --task img-gen \
@@ -15,6 +16,7 @@ DEVICE_ID=0 python emu3/train/infer_ms.py \
 DEVICE_ID=0 python emu3/train/infer_ms.py \
 --model_path outputs/Emu3-VQA-SFT \
 --tokenizer_path BAAI/Emu3-Stage1 \
+--vision_tokenizer_path BAAI/Emu3-VisionTokenizer \
 --ckpt_dir outputs/Emu3-VQA-SFT/rank_all_8/ckpt/emu3-e50.ckpt \
 --image img_prompt.jpg \
 --prompt "Describe this image."
@@ -39,7 +41,6 @@ from mindspore import Tensor, nn, ops
 from mindone.utils import set_logger
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import str2bool
-from mindone.utils.params import load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
@@ -48,9 +49,16 @@ logger = logging.getLogger(__name__)
 def load_net(model, model_file):
     print(f"Loading weights from local pretrained directory: {model_file}")
     state_dict = ms.load_checkpoint(model_file)
+    state_dict_tmp = {}
+    for k, v in state_dict.items():
+        if k.startswith("network."):
+            k = k.replace("network.", "")
+        k = k.replace("_backbone.", "")
+        state_dict_tmp[k] = v
+    state_dict = state_dict_tmp
 
     # Instantiate the model
-    param_not_load, ckpt_not_load = load_param_into_net_with_filter(model, state_dict, filter=state_dict.keys())
+    param_not_load, ckpt_not_load = ms.load_param_into_net(model, state_dict)
     print(f"Loaded checkpoint: param_not_load {param_not_load}, ckpt_not_load {ckpt_not_load}")
     if param_not_load or ckpt_not_load:
         print(
@@ -59,7 +67,7 @@ def load_net(model, model_file):
         )
     ckpt_name = os.path.basename(model_file)
     if ckpt_name != "train_resume.ckpt":
-        epoch_num = int(ckpt_name.strip()[7:-5])
+        epoch_num = int(ckpt_name.strip()[6:-5])
     else:
         epoch_num = state_dict["epoch_num"].item()
 
@@ -81,8 +89,8 @@ def evaluate(args):
 
     # 1. Load Models and Processor
     # model path
-    EMU_HUB = args.model_path
-    VQ_HUB = args.tokenizer_path
+    TOKENIZER_HUB = args.tokenizer_path
+    VQ_HUB = args.vision_tokenizer_path
     EMU_DTYPE = ms.float16 if args.dtype == "fp16" else ms.bfloat16
     VQ_DTYPE = ms.bfloat16
     start_time = time.time()
@@ -99,7 +107,7 @@ def evaluate(args):
 
     # load pretrained checkpoint
     logger.info(f"Loading ckpt in {args.model_path}.")
-    # ckpt_folder = os.path.join(args.model_path, f"rank_{rank_id}", "ckpt")
+
     epoch_num = load_net(model, args.ckpt_dir)
     logger.info(f"Loaded checkpoint at Epoch #{epoch_num}")
 
@@ -107,7 +115,7 @@ def evaluate(args):
     os.makedirs(image_path, exist_ok=True)
 
     print("Start to load tokenizer...")
-    tokenizer = Emu3Tokenizer.from_pretrained(EMU_HUB, padding_side="left")
+    tokenizer = Emu3Tokenizer.from_pretrained(TOKENIZER_HUB, padding_side="left")
     image_processor = Emu3VisionVQImageProcessor.from_pretrained(VQ_HUB)
     image_tokenizer = Emu3VisionVQModel.from_pretrained(
         VQ_HUB, use_safetensors=True, mindspore_dtype=VQ_DTYPE
@@ -122,7 +130,7 @@ def evaluate(args):
     start_time = time.time()
 
     text = [args.prompt]
-    image = []
+    image = None
     if args.image is not None:
         image = Image.open(args.image)
         image = [image]
@@ -138,9 +146,8 @@ def evaluate(args):
 
         kwargs = dict(
             mode="G",
-            # ratio=["1:1", "16:9"],  # NOTE: if OOM, reduce to batch=1, e.g. ["1:1"]
             ratio=["1:1"],
-            image_area=model.config.image_area,  # 720*720, NOTE: if OOM, reduce it to 512*512
+            image_area=model.config.image_area,  # 512*512
             return_tensors="np",
             padding="longest",
         )
@@ -245,8 +252,12 @@ def parse_args():
     parser.add_argument(
         "--ckpt_dir", type=str, default=None, help="model ckpt diretory, e.g. outputs/rank_group_8/ckpt/emu3-e50.ckpt"
     )
+    parser.add_argument("--tokenizer_path", type=str, default=None, help="tokenizer folder, e.g. BAAI/Emu3-Stage1")
     parser.add_argument(
-        "--tokenizer_path", type=str, default=None, help="tokenizer folder, e.g. BAAI/Emu3-VisionTokenizer"
+        "--vision_tokenizer_path",
+        type=str,
+        default=None,
+        help="vision tokenizer folder, e.g. BAAI/Emu3-VisionTokenizer",
     )
     parser.add_argument(
         "--output_path",
