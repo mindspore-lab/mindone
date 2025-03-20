@@ -30,14 +30,14 @@ Text to Image Generation:
 
 |input| generated image|
 |---|---|
-|prompt: `"a portrait of young girl"`<br> image cnofig: {ratio:1:1, image_area:720x720} | |
-|prompt: `"a shiba inu"`<br> image cnofig: {ratio:16:9, image_area:720x720}| |
+|prompt: `"a portrait of young girl"`<br> image cnofig: {ratio:1:1, image_area:720x720} |<img src="https://github.com/user-attachments/assets/3e79b937-2d6d-4098-bb37-977d6c592854" height="384px"> |
+|prompt: `"a shiba inu"`<br> image cnofig: {ratio:16:9, image_area:720x720}|<img src="https://github.com/user-attachments/assets/d7b3c287-42d2-40ea-93ec-e46b02289850" height="384px">|
 
 Image VQA:
 
-|image| text prompt | response|
-|---|---|---|
-||`"Please describe the image"`| The image is a closeup of a dog with a happy expression, looking directly at the camera. The dog has a brown and white coat, with a distinctive white stripe running down the center of its face. The background is blurred, with hints of greenery suggesting an outdoor setting. The dog appears to be sitting on grass, with a few yellow flowers visible in the lower part of the image. The overall tone of the image is cheerful and friendly.|
+|input | response|
+|---|---|
+|<img src="https://github.com/user-attachments/assets/bb84d826-39fd-4e97-9471-e0592d1158b7" width="512px"><br> prompt: `"Please describe the image"`| The image is a closeup of a dog with a happy expression, looking directly at the camera. The dog has a brown and white coat, with a distinctive white stripe running down the center of its face. The background is blurred, with hints of greenery suggesting an outdoor setting. The dog appears to be sitting on grass, with a few yellow flowers visible in the lower part of the image. The overall tone of the image is cheerful and friendly.|
 
 ## Get Started
 ### Requirements
