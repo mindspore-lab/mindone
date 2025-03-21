@@ -172,22 +172,7 @@ def main(args):
         weight_decay=args.weight_decay,
         lr=lr,
     )
-    # optimizer = ms.mint.optim.AdamW(
-    #     lora_parameters,
-    #     lr=args.lr,
-    #     betas=(0.9, 0.95),
-    #     weight_decay=args.weight_decay,
-    #     eps=1e-6,
-    # )
-    # scheduler = WarmupCosineDecayLR(
-    #     optimizer,
-    #     lr_max=args.lr,
-    #     lr_min=args.end_learning_rate,
-    #     warmup_steps=args.warmup_steps,
-    #     decay_steps=args.decay_steps,
-    # )
 
-    # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(len(train_dataloader) / args.gradient_accumulation_steps)
     max_train_steps = args.epochs * num_update_steps_per_epoch
 
