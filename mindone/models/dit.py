@@ -272,7 +272,9 @@ class SelfAttention(nn.Cell):
         if mask is not None:
             if mask.ndim == 2:
                 # mask shape is (batch_size, key_len)
-                mask = mint.unsqueeze(mask, dim=1).repeat(q_n, axis=1)  # (b, k_n) -> (b, 1, k_n) -> (b, q_n, k_n)
+                mask = mint.unsqueeze(mask, dim=1).repeat_interleave(
+                    q_n, dim=1
+                )  # (b, k_n) -> (b, 1, k_n) -> (b, q_n, k_n)
                 mask = mint.select(
                     ~mask,
                     mint.ones((q_b, q_n, k_n), self.dtype) * (-ms.numpy.inf),
@@ -281,7 +283,9 @@ class SelfAttention(nn.Cell):
             elif mask.ndim == 3:
                 # mask shape is (batch_size, query_len, key_len), the query_len maybe one
                 if mask.shape[-2] == 1:
-                    mask = mask.repeat(q_n, axis=-1)  # manually broadcast to key length to avoid FA shape error
+                    mask = mask.repeat_interleave(
+                        q_n, dim=-1
+                    )  # manually broadcast to key length to avoid FA shape error
                 assert mask.shape[-2] == q_n, "Expect mask shape to be (bs, query_len, key_len), "
                 f"but the mask query length {mask.shape[-2]} is different from the input query length {q_n}"
                 assert mask.shape[-1] == k_n, "Expect mask shape to be (bs, query_len, key_len), "
@@ -308,7 +312,7 @@ class SelfAttention(nn.Cell):
             k = self._rearange_in(k, h)
             v = self._rearange_in(v, h)
             if mask is not None and mask.shape[0] != q.shape[0]:
-                mask = mask.repeat(h, axis=0)  # (b, q_n, k_n) -> (b*h, q_n, k_n)
+                mask = mask.repeat_interleave(h, dim=0)  # (b, q_n, k_n) -> (b*h, q_n, k_n)
             out = self.attention(q, k, v, mask)
             # (b*h, n, d) -> (b, n, h*d)
             out = self._rearange_out(out, h)

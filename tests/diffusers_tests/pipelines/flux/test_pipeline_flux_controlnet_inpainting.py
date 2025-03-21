@@ -105,8 +105,8 @@ class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_flux.FluxControlNetModel",
-            "mindone.diffusers.models.controlnet_flux.FluxControlNetModel",
+            "diffusers.models.controlnets.controlnet_flux.FluxControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_flux.FluxControlNetModel",
             dict(
                 patch_size=1,
                 in_channels=8,

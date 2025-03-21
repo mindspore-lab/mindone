@@ -51,8 +51,8 @@ class StableDiffusionControlNetPAGPipelineFastTests(
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(4, 8),
                 layers_per_block=2,

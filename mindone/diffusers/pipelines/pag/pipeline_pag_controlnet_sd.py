@@ -28,11 +28,10 @@ from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
-from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
+from ...models import AutoencoderKL, ControlNetModel, ImageProjection, MultiControlNetModel, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
-from ..controlnet.multicontrolnet import MultiControlNetModel
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker

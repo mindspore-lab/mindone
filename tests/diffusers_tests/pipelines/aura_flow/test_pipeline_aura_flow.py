@@ -6,9 +6,13 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import AuraFlowPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -137,3 +141,27 @@ class AuraFlowPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class AuraFlowPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = AuraFlowPipeline.from_pretrained("fal/AuraFlow", mindspore_dtype=ms_dtype)
+
+        prompt = "A cat holding a sign that says hello world"
+
+        torch.manual_seed(0)
+        image = pipe(prompt)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"aura_flow_{dtype}.npy",
+            subfolder="aura_flow",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

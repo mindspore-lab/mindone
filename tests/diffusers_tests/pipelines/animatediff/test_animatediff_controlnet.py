@@ -8,9 +8,17 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import AnimateDiffControlNetPipeline, AutoencoderKL, ControlNetModel, LCMScheduler, MotionAdapter
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_numpy_from_hf_hub,
+    load_downloaded_video_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -56,8 +64,8 @@ class AnimateDiffControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestC
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(8, 8),
                 layers_per_block=2,
@@ -185,3 +193,56 @@ class AnimateDiffControlNetPipelineFastTests(PipelineTesterMixin, unittest.TestC
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class AnimateDiffControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", mindspore_dtype=ms_dtype)
+        motion_adapter = MotionAdapter.from_pretrained("wangfuyun/AnimateLCM")
+
+        vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=ms_dtype)
+        pipe = AnimateDiffControlNetPipeline.from_pretrained(
+            "SG161222/Realistic_Vision_V5.1_noVAE",
+            motion_adapter=motion_adapter,
+            controlnet=controlnet,
+            vae=vae,
+            mindspore_dtype=ms_dtype,
+        )
+        pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config, beta_schedule="linear")
+        pipe.load_lora_weights(
+            "wangfuyun/AnimateLCM", weight_name="AnimateLCM_sd15_t2v_lora.safetensors", adapter_name="lcm-lora"
+        )
+        pipe.set_adapters(["lcm-lora"], [0.8])
+
+        conditioning_frames = load_downloaded_video_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "conditioning_frames.gif",
+            subfolder="animatediff",
+        )
+
+        prompt = "a panda, playing a guitar, sitting in a pink boat, in the ocean, mountains in background, realistic, high quality"
+        negative_prompt = "bad quality, worst quality"
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            num_frames=len(conditioning_frames),
+            num_inference_steps=10,
+            guidance_scale=2.0,
+            conditioning_frames=conditioning_frames,
+        )[0][0][1]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"controlnet_{dtype}.npy",
+            subfolder="animatediff",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
