@@ -121,6 +121,12 @@ def parse_args():
         help="Whether to use conv2d layer or dense (linear layer) as Patch Embedder.",
     )
     parser.add_argument(
+        "--num_classes",
+        default=1000,
+        type=int,
+        help="The number of classes of DiT",
+    )
+    parser.add_argument(
         "--model_name",
         "-m",
         type=str,

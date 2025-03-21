@@ -97,7 +97,7 @@ def main(args):
     latent_size = args.image_size // 8
     dit_model = DiT_models[args.model_name](
         input_size=latent_size,
-        num_classes=1000,
+        num_classes=args.num_classes,
         block_kwargs={"enable_flash_attention": args.enable_flash_attention},
         patch_embedder=args.patch_embedder,
         use_recompute=args.use_recompute,
@@ -258,6 +258,10 @@ def main(args):
     callback.append(ofm_cb)
 
     if rank_id == 0:
+        if not args.dataset_sink_mode:
+            log_interval = args.callback_size
+        else:
+            log_interval = dataset_size if args.sink_size == -1 else args.sink_size
         save_cb = EvalSaveCallback(
             network=latent_diffusion_with_loss.network,  # save dit only
             rank_id=rank_id,
@@ -267,7 +271,7 @@ def main(args):
             ckpt_max_keep=args.ckpt_max_keep,
             step_mode=args.step_mode,
             ckpt_save_interval=args.ckpt_save_interval,
-            log_interval=args.callback_size,
+            log_interval=log_interval,
             start_epoch=start_epoch,
             model_name="DiT",
             record_lr=True,
@@ -287,6 +291,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
                 f"Num params: {num_params:,} (dit: {num_params_dit:,}, vae: {num_params_vae:,})",
