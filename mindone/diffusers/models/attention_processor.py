@@ -3065,8 +3065,8 @@ class StableAudioAttnProcessor2_0:
         if kv_heads != attn.heads:
             # if GQA or MQA, repeat the key/value heads to reach the number of query heads.
             heads_per_kv_head = attn.heads // kv_heads
-            key = ops.repeat_interleave(key, heads_per_kv_head, dim=1)
-            value = ops.repeat_interleave(value, heads_per_kv_head, dim=1)
+            key = ops.repeat_interleave(key, heads_per_kv_head, axis=1)
+            value = ops.repeat_interleave(value, heads_per_kv_head, axis=1)
 
         if attn.norm_q is not None:
             query = attn.norm_q(query)
