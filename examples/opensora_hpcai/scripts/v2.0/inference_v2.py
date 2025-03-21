@@ -109,54 +109,44 @@ def main(args):
     # ======================================================
     # 3. build model
     # ======================================================
-    logger.info("Building video model...")
-    model = Flux(**args.model).set_train(False)
-    logger.info("Building video AE model...")
-    ae = CausalVAE3D_HUNYUAN(**args.ae).set_train(False)  # FIXME: add DC-AE support
     t5_model, clip_model = None, None
     if prompts:
         logger.info("Building text embedder models...")
         t5_model = HFEmbedder(**args.t5)
         clip_model = HFEmbedder(**args.clip)
-    logger.info("Building image model...")
-    model_img_flux = Flux(**args.img_model).set_train(False)
-    logger.info("Building image AE model...")
-    model_ae_img_flux = AutoEncoderFlux(**args.img_ae).set_train(False)
 
-    sampling_option_t2i, denoiser_t2i = None, None
+    paths = []
+    num_prompts = max(len(prompts), len(t5_embeds))
+    offset = sampling_option.num_samples * num_prompts * rank_id
     if sampling_option.use_t2i2v:
         sampling_option_t2i = SamplingOption(**args.sampling_option_t2i)
+
+        logger.info("Building image model...")
+        model_img_flux = Flux(**args.img_model).set_train(False)
+        logger.info("Building image AE model...")
+        model_ae_img_flux = AutoEncoderFlux(**args.img_ae).set_train(False)
+
         denoiser_t2i = DistilledDenoiser()
+        pipeline_img = InferPipelineV2(
+            model_img_flux, model_ae_img_flux, t5_model, clip_model, num_inference_steps=sampling_option_t2i.num_steps
+        )
 
-    pipeline_img = InferPipelineV2(
-        model_img_flux, model_ae_img_flux, t5_model, clip_model, num_inference_steps=sampling_option_t2i.num_steps
-    )
+        logger.info("Generating image condition with Flux...")
+        for i in range(sampling_option.num_samples):  # generate multiple samples with different seeds
+            for p in range(0, num_prompts, sampling_option.batch_size):
+                prompt = prompts[p : p + sampling_option.batch_size]
+                neg_prompt = neg_prompts[p : p + sampling_option.batch_size]
+                t5_emb = t5_embeds[p : p + sampling_option.batch_size]
+                neg_t5_emb = neg_t5_embeds[p : p + sampling_option.batch_size]
+                clip_emb = clip_embeds[p : p + sampling_option.batch_size]
+                neg_clip_emb = neg_clip_embeds[p : p + sampling_option.batch_size]
+                # read cached embeddings, if any
+                if t5_emb and clip_emb:
+                    t5_emb = np.array([np.load(emb) for emb in t5_emb])
+                    neg_t5_emb = np.array([np.load(emb) for emb in neg_t5_emb])
+                    clip_emb = np.array([np.load(emb) for emb in clip_emb])
+                    neg_clip_emb = np.array([np.load(emb) for emb in neg_clip_emb])
 
-    denoiser_i2v = I2VDenoiser()
-    pipeline_vid = InferPipelineV2(model, ae, t5_model, clip_model, num_inference_steps=sampling_option.num_steps)
-
-    # ======================================================
-    # 4. inference
-    # ======================================================
-    cond_type = "t2v"  # TODO: wth is it?
-    for epoch in range(sampling_option.num_samples):  # generate multiple samples with different seeds
-        for i in range(0, max(len(prompts), len(t5_embeds)), sampling_option.batch_size):
-            prompt = prompts[i : i + sampling_option.batch_size]
-            neg_prompt = neg_prompts[i : i + sampling_option.batch_size]
-            t5_emb = t5_embeds[i : i + sampling_option.batch_size]
-            neg_t5_emb = neg_t5_embeds[i : i + sampling_option.batch_size]
-            clip_emb = clip_embeds[i : i + sampling_option.batch_size]
-            neg_clip_emb = neg_clip_embeds[i : i + sampling_option.batch_size]
-            # read cached embeddings, if any
-            if t5_emb and clip_emb:
-                t5_emb = np.array([np.load(emb) for emb in t5_emb])
-                neg_t5_emb = np.array([np.load(emb) for emb in neg_t5_emb])
-                clip_emb = np.array([np.load(emb) for emb in clip_emb])
-                neg_clip_emb = np.array([np.load(emb) for emb in neg_clip_emb])
-
-            paths = []
-            if sampling_option.use_t2i2v:
-                logger.info("Generating image condition with Flux...")
                 start = perf_counter()
                 images, img_latents = pipeline_img(
                     text=prompt,
@@ -172,11 +162,43 @@ def main(args):
                 )
                 logger.info(f"Image generation time: {perf_counter() - start:.2f} s")
 
-                # save image to disk
-                paths = process_and_save(
-                    images, ids=list(range(i, i + sampling_option.batch_size)), save_dir=saving_options.output_path
-                )
-                cond_type = "i2v_head"
+                if images is not None:
+                    sample_paths = process_and_save(
+                        images,
+                        ids=list(range(offset + num_prompts * i + p, offset + num_prompts * i + p + len(images))),
+                        save_dir=saving_options.output_path,
+                    )
+                    paths.extend(sample_paths)
+                    for path in sample_paths:
+                        logger.info(f"Images saved to: {path}")
+
+        del pipeline_img, model_img_flux, model_ae_img_flux  # release NPU memory
+
+    logger.info("Building video model...")
+    model = Flux(**args.model).set_train(False)
+    logger.info("Building video AE model...")
+    ae = CausalVAE3D_HUNYUAN(**args.ae).set_train(False)  # FIXME: add DC-AE support
+    denoiser_i2v = I2VDenoiser()
+    pipeline_vid = InferPipelineV2(model, ae, t5_model, clip_model, num_inference_steps=sampling_option.num_steps)
+
+    # ======================================================
+    # 4. inference
+    # ======================================================
+    cond_type = "i2v_head" if sampling_option.use_t2i2v else "t2v"  # TODO: refactor it
+    for i in range(sampling_option.num_samples):  # generate multiple samples with different seeds
+        for p in range(0, num_prompts, sampling_option.batch_size):
+            prompt = prompts[p : p + sampling_option.batch_size]
+            neg_prompt = neg_prompts[p : p + sampling_option.batch_size]
+            t5_emb = t5_embeds[p : p + sampling_option.batch_size]
+            neg_t5_emb = neg_t5_embeds[p : p + sampling_option.batch_size]
+            clip_emb = clip_embeds[p : p + sampling_option.batch_size]
+            neg_clip_emb = neg_clip_embeds[p : p + sampling_option.batch_size]
+            # read cached embeddings, if any
+            if t5_emb and clip_emb:
+                t5_emb = np.array([np.load(emb) for emb in t5_emb])
+                neg_t5_emb = np.array([np.load(emb) for emb in neg_t5_emb])
+                clip_emb = np.array([np.load(emb) for emb in clip_emb])
+                neg_clip_emb = np.array([np.load(emb) for emb in neg_clip_emb])
 
             # TODO: add FPS and motion score to prompts
             logger.info("Generating video...")
@@ -192,21 +214,22 @@ def main(args):
                 opt=sampling_option,
                 cond_type=cond_type,
                 channel=model.in_channels,
-                references=paths,
+                references=paths[p : p + sampling_option.batch_size],
             )
             logger.info(f"Video generation time: {perf_counter() - start:.2f} s")
 
-            paths = process_and_save(
-                videos, ids=list(range(i, i + sampling_option.batch_size)), save_dir=saving_options.output_path
-            )
-            for path in paths:
-                logger.info(f"Saved videos to: {path}")
+            if videos is not None:
+                sample_paths = process_and_save(
+                    videos,
+                    ids=list(range(offset + num_prompts * i + p, offset + num_prompts * i + p + len(videos))),
+                    save_dir=saving_options.output_path,
+                )
+                for path in sample_paths:
+                    logger.info(f"Videos saved to: {path}")
 
     logger.info("Inference finished.")
-    max_memory_allocated = runtime.max_memory_allocated()
-    max_memory_reserved = runtime.max_memory_reserved()
-    logger.info(f"NPU max memory max memory allocated: {max_memory_allocated / 1024**3:.1f} GB")
-    logger.info(f"NPU max memory max memory reserved: {max_memory_reserved / 1024**3:.1f} GB")
+    logger.info(f"NPU max memory max memory allocated: {runtime.max_memory_allocated() / 1024**3:.1f} GB")
+    logger.info(f"NPU max memory max memory reserved: {runtime.max_memory_reserved() / 1024**3:.1f} GB")
 
 
 if __name__ == "__main__":
