@@ -1,13 +1,13 @@
 import argparse
 import os
 import sys
+
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-
-from pipeline.scoring.utils import merge_scores, NUM_FRAMES_POINTS
-from pipeline.datasets.utils import extract_frames, is_video, pil_loader
 from pipeline.captioning.utils import set_model_param_dtype
+from pipeline.datasets.utils import extract_frames, is_video, pil_loader
+from pipeline.scoring.utils import NUM_FRAMES_POINTS, merge_scores
+from tqdm import tqdm
 
 import mindspore as ms
 import mindspore.dataset as ds
@@ -18,15 +18,16 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
 sys.path.insert(0, mindone_lib_path)
 
-from transformers import AutoTokenizer, CLIPImageProcessor # noqa: E402
-from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration # noqa: E402
+from transformers import AutoTokenizer, CLIPImageProcessor  # noqa: E402
+
+from mindone.transformers import LlavaConfig, LlavaForConditionalGeneration  # noqa: E402
 
 
 class VideoTextDataset:
     def __init__(self, meta_path, num_frames=1):
         self.meta_path = meta_path
         self.meta = pd.read_csv(meta_path)
-        self.points = NUM_FRAMES_POINTS[num_frames] # llava takes 1 frame ONLY
+        self.points = NUM_FRAMES_POINTS[num_frames]  # llava takes 1 frame ONLY
 
     def __getitem__(self, index):
         sample = self.meta.iloc[index]
@@ -47,12 +48,16 @@ class VideoTextDataset:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
-    parser.add_argument("--llava_model_path", type=str, default="pretrained_models/llava-llama-3-8b-v1_1-transformers",
-                        help="Path or identifier for the Llava model")
-    parser.add_argument("--question", type=str, default="Describe the video in detail.",
-                        help="Captioning prompt question")
-    parser.add_argument("--skip_if_existing", action="store_true",
-                        help="Skip processing if output CSV already exists.")
+    parser.add_argument(
+        "--llava_model_path",
+        type=str,
+        default="pretrained_models/llava-llama-3-8b-v1_1-transformers",
+        help="Path or identifier for the Llava model",
+    )
+    parser.add_argument(
+        "--question", type=str, default="Describe the video in detail.", help="Captioning prompt question"
+    )
+    parser.add_argument("--skip_if_existing", action="store_true", help="Skip processing if output CSV already exists.")
     parser.add_argument("--max_new_tokens", type=int, default=200, help="Max tokens to generate")
     args = parser.parse_args()
     return args
@@ -82,8 +87,7 @@ def main():
     print("Loading LlavaForConditionalGeneration Model")
     config = LlavaConfig.from_pretrained(args.llava_model_path)
     config.text_config._attn_implementation = "flash_attention_2"
-    model = LlavaForConditionalGeneration.from_pretrained(args.llava_model_path,
-                                                          text_config=config.text_config)
+    model = LlavaForConditionalGeneration.from_pretrained(args.llava_model_path, text_config=config.text_config)
     model.set_train(False)
     set_model_param_dtype(model, ms.float16)
 
@@ -93,11 +97,7 @@ def main():
 
     raw_dataset = VideoTextDataset(meta_path)
     dataset = ds.GeneratorDataset(
-        source=raw_dataset,
-        column_names=["index", "images"],
-        shuffle=False,
-        num_shards=rank_size,
-        shard_id=rank_id
+        source=raw_dataset, column_names=["index", "images"], shuffle=False, num_shards=rank_size, shard_id=rank_id
     )
 
     dataset = dataset.batch(1, drop_remainder=False)
@@ -142,8 +142,7 @@ def main():
 
     if rank_size > 1:
         indices_tensor = ms.Tensor(indices_list, dtype=ms.int64)
-        indices_all = [ms.Tensor(np.zeros(indices_tensor.shape, dtype=np.int64))
-                       for _ in range(rank_size)]
+        indices_all = [ms.Tensor(np.zeros(indices_tensor.shape, dtype=np.int64)) for _ in range(rank_size)]
         all_gather(indices_all, indices_tensor)
         indices_list_all = mint.concat(indices_all, dim=0).asnumpy().tolist()
 

@@ -1,6 +1,7 @@
 import argparse
 import os
 import sys
+
 import numpy as np
 import pandas as pd
 from pipeline.scoring.utils import merge_scores
@@ -40,7 +41,7 @@ def parse_args():
         "--pretrained_model_name_or_path",
         type=str,
         default="pretrained_models/pllava-7b",
-        help="Path or name of the pretrained PLLaVA model"
+        help="Path or name of the pretrained PLLaVA model",
     )
     parser.add_argument("--question", type=str, default="Describe the video in detail.")
     parser.add_argument("--num_frames", type=int, default=4, help="Number of frames to sample from video")
@@ -74,19 +75,13 @@ def main():
 
     print("Loading PLLaVA model...")
     model, processor = load_pllava(
-        args.pretrained_model_name_or_path,
-        args.num_frames,
-        pooling_shape=(args.num_frames, 12, 12)
+        args.pretrained_model_name_or_path, args.num_frames, pooling_shape=(args.num_frames, 12, 12)
     )
     model.set_train(False)
 
     raw_dataset = VideoTextDataset(meta_path)
     dataset = ds.GeneratorDataset(
-        source=raw_dataset,
-        column_names=["video_path", "index"],
-        shuffle=False,
-        num_shards=rank_size,
-        shard_id=rank_id
+        source=raw_dataset, column_names=["video_path", "index"], shuffle=False, num_shards=rank_size, shard_id=rank_id
     )
     dataset = dataset.batch(args.bs, drop_remainder=False)
     iterator = dataset.create_dict_iterator(num_epochs=1, output_numpy=True)

@@ -1,5 +1,6 @@
 import mindspore as ms
 
+
 def set_model_param_dtype(model, dtype=ms.bfloat16, keep_norm_fp32=False):
     if model is not None:
         assert isinstance(model, ms.nn.Cell)

@@ -7,7 +7,7 @@ captions for videos. We support LLaVA, PLLaVA, and Qwen2-VL Captioning.
 ## LLaVA Captioning
 LLaVA is utilized in the HunyuanVideo-I2V model. For usage,
  you may download the model [here](https://huggingface.co/xtuner/llava-llama-3-8b-v1_1-transformers)
- and put it under `./pretrained_models/llava-llama-3-8b-v1_1-transformers`. You can 
+ and put it under `./pretrained_models/llava-llama-3-8b-v1_1-transformers`. You can
  also use a customized directory by using the option
  `--pretrained_model_name_or_path` when running the script.
 
@@ -17,7 +17,7 @@ Currently, we only support captioning on Ascend.
 export PYTHONPATH=$(pwd)
 msrun --worker_num=2 --local_worker_num=2 --join=True \
  --log_dir=msrun_log pipeline/captioning/caption_llava.py \
- /path/to/meta.csv 
+ /path/to/meta.csv
 ```
 Modify `worker_num` and `local_worker_num` based on your resource.
 
@@ -30,19 +30,19 @@ We support the following arguments for LLaVA captioning:
 - `skip_if_existing`: Skip processing if output already exists. Default False.
 
 ## PLLaVA Captioning
-HPC-AI captioned their training videos 
-with the [PLLaVA](https://github.com/magic-research/PLLaVA) model. 
-PLLaVA performs highly competitively on multiple 
-video-based text generation benchmarks including 
+HPC-AI captioned their training videos
+with the [PLLaVA](https://github.com/magic-research/PLLaVA) model.
+PLLaVA performs highly competitively on multiple
+video-based text generation benchmarks including
 [MVbench](https://paperswithcode.com/sota/video-question-answering-on-mvbench?p=pllava-parameter-free-llava-extension-from-1).
 
-| Model      | Link                                                     | 
-| ------------ |----------------------------------------------------------| 
-| pllava-7b  | [pllava-7b · Hugging Face](https://huggingface.co/ermu2001/pllava-7b)   | 
-| pllava-13b | [pllava-13b · Hugging Face](https://huggingface.co/ermu2001/pllava-13b) | 
-| pllava-34b | [pllava-34b · Hugging Face](https://huggingface.co/ermu2001/pllava-34b) | 
+| Model      | Link                                                     |
+| ------------ |----------------------------------------------------------|
+| pllava-7b  | [pllava-7b · Hugging Face](https://huggingface.co/ermu2001/pllava-7b)   |
+| pllava-13b | [pllava-13b · Hugging Face](https://huggingface.co/ermu2001/pllava-13b) |
+| pllava-34b | [pllava-34b · Hugging Face](https://huggingface.co/ermu2001/pllava-34b) |
 
-And put it under `./pretrained_models/pllava`. You can 
+And put it under `./pretrained_models/pllava`. You can
 also use a customized directory by using the option
 `--pretrained_model_name_or_path` when running the script.
 
@@ -52,7 +52,7 @@ Currently, we only support captioning on Ascend.
 export PYTHONPATH=$(pwd)
 msrun --worker_num=2 --local_worker_num=2 --join=True \
  --log_dir=msrun_log pipeline/captioning/caption_pllava.py \
- /path/to/meta.csv 
+ /path/to/meta.csv
 ```
 Modify `worker_num` and `local_worker_num` based on your resource.
 
