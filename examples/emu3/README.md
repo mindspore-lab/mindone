@@ -44,7 +44,6 @@ Image VQA:
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
 |2.5.0 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
-|2.4.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Dependencies
 
@@ -365,16 +364,7 @@ DATA_DIR
 
 Input an image or a clip of video frames, outout the reconstructed image(s).
 <br>
-Experiments are tested on ascend 910* with pynative mode.
-
-- mindspore 2.4.1
-
-| model name	| precision* | cards | batch size| resolution |	s/step | img/s |
-| --- | --- | --- | --- | --- | --- | --- |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 2.65 | 0.38 |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 0.94 | 1.07 |
-
-- mindspore 2.5.0
+Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
 
 | model name	| precision* | cards | batch size| resolution |	s/step | img/s |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -384,17 +374,7 @@ Experiments are tested on ascend 910* with pynative mode.
 *note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
 
 <br>
-Experiments are tested on ascend 910* with graph mode.
-
-- mindspore 2.4.1
-
-| model name | precision* | cards | batch size| resolution | graph compile |	s/step | img/s |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 1         | 768x1360 | 15s | 3.28 | 0.31 |
-| Emu3-VisionTokenizer | bfloat16 | 1 | 4 (video) | 768x1360 | 15s | 5.39 | 0.19 |
-
-
-- mindspore 2.5.0
+Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
 
 | model name | precision* | cards | batch size| resolution | graph compile |	s/step | img/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -406,17 +386,7 @@ Experiments are tested on ascend 910* with graph mode.
 #### Text-to-Image Generation
 Input a text prompt, output an image.
 <br>
-Experiments are tested on ascend 910* with pynative mode.
-
-- mindspore 2.4.1
-
-|model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | img/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | OFF | 1.27 | 8192 | 9.57e-5 |
-| Emu3-Gen | bfloat16 | 1 | 1 | 720x720 | ON  | 0.54 | 8192 | 2.27e-4 |
-
-
-- mindspore 2.5.0
+Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
 
 |model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | img/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -428,16 +398,7 @@ Experiments are tested on ascend 910* with pynative mode.
 #### VQA
 Input an image and a text prompt, output textual response.
 <br>
-Experiments are tested on ascend 910* with pynative mode.
-
-- mindspore 2.4.1
-
-|model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | response/s |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | OFF | 0.24 | 577 | 0.007 |
-| Emu3-Chat | bfloat16 | 1 | 1 | 384x384 | ON  | 0.28 | 654 | 0.005 |
-
-- mindspore 2.5.0
+Experiments are tested on ascend 910* with mindspore 2.5.0  pynative mode.
 
 |model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | response/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
