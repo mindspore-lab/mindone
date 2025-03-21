@@ -566,40 +566,20 @@ PyTorch的训练超参包括：
 - 使用EMA
 - 使用AdamW优化器, 其中learning rate为0.0001, weight decay为0
 
-MindSpore的相关训练代码([train.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/train.py))为：
+MindSpore的相关训练代码为：
 ```python
-    lr = create_scheduler(
-        steps_per_epoch=dataset_size,
-        name=args.scheduler,
-        lr=args.start_learning_rate,
-        end_lr=args.end_learning_rate,
-        warmup_steps=args.warmup_steps,
-        decay_steps=args.decay_steps,
-        num_epochs=args.epochs,
-    )
-
-    optimizer = create_optimizer(
+    optimizer = AdamW(
         latent_diffusion_with_loss.trainable_params(),
-        name=args.optim,
-        betas=args.betas,
-        eps=args.optim_eps,
-        group_strategy=args.group_strategy,
-        weight_decay=args.weight_decay,
-        lr=lr,
-    )
-    # trainer (standalone and distributed)
-    ema = (
-        EMA(
+        learning_rate=1e-4,
+        beta1=0.9,
+        beta2=0.999,
+        weight_decay=0.0
+        )
+    ema = EMA(
             latent_diffusion_with_loss.network,
             ema_decay=0.9999,
         )
-        if args.use_ema
-        else None
-    )
-
 ```
-其中`args.scheduler`设为`constant`, `args.start_learning_rate`设为`1e-4`, `args.optim`设为`adamw`, `args.weight_decay`设为0., `args.use_ema` 设为True， 可以实现与PyTorch代码中相同的训练超参。
-
 
 ## 验证训练精度
 
@@ -640,21 +620,17 @@ python tools/dit_converter.py --source DiT/init_checkpoint.pt --target models/in
 参考[configs/training/class_cond_train.yaml](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/configs/training/class_cond_train.yaml), MindSpore的训练脚本为：
 
 ```bash
+cd examples/dit/
 msrun --bind_core=True --worker_num=2 --local_worker_num=2 --master_port=9000 --log_dir=outputs/class_cond_train/parallel_logs \
-  train.py \
-  -c configs/training/class_cond_train.yaml \
+  train_dit.py \
   --data_path datasets/ \
   --train_batch_size 64 \
-  --weight_decay 0. \
-  --warmup_steps 0 \
   --epochs 500 \
   --dit_checkpoint models/init_checkpoint.ckpt \
   --num_classes 2 \
   --enable_flash_attention True \
   --dataset_sink_mode True \
-  --clip_grad False \
   --ckpt_save_interval 400 \
-  --jit_level O1
 ```
 训练过程中的log文件可以通过`tail -f outputs/class_cond_train/parallel_logs/worker_0.log`查看。在上述的训练结束后，训练过程中的Loss会保存在`outputs/class_cond_train/exp/result.log`中。
 
