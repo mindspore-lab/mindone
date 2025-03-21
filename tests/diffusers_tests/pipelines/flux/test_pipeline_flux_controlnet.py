@@ -1,6 +1,7 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from diffusers.utils.torch_utils import randn_tensor
@@ -8,24 +9,33 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import FluxControlNetPipeline, FluxControlNetModel
+
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
 )
 
 test_cases = [
-    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
     {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
-    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "bfloat16"},
     {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "bfloat16"},
 ]
 
 
 @ddt
-class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class FluxControlNetInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
@@ -201,3 +211,55 @@ class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+
+    def get_inputs(self):
+        control_image = load_downloaded_image_from_hf_hub(
+            "InstantX/FLUX.1-dev-Controlnet-Canny",
+            "canny.jpg",
+            subfolder=None,
+            repo_type="model",
+        )
+        inputs = {
+            'prompt': "A girl in city, 25 years old, cool, futuristic",
+            'control_image': control_image,
+            'control_guidance_start': 0.2,
+            'control_guidance_end': 0.8,
+            'controlnet_conditioning_scale': 1.0,
+            'num_inference_steps': 28,
+            'guidance_scale': 3.5,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_canny(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+        if dtype == "float32":
+            pytest.skip("Skipping this case since this pipeline has precision issue in float32.")
+
+        controlnet = FluxControlNetModel.from_pretrained(
+            "InstantX/FLUX.1-dev-controlnet-canny", mindspore_dtype=ms_dtype
+        )
+        pipe = FluxControlNetPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell", controlnet=controlnet, mindspore_dtype=ms_dtype
+        )
+        pipe.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f'flux_controlnet_{dtype}.npy',
+            subfolder="flux",
+        )
+
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
