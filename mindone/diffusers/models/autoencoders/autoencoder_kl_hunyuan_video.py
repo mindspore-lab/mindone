@@ -41,11 +41,12 @@ def prepare_causal_attention_mask(
     #     i_frame = i // height_width
     #     mask[i, : (i_frame + 1) * height_width] = 0
 
-    range_tensor = ops.range(0, seq_len, 1)
-    i_frame = ops.floor(ops.div(range_tensor, height_width))
-    indices = (i_frame + 1) * height_width
-    expanded_indices = indices.broadcast_to((seq_len, seq_len))
-    mask = ops.mul(mask, ops.less(range_tensor, expanded_indices))
+    indices = ops.arange(seq_len)
+    frame_indices = indices // height_width
+    cutoff = (frame_indices + 1) * height_width
+    j = ops.arange(seq_len).reshape(1, -1)
+    valid_mask = j < cutoff.reshape(-1, 1)
+    mask = ops.where(valid_mask, ops.zeros_like(mask), mask)
 
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))

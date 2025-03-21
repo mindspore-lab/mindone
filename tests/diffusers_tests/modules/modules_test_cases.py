@@ -932,12 +932,12 @@ HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
         },
         (),
         {
-            "hidden_states": np.random.randn(1, 4, 1, 16, 16),
-            "timestep": np.random.randint(0, 1000, size=(1,)),
-            "encoder_hidden_states": np.random.randn(1, 12, 16),
-            "pooled_projections": np.random.randn(1, 8),
+            "hidden_states": np.random.default_rng(42).standard_normal((1, 4, 1, 16, 16)),
+            "timestep": np.random.default_rng(42).integers(0, 1000, size=(1,)),
+            "encoder_hidden_states": np.random.default_rng(42).standard_normal((1, 12, 16)),
+            "pooled_projections": np.random.default_rng(42).standard_normal((1, 8)),
             "encoder_attention_mask": np.ones((1, 12)),
-            "guidance": np.random.randint(0, 1000, size=(1,)).astype(np.float32),
+            "guidance": np.random.default_rng(42).integers(0, 1000, size=(1,)).astype(np.float32),
         },
         ("bf16",),  # only bf16 supported
         (0, 1),
