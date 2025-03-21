@@ -31,16 +31,35 @@ def parse_args():
         default="./pokemon.png",
         help="Path to save generated image",
     )
+    parser.add_argument(
+        "--height",
+        type=int,
+        default=512,
+        help="Height of generated image",
+    )
+    parser.add_argument(
+        "--width",
+        type=int,
+        default=512,
+        help="Width of generated image",
+    )
+    parser.add_argument(
+        "--guidance_scale",
+        type=float,
+        default=3.0,
+        help="Guidance scale for classifier-free guidance",
+    )
     return parser.parse_args()
 
 
 def main():
-    pipe = OmniGenPipeline.from_pretrained("Shitao/OmniGen-v1")
-    # pipe.merge_lora(args.lora_path)
+    args = parse_args()
+    pipe = OmniGenPipeline.from_pretrained(args.model_id)
+    pipe.merge_lora(args.lora_path)
     images = pipe(
-        prompt="a photo of dragon flying with sks dog face", height=512, width=512, guidance_scale=3, dtype=ms.bfloat16
+        prompt=args.prompt, height=args.height, width=args.width, guidance_scale=args.guidance_scale, dtype=ms.bfloat16
     )
-    images[0].save("example_sks_dog_snow.png")
+    images[0].save(args.output_path)
 
 
 if __name__ == "__main__":
