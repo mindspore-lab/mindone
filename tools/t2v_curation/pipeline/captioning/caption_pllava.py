@@ -42,7 +42,7 @@ def parse_args():
         default="pretrained_models/pllava-7b",
         help="Path or name of the pretrained PLLaVA model"
     )
-    parser.add_argument("--question", type=str, default="Describe the video in details.")
+    parser.add_argument("--question", type=str, default="Describe the video in detail.")
     parser.add_argument("--num_frames", type=int, default=4, help="Number of frames to sample from video")
     parser.add_argument("--bs", type=int, default=1, help="Batch size")
     parser.add_argument("--skip_if_existing", action="store_true", help="Skip processing if output CSV already exists.")

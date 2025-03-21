@@ -39,7 +39,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
     parser.add_argument("--pretrained_model_name_or_path", type=str, default="pretrained_models/Qwen2-VL-7B-Instruct")
-    parser.add_argument("--question", type=str, default="Describe the video in details.")
+    parser.add_argument("--question", type=str, default="Describe the video in detail.")
     parser.add_argument("--height", type=int, default=448, help="resized video height")
     parser.add_argument("--width", type=int, default=672, help="resized video width")
     parser.add_argument("--fps", type=int, default=4, help="fps to sample from video")

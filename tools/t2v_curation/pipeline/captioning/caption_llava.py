@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
     parser.add_argument("--llava_model_path", type=str, default="pretrained_models/llava-llama-3-8b-v1_1-transformers",
                         help="Path or identifier for the Llava model")
-    parser.add_argument("--question", type=str, default="Describe the video in details.",
+    parser.add_argument("--question", type=str, default="Describe the video in detail.",
                         help="Captioning prompt question")
     parser.add_argument("--skip_if_existing", action="store_true",
                         help="Skip processing if output CSV already exists.")
