@@ -189,7 +189,7 @@ def timestep_embedding(timesteps, dim, max_period=10000, repeat_only=False):
         if dim % 2:
             embedding = mint.cat((embedding, mint.zeros_like(embedding[:, :1])), dim=-1)
     else:
-        embedding = mint.reshape(timesteps.repeat(dim), (-1, dim))
+        embedding = mint.reshape(timesteps.repeat_interleave(dim), (-1, dim))
     return embedding
 
 
