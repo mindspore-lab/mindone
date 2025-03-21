@@ -2,19 +2,15 @@ import random
 import unittest
 
 import cv2
-from PIL import Image
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
+from PIL import Image
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers import (
-    StableDiffusionControlNetPAGPipeline,
-    ControlNetModel,
-)
-
+from mindone.diffusers import ControlNetModel, StableDiffusionControlNetPAGPipeline
 from mindone.diffusers.utils.testing_utils import (
     load_downloaded_image_from_hf_hub,
     load_downloaded_numpy_from_hf_hub,
@@ -222,9 +218,7 @@ class StableDiffusionControlNetPAGPipelineFastTests(
 @slow
 @ddt
 class StableDiffusionControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
-
     def get_inputs(self):
-
         image = load_downloaded_image_from_hf_hub(
             "hf-internal-testing/diffusers-images",
             "hf-logo.png",
@@ -252,14 +246,9 @@ class StableDiffusionControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, 
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet = ControlNetModel.from_pretrained(
-            "lllyasviel/sd-controlnet-canny",
-            mindspore_dtype=ms_dtype
-        )
+        controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", mindspore_dtype=ms_dtype)
         pipeline = StableDiffusionControlNetPAGPipeline.from_pretrained(
-            "stable-diffusion-v1-5/stable-diffusion-v1-5",
-            controlnet=controlnet,
-            mindspore_dtype=ms_dtype
+            "stable-diffusion-v1-5/stable-diffusion-v1-5", controlnet=controlnet, mindspore_dtype=ms_dtype
         )
 
         inputs = self.get_inputs()
@@ -268,7 +257,7 @@ class StableDiffusionControlNetPAGPipelineIntegrationTests(PipelineTesterMixin, 
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'pag_sd_controlnet_{dtype}.npy',
+            f"pag_sd_controlnet_{dtype}.npy",
             subfolder="pag",
         )
         assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

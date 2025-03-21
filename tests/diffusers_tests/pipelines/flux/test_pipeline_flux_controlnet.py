@@ -9,8 +9,7 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers import FluxControlNetPipeline, FluxControlNetModel
-
+from mindone.diffusers import FluxControlNetModel, FluxControlNetPipeline
 from mindone.diffusers.utils.testing_utils import (
     load_downloaded_image_from_hf_hub,
     load_downloaded_numpy_from_hf_hub,
@@ -216,7 +215,6 @@ class FluxControlNetInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestC
 @slow
 @ddt
 class FluxControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
-
     def get_inputs(self):
         control_image = load_downloaded_image_from_hf_hub(
             "InstantX/FLUX.1-dev-Controlnet-Canny",
@@ -225,13 +223,13 @@ class FluxControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestC
             repo_type="model",
         )
         inputs = {
-            'prompt': "A girl in city, 25 years old, cool, futuristic",
-            'control_image': control_image,
-            'control_guidance_start': 0.2,
-            'control_guidance_end': 0.8,
-            'controlnet_conditioning_scale': 1.0,
-            'num_inference_steps': 28,
-            'guidance_scale': 3.5,
+            "prompt": "A girl in city, 25 years old, cool, futuristic",
+            "control_image": control_image,
+            "control_guidance_start": 0.2,
+            "control_guidance_end": 0.8,
+            "controlnet_conditioning_scale": 1.0,
+            "num_inference_steps": 28,
+            "guidance_scale": 3.5,
         }
 
         return inputs
@@ -258,7 +256,7 @@ class FluxControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestC
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'flux_controlnet_{dtype}.npy',
+            f"flux_controlnet_{dtype}.npy",
             subfolder="flux",
         )
 

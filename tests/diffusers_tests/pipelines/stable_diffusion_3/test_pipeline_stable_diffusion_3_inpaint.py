@@ -23,21 +23,20 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import StableDiffusion3InpaintPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
     THRESHOLD_PIXEL,
     PipelineTesterMixin,
-    get_module,
     floats_tensor,
+    get_module,
     get_pipeline_components,
-)
-
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
 )
 
 test_cases = [
@@ -250,7 +249,6 @@ class StableDiffusion3InpaintPipelineFastTests(PipelineTesterMixin, unittest.Tes
 @slow
 @ddt
 class StableDiffusion3InpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
-
     def get_inputs(self):
         prompt = "Face of a yellow cat, high resolution, sitting on a park bench"
 
@@ -281,8 +279,7 @@ class StableDiffusion3InpaintPipelineIntegrationTests(PipelineTesterMixin, unitt
         ms_dtype = getattr(ms, dtype)
 
         pipe = StableDiffusion3InpaintPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-3-medium-diffusers",
-            mindspore_dtype=ms_dtype
+            "stabilityai/stable-diffusion-3-medium-diffusers", mindspore_dtype=ms_dtype
         )
 
         inputs = self.get_inputs()
@@ -291,7 +288,7 @@ class StableDiffusion3InpaintPipelineIntegrationTests(PipelineTesterMixin, unitt
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'stable_diffusion_3_inpaint_{dtype}.npy',
+            f"stable_diffusion_3_inpaint_{dtype}.npy",
             subfolder="stable_diffusion_3",
         )
 

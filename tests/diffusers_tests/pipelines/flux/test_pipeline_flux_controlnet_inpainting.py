@@ -9,6 +9,14 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import FluxControlNetInpaintPipeline
+from mindone.diffusers.models import FluxControlNetModel
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
@@ -17,16 +25,6 @@ from ..pipeline_test_utils import (
     floats_tensor,
     get_module,
     get_pipeline_components,
-)
-
-from mindone.diffusers import FluxControlNetInpaintPipeline
-from mindone.diffusers.models import FluxControlNetModel
-from mindone.diffusers.utils import load_image
-
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
 )
 
 test_cases = [
@@ -290,7 +288,7 @@ class FluxControlNetInpaintPipelineIntegrationTests(PipelineTesterMixin, unittes
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'flux_controlnet_inpainting_{dtype}.npy',
+            f"flux_controlnet_inpainting_{dtype}.npy",
             subfolder="flux",
         )
 

@@ -8,6 +8,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import StableDiffusionXLPAGPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -16,12 +17,6 @@ from ..pipeline_test_utils import (
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
-)
-
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
 )
 
 test_cases = [
@@ -213,7 +208,6 @@ class StableDiffusionXLPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCa
 @slow
 @ddt
 class StableDiffusionXLPAGPipelineIntegratinTests(PipelineTesterMixin, unittest.TestCase):
-
     def get_inputs(self, guidance_scale=7.0):
         inputs = {
             "prompt": "a polar bear sitting in a chair drinking a milkshake",
@@ -231,9 +225,7 @@ class StableDiffusionXLPAGPipelineIntegratinTests(PipelineTesterMixin, unittest.
         ms_dtype = getattr(ms, dtype)
 
         pipeline = StableDiffusionXLPAGPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0",
-            enable_pag=True,
-            mindspore_dtype=ms_dtype
+            "stabilityai/stable-diffusion-xl-base-1.0", enable_pag=True, mindspore_dtype=ms_dtype
         )
         pipeline.set_progress_bar_config(disable=None)
 
@@ -243,7 +235,7 @@ class StableDiffusionXLPAGPipelineIntegratinTests(PipelineTesterMixin, unittest.
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'pag_sdxl_{dtype}.npy',
+            f"pag_sdxl_{dtype}.npy",
             subfolder="pag",
         )
         assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

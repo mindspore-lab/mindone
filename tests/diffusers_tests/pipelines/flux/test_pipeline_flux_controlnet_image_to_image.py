@@ -8,9 +8,11 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
-from mindone.diffusers import (
-    FluxControlNetImg2ImgPipeline,
-    FluxControlNetModel,
+from mindone.diffusers import FluxControlNetImg2ImgPipeline, FluxControlNetModel
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
 )
 
 from ..pipeline_test_utils import (
@@ -20,12 +22,6 @@ from ..pipeline_test_utils import (
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
-)
-
-from mindone.diffusers.utils.testing_utils import (
-    load_downloaded_image_from_hf_hub,
-    load_downloaded_numpy_from_hf_hub,
-    slow,
 )
 
 test_cases = [
@@ -226,7 +222,6 @@ class FluxControlNetImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.TestC
 @slow
 @ddt
 class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
-
     def get_inputs(self):
         control_image = load_downloaded_image_from_hf_hub(
             "InstantX/FLUX.1-dev-Controlnet-Canny",
@@ -242,15 +237,15 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
         )
 
         inputs = {
-            'prompt': "A girl in city, 25 years old, cool, futuristic",
-            'image': init_image,
-            'control_image': control_image,
-            'control_guidance_start': 0.2,
-            'control_guidance_end': 0.8,
-            'controlnet_conditioning_scale': 1.0,
-            'strength': 0.7,
-            'num_inference_steps': 2,
-            'guidance_scale': 3.5,
+            "prompt": "A girl in city, 25 years old, cool, futuristic",
+            "image": init_image,
+            "control_image": control_image,
+            "control_guidance_start": 0.2,
+            "control_guidance_end": 0.8,
+            "controlnet_conditioning_scale": 1.0,
+            "strength": 0.7,
+            "num_inference_steps": 2,
+            "guidance_scale": 3.5,
         }
 
         return inputs
@@ -264,14 +259,11 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
             pytest.skip("Skipping this case since this pipeline has precision issue in float32.")
 
         controlnet = FluxControlNetModel.from_pretrained(
-            "InstantX/FLUX.1-dev-Controlnet-Canny-alpha",
-            mindspore_dtype=ms_dtype
+            "InstantX/FLUX.1-dev-Controlnet-Canny-alpha", mindspore_dtype=ms_dtype
         )
 
         pipe = FluxControlNetImg2ImgPipeline.from_pretrained(
-            "black-forest-labs/FLUX.1-schnell",
-            controlnet=controlnet,
-            mindspore_dtype=ms_dtype
+            "black-forest-labs/FLUX.1-schnell", controlnet=controlnet, mindspore_dtype=ms_dtype
         )
 
         pipe.text_encoder.to(ms_dtype)
@@ -283,7 +275,7 @@ class FluxControlNetImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestC
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f'flux_controlnet_image_to_image_{dtype}.npy',
+            f"flux_controlnet_image_to_image_{dtype}.npy",
             subfolder="flux",
         )
 
