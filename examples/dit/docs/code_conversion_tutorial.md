@@ -659,4 +659,14 @@ MindSpore 的速度大约是 PyTorch 的1.12倍。
 
 ## 总结
 
-在本文中，我们以DiT模型为例，介绍了如何将PyTorch代码迁移到MindSpore代码。迁移任务旨在实现利用 MindSpore 在 NPU 设备上训练模型，且达到与 PyTorch 相同的推理和训练精度。 具体的迁移步骤包括：迁移前的环境和数据集准备；模型前向对齐；数据读取代码转换；模型训练代码对齐。
+在本文中，我们以DiT模型为例，介绍了如何将PyTorch代码迁移到MindSpore代码。迁移任务旨在实现利用 MindSpore 在 NPU 设备上训练模型，且达到与 PyTorch 相同的推理和训练精度。 具体的迁移步骤包括：迁移前的环境和数据集准备；模型前向对齐；数据读取代码转换；模型训练代码对齐。通过本教程的学习，您可以掌握将PyTorch代码迁移到MindSpore代码的关键流程。
+
+最后，我们附上Pytorch 和 MindSpore的代码对照表格，以供参考。
+
+| 代码模块 | PyTorch | MindSpore |
+| :------: | :-----: | :-------: |
+| 模型文件 | [models.py](https://github.com/facebookresearch/DiT/blob/main/models.py) | [dit.py](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py)|
+| 数据集代码| [train.py(dataset)](https://github.com/facebookresearch/DiT/blob/main/train.py#L157)| [imagenet_dataset.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/data/imagenet_dataset.py)|
+| 推理代码 |  [sample.py](https://github.com/facebookresearch/DiT/blob/main/sample.py) | [sample.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/sample.py) |
+| 训练代码 | [train.py](https://github.com/facebookresearch/DiT/blob/main/train.py) | [train_dit.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/train_dit.py) |
+| 权重转换文件| N.A. | [tools](https://github.com/mindspore-lab/mindone/tree/master/examples/dit/tools) |
