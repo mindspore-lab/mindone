@@ -22,13 +22,13 @@ def parse_args():
     parser.add_argument(
         "--prompt",
         type=str,
-        default="A grass-type Pokemon in a forest",
+        default="A photo of dragon flying with sks dog face",
         help="Text prompt for image generation",
     )
     parser.add_argument(
         "--output_path",
         type=str,
-        default="./pokemon.png",
+        default="./example_dog_lora.png",
         help="Path to save generated image",
     )
     parser.add_argument(
