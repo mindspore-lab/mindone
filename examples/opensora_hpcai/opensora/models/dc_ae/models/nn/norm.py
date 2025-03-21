@@ -1,8 +1,9 @@
 from typing import Optional
 
 import numpy as np
+
 import mindspore as ms
-from mindspore import mint, nn, Parameter
+from mindspore import Parameter, mint, nn
 
 from ..nn.vo_ops import build_kwargs_from_config
 
@@ -16,7 +17,6 @@ class LayerNorm2d(mint.nn.LayerNorm):
         if self.elementwise_affine:
             out = out * self.weight.view(1, -1, 1, 1) + self.bias.view(1, -1, 1, 1)
         return out
-
 
 
 class RMSNorm2d(nn.Cell):
@@ -73,6 +73,8 @@ def build_norm(name="bn2d", num_features=None, **kwargs) -> Optional[nn.Cell]:
 
 def set_norm_eps(model: nn.Cell, eps: Optional[float] = None) -> None:
     for m in model.cells():
-        if isinstance(m, (mint.nn.GroupNorm, mint.nn.LayerNorm, mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)):
+        if isinstance(
+            m, (mint.nn.GroupNorm, mint.nn.LayerNorm, mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d)
+        ):
             if eps is not None:
                 m.eps = eps

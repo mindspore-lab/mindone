@@ -4,7 +4,6 @@ from mindspore import mint, nn
 
 from ..nn.vo_ops import build_kwargs_from_config
 
-
 __all__ = ["build_act"]
 
 

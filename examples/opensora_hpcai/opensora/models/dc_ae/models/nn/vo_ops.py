@@ -14,7 +14,9 @@ def pixel_shuffle_3d(x, upscale_factor):
     """
     B, C, T, H, W = x.shape
     r = upscale_factor
-    assert C % (r * r * r) == 0, f"C must be a cubic multiple of the upscale_factor, but got C: {C}, upscale_factor: {r}"
+    assert (
+        C % (r * r * r) == 0
+    ), f"C must be a cubic multiple of the upscale_factor, but got C: {C}, upscale_factor: {r}"
 
     C_new = C // (r * r * r)
     x = x.view(B, C_new, r, r, r, T, H, W)
@@ -144,49 +146,56 @@ def test_chunked_interpolate():
     x1 = mint.randn(2, 16, 16, 32, 32)
     scale_factor = (2.0, 2.0, 2.0)
     assert mint.allclose(
-        chunked_interpolate(x1, scale_factor=scale_factor), mint.nn.functional.interpolate(x1, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x1, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x1, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 3: Downscaling with scale_factor
     x3 = mint.randn(2, 16, 32, 64, 64)
     scale_factor = (0.5, 0.5, 0.5)
     assert mint.allclose(
-        chunked_interpolate(x3, scale_factor=scale_factor), mint.nn.functional.interpolate(x3, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x3, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x3, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 4: Different scales per dimension
     x4 = mint.randn(2, 16, 16, 32, 32)
     scale_factor = (2.0, 1.5, 1.5)
     assert mint.allclose(
-        chunked_interpolate(x4, scale_factor=scale_factor), mint.nn.functional.interpolate(x4, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x4, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x4, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 5: Large input tensor
     x5 = mint.randn(2, 16, 64, 128, 128)
     scale_factor = (2.0, 2.0, 2.0)
     assert mint.allclose(
-        chunked_interpolate(x5, scale_factor=scale_factor), mint.nn.functional.interpolate(x5, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x5, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x5, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 7: Chunk size equal to input depth
     x7 = mint.randn(2, 16, 8, 32, 32)
     scale_factor = (2.0, 2.0, 2.0)
     assert mint.allclose(
-        chunked_interpolate(x7, scale_factor=scale_factor), mint.nn.functional.interpolate(x7, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x7, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x7, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 8: Single channel input
     x8 = mint.randn(2, 1, 16, 32, 32)
     scale_factor = (2.0, 2.0, 2.0)
     assert mint.allclose(
-        chunked_interpolate(x8, scale_factor=scale_factor), mint.nn.functional.interpolate(x8, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x8, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x8, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 9: Minimal batch size
     x9 = mint.randn(1, 16, 32, 64, 64)
     scale_factor = (0.5, 0.5, 0.5)
     assert mint.allclose(
-        chunked_interpolate(x9, scale_factor=scale_factor), mint.nn.functional.interpolate(x9, scale_factor=scale_factor, mode="nearest")
+        chunked_interpolate(x9, scale_factor=scale_factor),
+        mint.nn.functional.interpolate(x9, scale_factor=scale_factor, mode="nearest"),
     )
 
     # Test case 10: Non-power-of-2 dimensions

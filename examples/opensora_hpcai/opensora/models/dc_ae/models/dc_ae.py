@@ -1,11 +1,13 @@
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-import mindspore as ms
-from mindspore import nn, mint
 from omegaconf import MISSING, OmegaConf
 
+import mindspore as ms
+from mindspore import mint, nn
+
 from mindone.utils.params import load_checkpoint_to_net
+
 from ..utils import init_modules
 from .nn.act import build_act
 from .nn.norm import build_norm
@@ -92,7 +94,6 @@ class DCAEConfig:
     spatial_tile_size: int = 256
     temporal_tile_size: int = 32
     tile_overlap_factor: float = 0.25
-    
 
 
 def build_block(
@@ -790,4 +791,3 @@ def dc_ae_f32(name: str, pretrained_path: str) -> DCAEConfig:
     cfg: DCAEConfig = OmegaConf.to_object(OmegaConf.merge(OmegaConf.structured(DCAEConfig), cfg))
     cfg.pretrained_path = pretrained_path
     return cfg
-

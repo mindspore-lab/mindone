@@ -3,8 +3,7 @@ from typing import Optional
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from opensora.models.vae.utils import ChannelChunkConv3d
-
+from ....vae.utils import ChannelChunkConv3d
 from ...models.nn.act import build_act
 from ...models.nn.norm import build_norm
 from ...models.nn.vo_ops import chunked_interpolate, get_same_padding, pixel_shuffle_3d, pixel_unshuffle_3d, resize
@@ -211,7 +210,10 @@ class PixelUnshuffleChannelAveragingDownSampleLayer(nn.Cell):
         return x
 
     def __repr__(self):
-        return f"PixelUnshuffleChannelAveragingDownSampleLayer(in_channels={self.in_channels}, out_channels={self.out_channels}, factor={self.factor}), temporal_downsample={self.temporal_downsample}"
+        return (
+            f"PixelUnshuffleChannelAveragingDownSampleLayer(in_channels={self.in_channels},"
+            f" out_channels={self.out_channels}, factor={self.factor}), temporal_downsample={self.temporal_downsample}"
+        )
 
 
 class ConvPixelShuffleUpSampleLayer(nn.Cell):
@@ -320,7 +322,10 @@ class ChannelDuplicatingPixelShuffleUpSampleLayer(nn.Cell):
         return x
 
     def __repr__(self):
-        return f"ChannelDuplicatingPixelShuffleUpSampleLayer(in_channels={self.in_channels}, out_channels={self.out_channels}, factor={self.factor}, temporal_upsample={self.temporal_upsample})"
+        return (
+            f"ChannelDuplicatingPixelShuffleUpSampleLayer(in_channels={self.in_channels},"
+            f" out_channels={self.out_channels}, factor={self.factor}, temporal_upsample={self.temporal_upsample})"
+        )
 
 
 class LinearLayer(nn.Cell):

@@ -49,4 +49,3 @@ def squeeze_list(x: Optional[list]) -> Union[list, Any]:
         return x[0]
     else:
         return x
-

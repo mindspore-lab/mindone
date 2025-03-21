@@ -6,7 +6,6 @@ from typing import Dict, Optional, Tuple
 
 from huggingface_hub import snapshot_download
 from safetensors import safe_open
-import numpy as np
 
 from mindspore import Model as MSModel
 from mindspore import Parameter, context, load_checkpoint

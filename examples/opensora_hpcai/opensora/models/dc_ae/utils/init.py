@@ -1,9 +1,9 @@
-from typing import Union
 from functools import partial
+from typing import Union
 
 from mindspore import Parameter, mint, nn
 
-from mindone.models.utils import trunc_normal_, normal_
+from mindone.models.utils import normal_, trunc_normal_
 
 __all__ = ["init_modules"]
 
@@ -19,9 +19,13 @@ def init_modules(model: Union[nn.Cell, list[nn.Cell]], init_type="trunc_normal")
         init_params = float(init_params[1]) if len(init_params) > 1 else None
 
         if init_type.startswith("trunc_normal"):
-            init_func = partial(trunc_normal_, std=(_DEFAULT_INIT_PARAM["trunc_normal"] if init_params is None else init_params))
+            init_func = partial(
+                trunc_normal_, std=(_DEFAULT_INIT_PARAM["trunc_normal"] if init_params is None else init_params)
+            )
         elif init_type.startswith("normal"):
-            init_func = partial(normal_, std=(_DEFAULT_INIT_PARAM["trunc_normal"] if init_params is None else init_params))
+            init_func = partial(
+                normal_, std=(_DEFAULT_INIT_PARAM["trunc_normal"] if init_params is None else init_params)
+            )
         else:
             raise NotImplementedError
 
@@ -32,7 +36,9 @@ def init_modules(model: Union[nn.Cell, list[nn.Cell]], init_type="trunc_normal")
                     m.bias.data.zero_()
             elif isinstance(m, mint.nn.Embedding):
                 init_func(m.weight)
-            elif isinstance(m, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d, mint.nn.GroupNorm, mint.nn.LayerNorm)):
+            elif isinstance(
+                m, (mint.nn.BatchNorm1d, mint.nn.BatchNorm2d, mint.nn.BatchNorm3d, mint.nn.GroupNorm, mint.nn.LayerNorm)
+            ):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
             else:

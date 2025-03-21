@@ -4,18 +4,17 @@ from typing import Tuple
 import mindspore as ms
 from mindspore import mint, nn
 
-
 ACT2CLS = {
     "swish": mint.nn.SiLU,
     "silu": mint.nn.SiLU,
     "mish": mint.nn.Mish,
-    "gelu": nn.GELU,    # TODO
+    "gelu": nn.GELU,  # TODO
     "relu": mint.nn.ReLU,
 }
 
+
 # mint version of mindone.diffusers.models.activations.get_activation
 def get_activation(act_fn: str) -> nn.Cell:
-
     """Helper function to get activation function from string.
 
     Args:

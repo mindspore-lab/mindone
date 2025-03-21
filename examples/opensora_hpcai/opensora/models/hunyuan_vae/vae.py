@@ -2,11 +2,13 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import mint, nn
 
 from mindone.diffusers.utils import BaseOutput
 from mindone.diffusers.utils.mindspore_utils import randn_tensor
+
 from .unet_causal_3d_blocks import (
     CausalConv3d,
     DownEncoderBlockCausal3D,
@@ -104,7 +106,9 @@ class EncoderCausal3D(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
         self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -112,9 +116,7 @@ class EncoderCausal3D(nn.Cell):
 
     def prepare_attention_mask(self, hidden_states: ms.tensor) -> ms.tensor:
         B, C, T, H, W = hidden_states.shape
-        attention_mask = prepare_causal_attention_mask(
-            T, H * W, hidden_states.dtype, batch_size=B
-        )
+        attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
         return attention_mask
 
     def construct(self, sample: ms.tensor) -> ms.tensor:
@@ -230,9 +232,7 @@ class DecoderCausal3D(nn.Cell):
 
     def prepare_attention_mask(self, hidden_states: ms.tensor) -> ms.tensor:
         B, C, T, H, W = hidden_states.shape
-        attention_mask = prepare_causal_attention_mask(
-            T, H * W, hidden_states.dtype, batch_size=B
-        )
+        attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
         return attention_mask
 
     def construct(
@@ -290,7 +290,7 @@ class DiagonalGaussianDistribution(object):
             self.var = self.std = mint.zeros_like(self.mean, dtype=self.parameters.dtype)
 
     def sample(self, generator: Optional[ms.Generator] = None) -> ms.tensor:
-        # make sure the sample has the same dtype as the parameters 
+        # make sure the sample has the same dtype as the parameters
         sample = randn_tensor(
             self.mean.shape,
             generator=generator,
