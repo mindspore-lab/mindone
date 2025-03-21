@@ -130,10 +130,25 @@ python -m pipeline.datasets.datautil ${ROOT_META}/working_meta.csv --safety_chec
 ```
 
 ### 5. Captioning and calculating matching scores
-**5.1 Generate Qwen2-VL caption.**
+**5.1 Generate caption.**
 ```bash
+# Qwen2-VL caption
 msrun --worker_num=2 --local_worker_num=2 --join=True \
  --log_dir=msrun_log pipeline/captioning/caption_qwen2vl.py \
+ ${ROOT_META}/working_meta.csv # support Ascend only
+```
+
+```bash
+# LLaVA caption
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/captioning/caption_llava.py \
+ ${ROOT_META}/working_meta.csv # support Ascend only
+```
+
+```bash
+# PLLaVA caption
+msrun --worker_num=2 --local_worker_num=2 --join=True \
+ --log_dir=msrun_log pipeline/captioning/caption_pllava.py \
  ${ROOT_META}/working_meta.csv # support Ascend only
 ```
 
