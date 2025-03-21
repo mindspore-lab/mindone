@@ -206,7 +206,6 @@ def main(args):
                 f"Model depth: {args.depth}" f"Total params: {tot_params}, Traninable params: {trainable_params}",
                 f"VAR dtype: {args.dtype}",
                 f"Data path: {args.data_path}",
-                f"Number of samples: {len(ld_train)}",
                 f"Batch size: {args.batch_size}",
                 f"Num batches: {dataset_size}",
                 f"Weight decay: {args.weight_decay}",
@@ -215,6 +214,8 @@ def main(args):
                 f"Max grad norm: {args.max_grad_norm}",
             ]
         )
+        key_info += "\n" + "=" * 50
+        logger.info(key_info)
 
     for epoch in range(start_epoch, args.epochs):
         start_time_e = time.time()

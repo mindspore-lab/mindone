@@ -1,4 +1,6 @@
 import argparse
+import os
+import sys
 from time import time
 
 import numpy as np
@@ -8,6 +10,9 @@ from utils.utils import load_from_checkpoint, make_grid
 
 import mindspore as ms
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.env import init_train_env
 from mindone.utils.seed import set_random_seed
