@@ -12,17 +12,6 @@
 
 </p>
 
-<h4 align="center">
-    <p>
-        <a href=#1-news>News</a> |
-        <a href=#3-methodology>Methodology</a> |
-        <a href=#4-what-can-omnigen-do>Capabilities</a> |
-        <a href=#5-quick-start>Quick Start</a> |
-        <a href="#6-finetune">Finetune</a> |
-        <a href="#license">License</a> |
-        <a href="#citation">Citation</a>
-    <p>
-</h4>
 
 
 ## News
