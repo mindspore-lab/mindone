@@ -114,7 +114,7 @@ def main():
                 detector = split_video["scene_detection"]["detector"]
                 max_cutscene_len = split_video["scene_detection"]["max_cutscene_len"]
                 command = f"python -m pipeline.splitting.scene_detect {input_meta_csv} --detector {detector}"
-                if max_cutscene_len is not None or max_cutscene_len != "None":  # just to play safe
+                if max_cutscene_len is not None and max_cutscene_len != "None":  # just to play safe
                     command += f" --max_cutscene_len {max_cutscene_len}"
                 run_command(command)
 
@@ -128,15 +128,15 @@ def main():
                 input_meta_csv = input_meta_csv[:-4] + "_timestamp.csv"  # inferred csv name from scene detection
                 save_dir = config["paths"]["ROOT_CLIPS"]
                 command = f"python -m pipeline.splitting.cut {input_meta_csv} --save_dir {save_dir}"
-                if min_seconds is not None or min_seconds != "None":
+                if min_seconds is not None and min_seconds != "None":
                     command += f" --min_seconds {min_seconds}"
-                if max_seconds is not None or max_seconds != "None":
+                if max_seconds is not None and max_seconds != "None":
                     command += f" --max_seconds {max_seconds}"
-                if target_fps is not None or target_fps != "None":
+                if target_fps is not None and target_fps != "None":
                     command += f" --target_fps {target_fps}"
-                if shorter_size is not None or shorter_size != "None":
+                if shorter_size is not None and shorter_size != "None":
                     command += f" --shorter_size {shorter_size}"
-                if drop_invalid_timestamps is not None or drop_invalid_timestamps != "None":
+                if drop_invalid_timestamps is not None and drop_invalid_timestamps != "None":
                     command += f" --drop_invalid_timestamps {drop_invalid_timestamps}"
                 run_command(command)
 
@@ -213,7 +213,7 @@ def main():
                 # ocr filtering
                 if scoring_filtering["ocr_filtering"]["run"]:
                     ocr_box_max = scoring_filtering["ocr_filtering"]["ocr_box_max"]
-                    if ocr_box_max is not None or ocr_box_max != "None":
+                    if ocr_box_max is not None and ocr_box_max != "None":
                         output_meta_csv = input_meta_csv[:-4] + f"_ocrboxmax{int(ocr_box_max)}.csv"
                         run_command(
                             f"python -m pipeline.datasets.datautil {input_meta_csv} --ocr_box_max {ocr_box_max} --output {output_meta_csv}"
@@ -221,7 +221,7 @@ def main():
                         input_meta_csv = input_meta_csv[:-4] + f"_ocrboxmax{int(ocr_box_max)}.csv"
 
                     ocr_single_max = scoring_filtering["ocr_filtering"]["ocr_single_max"]
-                    if ocr_single_max is not None or ocr_single_max != "None":
+                    if ocr_single_max is not None and ocr_single_max != "None":
                         output_meta_csv = input_meta_csv[:-4] + f"_ocrsinglemax{ocr_single_max:.1f}.csv"
                         run_command(
                             f"python -m pipeline.datasets.datautil {input_meta_csv} --ocr_single_max {ocr_single_max} --output {output_meta_csv}"
@@ -229,7 +229,7 @@ def main():
                         input_meta_csv = input_meta_csv[:-4] + f"_ocrsinglemax{ocr_single_max:.1f}.csv"
 
                     ocr_total_max = scoring_filtering["ocr_filtering"]["ocr_total_max"]
-                    if ocr_total_max is not None or ocr_total_max != "None":
+                    if ocr_total_max is not None and ocr_total_max != "None":
                         output_meta_csv = input_meta_csv[:-4] + f"_ocrtotalmax{ocr_total_max:.1f}.csv"
                         run_command(
                             f"python -m pipeline.datasets.datautil {input_meta_csv} --ocr_total_max {ocr_total_max} --output {output_meta_csv}"

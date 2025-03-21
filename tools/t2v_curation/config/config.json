@@ -125,13 +125,13 @@
         "worker_num": 2
       },
       "llava_caption": {
-        "run": true,
+        "run": false,
         "question": "Describe the video in details.",
         "max_new_tokens": 200,
         "worker_num": 2
       },
       "pllava_caption": {
-        "run": true,
+        "run": false,
         "question": "Describe the video in details.",
         "num_frames": 4,
         "max_new_tokens": 200,
