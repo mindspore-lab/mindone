@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import enum
 import fnmatch
 import inspect
 import os
@@ -195,7 +196,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
         if push_to_hub:
             commit_message = kwargs.pop("commit_message", None)
-            private = kwargs.pop("private", False)
+            private = kwargs.pop("private", None)
             create_pr = kwargs.pop("create_pr", False)
             token = kwargs.pop("token", None)
             repo_id = kwargs.pop("repo_id", save_directory.split(os.path.sep)[-1])
@@ -552,6 +553,7 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         # in this case they are already instantiated in `kwargs`
         # extract them here
         expected_modules, optional_kwargs = cls._get_signature_keys(pipeline_class)
+        expected_types = pipeline_class._get_signature_types()
         passed_class_obj = {k: kwargs.pop(k) for k in expected_modules if k in kwargs}
         passed_pipe_kwargs = {k: kwargs.pop(k) for k in optional_kwargs if k in kwargs}
         init_dict, unused_kwargs, _ = pipeline_class.extract_init_dict(config_dict, **kwargs)
@@ -573,6 +575,26 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
             return True
 
         init_dict = {k: v for k, v in init_dict.items() if load_module(k, v)}
+
+        for key in init_dict.keys():
+            if key not in passed_class_obj:
+                continue
+            if "scheduler" in key:
+                continue
+
+            class_obj = passed_class_obj[key]
+            _expected_class_types = []
+            for expected_type in expected_types[key]:
+                if isinstance(expected_type, enum.EnumMeta):
+                    _expected_class_types.extend(expected_type.__members__.keys())
+                else:
+                    _expected_class_types.append(expected_type.__name__)
+
+            _is_valid_type = class_obj.__class__.__name__ in _expected_class_types
+            if not _is_valid_type:
+                logger.warning(
+                    f"Expected types for {key}: {_expected_class_types}, got {class_obj.__class__.__name__}."
+                )
 
         # 5. Throw nice warnings / errors for fast accelerate loading
         if len(unused_kwargs) > 0:

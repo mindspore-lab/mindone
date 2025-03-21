@@ -75,8 +75,8 @@ class StableDiffusionXLControlNetXSPipelineFastTests(PipelineTesterMixin, unitte
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_xs.ControlNetXSAdapter",
-            "mindone.diffusers.models.controlnet_xs.ControlNetXSAdapter",
+            "diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter",
+            "mindone.diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter",
             dict(
                 unet=None,
                 size_ratio=1,
@@ -257,7 +257,7 @@ class StableDiffusionXLControlNetXSPipelineSlowTests(PipelineTesterMixin, unitte
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet_xs.ControlNetXSAdapter")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter")
         controlnet = controlnet_cls.from_pretrained("UmerHA/Testing-ConrolNetXS-SDXL-canny", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet_xs.StableDiffusionXLControlNetXSPipeline")
         pipe = pipe_cls.from_pretrained(
@@ -288,7 +288,7 @@ class StableDiffusionXLControlNetXSPipelineSlowTests(PipelineTesterMixin, unitte
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet_xs.ControlNetXSAdapter")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet_xs.ControlNetXSAdapter")
         controlnet = controlnet_cls.from_pretrained("UmerHA/Testing-ConrolNetXS-SDXL-depth", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet_xs.StableDiffusionXLControlNetXSPipeline")
         pipe = pipe_cls.from_pretrained(

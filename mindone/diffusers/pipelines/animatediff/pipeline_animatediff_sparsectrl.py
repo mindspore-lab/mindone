@@ -27,7 +27,7 @@ from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel, UNetMotionModel
-from ...models.controlnet_sparsectrl import SparseControlNetModel
+from ...models.controlnets.controlnet_sparsectrl import SparseControlNetModel
 from ...models.unets.unet_motion_model import MotionAdapter
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging, scale_lora_layers, unscale_lora_layers

@@ -150,8 +150,8 @@ class BlipDiffusionControlNetPipelineFastTests(PipelineTesterMixin, unittest.Tes
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(4, 16),
                 layers_per_block=1,

@@ -8,9 +8,23 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import (
+    AnimateDiffVideoToVideoControlNetPipeline,
+    AutoencoderKL,
+    ControlNetModel,
+    LCMScheduler,
+    MotionAdapter,
+)
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_numpy_from_hf_hub,
+    load_downloaded_video_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -59,8 +73,8 @@ class AnimateDiffVideoToVideoControlNetPipelineFastTests(PipelineTesterMixin, un
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=block_out_channels,
                 layers_per_block=2,
@@ -196,3 +210,68 @@ class AnimateDiffVideoToVideoControlNetPipelineFastTests(PipelineTesterMixin, un
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class AnimateDiffVideoToVideoControlNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-openpose", mindspore_dtype=ms_dtype)
+        motion_adapter = MotionAdapter.from_pretrained("wangfuyun/AnimateLCM")
+        vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=ms_dtype)
+        pipe = AnimateDiffVideoToVideoControlNetPipeline.from_pretrained(
+            "SG161222/Realistic_Vision_V5.1_noVAE",
+            motion_adapter=motion_adapter,
+            controlnet=controlnet,
+            vae=vae,
+        ).to(dtype=ms_dtype)
+
+        pipe.scheduler = LCMScheduler.from_config(pipe.scheduler.config, beta_schedule="linear")
+        pipe.load_lora_weights(
+            "wangfuyun/AnimateLCM", weight_name="AnimateLCM_sd15_t2v_lora.safetensors", adapter_name="lcm-lora"
+        )
+        pipe.set_adapters(["lcm-lora"], [0.8])
+
+        video = load_downloaded_video_from_hf_hub(
+            "huggingface/documentation-images",
+            "dance.gif",
+            subfolder="diffusers",
+        )
+        video = [frame.convert("RGB") for frame in video]
+
+        prompt = "astronaut in space, dancing"
+        negative_prompt = "bad quality, worst quality, jpeg artifacts, ugly"
+
+        conditioning_videos = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "v2v_controlnet_conditioning_frames.npy",
+            subfolder="animatediff",
+        )
+        conditioning_frames = []
+        for frame in conditioning_videos:
+            conditioning_frames.append(Image.fromarray(frame))
+
+        strength = 0.8
+        torch.manual_seed(0)
+        video = pipe(
+            video=video,
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            num_inference_steps=10,
+            guidance_scale=2.0,
+            controlnet_conditioning_scale=0.75,
+            conditioning_frames=conditioning_frames,
+            strength=strength,
+        )[0][0]
+
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"v2v_controlnet_{dtype}.npy",
+            subfolder="animatediff",
+        )
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

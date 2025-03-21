@@ -1434,7 +1434,7 @@ class AutoencoderKLCogVideoX(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             z = self.diag_gauss_dist.sample(posterior, generator=generator)
         else:
             z = self.diag_gauss_dist.mode(posterior)
-        dec = self.decode(z)
+        dec = self.decode(z)[0]
         if not return_dict:
             return (dec,)
-        return dec
+        return DecoderOutput(sample=dec)

@@ -233,9 +233,9 @@ class UnCLIPPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
             # expected value depends on the version of transformers
             pt_image_slice = np.array(
                 [
-                    [9.9902344e-01, 2.4414062e-04, 7.0800781e-03],
-                    [5.1269531e-03, 3.6621094e-03, 1.0],
-                    [5.1269531e-03, 2.4414062e-04, 8.3007812e-03],
+                    [9.9902344e-01, 2.4414062e-04, 1.0],
+                    [3.9062500e-03, 3.6621094e-03, 1.0],
+                    [4.3945312e-03, 2.4414062e-04, 8.5449219e-03],
                 ]
             )
 

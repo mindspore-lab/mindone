@@ -25,6 +25,7 @@ TORCH_FP16_BLACKLIST = (
     "FirDownsample2D",
     "KDownsample2D",
     "AutoencoderTiny",
+    "HunyuanVideoCausalConv3d",
 )
 MS_FP16_WHITELIST = (nn.Conv3d,)
 MS_BF16_BLACKLIST = (nn.Loss,)

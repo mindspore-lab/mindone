@@ -1,15 +1,19 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -165,3 +169,27 @@ class FluxPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class FluxPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_flux_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip("Skipping this case since this pipeline has oom issue in float32")
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.flux.pipeline_flux.FluxPipeline")
+        pipe = pipe_cls.from_pretrained("black-forest-labs/FLUX.1-schnell", mindspore_dtype=ms_dtype)
+
+        prompt = "A photo of a cat"
+        torch.manual_seed(0)
+        image = pipe(prompt=prompt, num_inference_steps=2, guidance_scale=5.0)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays", f"flux_{dtype}.npy", subfolder="flux"
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

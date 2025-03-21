@@ -21,9 +21,12 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -163,3 +166,28 @@ class LattePipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video) < threshold
+
+
+@slow
+@ddt
+class LattePipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_latte(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module("mindone.diffusers.pipelines.latte.pipeline_latte.LattePipeline")
+        pipe = pipe_cls.from_pretrained("maxin-cn/Latte-1", mindspore_dtype=ms_dtype)
+
+        prompt = "A painting of a squirrel eating a burger."
+        torch.manual_seed(0)
+        videos = pipe(prompt=prompt, height=512, width=512, num_inference_steps=2, clean_caption=False)[0]
+
+        video = videos[0]
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"latte_{dtype}.npy",
+            subfolder="latte",
+        )
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

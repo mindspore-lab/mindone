@@ -33,6 +33,7 @@ from ..models.embeddings import (
 from ..utils import (
     _get_model_file,
     convert_unet_state_dict_to_peft,
+    deprecate,
     get_adapter_name,
     get_peft_kwargs,
     is_peft_version,
@@ -196,6 +197,10 @@ class UNet2DConditionLoadersMixin:
         is_custom_diffusion = any("custom_diffusion" in k for k in state_dict.keys())
         is_lora = all(("lora" in k or k.endswith(".alpha")) for k in state_dict.keys())
 
+        if is_lora:
+            deprecation_message = "Using the `load_attn_procs()` method has been deprecated and will be removed in a future version. Please use `load_lora_adapter()`."  # noqa: E501
+            deprecate("load_attn_procs", "0.40.0", deprecation_message)
+
         if is_custom_diffusion:
             raise NotImplementedError("CustomDiffusionAttnProcessor is not yet supported.")
         elif is_lora:
@@ -355,6 +360,9 @@ class UNet2DConditionLoadersMixin:
                 f"is_custom_diffusion is not yet supported in {self.__class__.__name__}.save_attn_procs ."
             )
         else:
+            deprecation_message = "Using the `save_attn_procs()` method has been deprecated and will be removed in a future version. Please use `save_lora_adapter()`."  # noqa: E501
+            deprecate("save_attn_procs", "0.40.0", deprecation_message)
+
             from mindone.diffusers._peft.utils import get_peft_model_state_dict
 
             state_dict = get_peft_model_state_dict(self)

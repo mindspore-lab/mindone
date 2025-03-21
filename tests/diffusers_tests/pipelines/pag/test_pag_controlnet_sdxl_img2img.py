@@ -23,9 +23,17 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import AutoencoderKL, ControlNetModel, StableDiffusionXLControlNetPAGImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -68,8 +76,8 @@ class StableDiffusionXLControlNetPAGImg2ImgPipelineFastTests(PipelineTesterMixin
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(32, 64),
                 layers_per_block=2,
@@ -254,3 +262,60 @@ class StableDiffusionXLControlNetPAGImg2ImgPipelineFastTests(PipelineTesterMixin
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionXLControlNetPAGImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_pag_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        controlnet = ControlNetModel.from_pretrained(
+            "diffusers/controlnet-depth-sdxl-1.0-small",
+            variant="fp16",
+            use_safetensors="True",
+            mindspore_dtype=ms_dtype,
+        )
+        vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", mindspore_dtype=ms_dtype)
+        pipe = StableDiffusionXLControlNetPAGImg2ImgPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-xl-base-1.0",
+            controlnet=controlnet,
+            vae=vae,
+            variant="fp16",
+            use_safetensors=True,
+            mindspore_dtype=ms_dtype,
+            enable_pag=True,
+        )
+
+        prompt = "A robot, 4k photo"
+        image = load_downloaded_image_from_hf_hub(
+            "hf-internal-testing/diffusers-images",
+            "cat.png",
+            subfolder="kandinsky",
+        ).resize((1024, 1024))
+        controlnet_conditioning_scale = 0.5  # recommended for good generalization
+        depth_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "depth_image.png",
+            subfolder="pag",
+        )
+
+        torch.manual_seed(0)
+        image = pipe(
+            prompt,
+            image=image,
+            control_image=depth_image,
+            strength=0.99,
+            num_inference_steps=50,
+            controlnet_conditioning_scale=controlnet_conditioning_scale,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"pag_controlnet_sdxl_img2img_{dtype}.npy",
+            subfolder="pag",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

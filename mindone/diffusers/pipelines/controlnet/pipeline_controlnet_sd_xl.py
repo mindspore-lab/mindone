@@ -32,13 +32,12 @@ from ...loaders import (
     StableDiffusionXLLoraLoaderMixin,
     TextualInversionLoaderMixin,
 )
-from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel
+from ...models import AutoencoderKL, ControlNetModel, ImageProjection, MultiControlNetModel, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import deprecate, is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
-from .multicontrolnet import MultiControlNetModel
 
 if is_invisible_watermark_available():
     from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
@@ -218,6 +217,7 @@ class StableDiffusionXLControlNetPipeline(
         "add_time_ids",
         "negative_pooled_prompt_embeds",
         "negative_add_time_ids",
+        "image",
     ]
 
     def __init__(
@@ -1473,6 +1473,7 @@ class StableDiffusionXLControlNetPipeline(
                     )
                     add_time_ids = callback_outputs.pop("add_time_ids", add_time_ids)
                     negative_add_time_ids = callback_outputs.pop("negative_add_time_ids", negative_add_time_ids)
+                    image = callback_outputs.pop("image", image)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):

@@ -76,8 +76,8 @@ class ControlNetPipelineSDXLFastTests(PipelineTesterMixin, unittest.TestCase):
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet.ControlNetModel",
-            "mindone.diffusers.models.controlnet.ControlNetModel",
+            "diffusers.models.controlnets.controlnet.ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet.ControlNetModel",
             dict(
                 block_out_channels=(32, 64),
                 layers_per_block=2,
@@ -327,7 +327,7 @@ class ControlNetPipelineSDXLIntegrationTests(PipelineTesterMixin, unittest.TestC
 
         control_image = self.make_canny_condition(init_image)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet.ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet.ControlNetModel")
         controlnet = controlnet_cls.from_pretrained("diffusers/controlnet-canny-sdxl-1.0", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet.StableDiffusionXLControlNetInpaintPipeline")
         pipe = pipe_cls.from_pretrained(

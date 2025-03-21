@@ -20,7 +20,7 @@ import PIL.Image
 from PIL import Image, ImageFilter, ImageOps
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from .configuration_utils import ConfigMixin, register_to_config
 from .utils import CONFIG_NAME, PIL_INTERPOLATION, deprecate
@@ -222,7 +222,7 @@ class VaeImageProcessor(ConfigMixin):
             `np.ndarray` or `ms.Tensor`:
                 The denormalized image array.
         """
-        return (images / 2 + 0.5).clamp(0, 1)
+        return (images * 0.5 + 0.5).clamp(0, 1)
 
     @staticmethod
     def convert_to_rgb(image: PIL.Image.Image) -> PIL.Image.Image:
@@ -520,6 +520,24 @@ class VaeImageProcessor(ConfigMixin):
 
         return image
 
+    def _denormalize_conditionally(self, images: ms.Tensor, do_denormalize: Optional[List[bool]] = None) -> ms.Tensor:
+        r"""
+        Denormalize a batch of images based on a condition list.
+
+        Args:
+            images (`ms.Tensor`):
+                The input image tensor.
+            do_denormalize (`Optional[List[bool]`, *optional*, defaults to `None`):
+                A list of booleans indicating whether to denormalize each image in the batch. If `None`, will use the
+                value of `do_normalize` in the `VaeImageProcessor` config.
+        """
+        if do_denormalize is None:
+            return self.denormalize(images) if self.config.do_normalize else images
+
+        return ops.stack(
+            [self.denormalize(images[i]) if do_denormalize[i] else images[i] for i in range(images.shape[0])]
+        )
+
     def get_default_height_width(
         self,
         image: Union[PIL.Image.Image, np.ndarray, ms.Tensor],
@@ -735,12 +753,7 @@ class VaeImageProcessor(ConfigMixin):
         if output_type == "latent":
             return image
 
-        if do_denormalize is None:
-            do_denormalize = [self.config.do_normalize] * image.shape[0]
-
-        image = ops.stack(
-            [self.denormalize(image[i]) if do_denormalize[i] else image[i] for i in range(image.shape[0])]
-        )
+        image = self._denormalize_conditionally(image, do_denormalize)
 
         if output_type == "ms":
             return image
@@ -778,13 +791,11 @@ class VaeImageProcessor(ConfigMixin):
                 The final image with the overlay applied.
         """
 
-        width, height = image.width, image.height
-
-        init_image = self.resize(init_image, width=width, height=height)
-        mask = self.resize(mask, width=width, height=height)
+        width, height = init_image.width, init_image.height
 
         init_image_masked = PIL.Image.new("RGBa", (width, height))
         init_image_masked.paste(init_image.convert("RGBA").convert("RGBa"), mask=ImageOps.invert(mask.convert("L")))
+
         init_image_masked = init_image_masked.convert("RGBA")
 
         if crop_coords is not None:
@@ -978,9 +989,16 @@ class PixArtImageProcessor(VaeImageProcessor):
             resized_height = int(orig_height * ratio)
 
             # Resize
-            samples = ops.interpolate(
+            # mindspore interpolate does not support bfloat16
+            cur_dtype = samples.dtype
+            need_upcast = cur_dtype == ms.bfloat16
+            if need_upcast:
+                samples = samples.to(ms.float32)
+            samples = mint.nn.functional.interpolate(
                 samples, size=(resized_height, resized_width), mode="bilinear", align_corners=False
             )
+            if need_upcast:
+                samples = samples.to(cur_dtype)
 
             # Center Crop
             start_x = (resized_width - new_width) // 2

@@ -2,7 +2,9 @@ from typing import TYPE_CHECKING
 
 from ...utils import _LazyModule
 
+_dummy_objects = {}
 _import_structure = {}
+
 
 _import_structure["multicontrolnet"] = ["MultiControlNetModel"]
 _import_structure["pipeline_controlnet"] = ["StableDiffusionControlNetPipeline"]
@@ -12,6 +14,9 @@ _import_structure["pipeline_controlnet_inpaint"] = ["StableDiffusionControlNetIn
 _import_structure["pipeline_controlnet_inpaint_sd_xl"] = ["StableDiffusionXLControlNetInpaintPipeline"]
 _import_structure["pipeline_controlnet_sd_xl"] = ["StableDiffusionXLControlNetPipeline"]
 _import_structure["pipeline_controlnet_sd_xl_img2img"] = ["StableDiffusionXLControlNetImg2ImgPipeline"]
+_import_structure["pipeline_controlnet_union_inpaint_sd_xl"] = ["StableDiffusionXLControlNetUnionInpaintPipeline"]
+_import_structure["pipeline_controlnet_union_sd_xl"] = ["StableDiffusionXLControlNetUnionPipeline"]
+_import_structure["pipeline_controlnet_union_sd_xl_img2img"] = ["StableDiffusionXLControlNetUnionImg2ImgPipeline"]
 
 
 if TYPE_CHECKING:
@@ -23,6 +28,9 @@ if TYPE_CHECKING:
     from .pipeline_controlnet_inpaint_sd_xl import StableDiffusionXLControlNetInpaintPipeline
     from .pipeline_controlnet_sd_xl import StableDiffusionXLControlNetPipeline
     from .pipeline_controlnet_sd_xl_img2img import StableDiffusionXLControlNetImg2ImgPipeline
+    from .pipeline_controlnet_union_inpaint_sd_xl import StableDiffusionXLControlNetUnionInpaintPipeline
+    from .pipeline_controlnet_union_sd_xl import StableDiffusionXLControlNetUnionPipeline
+    from .pipeline_controlnet_union_sd_xl_img2img import StableDiffusionXLControlNetUnionImg2ImgPipeline
 else:
     import sys
 
@@ -32,3 +40,5 @@ else:
         _import_structure,
         module_spec=__spec__,
     )
+    for name, value in _dummy_objects.items():
+        setattr(sys.modules[__name__], name, value)
