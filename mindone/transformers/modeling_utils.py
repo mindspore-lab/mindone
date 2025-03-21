@@ -1323,7 +1323,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 # may revert to legacy behavior if the two don't match
                 if (
                     model_to_save.generation_config._from_model_config
-                    and model_to_save.config._has_non_default_generation_parameters()
+                    and model_to_save.config._get_non_default_generation_parameters()
                 ):
                     new_generation_config = GenerationConfig.from_model_config(model_to_save.config)
                     if new_generation_config != model_to_save.generation_config:

@@ -25,7 +25,7 @@ def __clip_grad_value(max_value, grad):
 _apply_global_norm = ops.MultitypeFuncGraph("_apply_global_norm")
 
 
-@_clip_grad_value.register("Number", "Tensor")
+@_apply_global_norm.register("Tensor", "Tensor")
 def __apply_global_norm(clip_coef, x):
     x_dtype = F.dtype(x)
     x = x * clip_coef
