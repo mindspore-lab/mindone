@@ -22,9 +22,17 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import StableDiffusionPAGImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -184,3 +192,46 @@ class StableDiffusionPAGImg2ImgPipelineFastTests(PipelineTesterMixin, unittest.T
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class StableDiffusionPAGImg2ImgPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        init_image = load_downloaded_image_from_hf_hub(
+            "diffusers/test-arrays",
+            "sketch-mountains-input.png",
+            subfolder="stable_diffusion_img2img",
+        )
+        inputs = {
+            "prompt": "a fantasy landscape, concept art, high resolution",
+            "image": init_image,
+            "num_inference_steps": 3,
+            "strength": 0.75,
+            "guidance_scale": 7.5,
+            "pag_scale": 3.0,
+        }
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_pag_cfg(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipeline = StableDiffusionPAGImg2ImgPipeline.from_pretrained(
+            "Jiali/stable-diffusion-1.5", enable_pag=True, mindspore_dtype=ms_dtype
+        )
+        pipeline.set_progress_bar_config(disable=None)
+
+        inputs = self.get_inputs()
+
+        torch.manual_seed(0)
+        image = pipeline(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"pag_sd_img2img_{dtype}.npy",
+            subfolder="pag",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
