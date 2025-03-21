@@ -25,17 +25,17 @@
 </h4>
 
 
-## 1. News
+## News
 - **2025-03-20**: MindSpore implementation of OmniGen is released, supporting OmniGen inference and LoRA finetuning for T2I tasks.
 
-## 2. Overview
+## Overview
 
 OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It is designed to be simple, flexible, and easy to use.
 
 ![architecture](./imgs/architecture.png)
 
 
-## 3. What Can OmniGen do?
+## What Can OmniGen do?
 
 OmniGen is a unified image generation model that you can use to perform various tasks, including but not limited to text-to-image generation, subject-driven generation, Identity-Preserving Generation, image editing, and image-conditioned generation. **OmniGen doesn't need additional plugins or operations, it can automatically identify the features (e.g., required object, human pose, depth mapping) in input images according to the text prompt.**
 
@@ -108,7 +108,7 @@ python  train.py --model_name_or_path Shitao/OmniGen-v1
 ## Performance
 
 ### Training
-Experiments are tested on ascend 910* with mindspore 2.4.10, using `bfloat16` as floating point.
+Experiments are tested on ascend 910* with mindspore 2.4.10, using `bfloat16`.
 
 | model     | cards | recompute      | mode  | image size | attn  | batch size | step time (s/step) |
 |---------------|:-------:|:-------:|:-----------:|:------------:|:------------:|:------------:|:--------------------:|
@@ -116,11 +116,12 @@ Experiments are tested on ascend 910* with mindspore 2.4.10, using `bfloat16` as
 | OmniGen       | 1     | ✓| graph     | 512x512    | eager | 1                    | 0.42              |
 | OmniGen    | 1     | ✓|graph     | 1024x1024    | eager | 1                   | 3.2               |
 ### Inference
-Experiments are tested on ascend 910* with mindspore 2.4.10 **pynative** mode, using `bfloat16` as floating point and enable `kv_cache` during inference.
-| model     | task | cards   | # input images | image size |  step time (s/img) |
-|---------------|:-------:|:-----------:|:-----------:|:------------:|:------------:|
-| OmniGen       | Text to Image | 1 | 0      | 1024 x 1024    |  84s   |
-| OmniGen       | Subject-driven generation | 1  | 2 |  1024 x 1024    |  173s   |
+Experiments are tested on ascend 910* with mindspore 2.4.10 **pynative** mode, using `bfloat16` as floating point and enable `kv_cache` during inference. The subject-driven generation depends on number of input images that feed into the model.
+
+| model     | task | cards   | image size |  step time (s/img) |
+|---------------|:-------:|:-----------:|:------------:|:------------:|
+| OmniGen       | Text to Image | 1     | 1024 x 1024    |  84s   |
+| OmniGen       | Subject-driven generation | 1  |  1024 x 1024    |  150s ~ 220s  |
 
 ## License
 This repo is licensed under the [MIT License](LICENSE).
