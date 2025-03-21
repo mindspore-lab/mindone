@@ -1,6 +1,6 @@
 """
 DiT training pipeline
-- Image finetuning conditioned on class labels (optional)
+- Image finetuning conditioned on class labels
 """
 import argparse
 import datetime
@@ -125,7 +125,6 @@ def main(args):
         vae,
         diffusion,
         args.sd_scale_factor,
-        args.condition,
         text_encoder=None,
         cond_stage_trainable=False,
     )
@@ -341,14 +340,7 @@ def parse_args():
         help="log level, options: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR",
     )
     parser.add_argument("--image_size", default=256, type=int, help="image size")
-    parser.add_argument(
-        "--condition",
-        default=None,
-        type=str,
-        help="the condition types: `None` means using no conditions; `text` means using text embedding as conditions;"
-        " `class` means using class labels as conditions."
-        "DiT only supports `class`condition",
-    )
+
     parser.add_argument("--num_parallel_workers", default=12, type=int, help="num workers for data loading")
     parser.add_argument("--log_interval", type=int, default=1, help="log interval")
     args = parser.parse_args()
