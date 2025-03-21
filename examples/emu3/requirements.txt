@@ -1,0 +1,8 @@
+transformers>=4.44.0
+tiktoken==0.6.0
+pillow
+omegaconf
+torch
+opencv-python
+ezcolorlog
+mindcv

@@ -1,5 +1,5 @@
 import inspect
-from typing import Callable, List, Union
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 from transformers.utils import add_start_docstrings
@@ -443,4 +443,123 @@ class LogitNormalization(LogitsProcessor):
         else:
             raise NotImplementedError
 
+        return scores_processed
+
+
+class UnbatchedClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
+    r"""
+    Logits processor for Classifier-Free Guidance (CFG). The processors computes a weighted average across scores
+    from prompt conditional and prompt unconditional (or negative) logits, parameterized by the `guidance_scale`.
+    The unconditional scores are computed internally by prompting `model` with the `unconditional_ids` branch.
+
+    See [the paper](https://arxiv.org/abs/2306.17806) for more information.
+
+    Args:
+        guidance_scale (`float`):
+            The guidance scale for classifier free guidance (CFG). CFG is enabled by setting `guidance_scale != 1`.
+            Higher guidance scale encourages the model to generate samples that are more closely linked to the input
+            prompt, usually at the expense of poorer quality. A value smaller than 1 has the opposite effect, while
+            making the negative prompt provided with negative_prompt_ids (if any) act as a positive prompt.
+        model (`MSPreTrainedModel`):
+            The model computing the unconditional scores. Supposedly the same as the one computing the conditional
+            scores. Both models must use the same tokenizer.
+        unconditional_ids (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Indices of input sequence tokens in the vocabulary for the unconditional branch. If unset, will default to
+            the last token of the prompt.
+        unconditional_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
+            Attention mask for unconditional_ids.
+        use_cache (`bool`, *optional*, defaults to `True`):
+            Whether to cache key/values during the negative prompt forward pass.
+
+
+    Examples:
+
+    ```python
+    >>> from mindone.transformers import AutoTokenizer, AutoModelForCausalLM
+    >>> from mindspore import Tensor
+
+    >>> model = AutoModelForCausalLM.from_pretrained("openai-community/gpt2")
+    >>> tokenizer = AutoTokenizer.from_pretrained("openai-community/gpt2")
+    >>> inputs = tokenizer(["Today, a dragon flew over Paris, France,"], return_tensors="np")
+    >>> out = model.generate(Tensor(inputs["input_ids"]), guidance_scale=1.5)
+    >>> tokenizer.batch_decode(out, skip_special_tokens=True)[0]
+    'Today, a dragon flew over Paris, France, killing at least 50 people and injuring more than 100'
+
+    >>> # with a negative prompt
+    >>> neg_inputs = tokenizer(["A very happy event happened,"], return_tensors="pt")
+    >>> out = model.generate(Tensor(inputs["input_ids"]), guidance_scale=2, negative_prompt_ids=neg_inputs["input_ids"])
+    >>> tokenizer.batch_decode(out, skip_special_tokens=True)[0]
+    'Today, a dragon flew over Paris, France, killing at least 130 people. French media reported that'
+
+    >>> # with a positive prompt
+    >>> neg_inputs = tokenizer(["A very happy event happened,"], return_tensors="pt")
+    >>> out = model.generate(Tensor(inputs["input_ids"]), guidance_scale=0, negative_prompt_ids=neg_inputs["input_ids"])
+    >>> tokenizer.batch_decode(out, skip_special_tokens=True)[0]
+    "Today, a dragon flew over Paris, France, and I'm very happy to be here. I"
+    ```
+    """
+
+    def __init__(
+        self,
+        guidance_scale: float,
+        model,
+        unconditional_ids: Optional[ms.Tensor] = None,
+        unconditional_attention_mask: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = True,
+    ):
+        self.guidance_scale = guidance_scale
+        self.model = model
+        self.unconditional_context = {
+            "input_ids": unconditional_ids,
+            "attention_mask": unconditional_attention_mask,
+            "use_cache": use_cache,
+            "past_key_values": None,
+            "first_pass": True,
+        }
+
+    def get_unconditional_logits(self, input_ids):
+        if self.unconditional_context["first_pass"]:
+            if self.unconditional_context["input_ids"] is None:
+                self.unconditional_context["input_ids"] = input_ids[:, -1:]
+            if self.unconditional_context["attention_mask"] is None:
+                self.unconditional_context["attention_mask"] = ops.ones_like(
+                    self.unconditional_context["input_ids"], dtype=ms.int32
+                )
+            input_ids = self.unconditional_context["input_ids"]
+            attention_mask = self.unconditional_context["attention_mask"]
+            self.unconditional_context["first_pass"] = False
+        else:
+            attention_mask = mint.cat(
+                [
+                    self.unconditional_context["attention_mask"],
+                    ops.ones_like(input_ids[:, -1:], dtype=ms.int32),
+                ],
+                dim=1,
+            )
+            if not self.unconditional_context["use_cache"]:
+                input_ids = mint.cat([self.unconditional_context["input_ids"], input_ids[:, -1:]], dim=1)
+            else:
+                input_ids = input_ids[:, -1:]
+            self.unconditional_context["input_ids"] = input_ids
+            self.unconditional_context["attention_mask"] = attention_mask
+
+        out = self.model(
+            input_ids,
+            attention_mask=attention_mask,
+            use_cache=self.unconditional_context["use_cache"],
+            past_key_values=self.unconditional_context["past_key_values"],
+        )
+        self.unconditional_context["past_key_values"] = out.get("past_key_values", None)
+
+        return out.logits
+
+    def __call__(self, input_ids, scores):
+        scores = mint.nn.functional.log_softmax(scores, dim=-1)
+        if self.guidance_scale == 1:
+            return scores
+
+        logits = self.get_unconditional_logits(input_ids)
+
+        unconditional_logits = mint.nn.functional.log_softmax(logits[:, -1], dim=-1)
+        scores_processed = self.guidance_scale * (scores - unconditional_logits) + unconditional_logits
         return scores_processed
