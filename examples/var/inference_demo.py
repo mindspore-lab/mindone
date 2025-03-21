@@ -61,9 +61,10 @@ def main(args):
 
     cfg = 4  # @param {type:"slider", min:1, max:10, step:0.1}
     more_smooth = False  # True for more smooth output
+    class_labels = (980, 980, 437, 437, 22, 22, 562, 562)
 
-    B = len(args.class_labels)
-    label_B = ms.Tensor(args.class_labels)
+    B = len(class_labels)
+    label_B = ms.Tensor(class_labels)
     start = time()
     recon_B3HW = var.autoregressive_infer_cfg(
         B=B, label_B=label_B, cfg=cfg, top_k=900, top_p=0.95, g_seed=args.seed, more_smooth=more_smooth
@@ -115,12 +116,6 @@ def parse_args():
         type=str,
         choices=["bf16", "fp16", "fp32"],
         help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
-    )
-    parser.add_argument(
-        "--class_label",
-        default="(980, 980, 437, 437, 22, 22, 562, 562)",
-        type=list[int],
-        help="class label",
     )
     parser.add_argument("--output_path", default="image.png", type=str, help="output path to save inference results")
 

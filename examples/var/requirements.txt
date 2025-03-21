@@ -1,0 +1,2 @@
+Pillow
+numpy==1.24

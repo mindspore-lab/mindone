@@ -22,7 +22,6 @@ msrun --bind_core=True --master_port=8200 --worker_num=2 --local_worker_num=2 --
     --tblr=1e-3 \
     --alng=1e-3 \
     --wpe=0.1 \
-    --epoch=50000 \
-    --num_classes=10 \
+    --epoch=500 \
     --clip_grad=True \
     --output_path=$output_dir \
