@@ -50,15 +50,25 @@ def text_encoder_attn_modules(text_encoder):
 
 _import_structure = {
     "single_file_model": ["FromOriginalModelMixin"],
-    "ip_adapter": ["IPAdapterMixin"],
+    "transformer_flux": ["FluxTransformer2DLoadersMixin"],
+    "transformer_sd3": ["SD3Transformer2DLoadersMixin"],
+    "ip_adapter": [
+        "IPAdapterMixin",
+        "FluxIPAdapterMixin",
+        "SD3IPAdapterMixin",
+    ],
     "lora_pipeline": [
         "AmusedLoraLoaderMixin",
         "StableDiffusionLoraLoaderMixin",
         "SD3LoraLoaderMixin",
         "StableDiffusionXLLoraLoaderMixin",
+        "LTXVideoLoraLoaderMixin",
         "LoraLoaderMixin",
         "FluxLoraLoaderMixin",
         "CogVideoXLoraLoaderMixin",
+        "Mochi1LoraLoaderMixin",
+        "HunyuanVideoLoraLoaderMixin",
+        "SanaLoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -68,12 +78,16 @@ _import_structure = {
 
 
 if TYPE_CHECKING:
-    from .ip_adapter import IPAdapterMixin
+    from .ip_adapter import FluxIPAdapterMixin, IPAdapterMixin, SD3IPAdapterMixin
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
         CogVideoXLoraLoaderMixin,
         FluxLoraLoaderMixin,
+        HunyuanVideoLoraLoaderMixin,
         LoraLoaderMixin,
+        LTXVideoLoraLoaderMixin,
+        Mochi1LoraLoaderMixin,
+        SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,
         StableDiffusionXLLoraLoaderMixin,
@@ -82,6 +96,8 @@ if TYPE_CHECKING:
     from .single_file import FromSingleFileMixin
     from .single_file_model import FromOriginalModelMixin
     from .textual_inversion import TextualInversionLoaderMixin
+    from .transformer_flux import FluxTransformer2DLoadersMixin
+    from .transformer_sd3 import SD3Transformer2DLoadersMixin
     from .unet import UNet2DConditionLoadersMixin
 else:
     import sys

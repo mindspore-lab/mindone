@@ -732,6 +732,8 @@ class UNetMidBlock2D(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
+        self.gradient_checkpointing = False
+
     def construct(self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None) -> ms.Tensor:
         hidden_states = self.resnets[0](hidden_states, temb)
         # nn.CellList doesn't support append 'None', thus we have to modify code to fit it
@@ -1099,6 +1101,8 @@ class AttnDownBlock2D(nn.Cell):
             )
         else:
             self.downsamplers = None
+
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -2209,6 +2213,7 @@ class AttnUpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
+        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
 
     def construct(

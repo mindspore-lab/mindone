@@ -21,9 +21,17 @@ from PIL import Image
 
 import mindspore as ms
 
+from mindone.diffusers import CogVideoXFunControlPipeline, DDIMScheduler
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_numpy_from_hf_hub,
+    load_downloaded_video_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -181,3 +189,39 @@ class CogVideoXFunControlPipelineFastTests(PipelineTesterMixin, unittest.TestCas
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class CogVideoXFunControlPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = CogVideoXFunControlPipeline.from_pretrained(
+            "alibaba-pai/CogVideoX-Fun-V1.1-5b-Pose", mindspore_dtype=ms_dtype
+        )
+        pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
+
+        control_video = load_downloaded_video_from_hf_hub(
+            "huggingface/documentation-images",
+            "hiker.mp4",
+            subfolder="diffusers",
+        )
+        prompt = (
+            "An astronaut stands triumphantly at the peak of a towering mountain. Panorama of rugged peaks and "
+            "valleys. Very futuristic vibe and animated aesthetic. Highlights of purple and golden colors in "
+            "the scene. The sky is looks like an animated/cartoonish dream of galaxies, nebulae, stars, planets, "
+            "moons, but the remainder of the scene is mostly realistic."
+        )
+        torch.manual_seed(0)
+        video = pipe(prompt=prompt, control_video=control_video)[0][0]
+
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"fun_control_{dtype}.npy",
+            subfolder="cogvideox",
+        )
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

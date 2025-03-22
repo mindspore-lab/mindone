@@ -176,8 +176,12 @@
         title: SD3ControlNetModel
       - local: api/models/controlnet_sparsectrl
         title: SparseControlNetModel
+      - local: api/models/controlnet_union
+        title: ControlNetUnionModel
       title: ControlNets
     - sections:
+      - local: api/models/allegro_transformer3d
+        title: AllegroTransformer3DModel
       - local: api/models/aura_flow_transformer2d
         title: AuraFlowTransformer2DModel
       - local: api/models/cogvideox_transformer3d
@@ -192,10 +196,14 @@
         title: FluxTransformer2DModel
       - local: api/models/hunyuan_transformer2d
         title: HunyuanDiT2DModel
+      - local: api/models/hunyuan_video_transformer_3d
+        title: HunyuanVideoTransformer3DModel
       - local: api/models/latte_transformer3d
         title: LatteTransformer3DModel
       - local: api/models/lumina_nextdit2d
         title: LuminaNextDiT2DModel
+      - local: api/models/ltx_video_transformer3d
+        title: LTXVideoTransformer3DModel
       - local: api/models/pixart_transformer2d
         title: PixArtTransformer2DModel
       - local: api/models/prior_transformer
@@ -228,8 +236,14 @@
     - sections:
       - local: api/models/autoencoderkl
         title: AutoencoderKL
+      - local: api/models/autoencoderkl_allegro
+        title: AutoencoderKLAllegro
       - local: api/models/autoencoderkl_cogvideox
         title: AutoencoderKLCogVideoX
+      - local: api/models/autoencoder_kl_hunyuan_video
+        title: AutoencoderKLHunyuanVideo
+      - local: api/models/autoencoderkl_ltx_video
+        title: AutoencoderKLLTXVideo
       - local: api/models/asymmetricautoencoderkl
         title: AsymmetricAutoencoderKL
       - local: api/models/consistency_decoder_vae
@@ -246,8 +260,12 @@
     sections:
     - local: api/pipelines/overview
       title: Overview
+    - local: api/pipelines/allegro
+      title: Allegro
     - local: api/pipelines/animatediff
       title: AnimateDiff
+    - local: api/pipelines/audioldm
+      title: AudioLDM
     - local: api/pipelines/aura_flow
       title: AuraFlow
     - local: api/pipelines/auto_pipeline
@@ -266,6 +284,10 @@
       title: ControlNet
     - local: api/pipelines/controlnet_flux
       title: ControlNet with Flux.1
+    - local: api/pipelines/flux
+      title: Flux
+    - local: api/pipelines/control_flux_inpaint
+      title: FluxControlInpaint
     - local: api/pipelines/controlnet_hunyuandit
       title: ControlNet with Hunyuan-DiT
     - local: api/pipelines/controlnet_sd3
@@ -276,6 +298,8 @@
       title: ControlNet-XS
     - local: api/pipelines/controlnetxs_sdxl
       title: ControlNet-XS with Stable Diffusion XL
+    - local: api/pipelines/controlnet_union
+      title: ControlNetUnion
     - local: api/pipelines/dance_diffusion
       title: Dance Diffusion
     - local: api/pipelines/ddim
@@ -292,6 +316,8 @@
       title: Flux
     - local: api/pipelines/hunyuandit
       title: Hunyuan-DiT
+    - local: api/pipelines/hunyuan_video
+      title: HunyuanVideo
     - local: api/pipelines/i2vgenxl
       title: I2VGen-XL
     - local: api/pipelines/pix2pix
@@ -310,10 +336,16 @@
       title: Latent Diffusion
     - local: api/pipelines/latte
       title: Latte
+    - local: api/pipelines/ltx_video
+      title: LTXVideo
     - local: api/pipelines/lumina
       title: Lumina-T2X
     - local: api/pipelines/marigold
       title: Marigold
+    - local: api/pipelines/mochi
+      title: Mochi 1 Preview
+    - local: api/pipelines/musicldm
+      title: MusicLDM
     - local: api/pipelines/pag
       title: PAG
     - local: api/pipelines/pixart

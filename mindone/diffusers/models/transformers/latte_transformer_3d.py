@@ -157,9 +157,9 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
 
         # define temporal positional embedding
         temp_pos_embed = get_1d_sincos_pos_embed_from_grid(
-            inner_dim, ops.arange(0, video_length).unsqueeze(1).numpy()
+            inner_dim, ops.arange(0, video_length).unsqueeze(1), output_type="ms"
         )  # 1152 hidden size
-        self.temp_pos_embed = ms.Tensor.from_numpy(temp_pos_embed).float().unsqueeze(0)
+        self.temp_pos_embed = temp_pos_embed.float().unsqueeze(0)
 
         self.gradient_checkpointing = False
 

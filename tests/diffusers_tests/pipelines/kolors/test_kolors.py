@@ -16,14 +16,19 @@
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import KolorsPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -168,3 +173,30 @@ class KolorsPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KolorsPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip("diffusers doesn't support fp32")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = KolorsPipeline.from_pretrained("Kwai-Kolors/Kolors-diffusers", variant="fp16", mindspore_dtype=ms_dtype)
+
+        prompt = "A photo of a ladybug, macro, zoom, high quality, film, holding a wooden sign with the text 'KOLORS'"
+
+        torch.manual_seed(0)
+        image = pipe(prompt)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"kolors_t2i_{dtype}.npy",
+            subfolder="kolors",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
