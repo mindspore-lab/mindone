@@ -18,6 +18,7 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 
+import mindspore as ms
 from typing import Optional
 
 from addict import Dict
@@ -289,7 +290,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             attention_mask: shape (bs seq_len), where 1 for valid input seq, 0 for padded seq
             image_seq_mask: 1 - image tokens (exclude BOI and EOI)
             pixel_values: images resized to (384, 384), shape (bs n_images 3 h w)
-            image_tokens: image tokens encoded and quantized by VQ16, shape (bs n_images per_img_seq_len)
+            image_tokens: deprecated, image tokens encoded and quantized by VQ16, shape (bs n_images per_img_seq_len)
 
         Note: pre-compute VQ encoded tokens for efficiency
         """
@@ -438,37 +439,47 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         Added for training, and only used in training!
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
-            task_type: shape (bs,), 0 - pure text, 1 - vqa, 2 - t2i
+            task_type: shape (bs,), 0 - vqa, 1 - pure text, 2 - t2i
         """
+        losses = []
+        for ti, task in enumerate(task_type):
+            _input_ids = input_ids[ti][None, ...]
+            _labels = labels[ti][None, ...]
+            _attention_mask = attention_mask[ti][None, ...]
+            _image_seq_mask = image_seq_mask[ti][None, ...]
+            _pixel_values = pixel_values[ti][None, ...]
+            if task == 0:
+                # mm understand
+                loss = self.und_with_loss(
+                    input_ids=_input_ids,
+                    attention_mask=_attention_mask,
+                    labels=_labels,
+                    image_seq_mask=_image_seq_mask,
+                    pixel_values=_pixel_values,
+                )
+            elif task == 1:
+                # text
+                loss = self.language_model(
+                    input_ids=_input_ids,
+                    attention_mask=_attention_mask,
+                    labels=_labels,
+                )[0]
+            elif task == 2:
+                # t2i
+                loss = self.gen_with_loss(
+                    input_ids=_input_ids,
+                    attention_mask=_attention_mask,
+                    image_seq_mask=_image_seq_mask,
+                    pixel_values=_pixel_values,
+                    # image_tokens=image_tokens,
+                    # labels,
+                )
+            else:
+                raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
+            
+            losses.append(loss)
 
-        if task_type[0] == 0:
-            # text
-            loss = self.language_model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-            )[0]
-        elif task_type[0] == 1:
-            # mm understand
-            loss = self.und_with_loss(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-                image_seq_mask=image_seq_mask,
-                pixel_values=pixel_values,
-            )
-        elif task_type[0] == 2:
-            # t2i
-            loss = self.gen_with_loss(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                image_seq_mask=image_seq_mask,
-                pixel_values=pixel_values,
-                image_tokens=image_tokens,
-                # labels,
-            )
-        else:
-            raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
+        loss = mint.mean(mint.stack(losses))
 
         return loss
 
