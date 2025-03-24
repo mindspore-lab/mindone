@@ -356,8 +356,11 @@ NODE_RANK="0"
   done
   ```
 
-要了解不同参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
+> [!TIP]
+> 如果想修改transformer的模型结构，可以设置`--transformer_config`。比如修改成30B的模型，可以设置`--transformer_config=configs/cogvideox1.5_30B.yaml`；
+> 当配置了`transformer_config`，可以配置`--transformer_ckpt_path`加载checkpoint权重。
 
+要了解更多参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
 
 ## 与原仓的差异&功能限制
 
