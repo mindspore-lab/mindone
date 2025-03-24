@@ -50,6 +50,8 @@ Image VQA:
 Enter this directory and install required packages:
 
 ```shell
+cd mindone
+pip install -e .[training]
 cd examples/emu3
 pip install -r requirements.txt
 ```

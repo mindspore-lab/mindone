@@ -26,30 +26,13 @@ from transformers.tokenization_utils_base import PreTokenizedInput, TextInput
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import Tensor, _no_grad, jit_class, mint, ops
+from mindspore import Tensor, mint, ops
+
+from mindone.diffusers.training_utils import pynative_no_grad as no_grad
 
 from .utils_emu3 import Emu3PrefixConstrainedLogitsHelper
 
 logger = logging.get_logger(__name__)
-
-
-@jit_class
-class no_grad(_no_grad):
-    """
-    A context manager that suppresses gradient memory allocation in PyNative mode.
-    """
-
-    def __init__(self):
-        super().__init__()
-        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
-
-    def __enter__(self):
-        if self._pynative:
-            super().__enter__()
-
-    def __exit__(self, *args):
-        if self._pynative:
-            super().__exit__(*args)
 
 
 class Emu3Processor(ProcessorMixin):
