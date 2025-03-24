@@ -69,8 +69,8 @@ class StableDiffusion3ControlNetPipelineFastTests(PipelineTesterMixin, unittest.
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_sd3.SD3ControlNetModel",
-            "mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel",
+            "diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel",
             dict(
                 sample_size=32,
                 patch_size=1,
@@ -270,7 +270,7 @@ class StableDiffusion3ControlNetPipelineSlowTests(PipelineTesterMixin, unittest.
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        controlnet_cls = get_module("mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel")
+        controlnet_cls = get_module("mindone.diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel")
         controlnet = controlnet_cls.from_pretrained("InstantX/SD3-Controlnet-Canny", mindspore_dtype=ms_dtype)
         pipe_cls = get_module("mindone.diffusers.pipelines.controlnet_sd3.StableDiffusion3ControlNetPipeline")
         pipe = pipe_cls.from_pretrained(

@@ -7,9 +7,12 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -170,3 +173,47 @@ class AnimateDiffPAGPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class AnimateDiffPAGPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_pag_animatediff(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        model_id = "SG161222/Realistic_Vision_V5.1_noVAE"
+        motion_adapter_id = "guoyww/animatediff-motion-adapter-v1-5-2"
+        motion_adapter_cls = get_module("mindone.diffusers.models.unets.unet_motion_model.MotionAdapter")
+        motion_adapter = motion_adapter_cls.from_pretrained(motion_adapter_id, mindspore_dtype=ms_dtype)
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_ddim.DDIMScheduler")
+        scheduler = scheduler_cls.from_pretrained(
+            model_id, subfolder="scheduler", beta_schedule="linear", steps_offset=1, clip_sample=False
+        )
+        pipe_cls = get_module("mindone.diffusers.pipelines.pag.pipeline_pag_sd_animatediff.AnimateDiffPAGPipeline")
+        pipe = pipe_cls.from_pretrained(
+            model_id,
+            motion_adapter=motion_adapter,
+            scheduler=scheduler,
+            pag_applied_layers=["mid"],
+            mindspore_dtype=ms_dtype,
+        )
+
+        torch.manual_seed(0)
+        videos = pipe(
+            prompt="car, futuristic cityscape with neon lights, street, no human",
+            negative_prompt="low quality, bad quality",
+            num_inference_steps=25,
+            guidance_scale=6.0,
+            pag_scale=3.0,
+        )[0]
+
+        video = videos[0]
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"pag_animatediff_{dtype}.npy",
+            subfolder="pag",
+        )
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL
