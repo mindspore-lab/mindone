@@ -203,7 +203,8 @@ def main(args):
             [
                 f"Mindspore mode[GRAPH(0)/PYNATIVE(1)]: {args.ms_mode}",
                 f"Distributed mode: {args.use_parallel}",
-                f"Model depth: {args.depth}" f"Total params: {tot_params}, Traninable params: {trainable_params}",
+                f"Model depth: {args.depth}",
+                f"Total params: {tot_params}, Traninable params: {trainable_params}",
                 f"VAR dtype: {args.dtype}",
                 f"Data path: {args.data_path}",
                 f"Batch size: {args.batch_size}",
