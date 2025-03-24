@@ -37,9 +37,15 @@ PAG can be used by specifying the `pag_applied_layers` as a parameter when insta
 
 ::: mindone.diffusers.KolorsPAGPipeline
 
+::: mindone.diffusers.StableDiffusionPAGInpaintPipeline
+
 ::: mindone.diffusers.StableDiffusionPAGPipeline
 
+::: mindone.diffusers.StableDiffusionPAGImg2ImgPipeline
+
 ::: mindone.diffusers.StableDiffusionControlNetPAGPipeline
+
+::: mindone.diffusers.StableDiffusionControlNetPAGInpaintPipeline
 
 ::: mindone.diffusers.StableDiffusionXLPAGPipeline
 
@@ -49,6 +55,10 @@ PAG can be used by specifying the `pag_applied_layers` as a parameter when insta
 
 ::: mindone.diffusers.StableDiffusionXLControlNetPAGPipeline
 
+::: mindone.diffusers.StableDiffusionXLControlNetPAGImg2ImgPipeline
+
 ::: mindone.diffusers.StableDiffusion3PAGPipeline
+
+::: mindone.diffusers.StableDiffusion3PAGImg2ImgPipeline
 
 ::: mindone.diffusers.PixArtSigmaPAGPipeline
