@@ -417,7 +417,7 @@ class MLP(nn.Cell):
 
         def swiglu(x):
             x = mint.chunk(x, 2, dim=-1)
-            return mint.silu(x[0]) * x[1]
+            return mint.nn.functional.silu(x[0]) * x[1]
 
         self.activation_func = swiglu
 

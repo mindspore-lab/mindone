@@ -531,7 +531,7 @@ class LoraModel(BaseTuner):
         U, S, Vh = ops.svd(delta_weight, full_matrices=full_matrices)
         U = U[:, :new_rank]
         S = S[:new_rank]
-        # todo: unavailable mint interface torch.quantile
+        # todo: unavailable mint interface torch.diag
         U = U @ ops.diag(S)
         Vh = Vh[:new_rank, :]
         if clamp is not None:

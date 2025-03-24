@@ -17,6 +17,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
+import mindspore.common.initializer as init
 from mindspore import mint, nn, ops
 
 from ..utils import deprecate
@@ -471,15 +472,18 @@ class PatchEmbed(nn.Cell):
         self.layer_norm = layer_norm
         self.pos_embed_max_size = pos_embed_max_size
 
-        weight_init_kwargs = {"weight_init": "zeros", "bias_init": "zeros"} if zero_module else {}
+        # weight_init_kwargs = {"weight_init": "zeros", "bias_init": "zeros"} if zero_module else {}
         self.proj = mint.nn.Conv2d(
             in_channels,
             embed_dim,
             kernel_size=(patch_size, patch_size),
             stride=patch_size,
             bias=bias,
-            **weight_init_kwargs,
         )
+        if zero_module:
+            self.proj.weight.set_data(init.initializer("zeros", self.proj.weight.shape, self.proj.weight.dtype))
+            self.proj.bias.set_data(init.initializer("zeros", self.proj.bias.shape, self.proj.bias.dtype))
+
         if layer_norm:
             self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
         else:
@@ -871,7 +875,7 @@ def get_3d_rotary_pos_embed(
     # BroadCast and concatenate temporal and spaial frequencie (height and width) into a 3d tensor
     def combine_time_height_width(freqs_t, freqs_h, freqs_w):
         freqs_t = mint.broadcast_to(
-            freqs_t[:, None, None, :](-1, grid_size_h, grid_size_w, -1)
+            freqs_t[:, None, None, :], (-1, grid_size_h, grid_size_w, -1)
         )  # temporal_size, grid_size_h, grid_size_w, dim_t
         freqs_h = mint.broadcast_to(
             freqs_h[None, :, None, :], (temporal_size, -1, grid_size_w, -1)
@@ -1123,8 +1127,13 @@ def get_1d_rotary_pos_embed(
     freqs = mint.outer(pos, freqs)  # type: ignore   # [S, D/2]
     if use_real and repeat_interleave_real:
         # flux, hunyuan-dit, cogvideox
-        freqs_cos = mint.repeat_interleave(mint.cos(freqs), 2, dim=1)  # [S, D]
-        freqs_sin = mint.repeat_interleave(mint.sin(freqs), 2, dim=1)  # [S, D]
+        # ms.float64 is not support in mint.repeat_interleave
+        if freqs_dtype == ms.float64:
+            freqs_cos = mint.repeat_interleave(mint.cos(freqs).to(ms.float32), 2, dim=1).to(freqs_dtype)  # [S, D]
+            freqs_sin = mint.repeat_interleave(mint.sin(freqs).to(ms.float32), 2, dim=1).to(freqs_dtype)  # [S, D]
+        else:
+            freqs_cos = mint.repeat_interleave(mint.cos(freqs), 2, dim=1)  # [S, D]
+            freqs_sin = mint.repeat_interleave(mint.sin(freqs), 2, dim=1)  # [S, D]
         return freqs_cos, freqs_sin
     elif use_real:
         # stable audio, allegro
@@ -1183,6 +1192,7 @@ def apply_rotary_emb(
 
         return out
     else:
+        # used for lumina
         x_rotated = view_as_complex(mint.reshape(x.float(), (*x.shape[:-1], -1, 2)))
         freqs_cis = mint.unsqueeze(freqs_cis, 2)
         # todo: unavailable mint interface
