@@ -25,7 +25,7 @@ pip install -r requirements.txt
 ## Traning
 
 ### data prepare
-dataset should be a tree of directories, It should be like this:
+Dataset should be a tree of directories. It should be like this:
 ```
 /path/to/dataset/
 ├── train

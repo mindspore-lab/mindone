@@ -88,7 +88,7 @@ class VAR(nn.Cell):
 
         # 4. backbone blocks
         self.shared_ada_lin = (
-            nn.SequentialCell(mint.nn.SiLU(inplace=False), SharedAdaLin(self.D, 6 * self.C))
+            nn.SequentialCell(mint.nn.SiLU(), SharedAdaLin(self.D, 6 * self.C))
             if shared_aln
             else mint.nn.Identity()
         )

@@ -66,7 +66,7 @@ def main(args):
 
     cfg = 4  # @param {type:"slider", min:1, max:10, step:0.1}
     more_smooth = False  # True for more smooth output
-    class_labels = (980, 980, 437, 437, 22, 22, 562, 562)
+    class_labels = tuple(map(int, args.class_labels.replace("-", "_").split("_")))
 
     B = len(class_labels)
     label_B = ms.Tensor(class_labels)
@@ -109,6 +109,7 @@ def parse_args():
         default="model/vae-2972c247.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
+    parser.add_argument("--class_labels", default="980_980_437_437_22_22_562_562", type=str, help="class labels")
     parser.add_argument(
         "--var_checkpoint",
         type=str,
