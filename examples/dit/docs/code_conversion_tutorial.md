@@ -1,103 +1,117 @@
-# **MindSpore基础教程： 模型迁移训练**
+# **模型迁移教程：从PyTorch迁移到MindSpore**
 
-本文章是MindSpore基础教程之一： 模型迁移训练，以DiT(Scalable Diffusion Models with Transformers)模型为例。通过阅读本教程，您将了解如何将PyTorch模型的推理和训练代码迁移到MindSpore框架中，并且实现相同的精度和性能。
+通过本教程，您将学习如何将PyTorch模型的推理和训练代码迁移到MindSpore框架，确保迁移后精度一致并发挥MindSpore在NPU上的性能优势。
 
-## DiT模型迁移任务目标
+## 迁移目标和步骤
 
-DiT是一类基于Transformer架构的深度生成模型，相比Stable Diffusion这类使用U-Net骨干网络的生成模型，DiT的扩展性更好，吸引了非常多的关注。因此，本文以DiT模型为例，介绍如何将PyTorch的代码迁移为MindSpore的代码。总体目标是实现在NPU设备上，利用MindSpore框架进行DiT的训练，并且达到和PyTorch框架相同的训练精度。
+本教程以DiT（Diffusion Transformer）模型为例，详细介绍如何将PyTorch代码迁移到MindSpore框架。迁移目标如下：
+- 推理一致性：在相同输入下，PyTorch和MindSpore模型加载相同权重后，输出结果应一致。
+- 训练精度：在相同训练数据集、超参和损失函数下，两框架的训练精度应基本相同。
 
-在相同的输入前提下，PyTorch和MindSpore的推理结果应保持一致。在相同的训练数据集，超参配置和损失函数下，PyTorch和MindSpore的训练精度应保持大致相同。但是，由于数据增强和模型初始化的随机性，最终达到的收敛精度可能存在细微差异，这属于可以接受的误差范围。
+具体步骤如下：
 
-## 迁移任务具体步骤
-迁移任务包含以下步骤：
-- 迁移准备工作：准备合适的运行环境，用于推理和训练的数据集，分析并运行PyTorch代码；
-- 模型前向对齐：对PyTorch模型代码进行转换，进行PyTorch模型权重进行转换，验证模型组网正确性；
-- 数据读取转换：对PyTorch数据读取代码进行转换；
-- 模型训练对齐：对齐损失函数、超参和学习率，验证训练精度；
+1. **迁移准备工作**：配置环境、准备数据集并分析PyTorch代码。
+2. **模型前向对齐**：转换模型代码和权重，验证组网正确性，确保推理结果一致。
+3. **数据处理对齐**：调整数据集读取和加载代码，适配MindSpore的数据加载方式。
+4. **模型训练对齐**：对齐损失函数、超参和学习率，验证训练精度。
 
-# **迁移准备工作**
+## 迁移准备工作
 
-## 安装MindSpore、PyTorch
+### 安装MindSpore和PyTorch
 
-安装MindSpore，具体操作请参考[MindSpore官网](https://www.mindspore.cn/install)。本文中使用到的MindSpore版本为2.5.0, CANN 版本为CANN 8.0.RC3。
+- MindSpore安装
 
-安装完成以后，请输入运行python，然后输入以下的命令：
-```bash
-import mindspore as ms
-ms.run_check()
-```
-如果出现以下的输出内容，说明MindSpore安装成功。
-```bash
-MindSpore version: 2.5.0
-The result of multiplication caclulation is correct, MindSpore has been installed on platform [Ascend] successfully!
-```
+    请参考[MindSpore官网安装指南](https://www.mindspore.cn/install)。本教程中使用：
+    - MindSpore版本: 2.5.0
+    - CANN 版本: 8.0.0.beta1
 
-安装PyTorch，具体操作请参考[PyTorch官网](https://pytorch.org/get-started/locally/)。 本文中使用到的PyTorch版本为2.5.1，CUDA 版本为12.8。
+    安装完成后，验证安装：
 
-安装完成以后，请输入运行python，然后输入以下的命令：
-```bash
-import torch
-print(torch.__version__)
-print(torch.cuda.is_available())
-print(torch.Tensor([0.0]).cuda())
-```
-如果输出结果正常，则表示PyTorch安装成功。
+    ```bash
+    python -c "import mindspore as ms; ms.run_check()"
+    ```
+
+    预期输出：
+    ```bash
+    MindSpore version: 2.5.0
+    The result of multiplication caclulation is correct, MindSpore has been installed on platform [Ascend] successfully!
+    ```
+
+- PyTorch安装
+
+    请参考[PyTorch官网安装指南](https://pytorch.org/get-started/locally/)，本教程使用PyTorch2.5.1
+    安装完成后，验证安装：
+
+    ```bash
+    python -c "import torch; print(torch.__version__); print(torch.cuda.is_available()); print(torch.Tensor([0.0]).cuda())"
+    ```
 
 
-## 准备cat-dog数据集
 
-从对齐精度的角度考虑，训练数据集我们选择一个小数据集，即cat-dog数据集。该数据集中包含400张图片，只有两个分类： ${"0": "cat", "1": "dog"}$。该数据集可以通过`huggingface-cli`从命令行下载。首先用下面的命令进行安装：
+### 准备数据集
+
+
+DiT是一个用于类别生成图像任务的模型，为便于精度对齐，我们构建了一个小型的图像二分类数据集[CatDogTiny](https://huggingface.co/datasets/jasonhuang23/cat_dog_tiny)，包含400张图片，分为两类：{"0": "cat", "1": "dog"}。
+
+下载该数据集到`./datasets`:
+
 ```bash
 pip install -U "huggingface_hub[cli]"
+mkdir -p dit/datasets
+huggingface-cli download jasonhuang23/cat_dog_tiny --repo-type dataset --local-dir dit/datasets/
 ```
 
-然后在工作目录下下载数据集：
-```bash
-huggingface-cli download jasonhuang23/cat_dog_tiny --repo-type dataset --local-dir ./datasets/
+### 下载权重
+
+- DiT权重
+
+参考[DiT的官方仓库](https://github.com/facebookresearch/DiT)提供的权重链接，下载`DiT-XL-2-256x256`和`DiT-XL-2-512x512`预训练权重，并保存到`dit/models`:
+
+```shell
+mkdir -p dit/models
+
+# 下载256x256图像生成模型权重
+wget -c https://dl.fbaipublicfiles.com/DiT/models/DiT-XL-2-256x256.pt -P dit/models
+
+# 下载512x512图像生成模型权重（可选）
+wget -c https://dl.fbaipublicfiles.com/DiT/models/DiT-XL-2-512x512.pt -P dit/models
 ```
 
-下载完成后，用`tree datasets/`检查数据集的目录结构, 得到如下的结果：
-```bash
-datasets/
-├── cat
-│   ├── 0.jpg
-│   ├── 1.jpg
-│    ...
-├── dog
-│   ├── 0.jpg
-│   ├── 1.jpg
-│    ...
-└── labels.csv
+- VAE权重
+
+从[huggingface/stabilityai.co](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main)下载VAE权重文件:
+
+```shell
+huggingface-cli download  stabilityai/sd-vae-ft-mse --local-dir dit/models --include diffusion_pytorch_model.bin
 ```
-其中， `labels.csv`是一个只有两列的CSV文件，第一列为图片相对路径，第二列为图片的标签。如下所示：
-| image_path | label |
-| ---------- | ----- |
-|cat/0.jpg | 0 |
-|dog/0.jpg | 1 |
 
-## 下载并分析代码
 
-MindSpore的训练代码在`mindone/examples/dit`中, 请使用如下的命令下载代码：
-```bash
-git clone https://github.com/mindspore-lab/mindone.git
-cd examples/dit
-pip install -r requirements.txt
+### 下载并分析代码
+
+我们需要在CPU/GPU/NPU上，跑通PyTorch参考代码的推理和训练过程，以对比和验证迁移结果的正确性。
+
+下载[PyTorch DiT](https://github.com/facebookresearch/DiT)代码:
 ```
-`examples/dit` 是主要的工作目录。请把数据集`datasets/`放置到`examples/dit`目录下。
-
-
-PyTorch代码库请参考：[DiT](https://github.com/facebookresearch/DiT)。请首先下载代码库并安装PyTorch依赖项：
-```bash
-cd examples/dit
+cd dit
 git clone https://github.com/facebookresearch/DiT.git
-cd DiT
-conda env create -f environment.yml
-conda activate DiT
 ```
 
-PyTorch的训练代码是`DiT/train.py`。在运行训练代码之前，我们首先分析一下训练代码，以了解训练代码的运行逻辑。
+其主要的目录结构如下：
 
-训练的初始阶段，首先对DiT模型进行初始化，并创建一个ema模型, 用于在训练过程中对模型参数进行ema更新。VAE是一个变分自编码器，用于对图像进行编码和解码。diffusion则定义了训练中会用到的noise scheduler 和timesteps， 同时在`diffusion.training_losses`中，还定义了训练使用到的损失函数，默认为MSE(Mean Squared Error)。模型采用AdamW优化器，learning rate 为1e-4, weight decay为0。
+```
+├── diffusion
+│   ├── __init__.py
+│   ├── diffusion_utils.py
+│   ├── gaussian_diffusion.py
+│   ├── respace.py
+│   └── timestep_sampler.py
+├── models.py
+├── sample.py
+└── train.py 
+```
+
+核心模型训练脚本位于`DiT/train.py`，分析其逻辑：
+
 ```python
     # Create model:
     assert args.image_size % 8 == 0, "Image size must be divisible by 8 (for the VAE encoder)."
@@ -116,9 +130,9 @@ PyTorch的训练代码是`DiT/train.py`。在运行训练代码之前，我们�
 
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
 ```
-数据集相关代码将在下一章节详细介绍。
 
-进行损失函数计算和模型参数更新时，会调用`diffusion.training_losses`和`opt.step()`：
+这段代码涉及训练初始化阶段，主要包括创建DiT模型、初始化EMA权重、创建VAE模型（变分自编码器，用于对图像进行编码和解码）、创建diffusion scheduler以及优化器。
+
 ```python
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
@@ -139,24 +153,40 @@ PyTorch的训练代码是`DiT/train.py`。在运行训练代码之前，我们�
             update_ema(ema, model.module)
 ```
 
-启动N卡并行训练的命令为：
-```bash
-cd DiT/
-torchrun --nnodes=1 --nproc_per_node=N train.py --model DiT-XL/2 --data-path ../datasets/
-```
-默认的图片大小为(256, 256)。
-
-# **模型前向对齐**
-模型前向对齐是指，在输入相同的情况下，PyTorch模型和MindSpore模型也载入相同的权重，两个模型的输出结果也相同。
-
-## 转换网络结构代码
-
-PyTorch DiT模型代码：[facebookresearch/DiT](https://github.com/facebookresearch/DiT/blob/main/models.py)。
-
-经过转换后，MindSpore DiT模型代码：[mindspore-lab/mindone](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py)。
+这段代码实现了训练的迭代过程，主要包括训练批数据加载、VAE和DiT的前向计算、损失函数计算、以及模型参数和EMA的更新。
 
 
-DiT 是一个以 Transformer Block `DiTBlock`为主要结构的 Vision Transformer。我们截取了`DiTBlock`的PyTorch和MindSpore代码进行对比，来展示模型代码转换的主要过程。
+## 模型前向对齐
+
+目的：确保在相同输入下，加载相同权重后，PyTorch和MindSpore模型输出一致，验证模型转换正确性。
+
+### 模型结构分析
+
+DiT是基于Transformer架构的扩散生成模型，相比Stable Diffusion这类使用U-Net骨干网络的生成模型，DiT的可扩展性更好，是当前图像视频生成式SoTA的主流架构。其网络结构如下：
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/wtomin/mindone-assets/main/dit/DiT_structure.PNG" width=550 />
+</p>
+<p align="center">
+  <em> DiT网络结构及DiT block </em>
+</p>
+
+
+### 网络结构代码转换
+
+DiT网络结构的PyTorch实现：[DiT/models.py](https://github.com/facebookresearch/DiT/blob/main/models.py)
+
+我们参考[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)，按照以下的步骤进行转换：
+1. 将`nn.Module`替换为`nn.Cell`, 同时将`def forward`替换成`def construct`。
+2. 对于单层Layer，在[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)中找到对应的MindSpore API， 替换成对应的代码。 例如`nn.Linear`, `nn.Linear`替换成`mint.nn.Linear`。
+3. 对于不能直接进行API替换的Layer, 例如PyTorch代码中调用的`from timm.models.vision_transformer import PatchEmbed, Attention, Mlp`，都需要找到对应的PyTorch源码，重复步骤2，进行代码转换。经过转换后的MindSpore： [PatchEmbed](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py#L41), [Attention](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py#L158), [Mlp](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py#L132)。
+4. MindSpore 的权重初始化方式和PyTorch的权重初始化方式有细微不同。PyTorch的初始化常常调用`torch.nn.init`的相关接口, 并使用`Tensor.copy_`来进行赋值。MindSpore初始化常常调用`mindspore.common.initializer`的相关接口，并且使用`Parameter.set_data`来进行权重赋值。下面展示PyTorch和MindSpore初始化权重的代码。
+
+
+经过转换后，MindSpore DiT模型代码：[mindone/models/dit.py](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py)。
+
+
+我们截取DiT主要的模块`DiTBlock`的PyTorch和MindSpore代码进行对比，来展示模型代码转换的主要过程。
 
 <table>
 <tr>
@@ -222,12 +252,6 @@ class DiTBlock(nn.Cell):
 </td>
 </tr>
 </table>
-
-请参考[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)，按照以下的步骤进行转换：
-1. 将`nn.Module`替换为`nn.Cell`, 同时将`def forward`替换成`def construct`。
-2. 对于单层Layer，在[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)中找到对应的MindSpore API， 替换成对应的代码。 例如`nn.Linear`, `nn.Linear`替换成`mint.nn.Linear`。
-3. 对于不能直接进行API替换的Layer, 例如PyTorch代码中调用的`from timm.models.vision_transformer import PatchEmbed, Attention, Mlp`，都需要找到对应的PyTorch源码，重复步骤2，进行代码转换。经过转换后的MindSpore： [PatchEmbed](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py#L41), [Attention](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py#L158), [Mlp](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/dit.py#L132)。
-4. MindSpore 的权重初始化方式和PyTorch的权重初始化方式有细微不同。PyTorch的初始化常常调用`torch.nn.init`的相关接口, 并使用`Tensor.copy_`来进行赋值。MindSpore初始化常常调用`mindspore.common.initializer`的相关接口，并且使用`Parameter.set_data`来进行权重赋值。下面展示PyTorch和MindSpore初始化权重的代码。
 
 
 <table>
@@ -327,47 +351,33 @@ class DiTBlock(nn.Cell):
 
 其中MindSpore调用的初始化函数`xavier_uniform_`, `constant_`, `normal_`，参考[utils.py](https://github.com/mindspore-lab/mindone/blob/master/mindone/models/utils.py)。
 
-## 进行权重转换
+### 权重转换
 
-在运行MindSpore模型前，需要先将PyTorch模型权重转换成MindSpore权重，核心代码是将PyTorch的权重Tensor转换成MindSpore的权重Tensor,并且保存为$.ckpt$文件：
-```python
-def torch_to_ms_weight(source_fp, target_fp):
-    source_data = load_torch_ckpt(source_fp)
-    target_data = []
-    for _name_pt in source_data:
-        _source_data = source_data[_name_pt].cpu().detach().numpy()
-        target_data.append({"name": _name_pt, "data": ms.Tensor(_source_data)})
-    ms.save_checkpoint(target_data, target_fp)
-```
+由于预训练模型权重格式为`.pt`，我们需要先将PyTorch权重转换成MindSpore权重，主要逻辑是读取PyTorch权重的各个参数，转换成MindSpore的参数(`Parmeter`)，并且保存为`.ckpt`文件。
 
-请参考[DiT的官方仓库](https://github.com/facebookresearch/DiT)提供的链接，下载预训练模型权重。目前，只有两个ckpt`DiT-XL-2-256x256`和`DiT-XL-2-512x512`可用。
+我们使用[dit/tools/dit_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/dit_converter.py)脚本对DiT权重进行转换：
 
-下载`DiT-XL-2-{}x{}.pt`文件后，请将其放置在`examples/dit/models/`文件夹下，然后运行[tools/dit_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/dit_converter.py)。例如，要转换`models/DiT-XL-2-256x256.pt`，您可以运行以下命令：
 ```bash
-cd examples/dit/
 python tools/dit_converter.py --source models/DiT-XL-2-256x256.pt --target models/DiT-XL-2-256x256.ckpt
 ```
 
-此外，还请从[huggingface/stabilityai.co](https://huggingface.co/stabilityai/sd-vae-ft-mse/tree/main)下载VAE权重文件，并利用[tools/vae_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/vae_converter.py)进行转换：
+类似地，我们使用[dit/tools/vae_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/vae_converter.py)对VAE权重进行转换：
 ```bash
-cd examples/dit/
-python tools/vae_converter.py --source path/to/vae/ckpt --target models/sd-vae-ft-mse.ckpt
+python tools/vae_converter.py --source models/diffusion_pytorch_model.bin --target models/sd-vae-ft-mse.ckpt
 ```
 
 转换后，在`examples/dit/models/`下的ckpt应如下所示：
 ```bash
 models/
 ├── DiT-XL-2-256x256.ckpt
-├── DiT-XL-2-512x512.ckpt
 ├── DiT-XL-2-256x256.pt
-├── DiT-XL-2-512x512.pt
 ├── diffusion_pytorch_model.bin  # vae
 └── sd-vae-ft-mse.ckpt
 ```
 
 经过数据集准备和权重转换后，文件夹的结构应该如下所示：
 ```bash
-mindone/examples/dit/
+dit/
 ├── models/
 │   ├── DiT-XL-2-256x256.ckpt
 │   ├── DiT-XL-2-256x256.pt
@@ -377,30 +387,165 @@ mindone/examples/dit/
 │   ├── dog/
 │   └── labels.csv
 ├── ...
-├── DiT/  # torch repository
+├── DiT/  # torch参考实现
 ├── tests/
 └── tools/
 ```
 
-## 验证模型组网正确性
+### 模型前向精度验证
 
-为了验证模型组网的正确性，我们需要首先控制两个模型的权重相同。 两个模型分别载入`models/DiT-XL-2-256x256.pt`和`models/DiT-XL-2-256x256.ckpt`， 以确保两个模型的权重相同。其次，我们需要控制模型的输入相同。DiT模型的输入包括：潜在噪声`x`、标签`y`和噪声时间步`t`。
+为了验证模型组网的正确性及其精度，我们需要首先控制两个模型的权重相同。 两个模型分别载入`models/DiT-XL-2-256x256.pt`和`models/DiT-XL-2-256x256.ckpt`， 以确保两个模型的权重相同。其次，我们需要控制模型的输入相同。DiT模型的输入包括：潜在噪声`x`、标签`y`和噪声时间步`t`。
 
-我们首先运行在`examples/dit/`目录下，运行Pytorch的前向结果：
-```bash
-python tests/run_torch_dit.py
+我们首先在PyTorch环境上，运行在以下前向计算脚本获得Pytorch的前向结果：
+
+```python
+import os
+import sys
+
+import numpy as np
+import torch
+
+TORCH_PATH = "./DiT"  # the directory to https://github.com/facebookresearch/DiT
+sys.path.append(os.path.abspath(TORCH_PATH))
+from models import DiT_models
+
+def load_pt_dit(model_name="DiT-XL/2", dtype="fp16", dit_checkpoint="models/DiT-XL-2-256x256.pt", device="cuda"):
+    image_size = int(dit_checkpoint.split(".")[0].split("-")[-1].split("x")[-1])
+    latent_size = image_size // 8
+    dit_model = DiT_models[model_name](
+        input_size=latent_size,
+        num_classes=1000,
+    ).to(device)
+
+    if dit_checkpoint:
+        state_dict = torch.load(dit_checkpoint, weights_only=True, map_location="cpu")
+        dit_model.load_state_dict(state_dict)
+    else:
+        print("Initialize DIT randomly")
+    dit_model.eval()
+    return dit_model
+
+def init_inputs(image_size, device="cuda"):
+    latent_size = image_size // 8
+    bs = 2
+    num_channels = 4
+    x = torch.randn(bs, num_channels, latent_size, latent_size)
+    y = torch.randint(0, 2, (bs,))
+    t = torch.arange(bs)
+    # save the inputs to .npz
+    np.savez("pt_inputs.npz", x=x.numpy(), y=y.numpy(), t=t.numpy())
+    # send to device
+    x, y, t = x.to(device), y.to(device), t.to(device)
+    return x, y, t
+
+if __name__ == "__main__":
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    x, y, t = init_inputs(256, device)
+    dit_model = load_pt_dit(device=device)
+    output = dit_model(x, y, t)
+    print(output.shape)
+    np.save("pt_output.npy", output.cpu().detach().numpy())
 ```
+
 上述命令会初始化一个PyTorch的DiT模型，并载入`models/DiT-XL-2-256x256.pt`权重文件。随机初始化`x`,`y`和`t`并且将这些输入保存到`pt_inputs.npz`文件中。随后执行模型前向，将PyTorch模型的前向输出保存到`pt_output.npy`文件中。
 
-随后，我们运行MindSpore的前向结果：
-```bash
-python tests/run_ms_dit.py
+随后，我们在MindSpore环境运行以下前向计算脚本获得MindSpore的前向结果：
+
+```python
+import os
+import sys
+import numpy as np
+import mindspore as ms
+from mindspore import mint
+from utils.model_utils import load_dit_ckpt_params
+
+from mindone.models.dit import DiT_models
+from mindone.utils.amp import auto_mixed_precision
+
+
+def load_ms_dit(model_name="DiT-XL/2", dtype="fp16", dit_checkpoint="models/DiT-XL-2-256x256.ckpt"):
+    image_size = int(dit_checkpoint.split(".")[0].split("-")[-1].split("x")[-1])
+    latent_size = image_size // 8
+    dit_model = DiT_models[model_name](
+        input_size=latent_size,
+        num_classes=1000,
+        block_kwargs={"enable_flash_attention": True},
+    )
+
+    if dtype == "fp16":
+        model_dtype = ms.float16
+        dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
+    elif dtype == "bf16":
+        model_dtype = ms.bfloat16
+        dit_model = auto_mixed_precision(dit_model, amp_level="O2", dtype=model_dtype)
+    else:
+        model_dtype = ms.float32
+
+    if dit_checkpoint:
+        dit_model = load_dit_ckpt_params(dit_model, dit_checkpoint)
+    else:
+        print("Initialize DIT ramdonly")
+    dit_model = dit_model.set_train(False)
+    for param in dit_model.get_parameters():  # freeze dit_model
+        param.requires_grad = False
+    return dit_model
+
+
+def init_inputs(image_size):
+    latent_size = image_size // 8
+    bs = 2
+    num_channels = 4
+    x = mint.randn(bs, num_channels, latent_size, latent_size)
+    y = mint.randint(0, 2, (bs,))
+    t = mint.arange(bs)
+    # save the inputs to .npz
+    np.savez("ms_inputs.npz", x=x.asnumpy(), y=y.asnumpy(), t=t.asnumpy())
+    return x, y, t
+
+
+def load_inputs(pt_inputs="./pt_inputs.npz"):
+    pt_inputs = np.load(pt_inputs)
+    x = mint.Tensor(pt_inputs["x"])
+    y = mint.Tensor(pt_inputs["y"])
+    t = mint.Tensor(pt_inputs["t"])
+    return x, y, t
+
+
+if __name__ == "__main__":
+    ms.set_context(mode=ms.GRAPH_MODE)
+    # x,y,t = init_inputs(256)
+    x, y, t = load_inputs(pt_inputs="./pt_inputs.npz")
+    dit_model = load_ms_dit()
+    output = dit_model(x, y, t)
+    print(output.shape)
+    np.save("ms_output.npy", output.asnumpy())
 ```
+
 上述命令会初始化一个MindSpore的DiT模型，并载入`models/DiT-XL-2-256x256.ckpt`权重文件。通过载入`pt_inputs.npz`文件来保证两个模型的输入完全相同。随后执行模型前向，将MindSpore模型的前向输出保存到`ms_output.npy`文件中。
 
-最后对比两个输出：
+最后对比两个输出，运行以下脚本：
 ```bash
-python tests/compare_output.py
+import numpy as np
+
+def load_npy_file(file_path):
+    return np.load(file_path)
+
+def calculate_mse(output1, output2):
+    return np.mean((output1 - output2) ** 2)
+
+def main():
+    ms_output = load_npy_file("ms_output.npy")
+    pt_output = load_npy_file("pt_output.npy")
+
+    mse = calculate_mse(ms_output, pt_output)
+
+    print(f"Mean Squared Error (MSE): {mse}")
+
+    if mse < 0.001:
+        print("The mse is less than 0.001, the model is correct.")
+
+if __name__ == "__main__":
+    main()
 ```
 
 得到的输出为：
@@ -408,11 +553,14 @@ python tests/compare_output.py
 Mean Squared Error (MSE): 1.9583489120222977e-05
 The mse is less than 0.001, the model is correct.
 ```
-这表示两个模型在权重相同，输入相同的前提下，模型输出的均方误差小于0.001, 属于可以接受的范围。
 
-# **数据读取转换**
+通过以上结果, 可判断网络前向已对齐，网络结构迁移结果正确。
 
-## 转换数据读取代码
+## 数据处理对齐
+
+在模型训练过程中，数据处理是相当重要的一个环节，相同的模型使用不同的数据增强方法，其训练结果往往也存在差异。因此，为了对齐训练效果，我们应该尽量保证数据集读取、数据增强、数据采样方式与原始实现一致。
+
+### 数据处理代码迁移
 
 PyTorch进行数据读取和预处理的代码如下，其中预处理函数包括center_crop, RandomHorizontalFlip, ToTensor和Normalize。同时， DataLoader支持多卡数据并行。
 ```python
@@ -446,9 +594,16 @@ PyTorch进行数据读取和预处理的代码如下，其中预处理函数包�
     logger.info(f"Dataset contains {len(dataset):,} images ({args.data_path})")
 ```
 
-上述代码中，关于数据的预处理，需要将PyTorch的`torchvision.transforms`转换成MindSpore的`mindspore.dataset.transforms`。MindSpore代码将数据的读取和预处理统一封装在一个函数[create_dataloader_imagenet](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/data/imagenet_dataset.py#L33)中，具体代码如下：
+转换成MindSpore实现：
+- 数据读取：使用`mindspore.datasets`模块中的图像数据集加载接口[ImageFolderDataset](https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/dataset/mindspore.dataset.ImageFolderDataset.html)替换torchvision的`ImageFolder`
+- 数据增强：使用mindspore高性能数据增强模块[mindspore.dataset.transforms](https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/mindspore.dataset.transforms.html)等效代替torchvision的`transforms`模块。
+- 数据采样：使用`mindspore.datasets`中的[Dataset.batch](https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/dataset/dataset_method/batch/mindspore.dataset.Dataset.batch.html)接口代替torch的`DataLoader`接口进行data batch采样。
+
+转换后的具体代码如下：
 
 ```python
+# https://www.mindspore.cn/docs/zh-CN/r2.5.0/api_python/dataset/mindspore.dataset.ImageFolderDataset.html
+
 import mindspore as ms
 from mindspore.dataset.transforms import Compose, vision
 def create_dataloader_imagenet(
@@ -482,12 +637,12 @@ def create_dataloader_imagenet(
 ```
 需要注意的是， MindSpore新增了`vision.Decode`, 用于将图像解码为PIL数据类型， 也新增了`vision.HWC2CHW`, 用于将图像的HWC格式转换为CHW格式。同时，MindSpore代码使用`vision.Normalize([127.5, 127.5, 127.5], [127.5, 127.5, 127.5], is_hwc=False)`， 可以达到与PyTorch代码中`transforms.ToTensor()`和`transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True)`等价的效果。
 
-除了预处理函数的区别以外，MindSpore的`mindspore.dataset.ImageFolderDataset`实际上等价于PyTorch的`torchvision.datasets.ImageFolder`加上`torch.utils.data.DataLoader`。也就是说，`ImageFolderDataset`就可以支持多卡数据并行，batch sampling，以及数据增强等操作。其中PyTorch代码中的`dist.get_world_size()`等价于MindSpore中的`num_shards`或者`device_num`。PyTorch代码中的`rank`等价于MindSpore中的`shard_id`或者`rank_id`。
+除了预处理函数的区别以外，MindSpore的`mindspore.dataset.ImageFolderDataset`实际上支持多卡数据并行，其中PyTorch代码中的`dist.get_world_size()`等价于MindSpore中的`num_shards`或者`device_num`。PyTorch代码中的`rank`等价于MindSpore中的`shard_id`或者`rank_id`。
 
 
-# **模型训练对齐**
+## 模型训练对齐
 
-## 对齐损失函数
+### 损失函数对齐
 
 PyTorch的训练损失函数： [GaussianDiffusion.training_losses](https://github.com/facebookresearch/DiT/blob/main/diffusion/gaussian_diffusion.py#L715)
 
@@ -539,7 +694,10 @@ PyTorch 损失函数的关键代码如下所示：
 ```
 可以看出， PyTorch的损失函数由两部分组成，第一部分是模型的输出和当前的`target`之间的均方误差，第二部分是`vb`（Variational Bound）损失。
 
-MindSpore 的损失函数同样由这两部分组成， 只是去除了一些不必要的判定条件：
+为了转换成MindSpore实现，我们主要参考[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)将损失函数涉及的算子替换成MIndSpore对应的API，如`split`, `concat`等。
+
+转换后的代码如下：
+
 ```python
     def compute_loss(self, x, y, text_embed):
         ...
@@ -558,16 +716,24 @@ MindSpore 的损失函数同样由这两部分组成， 只是去除了一些不
         return loss
 ```
 
-在MindSpore的代码中，`_cal_vb`函数对应于PyTorch代码中的`_vb_terms_bpd`函数，即计算Variational Bound 的函数。
+MindSpore 的损失函数同样由均方误差和Variational Bound组成，只是去除了一些冗余的判定条件，`_cal_vb`函数对应于PyTorch代码中的`_vb_terms_bpd`函数，即计算Variational Bound 的函数。
 
-## 对齐超参和学习率
+### 训练超参对齐
 
-PyTorch的训练超参包括：
-- 使用EMA
-- 使用AdamW优化器, 其中learning rate为0.0001, weight decay为0
+从`DiT/train.py`脚本中，可分析出PyTorch的训练超参如下：
+```yaml
+优化器：AdamW
+learning rate：0.0001
+weight decay: 0
+EMA：ON
+```
 
-MindSpore的相关训练代码为：
+为保证Loss收敛一致，我们应采用相同的训练超参，完整的MindSpore训练流程实现详见[train_dit.py](https://github.com/wtomin/mindone/blob/dit-readme/examples/dit/train_dit.py)，其中涉及训练超参的关键代码如下：
+
 ```python
+    from mindcv.optim.adamw import AdamW 
+    from mindone.trainers.ema import EMA
+
     optimizer = AdamW(
         latent_diffusion_with_loss.trainable_params(),
         learning_rate=1e-4,
@@ -581,7 +747,9 @@ MindSpore的相关训练代码为：
         )
 ```
 
-## 验证训练精度
+注意，我们采用mindcv套件中的AdamW优化器，因其算法实现与`torch.optim.AdamW`完全等价，而`mindspore.nn.AdamWeightDecay`则与torch有算法实现上的差异（详见[此处](https://www.mindspore.cn/docs/zh-CN/r2.4.10/note/api_mapping/pytorch_diff/AdamWeightDecay.html)）。
+
+### 训练精度验证
 
 在相同的数据集(cat-dog 400 images)下，PyTorch和MindSpore都载入相同的初始权重, 在上述相同的超参下，PyTorch和MindSpore都采用双卡训练，local batch size 都等于64，统一训练500 epochs, 总共训练3000个steps。
 
@@ -596,9 +764,8 @@ MindSpore的相关训练代码为：
 +   torch.save(model.state_dict(), init_checkpoint)
 ```
 
-然后执行如下的训练脚本：
+在PyTorch环境执行如下的训练脚本：
 ```bash
-cd DiT
 torchrun --nnodes=1 --nproc_per_node=2 \
   train.py \
   --model DiT-XL/2 \
@@ -617,10 +784,9 @@ torchrun --nnodes=1 --nproc_per_node=2 \
 python tools/dit_converter.py --source DiT/init_checkpoint.pt --target models/init_checkpoint.ckpt
 ```
 
-参考[configs/training/class_cond_train.yaml](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/configs/training/class_cond_train.yaml), MindSpore的训练脚本为：
+启动MindSpore训练脚本，详细超参参考[configs/training/class_cond_train.yaml](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/configs/training/class_cond_train.yaml), 
 
 ```bash
-cd examples/dit/
 msrun --bind_core=True --worker_num=2 --local_worker_num=2 --master_port=9000 --log_dir=outputs/class_cond_train/parallel_logs \
   train_dit.py \
   --data_path datasets/ \
@@ -634,9 +800,9 @@ msrun --bind_core=True --worker_num=2 --local_worker_num=2 --master_port=9000 --
 ```
 训练过程中的log文件可以通过`tail -f outputs/class_cond_train/parallel_logs/worker_0.log`查看。在上述的训练结束后，训练过程中的Loss会保存在`outputs/class_cond_train/exp/result.log`中。
 
-经过训练后，我们可以用以下的命令来绘制损失函数的曲线图：
+训练结束后，我们可以用以下的命令来绘制损失函数的曲线图：
 ```bash
-cd examples/dit/
+# https://github.com/wtomin/mindone/blob/dit-readme/examples/dit/tools/plot.py
 python tools/plot.py --input Dit/results/000-DiT-XL-2/log.txt outputs/class_cond_train/exp/result.log --output compare_loss.png --smooth --alpha 0.1
 ```
 得到的图片如下所示：
@@ -645,21 +811,22 @@ python tools/plot.py --input Dit/results/000-DiT-XL-2/log.txt outputs/class_cond
 
 可以看到，在相同的训练超参和相同的初始权重下，MindSpore和PyTorch的训练精度基本一致。
 
-# **训练性能与总结**
+## **训练性能与总结**
 
-## 对比模型训练性能
-本文中使用到的MindSpore版本为2.5.0, CANN 版本为CANN 8.0.RC3。使用到的PyTorch版本为2.5.1，CUDA 版本为12.8。在上述的实验中，MindSpore和PyTorch的训练性能数据如下：
+### 训练性能对比
+
+本教程中使用到的MindSpore版本为2.5.0, CANN 版本为CANN 8.0.RC3。使用到的PyTorch版本为2.5.1，CUDA 版本为12.8。在上述的实验中，MindSpore和PyTorch的训练性能数据如下：
 
 | 框架名称 | 模型名称 | 卡数 | 图片大小（HxW） | 单卡batch size | 训练速度（s/batch） | 吞吐量（imgs/s） |
 | ------ | ------ | -- | ------------- | ----------- | ---------------- | -------------- |
 | MindSpore | DiT-XL/2 | 2    | 256x256         | 64            | 0.949             |    134.9        |
 | PyTorch   | DiT-XL/2 | 2    | 256x256         | 64            | 1.064             |    120.3         |
 
-MindSpore 的速度大约是 PyTorch 的1.12倍。
+MindSpore的训练速度（单步时间）大约是 PyTorch 的1.12倍。
 
-## 总结
+### 总结
 
-在本文中，我们以DiT模型为例，介绍了如何将PyTorch代码迁移到MindSpore代码。迁移任务旨在实现利用 MindSpore 在 NPU 设备上训练模型，且达到与 PyTorch 相同的推理和训练精度。 具体的迁移步骤包括：迁移前的环境和数据集准备；模型前向对齐；数据读取代码转换；模型训练代码对齐。通过本教程的学习，您可以掌握将PyTorch代码迁移到MindSpore代码的关键流程。
+在本教程中，我们以DiT模型为例，介绍了如何将PyTorch代码迁移到MindSpore代码。迁移任务旨在实现利用 MindSpore 在 NPU 设备上训练模型，且达到与 PyTorch 相同的推理和训练精度。 具体的迁移步骤包括：迁移准备、模型前向对齐、数据处理对齐、模型训练对齐。
 
 最后，我们附上Pytorch 和 MindSpore的代码对照表格，以供参考。
 
@@ -670,3 +837,6 @@ MindSpore 的速度大约是 PyTorch 的1.12倍。
 | 推理代码 |  [sample.py](https://github.com/facebookresearch/DiT/blob/main/sample.py) | [sample.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/sample.py) |
 | 训练代码 | [train.py](https://github.com/facebookresearch/DiT/blob/main/train.py) | [train_dit.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/train_dit.py) |
 | 权重转换文件| N.A. | [tools](https://github.com/mindspore-lab/mindone/tree/master/examples/dit/tools) |
+
+
+本教程完整的源代码详见该[目录](https://github.com/wtomin/mindone/blob/dit-readme/examples/dit)
