@@ -29,6 +29,18 @@ from ..unets.unet_2d_blocks import AutoencoderTinyBlock, UNetMidBlock2D, get_dow
 
 
 @dataclass
+class EncoderOutput(BaseOutput):
+    r"""
+    Output of encoding method.
+    Args:
+        latent (`ms.Tensor` of shape `(batch_size, num_channels, latent_height, latent_width)`):
+            The encoded latent.
+    """
+
+    latent: ms.Tensor
+
+
+@dataclass
 class DecoderOutput(BaseOutput):
     r"""
     Output of decoding method.

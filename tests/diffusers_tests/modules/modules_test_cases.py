@@ -507,6 +507,41 @@ VAE_CASES = [
         },
     ],
     [
+        "AutoencoderDC",
+        "diffusers.models.autoencoders.AutoencoderDC",
+        "mindone.diffusers.models.autoencoders.AutoencoderDC",
+        (),
+        {
+            "in_channels": 3,
+            "latent_channels": 4,
+            "attention_head_dim": 2,
+            "encoder_block_types": (
+                "ResBlock",
+                "EfficientViTBlock",
+            ),
+            "decoder_block_types": (
+                "ResBlock",
+                "EfficientViTBlock",
+            ),
+            "encoder_block_out_channels": (8, 8),
+            "decoder_block_out_channels": (8, 8),
+            "encoder_qkv_multiscales": ((), (5,)),
+            "decoder_qkv_multiscales": ((), (5,)),
+            "encoder_layers_per_block": (1, 1),
+            "decoder_layers_per_block": [1, 1],
+            "downsample_block_type": "conv",
+            "upsample_block_type": "interpolate",
+            "decoder_norm_types": "rms_norm",
+            "decoder_act_fns": "silu",
+            "scaling_factor": 0.41407,
+        },
+        (),
+        {
+            "sample": np.random.randn(4, 3, 32, 32).astype(np.float32),
+            "return_dict": False,
+        },
+    ],
+    [
         "AutoencoderTiny",
         "diffusers.models.autoencoders.autoencoder_tiny.AutoencoderTiny",
         "mindone.diffusers.models.autoencoders.autoencoder_tiny.AutoencoderTiny",
@@ -523,6 +558,70 @@ VAE_CASES = [
         {
             "sample": np.random.randn(4, 3, 32, 32).astype(np.float32),
             "return_dict": False,
+        },
+    ],
+    [
+        "AutoencoderKLHunyuanVideo",
+        "diffusers.models.autoencoders.autoencoder_kl_hunyuan_video.AutoencoderKLHunyuanVideo",
+        "mindone.diffusers.models.autoencoders.autoencoder_kl_hunyuan_video.AutoencoderKLHunyuanVideo",
+        (),
+        {
+            "in_channels": 3,
+            "out_channels": 3,
+            "latent_channels": 4,
+            "down_block_types": (
+                "HunyuanVideoDownBlock3D",
+                "HunyuanVideoDownBlock3D",
+                "HunyuanVideoDownBlock3D",
+                "HunyuanVideoDownBlock3D",
+            ),
+            "up_block_types": (
+                "HunyuanVideoUpBlock3D",
+                "HunyuanVideoUpBlock3D",
+                "HunyuanVideoUpBlock3D",
+                "HunyuanVideoUpBlock3D",
+            ),
+            "block_out_channels": (8, 8, 8, 8),
+            "layers_per_block": 1,
+            "act_fn": "silu",
+            "norm_num_groups": 4,
+            "scaling_factor": 0.476986,
+            "spatial_compression_ratio": 8,
+            "temporal_compression_ratio": 4,
+            "mid_block_add_attention": True,
+        },
+        (),
+        {
+            "sample": np.random.randn(2, 3, 9, 16, 16),
+        },
+    ],
+    [
+        "AutoencoderKLLTXVideo",
+        "diffusers.models.autoencoders.autoencoder_kl_ltx.AutoencoderKLLTXVideo",
+        "mindone.diffusers.models.autoencoders.autoencoder_kl_ltx.AutoencoderKLLTXVideo",
+        (),
+        {
+            "in_channels": 3,
+            "out_channels": 3,
+            "latent_channels": 8,
+            "block_out_channels": (8, 8, 8, 8),
+            "decoder_block_out_channels": (8, 8, 8, 8),
+            "layers_per_block": (1, 1, 1, 1, 1),
+            "decoder_layers_per_block": (1, 1, 1, 1, 1),
+            "spatio_temporal_scaling": (True, True, False, False),
+            "decoder_spatio_temporal_scaling": (True, True, False, False),
+            "decoder_inject_noise": (False, False, False, False, False),
+            "upsample_residual": (False, False, False, False),
+            "upsample_factor": (1, 1, 1, 1),
+            "timestep_conditioning": False,
+            "patch_size": 1,
+            "patch_size_t": 1,
+            "encoder_causal": True,
+            "decoder_causal": False,
+        },
+        (),
+        {
+            "sample": np.random.randn(4, 3, 8, 16, 16),
         },
     ],
     [
@@ -654,6 +753,132 @@ PRIOR_TRANSFORMER_CASES = [
 ]
 
 
+ALLEGRO_TRANSFORMER3D_CASES = [
+    [
+        "AllegroTransformer3DModel",
+        "diffusers.models.transformers.transformer_allegro.AllegroTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_allegro.AllegroTransformer3DModel",
+        (),
+        {
+            # Product of num_attention_heads * attention_head_dim must be divisible by 16 for 3D positional embeddings.
+            "num_attention_heads": 2,
+            "attention_head_dim": 8,
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_layers": 1,
+            "cross_attention_dim": 16,
+            "sample_width": 8,
+            "sample_height": 8,
+            "sample_frames": 8,
+            "caption_channels": 8,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 2, 8, 8),
+            "encoder_hidden_states": np.random.randn(2, 16, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ]
+]
+
+
+AURAFLOW_TRANSFORMER2D_CASES = [
+    [
+        "AuraFlowTransformer2DModel",
+        "diffusers.models.transformers.auraflow_transformer_2d.AuraFlowTransformer2DModel",
+        "mindone.diffusers.models.transformers.auraflow_transformer_2d.AuraFlowTransformer2DModel",
+        (),
+        {
+            "sample_size": 32,
+            "patch_size": 2,
+            "in_channels": 4,
+            "num_mmdit_layers": 1,
+            "num_single_dit_layers": 1,
+            "attention_head_dim": 8,
+            "num_attention_heads": 4,
+            "caption_projection_dim": 32,
+            "joint_attention_dim": 32,
+            "out_channels": 4,
+            "pos_embed_max_size": 256,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 32, 32),
+            "encoder_hidden_states": np.random.randn(2, 256, 32),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ]
+]
+
+
+COGVIDEOX_TRANSFORMER3D_CASES = [
+    [
+        "CogVideoXTransformer3DModel",
+        "diffusers.models.transformers.cogvideox_transformer_3d.CogVideoXTransformer3DModel",
+        "mindone.diffusers.models.transformers.cogvideox_transformer_3d.CogVideoXTransformer3DModel",
+        (),
+        {
+            "num_attention_heads": 2,
+            "attention_head_dim": 8,
+            "in_channels": 4,
+            "out_channels": 4,
+            "time_embed_dim": 2,
+            "text_embed_dim": 8,
+            "num_layers": 1,
+            "sample_width": 8,
+            "sample_height": 8,
+            "sample_frames": 8,
+            "patch_size": 2,
+            "temporal_compression_ratio": 4,
+            "max_text_seq_length": 8,
+            "use_rotary_positional_embeddings": True,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 1, 4, 8, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "encoder_hidden_states": np.random.randn(2, 8, 8),
+            "return_dict": False,
+        },
+    ],
+]
+
+
+COGVIEW3PLUS_TRANSFORMER2D_CASES = [
+    [
+        "CogView3PlusTransformer2DModel",
+        "diffusers.models.transformers.transformer_cogview3plus.CogView3PlusTransformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_cogview3plus.CogView3PlusTransformer2DModel",
+        (),
+        {
+            "patch_size": 2,
+            "in_channels": 4,
+            "num_layers": 1,
+            "attention_head_dim": 4,
+            "num_attention_heads": 2,
+            "out_channels": 4,
+            "text_embed_dim": 8,
+            "time_embed_dim": 8,
+            "condition_dim": 2,
+            "pos_embed_max_size": 8,
+            "sample_size": 8,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 8, 8),
+            "encoder_hidden_states": np.random.randn(2, 8, 8),
+            "original_size": np.array([[64, 64], [64, 64]]),
+            "target_size": np.array([[64, 64], [64, 64]]),
+            "crop_coords": np.array([[0, 0], [0, 0]]),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ],
+]
+
+
 DIT_TRANSFORMER2D_CASES = [
     [
         "DiTTransformer2DModel",
@@ -680,6 +905,72 @@ DIT_TRANSFORMER2D_CASES = [
             class_labels=np.random.randint(0, 4, size=(4,)),
             return_dict=False,
         ),
+    ],
+]
+
+
+HUNYUAN_VIDEO_TRANSFORMER3D_CASES = [
+    [
+        "HunyuanVideoTransformer3DModel",
+        "diffusers.models.transformers.transformer_hunyuan_video.HunyuanVideoTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_hunyuan_video.HunyuanVideoTransformer3DModel",
+        (),
+        {
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_attention_heads": 2,
+            "attention_head_dim": 10,
+            "num_layers": 1,
+            "num_single_layers": 1,
+            "num_refiner_layers": 1,
+            "patch_size": 1,
+            "patch_size_t": 1,
+            "guidance_embeds": True,
+            "text_embed_dim": 16,
+            "pooled_projection_dim": 8,
+            "rope_axes_dim": (2, 4, 4),
+        },
+        (),
+        {
+            "hidden_states": np.random.default_rng(42).standard_normal((1, 4, 1, 16, 16)),
+            "timestep": np.random.default_rng(42).integers(0, 1000, size=(1,)),
+            "encoder_hidden_states": np.random.default_rng(42).standard_normal((1, 12, 16)),
+            "pooled_projections": np.random.default_rng(42).standard_normal((1, 8)),
+            "encoder_attention_mask": np.ones((1, 12)),
+            "guidance": np.random.default_rng(42).integers(0, 1000, size=(1,)).astype(np.float32),
+        },
+        ("bf16",),  # only bf16 supported
+        (0, 1),
+    ],
+]
+
+
+LTX_VIDEO_TRANSFORMER3D_CASES = [
+    [
+        "LTXVideoTransformer3DModel",
+        "diffusers.models.transformers.transformer_ltx.LTXVideoTransformer3DModel",
+        "mindone.diffusers.models.transformers.transformer_ltx.LTXVideoTransformer3DModel",
+        (),
+        {
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_attention_heads": 2,
+            "attention_head_dim": 8,
+            "cross_attention_dim": 16,
+            "num_layers": 1,
+            "qk_norm": "rms_norm_across_heads",
+            "caption_channels": 16,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 512, 4),
+            "encoder_hidden_states": np.random.randn(2, 16, 16),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "encoder_attention_mask": np.ones((2, 16)).astype(bool),
+            "num_frames": 2,
+            "height": 16,
+            "width": 16,
+        },
     ],
 ]
 
@@ -720,6 +1011,36 @@ PIXART_TRANSFORMER2D_CASES = [
 ]
 
 
+SANA_TRANSFORMER2D_CASES = [
+    [
+        "SanaTransformer2DModel",
+        "diffusers.models.transformers.SanaTransformer2DModel",
+        "mindone.diffusers.models.transformers.SanaTransformer2DModel",
+        (),
+        {
+            "patch_size": 1,
+            "in_channels": 4,
+            "out_channels": 4,
+            "num_layers": 1,
+            "attention_head_dim": 4,
+            "num_attention_heads": 2,
+            "num_cross_attention_heads": 2,
+            "cross_attention_head_dim": 4,
+            "cross_attention_dim": 8,
+            "caption_channels": 8,
+            "sample_size": 32,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 32, 32),
+            "encoder_hidden_states": np.random.randn(2, 8, 8),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+            "return_dict": False,
+        },
+    ],
+]
+
+
 SD3_TRANSFORMER2D_CASES = [
     [
         "SD3Transformer2DModel",
@@ -737,6 +1058,41 @@ SD3_TRANSFORMER2D_CASES = [
             "joint_attention_dim": 32,
             "pooled_projection_dim": 64,
             "out_channels": 4,
+            "pos_embed_max_size": 96,
+            "dual_attention_layers": (),
+            "qk_norm": None,
+        },
+        (),
+        {
+            "hidden_states": np.random.randn(2, 4, 32, 32),
+            "encoder_hidden_states": np.random.randn(2, 154, 32),
+            "pooled_projections": np.random.randn(2, 64),
+            "timestep": np.random.randint(0, 1000, size=(2,)),
+        },
+    ],
+]
+
+
+SD35_TRANSFORMER2D_CASES = [
+    [
+        "SD3Transformer2DModel",
+        "diffusers.models.transformers.transformer_sd3.SD3Transformer2DModel",
+        "mindone.diffusers.models.transformers.transformer_sd3.SD3Transformer2DModel",
+        (),
+        {
+            "sample_size": 32,
+            "patch_size": 1,
+            "in_channels": 4,
+            "num_layers": 2,
+            "attention_head_dim": 8,
+            "num_attention_heads": 4,
+            "caption_projection_dim": 32,
+            "joint_attention_dim": 32,
+            "pooled_projection_dim": 64,
+            "out_channels": 4,
+            "pos_embed_max_size": 96,
+            "dual_attention_layers": (0,),
+            "qk_norm": "rms_norm",
         },
         (),
         {
@@ -770,8 +1126,8 @@ FLUX_TRANSFORMER2D_CASES = [
         {
             "hidden_states": np.random.randn(2, 16, 4),
             "encoder_hidden_states": np.random.randn(2, 48, 32),
-            "img_ids": np.random.randn(2, 16, 3),
-            "txt_ids": np.random.randn(2, 48, 3),
+            "img_ids": np.random.randn(16, 3),
+            "txt_ids": np.random.randn(48, 3),
             "pooled_projections": np.random.randn(2, 32),
             "timestep": np.array([1, 1]),
             "return_dict": False,
@@ -854,10 +1210,18 @@ LUMINA_NEXTDIT2D_CASES = [
 
 
 TRANSFORMERS_CASES = (
-    DIT_TRANSFORMER2D_CASES
+    ALLEGRO_TRANSFORMER3D_CASES
+    + AURAFLOW_TRANSFORMER2D_CASES
+    + COGVIDEOX_TRANSFORMER3D_CASES
+    + COGVIEW3PLUS_TRANSFORMER2D_CASES
+    + DIT_TRANSFORMER2D_CASES
+    + HUNYUAN_VIDEO_TRANSFORMER3D_CASES
+    + LTX_VIDEO_TRANSFORMER3D_CASES
     + PIXART_TRANSFORMER2D_CASES
     + PRIOR_TRANSFORMER_CASES
+    + SANA_TRANSFORMER2D_CASES
     + SD3_TRANSFORMER2D_CASES
+    + SD35_TRANSFORMER2D_CASES
     + TRANSFORMER2D_CASES
     + FLUX_TRANSFORMER2D_CASES
     + LATTE_TRANSORMER3D_CASES
@@ -1177,7 +1541,7 @@ UNET_MOTION_MODEL_TEST = [
         {
             "sample": np.random.randn(4, 4, 8, 32, 32).astype(np.float32),
             "timestep": np.array([10]).astype(np.int64),
-            "encoder_hidden_states": np.random.randn(4, 4, 32).astype(np.float32),
+            "encoder_hidden_states": np.random.randn(32, 4, 32).astype(np.float32),
             "return_dict": False,
         },
     ],

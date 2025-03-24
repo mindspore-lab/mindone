@@ -44,7 +44,6 @@ from mindspore.communication.management import get_group_size
 
 from ..safetensors.mindspore import save_file
 from .data.data_collator import DataCollator, DataCollatorWithPadding, default_data_collator
-from .debug_utils import DebugOption
 from .mindspore_adapter import RandomSampler, Sampler, TrainOneStepWrapper, auto_mixed_precision
 from .mindspore_adapter.utils import _is_parallel
 from .mindspore_utils import ALL_LAYERNORM_LAYERS
@@ -55,11 +54,11 @@ from .trainer_utils import enable_full_determinism, set_seed
 from .training_args import OptimizerNames, TrainingArguments
 from .utils import can_return_loss, find_labels
 
+if is_datasets_available():
+    import datasets
+
 if TYPE_CHECKING:
     import optuna
-
-    if is_datasets_available():
-        import datasets
 
 
 DEFAULT_CALLBACKS = [DefaultFlowCallback]
@@ -890,12 +889,6 @@ class Trainer:
                 "args.max_steps must be set to a positive value if dataloader does not have a length, was"
                 f" {args.max_steps}"
             )
-
-        if DebugOption.UNDERFLOW_OVERFLOW in self.args.debug:
-            if self.args.n_gpu > 1:
-                raise ValueError("Currently --debug underflow_overflow is not supported under DP.")
-            else:
-                raise NotImplementedError
 
         # FIXME: Consider parallelism mode
         delay_optimizer_creation = False

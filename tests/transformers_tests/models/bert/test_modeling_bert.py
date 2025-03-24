@@ -304,9 +304,6 @@ def test_named_modules(
     dtype,
     mode,
 ):
-    if name == "BertForSequenceClassification" and dtype == "fp32" and mode == 0:
-        pytest.skip("Skipping this test case due to error in graph mode.")
-
     ms.set_context(mode=mode)
 
     (

@@ -295,9 +295,10 @@ def test_named_modules(
     dtype,
     mode,
 ):
-    # FIXME: restore bf16 test cases after the model.to bug is fixed
-    if dtype == "bf16":
-        pytest.skip("Skipping bf16 cases after `model.to` bug is fixed.")
+    # set seed
+    ms.set_seed(42)
+    np.random.seed(42)
+    torch.manual_seed(42)
 
     ms.set_context(mode=mode)
 
