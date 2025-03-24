@@ -19,6 +19,9 @@ VAR, a new generation paradigm that redefines the autoregressive learning on ima
 | 2.5.0     | 24.1.RC3    | 7.3.0.1.231 | 8.0.RC3.beta1       |
 
 ```shell
+cd mindone
+pip install -e .[training]
+cd examples/var
 pip install -r requirements.txt
 ```
 

@@ -60,7 +60,7 @@ def make_grid(
 
 
 def load_from_checkpoint(model, ckpt_fp, remove_prefix=["var."]):
-    assert os.path.exists(ckpt_fp), f"checkopint {ckpt_fp} NOT found"
+    assert os.path.exists(ckpt_fp), f"checkpoint {ckpt_fp} NOT found"
     print(f"Loading ckpt {ckpt_fp} into network")
     param_dict = ms.load_checkpoint(ckpt_fp)
     keys = list(param_dict.keys())

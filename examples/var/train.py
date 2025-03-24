@@ -86,12 +86,12 @@ def main(args):
     if args.vae_checkpoint:
         load_from_checkpoint(vae_local, args.vae_checkpoint)
     else:
-        print("warning!! VAE uses random initialization!")
+        logger.warning("VAE uses random initialization!")
 
     if args.var_checkpoint:
         load_from_checkpoint(var, args.var_checkpoint)
     else:
-        print("warning!! VAR uses random initialization!")
+        logger.warning("VAR uses random initialization!")
 
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
     if args.dtype in ["fp16", "bf16"]:

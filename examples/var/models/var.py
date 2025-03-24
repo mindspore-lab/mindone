@@ -88,9 +88,7 @@ class VAR(nn.Cell):
 
         # 4. backbone blocks
         self.shared_ada_lin = (
-            nn.SequentialCell(mint.nn.SiLU(), SharedAdaLin(self.D, 6 * self.C))
-            if shared_aln
-            else mint.nn.Identity()
+            nn.SequentialCell(mint.nn.SiLU(), SharedAdaLin(self.D, 6 * self.C)) if shared_aln else mint.nn.Identity()
         )
 
         norm_layer = partial(mint.nn.LayerNorm, eps=norm_eps)

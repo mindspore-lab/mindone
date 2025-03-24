@@ -33,13 +33,13 @@ def parse_train_args(parser):
     )
     parser.add_argument(
         "--vae_checkpoint",
-        type=str,
+        type=parse_bool_str,
         default="model/vae-2972c247.ckpt",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
         "--var_checkpoint",
-        type=str,
+        type=parse_bool_str,
         default="model/var-d16.ckpt",
         help="VAR checkpoint file path which is used to load var weight.",
     )
