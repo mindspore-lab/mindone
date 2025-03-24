@@ -88,7 +88,7 @@ def make_grid_ms(
     """
     # if list of tensors, convert to a 4D mini-batch Tensor
     if isinstance(tensor, list):
-        tensor = mint.stack(tensor, dim=0)
+        tensor = mint.stack(tensor, axis=0)
 
     if tensor.dim() == 2:  # single image H x W
         tensor = tensor.unsqueeze(0)

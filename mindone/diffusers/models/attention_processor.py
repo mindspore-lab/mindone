@@ -752,8 +752,8 @@ class Attention(nn.Cell):
         else:
             origin_query_shape = None
 
-            attention_probs = self.get_attention_scores(query, key, attn_mask)
-            hidden_states = mint.bmm(attention_probs, value)
+        attention_probs = self.get_attention_scores(query, key, attn_mask)
+        hidden_states = mint.bmm(attention_probs, value)
 
         if has_extra_dims:
             hidden_states = hidden_states.reshape(*origin_query_shape)

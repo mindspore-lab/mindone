@@ -523,7 +523,6 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             output = mint.reshape(
                 hidden_states, (batch_size, (num_frames + p_t - 1) // p_t, height // p, width // p, -1, p_t, p, p)
             )
-            output = mint.flatten()
             output = mint.flatten(
                 mint.flatten(
                     mint.flatten(mint.permute(output, (0, 1, 5, 4, 2, 6, 3, 7)), start_dim=6, end_dim=7),
