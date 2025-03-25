@@ -75,17 +75,11 @@ class SelfAttention(nn.Cell):
         ).view((B, L, 3, self.num_heads, self.head_dim))
         # qkv: BL3Hc
 
-        # using_flash = attn_bias is None and qkv.dtype != ms.float32
-        # if using_flash:
         q, k, v = qkv.unbind(dim=2)  # q or k or v: BLHc
         dim_cat = 1
-        # else:
-        #     q, k, v = qkv.permute(2, 0, 3, 1, 4).unbind(dim=0)  # q or k or v: BHLc
-        #     dim_cat = 2
 
         if self.attn_l2_norm:
             scale_mul = self.scale_mul_1H11.clamp(max=self.max_scale_mul).exp()
-            # if using_flash:
             scale_mul = mint.transpose(scale_mul, 1, 2)  # 1H11 to 11H1
             q = F.normalize(q, dim=-1).mul(scale_mul)
             k = F.normalize(k, dim=-1)

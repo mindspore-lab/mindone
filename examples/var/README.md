@@ -59,8 +59,8 @@ We provide weight conversion script `tools/convert_weight.py` to convert the ori
 | VAR-d16           | 310M       |  [Download](https://huggingface.co/FoundationVision/var/blob/main/var_d16.pth) |
 
 ```shell
-python tools/convert_weight.py --model_name var --src /path/to/var-d16.pth --target model/var-d16.ckpt
-python tools/convert_weight.py --model_name vae --src /path/to/vae_ch160v4096z32.pth --target model/vae-2972c247.ckpt
+python tools/convert_weight.py --src /path/to/var-d16.pth --target model/var-d16.ckpt
+python tools/convert_weight.py --src /path/to/vae_ch160v4096z32.pth --target model/vae-2972c247.ckpt
 ```
 
 ### Finetuning
