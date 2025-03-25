@@ -24,7 +24,7 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 ## Requirements
 
-| MindSpore | Ascend Driver |  Firmware   | CANN Toolkit/Kernel |
+| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
 |   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
 
