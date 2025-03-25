@@ -236,16 +236,16 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             # FP16 smallest positive subnormal works well here
             self.alphas_cumprod[-1] = 2**-24
 
-        sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).flip((0,))
+        sigmas = mint.flip((((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5), (0,))
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=float)[::-1].copy()
-        timesteps = ms.Tensor(timesteps).to(dtype=ms.float32)
+        timesteps = ms.tensor(timesteps).to(dtype=ms.float32)
 
         # setable values
         self.num_inference_steps = None
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if timestep_type == "continuous" and prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas])
+            self.timesteps = ms.tensor([0.25 * mint.log(sigma).item() for sigma in sigmas])
         else:
             self.timesteps = timesteps
 
@@ -441,9 +441,9 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":
-            self.timesteps = ms.Tensor([0.25 * sigma.log().item() for sigma in sigmas[:-1]])
+            self.timesteps = ms.tensor([0.25 * mint.log(sigma).item() for sigma in sigmas[:-1]])
         else:
-            self.timesteps = ms.Tensor(timesteps.astype(np.float32))
+            self.timesteps = ms.tensor(timesteps.astype(np.float32))
 
         self._step_index = None
         self._begin_index = None

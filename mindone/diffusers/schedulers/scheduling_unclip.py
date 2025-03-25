@@ -207,8 +207,8 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
             variance = mint.exp(0.5 * variance)
         elif variance_type == "learned_range":
             # NOTE difference with DDPM scheduler
-            min_log = variance.log()
-            max_log = beta.log()
+            min_log = mint.log(variance)
+            max_log = mint.log(beta)
 
             frac = (predicted_variance + 1) / 2
             variance = frac * max_log + (1 - frac) * min_log
@@ -313,7 +313,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
             if self.variance_type == "fixed_small_log":
                 variance = variance
             elif self.variance_type == "learned_range":
-                variance = (0.5 * variance).exp()
+                variance = mint.exp(0.5 * variance)
             else:
                 raise ValueError(
                     f"variance_type given as {self.variance_type} must be one of `fixed_small_log` or `learned_range`"

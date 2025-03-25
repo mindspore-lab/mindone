@@ -305,16 +305,16 @@ class KDPM2AncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigmas_down[-1] = 0.0
 
         # compute interpolated sigmas
-        sigmas_interpol = sigmas.log().lerp(sigmas_down.log(), 0.5).exp()
+        sigmas_interpol = mint.exp(mint.lerp(mint.log(sigmas), mint.log(sigmas_down), 0.5))
         sigmas_interpol[-2:] = 0.0
 
         # set sigmas
-        self.sigmas = mint.cat([sigmas[:1], sigmas[1:].repeat_interleave(2), sigmas[-1:]])
+        self.sigmas = mint.cat([sigmas[:1], mint.repeat_interleave(sigmas[1:], 2), sigmas[-1:]])
         self.sigmas_interpol = mint.cat(
-            [sigmas_interpol[:1], sigmas_interpol[1:].repeat_interleave(2), sigmas_interpol[-1:]]
+            [sigmas_interpol[:1], mint.repeat_interleave(sigmas_interpol[1:], 2), sigmas_interpol[-1:]]
         )
-        self.sigmas_up = mint.cat([sigmas_up[:1], sigmas_up[1:].repeat_interleave(2), sigmas_up[-1:]])
-        self.sigmas_down = mint.cat([sigmas_down[:1], sigmas_down[1:].repeat_interleave(2), sigmas_down[-1:]])
+        self.sigmas_up = mint.cat([sigmas_up[:1], mint.repeat_interleave(sigmas_up[1:], 2), sigmas_up[-1:]])
+        self.sigmas_down = mint.cat([sigmas_down[:1], mint.repeat_interleave(sigmas_down[1:], 2), sigmas_down[-1:]])
 
         timesteps = ms.Tensor(timesteps)
 
