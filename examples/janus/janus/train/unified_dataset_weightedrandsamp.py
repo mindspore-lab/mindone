@@ -23,9 +23,7 @@ class UnifiedDataset:
             s += leng
         return r
 
-    def __init__(
-        self, datasets, default_image_shape=(1, 3, 384, 384), max_token_length=1024
-    ):
+    def __init__(self, datasets, default_image_shape=(1, 3, 384, 384), max_token_length=1024):
         self.default_image_shape = default_image_shape
         self.max_token_length = max_token_length
         self.datasets = datasets
@@ -110,11 +108,7 @@ def create_unified_dataloader_weightrandsamp(
         sample_weights += [weight] * len(datasets[i])
 
     sampler = DistributedSampler(num_shards=rank_size, shard_id=rank, shuffle=False)
-    sampler.add_child(
-        WeightedRandomSampler(
-            weights=sample_weights, num_samples=len(sample_weights), replacement=True
-        )
-    )
+    sampler.add_child(WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True))
 
     dataloader = ms.dataset.GeneratorDataset(
         source=mixed_dataset,

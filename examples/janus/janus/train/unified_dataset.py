@@ -85,9 +85,7 @@ class UnifiedDataset:
     def __len__(self) -> int:
         return self.length
 
-    def __getitem__(
-        self, idx: int
-    ) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    def __getitem__(self, idx: int) -> Tuple[int, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         record = self.meta_data[idx]
         task_type = record["data_type"]
         if task_type == 0:
