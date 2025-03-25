@@ -16,7 +16,7 @@
 from typing import Dict, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.attention import FeedForward
@@ -101,8 +101,8 @@ class CogView3PlusTransformerBlock(nn.Cell):
             hidden_states=norm_hidden_states, encoder_hidden_states=norm_encoder_hidden_states
         )
 
-        hidden_states = hidden_states + gate_msa.unsqueeze(1) * attn_hidden_states
-        encoder_hidden_states = encoder_hidden_states + c_gate_msa.unsqueeze(1) * attn_encoder_hidden_states
+        hidden_states = hidden_states + mint.unsqueeze(gate_msa, 1) * attn_hidden_states
+        encoder_hidden_states = encoder_hidden_states + mint.unsqueeze(c_gate_msa, 1) * attn_encoder_hidden_states
 
         # norm & modulate
         norm_hidden_states = self.norm2(hidden_states)
@@ -112,11 +112,11 @@ class CogView3PlusTransformerBlock(nn.Cell):
         norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
 
         # feed-forward
-        norm_hidden_states = ops.cat([norm_encoder_hidden_states, norm_hidden_states], axis=1)
+        norm_hidden_states = mint.cat([norm_encoder_hidden_states, norm_hidden_states], dim=1)
         ff_output = self.ff(norm_hidden_states)
 
-        hidden_states = hidden_states + gate_mlp.unsqueeze(1) * ff_output[:, text_seq_length:]
-        encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * ff_output[:, :text_seq_length]
+        hidden_states = hidden_states + mint.unsqueeze(gate_mlp, 1) * ff_output[:, text_seq_length:]
+        encoder_hidden_states = encoder_hidden_states + mint.unsqueeze(c_gate_mlp, 1) * ff_output[:, :text_seq_length]
 
         if hidden_states.dtype == ms.float16:
             hidden_states = hidden_states.clip(-65504, 65504)
@@ -218,7 +218,7 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
             elementwise_affine=False,
             eps=1e-6,
         )
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
         self.gradient_checkpointing = False
         self.patch_size = self.config.patch_size
@@ -351,12 +351,12 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
         height = height // patch_size
         width = width // patch_size
 
-        hidden_states = hidden_states.reshape(
-            hidden_states.shape[0], height, width, self.out_channels, patch_size, patch_size
+        hidden_states = mint.reshape(
+            hidden_states, (hidden_states.shape[0], height, width, self.out_channels, patch_size, patch_size)
         )
-        hidden_states = hidden_states.permute(0, 3, 1, 4, 2, 5)  # torch.einsum("nhwcpq->nchpwq", hidden_states)
-        output = hidden_states.reshape(
-            hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
+        hidden_states = mint.permute(hidden_states, (0, 3, 1, 4, 2, 5))  # torch.einsum("nhwcpq->nchpwq", hidden_states)
+        output = mint.reshape(
+            hidden_states, (hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size)
         )
 
         if not return_dict:

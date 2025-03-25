@@ -220,7 +220,7 @@ class JointTransformerBlock(nn.Cell):
 
         if self.use_dual_attention:
             attn_output2 = self.attn2(hidden_states=norm_hidden_states2, **joint_attention_kwargs)
-            attn_output2 = gate_msa2.unsqueeze(1) * attn_output2
+            attn_output2 = mint.unsqueeze(gate_msa2, 1) * attn_output2
             hidden_states = hidden_states + attn_output2
 
         norm_hidden_states = self.norm2(hidden_states)
@@ -1107,7 +1107,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
         num_frames = hidden_states.shape[1]
         frame_indices = self._get_frame_indices(num_frames)
         frame_weights = self._get_frame_weights(self.context_length, self.weighting_scheme)
-        frame_weights = ms.Tensor(frame_weights, dtype=dtype).unsqueeze(0).unsqueeze(-1)
+        frame_weights = mint.unsqueeze(mint.unsqueeze(ms.Tensor(frame_weights, dtype=dtype), 0), -1)
         is_last_frame_batch_complete = frame_indices[-1][1] == num_frames
 
         # Handle out-of-bounds case if num_frames isn't perfectly divisible by context_length
@@ -1149,7 +1149,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
 
             hidden_states_chunk = attn_output + hidden_states_chunk
             if hidden_states_chunk.ndim == 4:
-                hidden_states_chunk = hidden_states_chunk.squeeze(1)
+                hidden_states_chunk = mint.squeeze(hidden_states_chunk, 1)
 
             # 2. Cross-Attention
             if self.attn2 is not None:
@@ -1207,7 +1207,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
 
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         return hidden_states
 

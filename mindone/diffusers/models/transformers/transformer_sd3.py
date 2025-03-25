@@ -81,14 +81,14 @@ class SD3SingleTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        attn_output = gate_msa.unsqueeze(1) * attn_output
+        attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
 
         ff_output = self.ff(norm_hidden_states)
-        ff_output = gate_mlp.unsqueeze(1) * ff_output
+        ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
 
         hidden_states = hidden_states + ff_output
 

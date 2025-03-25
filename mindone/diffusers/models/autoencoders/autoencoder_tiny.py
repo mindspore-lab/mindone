@@ -295,7 +295,8 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
     def encode(self, x: ms.Tensor, return_dict: bool = False) -> Union[AutoencoderTinyOutput, Tuple[ms.Tensor]]:
         if self.use_slicing and x.shape[0] > 1:
             output = [
-                self._tiled_encode(x_slice) if self.use_tiling else self.encoder(x_slice) for x_slice in x.split(1)
+                self._tiled_encode(x_slice) if self.use_tiling else self.encoder(x_slice)
+                for x_slice in mint.split(x, 1)
             ]
             output = mint.cat(output)
         else:

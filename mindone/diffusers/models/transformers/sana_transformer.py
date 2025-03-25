@@ -15,7 +15,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
@@ -44,19 +44,18 @@ class GLUMBConv(nn.Cell):
         self.norm_type = norm_type
         self.residual_connection = residual_connection
 
-        self.nonlinearity = nn.SiLU()
-        self.conv_inverted = nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, pad_mode="pad", padding=0, has_bias=True)
-        self.conv_depth = nn.Conv2d(
+        self.nonlinearity = mint.nn.SiLU()
+        self.conv_inverted = mint.nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, padding=0, bias=True)
+        self.conv_depth = mint.nn.Conv2d(
             hidden_channels * 2,
             hidden_channels * 2,
             3,
             1,
-            pad_mode="pad",
             padding=1,
-            group=hidden_channels * 2,
-            has_bias=True,
+            groups=hidden_channels * 2,
+            bias=True,
         )
-        self.conv_point = nn.Conv2d(hidden_channels, out_channels, 1, 1, pad_mode="pad", padding=0, has_bias=False)
+        self.conv_point = mint.nn.Conv2d(hidden_channels, out_channels, 1, 1, padding=0, bias=False)
 
         self.norm = None
         if norm_type == "rms_norm":
@@ -71,7 +70,7 @@ class GLUMBConv(nn.Cell):
         hidden_states = self.nonlinearity(hidden_states)
 
         hidden_states = self.conv_depth(hidden_states)
-        hidden_states, gate = ops.chunk(hidden_states, 2, axis=1)
+        hidden_states, gate = mint.chunk(hidden_states, 2, dim=1)
         hidden_states = hidden_states * self.nonlinearity(gate)
 
         hidden_states = self.conv_point(hidden_states)
@@ -137,7 +136,7 @@ class SanaTransformerBlock(nn.Cell):
         # 3. Feed-forward
         self.ff = GLUMBConv(dim, dim, mlp_ratio, norm_type=None, residual_connection=False)
 
-        self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -152,9 +151,9 @@ class SanaTransformerBlock(nn.Cell):
         batch_size = hidden_states.shape[0]
 
         # 1. Modulation
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + mint.reshape(timestep, (batch_size, 6, -1)), 6, dim=1
+        )
 
         # 2. Self Attention
         norm_hidden_states = self.norm1(hidden_states)
@@ -178,11 +177,14 @@ class SanaTransformerBlock(nn.Cell):
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
 
         # norm_hidden_states = norm_hidden_states.unflatten(1, (height, width)).permute(0, 3, 1, 2)
-        norm_hidden_states = norm_hidden_states.reshape(
-            norm_hidden_states.shape[0], height, width, norm_hidden_states.shape[-1]
-        ).permute(0, 3, 1, 2)
+        norm_hidden_states = mint.permute(
+            mint.reshape(
+                norm_hidden_states, (norm_hidden_states.shape[0], height, width, norm_hidden_states.shape[-1])
+            ),
+            (0, 3, 1, 2),
+        )
         ff_output = self.ff(norm_hidden_states)
-        ff_output = ff_output.flatten(start_dim=2, end_dim=3).permute(0, 2, 1)
+        ff_output = mint.permute(mint.flatten(ff_output, start_dim=2, end_dim=3), (0, 2, 1))
         hidden_states = hidden_states + gate_mlp * ff_output
 
         return hidden_states
@@ -294,10 +296,10 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         # 4. Output blocks
-        self.scale_shift_table = ms.Parameter(ops.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
 
         self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * out_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
 
         self._gradient_checkpointing = False
 
@@ -414,12 +416,12 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = mint.unsqueeze(attention_mask, 1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
+            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
 
         # 1. Input
         batch_size, num_channels, height, width = hidden_states.shape
@@ -448,7 +450,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             )
 
         # 3. Normalization
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        shift, scale = mint.chunk(self.scale_shift_table[None] + embedded_timestep[:, None], 2, dim=1)
         hidden_states = self.norm_out(hidden_states)
 
         # 4. Modulation
@@ -456,11 +458,12 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         hidden_states = self.proj_out(hidden_states)
 
         # 5. Unpatchify
-        hidden_states = hidden_states.reshape(
-            batch_size, post_patch_height, post_patch_width, self.config["patch_size"], self.config["patch_size"], -1
+        hidden_states = mint.reshape(
+            hidden_states,
+            (batch_size, post_patch_height, post_patch_width, self.config["patch_size"], self.config["patch_size"], -1),
         )
-        hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
-        output = hidden_states.reshape(batch_size, -1, post_patch_height * p, post_patch_width * p)
+        hidden_states = mint.permute(hidden_states, (0, 5, 1, 3, 2, 4))
+        output = mint.reshape(hidden_states, (batch_size, -1, post_patch_height * p, post_patch_width * p))
 
         if not return_dict:
             return (output,)

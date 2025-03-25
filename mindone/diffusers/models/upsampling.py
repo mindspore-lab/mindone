@@ -409,7 +409,7 @@ class CogVideoXUpsample3D(nn.Cell):
                 inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
             else:
                 if inputs.shape[2] == 1:
-                    inputs = inputs.squeeze(2)
+                    inputs = mint.squeeze(inputs, 2)
                 inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
                 inputs = inputs[:, :, None, :, :]
         else:

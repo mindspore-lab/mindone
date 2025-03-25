@@ -228,13 +228,13 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         # batch_size num_tokens hidden_size -> (batch_size * num_frame) num_tokens hidden_size
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # 3 120 1152
         # todo: back performance mint interface
-        encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(num_frame, dim=0).view(
+        encoder_hidden_states_spatial = mint.repeat_interleave(encoder_hidden_states, num_frame, dim=0).view(
             -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
         )
 
         # Prepare timesteps for spatial and temporal block
-        timestep_spatial = timestep.repeat_interleave(num_frame, dim=0).view(-1, timestep.shape[-1])
-        timestep_temp = timestep.repeat_interleave(num_patches, dim=0).view(-1, timestep.shape[-1])
+        timestep_spatial = mint.repeat_interleave(timestep, num_frame, dim=0).view(-1, timestep.shape[-1])
+        timestep_temp = mint.repeat_interleave(timestep, num_patches, dim=0).view(-1, timestep.shape[-1])
 
         # Spatial and temporal transformer blocks
         for i, (spatial_block, temp_block) in enumerate(zip(self.transformer_blocks, self.temporal_transformer_blocks)):
@@ -276,7 +276,9 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
                 )
                 hidden_states = mint.reshape(hidden_states, (-1, hidden_states.shape[-2], hidden_states.shape[-1]))
 
-        embedded_timestep = embedded_timestep.repeat_interleave(num_frame, dim=0).view(-1, embedded_timestep.shape[-1])
+        embedded_timestep = mint.repeat_interleave(embedded_timestep, num_frame, dim=0).view(
+            -1, embedded_timestep.shape[-1]
+        )
         shift, scale = mint.chunk((self.scale_shift_table[None] + embedded_timestep[:, None]), 2, dim=1)
         hidden_states = self.norm_out(hidden_states)
         # Modulation

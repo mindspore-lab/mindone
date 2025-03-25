@@ -96,7 +96,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         self.time_proj = Timesteps(inner_dim, True, 0)
         self.time_embedding = TimestepEmbedding(inner_dim, time_embed_dim, out_dim=inner_dim, act_fn=time_embed_act_fn)
 
-        self.proj_in = nn.Dense(embedding_dim, inner_dim)
+        self.proj_in = mint.nn.Linear(embedding_dim, inner_dim)
 
         if embedding_proj_norm_type is None:
             self.embedding_proj_norm = None
@@ -105,12 +105,12 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         else:
             raise ValueError(f"unsupported embedding_proj_norm_type: {embedding_proj_norm_type}")
 
-        self.embedding_proj = nn.Dense(embedding_proj_dim, inner_dim)
+        self.embedding_proj = mint.nn.Linear(embedding_proj_dim, inner_dim)
 
         if encoder_hid_proj_type is None:
             self.encoder_hidden_states_proj = None
         elif encoder_hid_proj_type == "linear":
-            self.encoder_hidden_states_proj = nn.Dense(embedding_dim, inner_dim)
+            self.encoder_hidden_states_proj = mint.nn.Linear(embedding_dim, inner_dim)
         else:
             raise ValueError(f"unsupported encoder_hid_proj_type: {encoder_hid_proj_type}")
 
@@ -347,7 +347,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
             attention_mask = mint.nn.functional.pad(attention_mask, (0, self.additional_embeddings), value=0.0)
             attention_mask = (attention_mask[:, None, :] + self.causal_attention_mask).to(hidden_states.dtype)
             # todo: bad performance interface repeat_interleave
-            attention_mask = attention_mask.repeat_interleave(self.config["num_attention_heads"], dim=0)
+            attention_mask = mint.repeat_interleave(attention_mask, self.config["num_attention_heads"], dim=0)
 
         if self.norm_in is not None:
             hidden_states = self.norm_in(hidden_states)

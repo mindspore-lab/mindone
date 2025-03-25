@@ -629,7 +629,7 @@ class UNet2DConditionModel(
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim, act_fn=act_fn)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity()
+            self.class_embedding = mint.nn.Identity()
         elif class_embed_type == "projection":
             if projection_class_embeddings_input_dim is None:
                 raise ValueError(

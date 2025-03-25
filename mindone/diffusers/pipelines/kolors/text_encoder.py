@@ -321,7 +321,8 @@ class SelfAttention(nn.Cell):
         mixed_x_layer = self.query_key_value(hidden_states)
 
         if self.multi_query_attention:
-            (query_layer, key_layer, value_layer) = mixed_x_layer.split(
+            (query_layer, key_layer, value_layer) = mint.split(
+                mixed_x_layer,
                 [
                     self.num_attention_heads_per_partition * self.hidden_size_per_attention_head,
                     self.num_multi_query_groups_per_partition * self.hidden_size_per_attention_head,

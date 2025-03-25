@@ -285,7 +285,7 @@ class Kandinsky3UpSampleBlock(nn.Cell):
                 Kandinsky3AttentionBlock(out_channels, time_embed_dim, None, groups, head_dim, expansion_ratio)
             )
         else:
-            attentions.append(nn.Identity())
+            attentions.append(mint.nn.Identity())
 
         for (in_channel, out_channel), up_resolution in zip(hidden_channels, up_resolutions):
             resnets_in.append(
@@ -297,7 +297,7 @@ class Kandinsky3UpSampleBlock(nn.Cell):
                     Kandinsky3AttentionBlock(in_channel, time_embed_dim, context_dim, groups, head_dim, expansion_ratio)
                 )
             else:
-                attentions.append(nn.Identity())
+                attentions.append(mint.nn.Identity())
 
             resnets_out.append(
                 Kandinsky3ResNetBlock(in_channel, out_channel, time_embed_dim, groups, compression_ratio)
@@ -347,7 +347,7 @@ class Kandinsky3DownSampleBlock(nn.Cell):
                 Kandinsky3AttentionBlock(in_channels, time_embed_dim, None, groups, head_dim, expansion_ratio)
             )
         else:
-            attentions.append(nn.Identity())
+            attentions.append(mint.nn.Identity())
 
         up_resolutions = [[None] * 4] * (num_blocks - 1) + [[None, None, False if down_sample else None, None]]
         hidden_channels = [(in_channels, out_channels)] + [(out_channels, out_channels)] * (num_blocks - 1)
@@ -361,7 +361,7 @@ class Kandinsky3DownSampleBlock(nn.Cell):
                     )
                 )
             else:
-                attentions.append(nn.Identity())
+                attentions.append(mint.nn.Identity())
 
             resnets_out.append(
                 Kandinsky3ResNetBlock(
@@ -416,7 +416,7 @@ class Kandinsky3Block(nn.Cell):
                 in_channels, in_channels, kernel_size=2, stride=2, pad_mode="pad", has_bias=True
             )
         else:
-            self.up_sample = nn.Identity()
+            self.up_sample = mint.nn.Identity()
 
         padding = int(kernel_size > 1)
         self.projection = mint.nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, padding=padding)
@@ -424,7 +424,7 @@ class Kandinsky3Block(nn.Cell):
         if up_resolution is not None and not up_resolution:
             self.down_sample = mint.nn.Conv2d(out_channels, out_channels, kernel_size=2, stride=2)
         else:
-            self.down_sample = nn.Identity()
+            self.down_sample = mint.nn.Identity()
 
     def construct(self, x, time_embed):
         x = self.group_norm(x, time_embed)
@@ -456,7 +456,7 @@ class Kandinsky3ResNetBlock(nn.Cell):
         self.shortcut_up_sample = (
             mint.nn.ConvTranspose2d(in_channels, in_channels, kernel_size=2, stride=2)
             if True in up_resolutions
-            else nn.Identity()
+            else mint.nn.Identity()
         )
         self.shortcut_projection = (
             mint.nn.Conv2d(in_channels, out_channels, kernel_size=1) if in_channels != out_channels else nn.Identity()
@@ -464,7 +464,7 @@ class Kandinsky3ResNetBlock(nn.Cell):
         self.shortcut_down_sample = (
             mint.nn.Conv2d(out_channels, out_channels, kernel_size=2, stride=2)
             if False in up_resolutions
-            else nn.Identity()
+            else mint.nn.Identity()
         )
 
     def construct(self, x, time_embed):
@@ -493,7 +493,7 @@ class Kandinsky3AttentionPooling(nn.Cell):
     def construct(self, x, context, context_mask=None):
         if context_mask is not None:
             context_mask = context_mask.to(dtype=context.dtype)
-        context = self.attention(context.mean(axis=1, keep_dims=True), context, context_mask)
+        context = self.attention(mint.mean(context, dim=1, keepdim=True), context, context_mask)
         return x + mint.squeeze(context, 1)
 
 
