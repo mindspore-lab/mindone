@@ -54,7 +54,7 @@ The scripts have been tested on Ascend 910B chips under the following requiremen
 You can download OmniGen model through [HuggingFace](https://huggingface.co/Shitao/OmniGen-v1).
 
 ```
-huggingface-cli download Shitao/OmniGen-v1 --local_dir pretrained_model/
+huggingface-cli download Shitao/OmniGen-v1 --local-dir pretrained_model/
 ```
 
 ### Model Conversion
