@@ -46,8 +46,8 @@ class OmniGenPipeline:
         self.vae.set_train(False)
 
     @classmethod
-    def from_pretrained(cls, model_name, vae_path: str = None):
-        config = Phi3Config.from_pretrained(model_name)
+    def from_pretrained(cls, model_path, vae_path: str = None):
+        config = Phi3Config.from_pretrained(model_path)
         with no_init_parameters():
             model = OmniGen(config)
         load_ckpt_params(model, "models/omnigen.ckpt")
@@ -56,12 +56,10 @@ class OmniGenPipeline:
         )
 
         # Load processor
-        processor = OmniGenProcessor.from_pretrained(model_name)
+        processor = OmniGenProcessor.from_pretrained(model_path)
 
         # Load VAE
-        vae = AutoencoderKL.from_pretrained(
-            "/home/nthai/.cache/huggingface/hub/models--Shitao--OmniGen-v1/snapshots/58e249c7c7634423c0ba41c34a774af79aa87889/vae"
-        )
+        vae = AutoencoderKL.from_pretrained("{}/vae".format(model_path))
 
         return cls(vae, model, processor)
 

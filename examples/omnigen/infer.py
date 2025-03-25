@@ -10,7 +10,7 @@ OUTPUT_PATH = "./final_inference_test"
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 # Load the OmniGen pipeline
 
-pipe = OmniGenPipeline.from_pretrained("Shitao/OmniGen-v1")
+pipe = OmniGenPipeline.from_pretrained("./pretrained_model")
 
 # # 1. Text to Image
 prompts = [

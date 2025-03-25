@@ -43,15 +43,8 @@ class OmniGenProcessor:
         self.separate_collator = OmniGenSeparateCollator()
 
     @classmethod
-    def from_pretrained(cls, model_name, dtype=ms.float32):
-        # if not os.path.exists(model_name):
-        #     cache_folder = os.getenv('HF_HUB_CACHE')
-        #     model_name = snapshot_download(repo_id=model_name,
-        #                                 cache_dir=cache_folder,
-        #                                 allow_patterns="*.json")
-        text_tokenizer = AutoTokenizer.from_pretrained(
-            "/home/nthai/.cache/huggingface/hub/models--Shitao--OmniGen-v1/snapshots/58e249c7c7634423c0ba41c34a774af79aa87889"
-        )
+    def from_pretrained(cls, model_path, dtype=ms.float32):
+        text_tokenizer = AutoTokenizer.from_pretrained(model_path)
         return cls(text_tokenizer)
 
     def process_image(self, image):

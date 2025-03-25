@@ -58,7 +58,7 @@ def main(args):
 
     # 2.1 OmniGen model
     logger.info("OmniGen init")
-    config = Phi3Config.from_pretrained(args.model_name_or_path)
+    config = Phi3Config.from_pretrained(args.model_path)
     with no_init_parameters():
         model = OmniGen(config)
     model.llm.config.use_cache = False
@@ -80,17 +80,13 @@ def main(args):
     # 2.2 VAE
     # Keep VAE freeze and compute in float32
     logger.info("vae init")
-    if args.vae_path is None:
-        logger.info("No VAE found in model, downloading stabilityai/sdxl-vae from HF")
-        logger.info("If you have VAE in local folder, please specify the path with --vae_path")
-        vae = AutoencoderKL.from_pretrained("stabilityai/sdxl-vae", mindspore_dtype=ms.float32)
-    else:
-        vae = AutoencoderKL.from_pretrained(args.vae_path, mindspore_dtype=ms.float32)
+
+    vae = AutoencoderKL.from_pretrained("{}/vae".format(args.model_path), mindspore_dtype=ms.float32)
 
     freeze_params(vae)
 
     # 2.3 Processor
-    processor = OmniGenProcessor.from_pretrained("Shitao/OmniGen-v1")
+    processor = OmniGenProcessor.from_pretrained(args.model_path)
 
     # 3. LoRA config
     if args.use_lora:
@@ -325,7 +321,6 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", type=str, default=None)
     parser.add_argument("--epochs", type=int, default=1400)
     parser.add_argument("--batch_size_per_device", type=int, default=1)
-    parser.add_argument("--vae_path", type=str, default=None)
     parser.add_argument("--num_parallel_workers", type=int, default=4)
     parser.add_argument("--log_every", type=int, default=100)
     parser.add_argument("--ckpt_every", type=int, default=20000)
