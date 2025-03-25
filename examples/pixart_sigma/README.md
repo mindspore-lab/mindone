@@ -23,7 +23,7 @@ This repo contains Mindspore model definitions, pre-trained weights and inferenc
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
 |:-----------:|:---------------:|:-------------:|:---------------------:|
-| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+| 2.5.0     | 24.1.0      | 7.5.0.3.220 | 8.0.0.beta1       |
 
 
 Python: 3.9 or later.
@@ -251,10 +251,10 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
 | model name   | cards | batch size | resolution   | recompute | sink | jit level |graph compile | s/step | img/s | config                                                               |
 |:------------:|:-----:|:----------:|:------------:|:----------:|:---------:|:---------:|:---------:|:---------:|:-------------:|:--------------------------------------------------------------------|
-| PixArt-Sigma | 4     | 64         | 256x256      | ON        | OFF       | O1        |3~5 mins      |  2.907s    | 88.1          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
-| PixArt-Sigma | 4     | 32         | 512 (multi)  | ON        | OFF       | O1 |3~5 mins       | 3.817s    | 33.5          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
-| PixArt-Sigma | 4     | 12         | 1024 (multi) | ON        | OFF       | O1  |3~5 mins      | 7.042s    | 6.8           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
-| PixArt-Sigma | 4     | 1          | 2048 (multi) | ON        | OFF       | O1  |3~5 mins      | 8.772s    | 0.5           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
+| PixArt-Sigma | 4     | 64         | 256x256      | ON        | OFF       | O1  |3~5 mins      | 2.652s    | 96.5          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 4     | 32         | 512 (multi)  | ON        | OFF       | O1  |3~5 mins      | 3.223s    | 39.7          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 4     | 12         | 1024 (multi) | ON        | OFF       | O1  |3~5 mins      | 5.141s    | 9.3           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 4     | 1          | 2048 (multi) | ON        | OFF       | O1  |3~5 mins      | 5.702s    | 0.7           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
 
 > s/step: training time measured in the number of seconds for each training step.\
 > imgs/s: images per second during training. imgs/s = cards * batch_size / step time
@@ -263,10 +263,10 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
 | model name   | cards |  batch size | resolution   | jit level |  graph compile | s/step |  recipe                                                                  |
 |:------------:|:-----:|:-----------:|:------------:|:----------:|:---------:|:---------:|:------------------------------------------------------------------------|
-| PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.055    | [yaml](configs/inference/pixart-sigma-256x256.yaml) |
-| PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.063    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
-| PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.202    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
-| PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.754    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
+| PixArt-Sigma | 1     | 1           | 256 x 256    | O1        | < 3 mins      | 0.073    | [yaml](configs/inference/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 1     | 1           | 512 x 512    | O1        | < 3 mins      | 0.076    | [yaml](configs/inference/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 1     | 1           | 1024 x 1024  | O1        | < 3 mins      | 0.167    | [yaml](configs/inference/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 1     | 1           | 2048 x 2048  | O1        | < 3 mins      | 1.130    | [yaml](configs/inference/pixart-sigma-2K-MS.yaml)     |
 
 
 ## LoRA Finetuning
