@@ -9,6 +9,9 @@ from mindspore import Tensor
 
 sys.path.append(".")
 from janus.models.vq_model import VQ_16
+from PIL import Image
+
+from mindspore.dataset.vision import Inter
 
 np.random.seed(42)
 
@@ -71,8 +74,8 @@ def test_decode(pt_ckpt=None, pt_np=None, dtype=ms.float32, visualize=False):
         out = vq.decode(Tensor(z, dtype=dtype))
 
     print(out.shape)
-    print(out.sum(), out.std())
-    print(out.min(), out.max())
+    print("sum and std", out.sum(), out.std())
+    print("min and max", out.min(), out.max())
 
     if pt_np:
         pt_out = pt_data["dec"]
@@ -108,6 +111,72 @@ def test_encode(pt_ckpt=None, amp=False):
 
     print(out.shape)
     print(out.sum(), out.std())
+
+    return out.asnumpy()
+
+
+def get_image():
+    image_path = "images/doge.png"
+    size = (384, 384)
+    image = Image.open(image_path).convert("RGB")
+    image = ms.dataset.vision.Resize(size, interpolation=Inter.ANTIALIAS)(image)
+    image = np.array(image)
+    image = (image / 255.0) * 2 - 1
+    image = np.transpose(image, (2, 0, 1))
+    image = image[None, ...]  # add bs, n_images dimension
+
+    return image
+
+
+def test_rec(pt_ckpt=None, pt_np=None, dtype=ms.float32, visualize=False):
+    # shape = (B, C, H, W) = (1, 3, 384, 384)
+    # shape = (B, C, H, W) = (1, 3, 64, 64)
+    # x = np.random.normal(size=(B, C, H, W)).astype(np.float32)
+
+    x = get_image()
+
+    x = np.array([x[0], x[0]])
+
+    vq = VQ_16()
+    vq.set_train(False)
+    if dtype != ms.float32:
+        set_model_param_dtype(vq, dtype=dtype, keep_norm_fp32=False)
+    if pt_ckpt:
+        vq.load_from_checkpoint(pt_ckpt)
+
+    z, emb_loss, info = vq.encode(Tensor(x, dtype=dtype))
+    bs = z.shape[0]
+    image_tokens = info[-1].reshape(bs, -1)
+    print("encoded  z: ", z.shape, z.mean(), z)
+    print("encoded  image tokens: ", image_tokens.shape)
+
+    out = vq.decode(z)
+
+    print(out.shape)
+    print("sum, std: ", out.sum(), out.std())
+    print("min max: ", out.min(), out.max())
+
+    if pt_np:
+        pt_data = np.load(pt_np)
+        pt_out = pt_data["dec"]
+        print("pt min max: ", pt_out.min(), pt_out.max())
+        diff = _diff_res(out.asnumpy(), pt_out)
+        print(diff)
+
+    if visualize:
+        dec = out
+        parallel_size, c, img_size, _ = dec.shape
+        dec = dec.float().asnumpy().transpose(0, 2, 3, 1)
+
+        dec = np.clip((dec + 1) / 2 * 255, 0, 255)
+        visual_img = np.zeros((parallel_size, img_size, img_size, 3), dtype=np.uint8)
+        visual_img[:, :, :] = dec
+
+        os.makedirs("generated_samples", exist_ok=True)
+        for i in range(parallel_size):
+            save_path = os.path.join("generated_samples", "vq_rec_{}.jpg".format(i))
+            PIL.Image.fromarray(visual_img[i]).save(save_path)
+            print("img saved in ", save_path)
 
     return out.asnumpy()
 

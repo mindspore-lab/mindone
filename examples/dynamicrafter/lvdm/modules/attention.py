@@ -4,7 +4,7 @@ from functools import partial
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import XavierUniform, initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -32,14 +32,13 @@ def default(val, d):
 class GEGLU(nn.Cell):
     def __init__(self, dim_in, dim_out, dtype=ms.float32):
         super().__init__()
-        self.proj = nn.Dense(dim_in, dim_out * 2).to_float(dtype)
-        self.split = ops.Split(-1, 2)
-        self.gelu = ops.GeLU()
+        self.proj = mint.nn.Linear(dim_in, dim_out * 2).to_float(dtype)
 
     def construct(self, x):
-        x, gate = self.split(self.proj(x))
+        proj_out = self.proj(x)
+        x, gate = mint.split(proj_out, proj_out.shape[-1] // 2, dim=-1)
 
-        return x * self.gelu(gate)
+        return x * mint.nn.functional.gelu(gate)
 
 
 class FeedForward(nn.Cell):
@@ -48,14 +47,14 @@ class FeedForward(nn.Cell):
         inner_dim = int(dim * mult)
         dim_out = default(dim_out, dim)
         project_in = (
-            nn.Sequential(nn.Dense(dim, inner_dim).to_float(dtype), nn.GELU().to_float(dtype))
+            nn.Sequential(mint.nn.Linear(dim, inner_dim).to_float(dtype), mint.nn.GELU().to_float(dtype))
             if not glu
             else GEGLU(dim, inner_dim, dtype=dtype)
         )
         self.net = nn.SequentialCell(
             project_in,
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
-            nn.Dense(inner_dim, dim_out).to_float(dtype),
+            nn.Dropout(dropout) if is_old_ms_version() else mint.nn.Dropout(p=1 - dropout),
+            mint.nn.Linear(inner_dim, dim_out).to_float(dtype),
         )
 
     def construct(self, x):
@@ -74,7 +73,7 @@ def zero_module(module):
 
 
 def Normalize(in_channels):
-    return nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
+    return mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True).to_float(ms.float32)
 
 
 class LinearAttention(nn.Cell):
@@ -82,8 +81,8 @@ class LinearAttention(nn.Cell):
         super().__init__()
         self.head_num = heads
         hidden_dim = dim_head * heads
-        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, has_bias=False, pad_mode="pad")
-        self.to_out = nn.Conv2d(hidden_dim, dim, 1, has_bias=True, pad_mode="pad")
+        self.to_qkv = mint.nn.Conv2d(dim, hidden_dim * 3, 1, bias=False)
+        self.to_out = mint.nn.Conv2d(hidden_dim, dim, 1, bias=True)
 
 
 class RelativePosition(nn.Cell):
@@ -98,10 +97,10 @@ class RelativePosition(nn.Cell):
         )
 
     def construct(self, length_q, length_k):
-        range_vec_q = ops.arange(length_q)
-        range_vec_k = ops.arange(length_k)
+        range_vec_q = mint.arange(length_q)
+        range_vec_k = mint.arange(length_k)
         distance_mat = range_vec_k[None, :] - range_vec_q[:, None]
-        distance_mat_clipped = ops.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
+        distance_mat_clipped = mint.clamp(distance_mat, -self.max_relative_position, self.max_relative_position)
         final_mat = distance_mat_clipped + self.max_relative_position
         final_mat = final_mat.long()
         embeddings = self.embeddings_table[final_mat]
@@ -132,12 +131,12 @@ class CrossAttention(nn.Cell):
         self.head_num = head_num
         self.head_dim = head_dim
 
-        self.to_q = nn.Dense(query_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_k = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-        self.to_v = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+        self.to_q = mint.nn.Linear(query_dim, inner_dim, bias=False).to_float(dtype)
+        self.to_k = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
+        self.to_v = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
         self.to_out = nn.SequentialCell(
-            nn.Dense(inner_dim, query_dim).to_float(dtype),
-            nn.Dropout(dropout) if is_old_ms_version() else nn.Dropout(p=1 - dropout),
+            mint.nn.Linear(inner_dim, query_dim).to_float(dtype),
+            nn.Dropout(dropout) if is_old_ms_version() else mint.nn.Dropout(p=1 - dropout),
         )
 
         self.video_length = video_length
@@ -146,8 +145,8 @@ class CrossAttention(nn.Cell):
         self.image_cross_attention_scale_learnable = image_cross_attention_scale_learnable
         self.text_context_len = text_context_len
         if self.image_cross_attention:
-            self.to_k_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
-            self.to_v_ip = nn.Dense(context_dim, inner_dim, has_bias=False).to_float(dtype)
+            self.to_k_ip = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
+            self.to_v_ip = mint.nn.Linear(context_dim, inner_dim, bias=False).to_float(dtype)
             if image_cross_attention_scale_learnable:
                 self.alpha = ms.Parameter(ms.Tensor(0.0))
                 # self.alpha = ms.Tensor(0.)
@@ -199,9 +198,9 @@ class CrossAttention(nn.Cell):
         b, n, d = x.shape
         d = d // h
 
-        x = ops.reshape(x, (b, n, h, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b * h, n, d))
+        x = mint.reshape(x, (b, n, h, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b * h, n, d))
         return x
 
     @staticmethod
@@ -210,9 +209,9 @@ class CrossAttention(nn.Cell):
         b, n, d = x.shape
         b = b // h
 
-        x = ops.reshape(x, (b, h, n, d))
-        x = ops.transpose(x, (0, 2, 1, 3))
-        x = ops.reshape(x, (b, n, h * d))
+        x = mint.reshape(x, (b, h, n, d))
+        x = mint.permute(x, (0, 2, 1, 3))
+        x = mint.reshape(x, (b, n, h * d))
         return x
 
     def construct(self, x, context=None, mask=None):
@@ -244,30 +243,30 @@ class CrossAttention(nn.Cell):
 
         if self.enable_flash_attention:
             # (b, n, h*d) -> (b, n, h, d)
-            q = ops.reshape(q, (q_b, q_n, h, -1))
-            k = ops.reshape(k, (k_b, k_n, h, -1))
-            v = ops.reshape(v, (v_b, v_n, h, -1))
+            q = mint.reshape(q, (q_b, q_n, h, -1))
+            k = mint.reshape(k, (k_b, k_n, h, -1))
+            v = mint.reshape(v, (v_b, v_n, h, -1))
             if mask is not None:
                 raise NotImplementedError
                 # # (b n_k) -> (b 1 1 n_k), will be broadcast according to qk sim, e.g. (b num_heads n_q n_k)
                 # mask = mask[:, None, None, :]
                 # # (b 1 1 n_k) -> (b 1 n_q n_k)
-                # # mask = ops.repeat_interleave(mask.to(ms.uint8), q.shape[-2], axis=-2)
-                # mask = ops.repeat_interleave(mask, int(q.shape[1]), axis=-2)
+                # # mask = mint.repeat_interleave(mask.to(ms.uint8), q.shape[-2], dim=-2)
+                # mask = mint.repeat_interleave(mask, int(q.shape[1]), dim=-2)
             out = self.flash_attention(q, k, v, mask=mask)
             # (B, N, -1)
-            out = ops.reshape(out, (x.shape[0], out.shape[1], -1))
+            out = mint.reshape(out, (x.shape[0], out.shape[1], -1))
 
             # for image cross-attention
             if k_ip is not None:
-                k_ip = ops.reshape(k_ip, (k_ip.shape[0], k_ip.shape[1], h, -1))
-                v_ip = ops.reshape(v_ip, (v_ip.shape[0], v_ip.shape[1], h, -1))
+                k_ip = mint.reshape(k_ip, (k_ip.shape[0], k_ip.shape[1], h, -1))
+                v_ip = mint.reshape(v_ip, (v_ip.shape[0], v_ip.shape[1], h, -1))
                 out_ip = self.flash_attention(q, k_ip, v_ip, mask=mask)
-                out_ip = ops.reshape(out_ip, (x.shape[0], out_ip.shape[1], -1))
+                out_ip = mint.reshape(out_ip, (x.shape[0], out_ip.shape[1], -1))
 
             if out_ip is not None:
                 if self.image_cross_attention_scale_learnable:
-                    out = out + self.image_cross_attention_scale * out_ip * (ops.tanh(self.alpha) + 1)
+                    out = out + self.image_cross_attention_scale * out_ip * (mint.tanh(self.alpha) + 1)
                 else:
                     out = out + self.image_cross_attention_scale * out_ip
 
@@ -309,34 +308,34 @@ class Attention(nn.Cell):
             raise ValueError
 
     def construct(self, q, k, v, k_ip, v_ip, out_ip, mask):
-        sim = ops.matmul(q, ops.transpose(k, (0, 2, 1))) * self.scale
+        sim = mint.matmul(q, mint.permute(k, (0, 2, 1))) * self.scale
         if self.relative_position:
             len_q, len_k, len_v = q.shape[1], k.shape[1], v.shape[1]
             k2 = self.relative_position_k(len_q, len_k)
-            sim2 = ops.matmul(q.transpose(1, 0, 2), k2.transpose(0, 2, 1)).transpose(1, 0, 2) * self.scale
+            sim2 = mint.matmul(q.transpose(1, 0, 2), k2.transpose(0, 2, 1)).transpose(1, 0, 2) * self.scale
             sim += sim2
         # del k
 
         if exists(mask):
-            mask = ops.reshape(mask, (mask.shape[0], -1))
+            mask = mint.reshape(mask, (mask.shape[0], -1))
             if sim.dtype == ms.float16:
                 finfo_type = np.float16
             else:
                 finfo_type = np.float32
             max_neg_value = -np.finfo(finfo_type).max
             mask = mask.repeat_interleave(self.head_num, dim=0)
-            mask = ops.expand_dims(mask, axis=1)
+            mask = mint.unsqueeze(mask, dim=1)
             sim.masked_fill(mask, max_neg_value)
 
         # TODO: testing use fp16 instead
         # use fp32 for exponential inside
         # attn = self.softmax(sim.astype(ms.float32)).astype(v.dtype)
-        attn = ops.softmax(sim, axis=-1)
-        out = ops.matmul(attn, v)
+        attn = mint.nn.functional.softmax(sim, dim=-1)
+        out = mint.matmul(attn, v)
 
         if self.relative_position:
             v2 = self.relative_position_v(len_q, len_v)
-            out2 = ops.matmul(sim.transpose(1, 0, 2), v2).transpose(1, 0, 2)
+            out2 = mint.matmul(sim.transpose(1, 0, 2), v2).transpose(1, 0, 2)
             out += out2
         out = self._rearrange_out(out, self.head_num)
 
@@ -344,31 +343,31 @@ class Attention(nn.Cell):
         if k_ip is not None:
             k_ip = self._rearrange_in(k_ip, self.head_num)
             v_ip = self._rearrange_in(v_ip, self.head_num)
-            sim_ip = ops.matmul(q, ops.transpose(k_ip, (0, 2, 1))) * self.scale
+            sim_ip = mint.matmul(q, mint.permute(k_ip, (0, 2, 1))) * self.scale
             # del k_ip
             sim_ip = sim_ip.softmax(axis=-1)
-            out_ip = ops.matmul(sim_ip, v_ip)
+            out_ip = mint.matmul(sim_ip, v_ip)
             out_ip = self._rearrange_out(out_ip, self.head_num)
 
         if out_ip is not None:
             if self.image_cross_attention_scale_learnable:
-                out = out + self.image_cross_attention_scale * out_ip * (ops.tanh(self.alpha) + 1)
+                out = out + self.image_cross_attention_scale * out_ip * (mint.tanh(self.alpha) + 1)
             else:
                 out = out + self.image_cross_attention_scale * out_ip
         return out
 
     def _rearrange_in(self, x: ms.Tensor, h: int):
         """b n (h d) -> (b h) n d"""
-        x = ops.reshape(x, (x.shape[0], x.shape[1], h, -1))  # (b, n, h, d)
-        x = ops.transpose(x, (0, 2, 1, 3))  # (b, h, n, d)
-        x = ops.reshape(x, (-1, x.shape[2], x.shape[3]))  # ((b h), n, d)
+        x = mint.reshape(x, (x.shape[0], x.shape[1], h, -1))  # (b, n, h, d)
+        x = mint.permute(x, (0, 2, 1, 3))  # (b, h, n, d)
+        x = mint.reshape(x, (-1, x.shape[2], x.shape[3]))  # ((b h), n, d)
         return x
 
     def _rearrange_out(self, x: ms.Tensor, h: int):
         """(b h) n d -> b n (h d)"""
-        x = ops.reshape(x, (-1, h, x.shape[1], x.shape[2]))  # (b, h, n, d)
-        x = ops.transpose(x, (0, 2, 1, 3))  # (b, n, h, d)
-        x = ops.reshape(x, (x.shape[0], x.shape[1], -1))  # (b, n, (h d))
+        x = mint.reshape(x, (-1, h, x.shape[1], x.shape[2]))  # (b, h, n, d)
+        x = mint.permute(x, (0, 2, 1, 3))  # (b, n, h, d)
+        x = mint.reshape(x, (x.shape[0], x.shape[1], -1))  # (b, n, (h d))
         return x
 
 
@@ -421,9 +420,9 @@ class BasicTransformerBlock(nn.Cell):
         )  # is self-attn if context is none
         self.image_cross_attention = image_cross_attention
 
-        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
-        self.norm3 = nn.LayerNorm([dim], epsilon=1e-05).to_float(dtype)
+        self.norm1 = mint.nn.LayerNorm([dim], eps=1e-05).to_float(dtype)
+        self.norm2 = mint.nn.LayerNorm([dim], eps=1e-05).to_float(dtype)
+        self.norm3 = mint.nn.LayerNorm([dim], eps=1e-05).to_float(dtype)
 
     def construct(self, x, context=None):
         x = self.attn1(self.norm1(x), context=context if self.disable_self_attn else None) + x
@@ -465,11 +464,11 @@ class SpatialTransformer(nn.Cell):
         self.norm = Normalize(in_channels)
 
         if not use_linear:
-            self.proj_in = nn.Conv2d(
-                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"
+            self.proj_in = mint.nn.Conv2d(
+                in_channels, inner_dim, kernel_size=1, stride=1, padding=0, bias=True
             ).to_float(dtype)
         else:
-            self.proj_in = nn.Dense(in_channels, inner_dim).to_float(dtype)
+            self.proj_in = mint.nn.Linear(in_channels, inner_dim).to_float(dtype)
 
         attention_cls = None
         self.transformer_blocks = nn.CellList(
@@ -495,12 +494,12 @@ class SpatialTransformer(nn.Cell):
 
         if not use_linear:
             self.proj_out = zero_module(
-                nn.Conv2d(
-                    inner_dim, in_channels, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"
-                ).to_float(self.dtype)
+                mint.nn.Conv2d(inner_dim, in_channels, kernel_size=1, stride=1, padding=0, bias=True).to_float(
+                    self.dtype
+                )
             )
         else:
-            self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(dtype))
+            self.proj_out = zero_module(mint.nn.Linear(in_channels, inner_dim).to_float(dtype))
 
         self.use_linear = use_linear
 
@@ -511,16 +510,16 @@ class SpatialTransformer(nn.Cell):
         x = self.norm(x)
         if not self.use_linear:
             x = self.proj_in(x)
-        x = ops.reshape(x, (b, c, h * w))  # (b, c, h*w)
-        x = ops.transpose(x, (0, 2, 1))  # (b, h*w, c)
+        x = mint.reshape(x, (b, c, h * w))  # (b, c, h*w)
+        x = mint.permute(x, (0, 2, 1))  # (b, h*w, c)
         if self.use_linear:
             x = self.proj_in(x)
         for block in self.transformer_blocks:
             x = block(x, context=context)
         if self.use_linear:
             x = self.proj_out(x)
-        x = ops.reshape(x, (b, h, w, c))  # (b, h, w, c)
-        x = ops.transpose(x, (0, 3, 1, 2))  # (b, c, h, w)
+        x = mint.reshape(x, (b, h, w, c))  # (b, h, w, c)
+        x = mint.permute(x, (0, 3, 1, 2))  # (b, c, h, w)
         if not self.use_linear:
             x = self.proj_out(x)
         return x + x_in
@@ -572,7 +571,7 @@ class TemporalTransformer(nn.Cell):
                 in_channels, inner_dim, kernel_size=1, stride=1, padding=0, has_bias=True, pad_mode="pad"
             ).to_float(self.dtype)
         else:
-            self.proj_in = nn.Dense(in_channels, inner_dim).to_float(self.dtype)
+            self.proj_in = mint.nn.Linear(in_channels, inner_dim).to_float(self.dtype)
 
         if relative_position:
             assert temporal_length is not None
@@ -581,7 +580,7 @@ class TemporalTransformer(nn.Cell):
             attention_cls = partial(CrossAttention, temporal_length=temporal_length)
         if self.causal_attention:
             assert temporal_length is not None
-            self.mask = ops.tril(ops.ones([1, temporal_length, temporal_length]))
+            self.mask = mint.tril(mint.ones([1, temporal_length, temporal_length]))
 
         self.transformer_blocks = nn.CellList(
             [
@@ -604,7 +603,7 @@ class TemporalTransformer(nn.Cell):
                 ).to_float(self.dtype)
             )
         else:
-            self.proj_out = zero_module(nn.Dense(in_channels, inner_dim).to_float(self.dtype))
+            self.proj_out = zero_module(mint.nn.Linear(in_channels, inner_dim).to_float(self.dtype))
         self.use_linear = use_linear
 
     def construct(self, x, context=None):
@@ -618,12 +617,12 @@ class TemporalTransformer(nn.Cell):
         x = self.norm(x)
 
         # b c t h w -> (b h w) c t
-        x = ops.transpose(x, (0, 3, 4, 1, 2))
-        x = ops.reshape(x, (-1, x.shape[3], x.shape[4]))
+        x = mint.permute(x, (0, 3, 4, 1, 2))
+        x = mint.reshape(x, (-1, x.shape[3], x.shape[4]))
         if not self.use_linear:
             x = self.proj_in(x)
         # bhw c t -> bhw t c
-        x = ops.transpose(x, (0, 2, 1))
+        x = mint.permute(x, (0, 2, 1))
         if self.use_linear:
             x = self.proj_in(x)
 
@@ -639,40 +638,40 @@ class TemporalTransformer(nn.Cell):
         #     mask = None
 
         if self.only_self_att:
-            # x = ops.transpose(x, (0, 2, 1))
+            # x = mint.permute(x, (0, 2, 1))
             for i, block in enumerate(self.transformer_blocks):
                 x = block(x)
             # (b hw) f c -> b hw f c
-            x = ops.reshape(x, (b, x.shape[0] // b, x.shape[1], x.shape[2]))
+            x = mint.reshape(x, (b, x.shape[0] // b, x.shape[1], x.shape[2]))
         else:
             # (b hw) c f -> b hw f c
-            x = ops.reshape(x, (b, x.shape[0] // b, x.shape[1], x.shape[2]))
-            x = ops.transpose(x, (0, 1, 3, 2))
+            x = mint.reshape(x, (b, x.shape[0] // b, x.shape[1], x.shape[2]))
+            x = mint.permute(x, (0, 1, 3, 2))
             for i, block in enumerate(self.transformer_blocks):
                 # (b f) l con -> b f l con
-                context[i] = ops.reshape(
+                context[i] = mint.reshape(
                     context[i],
                     (context[i].shape[0] // self.frames, self.frames, context[i].shape[1], context[i].shape[2]),
                 )  # todo: wtf frames
                 # calculate each batch one by one (since number in shape could not greater then 65,535 for some package)
                 for j in range(b):
-                    context_i_j = ops.tile(context[i][j], ((h * w) // self.frames, 1, 1))  # todo: wtf frames
+                    context_i_j = mint.tile(context[i][j], ((h * w) // self.frames, 1, 1))  # todo: wtf frames
                     x[j] = block(x[j], context=context_i_j)
 
         if self.use_linear:
             x = self.proj_out(x)
             # b (h w) t c -> b h w t c -> b c t h w
-            x = ops.reshape(x, (x.shape[0], h, w, x.shape[2], x.shape[3]))
-            # x = ops.transpose(x, (0, 3, 4, 1, 2))
-            x = ops.transpose(x, (0, 4, 3, 1, 2))
+            x = mint.reshape(x, (x.shape[0], h, w, x.shape[2], x.shape[3]))
+            # x = mint.permute(x, (0, 3, 4, 1, 2))
+            x = mint.permute(x, (0, 4, 3, 1, 2))
         if not self.use_linear:
             # b hw t c -> (b hw) t c -> (b hw) c t
-            x = ops.reshape(x, (-1, x.shape[2], x.shape[3]))
-            x = ops.transpose(x, (0, 2, 1))
+            x = mint.reshape(x, (-1, x.shape[2], x.shape[3]))
+            x = mint.permute(x, (0, 2, 1))
             x = self.proj_out(x)
             # (b h w) c t -> b h w c t -> b c t h w
-            x = ops.reshape(x, (b, h, w, x.shape[1], x.shape[2]))
-            x = ops.transpose(x, (0, 3, 4, 1, 2))
+            x = mint.reshape(x, (b, h, w, x.shape[1], x.shape[2]))
+            x = mint.permute(x, (0, 3, 4, 1, 2))
 
         if self.multiply_zero:
             x = 0.0 * x + x_in
@@ -681,7 +680,7 @@ class TemporalTransformer(nn.Cell):
         return x
 
 
-class GroupNorm(nn.GroupNorm):
+class GroupNorm(mint.nn.GroupNorm):
     # GroupNorm in calculated in FP32
     def __init__(self, num_groups, num_channels, eps=1e-5, affine=True):
         super().__init__(num_groups=num_groups, num_channels=num_channels, eps=eps, affine=affine)

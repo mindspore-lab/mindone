@@ -25,13 +25,20 @@ from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput
 from ...loaders import IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
-from ...models import AutoencoderKL, ControlNetModel, ImageProjection, UNet2DConditionModel, UNetMotionModel
+from ...models import (
+    AutoencoderKL,
+    ControlNetModel,
+    ImageProjection,
+    MultiControlNetModel,
+    UNet2DConditionModel,
+    UNetMotionModel,
+)
 from ...models.unets.unet_motion_model import MotionAdapter
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
-from ..controlnet.multicontrolnet import MultiControlNetModel
+from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import AnimateDiffPipelineOutput
 
@@ -111,6 +118,7 @@ class AnimateDiffControlNetPipeline(
     TextualInversionLoaderMixin,
     IPAdapterMixin,
     StableDiffusionLoraLoaderMixin,
+    AnimateDiffFreeNoiseMixin,
 ):
     r"""
     Pipeline for text-to-video generation with ControlNet guidance.
@@ -591,6 +599,12 @@ class AnimateDiffControlNetPipeline(
     def prepare_latents(
         self, batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents=None
     ):
+        # If FreeNoise is enabled, generate latents as described in Equation (7) of [FreeNoise](https://arxiv.org/abs/2310.15169)
+        if self.free_noise_enabled:
+            latents = self._prepare_latents_free_noise(
+                batch_size, num_channels_latents, num_frames, height, width, dtype, generator, latents
+            )
+
         if isinstance(generator, list) and len(generator) != batch_size:
             raise ValueError(
                 f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
@@ -850,23 +864,36 @@ class AnimateDiffControlNetPipeline(
         text_encoder_lora_scale = (
             cross_attention_kwargs.get("scale", None) if cross_attention_kwargs is not None else None
         )
-        prompt_embeds, negative_prompt_embeds = self.encode_prompt(
-            prompt,
-            num_videos_per_prompt,
-            self.do_classifier_free_guidance,
-            negative_prompt,
-            prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
-            lora_scale=text_encoder_lora_scale,
-            clip_skip=self.clip_skip,
-        )
-        # For classifier free guidance, we need to do two forward passes.
-        # Here we concatenate the unconditional and text embeddings into a single batch
-        # to avoid doing two forward passes
-        if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+        if self.free_noise_enabled:
+            prompt_embeds, negative_prompt_embeds = self._encode_prompt_free_noise(
+                prompt=prompt,
+                num_frames=num_frames,
+                num_videos_per_prompt=num_videos_per_prompt,
+                do_classifier_free_guidance=self.do_classifier_free_guidance,
+                negative_prompt=negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=text_encoder_lora_scale,
+                clip_skip=self.clip_skip,
+            )
+        else:
+            prompt_embeds, negative_prompt_embeds = self.encode_prompt(
+                prompt,
+                num_videos_per_prompt,
+                self.do_classifier_free_guidance,
+                negative_prompt,
+                prompt_embeds=prompt_embeds,
+                negative_prompt_embeds=negative_prompt_embeds,
+                lora_scale=text_encoder_lora_scale,
+                clip_skip=self.clip_skip,
+            )
+            # For classifier free guidance, we need to do two forward passes.
+            # Here we concatenate the unconditional and text embeddings into a single batch
+            # to avoid doing two forward passes
+            if self.do_classifier_free_guidance:
+                prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
 
-        prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
+            prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(

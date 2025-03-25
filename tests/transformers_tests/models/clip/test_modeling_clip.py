@@ -295,6 +295,11 @@ def test_named_modules(
     dtype,
     mode,
 ):
+    # set seed
+    ms.set_seed(42)
+    np.random.seed(42)
+    torch.manual_seed(42)
+
     ms.set_context(mode=mode)
 
     (

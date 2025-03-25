@@ -170,6 +170,8 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         use_karras_sigmas: Optional[bool] = False,
         use_exponential_sigmas: Optional[bool] = False,
         use_beta_sigmas: Optional[bool] = False,
+        use_flow_sigmas: Optional[bool] = False,
+        flow_shift: Optional[float] = 1.0,
         lambda_min_clipped: float = -float("inf"),
         variance_type: Optional[str] = None,
         timestep_spacing: str = "linspace",
@@ -292,11 +294,19 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             timesteps = timesteps.copy().astype(np.int64)
             sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
         elif self.config.use_exponential_sigmas:
-            sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=self.num_inference_steps)
+            sigmas = self._convert_to_exponential(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
         elif self.config.use_beta_sigmas:
-            sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=self.num_inference_steps)
+            sigmas = self._convert_to_beta(in_sigmas=sigmas, num_inference_steps=num_inference_steps)
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
+            sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
+        elif self.config.use_flow_sigmas:
+            alphas = np.linspace(1, 1 / self.config.num_train_timesteps, num_inference_steps + 1)
+            sigmas = 1.0 - alphas
+            sigmas = np.flip(self.config.flow_shift * sigmas / (1 + (self.config.flow_shift - 1) * sigmas))[:-1].copy()
+            timesteps = (sigmas * self.config.num_train_timesteps).copy()
+            sigmas = np.concatenate([sigmas, sigmas[-1:]]).astype(np.float32)
         else:
             sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
             sigma_max = (
@@ -383,8 +393,12 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
 
     # Copied from diffusers.schedulers.scheduling_dpmsolver_multistep.DPMSolverMultistepScheduler._sigma_to_alpha_sigma_t
     def _sigma_to_alpha_sigma_t(self, sigma):
-        alpha_t = 1 / ((sigma**2 + 1) ** 0.5)
-        sigma_t = sigma * alpha_t
+        if self.config.use_flow_sigmas:
+            alpha_t = 1 - sigma
+            sigma_t = sigma
+        else:
+            alpha_t = 1 / ((sigma**2 + 1) ** 0.5)
+            sigma_t = sigma * alpha_t
 
         return alpha_t, sigma_t
 
@@ -433,7 +447,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ops.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
+        sigmas = np.exp(np.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps))
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._convert_to_beta
@@ -457,7 +471,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ms.Tensor(
+        sigmas = np.array(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))
                 for ppf in [
@@ -526,10 +540,13 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
                 sigma = self.sigmas[self.step_index]
                 alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
                 x0_pred = alpha_t.to(sample.dtype) * sample - sigma_t.to(model_output.dtype) * model_output
+            elif self.config.prediction_type == "flow_prediction":
+                sigma_t = self.sigmas[self.step_index]
+                x0_pred = sample - sigma_t * model_output
             else:
                 raise ValueError(
-                    f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample`, or"
-                    " `v_prediction` for the DPMSolverMultistepScheduler."
+                    f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample`, "
+                    "`v_prediction`, or `flow_prediction` for the DPMSolverMultistepScheduler."
                 )
 
             if self.config.thresholding:
@@ -771,6 +788,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         model_output_list: List[ms.Tensor],
         *args,
         sample: ms.Tensor = None,
+        noise: Optional[ms.Tensor] = None,
         **kwargs,
     ) -> ms.Tensor:
         """
@@ -849,6 +867,15 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
                 - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * D0
                 - (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0)).to(dtype) * D1
                 - (sigma_t * ((ops.exp(h) - 1.0 - h) / h**2 - 0.5)).to(dtype) * D2
+            )
+        elif self.config.algorithm_type == "sde-dpmsolver++":
+            assert noise is not None
+            x_t = (
+                (sigma_t / sigma_s0 * ops.exp(-h)) * sample
+                + (alpha_t * (1.0 - ops.exp(-2.0 * h))) * D0
+                + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
+                + (alpha_t * ((1.0 - ops.exp(-2.0 * h) - 2.0 * h) / (2.0 * h) ** 2 - 0.5)) * D2
+                + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
             )
         return x_t
 

@@ -48,7 +48,7 @@ We provide image to video generation with three resolutions: 576x1024, 320x512, 
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+| 2.5.0     | 24.1.RC2      | 7.3.0.1.231 | 8.0.0.beta1       |
 
 ```shell
 pip install -r requirements.txt
@@ -84,6 +84,27 @@ python convert_weight.py \
 ```
 
 ### Run inference
+Set the CLIP ckpt path in inference yaml config files as follow:
+```yaml
+...
+    cond_stage_config:
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPEmbedder
+      params:
+        arch: "ViT-H-14"
+        freeze: true
+        layer: "penultimate"
+        pretrained: path/to/CLIP-ViT-H-14-laion2B-s32B-b79K/open_clip_ms_model.ckpt
+
+    img_cond_stage_config:
+      target: lvdm.modules.encoders.condition.FrozenOpenCLIPImageEmbedderV2
+      params:
+        arch: "ViT-H-14"
+        freeze: true
+        version: path/to/CLIP-ViT-H-14-laion2B-s32B-b79K/open_clip_ms_model.ckpt
+...
+```
+
+Launch inference:
 
 ```shell
 sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
@@ -93,13 +114,15 @@ sh scripts/run/run_infer.sh [RESUOUTION] [CKPT_PATH]
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+We evaluate the inference performance of image-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
+
+Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
 
 | model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
 |:-------------:|:------------:    |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
-| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.42 | 71 |
-| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.42  | 21 |
-| dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.26 | 13 |
+| dynamicrafter |  1               | 1               | 16x576x1024  | DDIM | 50 | fp16 | O1 | 1~2 mins |  1.34 | 67 |
+| dynamicrafter | 1                | 1               | 16x320x512   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.40  | 20 |
+| dynamicrafter | 1                | 1               | 16x256x256   | DDIM | 50 | fp16 | O1 |1~2 mins |  0.24 | 12 |
 
 
 ## References

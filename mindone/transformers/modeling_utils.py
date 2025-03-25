@@ -53,7 +53,9 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 
 import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
+from mindspore.nn import Identity
 
+from .activations import get_activation
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .mindspore_adapter import dtype_to_str
@@ -63,7 +65,7 @@ from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
 if is_safetensors_available():
     from safetensors import safe_open
 
-    from mindone.safetensors.mindspore import load_file as safe_load_file
+    # from mindone.safetensors.mindspore import load_file as safe_load_file
     from mindone.safetensors.mindspore import save_file as safe_save_file
 
 logger = logging.get_logger(__name__)
@@ -90,17 +92,23 @@ def _get_pt2ms_mappings(m):
     return mappings
 
 
-def _get_pt2ms_mapped_kv(mappings, key_pt, value_pt=None, prefix=""):
-    if key_pt.startswith(prefix):
-        key_ms, value_mapping = mappings.get(key_pt[len(prefix) :], (key_pt[len(prefix) :], lambda x: x))
-        key_ms = prefix + key_ms
+def _get_pt2ms_mapped_k(mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix):
+    if has_prefix_module and not expects_prefix_module:
+        loaded_keys = [
+            mappings.get(s[len(prefix) + 1 :], (s[len(prefix) + 1 :], lambda x: x))[0]
+            if s.startswith(prefix)
+            else mappings.get(s, (s, lambda x: x))[0]
+            for s in loaded_keys
+        ]
+        loaded_keys = [".".join([prefix, s]) for s in loaded_keys]
+    elif not has_prefix_module and expects_prefix_module:
+        loaded_keys = [
+            mappings.get(".".join([prefix, s]), (".".join([prefix, s]), lambda x: x))[0] for s in loaded_keys
+        ]
+        loaded_keys = [s[len(prefix) + 1 :] if s.startswith(prefix) else s for s in loaded_keys]
     else:
-        key_ms, value_mapping = mappings.get(key_pt, (key_pt, lambda x: x))
-
-    if value_pt is None:
-        return key_ms, None
-    else:
-        return key_ms, value_mapping(value_pt)
+        loaded_keys = [mappings.get(s, (s, lambda x: x))[0] for s in loaded_keys]
+    return loaded_keys
 
 
 def _convert_state_dict(m, state_dict_pt, prefix=""):
@@ -110,7 +118,15 @@ def _convert_state_dict(m, state_dict_pt, prefix=""):
     state_dict_ms = {}
     while state_dict_pt:
         name_pt, data_pt = state_dict_pt.popitem()
-        name_ms, data_ms = _get_pt2ms_mapped_kv(pt2ms_mappings, name_pt, data_pt, prefix)
+        for name, param in m.parameters_and_names():
+            name_ms = param.name
+            length = len(prefix) + 1
+            if name_pt.startswith(prefix) and name_ms.rsplit(".", 1)[0] == name_pt.rsplit(".", 1)[0][length:]:
+                name_pt = name_pt[length:]
+            elif not name_pt.startswith(prefix) and name_pt.rsplit(".", 1)[0] == name_ms.rsplit(".", 1)[0][length:]:
+                name_pt = ".".join([prefix, name_pt])
+        name_ms, data_mapping = pt2ms_mappings.get(name_pt, (name_pt, lambda x: x))
+        data_ms = data_mapping(data_pt)
         if name_ms is not None:
             state_dict_ms[name_ms] = data_ms
     return state_dict_ms
@@ -251,7 +267,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
                     f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
                     "you save your model with the `save_pretrained` method."
                 )
-            return safe_load_file(checkpoint_file)
+            return ms.load_checkpoint(checkpoint_file, format="safetensors")
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -277,25 +293,25 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
 
 
 def _load_state_dict_into_model(model_to_load, state_dict, start_prefix, is_sharded=False):
-    # add prefix to the name of parameters
-    if len(start_prefix) > 0:
-        for name, param in model_to_load.parameters_and_names():
-            if param.name != name:
-                logger.error(
-                    f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
-                    f"There are several possible reasons for this misalignment:\n"
-                    f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
-                    f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
-                    f"If you encounter this error, please report it to the developer."
-                )
-            param.name = start_prefix + name
+    # # add prefix to the name of parameters
+    # if len(start_prefix) > 0:
+    #     for name, param in model_to_load.parameters_and_names():
+    #         if param.name != name:
+    #             logger.error(
+    #                 f"When Loading state dict into model {model_to_load.__class__.__name__}, the attribute 'name' of 'mindspore.ms.Parameter' object is {param.name} which should be {name}.\n"  # noqa: E501
+    #                 f"There are several possible reasons for this misalignment:\n"
+    #                 f"  1. {model_to_load.__class__.__name__} didn't call 'MSPreTrainedModel.post_init()' correctly.\n"
+    #                 f"  2. You have made changes to the model before loading the weights, which may be implicit. For example, you created an optimizer using the parameters of model.\n"  # noqa: E501
+    #                 f"If you encounter this error, please report it to the developer."
+    #             )
+    #         param.name = start_prefix + name
 
     # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
     #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
     # TODO: We should support loading float16 state_dict into float32 model, like PyTorch's behavior.
     error_msgs = []
     # TODO: State dict loading in mindspore does not cast dtype correctly. We do it manually. It's might unsafe.
-    local_state = {start_prefix + k: v for k, v in model_to_load.parameters_and_names()}
+    local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
             v.set_dtype(local_state[k].dtype)
@@ -1315,7 +1331,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 # may revert to legacy behavior if the two don't match
                 if (
                     model_to_save.generation_config._from_model_config
-                    and model_to_save.config._has_non_default_generation_parameters()
+                    and model_to_save.config._get_non_default_generation_parameters()
                 ):
                     new_generation_config = GenerationConfig.from_model_config(model_to_save.config)
                     if new_generation_config != model_to_save.generation_config:
@@ -2166,9 +2182,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
     ):
         model.tie_weights()
 
-        # Mapping loaded_keys from pt to ms
-        pt2ms_mappings = _get_pt2ms_mappings(model)
-        loaded_keys = [_get_pt2ms_mapped_kv(pt2ms_mappings, s, None, "")[0] for s in loaded_keys]
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -2181,6 +2194,10 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         else:
             has_prefix_module = False
             expects_prefix_module = False
+
+        # Mapping loaded_keys from pt to ms
+        pt2ms_mappings = _get_pt2ms_mappings(model)
+        loaded_keys = _get_pt2ms_mapped_k(pt2ms_mappings, has_prefix_module, expects_prefix_module, loaded_keys, prefix)
 
         # key re-naming operations are never done on the keys
         # that are loaded, but always on the keys of the newly initialized model
@@ -2269,7 +2286,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
 
         if state_dict is not None:
             # Whole checkpoint
-            state_dict = _convert_state_dict(model, state_dict, start_prefix)
+            state_dict = _convert_state_dict(model, state_dict, prefix)
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -2365,3 +2382,130 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             )
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
+
+    def warn_if_padding_and_no_attention_mask(self, input_ids, attention_mask):
+        """
+        Shows a one-time warning if the input_ids appear to contain padding and no attention mask was given.
+        """
+
+        if (attention_mask is not None) or (self.config.pad_token_id is None):
+            return
+
+        # Check only the first and last input IDs to reduce overhead.
+        if self.config.pad_token_id in input_ids[:, [-1, 0]]:
+            warn_string = (
+                "We strongly recommend passing in an `attention_mask` since your input_ids may be padded. See "
+                "https://huggingface.co/docs/transformers/troubleshooting"
+                "#incorrect-output-when-padding-tokens-arent-masked."
+            )
+
+            # If the pad token is equal to either BOS, EOS, or SEP, we do not know whether the user should use an
+            # attention_mask or not. In this case, we should still show a warning because this is a rare case.
+            if (
+                (self.config.bos_token_id is not None and self.config.bos_token_id == self.config.pad_token_id)
+                or (self.config.eos_token_id is not None and self.config.eos_token_id == self.config.pad_token_id)
+                or (self.config.sep_token_id is not None and self.config.sep_token_id == self.config.pad_token_id)
+            ):
+                warn_string += (
+                    f"\nYou may ignore this warning if your `pad_token_id` ({self.config.pad_token_id}) is identical "
+                    f"to the `bos_token_id` ({self.config.bos_token_id}), `eos_token_id` ({self.config.eos_token_id}), "
+                    f"or the `sep_token_id` ({self.config.sep_token_id}), and your input is not padded."
+                )
+
+            logger.warning_once(warn_string)
+
+
+class SequenceSummary(nn.Cell):
+    r"""
+    Compute a single vector summary of a sequence hidden states.
+
+    Args:
+        config ([`PretrainedConfig`]):
+            The config used by the model. Relevant arguments in the config class of the model are (refer to the actual
+            config class of your model for the default values it uses):
+
+            - **summary_type** (`str`) -- The method to use to make this summary. Accepted values are:
+
+                - `"last"` -- Take the last token hidden state (like XLNet)
+                - `"first"` -- Take the first token hidden state (like Bert)
+                - `"mean"` -- Take the mean of all tokens hidden states
+                - `"cls_index"` -- Supply a Tensor of classification token position (GPT/GPT-2)
+                - `"attn"` -- Not implemented now, use multi-head attention
+
+            - **summary_use_proj** (`bool`) -- Add a projection after the vector extraction.
+            - **summary_proj_to_labels** (`bool`) -- If `True`, the projection outputs to `config.num_labels` classes
+              (otherwise to `config.hidden_size`).
+            - **summary_activation** (`Optional[str]`) -- Set to `"tanh"` to add a tanh activation to the output,
+              another string or `None` will add no activation.
+            - **summary_first_dropout** (`float`) -- Optional dropout probability before the projection and activation.
+            - **summary_last_dropout** (`float`)-- Optional dropout probability after the projection and activation.
+    """
+
+    def __init__(self, config: PretrainedConfig):
+        super().__init__()
+
+        self.summary_type = getattr(config, "summary_type", "last")
+        if self.summary_type == "attn":
+            # We should use a standard multi-head attention module with absolute positional embedding for that.
+            raise NotImplementedError
+
+        self.summary = Identity()
+        if hasattr(config, "summary_use_proj") and config.summary_use_proj:
+            if hasattr(config, "summary_proj_to_labels") and config.summary_proj_to_labels and config.num_labels > 0:
+                num_classes = config.num_labels
+            else:
+                num_classes = config.hidden_size
+            self.summary = nn.Dense(config.hidden_size, num_classes)
+
+        activation_string = getattr(config, "summary_activation", None)
+        self.activation: Callable = get_activation(activation_string) if activation_string else Identity()
+
+        self.first_dropout = Identity()
+        if hasattr(config, "summary_first_dropout") and config.summary_first_dropout > 0:
+            self.first_dropout = nn.Dropout(config.summary_first_dropout)
+
+        self.last_dropout = Identity()
+        if hasattr(config, "summary_last_dropout") and config.summary_last_dropout > 0:
+            self.last_dropout = nn.Dropout(config.summary_last_dropout)
+
+    def construct(self, hidden_states: ms.Tensor, cls_index: Optional[ms.Tensor] = None) -> ms.Tensor:
+        """
+        Compute a single vector summary of a sequence hidden states.
+
+        Args:
+            hidden_states (`torch.FloatTensor` of shape `[batch_size, seq_len, hidden_size]`):
+                The hidden states of the last layer.
+            cls_index (`torch.LongTensor` of shape `[batch_size]` or `[batch_size, ...]`
+            where ... are optional leading dimensions of `hidden_states`, *optional*):
+                Used if `summary_type == "cls_index"` and takes the last token of the sequence as classification token.
+
+        Returns:
+            `torch.FloatTensor`: The summary of the sequence hidden states.
+        """
+        if self.summary_type == "last":
+            output = hidden_states[:, -1]
+        elif self.summary_type == "first":
+            output = hidden_states[:, 0]
+        elif self.summary_type == "mean":
+            output = hidden_states.mean(axis=1)
+        elif self.summary_type == "cls_index":
+            if cls_index is None:
+                cls_index = ops.full_like(
+                    hidden_states[..., :1, :],
+                    hidden_states.shape[-2] - 1,
+                    dtype=ms.int64,
+                )
+            else:
+                cls_index = cls_index.unsqueeze(-1).unsqueeze(-1)
+                cls_index = cls_index.expand((-1,) * (cls_index.dim() - 1) + (hidden_states.size(-1),))
+            # shape of cls_index: (bsz, XX, 1, hidden_size) where XX are optional leading dim of hidden_states
+            output = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, XX, hidden_size)
+        elif self.summary_type == "attn":
+            raise NotImplementedError
+
+        output = self.first_dropout(output)
+        output = self.summary(output)
+        output = self.activation(output)
+        output = self.last_dropout(output)
+
+        return output
