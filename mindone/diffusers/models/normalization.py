@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, mint, nn, ops
+from mindspore import Parameter, Tensor, mint, nn
 from mindspore.common.initializer import initializer
 
 from .activations import get_activation
@@ -95,8 +95,8 @@ class SD35AdaLayerNormZeroX(nn.Cell):
     def __init__(self, embedding_dim: int, norm_type: str = "layer_norm", bias: bool = True) -> None:
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 9 * embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 9 * embedding_dim, bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         else:
@@ -108,8 +108,8 @@ class SD35AdaLayerNormZeroX(nn.Cell):
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ...]:
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = emb.chunk(
-            9, axis=1
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = mint.chunk(
+            emb, 9, dim=1
         )
         norm_hidden_states = self.norm(hidden_states)
         hidden_states = norm_hidden_states * (1 + scale_msa[:, None]) + shift_msa[:, None]
@@ -347,7 +347,7 @@ class LuminaLayerNormContinuous(nn.Cell):
         super().__init__()
 
         # AdaLN
-        self.silu = nn.SiLU()
+        self.silu = mint.nn.SiLU()
         self.linear_1 = mint.nn.Linear(conditioning_embedding_dim, embedding_dim, bias=bias)
 
         if norm_type == "layer_norm":
@@ -389,8 +389,8 @@ class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
     def __init__(self, embedding_dim: int, dim: int):
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 12 * dim, has_bias=True)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 12 * dim, bias=True)
         self.norm_x = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
         self.norm_c = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
 
@@ -414,7 +414,7 @@ class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
             c_shift_mlp,
             c_scale_mlp,
             c_gate_mlp,
-        ) = emb.chunk(12, axis=1)
+        ) = mint.chunk(emb, 12, dim=1)
         normed_x = self.norm_x(x)
         normed_context = self.norm_c(context)
         x = normed_x * (1 + scale_msa[:, None]) + shift_msa[:, None]
@@ -542,11 +542,11 @@ class LayerNorm(nn.Cell):
             self.bias = ms.Tensor.from_numpy(_bias)
         # TODO: In fact, we need -len(normalized_shape) instead of -1, but LayerNorm doesn't allow it.
         #  For positive axis, the ndim of input is needed. Put it in construct?
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.weight.to(x.dtype), self.bias.to(x.dtype))
-        return x
+        return mint.nn.functional.layer_norm(
+            x, self.normalized_shape, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps
+        )
 
 
 class FP32LayerNorm(LayerNorm):
@@ -688,14 +688,14 @@ class MochiRMSNorm(nn.Cell):
         self.dim = dim
 
         if elementwise_affine:
-            self.weight = ms.Parameter(ops.ones(dim), name="weight")
+            self.weight = ms.Parameter(mint.ones(dim), name="weight")
         else:
             self.weight = None
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
+        variance = mint.mean(mint.pow(hidden_states.to(ms.float32), 2), -1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
 
         if self.weight is not None:
             hidden_states = hidden_states * self.weight
@@ -727,7 +727,7 @@ class LpNorm(nn.Cell):
         self.eps = eps
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        return hidden_states / ops.LpNorm(axis=self.dim, p=self.p, epsilon=self.eps)(hidden_states)
+        return mint.nn.functional.normalize(hidden_states, p=self.p, dim=self.dim, eps=self.eps)
 
 
 def get_normalization(
@@ -742,7 +742,7 @@ def get_normalization(
     elif norm_type == "layer_norm":
         norm = LayerNorm(num_features, eps=eps, elementwise_affine=elementwise_affine, bias=bias)
     elif norm_type == "batch_norm":
-        norm = nn.BatchNorm2d(num_features, eps=eps, affine=elementwise_affine)
+        norm = mint.nn.BatchNorm2d(num_features, eps=eps, affine=elementwise_affine)
     else:
         raise ValueError(f"{norm_type=} is not supported.")
     return norm

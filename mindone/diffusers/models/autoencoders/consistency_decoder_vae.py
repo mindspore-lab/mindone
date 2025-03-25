@@ -279,7 +279,7 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
             return self.tiled_encode(x, return_dict=return_dict)
 
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self.encoder(x_slice) for x_slice in x.split(1)]
+            encoded_slices = [self.encoder(x_slice) for x_slice in mint.split(x, 1)]
             h = mint.cat(encoded_slices)
         else:
             h = self.encoder(x)

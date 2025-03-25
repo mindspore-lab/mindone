@@ -94,6 +94,7 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
     outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
     outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
 
+    # todo: unavailable mint interface
     op_conv_transpose2d = ops.Conv2DTranspose(
         out_channel=out_channels,
         kernel_size=(kH, kW),
@@ -109,7 +110,7 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
 
     if bias is not None:
         assert isinstance(bias, ms.Tensor) and bias.ndim == 1
-        bias = bias.reshape(1, -1, 1)
+        bias = mint.reshape(bias, (1, -1, 1))
         outputs += bias
 
     return outputs
@@ -345,12 +346,12 @@ def upsample_nearest3d_free_interpolate(
 
     B, C, T, H, W = input.shape
     # interpolate H, W
-    x = interpolate(input.reshape(-1, T, H, W), size[1:])
+    x = interpolate(mint.reshape(input, (-1, T, H, W)), size[1:])
     # interpolate T
-    x = x.permute(0, 2, 3, 1).reshape(B * C, -1, T)
+    x = mint.reshape(mint.permute(x, (0, 2, 3, 1)), (B * C, -1, T))
     x = interpolate(x, size[0])
     # reshape to (b, c, t', h', w')
-    x = x.reshape(B, C, size[-2], size[-1], size[0]).permute(0, 1, 4, 2, 3)
+    x = mint.permute(mint.reshape(x, (B, C, size[-2], size[-1], size[0])), (0, 1, 4, 2, 3))
     return x
 
 
@@ -555,7 +556,7 @@ def _unflatten(input, dim, sizes):
 
     new_shape = shape[:dim] + sizes + shape[dim + 1 :]
 
-    return input.reshape(new_shape)
+    return mint.reshape(input, new_shape)
 
 
 unflatten = _unflatten

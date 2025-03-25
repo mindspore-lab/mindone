@@ -76,7 +76,7 @@ class LuminaNextDiTBlock(nn.Cell):
             out_bias=False,
             processor=LuminaAttnProcessor2_0(),
         )
-        self.attn1.to_out = nn.Identity()
+        self.attn1.to_out = mint.nn.Identity()
 
         # Cross-attention
         self.attn2 = Attention(

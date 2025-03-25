@@ -308,7 +308,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
 
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
+            decoded_slices = [self._decode(z_slice)[0] for z_slice in mint.split(z, 1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)[0]

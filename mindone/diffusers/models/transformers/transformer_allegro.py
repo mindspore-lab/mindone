@@ -16,7 +16,7 @@
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -107,7 +107,7 @@ class AllegroTransformerBlock(nn.Cell):
         )
 
         # 4. Scale-shift
-        self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -121,14 +121,14 @@ class AllegroTransformerBlock(nn.Cell):
         # 0. Self-Attention
         batch_size = hidden_states.shape[0]
 
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + temb.reshape(batch_size, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + mint.reshape(temb, (batch_size, 6, -1)), 6, dim=1
+        )
         norm_hidden_states = self.norm1(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
         # If input is of shape: (A×1×B), squeeze(input, 0) leaves the tensor unchanged. This function is not supported in MS.
         if norm_hidden_states.ndim == 4:
-            norm_hidden_states = norm_hidden_states.squeeze(1)
+            norm_hidden_states = mint.squeeze(norm_hidden_states, 1)
 
         attn_output = self.attn1(
             norm_hidden_states,
@@ -140,7 +140,7 @@ class AllegroTransformerBlock(nn.Cell):
 
         hidden_states = attn_output + hidden_states
         if hidden_states.ndim == 4:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         # 1. Cross-Attention
         if self.attn2 is not None:
@@ -165,7 +165,7 @@ class AllegroTransformerBlock(nn.Cell):
 
         # TODO(aryan): maybe following line is not required
         if hidden_states.ndim == 4:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         return hidden_states
 
@@ -288,9 +288,9 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         # 3. Output projection & norm
         self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.scale_shift_table = ms.Parameter(
-            ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
+            mint.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
         )
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * out_channels)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * out_channels)
 
         # 4. Timestep embeddings
         self.adaln_single = AdaLayerNormSingle(self.inner_dim, use_additional_conditions=False)
@@ -342,9 +342,10 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
             attention_mask = attention_mask[:, :num_frames]  # [batch_size, num_frames, height, width]
 
             if attention_mask.numel() > 0:
-                attention_mask = attention_mask.unsqueeze(1)  # [batch_size, 1, num_frames, height, width]
+                attention_mask = mint.squeeze(attention_mask, 1)  # [batch_size, 1, num_frames, height, width]
+                # todo: unavailable mint interface
                 attention_mask = ops.max_pool3d(attention_mask, kernel_size=(p_t, p, p), stride=(p_t, p, p))
-                attention_mask = attention_mask.flatten(start_dim=1).view(batch_size, 1, -1)
+                attention_mask = mint.flatten(attention_mask, start_dim=1).view(batch_size, 1, -1)
 
             attention_mask = (
                 (1 - attention_mask.bool().to(hidden_states.dtype)) * -10000.0 if attention_mask.numel() > 0 else None
@@ -353,7 +354,7 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(self.dtype)) * -10000.0
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
+            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
 
         # 1. Timestep embeddings
         timestep, embedded_timestep = self.adaln_single(
@@ -361,11 +362,13 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         )
 
         # 2. Patch embeddings
-        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
+        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
         hidden_states = self.pos_embed(hidden_states)
-        hidden_states = hidden_states.reshape(
-            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
-        ).flatten(start_dim=1, end_dim=2)
+        hidden_states = mint.flatten(
+            mint.reshape(hidden_states, (hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:])),
+            start_dim=1,
+            end_dim=2,
+        )
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states.view(batch_size, -1, encoder_hidden_states.shape[-1])
@@ -382,7 +385,7 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
             )
 
         # 4. Output normalization & projection
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        shift, scale = mint.chunk(self.scale_shift_table[None] + embedded_timestep[:, None], 2, dim=1)
         hidden_states = self.norm_out(hidden_states)
 
         # Modulation
@@ -390,14 +393,14 @@ class AllegroTransformer3DModel(ModelMixin, ConfigMixin):
         hidden_states = self.proj_out(hidden_states)
         # If input is of shape: (A×1×B), squeeze(input, 0) leaves the tensor unchanged. This function is not supported in MS.
         if hidden_states.ndim == 4:
-            hidden_states = hidden_states.squeeze(1)
+            hidden_states = mint.squeeze(hidden_states, 1)
 
         # 5. Unpatchify
-        hidden_states = hidden_states.reshape(
-            batch_size, post_patch_num_frames, post_patch_height, post_patch_width, p_t, p, p, -1
+        hidden_states = mint.reshape(
+            hidden_states, (batch_size, post_patch_num_frames, post_patch_height, post_patch_width, p_t, p, p, -1)
         )
-        hidden_states = hidden_states.permute(0, 7, 1, 4, 2, 5, 3, 6)
-        output = hidden_states.reshape(batch_size, -1, num_frames, height, width)
+        hidden_states = mint.permute(hidden_states, (0, 7, 1, 4, 2, 5, 3, 6))
+        output = mint.reshape(hidden_states, (batch_size, -1, num_frames, height, width))
 
         if not return_dict:
             return (output,)

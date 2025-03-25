@@ -16,7 +16,7 @@
 from typing import Dict, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -54,8 +54,8 @@ class AuraFlowPatchEmbed(nn.Cell):
         self.num_patches = (height // patch_size) * (width // patch_size)
         self.pos_embed_max_size = pos_embed_max_size
 
-        self.proj = nn.Dense(patch_size * patch_size * in_channels, embed_dim)
-        self.pos_embed = ms.Parameter(ops.randn(1, pos_embed_max_size, embed_dim) * 0.1, name="pos_embed")
+        self.proj = mint.nn.Linear(patch_size * patch_size * in_channels, embed_dim)
+        self.pos_embed = ms.Parameter(mint.randn(1, pos_embed_max_size, embed_dim) * 0.1, name="pos_embed")
 
         self.patch_size = patch_size
         self.height, self.width = height // patch_size, width // patch_size
@@ -66,7 +66,7 @@ class AuraFlowPatchEmbed(nn.Cell):
         # PE will be viewed as 2d-grid, and H/p x W/p of the PE will be selected
         # because original input are in flattened format, we have to flatten this 2d grid as well.
         h_p, w_p = h // self.patch_size, w // self.patch_size
-        original_pe_indexes = ops.arange(self.pos_embed.shape[1])
+        original_pe_indexes = mint.arange(self.pos_embed.shape[1])
         h_max, w_max = int(self.pos_embed_max_size**0.5), int(self.pos_embed_max_size**0.5)
         original_pe_indexes = original_pe_indexes.view(h_max, w_max)
         starth = h_max // 2 - h_p // 2
@@ -74,7 +74,7 @@ class AuraFlowPatchEmbed(nn.Cell):
         startw = w_max // 2 - w_p // 2
         endw = startw + w_p
         original_pe_indexes = original_pe_indexes[starth:endh, startw:endw]
-        return original_pe_indexes.flatten()
+        return mint.flatten(original_pe_indexes)
 
     def construct(self, latent):
         batch_size, num_channels, height, width = latent.shape
@@ -86,7 +86,9 @@ class AuraFlowPatchEmbed(nn.Cell):
             width // self.patch_size,
             self.patch_size,
         )
-        latent = latent.permute(0, 2, 4, 1, 3, 5).flatten(start_dim=-3).flatten(start_dim=1, end_dim=2)
+        latent = mint.flatten(
+            mint.flatten(mint.permute(latent, (0, 2, 4, 1, 3, 5)), start_dim=-3), start_dim=1, end_dim=2
+        )
         latent = self.proj(latent)
         pe_index = self.pe_selection_index_based_on_dim(height, width)
         return latent + self.pos_embed[:, pe_index]
@@ -103,12 +105,12 @@ class AuraFlowFeedForward(nn.Cell):
         final_hidden_dim = int(2 * hidden_dim / 3)
         final_hidden_dim = find_multiple(final_hidden_dim, 256)
 
-        self.linear_1 = nn.Dense(dim, final_hidden_dim, has_bias=False)
-        self.linear_2 = nn.Dense(dim, final_hidden_dim, has_bias=False)
-        self.out_projection = nn.Dense(final_hidden_dim, dim, has_bias=False)
+        self.linear_1 = mint.nn.Linear(dim, final_hidden_dim, bias=False)
+        self.linear_2 = mint.nn.Linear(dim, final_hidden_dim, bias=False)
+        self.out_projection = mint.nn.Linear(final_hidden_dim, dim, bias=False)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
-        x = ops.silu(self.linear_1(x)) * self.linear_2(x)
+        x = mint.nn.functional.silu(self.linear_1(x)) * self.linear_2(x)
         x = self.out_projection(x)
         return x
 
@@ -118,11 +120,11 @@ class AuraFlowPreFinalBlock(nn.Cell):
         super().__init__()
 
         self.silu = SiLU()
-        self.linear = nn.Dense(conditioning_embedding_dim, embedding_dim * 2, has_bias=False)
+        self.linear = mint.nn.Linear(conditioning_embedding_dim, embedding_dim * 2, bias=False)
 
     def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
         emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
-        scale, shift = ops.chunk(emb, 2, axis=1)
+        scale, shift = mint.chunk(emb, 2, dim=1)
         x = x * (1 + scale)[:, None, :] + shift[:, None, :]
         return x
 
@@ -161,10 +163,10 @@ class AuraFlowSingleTransformerBlock(nn.Cell):
         attn_output = self.attn(hidden_states=norm_hidden_states)
 
         # Process attention outputs for the `hidden_states`.
-        hidden_states = self.norm2(residual + gate_msa.unsqueeze(1) * attn_output)
+        hidden_states = self.norm2(residual + mint.unsqueeze(gate_msa, 1) * attn_output)
         hidden_states = hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
         ff_output = self.ff(hidden_states)
-        hidden_states = gate_mlp.unsqueeze(1) * ff_output
+        hidden_states = mint.unsqueeze(gate_mlp, 1) * ff_output
         hidden_states = residual + hidden_states
 
         return hidden_states
@@ -228,15 +230,17 @@ class AuraFlowJointTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        hidden_states = self.norm2(residual + gate_msa.unsqueeze(1) * attn_output)
+        hidden_states = self.norm2(residual + mint.unsqueeze(gate_msa, 1) * attn_output)
         hidden_states = hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
-        hidden_states = gate_mlp.unsqueeze(1) * self.ff(hidden_states)
+        hidden_states = mint.unsqueeze(gate_mlp, 1) * self.ff(hidden_states)
         hidden_states = residual + hidden_states
 
         # Process attention outputs for the `encoder_hidden_states`.
-        encoder_hidden_states = self.norm2_context(residual_context + c_gate_msa.unsqueeze(1) * context_attn_output)
+        encoder_hidden_states = self.norm2_context(
+            residual_context + mint.unsqueeze(c_gate_msa, 1) * context_attn_output
+        )
         encoder_hidden_states = encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
-        encoder_hidden_states = c_gate_mlp.unsqueeze(1) * self.ff_context(encoder_hidden_states)
+        encoder_hidden_states = mint.unsqueeze(c_gate_mlp, 1) * self.ff_context(encoder_hidden_states)
         encoder_hidden_states = residual_context + encoder_hidden_states
 
         return encoder_hidden_states, hidden_states
@@ -294,8 +298,8 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
             pos_embed_max_size=pos_embed_max_size,
         )
 
-        self.context_embedder = nn.Dense(
-            self.config.joint_attention_dim, self.config.caption_projection_dim, has_bias=False
+        self.context_embedder = mint.nn.Linear(
+            self.config.joint_attention_dim, self.config.caption_projection_dim, bias=False
         )
         self.time_step_embed = Timesteps(num_channels=256, downscale_freq_shift=0, scale=1000, flip_sin_to_cos=True)
         self.time_step_proj = TimestepEmbedding(in_channels=256, time_embed_dim=self.inner_dim)
@@ -322,11 +326,11 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         )
 
         self.norm_out = AuraFlowPreFinalBlock(self.inner_dim, self.inner_dim)
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=False)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=False)
 
         # https://arxiv.org/abs/2309.16588
         # prevents artifacts in the attention maps
-        self.register_tokens = ms.Parameter(ops.randn(1, 8, self.inner_dim) * 0.02, name="register_tokens")
+        self.register_tokens = ms.Parameter(mint.randn(1, 8, self.inner_dim) * 0.02, name="register_tokens")
 
         self.gradient_checkpointing = False
 
@@ -453,8 +457,8 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         temb = self.time_step_embed(timestep).to(dtype=hidden_states.dtype)
         temb = self.time_step_proj(temb)
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
-        encoder_hidden_states = ops.cat(
-            [self.register_tokens.tile((encoder_hidden_states.shape[0], 1, 1)), encoder_hidden_states], axis=1
+        encoder_hidden_states = mint.cat(
+            [mint.tile(self.register_tokens, (encoder_hidden_states.shape[0], 1, 1)), encoder_hidden_states], dim=1
         )
 
         # MMDiT blocks.
@@ -466,7 +470,7 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         # Single DiT blocks that combine the `hidden_states` (image) and `encoder_hidden_states` (text)
         if len(self.single_transformer_blocks) > 0:
             encoder_seq_len = encoder_hidden_states.shape[1]
-            combined_hidden_states = ops.cat([encoder_hidden_states, hidden_states], axis=1)
+            combined_hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
 
             for index_block, block in enumerate(self.single_transformer_blocks):
                 combined_hidden_states = block(hidden_states=combined_hidden_states, temb=temb)
@@ -482,12 +486,14 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         height = height // patch_size
         width = width // patch_size
 
-        hidden_states = hidden_states.reshape(
-            hidden_states.shape[0], height, width, patch_size, patch_size, out_channels
+        hidden_states = mint.reshape(
+            hidden_states, (hidden_states.shape[0], height, width, patch_size, patch_size, out_channels)
         )
         # hidden_states = torch.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
-        output = hidden_states.reshape(hidden_states.shape[0], out_channels, height * patch_size, width * patch_size)
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
+        output = mint.reshape(
+            hidden_states, (hidden_states.shape[0], out_channels, height * patch_size, width * patch_size)
+        )
 
         if not return_dict:
             return (output,)

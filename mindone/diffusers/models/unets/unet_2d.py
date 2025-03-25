@@ -160,7 +160,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity()
+            self.class_embedding = mint.nn.Identity()
         else:
             self.class_embedding = None
 

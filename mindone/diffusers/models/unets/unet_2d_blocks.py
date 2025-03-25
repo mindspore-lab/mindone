@@ -576,7 +576,7 @@ class AutoencoderTinyBlock(nn.Cell):
         self.skip = (
             mint.nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
             if in_channels != out_channels
-            else nn.Identity()
+            else mint.nn.Identity()
         )
         self.fuse = mint.nn.ReLU()
 

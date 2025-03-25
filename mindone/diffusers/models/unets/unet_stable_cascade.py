@@ -121,7 +121,7 @@ class UpDownBlock2d(nn.Cell):
         interpolation = (
             mint.nn.Upsample(scale_factor=2 if mode == "up" else 0.5, mode="bilinear", align_corners=True)
             if enabled
-            else nn.Identity()
+            else mint.nn.Identity()
         )
         mapping = mint.nn.Conv2d(in_channels, out_channels, kernel_size=1)
         self.blocks = nn.CellList([interpolation, mapping] if mode == "up" else [mapping, interpolation])
@@ -328,7 +328,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     )
                 )
             else:
-                down_downscalers.append(nn.Identity())
+                down_downscalers.append(mint.nn.Identity())
 
             down_block = []
             for _ in range(down_num_layers_per_block[i]):
@@ -374,7 +374,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                     )
                 )
             else:
-                up_upscalers.append(nn.Identity())
+                up_upscalers.append(mint.nn.Identity())
 
             up_block = []
             for j in range(up_num_layers_per_block[::-1][i]):

@@ -162,7 +162,7 @@ class LinearActivation(nn.Cell):
     def __init__(self, dim_in: int, dim_out: int, bias: bool = True, activation: str = "silu"):
         super().__init__()
 
-        self.proj = nn.Dense(dim_in, dim_out, has_bias=bias)
+        self.proj = mint.nn.Linear(dim_in, dim_out, bias=bias)
         self.activation = get_activation(activation)()
 
     def construct(self, hidden_states):

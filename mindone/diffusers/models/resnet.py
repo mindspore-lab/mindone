@@ -439,7 +439,7 @@ class ResidualTemporalBlock1D(nn.Cell):
             # todo: unavailable mint interface
             nn.Conv1d(inp_channels, out_channels, 1, has_bias=True)
             if inp_channels != out_channels
-            else nn.Identity()
+            else mint.nn.Identity()
         )
 
     def construct(self, inputs: ms.Tensor, t: ms.Tensor) -> ms.Tensor:
