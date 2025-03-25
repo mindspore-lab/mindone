@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ...utils._brownian import BrownianInterval
 from ..configuration_utils import ConfigMixin, register_to_config
@@ -54,7 +54,7 @@ class BatchedBrownianTree:
 
     def __init__(self, x, t0, t1, seed=None, **kwargs):
         t0, t1, self.sign = self.sort(t0, t1)
-        w0 = kwargs.get("w0", ops.zeros_like(x))
+        w0 = kwargs.get("w0", mint.zeros_like(x))
         if seed is None:
             seed = np.random.randint(0, 2**63 - 1, ()).item()
         self.batched = True
@@ -84,7 +84,7 @@ class BatchedBrownianTree:
 
     def __call__(self, t0, t1):
         t0, t1, sign = self.sort(t0, t1)
-        w = ops.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
+        w = mint.stack([tree(t0, t1) for tree in self.trees]) * (self.sign * sign)
         return w if self.batched else w[0]
 
 
@@ -110,7 +110,7 @@ class BrownianTreeNoiseSampler:
 
     def __call__(self, sigma, sigma_next):
         t0, t1 = self.transform(ms.Tensor(sigma)), self.transform(ms.Tensor(sigma_next))
-        return self.tree(t0, t1) / (t1 - t0).abs().sqrt()
+        return self.tree(t0, t1) / mint.sqrt(mint.abs((t1 - t0)))
 
 
 # Copied from diffusers.schedulers.scheduling_ddpm.betas_for_alpha_bar
@@ -227,10 +227,10 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         if trained_betas is not None:
             self.betas = ms.Tensor(trained_betas, dtype=ms.float32)
         elif beta_schedule == "linear":
-            self.betas = ops.linspace(beta_start, beta_end, num_train_timesteps)
+            self.betas = mint.linspace(beta_start, beta_end, num_train_timesteps)
         elif beta_schedule == "scaled_linear":
             # this schedule is very specific to the latent diffusion model.
-            self.betas = ops.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps) ** 2
+            self.betas = mint.linspace(beta_start**0.5, beta_end**0.5, num_train_timesteps) ** 2
         elif beta_schedule == "squaredcos_cap_v2":
             # Glide cosine schedule
             self.betas = betas_for_alpha_bar(num_train_timesteps)
@@ -238,7 +238,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         #  set all values
         self.set_timesteps(num_train_timesteps, num_train_timesteps)
@@ -254,7 +254,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        index_candidates_num = (schedule_timesteps == timestep).sum()
+        index_candidates_num = mint.sum((schedule_timesteps == timestep))
 
         if index_candidates_num == 0:
             step_index = len(self.timesteps) - 1
@@ -284,9 +284,9 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
     def init_noise_sigma(self):
         # standard deviation of the initial noise distribution
         if self.config.timestep_spacing in ["linspace", "trailing"]:
-            return self.sigmas.max()
+            return mint.max(self.sigmas)
 
-        return (self.sigmas.max() ** 2 + 1) ** 0.5
+        return (mint.max(self.sigmas) ** 2 + 1) ** 0.5
 
     @property
     def step_index(self):
@@ -377,6 +377,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
                 f"{self.config.timestep_spacing} is not supported. Please make sure to choose one of 'linspace', 'leading' or 'trailing'."
             )
 
+        # todo: unavailable mint interface
         if ops.is_tensor(self.alphas_cumprod):
             self.alphas_cumprod = self.alphas_cumprod.asnumpy()
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
@@ -397,11 +398,11 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
         sigmas = ms.Tensor(sigmas)
-        self.sigmas = ops.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
+        self.sigmas = mint.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
         timesteps = ms.Tensor(timesteps)
         second_order_timesteps = ms.Tensor(second_order_timesteps)
-        timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
+        timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         timesteps[1::2] = second_order_timesteps
 
         self.timesteps = timesteps
@@ -486,7 +487,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
         sigma_min = sigma_min if sigma_min is not None else in_sigmas[-1].item()
         sigma_max = sigma_max if sigma_max is not None else in_sigmas[0].item()
 
-        sigmas = ops.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
+        sigmas = mint.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps).exp()
         return sigmas
 
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._convert_to_beta
@@ -560,15 +561,15 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
 
         # Create a noise sampler if it hasn't been created yet
         if self.noise_sampler is None:
-            min_sigma, max_sigma = self.sigmas[self.sigmas > 0].min(), self.sigmas.max()
+            min_sigma, max_sigma = mint.min(self.sigmas[self.sigmas > 0]), mint.max(self.sigmas)
             self.noise_sampler = BrownianTreeNoiseSampler(sample, min_sigma, max_sigma, self.noise_sampler_seed)
 
         # Define functions to compute sigma and t from each other
         def sigma_fn(_t: ms.Tensor) -> ms.Tensor:
-            return _t.neg().exp()
+            return mint.exp(mint.neg(_t))
 
         def t_fn(_sigma: ms.Tensor) -> ms.Tensor:
-            return _sigma.log().neg()
+            return mint.neg(mint.log(_sigma))
 
         if self.state_in_first_order:
             sigma = self.sigmas[self.step_index]
@@ -616,7 +617,7 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             sigma_down = (sigma_to**2 - sigma_up**2) ** 0.5
             ancestral_t = t_fn(sigma_down)
             prev_sample = (
-                (sigma_fn(ancestral_t) / sigma_fn(t)) * sample - (t - ancestral_t).expm1() * pred_original_sample
+                (sigma_fn(ancestral_t) / sigma_fn(t)) * sample - mint.expm1(t - ancestral_t) * pred_original_sample
             ).to(model_output.dtype)
             prev_sample = prev_sample + (self.noise_sampler(sigma_fn(t), sigma_fn(t_next)) * s_noise * sigma_up).to(
                 model_output.dtype
@@ -665,10 +666,10 @@ class DPMSolverSDEScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = sigmas[step_indices].flatten()
+        sigma = mint.flatten(sigmas[step_indices])
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

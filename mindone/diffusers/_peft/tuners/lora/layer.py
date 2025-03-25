@@ -60,13 +60,13 @@ class LoraLayer(BaseTunerLayer):
         self.kwargs = kwargs
 
         base_layer = self.get_base_layer()
-        if isinstance(base_layer, nn.Dense):
+        if isinstance(base_layer, (nn.Dense, mint.nn.Conv2d)):
             in_features, out_features = base_layer.in_channels, base_layer.out_channels
         elif isinstance(base_layer, nn.Conv2d):
             in_features, out_features = base_layer.in_channels, base_layer.out_channels
         elif isinstance(base_layer, nn.Embedding):
             in_features, out_features = base_layer.vocab_size, base_layer.embedding_size
-        elif isinstance(base_layer, (mint.nn.Linear, mint.nn.Conv2d)):
+        elif isinstance(base_layer, mint.nn.Linear):
             in_features, out_features = base_layer.in_features, base_layer.out_features
         elif isinstance(base_layer, mint.nn.Embedding):
             in_features, out_features = base_layer.num_embeddings, base_layer.embedding_dim
@@ -220,7 +220,7 @@ class Linear(nn.Cell, LoraLayer):
                     orig_weights = base_layer.weight.clone()
                     orig_weights += self.get_delta_weight(active_adapter)
 
-                    if not ops.isfinite(orig_weights).all():
+                    if not mint.all(mint.isfinite(orig_weights)):
                         raise ValueError(
                             f"NaNs detected in the merged weights. The adapter {active_adapter} seems to be broken"
                         )

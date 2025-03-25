@@ -1796,7 +1796,7 @@ def swap_scale_shift(weight, dim):
 
 
 def swap_proj_gate(weight):
-    proj, gate = weight.chunk(2, axis=0)
+    proj, gate = mint.chunk(weight, 2, dim=0)
     new_weight = mint.cat([gate, proj], dim=0)
     return new_weight
 
@@ -2478,14 +2478,14 @@ def convert_autoencoder_dc_checkpoint_to_diffusers(checkpoint, **kwargs):
         qkv = state_dict.pop(key)
         q, k, v = mint.chunk(qkv, 3, dim=0)
         parent_module, _, _ = key.rpartition(".qkv.conv.weight")
-        state_dict[f"{parent_module}.to_q.weight"] = Parameter(q.squeeze(), name=f"{parent_module}.to_q.weight")
-        state_dict[f"{parent_module}.to_k.weight"] = Parameter(k.squeeze(), name=f"{parent_module}.to_k.weight")
-        state_dict[f"{parent_module}.to_v.weight"] = Parameter(v.squeeze(), name=f"{parent_module}.to_v.weight")
+        state_dict[f"{parent_module}.to_q.weight"] = Parameter(mint.squeeze(q), name=f"{parent_module}.to_q.weight")
+        state_dict[f"{parent_module}.to_k.weight"] = Parameter(mint.squeeze(k), name=f"{parent_module}.to_k.weight")
+        state_dict[f"{parent_module}.to_v.weight"] = Parameter(mint.squeeze(v), name=f"{parent_module}.to_v.weight")
 
     def remap_proj_conv_(key: str, state_dict):
         parent_module, _, _ = key.rpartition(".proj.conv.weight")
         state_dict[f"{parent_module}.to_out.weight"] = Parameter(
-            state_dict.pop(key).squeeze(), name=f"{parent_module}.to_out.weight"
+            mint.squeeze(state_dict.pop(key)), name=f"{parent_module}.to_out.weight"
         )
 
     AE_KEYS_RENAME_DICT = {
@@ -2590,7 +2590,7 @@ def convert_mochi_transformer_checkpoint_to_diffusers(checkpoint, **kwargs):
 
         # Visual attention
         qkv_weight = checkpoint.pop(old_prefix + "attn.qkv_x.weight")
-        q, k, v = qkv_weight.chunk(3, axis=0)
+        q, k, v = mint.chunk(qkv_weight, 3, dim=0)
 
         new_state_dict[block_prefix + "attn1.to_q.weight"] = Parameter(q, name=block_prefix + "attn1.to_q.weight")
         new_state_dict[block_prefix + "attn1.to_k.weight"] = Parameter(k, name=block_prefix + "attn1.to_k.weight")
@@ -2602,7 +2602,7 @@ def convert_mochi_transformer_checkpoint_to_diffusers(checkpoint, **kwargs):
 
         # Context attention
         qkv_weight = checkpoint.pop(old_prefix + "attn.qkv_y.weight")
-        q, k, v = qkv_weight.chunk(3, axis=0)
+        q, k, v = mint.chunk(qkv_weight, 3, dim=0)
 
         new_state_dict[block_prefix + "attn1.add_q_proj.weight"] = Parameter(
             q, name=block_prefix + "attn1.add_q_proj.weight"
@@ -2649,7 +2649,7 @@ def convert_mochi_transformer_checkpoint_to_diffusers(checkpoint, **kwargs):
 def convert_hunyuan_video_transformer_to_diffusers(checkpoint, **kwargs):
     def remap_norm_scale_shift_(key, state_dict):
         weight = state_dict.pop(key)
-        shift, scale = weight.chunk(2, axis=0)
+        shift, scale = mint.chunk(weight, 2, dim=0)
         new_weight = mint.cat([scale, shift], dim=0)
         new_key = key.replace("final_layer.adaLN_modulation.1", "norm_out.linear")
         state_dict[new_key] = Parameter(new_weight, name=new_key)
@@ -2667,7 +2667,7 @@ def convert_hunyuan_video_transformer_to_diffusers(checkpoint, **kwargs):
 
         if "self_attn_qkv" in key:
             weight = state_dict.pop(key)
-            to_q, to_k, to_v = weight.chunk(3, axis=0)
+            to_q, to_k, to_v = mint.chunk(weight, 3, dim=0)
             state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_q"))] = Parameter(
                 to_q, name=rename_key(key.replace("self_attn_qkv", "attn.to_q"))
             )
@@ -2682,7 +2682,7 @@ def convert_hunyuan_video_transformer_to_diffusers(checkpoint, **kwargs):
 
     def remap_img_attn_qkv_(key, state_dict):
         weight = state_dict.pop(key)
-        to_q, to_k, to_v = weight.chunk(3, axis=0)
+        to_q, to_k, to_v = mint.chunk(weight, 3, dim=0)
         state_dict[key.replace("img_attn_qkv", "attn.to_q")] = Parameter(
             to_q, name=key.replace("img_attn_qkv", "attn.to_q")
         )
@@ -2695,7 +2695,7 @@ def convert_hunyuan_video_transformer_to_diffusers(checkpoint, **kwargs):
 
     def remap_txt_attn_qkv_(key, state_dict):
         weight = state_dict.pop(key)
-        to_q, to_k, to_v = weight.chunk(3, axis=0)
+        to_q, to_k, to_v = mint.chunk(weight, 3, dim=0)
         state_dict[key.replace("txt_attn_qkv", "attn.add_q_proj")] = Parameter(
             to_q, name=key.replace("txt_attn_qkv", "attn.add_q_proj")
         )
