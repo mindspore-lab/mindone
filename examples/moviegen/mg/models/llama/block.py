@@ -71,7 +71,7 @@ class LlamaAttention(nn.Cell):
         dtype: ms.Type = ms.float32,
     ) -> None:
         super().__init__()
-
+        self.dtype = dtype
         self.attention_dropout = attention_dropout
         self.hidden_size = hidden_size
         self.num_heads = num_attention_heads
@@ -191,7 +191,16 @@ class LlamaFlashAttention(LlamaAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
+        if self.dtype == ms.float32:  # MS2.5.0 doesn't support FP32 for FA
+            query_states = query_states.to(ms.bfloat16)
+            key_states = key_states.to(ms.bfloat16)
+            value_states = value_states.to(ms.bfloat16)
+
         _, _, _, attn_output = self.flash_attention(query_states, key_states, value_states, None, None, None, None)
+
+        if self.dtype == ms.float32:
+            attn_output = attn_output.to(ms.float32)
+
         attn_output = mint.permute(attn_output, (0, 2, 1, 3))
         attn_output = self.alltoall(attn_output)
         attn_output = ops.reshape(attn_output, (bsz, q_len, -1))

@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from mindspore import Tensor
 from mindspore import dtype as mstype
-from mindspore import mint, nn, ops
+from mindspore import mint, nn, ops, tensor
 from mindspore.communication import get_rank
 
 from ..acceleration import get_sequence_parallel_group
@@ -104,6 +104,7 @@ class RFlowLossWrapper(nn.Cell):
 
         self.model = model
         self.criteria = nn.MSELoss()
+        self._timesteps = tensor(np.linspace(1, num_timesteps, num_timesteps, dtype=np.float32))
 
         self.broadcast = None
         if (sp_group := get_sequence_parallel_group()) is not None:
@@ -140,7 +141,8 @@ class RFlowLossWrapper(nn.Cell):
         x = x.to(mstype.float32)
 
         if timestep is None:
-            timestep = self._sample_func(x.shape[0])
+            u = self._sample_func(x.shape[0]).to(mstype.int32)
+            timestep = self._timesteps[u]
         timestep = self._broadcast(timestep)
 
         noise = self._broadcast(ops.randn_like(x))
@@ -169,7 +171,7 @@ class RFlowLossWrapper(nn.Cell):
         timesteps = timesteps[:, None, None, None, None]
 
         # 3.1.2 First Eqa.
-        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise  # TODO: check for zero SNR
+        return timesteps * x + (1 - (1 - self.eps) * timesteps) * noise
 
 
 class RFlowEvalLoss(nn.Cell):

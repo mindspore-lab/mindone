@@ -65,12 +65,12 @@ this project!
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.3.1   |   24.1.RC2    | 7.3.0.1.231 |    8.0.RC2.beta1    |
+|   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
 
 </div>
 
 1. Install
-   [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1)
+   [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
    and MindSpore according to the [official instructions](https://www.mindspore.cn/install).
 2. Install requirements
     ```shell

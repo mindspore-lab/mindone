@@ -93,14 +93,15 @@ def init_model(
     dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
 ) -> LlamaModel:
     attn_implementation = "flash_attention" if enable_flash_attention else "eager"
-    model = MODEL_SPEC[name](
-        in_channels=in_channels,
-        attn_implementation=attn_implementation,
-        recompute_every_nth_block=recompute_every_nth_block,
-        not_recompute_fa=not_recompute_fa,
-        max_length=max_length,
-        dtype=MODEL_DTYPE[dtype],
-    )
+    with nn.no_init_parameters():
+        model = MODEL_SPEC[name](
+            in_channels=in_channels,
+            attn_implementation=attn_implementation,
+            recompute_every_nth_block=recompute_every_nth_block,
+            not_recompute_fa=not_recompute_fa,
+            max_length=max_length,
+            dtype=MODEL_DTYPE[dtype],
+        )
 
     if resume:
         logger.info("Resume training checkpoint provided, skipping weight loading.")
@@ -108,6 +109,8 @@ def init_model(
         load_ckpt_params(model, pretrained_model_path.absolute)
     else:
         logger.info(f"Initialize {name} model randomly.")
+    # initialize uninitialized parameters, if any
+    model.init_parameters_data()
     return model
 
 

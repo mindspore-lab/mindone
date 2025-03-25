@@ -28,6 +28,7 @@ dataset:
   empty_text_emb:
     ul2: EMPTY_TEXT_EMB
     byt5: EMPTY_TEXT_EMB
+  sample_n_frames: 1
   deterministic_sample: False
   text_drop_prob: 0.2
   target_size: 256px
@@ -101,6 +102,7 @@ valid:
     text_emb_folder:
       ul2: UL2_FOLDER
       byt5: BYT5_FOLDER
+    sample_n_frames: 1
     deterministic_sample: True
     target_size: 256px
     apply_transforms_dataset: True
