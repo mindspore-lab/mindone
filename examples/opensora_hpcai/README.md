@@ -400,6 +400,7 @@ Experiments are conducted on Ascend 910* with MindSpore 2.5.0 in PyNative mode.
 |  Model Name   | Stage | Cards | Batch Size | Resolution  | Precision | Step | s/image | s/video |                       Recipe                       |
 |:-------------:|:-----:|:-----:|:----------:|:-----------:|:---------:|:----:|:-------:|:-------:|:--------------------------------------------------:|
 | FLUX.1 \[dev] |  T2I  |   1   |     1      |    768px    |   bf16    |  50  |  14.7s  |    -    | [yaml](configs/opensora-v2-0/inference/768px.yaml) |
+| OpenSora 2.0  | T/I2V |   1   |     1      | 129 x 256px |   bf16    |  50  |    -    |  156s   | [yaml](configs/opensora-v2-0/inference/256px.yaml) |
 | OpenSora 2.0  | T/I2V |   1   |     1      | 77 x 768px  |   bf16    |  50  |    -    |  1453s  | [yaml](configs/opensora-v2-0/inference/768px.yaml) |
 | OpenSora 2.0  | T/I2V |   1   |     1      | 129 x 768px |   bf16    |  50  |    -    |  4973s  | [yaml](configs/opensora-v2-0/inference/768px.yaml) |
 
