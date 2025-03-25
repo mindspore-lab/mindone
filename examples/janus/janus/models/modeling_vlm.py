@@ -321,7 +321,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # these reshape ops is to solve the wierd error in InferShape in MS
         inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
-        image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
+        image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
         # another way: inputs_embeds = inputs_embeds * (1 - image_seq_mask) + ops.stop_gradient(image_embeds) * image_seq_mask.to(ms.int)
         # FIXME: this inplace op doens't support in graph mode
@@ -404,7 +404,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # these reshape ops is to solve the wierd error in InferShape in MS
         inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
-        image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
+        image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
         # FIXME: fix as gen_with_loss to support graph mode
         inputs_embeds[image_seq_mask] = image_embeds  # ops.stop_gradient(image_embeds)
