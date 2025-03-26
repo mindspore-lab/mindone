@@ -85,18 +85,20 @@ You can download the [toy dataset](https://github.com/VectorSpaceLab/OmniGen/tre
 We provide a training script `train.py` to fine-tune OmniGen.
 Here is a toy example about LoRA finetune:
 ```bash
-python  train.py --model_name_or_path pretrained_model/  
-                 --batch_size_per_device 1  
-                 --condition_dropout_prob 0.01  
-                 --lr 1e-3     --use_lora     --lora_rank 8  
-                 --json_file ./toy_data/toy_subject_data.jsonl  
-                 --image_path ./toy_data/images  
-                 --max_input_length_limit 18000  
-                 --max_image_size 512  
-                 --gradient_accumulation_steps 1  
-                 --ckpt_every 50     --epochs 1     --log_every 1    --dtype bf16
-                 --results_dir ./results/lora_training  
-                 --model_weight models/omnigen.ckpt
+python  train.py --model_name_or_path pretrained_model/  \
+                 --batch_size_per_device 1  \
+                 --mode 0 \
+                 --condition_dropout_prob 0.01  \
+                 --lr 1e-3  --use_lora  --lora_rank 8  \
+                 --json_file ./toy_data/toy_subject_data.jsonl  \
+                 --image_path ./toy_data/images  \
+                 --max_input_length_limit 18000  \
+                 --max_image_size 512  \
+                 --gradient_accumulation_steps 1  \
+                 --ckpt_every 50  --epochs 400 \
+                 --log_every 1  --dtype bf16 \
+                 --results_dir ./results/lora_training  \
+                 --model_weight models/omnigen.ckpt \
 ```
 
 
@@ -116,7 +118,7 @@ Experiments are tested on ascend 910* with mindspore 2.4.10 **pynative** mode, u
 | model     | task | cards   | image size |  step time (s/img) |
 |---------------|:-------:|:-----------:|:------------:|:------------:|
 | OmniGen       | Text to Image | 1     | 1024 x 1024    |  84s   |
-| OmniGen       | Subject-driven generation | 1  |  1024 x 1024    |  150s ~ 220s  |
+| OmniGen       | Subject-driven generation | 1  |  1024 x 1024    |  150s (1 inputs) ~ 220s (2 inputs)  |
 
 ## License
 This repo is licensed under the [MIT License](LICENSE).

@@ -1,7 +1,7 @@
 import os
 import time
 
-from omnigen import OmniGenPipeline
+from omnigen.pipeline import OmniGenPipeline
 
 import mindspore as ms
 

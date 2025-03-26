@@ -80,9 +80,7 @@ def main(args):
     # 2.2 VAE
     # Keep VAE freeze and compute in float32
     logger.info("vae init")
-
-    vae = AutoencoderKL.from_pretrained("{}/vae".format(args.model_path), mindspore_dtype=ms.float32)
-
+    vae = AutoencoderKL.from_pretrained(os.path.join(args.model_path, "vae"), mindspore_dtype=ms.float32)
     freeze_params(vae)
 
     # 2.3 Processor
@@ -315,7 +313,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument("--results_dir", type=str, default="results")
-    parser.add_argument("--model_name_or_path", type=str, default="Shitao/OmniGen-v1")
+    parser.add_argument("--model_path", type=str, default="pretrained_model")
     parser.add_argument("--model_weight", type=str)
     parser.add_argument("--json_file", type=str)
     parser.add_argument("--image_path", type=str, default=None)
