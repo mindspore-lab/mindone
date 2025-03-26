@@ -783,6 +783,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 current_timestep = t
+                # todo: unavailable mint interface
                 if not ops.is_tensor(current_timestep):
                     if isinstance(current_timestep, float):
                         dtype = ms.float64

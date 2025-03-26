@@ -689,7 +689,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         image = image.to(dtype=self.unet.dtype)
 
-        image = image.repeat_interleave(num_images_per_prompt, dim=0)
+        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
 
         return image
 
@@ -721,7 +721,7 @@ class IFImg2ImgSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
 
-        image = image.repeat_interleave(num_images_per_prompt, dim=0)
+        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
         image = self.scheduler.add_noise(image, noise, timestep)
 
         return image

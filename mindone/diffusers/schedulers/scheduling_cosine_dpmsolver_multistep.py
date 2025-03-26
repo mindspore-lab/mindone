@@ -104,7 +104,7 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         self.timesteps = self.precondition_noise(sigmas)
 
-        self.sigmas = mint.cat([sigmas, mint.zeros(1, sigmas.dtype)])
+        self.sigmas = mint.cat([sigmas, mint.zeros(1, dtype=sigmas.dtype)])
 
         # setable values
         self.num_inference_steps = None

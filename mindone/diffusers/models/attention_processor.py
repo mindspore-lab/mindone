@@ -3116,11 +3116,11 @@ class StableAudioAttnProcessor2_0:
 
         # the output of sdp = (batch, num_heads, seq_len, head_dim)
         # TODO: add support for attn.scale when we move to Torch 2.1
-        # hidden_states = F.scaled_dot_product_attention(
-        #     query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
-        # )
-        attention_probs = attn.get_attention_scores(query, key, attention_mask)
-        hidden_states = mint.bmm(attention_probs, value)
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+        # attention_probs = attn.get_attention_scores(query, key, attention_mask)
+        # hidden_states = mint.bmm(attention_probs, value)
 
         hidden_states = mint.reshape(mint.transpose(hidden_states, 1, 2), (batch_size, -1, attn.heads * head_dim))
         hidden_states = hidden_states.to(query.dtype)

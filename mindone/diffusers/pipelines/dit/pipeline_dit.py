@@ -176,6 +176,7 @@ class DiTPipeline(DiffusionPipeline):
             latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
             timesteps = t
+            # todo: unavailable mint interface
             if not ops.is_tensor(timesteps):
                 # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
                 # This would be a good case for the `match` statement (Python 3.10+)
