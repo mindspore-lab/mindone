@@ -288,7 +288,7 @@ class FiT(nn.Cell):
         self.apply(_basic_init)
 
         # Initialize label embedding table:
-        normal_(self.y_embedder.embedding_table.embedding_table, std=0.02)
+        normal_(self.y_embedder.embedding_table.weight, std=0.02)
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
