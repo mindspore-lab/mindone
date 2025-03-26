@@ -251,10 +251,10 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
 
 | model name   | cards | batch size | resolution   | recompute | sink | jit level |graph compile | s/step | img/s | config                                                               |
 |:------------:|:-----:|:----------:|:------------:|:----------:|:---------:|:---------:|:---------:|:---------:|:-------------:|:--------------------------------------------------------------------|
-| PixArt-Sigma | 4     | 64         | 256x256      | ON        | OFF       | O1  |3~5 mins      | 2.652s    | 96.5          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
-| PixArt-Sigma | 4     | 32         | 512 (multi)  | ON        | OFF       | O1  |3~5 mins      | 3.223s    | 39.7          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
-| PixArt-Sigma | 4     | 12         | 1024 (multi) | ON        | OFF       | O1  |3~5 mins      | 5.141s    | 9.3           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
-| PixArt-Sigma | 4     | 1          | 2048 (multi) | ON        | OFF       | O1  |3~5 mins      | 5.702s    | 0.7           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
+| PixArt-Sigma | 4     | 64         | 256x256      | ON        | OFF       | O1  |3~5 mins      | 2.652    | 96.5          | [pixart-sigma-256x256.yaml](configs/train/pixart-sigma-256x256.yaml) |
+| PixArt-Sigma | 4     | 32         | 512 (multi)  | ON        | OFF       | O1  |3~5 mins      | 3.223    | 39.7          | [pixart-sigma-512-MS.yaml](configs/train/pixart-sigma-512-MS.yaml)   |
+| PixArt-Sigma | 4     | 12         | 1024 (multi) | ON        | OFF       | O1  |3~5 mins      | 5.141    | 9.3           | [pixart-sigma-1024-MS.yaml](configs/train/pixart-sigma-1024-MS.yaml) |
+| PixArt-Sigma | 4     | 1          | 2048 (multi) | ON        | OFF       | O1  |3~5 mins      | 5.702    | 0.7           | [pixart-sigma-2K-MS.yaml](configs/train/pixart-sigma-2K-MS.yaml)     |
 
 > s/step: training time measured in the number of seconds for each training step.\
 > imgs/s: images per second during training. imgs/s = cards * batch_size / step time
