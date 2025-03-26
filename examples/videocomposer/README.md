@@ -148,7 +148,7 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
 |:-----------:|:---------------:|:-------------:|:---------------------:|
-| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+| 2.5     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC3.beta1       |
 
 
 Python: 3.7 or higher.
