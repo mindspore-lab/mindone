@@ -5,4 +5,4 @@ omegaconf
 torch
 opencv-python
 ezcolorlog
-mindcv
+mindcv==0.3.0
