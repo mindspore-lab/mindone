@@ -82,8 +82,7 @@ python infer.py
 
 You can download the [toy dataset](https://github.com/VectorSpaceLab/OmniGen/tree/main/toy_data) of the original OmniGen implementation.
 
-We provide a training script `train.py` to fine-tune OmniGen.
-Here is a toy example about LoRA finetune:
+We offer a training script called `train.py` that allows you to fine-tune the OmniGen model. Below is a simple example demonstrating how to perform LoRA fine-tuning:
 ```bash
 python  train.py --model_name_or_path pretrained_model/  \
                  --batch_size_per_device 1  \
@@ -95,13 +94,16 @@ python  train.py --model_name_or_path pretrained_model/  \
                  --max_input_length_limit 18000  \
                  --max_image_size 512  \
                  --gradient_accumulation_steps 1  \
-                 --ckpt_every 50  --epochs 400 \
+                 --ckpt_every 200  --epochs 200 \
                  --log_every 1  --dtype bf16 \
                  --results_dir ./results/lora_training  \
                  --model_weight models/omnigen.ckpt \
 ```
 
-
+After training, you can run inference with your fine-tuned LoRA weights:
+```bash
+python infer_lora.py --lora_path PATH_TO_LORA
+```
 ## Performance
 
 ### Training
@@ -109,7 +111,7 @@ Experiments are tested on ascend 910* with mindspore 2.4.10, using `bfloat16`.
 
 | model     | cards | recompute      | mode  | image size | attn  | batch size | step time (s/step) |
 |---------------|:-------:|:-------:|:-----------:|:------------:|:------------:|:------------:|:--------------------:|
-| OmniGen       | 1     | ✗| graph     | 512x512    | eager | 1                    | 0.33               |
+| OmniGen       | 1     | ✗| graph     | 512x512    | eager | 1                    | 0.31             |
 | OmniGen       | 1     | ✓| graph     | 512x512    | eager | 1                    | 0.42              |
 | OmniGen    | 1     | ✓|graph     | 1024x1024    | eager | 1                   | 3.2               |
 ### Inference

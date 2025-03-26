@@ -227,14 +227,14 @@ def main(args):
 
                     logger.info(f"Saved state to {save_path}")
 
-            logs = {"loss": loss.numpy().item()}  # , "lr": optimizer.get_lr().numpy().item()}
+            logs = {"loss": loss.numpy().item(), "lr": optimizer.get_lr().numpy().item()}
             progress_bar.set_postfix(**logs)
 
             trackers = {"tensorboard": SummaryWriter(log_dir=os.path.join(args.results_dir, "logs"))}
             for tracker_name, tracker in trackers.items():
                 if tracker_name == "tensorboard":
                     tracker.add_scalar("train/loss", logs["loss"], global_step)
-                    # tracker.add_scalar("train/lr", logs["lr"], global_step)
+                    tracker.add_scalar("train/lr", logs["lr"], global_step)
             if global_step >= max_train_steps:
                 break
 
@@ -359,8 +359,8 @@ if __name__ == "__main__":
         help="Specify the [beta1, beta2] parameter for the AdamW optimizer.",
     )
     parser.add_argument("--weight_decay", default=0.0, type=float, help="Weight decay.")
-    parser.add_argument("--warmup_steps", default=10, type=int, help="warmup steps")
-    parser.add_argument("--end_learning_rate", default=1e-7, type=float, help="The end learning rate for Adam.")
+    parser.add_argument("--warmup_steps", default=0, type=int, help="warmup steps")
+    parser.add_argument("--end_learning_rate", default=1e-3, type=float, help="The end learning rate for Adam.")
     parser.add_argument("--decay_steps", default=0, type=int, help="lr decay steps.")
     parser.add_argument(
         "--gradient_accumulation_steps",

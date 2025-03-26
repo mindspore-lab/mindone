@@ -1,6 +1,6 @@
 from argparse import ArgumentParser
 
-from omnigen import OmniGenPipeline
+from omnigen.pipeline import OmniGenPipeline
 
 import mindspore as ms
 
@@ -8,9 +8,9 @@ import mindspore as ms
 def parse_args():
     parser = ArgumentParser()
     parser.add_argument(
-        "--model_id",
+        "--model_path",
         type=str,
-        default="Shitao/OmniGen-v1",
+        default="./pretrained_model",
         help="Model ID from huggingface hub or local path",
     )
     parser.add_argument(
