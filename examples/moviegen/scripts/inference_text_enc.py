@@ -22,7 +22,7 @@ sys.path.append(os.path.join(__dir__, ".."))
 from mg.utils import MODEL_DTYPE, to_numpy
 
 from mindone.transformers.models.t5.modeling_t5 import T5EncoderModel
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
-    _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
+    _, rank_id, device_num = init_env(**args.env)
 
     paths, captions = prepare_captions(args.prompts_file, args.output_path, args.column_names, rank_id, device_num)
 
@@ -117,7 +117,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Text embeddings generation script.")
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_argument("--model_name", type=str, default="google/byt5-small", help="Text encoder model name.")
     parser.add_argument(
         "--dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="Text encoder model precision."
