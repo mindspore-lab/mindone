@@ -26,7 +26,7 @@ python emu3/train/train_seq_parallel.py \
     --image_area 100 \
     --max_position_embeddings 2560 \
     --output_dir ${LOG_DIR} \
-    --num_train_epochs 50 \
+    --num_train_epochs 4 \
     --per_device_train_batch_size 1 \
     --gradient_accumulation_steps 1 \
     --save_steps 1 \
@@ -41,7 +41,7 @@ python emu3/train/train_seq_parallel.py \
     --adam_epsilon 1e-6 \
     --warmup_steps 30 \
     --lr_scheduler_type "cosine_with_min_lr" \
-    --logging_steps 1 \
+    --logging_steps 10 \
     --gradient_checkpointing True \
     --run_name ${EXP_NAME} \
     --loss_scaler_type dynamic \

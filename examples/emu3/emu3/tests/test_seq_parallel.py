@@ -103,7 +103,7 @@ def run_network(mode: int = 0, dtype: ms.Type = ms.float32):
 
     # prepare data
     ms.set_seed(1024)
-    data = get_sample_data(dtype=dtype)
+    data = get_sample_data()
 
     run_parallel_network(data, dtype=dtype)
 

@@ -818,6 +818,8 @@ class Emu3Model(Emu3PreTrainedModel):
         self.embed_tokens = value
 
     def recompute(self, cell, **recompute_kwargs):
+        if isinstance(cell, nn.Dropout):
+            return
         if not cell._has_config_recompute:
             cell.recompute(**recompute_kwargs)
         if isinstance(cell, nn.CellList):
@@ -880,6 +882,7 @@ class Emu3Model(Emu3PreTrainedModel):
                 use_cache = False
 
         past_key_values_length = 0
+        use_legacy_cache = False
         if use_cache:
             use_legacy_cache = not isinstance(past_key_values, Cache) and self._supports_cache_class
             if use_legacy_cache:  # CFG logit processor use

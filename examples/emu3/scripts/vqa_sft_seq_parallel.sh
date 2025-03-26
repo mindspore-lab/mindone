@@ -41,7 +41,7 @@ python emu3/train/train_seq_parallel.py \
     --adam_epsilon 1e-6 \
     --warmup_steps 30 \
     --lr_scheduler_type "cosine_with_min_lr" \
-    --logging_steps 1 \
+    --logging_steps 10 \
     --gradient_checkpointing True \
     --run_name ${EXP_NAME} \
     --loss_scaler_type dynamic \
