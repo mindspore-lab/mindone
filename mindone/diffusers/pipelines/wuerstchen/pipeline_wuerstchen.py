@@ -146,7 +146,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
 
         text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
         text_encoder_hidden_states = text_encoder_output[0]
-        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
 
         uncond_text_encoder_hidden_states = None
         if do_classifier_free_guidance:

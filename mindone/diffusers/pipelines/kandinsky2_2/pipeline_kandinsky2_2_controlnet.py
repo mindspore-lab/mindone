@@ -233,9 +233,9 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
         batch_size = image_embeds.shape[0] * num_images_per_prompt
 
         if do_classifier_free_guidance:
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            hint = hint.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
+            hint = mint.repeat_interleave(hint, num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
             hint = mint.cat([hint, hint], dim=0).to(dtype=self.unet.dtype)

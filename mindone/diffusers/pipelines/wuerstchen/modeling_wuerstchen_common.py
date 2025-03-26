@@ -59,7 +59,7 @@ class GlobalResponseNorm(nn.Cell):
 
     def construct(self, x):
         agg_norm = mint.norm(x, p=2, dim=(1, 2), keepdim=True)
-        stand_div_norm = agg_norm / (agg_norm.mean(axis=-1, keep_dims=True) + 1e-6)
+        stand_div_norm = agg_norm / (mint.mean(agg_norm, dim=-1, keepdim=True) + 1e-6)
         return self.gamma * (x * stand_div_norm) + self.beta + x
 
 

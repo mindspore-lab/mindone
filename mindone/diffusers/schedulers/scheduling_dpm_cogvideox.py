@@ -321,7 +321,7 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
             return h, None, lamb, lamb_next
 
     def get_mult(self, h, r, alpha_prod_t, alpha_prod_t_prev, alpha_prod_t_back):
-        mult1 = mint.exp(((1 - alpha_prod_t_prev) / (1 - alpha_prod_t)) ** 0.5 * (-h))
+        mult1 = ((1 - alpha_prod_t_prev) / (1 - alpha_prod_t)) ** 0.5 * mint.exp(-h)
         mult2 = mint.expm1(-2 * h) * alpha_prod_t_prev**0.5
 
         if alpha_prod_t_back is not None:
