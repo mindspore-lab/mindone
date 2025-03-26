@@ -2,7 +2,9 @@ from typing import Tuple
 
 from models import VAR, VQVAE
 
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
+
+from .utils import no_grad
 
 
 class GeneratorWithLoss(nn.Cell):
@@ -43,10 +45,10 @@ class GeneratorWithLoss(nn.Cell):
         # forward
         B, V = label_B.shape[0], self.vae_local.vocab_size
 
-        gt_idx_Bl = self.vae_local.img_to_idxBl(inp_B3HW)
+        with no_grad():
+            gt_idx_Bl = ops.stop_gradient(self.vae_local.img_to_idxBl(inp_B3HW))
+            x_BLCv_wo_first_l = ops.stop_gradient(self.quantize_local.idxBl_to_var_input(gt_idx_Bl))
         gt_BL = mint.cat(gt_idx_Bl, dim=1)
-        x_BLCv_wo_first_l = self.quantize_local.idxBl_to_var_input(gt_idx_Bl)
-
         logits_BLV = self.var(label_B, x_BLCv_wo_first_l)
         loss = self.train_loss(logits_BLV.view((-1, V)), gt_BL.view((-1))).view((B, -1))
         if prog_si >= 0:  # in progressive training

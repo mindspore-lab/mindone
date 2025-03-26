@@ -3,7 +3,26 @@ import os
 from typing import List, Union
 
 import mindspore as ms
-from mindspore import mint
+from mindspore import _no_grad, mint
+
+
+@ms.jit_class
+class no_grad(_no_grad):
+    """
+    A context manager that suppresses gradient memory allocation in PyNative mode.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+
+    def __enter__(self):
+        if self._pynative:
+            super().__enter__()
+
+    def __exit__(self, *args):
+        if self._pynative:
+            super().__exit__(*args)
 
 
 def make_grid(
