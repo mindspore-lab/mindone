@@ -432,7 +432,7 @@ class StableDiffusionXLPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -444,14 +444,14 @@ class StableDiffusionXLPipeline(
             else:
                 negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.unet.dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
+        pooled_prompt_embeds = mint.tile(pooled_prompt_embeds, (1, num_images_per_prompt)).view(
             bs_embed * num_images_per_prompt, -1
         )
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
+            negative_pooled_prompt_embeds = mint.tile(negative_pooled_prompt_embeds, (1, num_images_per_prompt)).view(
                 bs_embed * num_images_per_prompt, -1
             )
 
@@ -478,17 +478,17 @@ class StableDiffusionXLPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
-                num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = mint.repeat_interleave(
+                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -527,16 +527,19 @@ class StableDiffusionXLPipeline(
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
                     single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
-                    single_image_embeds = single_image_embeds.tile(
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
+                    single_image_embeds = mint.tile(
+                        single_image_embeds,
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
                     )
-                    single_negative_image_embeds = single_negative_image_embeds.tile(
-                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
+                    single_negative_image_embeds = mint.tile(
+                        single_negative_image_embeds,
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))),
                     )
                     single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
-                    single_image_embeds = single_image_embeds.tile(
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
+                    single_image_embeds = mint.tile(
+                        single_image_embeds,
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
                     )
                 image_embeds.append(single_image_embeds)
 
@@ -1081,7 +1084,7 @@ class StableDiffusionXLPipeline(
             add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
             add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
-        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
+        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -1113,7 +1116,7 @@ class StableDiffusionXLPipeline(
         # 9. Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
+            guidance_scale_tensor = mint.tile(ms.tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)

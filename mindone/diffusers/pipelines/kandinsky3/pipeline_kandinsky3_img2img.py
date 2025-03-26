@@ -545,8 +545,8 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
         # 5. Prepare latents
         latents = self.movq.encode(image)[0]
-        latents = latents.repeat_interleave(num_images_per_prompt, dim=0)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
+        latents = mint.repeat_interleave(latents, num_images_per_prompt, dim=0)
+        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
         latents = self.prepare_latents(
             latents, latent_timestep, batch_size, num_images_per_prompt, prompt_embeds.dtype, generator
         )

@@ -211,7 +211,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
 
         # duplicate image embeddings for each generation per prompt, using mps friendly method
         bs_embed, seq_len, _ = image_embeddings.shape
-        image_embeddings = image_embeddings.tile((1, num_videos_per_prompt, 1))
+        image_embeddings = mint.tile(image_embeddings, (1, num_videos_per_prompt, 1))
         image_embeddings = image_embeddings.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -233,7 +233,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
         image_latents = self.vae.diag_gauss_dist.mode(self.vae.encode(image)[0])
 
         # duplicate image_latents for each generation per prompt, using mps friendly method
-        image_latents = image_latents.tile((num_videos_per_prompt, 1, 1, 1))
+        image_latents = mint.tile(image_latents, (num_videos_per_prompt, 1, 1, 1))
 
         if do_classifier_free_guidance:
             negative_image_latents = mint.zeros_like(image_latents)
@@ -268,7 +268,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             )
 
         add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
-        add_time_ids = add_time_ids.tile((batch_size * num_videos_per_prompt, 1))
+        add_time_ids = mint.tile(add_time_ids, (batch_size * num_videos_per_prompt, 1))
 
         if do_classifier_free_guidance:
             add_time_ids = mint.cat([add_time_ids, add_time_ids])
@@ -536,7 +536,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
             ms.Tensor.from_numpy(np.linspace(min_guidance_scale, max_guidance_scale, num_frames)), 0
         )
         guidance_scale = guidance_scale.to(latents.dtype)
-        guidance_scale = guidance_scale.tile((batch_size * num_videos_per_prompt, 1))
+        guidance_scale = mint.tile(guidance_scale, (batch_size * num_videos_per_prompt, 1))
         guidance_scale = _append_dims(guidance_scale, latents.ndim)
 
         self._guidance_scale = guidance_scale

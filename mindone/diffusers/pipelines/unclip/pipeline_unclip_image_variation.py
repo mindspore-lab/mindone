@@ -132,9 +132,9 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
         prompt_embeds = text_encoder_output[0]
         text_encoder_hidden_states = text_encoder_output[1]
 
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
+        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens = [""] * batch_size
@@ -168,7 +168,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
 
             # done duplicates
 
@@ -193,7 +193,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             image = image.to(dtype=dtype)
             image_embeddings = self.image_encoder(image)[0]
 
-        image_embeddings = image_embeddings.repeat_interleave(num_images_per_prompt, dim=0)
+        image_embeddings = mint.repeat_interleave(image_embeddings, num_images_per_prompt, dim=0)
 
         return image_embeddings
 
@@ -313,8 +313,8 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
 
             if do_classifier_free_guidance:
                 noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                noise_pred_uncond, _ = noise_pred_uncond.split(latent_model_input.shape[1], axis=1)
-                noise_pred_text, predicted_variance = noise_pred_text.split(latent_model_input.shape[1], axis=1)
+                noise_pred_uncond, _ = mint.split(noise_pred_uncond, latent_model_input.shape[1], dim=1)
+                noise_pred_text, predicted_variance = mint.split(noise_pred_text, latent_model_input.shape[1], dim=1)
                 noise_pred = noise_pred_uncond + decoder_guidance_scale * (noise_pred_text - noise_pred_uncond)
                 noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 

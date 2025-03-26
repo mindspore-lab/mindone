@@ -284,9 +284,9 @@ class KandinskyV22PriorPipeline(DiffusionPipeline):
         prompt_embeds = text_encoder_output[0]
         text_encoder_hidden_states = text_encoder_output[1]
 
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
+        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -334,7 +334,7 @@ class KandinskyV22PriorPipeline(DiffusionPipeline):
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
 
             # done duplicates
 

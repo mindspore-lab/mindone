@@ -756,7 +756,7 @@ class Attention(nn.Cell):
         hidden_states = mint.bmm(attention_probs, value)
 
         if has_extra_dims:
-            hidden_states = mint.reshape(hidden_states, *origin_query_shape)
+            hidden_states = mint.reshape(hidden_states, origin_query_shape)
 
         return hidden_states
 

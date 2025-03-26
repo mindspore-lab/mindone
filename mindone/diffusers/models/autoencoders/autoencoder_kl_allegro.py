@@ -1057,7 +1057,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
 
                     current_latent = z[:, :, n_start:n_end, h_start:h_end, w_start:w_end]
                     # In MS, if x.shape == y.shape, x[0] = y will result in an error, so we add `squeeze`.
-                    vae_batch_input[count % local_batch_size] = mint.squeeze(current_latent)
+                    vae_batch_input[count % local_batch_size] = mint.squeeze(current_latent, ())
 
                     if (
                         count % local_batch_size == local_batch_size - 1

@@ -502,17 +502,17 @@ class StableDiffusionXLAdapterPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
-                num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = mint.repeat_interleave(
+                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -1089,7 +1089,7 @@ class StableDiffusionXLAdapterPipeline(
         # 6.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ms.tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt))
+            guidance_scale_tensor = mint.tile(ms.tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
@@ -1105,7 +1105,7 @@ class StableDiffusionXLAdapterPipeline(
                 adapter_state[k] = v * adapter_conditioning_scale
         if num_images_per_prompt > 1:
             for k, v in enumerate(adapter_state):
-                adapter_state[k] = v.tile((num_images_per_prompt, 1, 1, 1))
+                adapter_state[k] = mint.tile(v, (num_images_per_prompt, 1, 1, 1))
         if self.do_classifier_free_guidance:
             for k, v in enumerate(adapter_state):
                 adapter_state[k] = mint.cat([v] * 2, dim=0)
@@ -1139,7 +1139,7 @@ class StableDiffusionXLAdapterPipeline(
             add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
             add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
-        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
+        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
 
         # 8. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)

@@ -24,7 +24,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import T5EncoderModel
 
@@ -281,9 +281,9 @@ class AllegroPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
-        prompt_attention_mask = prompt_attention_mask.tile((1, num_videos_per_prompt))
+        prompt_attention_mask = mint.tile(prompt_attention_mask, (1, num_videos_per_prompt))
         prompt_attention_mask = prompt_attention_mask.view(bs_embed * num_videos_per_prompt, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -313,10 +313,10 @@ class AllegroPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_videos_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_videos_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
-            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((1, num_videos_per_prompt))
+            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (1, num_videos_per_prompt))
             negative_prompt_attention_mask = negative_prompt_attention_mask.view(bs_embed * num_videos_per_prompt, -1)
         else:
             negative_prompt_embeds = None
@@ -583,7 +583,7 @@ class AllegroPipeline(DiffusionPipeline):
     def decode_latents(self, latents: ms.Tensor) -> ms.Tensor:
         latents = 1 / self.vae.config.scaling_factor * latents
         frames = self.vae.decode(latents)[0]
-        frames = frames.permute(0, 2, 1, 3, 4)  # [batch_size, channels, num_frames, height, width]
+        frames = mint.permute(frames, (0, 2, 1, 3, 4))  # [batch_size, channels, num_frames, height, width]
         return frames
 
     def _prepare_rotary_positional_embeddings(
@@ -613,8 +613,9 @@ class AllegroPipeline(DiffusionPipeline):
         grid_h = grid_h.to(dtype=ms.int64)
         grid_w = grid_w.to(dtype=ms.int64)
 
+        # todo: unavailable mint interface
         pos = ops.cartesian_prod(grid_t, grid_h, grid_w)
-        pos = pos.reshape(-1, 3).swapaxes(0, 1).reshape(3, 1, -1).contiguous()
+        pos = mint.reshape(mint.swapaxes(mint.reshape(pos, (-1, 3)), 0, 1), (3, 1, -1)).contiguous()
         grid_t, grid_h, grid_w = pos
 
         return (freqs_t, freqs_h, freqs_w), (grid_t, grid_h, grid_w)
@@ -820,10 +821,10 @@ class AllegroPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
         if prompt_embeds.ndim == 3:
-            prompt_embeds = prompt_embeds.unsqueeze(1)  # b l d -> b 1 l d
+            prompt_embeds = mint.unsqueeze(prompt_embeds, 1)  # b l d -> b 1 l d
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -862,7 +863,7 @@ class AllegroPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -880,7 +881,7 @@ class AllegroPipeline(DiffusionPipeline):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute previous image: x_t -> x_t-1

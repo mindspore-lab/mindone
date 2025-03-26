@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import mint
+from mindspore import mint, ops
 
 from ....transformers.models.clip.modeling_clip import CLIPTextModelOutput, CLIPTextModelWithProjection
 from ...models import PriorTransformer, UNet2DConditionModel, UNet2DModel
@@ -160,9 +160,9 @@ class UnCLIPPipeline(DiffusionPipeline):
             prompt_embeds, text_enc_hid_states = text_model_output[0], text_model_output[1]
             text_mask = text_attention_mask
 
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-        text_enc_hid_states = text_enc_hid_states.repeat_interleave(num_images_per_prompt, dim=0)
-        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        text_enc_hid_states = mint.repeat_interleave(text_enc_hid_states, num_images_per_prompt, dim=0)
+        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens = [""] * batch_size
@@ -193,7 +193,7 @@ class UnCLIPPipeline(DiffusionPipeline):
             uncond_text_enc_hid_states = uncond_text_enc_hid_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
 
             # done duplicates
 
@@ -387,8 +387,8 @@ class UnCLIPPipeline(DiffusionPipeline):
 
             if do_classifier_free_guidance:
                 noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                noise_pred_uncond, _ = noise_pred_uncond.split(latent_model_input.shape[1], axis=1)
-                noise_pred_text, predicted_variance = noise_pred_text.split(latent_model_input.shape[1], axis=1)
+                noise_pred_uncond, _ = mint.split(noise_pred_uncond, latent_model_input.shape[1], dim=1)
+                noise_pred_text, predicted_variance = mint.split(noise_pred_text, latent_model_input.shape[1], dim=1)
                 noise_pred = noise_pred_uncond + decoder_guidance_scale * (noise_pred_text - noise_pred_uncond)
                 noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
@@ -426,10 +426,11 @@ class UnCLIPPipeline(DiffusionPipeline):
         )
 
         interpolate_antialias = {}
-        if "antialias" in inspect.signature(mint.nn.functional.interpolate).parameters:
+        # # todo: `antialias` is not supported in `mint.nn.functional.interpolate`. Accuracy issues exist in pynative_fp16
+        if "antialias" in inspect.signature(ops.interpolate).parameters:
             interpolate_antialias["antialias"] = True
 
-        image_upscaled = mint.nn.functional.interpolate(
+        image_upscaled = ops.interpolate(
             image_small, size=[height, width], mode="bicubic", align_corners=False, **interpolate_antialias
         )
 

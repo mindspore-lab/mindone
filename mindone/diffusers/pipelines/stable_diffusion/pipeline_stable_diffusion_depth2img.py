@@ -292,7 +292,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -346,7 +346,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -361,6 +361,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
@@ -553,15 +554,15 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         )
 
         # todo: unavailable mint interface mint.amin
-        depth_min = ops.amin(depth_map, axis=[1, 2, 3], keepdims=True)
-        depth_max = ops.amax(depth_map, axis=[1, 2, 3], keepdims=True)
+        depth_min = mint.amin(depth_map, dim=[1, 2, 3], keepdim=True)
+        depth_max = mint.amax(depth_map, dim=[1, 2, 3], keepdim=True)
         depth_map = 2.0 * (depth_map - depth_min) / (depth_max - depth_min) - 1.0
         depth_map = depth_map.to(dtype)
 
         # duplicate mask and masked_image_latents for each generation per prompt, using mps friendly method
         if depth_map.shape[0] < batch_size:
             repeat_by = batch_size // depth_map.shape[0]
-            depth_map = depth_map.tile((repeat_by, 1, 1, 1))
+            depth_map = mint.tile(depth_map, (repeat_by, 1, 1, 1))
 
         depth_map = mint.cat([depth_map] * 2) if do_classifier_free_guidance else depth_map
         return depth_map
@@ -777,7 +778,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         # 6. Set timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
+        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
 
         # 7. Prepare latent variables
         latents = self.prepare_latents(

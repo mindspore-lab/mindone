@@ -430,17 +430,17 @@ class AnimateDiffVideoToVideoPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
-                num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = mint.repeat_interleave(
+                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -887,20 +887,20 @@ class AnimateDiffVideoToVideoPipeline(
         if not enforce_inference_steps:
             timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
             timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, timesteps, strength)
-            latent_timestep = timesteps[:1].tile((batch_size * num_videos_per_prompt,))
+            latent_timestep = mint.tile(timesteps[:1], (batch_size * num_videos_per_prompt,))
         else:
             denoising_inference_steps = int(num_inference_steps / strength)
             timesteps, denoising_inference_steps = retrieve_timesteps(
                 self.scheduler, denoising_inference_steps, timesteps, sigmas
             )
             timesteps = timesteps[-num_inference_steps:]
-            latent_timestep = timesteps[:1].tile((batch_size * num_videos_per_prompt,))
+            latent_timestep = mint.tile(timesteps[:1], (batch_size * num_videos_per_prompt,))
 
         # 4. Prepare latent variables
         if latents is None:
             video = self.video_processor.preprocess_video(video, height=height, width=width)
             # Move the number of frames before the number of channels.
-            video = video.permute(0, 2, 1, 3, 4)
+            video = mint.permute(video, (0, 2, 1, 3, 4))
             video = video.to(dtype=dtype)
         num_channels_latents = self.unet.config.in_channels
         latents = self.prepare_latents(
@@ -952,7 +952,7 @@ class AnimateDiffVideoToVideoPipeline(
             if self.do_classifier_free_guidance:
                 prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
-            prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
+            prompt_embeds = mint.repeat_interleave(prompt_embeds, repeats=num_frames, dim=0)
 
         # 6. Prepare IP-Adapter embeddings
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:

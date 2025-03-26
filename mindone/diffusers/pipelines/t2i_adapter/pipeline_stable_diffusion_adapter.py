@@ -462,6 +462,7 @@ class StableDiffusionAdapterPipeline(DiffusionPipeline, StableDiffusionMixin):
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
