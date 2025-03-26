@@ -505,7 +505,7 @@ class StableDiffusionDiffEditPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -559,7 +559,7 @@ class StableDiffusionDiffEditPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -574,6 +574,7 @@ class StableDiffusionDiffEditPipeline(
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
@@ -963,7 +964,7 @@ class StableDiffusionDiffEditPipeline(
             source_prompt_embeds = mint.cat([source_negative_prompt_embeds, source_prompt_embeds])
 
         # 4. Preprocess image
-        image = self.image_processor.preprocess(image).repeat_interleave(num_maps_per_mask, dim=0)
+        image = mint.repeat_interleave(self.image_processor.preprocess(image), num_maps_per_mask, dim=0)
 
         # 5. Set timesteps
         self.scheduler.set_timesteps(num_inference_steps)
@@ -1003,7 +1004,7 @@ class StableDiffusionDiffEditPipeline(
             ),
             [1, 2],
         )
-        clamp_magnitude = mask_guidance_map.mean() * mask_thresholding_ratio
+        clamp_magnitude = mint.mean(mask_guidance_map) * mask_thresholding_ratio
         semantic_mask_image = mint.clamp(mask_guidance_map, ms.Tensor(0), clamp_magnitude) / clamp_magnitude
         semantic_mask_image = mint.where(semantic_mask_image <= 0.5, ms.Tensor(0), ms.Tensor(1))
         mask_image = semantic_mask_image.asnumpy()

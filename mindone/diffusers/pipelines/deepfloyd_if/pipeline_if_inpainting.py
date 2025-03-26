@@ -732,7 +732,7 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
 
-        image = image.repeat_interleave(num_images_per_prompt, dim=0)
+        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
         noised_image = self.scheduler.add_noise(image, noise, timestep)
 
         image = (1 - mask_image) * image + mask_image * noised_image
@@ -907,9 +907,9 @@ class IFInpaintingPipeline(DiffusionPipeline, LoraLoaderMixin):
         mask_image = mask_image.to(dtype=dtype)
 
         if mask_image.shape[0] == 1:
-            mask_image = mask_image.repeat_interleave(batch_size * num_images_per_prompt, dim=0)
+            mask_image = mint.repeat_interleave(mask_image, batch_size * num_images_per_prompt, dim=0)
         else:
-            mask_image = mask_image.repeat_interleave(num_images_per_prompt, dim=0)
+            mask_image = mint.repeat_interleave(mask_image, num_images_per_prompt, dim=0)
 
         noise_timestep = timesteps[0:1]
         noise_timestep = mint.tile(noise_timestep, (batch_size * num_images_per_prompt,))

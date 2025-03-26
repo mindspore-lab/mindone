@@ -30,10 +30,12 @@ from .camera import create_pan_cameras
 
 # Equivalent implementation of ops.searchsorted as it is not fully supported on Ascend
 def _searchsorted(sorted_sequence, values, *, out_int32=False, right=False):
+    # todo: unavailable mint interface
     assert ops.is_tensor(sorted_sequence) and mint.all(
         mint.diff(sorted_sequence) >= 0.0
     ), "Tensor sorted_sequence should be monotonically increasing along its last dimension."
     assert (
+        # todo: unavailable mint interface
         ops.is_tensor(values) and sorted_sequence.ndim == values.ndim and sorted_sequence.shape[0] == values.shape[0]
     ), "Tensor sorted_sequence and values should have the same number of dimensions (ndim) and batch size."
 
@@ -452,7 +454,9 @@ class ImportanceRaySampler(nn.Cell):
         """
         super().__init__()
         self.volume_range = volume_range
+        # todo: unavailable mint interface
         self.ts = ops.stop_gradient(ts).copy()
+        # todo: unavailable mint interface
         self.weights = ops.stop_gradient(weights).copy()
         self.blur_pool = blur_pool
         self.alpha = alpha

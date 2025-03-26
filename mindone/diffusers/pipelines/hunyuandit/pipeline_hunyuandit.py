@@ -401,6 +401,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
@@ -817,6 +818,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
 
                 # expand scalar t to 1-D tensor to match the 1st dim of latent_model_input
                 # also consider the case where t is not a tensor (the most common case)
+                # todo: unavailable mint interface
                 if ops.is_tensor(latent_model_input):
                     t_expand = t.broadcast_to((latent_model_input.shape[0],)).to(dtype=latent_model_input.dtype)
                 else:

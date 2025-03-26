@@ -594,7 +594,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         image = image.to(dtype=self.unet.dtype)
 
-        image = image.repeat_interleave(num_images_per_prompt, dim=0)
+        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
 
         return image
 

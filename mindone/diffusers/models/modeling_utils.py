@@ -69,10 +69,10 @@ def _get_pt2ms_mappings(m):
             if "weight_norm_cell" in name:
                 ori_name = name.replace(".weight_norm_cell", "")
                 mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
-                    mint.expand_dims(x, dim=-2), name=x.name
+                    mint.unsqueeze(x, dim=-2), name=x.name
                 )
                 mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
-                    mint.expand_dims(x, dim=-2), name=x.name
+                    mint.unsqueeze(x, dim=-2), name=x.name
                 )
                 mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):

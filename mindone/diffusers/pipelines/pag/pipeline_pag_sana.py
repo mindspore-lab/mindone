@@ -22,7 +22,7 @@ import numpy as np
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import MSPreTrainedModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -252,10 +252,10 @@ class SanaPAGPipeline(DiffusionPipeline, PAGMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
         prompt_attention_mask = prompt_attention_mask.view(bs_embed, -1)
-        prompt_attention_mask = prompt_attention_mask.tile((num_images_per_prompt, 1))
+        prompt_attention_mask = mint.tile(prompt_attention_mask, (num_images_per_prompt, 1))
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -284,11 +284,11 @@ class SanaPAGPipeline(DiffusionPipeline, PAGMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             negative_prompt_attention_mask = negative_prompt_attention_mask.view(bs_embed, -1)
-            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((num_images_per_prompt, 1))
+            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (num_images_per_prompt, 1))
         else:
             negative_prompt_embeds = None
             negative_prompt_attention_mask = None
@@ -756,8 +756,8 @@ class SanaPAGPipeline(DiffusionPipeline, PAGMixin):
                 prompt_attention_mask, negative_prompt_attention_mask, self.do_classifier_free_guidance
             )
         elif self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
@@ -793,7 +793,7 @@ class SanaPAGPipeline(DiffusionPipeline, PAGMixin):
                     continue
 
                 # expand the latents if we are doing classifier free guidance, perturbed-attention guidance, or both
-                latent_model_input = ops.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
+                latent_model_input = mint.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -815,7 +815,7 @@ class SanaPAGPipeline(DiffusionPipeline, PAGMixin):
                         noise_pred, self.do_classifier_free_guidance, guidance_scale, t
                     )
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute previous image: x_t -> x_t-1

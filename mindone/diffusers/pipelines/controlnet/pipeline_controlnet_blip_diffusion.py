@@ -224,7 +224,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
             # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
 
-        image = image.repeat_interleave(repeat_by, dim=0)
+        image = mint.repeat_interleave(image, repeat_by, dim=0)
 
         image = image.to(dtype=dtype)
 

@@ -189,9 +189,9 @@ class KandinskyImg2ImgPipeline(DiffusionPipeline):
             input_ids=ms.tensor(text_input_ids), attention_mask=text_mask
         )
 
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
+        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -242,7 +242,7 @@ class KandinskyImg2ImgPipeline(DiffusionPipeline):
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
 
             # done duplicates
 
@@ -385,8 +385,8 @@ class KandinskyImg2ImgPipeline(DiffusionPipeline):
             negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if do_classifier_free_guidance:
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=prompt_embeds.dtype)
 
@@ -402,7 +402,7 @@ class KandinskyImg2ImgPipeline(DiffusionPipeline):
         image = image.to(dtype=prompt_embeds.dtype)
 
         latents = self.movq.encode(image)[0]
-        latents = latents.repeat_interleave(num_images_per_prompt, dim=0)
+        latents = mint.repeat_interleave(latents, num_images_per_prompt, dim=0)
 
         # 4. set timesteps
         self.scheduler.set_timesteps(num_inference_steps)

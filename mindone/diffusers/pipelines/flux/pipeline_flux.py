@@ -367,7 +367,7 @@ class FluxPipeline(
 
         image = image.to(dtype=dtype)
         image_embeds = self.image_encoder(image)[0]
-        image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
         return image_embeds
 
     def prepare_ip_adapter_image_embeds(self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt):
