@@ -28,7 +28,7 @@ __all__ = [
 ]
 
 
-class GELU(nn.GELU):
+class GELU(mint.nn.GELU):
     def __init__(self, approximate: str = "none"):
         if approximate == "none":
             super().__init__(False)
