@@ -7,7 +7,7 @@ def liger_rope(pos: Tensor, dim: int, theta: int) -> tuple[Tensor, Tensor]:
     assert dim % 2 == 0
     scale = mint.arange(0, dim, 2, dtype=mstype.float32) / dim
     omega = 1.0 / (theta**scale)
-    out = mint.einsum("...n,d->...nd", pos, omega)  # (b, seq, dim//2)
+    out = pos[..., None] * omega  # (b, seq, dim//2)
     cos = out.cos()
     sin = out.sin()
 
@@ -18,7 +18,7 @@ def rope(pos: Tensor, dim: int, theta: int) -> Tensor:
     assert dim % 2 == 0
     scale = mint.arange(0, dim, 2, dtype=mstype.float64) / dim
     omega = 1.0 / (theta**scale)
-    out = mint.einsum("...n,d->...nd", pos, omega)
+    out = pos[..., None] * omega
     out = mint.stack([mint.cos(out), -mint.sin(out), mint.sin(out), mint.cos(out)], dim=-1)
     out = out.reshape(*out.shape[:3], 2, 2)  # b n d (i j) -> b n d i j
     return out.to(mstype.float32)

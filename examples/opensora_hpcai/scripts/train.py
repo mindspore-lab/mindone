@@ -236,9 +236,10 @@ def initialize_dataset(
     else:
         from opensora.datasets.bucket import Bucket, bucket_split_function
         from opensora.datasets.mask_generator import MaskGenerator
-        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored, create_dataloader
+        from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
 
-        # from mindone.data import create_dataloader
+        from mindone.data import create_dataloader
+
         if validation:
             mask_gen = MaskGenerator({"identity": 1.0})
             all_buckets, individual_buckets = None, [None]
@@ -280,7 +281,7 @@ def initialize_dataset(
                 max_target_size=args.max_image_size,
                 input_sq_size=latte_model.input_sq_size,
                 in_channels=latte_model.in_channels,
-                apply_train_transforms=True,
+                apply_transforms_dataset=True,
                 target_size=(img_h, img_w),
                 video_backend=args.video_backend,
                 output_columns=output_columns,

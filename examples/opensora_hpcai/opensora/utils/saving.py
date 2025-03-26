@@ -13,3 +13,11 @@ class SavingOptions:
 
     def __post_init__(self):
         self.output_path = os.path.abspath(self.output_path)
+
+
+@dataclass
+class TrainingSavingOptions:
+    output_path: Path_dcc = os.path.join(os.getcwd(), "samples")
+
+    def __post_init__(self):
+        self.output_path = os.path.abspath(self.output_path)

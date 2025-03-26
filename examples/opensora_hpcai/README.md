@@ -366,16 +366,16 @@ First, you will need to generate text embeddings with:
 ```shell
 # CLIP-Large
 TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
---model.from_pretrained="DeepFloyd/t5-v1_1-xxl" \
---model.max_length=512 \
---prompts_file=YOUR_PROMPTS.txt \
---output_path=assets/texts/t5_512
-# T5
-TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
 --model.from_pretrained="openai/clip-vit-large-patch14" \
 --model.max_length=77 \
 --prompts_file=YOUR_PROMPTS.txt \
 --output_path=assets/texts/clip_77
+# T5
+TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
+--model.from_pretrained="DeepFloyd/t5-v1_1-xxl" \
+--model.max_length=512 \
+--prompts_file=YOUR_PROMPTS.txt \
+--output_path=assets/texts/t5_512
 ```
 
 Repeat the same for negative prompts.

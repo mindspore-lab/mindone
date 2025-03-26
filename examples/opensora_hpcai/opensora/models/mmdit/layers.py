@@ -60,7 +60,7 @@ class LigerEmbedND(nn.Cell):
         cos_emb = mint.cat(cos_list, dim=-1).tile((1, 1, 2)).contiguous()
         sin_emb = mint.cat(sin_list, dim=-1).tile((1, 1, 2)).contiguous()
 
-        return cos_emb, sin_emb
+        return mint.cat((cos_emb, sin_emb))
 
 
 class SinusoidalEmbedding(nn.Cell):
@@ -163,7 +163,7 @@ class SelfAttention(nn.Cell):
             q, k, v = q.swapdims(1, 2), k.swapdims(1, 2), v.swapdims(1, 2)  # B L H D -> B H L D
 
         if self._use_lr:
-            cos, sin = pe
+            cos, sin = mint.chunk(pe, 2)
             q, k = apply_rotary_pos_emb(q, k, cos, sin)
         else:
             q, k = apply_rope(q, k, pe)
@@ -196,92 +196,6 @@ class Modulation(nn.Cell):
             ModulationOut(*out[:3]),
             ModulationOut(*out[3:]) if self.is_double else None,
         )
-
-
-class DoubleStreamBlockProcessor:
-    def __call__(self, attn: nn.Cell, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor) -> tuple[Tensor, Tensor]:
-        # attn is the DoubleStreamBlock;
-        # process img and txt separately while both is influenced by text vec
-
-        # vec will interact with image latent and text context
-        img_mod1, img_mod2 = attn.img_mod(vec)  # get shift, scale, gate for each mod
-        txt_mod1, txt_mod2 = attn.txt_mod(vec)
-
-        # prepare image for attention
-        img_modulated = attn.img_norm1(img)
-        img_modulated = (1 + img_mod1.scale) * img_modulated + img_mod1.shift
-
-        if attn.img_attn.fused_qkv:
-            img_qkv = attn.img_attn.qkv(img_modulated)
-            img_qkv = img_qkv.reshape(*img_qkv.shape[:2], 3, attn.num_heads, -1).permute(
-                2, 0, 3, 1, 4
-            )  # B L (K H D) -> K B H L D
-            img_q, img_k, img_v = mint.split(img_qkv, split_size_or_sections=1)
-            img_q, img_k, img_v = mint.squeeze(img_q, dim=0), mint.squeeze(img_k, dim=0), mint.squeeze(img_v, dim=0)
-        else:
-            img_q, img_k, img_v = (
-                attn.img_attn.q_proj(img_modulated),
-                attn.img_attn.k_proj(img_modulated),
-                attn.img_attn.v_proj(img_modulated),
-            )
-            img_q, img_k, img_v = (  # B L (H D) -> B L H D
-                img_q.reshape(*img_q.shape[:2], attn.num_heads, -1),
-                img_k.reshape(*img_k.shape[:2], attn.num_heads, -1),
-                img_v.reshape(*img_v.shape[:2], attn.num_heads, -1),
-            )
-
-        img_q, img_k = attn.img_attn.norm(img_q, img_k, img_v)  # RMSNorm for QK Norm as in SD3 paper
-        if not attn.img_attn.fused_qkv:
-            img_q, img_k, img_v = img_q.swapdims(1, 2), img_k.swapdims(1, 2), img_v.swapdims(1, 2)  # B L H D -> B H L D
-
-        # prepare txt for attention
-        txt_modulated = attn.txt_norm1(txt)
-        txt_modulated = (1 + txt_mod1.scale) * txt_modulated + txt_mod1.shift
-        if attn.txt_attn.fused_qkv:
-            txt_qkv = attn.txt_attn.qkv(txt_modulated)
-            txt_qkv = txt_qkv.reshape(*txt_qkv.shape[:2], 3, attn.num_heads, -1).permute(
-                2, 0, 3, 1, 4
-            )  # B L (K H D) -> K B H L D
-            txt_q, txt_k, txt_v = mint.split(txt_qkv, split_size_or_sections=1)
-            txt_q, txt_k, txt_v = mint.squeeze(txt_q, dim=0), mint.squeeze(txt_k, dim=0), mint.squeeze(txt_v, dim=0)
-        else:
-            txt_q, txt_k, txt_v = (
-                attn.txt_attn.q_proj(txt_modulated),
-                attn.txt_attn.k_proj(txt_modulated),
-                attn.txt_attn.v_proj(txt_modulated),
-            )
-            txt_q, txt_k, txt_v = (  # B L (H D) -> B L H D
-                txt_q.reshape(*txt_q.shape[:2], attn.num_heads, -1),
-                txt_k.reshape(*txt_k.shape[:2], attn.num_heads, -1),
-                txt_v.reshape(*txt_v.shape[:2], attn.num_heads, -1),
-            )
-        txt_q, txt_k = attn.txt_attn.norm(txt_q, txt_k, txt_v)
-        if not attn.txt_attn.fused_qkv:
-            txt_q, txt_k, txt_v = txt_q.swapdims(1, 2), txt_k.swapdims(1, 2), txt_v.swapdims(1, 2)  # B L H D -> B H L D
-
-        # run actual attention, image and text attention are calculated together by concat different attn heads
-        q = mint.cat((txt_q, img_q), dim=2)
-        k = mint.cat((txt_k, img_k), dim=2)
-        v = mint.cat((txt_v, img_v), dim=2)
-
-        if attn._use_lr:
-            cos, sin = pe
-            q, k = apply_rotary_pos_emb(q, k, cos, sin)
-        else:
-            q, k = apply_rope(q, k, pe)
-        attn1 = attn.flash_attention(q, k, v, None, None, None, None)[-1]
-        attn1 = attn1.swapdims(1, 2).reshape(attn1.shape[0], attn1.shape[2], -1)  # B H L D -> B L (H D)
-
-        txt_attn, img_attn = attn1[:, : txt_q.shape[2]], attn1[:, txt_q.shape[2] :]
-
-        # calculate the img bloks
-        img = img + img_mod1.gate * attn.img_attn.proj(img_attn)
-        img = img + img_mod2.gate * attn.img_mlp((1 + img_mod2.scale) * attn.img_norm2(img) + img_mod2.shift)
-
-        # calculate the txt bloks
-        txt = txt + txt_mod1.gate * attn.txt_attn.proj(txt_attn)
-        txt = txt + txt_mod2.gate * attn.txt_mlp((1 + txt_mod2.scale) * attn.txt_norm2(txt) + txt_mod2.shift)
-        return img, txt
 
 
 class DoubleStreamBlock(nn.Cell):
@@ -337,55 +251,88 @@ class DoubleStreamBlock(nn.Cell):
             nn.Linear(mlp_hidden_dim, hidden_size, bias=True, dtype=dtype),
         )
 
-        # processor
-        processor = DoubleStreamBlockProcessor()
-        self.set_processor(processor)
-
-    def set_processor(self, processor) -> None:
-        self.processor = processor
-
-    def get_processor(self):
-        return self.processor
-
     def construct(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor, **kwargs) -> tuple[Tensor, Tensor]:
-        return self.processor(self, img, txt, vec, pe)
+        # process img and txt separately while both are influenced by text vec
 
+        # vec will interact with image latent and text context
+        img_mod1, img_mod2 = self.img_mod(vec)  # get shift, scale, gate for each mod
+        txt_mod1, txt_mod2 = self.txt_mod(vec)
 
-class SingleStreamBlockProcessor:
-    def __call__(self, attn: nn.Cell, x: Tensor, vec: Tensor, pe: Tensor) -> Tensor:
-        mod, _ = attn.modulation(vec)
-        x_mod = (1 + mod.scale) * attn.pre_norm(x) + mod.shift
-        if attn.fused_qkv:
-            qkv, mlp = mint.split(attn.linear1(x_mod), [3 * attn.hidden_size, attn.mlp_hidden_dim], dim=-1)
-            qkv = qkv.reshape(*qkv.shape[:2], 3, attn.num_heads, -1).permute(2, 0, 3, 1, 4)  # B L (K H D) -> K B H L D
-            q, k, v = mint.split(qkv, split_size_or_sections=1)
-            q, k, v = mint.squeeze(q, dim=0), mint.squeeze(k, dim=0), mint.squeeze(v, dim=0)
+        # prepare image for attention
+        img_modulated = self.img_norm1(img)
+        img_modulated = (1 + img_mod1.scale) * img_modulated + img_mod1.shift
+
+        if self.img_attn.fused_qkv:
+            img_qkv = self.img_attn.qkv(img_modulated)
+            img_qkv = img_qkv.reshape(*img_qkv.shape[:2], 3, self.num_heads, -1).permute(
+                2, 0, 3, 1, 4
+            )  # B L (K H D) -> K B H L D
+            img_q, img_k, img_v = mint.split(img_qkv, split_size_or_sections=1)
+            img_q, img_k, img_v = mint.squeeze(img_q, dim=0), mint.squeeze(img_k, dim=0), mint.squeeze(img_v, dim=0)
         else:
-            q, k = attn.q_proj(x_mod), attn.k_proj(x_mod)
-            v, mlp = mint.split(attn.v_mlp(x_mod), [attn.hidden_size, attn.mlp_hidden_dim], dim=-1)
-            q, k, v = (  # B L (H D) -> B L H D
-                q.reshape(*q.shape[:2], attn.num_heads, -1),
-                k.reshape(*k.shape[:2], attn.num_heads, -1),
-                v.reshape(*v.shape[:2], attn.num_heads, -1),
+            img_q, img_k, img_v = (
+                self.img_attn.q_proj(img_modulated),
+                self.img_attn.k_proj(img_modulated),
+                self.img_attn.v_proj(img_modulated),
+            )
+            img_q, img_k, img_v = (  # B L (H D) -> B L H D
+                img_q.reshape(*img_q.shape[:2], self.num_heads, -1),
+                img_k.reshape(*img_k.shape[:2], self.num_heads, -1),
+                img_v.reshape(*img_v.shape[:2], self.num_heads, -1),
             )
 
-        q, k = attn.norm(q, k, v)
-        if not attn.fused_qkv:
-            q, k, v = q.swapdims(1, 2), k.swapdims(1, 2), v.swapdims(1, 2)  # B L H D -> B H L D
+        img_q, img_k = self.img_attn.norm(img_q, img_k, img_v)  # RMSNorm for QK Norm as in SD3 paper
+        if not self.img_attn.fused_qkv:
+            img_q, img_k, img_v = img_q.swapdims(1, 2), img_k.swapdims(1, 2), img_v.swapdims(1, 2)  # B L H D -> B H L D
 
-        # compute attention
-        if attn._use_lr:
-            cos, sin = pe
+        # prepare txt for attention
+        txt_modulated = self.txt_norm1(txt)
+        txt_modulated = (1 + txt_mod1.scale) * txt_modulated + txt_mod1.shift
+        if self.txt_attn.fused_qkv:
+            txt_qkv = self.txt_attn.qkv(txt_modulated)
+            txt_qkv = txt_qkv.reshape(*txt_qkv.shape[:2], 3, self.num_heads, -1).permute(
+                2, 0, 3, 1, 4
+            )  # B L (K H D) -> K B H L D
+            txt_q, txt_k, txt_v = mint.split(txt_qkv, split_size_or_sections=1)
+            txt_q, txt_k, txt_v = mint.squeeze(txt_q, dim=0), mint.squeeze(txt_k, dim=0), mint.squeeze(txt_v, dim=0)
+        else:
+            txt_q, txt_k, txt_v = (
+                self.txt_attn.q_proj(txt_modulated),
+                self.txt_attn.k_proj(txt_modulated),
+                self.txt_attn.v_proj(txt_modulated),
+            )
+            txt_q, txt_k, txt_v = (  # B L (H D) -> B L H D
+                txt_q.reshape(*txt_q.shape[:2], self.num_heads, -1),
+                txt_k.reshape(*txt_k.shape[:2], self.num_heads, -1),
+                txt_v.reshape(*txt_v.shape[:2], self.num_heads, -1),
+            )
+        txt_q, txt_k = self.txt_attn.norm(txt_q, txt_k, txt_v)
+        if not self.txt_attn.fused_qkv:
+            txt_q, txt_k, txt_v = txt_q.swapdims(1, 2), txt_k.swapdims(1, 2), txt_v.swapdims(1, 2)  # B L H D -> B H L D
+
+        # run actual attention, image and text attention are calculated together by concat different attn heads
+        q = mint.cat((txt_q, img_q), dim=2)
+        k = mint.cat((txt_k, img_k), dim=2)
+        v = mint.cat((txt_v, img_v), dim=2)
+
+        if self._use_lr:
+            cos, sin = mint.chunk(pe, 2)
             q, k = apply_rotary_pos_emb(q, k, cos, sin)
         else:
             q, k = apply_rope(q, k, pe)
-        attn_1 = attn.flash_attention(q, k, v, None, None, None, None)[-1]
-        attn_1 = attn_1.swapdims(1, 2).reshape(attn_1.shape[0], attn_1.shape[2], -1)  # B H L D -> B L (H D)
+        attn1 = self.flash_attention(q, k, v, None, None, None, None)[-1]
+        attn1 = attn1.swapdims(1, 2).reshape(attn1.shape[0], attn1.shape[2], -1)  # B H L D -> B L (H D)
 
-        # compute activation in mlp stream, cat again, and run the second linear layer
-        output = attn.linear2(mint.cat((attn_1, attn.mlp_act(mlp)), 2))
-        output = x + mod.gate * output
-        return output
+        txt_attn, img_attn = attn1[:, : txt_q.shape[2]], attn1[:, txt_q.shape[2] :]
+
+        # calculate the img blocks
+        img = img + img_mod1.gate * self.img_attn.proj(img_attn)
+        img = img + img_mod2.gate * self.img_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
+
+        # calculate the txt blocks
+        txt = txt + txt_mod1.gate * self.txt_attn.proj(txt_attn)
+        txt = txt + txt_mod2.gate * self.txt_mlp((1 + txt_mod2.scale) * self.txt_norm2(txt) + txt_mod2.shift)
+        return img, txt
 
 
 class SingleStreamBlock(nn.Cell):
@@ -434,17 +381,40 @@ class SingleStreamBlock(nn.Cell):
         self.mlp_act = nn.GELU()
         self.modulation = Modulation(hidden_size, double=False, dtype=dtype)
 
-        processor = SingleStreamBlockProcessor()
-        self.set_processor(processor)
-
-    def set_processor(self, processor) -> None:
-        self.processor = processor
-
-    def get_processor(self):
-        return self.processor
-
     def construct(self, x: Tensor, vec: Tensor, pe: Tensor, **kwargs) -> Tensor:
-        return self.processor(self, x, vec, pe)
+        mod, _ = self.modulation(vec)
+        x_mod = (1 + mod.scale) * self.pre_norm(x) + mod.shift
+        if self.fused_qkv:
+            qkv, mlp = mint.split(self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1)
+            qkv = qkv.reshape(*qkv.shape[:2], 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)  # B L (K H D) -> K B H L D
+            q, k, v = mint.split(qkv, split_size_or_sections=1)
+            q, k, v = mint.squeeze(q, dim=0), mint.squeeze(k, dim=0), mint.squeeze(v, dim=0)
+        else:
+            q, k = self.q_proj(x_mod), self.k_proj(x_mod)
+            v, mlp = mint.split(self.v_mlp(x_mod), [self.hidden_size, self.mlp_hidden_dim], dim=-1)
+            q, k, v = (  # B L (H D) -> B L H D
+                q.reshape(*q.shape[:2], self.num_heads, -1),
+                k.reshape(*k.shape[:2], self.num_heads, -1),
+                v.reshape(*v.shape[:2], self.num_heads, -1),
+            )
+
+        q, k = self.norm(q, k, v)
+        if not self.fused_qkv:
+            q, k, v = q.swapdims(1, 2), k.swapdims(1, 2), v.swapdims(1, 2)  # B L H D -> B H L D
+
+        # compute attention
+        if self._use_lr:
+            cos, sin = mint.chunk(pe, 2)
+            q, k = apply_rotary_pos_emb(q, k, cos, sin)
+        else:
+            q, k = apply_rope(q, k, pe)
+        attn_1 = self.flash_attention(q, k, v, None, None, None, None)[-1]
+        attn_1 = attn_1.swapdims(1, 2).reshape(attn_1.shape[0], attn_1.shape[2], -1)  # B H L D -> B L (H D)
+
+        # compute activation in mlp stream, cat again, and run the second linear layer
+        output = self.linear2(mint.cat((attn_1, self.mlp_act(mlp)), 2))
+        output = x + mod.gate * output
+        return output
 
 
 class LastLayer(nn.Cell):

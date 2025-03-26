@@ -60,9 +60,9 @@ class MMDiTConfig:
     guidance_embed: bool
     cond_embed: bool = False
     fused_qkv: bool = True
-    grad_ckpt_settings: Optional[tuple[int, int]] = None
     use_liger_rope: bool = False
     patch_size: int = 2
+    recompute_every_nth_block: Optional[int] = None
 
     def get(self, attribute_name, default=None):
         return getattr(self, attribute_name, default)
@@ -142,10 +142,16 @@ class MMDiTModel(nn.Cell):
         self.timestep_embedding = SinusoidalEmbedding(256)
         self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels, dtype=dtype)
         self.initialize_weights()
-
-        # TODO: add recompute
-
         self._input_requires_grad = False
+
+        if self.config.recompute_every_nth_block is not None:
+            _logger.info(f"Recomputing every {self.config.recompute_every_nth_block} block.")
+            for i, layer in enumerate(self.double_blocks, start=1):
+                if i % self.config.recompute_every_nth_block == 0:
+                    layer.recompute()
+            for i, layer in enumerate(self.single_blocks, start=len(self.double_blocks) + 1):
+                if i % self.config.recompute_every_nth_block == 0:
+                    layer.recompute()
 
     def initialize_weights(self):
         if self.config.cond_embed:
@@ -161,7 +167,7 @@ class MMDiTModel(nn.Cell):
         timesteps: Tensor,
         y_vec: Tensor,  # clip encoded vec
         cond: Tensor = None,
-        guidance: Tensor | None = None,
+        guidance: Optional[Tensor] = None,
     ):
         """
         obtain the processed:
@@ -213,7 +219,7 @@ class MMDiTModel(nn.Cell):
         timesteps: Tensor,
         y_vec: Tensor,
         cond: Tensor = None,
-        guidance: Tensor | None = None,
+        guidance: Optional[Tensor] = None,
         **kwargs,
     ) -> Tensor:
         img, txt, vec, pe = self.prepare_block_inputs(img, img_ids, txt, txt_ids, timesteps, y_vec, cond, guidance)

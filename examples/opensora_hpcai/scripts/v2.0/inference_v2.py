@@ -15,7 +15,7 @@ from mindspore import runtime
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
 sys.path.append(mindone_lib_path)
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))
+sys.path.append(os.path.join(__dir__, "../.."))
 
 from opensora.models.flux_vae.autoencoder import AutoEncoderFlux
 from opensora.models.hunyuan_vae.autoencoder_kl_causal_3d import CausalVAE3D_HUNYUAN
@@ -246,8 +246,8 @@ if __name__ == "__main__":
     parser.add_function_arguments(CausalVAE3D_HUNYUAN, "ae")
     parser.add_function_arguments(Flux, "img_model")
     parser.add_function_arguments(AutoEncoderFlux, "img_ae")
-    parser.add_class_arguments(HFEmbedder, "t5")
-    parser.add_class_arguments(HFEmbedder, "clip")
+    parser.add_class_arguments(HFEmbedder, "t5", instantiate=False)
+    parser.add_class_arguments(HFEmbedder, "clip", instantiate=False)
     parser.add_argument("sampling_option", type=SamplingOption)
     parser.add_argument("sampling_option_t2i", type=SamplingOption)
     parser.add_argument("saving_option", type=SavingOptions)

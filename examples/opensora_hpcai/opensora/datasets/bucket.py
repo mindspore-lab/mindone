@@ -10,7 +10,7 @@ from .aspect import ASPECT_RATIOS, get_closest_ratio
 
 
 class Bucket:
-    def __init__(self, bucket_config):
+    def __init__(self, bucket_config: dict[str, dict[int, list]]):
         for key in bucket_config:
             assert key in ASPECT_RATIOS, f"Aspect ratio {key} not found."
         bucket_probs, bucket_bs = {}, {}

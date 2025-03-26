@@ -13,18 +13,9 @@ from ..models.mmdit import MMDiTModel
 from ..utils.inference import collect_references_batch, prepare_inference_condition
 from ..utils.sampling import SamplingOption
 from .denoisers import Denoiser
+from .utils_v2 import get_res_lin_function, time_shift
 
 __all__ = ["InferPipelineV2"]
-
-
-def time_shift(alpha: float, t: np.ndarray) -> np.ndarray:
-    return alpha * t / (1 + (alpha - 1) * t)
-
-
-def get_res_lin_function(x1: float = 256, y1: float = 1, x2: float = 4096, y2: float = 3) -> callable:
-    m = (y2 - y1) / (x2 - x1)
-    b = y1 - m * x1
-    return lambda x: m * x + b
 
 
 def get_schedule(

@@ -107,7 +107,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser(description="Text embeddings generation script.")
     parser.add_function_arguments(init_env, "env")
-    parser.add_class_arguments(HFEmbedder, "model")
+    parser.add_class_arguments(HFEmbedder, "model", instantiate=False)
     parser.add_function_arguments(prepare_captions, as_group=False, skip={"rank_id", "device_num"})
     parser.add_argument("--batch_size", default=10, type=int, help="Inference batch size.")
     cfg = parser.parse_args()

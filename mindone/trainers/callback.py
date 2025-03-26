@@ -54,7 +54,6 @@ class EvalSaveCallback(Callback):
         step_mode: bool = False,
         ckpt_save_interval: int = 1,
         use_step_unit: bool = False,
-        data_sink_mode: bool = True,
         lora_rank: Optional[int] = None,
         log_interval: int = 1,
         start_epoch: int = 0,
@@ -67,7 +66,7 @@ class EvalSaveCallback(Callback):
         save_training_resume: bool = True,
         train_steps: int = -1,
         prefer_low_perf: bool = False,
-        zero_stage: int = 0,
+        zero_stage: Literal[0, 1, 2, 3] = 0,
         optimizer_parallel_group: str = None,
         ckpt_combine_online: bool = False,
     ):
@@ -89,8 +88,10 @@ class EvalSaveCallback(Callback):
         self.is_main_device = rank_id in [0, None]
         self.use_zero = zero_stage in [1, 2, 3]
         self.ckpt_combine_online = (zero_stage == 3) and ckpt_combine_online
-        if self.ckpt_combine_online and self.ema is not None:
-            _logger.warning("Can not enable ckpt_combine_online when use ema, set `ckpt_combine_online=False`.")
+        if self.ckpt_combine_online and ema is not None:
+            _logger.warning(
+                "Cannot enable `ckpt_combine_online` when using EMA. Setting `ckpt_combine_online` to `False`."
+            )
             self.ckpt_combine_online = False
 
         self.need_save_network = self.is_main_device or (zero_stage == 3 and not self.ckpt_combine_online)

@@ -1,0 +1,98 @@
+env:
+  mode: 0
+  jit_level: O1
+  max_device_memory: 59GB
+  seed: 42
+  distributed: False
+  debug: False
+
+model:
+  from_pretrained:
+  guidance_embed: False
+  fused_qkv: False
+  use_liger_rope: True
+  # model architecture
+  in_channels: 64
+  vec_in_dim: 768
+  context_in_dim: 4096
+  hidden_size: 3072
+  mlp_ratio: 4.0
+  num_heads: 24
+  depth: 19
+  depth_single_blocks: 38
+  axes_dim: [ 16, 56, 56 ]
+  theta: 10_000
+  qkv_bias: True
+  cond_embed: False
+  recompute_every_nth_block: 1
+  dtype: bf16
+
+ae:
+  from_pretrained: hpcai-tech/Open-Sora-v2/hunyuan_vae.safetensors
+  in_channels: 3
+  out_channels: 3
+  layers_per_block: 2
+  latent_channels: 16
+  use_spatial_tiling: True
+  use_temporal_tiling: False
+  dtype: bf16
+
+dataset:
+  v2_pipeline: True
+  target_size: [ 256, 256 ]
+  sample_n_frames: 5
+  csv_path: CSV_PATH
+  video_folder: VIDEO_FOLDER
+  text_emb_folder:
+    t5: UL2_FOLDER
+    clip: BYT5_FOLDER
+  empty_text_emb:
+    t5: EMPTY_TEXT_EMB
+    clip: EMPTY_TEXT_EMB
+  text_drop_prob: 0.31622777
+  vae_scale_factor: 0.476986
+  vae_shift_factor: 0
+  apply_transforms_dataset: True
+  output_columns: [ "video", "video_ids", "t5_caption", "txt_ids", "clip_caption", "shift_alpha" ]
+
+dataloader:
+  batch_size: 1
+  shuffle: True
+  num_workers_dataset: 4
+
+train:
+  options:
+    steps: 20000
+
+  lr_scheduler:
+    name: constant
+    lr: 5e-5
+    warmup_steps: 0
+
+  optimizer:
+    name: adamw_bf16
+    eps: 1e-15
+    betas: [ 0.9, 0.999 ]
+    weight_decay: 0.1
+
+  loss_scaler:
+    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    init_args:
+      loss_scale_value: 1
+
+  settings:
+    zero_stage: 0
+    gradient_accumulation_steps: 1
+    clip_grad: True
+    clip_norm: 1.0
+
+  save:
+    ckpt_save_policy: latest_k
+    ckpt_save_interval: 500
+    ckpt_max_keep: 10
+    log_interval: 1
+    save_ema_only: False
+    record_lr: False
+
+save:
+  output_path: ../../../output/stage1  # the path is relative to this config
