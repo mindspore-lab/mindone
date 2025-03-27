@@ -326,7 +326,6 @@ if __name__ == "__main__":
         skip={
             "network",
             "rank_id",
-            "shard_rank_id",
             "ckpt_save_dir",
             "output_dir",
             "ema",
