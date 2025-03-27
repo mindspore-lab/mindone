@@ -126,7 +126,7 @@ def main(args):
         caption_column=args.caption_column,
         return_frame_data=args.dl_return_all_frames,
         resize_by_max_value=args.resize_by_max_value,
-        transform_name=args.transform_name,
+        transform_name=args.transform_name,  # TODO: check whether align with original repo
         filter_data=args.filter_data,
     )
     dataloader, ds = create_dataloader(
@@ -153,7 +153,7 @@ def main(args):
     # temp solution, copied from configs/opensora-v2-0/train/image.py
     # TODO: will load config from yaml in the future
     ae_config = dict(
-        type="hunyuan_vae",
+        # type="hunyuan_vae",
         from_pretrained=args.vae_checkpoint,
         dtype=args.vae_precision,
         in_channels=3,
@@ -186,7 +186,7 @@ def main(args):
     logger.info("Start VAE embedding...")
 
     # def save_output(video_name: Path, mean, std=None, fps=None, ori_size=None):
-    def save_output(video_name: Path, x_0: ms.Tensor =None):
+    def save_output(video_name: Path, latent: np.array):
         fn = video_name.with_suffix(".npz")
         npz_fp = os.path.join(output_folder, fn)
         if not os.path.exists(os.path.dirname(npz_fp)):
@@ -196,7 +196,7 @@ def main(args):
                 logger.info(f"Overwritting {npz_fp}")
         np.savez(
             npz_fp,
-            x_0=x_0.asnumpy().astype(np.float32),
+            latent=latent.astype(np.float32),
         )
         # if args.save_distribution:
         #     np.savez(
@@ -249,22 +249,26 @@ def main(args):
 
                     # video_latent_mean = []
                     # video_latent_std = []
+                    latent = []
 
                     x = frame_data[i]
+                    x = np.expand_dims(np.transpose(x, (1, 0, 2, 3)), axis=0)  # [f, c, h, w] -> [b, c, f, h, w], b must be 1
                     bs = args.vae_micro_batch_size
                     for j in range(0, x.shape[0], bs):
-                        x_bs = x[j : min(j + bs, x.shape[0])]
+                        x_bs = x[:, :, j : min(j + bs, x.shape[2]), :, :]
                         x_0 = ms.ops.stop_gradient(model_ae.encoder(ms.Tensor(x_bs, ms.float32)))
                         # mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
                         # video_latent_mean.append(mean.asnumpy())
                         # if args.save_distribution:
                         #     video_latent_std.append(std.asnumpy())
+                        latent.append(x_0.asnumpy())
 
+                    latent = np.concatenate(latent, axis=0)
                     # video_latent_mean = np.concatenate(video_latent_mean, axis=0)
                     # if args.save_distribution:
                     #     video_latent_std = np.concatenate(video_latent_std, axis=0)
 
-                    save_output(video_path, x_0)
+                    save_output(video_path, latent)
             else:
                 num_videos = data["video_path"].shape[0]
                 for i in range(num_videos):
@@ -280,9 +284,11 @@ def main(args):
                     # video_latent_mean = []
                     # video_latent_std = []
                     # fps, ori_size = None, None
+                    latent = []
                     for x_bs, fps, ori_size in ds.get_video_frames_in_batch(
                         abs_video_path, micro_batch_size=args.vae_micro_batch_size, sample_stride=args.frame_stride
                     ):
+                        x_bs = np.expand_dims(np.transpose(x_bs, (1, 0, 2, 3)), axis=0)  # [f, c, h, w] -> [b, c, f, h, w]
                         x_0 = ms.ops.stop_gradient(model_ae.encoder(ms.Tensor(x_bs, ms.float32)))
                         # mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
                         # video_latent_mean.append(mean.asnumpy())
@@ -290,12 +296,14 @@ def main(args):
                         #     video_latent_std.append(std.asnumpy())
                         # fps = fps
                         # ori_size = ori_size
+                        latent.append(x_0.asnumpy())
 
+                    latent = np.concatenate(latent, axis=0)
                     # video_latent_mean = np.concatenate(video_latent_mean, axis=0)
                     # if args.save_distribution:
                     #     video_latent_std = np.concatenate(video_latent_std, axis=0)
 
-                    save_output(video_path, x_0)
+                    save_output(video_path, latent)
 
             end_time = time.time()
             logger.info(f"Time cost: {end_time-start_time:0.3f}s")
@@ -332,9 +340,9 @@ def parse_args():
     #     help="If True, will save mean and std representing vae latent distribution. \
     #             Otherwise, will only save mean (save half storage but loss vae sampling diversity).",
     # )
-    parser.add_argument("--video_column", default="path", type=str, help="name of column for videos saved in csv file")
+    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
-        "--caption_column", default="text", type=str, help="name of column for captions saved in csv file"
+        "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
@@ -364,7 +372,7 @@ def parse_args():
     )
 
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--mode", type=int, default=0, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
+    parser.add_argument("--mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=0)")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
     parser.add_argument("--seed", type=int, default=4, help="Inference seed")
     parser.add_argument(
