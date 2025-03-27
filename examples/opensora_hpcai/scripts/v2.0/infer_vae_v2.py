@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
+import yaml
 
 import mindspore as ms
 from mindspore import nn
@@ -18,7 +19,8 @@ sys.path.insert(0, mindone_lib_path)
 sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
 
 from opensora.datasets.video_dataset import create_dataloader
-from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
+# from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
+from opensora.models.hunyuan_vae import CausalVAE3D_HUNYUAN
 from opensora.utils.amp import auto_mixed_precision
 from opensora.utils.model_utils import str2bool  # _check_cfgs_in_parser
 
@@ -95,8 +97,8 @@ def init_env(
             "please ensure the MindSpore version >= ms2.3_0615, and use GRAPH_MODE."
         )
 
-    if global_bf16:
-        ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
+    # if global_bf16:
+    #     ms.set_context(ascend_config={"precision_mode": "allow_mix_precision_bf16"})
 
     return rank_id, device_num
 
@@ -144,25 +146,36 @@ def main(args):
 
     # model initiate and weight loading
     logger.info("vae init")
-    VAE_Z_CH = SD_CONFIG["z_channels"]
-    vae = AutoencoderKL(
-        SD_CONFIG,
-        VAE_Z_CH,
-        ckpt_path=args.vae_checkpoint,
-    )
-    vae = vae.set_train(False)
+    with open(args.config, "r") as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    ae_config = config["ae"]
+    ae_config["from_pretrained"] = args.vae_checkpoint
+    ae_config["dtype"] = args.vae_precision
+    model_ae = CausalVAE3D_HUNYUAN(**ae_config).set_train(False)
+    # dtype = PRECISION_TO_TYPE[args.vae_precision]
+    del model_ae.decoder
+
+
+    # VAE_Z_CH = SD_CONFIG["z_channels"]
+    # vae = AutoencoderKL(
+    #     SD_CONFIG,
+    #     VAE_Z_CH,
+    #     ckpt_path=args.vae_checkpoint,
+    # )
+    # vae = vae.set_train(False)
     dtype_map = {"fp16": ms.float16, "bf16": ms.bfloat16}
-    if args.dtype in ["fp16", "bf16"]:
+    if args.vae_precision in ["fp16", "bf16"]:
         vae = auto_mixed_precision(
             vae,
             amp_level=args.amp_level,
-            dtype=dtype_map[args.vae_dtype],
+            dtype=dtype_map[args.vae_precision],
             custom_fp32_cells=[nn.GroupNorm],
         )
 
     logger.info("Start VAE embedding...")
 
-    def save_output(video_name: Path, mean, std=None, fps=None, ori_size=None):
+    # def save_output(video_name: Path, mean, std=None, fps=None, ori_size=None):
+    def save_output(video_name: Path, x_0: ms.Tensor =None):
         fn = video_name.with_suffix(".npz")
         npz_fp = os.path.join(output_folder, fn)
         if not os.path.exists(os.path.dirname(npz_fp)):
@@ -170,21 +183,26 @@ def main(args):
         if os.path.exists(npz_fp):
             if args.allow_overwrite:
                 logger.info(f"Overwritting {npz_fp}")
-        if args.save_distribution:
-            np.savez(
-                npz_fp,
-                latent_mean=mean.astype(np.float32),
-                latent_std=std.astype(np.float32),
-                fps=fps,
-                ori_size=ori_size,
-            )
-        else:
-            np.savez(
-                npz_fp,
-                latent_mean=video_latent_mean.astype(np.float32),
-                fps=fps,
-                ori_size=ori_size,
-            )
+        np.savez(
+            npz_fp,
+            x_0=x_0.asnumpy().astype(np.float32),
+        )
+        # if args.save_distribution:
+        #     np.savez(
+        #         npz_fp,
+        #         x_0=x_0.asnumpy().astype(np.float32),
+        #         # latent_mean=mean.astype(np.float32),
+        #         # latent_std=std.astype(np.float32),
+        #         # fps=fps,
+        #         # ori_size=ori_size,
+        #     )
+        # else:
+        #     np.savez(
+        #         npz_fp,
+        #         latent_mean=video_latent_mean.astype(np.float32),
+        #         fps=fps,
+        #         ori_size=ori_size,
+        #     )
         return npz_fp
 
     # infer
@@ -205,8 +223,8 @@ def main(args):
             if args.dl_return_all_frames:
                 frame_data = data["frame_data"]
                 num_videos = frame_data.shape[0]
-                fps = data["fps"][0]
-                ori_size = data["ori_size"][0]
+                # fps = data["fps"][0]
+                # ori_size = data["ori_size"][0]
                 assert args.batch_size == 1, "batch size > 1 is not supported due to dynamic frame numbers among videos"
                 for i in range(num_videos):
                     abs_video_path = data["video_path"][i]
@@ -218,23 +236,24 @@ def main(args):
                         logger.info(f"{npz_fp} exists, skip vae encoding")
                         continue
 
-                    video_latent_mean = []
-                    video_latent_std = []
+                    # video_latent_mean = []
+                    # video_latent_std = []
 
                     x = frame_data[i]
                     bs = args.vae_micro_batch_size
                     for j in range(0, x.shape[0], bs):
                         x_bs = x[j : min(j + bs, x.shape[0])]
-                        mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
-                        video_latent_mean.append(mean.asnumpy())
-                        if args.save_distribution:
-                            video_latent_std.append(std.asnumpy())
+                        x_0 = ms.ops.stop_gradient(model_ae.encoder(ms.Tensor(x_bs, ms.float32)))
+                        # mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
+                        # video_latent_mean.append(mean.asnumpy())
+                        # if args.save_distribution:
+                        #     video_latent_std.append(std.asnumpy())
 
-                    video_latent_mean = np.concatenate(video_latent_mean, axis=0)
-                    if args.save_distribution:
-                        video_latent_std = np.concatenate(video_latent_std, axis=0)
+                    # video_latent_mean = np.concatenate(video_latent_mean, axis=0)
+                    # if args.save_distribution:
+                    #     video_latent_std = np.concatenate(video_latent_std, axis=0)
 
-                    save_output(video_path, video_latent_mean, video_latent_std, fps, ori_size)
+                    save_output(video_path, x_0)
             else:
                 num_videos = data["video_path"].shape[0]
                 for i in range(num_videos):
@@ -247,24 +266,25 @@ def main(args):
                         logger.info(f"{npz_fp} exists, skip vae encoding")
                         continue
 
-                    video_latent_mean = []
-                    video_latent_std = []
-                    fps, ori_size = None, None
+                    # video_latent_mean = []
+                    # video_latent_std = []
+                    # fps, ori_size = None, None
                     for x_bs, fps, ori_size in ds.get_video_frames_in_batch(
                         abs_video_path, micro_batch_size=args.vae_micro_batch_size, sample_stride=args.frame_stride
                     ):
-                        mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
-                        video_latent_mean.append(mean.asnumpy())
-                        if args.save_distribution:
-                            video_latent_std.append(std.asnumpy())
-                        fps = fps
-                        ori_size = ori_size
+                        x_0 = ms.ops.stop_gradient(model_ae.encoder(ms.Tensor(x_bs, ms.float32)))
+                        # mean, std = ms.ops.stop_gradient(vae.encode_with_moments_output(ms.Tensor(x_bs, ms.float32)))
+                        # video_latent_mean.append(mean.asnumpy())
+                        # if args.save_distribution:
+                        #     video_latent_std.append(std.asnumpy())
+                        # fps = fps
+                        # ori_size = ori_size
 
-                    video_latent_mean = np.concatenate(video_latent_mean, axis=0)
-                    if args.save_distribution:
-                        video_latent_std = np.concatenate(video_latent_std, axis=0)
+                    # video_latent_mean = np.concatenate(video_latent_mean, axis=0)
+                    # if args.save_distribution:
+                    #     video_latent_std = np.concatenate(video_latent_std, axis=0)
 
-                    save_output(video_path, video_latent_mean, video_latent_std, fps, ori_size)
+                    save_output(video_path, x_0)
 
             end_time = time.time()
             logger.info(f"Time cost: {end_time-start_time:0.3f}s")
@@ -288,16 +308,16 @@ def parse_args():
         default=None,
         help="output dir to save the embeddings, if None, will treat the parent dir of csv_path as output_path.",
     )
+    # parser.add_argument(
+    #     "--save_distribution",
+    #     default=True,
+    #     type=str2bool,
+    #     help="If True, will save mean and std representing vae latent distribution. \
+    #             Otherwise, will only save mean (save half storage but loss vae sampling diversity).",
+    # )
+    parser.add_argument("--video_column", default="path", type=str, help="name of column for videos saved in csv file")
     parser.add_argument(
-        "--save_distribution",
-        default=True,
-        type=str2bool,
-        help="If True, will save mean and std representing vae latent distribution. \
-                Otherwise, will only save mean (save half storage but loss vae sampling diversity).",
-    )
-    parser.add_argument("--video_column", default="video", type=str, help="name of column for videos saved in csv file")
-    parser.add_argument(
-        "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
+        "--caption_column", default="text", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
@@ -312,11 +332,18 @@ def parse_args():
     parser.add_argument(
         "--vae_checkpoint",
         type=str,
-        default="stabilityai/sd-vae-ft-ema",
+        default="hpcai-tech/Open-Sora-v2/hunyuan_vae.safetensors",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
     parser.add_argument(
         "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
+    )
+    parser.add_argument(
+        "--vae_precision",
+        type=str,
+        default="fp32",
+        choices=["bf16", "fp16", "fp32"],
+        help="Precision mode for the VAE model: fp16, bf16, or fp32.",
     )
 
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
@@ -329,13 +356,13 @@ def parse_args():
         type=str2bool,
         help="whether to enable flash attention. Default is False",
     )
-    parser.add_argument(
-        "--dtype",
-        default="fp32",
-        type=str,
-        choices=["bf16", "fp16", "fp32"],
-        help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
-    )
+    # parser.add_argument(
+    #     "--dtype",
+    #     default="fp32",
+    #     type=str,
+    #     choices=["bf16", "fp16", "fp32"],
+    #     help="what data type to use for latte. Default is `fp32`, which corresponds to ms.float16",
+    # )
     parser.add_argument(
         "--precision_mode",
         default=None,
