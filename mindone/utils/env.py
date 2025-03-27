@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Literal, Optional, Tuple
+from typing import Literal, Optional, Union
 
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
@@ -32,7 +32,7 @@ def init_env(
     ] = None,
     jit_level: Optional[Literal["O0", "O1", "O2"]] = None,
     max_device_memory: str = None,
-) -> Tuple[int, int, int]:
+) -> tuple[Union[int, None], int, int]:
     """
     Initialize MindSpore environment.
 
