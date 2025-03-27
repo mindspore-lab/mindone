@@ -6,11 +6,11 @@ except ImportError:
     from typing_extensions import Literal  # FIXME: python 3.7
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn, ops
 
 from mindone.models.modules.flash_attention import MSFlashAttention
 
-from .dit import GELU, FinalLayer, LabelEmbedder, LayerNorm, Mlp, Optional, TimestepEmbedder
+from .dit import GELU, FinalLayer, LabelEmbedder, Mlp, Optional, TimestepEmbedder
 from .utils import constant_, exists, modulate, normal_, xavier_uniform_
 
 __all__ = [
@@ -188,12 +188,12 @@ class FiTBlock(nn.Cell):
         **block_kwargs: Any,
     ) -> None:
         super().__init__()
-        self.norm1 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.norm1 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
         apply_rotate_embed = pos == "rotate"
         self.attn = SelfAttention(
             hidden_size, num_heads=num_heads, qkv_bias=True, apply_rotate_embed=apply_rotate_embed, **block_kwargs
         )
-        self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
 
         if ffn == "swiglu":
             mlp_hidden_dim = int(hidden_size * mlp_ratio * 2 / 3)  # following LLaMA
@@ -288,7 +288,7 @@ class FiT(nn.Cell):
         self.apply(_basic_init)
 
         # Initialize label embedding table:
-        normal_(self.y_embedder.embedding_table.embedding_table, std=0.02)
+        normal_(self.y_embedder.embedding_table.weight, std=0.02)
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
