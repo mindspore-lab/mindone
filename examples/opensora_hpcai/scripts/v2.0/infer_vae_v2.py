@@ -38,7 +38,7 @@ def init_env(
     max_device_memory: str = None,
     device_target: str = "Ascend",
     jit_level: str = "O0",
-    global_bf16: bool = False,
+    # global_bf16: bool = False,
 ):
     """
     Initialize MindSpore environment.
@@ -321,7 +321,7 @@ def parse_args():
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
-    parser.add_argument("--image_size", nargs="+", default=[512, 512], type=int, help="image size")
+    parser.add_argument("--image_size", nargs="+", default=[256, 256], type=int, help="image size")
     parser.add_argument(
         "--dl_return_all_frames",
         default=True,
@@ -335,9 +335,9 @@ def parse_args():
         default="hpcai-tech/Open-Sora-v2/hunyuan_vae.safetensors",
         help="VAE checkpoint file path which is used to load vae weight.",
     )
-    parser.add_argument(
-        "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
-    )
+    # parser.add_argument(
+    #     "--sd_scale_factor", type=float, default=0.18215, help="VAE scale factor of Stable Diffusion model."
+    # )
     parser.add_argument(
         "--vae_precision",
         type=str,
@@ -390,12 +390,12 @@ def parse_args():
         type=str2bool,
         help="whether use recompute.",
     )
-    parser.add_argument(
-        "--global_bf16",
-        default=False,
-        type=str2bool,
-        help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN",
-    )
+    # parser.add_argument(
+    #     "--global_bf16",
+    #     default=False,
+    #     type=str2bool,
+    #     help="Experimental. If True, dtype will be overrided, operators will be computered in bf16 if they are supported by CANN",
+    # )
     parser.add_argument(
         "--allow_overwrite",
         type=str2bool,
