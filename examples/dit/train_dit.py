@@ -20,23 +20,16 @@ from mindspore.nn.optim import AdamWeightDecay
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
 
-try:
-    import mindone
-except ImportError:
-    raise ImportError("MindONE has not been installed. Please install it before running this script.")
-
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-example_path = os.path.abspath(os.path.join(__dir__, "./mindone/examples/"))
-if not os.path.exists(example_path):
-    raise ValueError(f"Expect to find the mindone examples directory: {example_path}")
-sys.path.insert(0, example_path)
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
+sys.path.insert(0, mindone_lib_path)
 
-from dit.diffusion import create_diffusion
-from dit.modules.autoencoder import SD_CONFIG, AutoencoderKL
+from diffusion import create_diffusion
+from modules.autoencoder import SD_CONFIG, AutoencoderKL
 
 # load dit example modules
-from dit.pipelines.train_pipeline import DiTWithLoss
-from dit.utils.model_utils import load_dit_ckpt_params, str2bool
+from pipelines.train_pipeline import DiTWithLoss
+from utils.model_utils import load_dit_ckpt_params, str2bool
 
 from mindone.models.dit import DiT_models
 
