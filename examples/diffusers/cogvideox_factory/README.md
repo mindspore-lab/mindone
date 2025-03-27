@@ -373,11 +373,11 @@ NODE_RANK="0"
 | CogvideoX 1.5 T2V 5B  |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  10.1  |   14.6 GB    |
 | CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  5.16  |    8.2 GB    |
 | CogvideoX 1.5 T2V 5B  |  16   | 2  | 8  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  5.24  |    6.3 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 8  | 1  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     |   49   |    40 GB     |
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     | 10.58  |    9.3 GB    |
 | CogvideoX 1.5 T2V 10B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  15.2  |   25.6 GB    |
 | CogvideoX 1.5 T2V 20B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.1  |   35.7 GB    |
 | CogvideoX 1.5 T2V 30B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  26.5  |   47.3 GB    |
-| CogvideoX 1.5 T2V 5B  |   8   | 8  | 1  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     |   49   |    40 GB     |
-| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     | 10.58  |    9.3 GB    |
 
 以上数据在Disney数据集，910*上获得。
 
