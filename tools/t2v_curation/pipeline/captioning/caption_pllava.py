@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from pipeline.scoring.utils import merge_scores
 from tqdm import tqdm
-from transformers import AutoProcessor
 
 import mindspore as ms
 import mindspore.dataset as ds
@@ -17,8 +16,8 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../.."))
 sys.path.insert(0, mindone_lib_path)
 
-from mindone.transformers import Qwen2VLForConditionalGeneration  # noqa: E402
-from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info  # noqa: E402
+from tools.captioners.PLLaVA.tasks.eval.eval_utils import load_video  # noqa: E402
+from tools.captioners.PLLaVA.tasks.eval.model_utils import load_pllava, pllava_answer  # noqa: E402
 
 
 class VideoTextDataset:
@@ -38,11 +37,14 @@ class VideoTextDataset:
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("meta_path", type=str, help="Path to the input CSV file")
-    parser.add_argument("--pretrained_model_name_or_path", type=str, default="pretrained_models/Qwen2-VL-7B-Instruct")
+    parser.add_argument(
+        "--pretrained_model_name_or_path",
+        type=str,
+        default="pretrained_models/pllava-7b",
+        help="Path or name of the pretrained PLLaVA model",
+    )
     parser.add_argument("--question", type=str, default="Describe the video in detail.")
-    parser.add_argument("--height", type=int, default=448, help="resized video height")
-    parser.add_argument("--width", type=int, default=672, help="resized video width")
-    parser.add_argument("--fps", type=int, default=4, help="fps to sample from video")
+    parser.add_argument("--num_frames", type=int, default=4, help="Number of frames to sample from video")
     parser.add_argument("--bs", type=int, default=1, help="Batch size")
     parser.add_argument("--skip_if_existing", action="store_true", help="Skip processing if output CSV already exists.")
     parser.add_argument("--max_new_tokens", type=int, default=200, help="Max tokens to generate")
@@ -59,24 +61,23 @@ def main():
         exit()
 
     wo_ext, ext = os.path.splitext(meta_path)
-    out_path = f"{wo_ext}_caption_qwen2vl{ext}"
+    out_path = f"{wo_ext}_caption_pllava{ext}"
     if args.skip_if_existing and os.path.exists(out_path):
         print(f"Output meta file '{out_path}' already exists. Exit.")
         exit()
 
-    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend", pynative_synchronize=True)
+    ms.set_context(mode=ms.PYNATIVE_MODE, device_target="Ascend")
     ms.set_auto_parallel_context(parallel_mode=ms.ParallelMode.DATA_PARALLEL)
     init_process_group()
 
     rank_id = get_rank()
     rank_size = get_world_size()
 
-    print("Loading Qwen2VLForConditionalGeneration Model")
-    model = Qwen2VLForConditionalGeneration.from_pretrained(
-        args.pretrained_model_name_or_path, mindspore_dtype=ms.float16, attn_implementation="flash_attention_2"
-    ).set_train(False)
-    print("Loading AutoProcessor")
-    processor = AutoProcessor.from_pretrained(args.pretrained_model_name_or_path)
+    print("Loading PLLaVA model...")
+    model, processor = load_pllava(
+        args.pretrained_model_name_or_path, args.num_frames, pooling_shape=(args.num_frames, 12, 12)
+    )
+    model.set_train(False)
 
     raw_dataset = VideoTextDataset(meta_path)
     dataset = ds.GeneratorDataset(
@@ -88,54 +89,47 @@ def main():
     indices_list = []
     caption_list = []
 
+    SYSTEM = (
+        "You are a powerful Video Magic ChatBot, a large vision-language assistant.\n"
+        "You are able to understand the video content that the user provides and assist the user in a video-language related task.\n"
+        "The user might provide you with the video and maybe some extra noisy information to help you out or ask you a question.\n"
+        "Make use of the information in a proper way to be competent for the job.\n"
+        "### INSTRUCTIONS:\n"
+        "1. Follow the user's instruction.\n"
+        "2. Be critical yet believe in yourself.\n"
+    )
+
+    prompt = SYSTEM + "USER: " + args.question + " </s> USER:<image> ASSISTANT:"
+
     for batch in tqdm(iterator):
         video_paths = batch["video_path"]
         indices = batch["index"]
 
         for video_path, idx in zip(video_paths, indices):
-            messages = [
-                {
-                    "role": "user",
-                    "content": [
-                        {
-                            "type": "video",
-                            "video": video_path,
-                            "max_pixels": args.height * args.width,
-                            "fps": float(args.fps),
-                        },
-                        {"type": "text", "text": args.question},
-                    ],
-                }
-            ]
-
             try:
-                text_prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-                image_inputs, video_inputs = process_vision_info(messages)
-                inputs = processor(
-                    text=[text_prompt],
-                    images=image_inputs,
-                    videos=video_inputs,
-                    padding=True,
-                    return_tensors="np",
+                frames = load_video(video_path, args.num_frames)
+
+                _, output_text = pllava_answer(
+                    model,
+                    processor,
+                    [frames],
+                    prompt,
+                    do_sample=False,
+                    max_new_tokens=args.max_new_tokens,
+                    num_beams=1,
+                    min_length=1,
+                    top_p=0.9,
+                    repetition_penalty=1.0,
+                    length_penalty=1,
+                    temperature=1.0,
                 )
 
-                for key, value in inputs.items():
-                    if isinstance(value, np.ndarray):
-                        inputs[key] = ms.Tensor(value)
-                    elif isinstance(value, list):
-                        inputs[key] = ms.Tensor(value)
-                    if inputs[key].dtype == ms.int64:
-                        inputs[key] = inputs[key].to(ms.int32)
-
-                generated_ids = model.generate(**inputs, max_new_tokens=args.max_new_tokens)
-                output_text = processor.batch_decode(
-                    generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
-                )[0]
+                cleaned_output = output_text.split("ASSISTANT: ", 1)[1]
             except Exception as e:
                 print(f"Error processing video {video_path}: {e}")
-                output_text = ""
+                cleaned_output = ""
 
-            caption_list.append(output_text)
+            caption_list.append(cleaned_output)
             indices_list.append(idx)
 
     if rank_size > 1:

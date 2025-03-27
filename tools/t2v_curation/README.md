@@ -48,10 +48,10 @@ semantic consistency. You may refer to the
   - [x] OCR Detection
   - [x] LPIPS Motion Scoring
   - [x] NSFW Checking
-- [ ] **Captioning**
+- [x] **Captioning**
   - [x] Qwen2-VL Captioning
-  - [ ] PLLaVA Captioning
-  - [ ] LLaVA Captioning
+  - [x] PLLaVA Captioning
+  - [x] LLaVA Captioning
 - [x] **Config via JSON or YAML**
 - [x] **Multi-NPU Processing**
 
