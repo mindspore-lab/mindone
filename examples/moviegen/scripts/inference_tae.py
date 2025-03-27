@@ -26,7 +26,7 @@ from mg.models.tae import TemporalAutoencoder
 from mg.utils import to_numpy
 
 from mindone.data import create_dataloader
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 from mindone.visualize import save_videos
 
 logger = logging.getLogger(__name__)
@@ -119,8 +119,8 @@ def decode(args, tae: TemporalAutoencoder, save_dir: Path, rank_id: int, device_
 
 def main(args):
     # 1. init env
-    _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
-    mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
+    _, rank_id, device_num = init_env(**args.env)
+    mode = get_context("mode")  # `init_env()` may change the mode during debugging
 
     save_dir = Path(args.output_path.absolute)
     save_dir.mkdir(parents=True, exist_ok=True)
@@ -148,7 +148,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="TAE inference script.")
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_class_arguments(TemporalAutoencoder, "tae", instantiate=False)
     parser.add_subclass_arguments(
         VideoDataset,

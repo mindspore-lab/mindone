@@ -19,7 +19,7 @@ from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params, load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
@@ -33,7 +33,7 @@ def launch(args, extras) -> None:
     cfg = OmegaConf.merge(cfg, cli_cfg)
     train_cfg = cfg.train_cfg
 
-    _, rank_id, device_num = init_train_env(mode=args.mode, seed=args.seed, debug=args.debug)
+    _, rank_id, device_num = init_env(mode=args.mode, seed=args.seed, debug=args.debug)
 
     if not args.debug:
         if cfg.resume is not None:

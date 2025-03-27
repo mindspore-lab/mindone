@@ -24,7 +24,7 @@ from mindone.trainers.zero import prepare_train_network
 from mindone.transformers.mindspore_adapter import MindSporeArguments
 from mindone.transformers.optimization import get_scheduler
 from mindone.transformers.training_args import TrainingArguments as tf_TrainingArguments
-from mindone.utils import count_params, init_train_env, set_logger
+from mindone.utils import count_params, init_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
 
 logger = logging.getLogger(__name__)
@@ -90,7 +90,7 @@ def main():
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
     # 1.0. init training env
-    device_id, rank_id, device_num = init_train_env(
+    device_id, rank_id, device_num = init_env(
         mode=training_args.mode,
         device_target=training_args.device_target,  # default: "Ascend"
         debug=training_args.debug,

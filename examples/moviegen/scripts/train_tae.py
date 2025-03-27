@@ -29,7 +29,7 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils import init_train_env
+from mindone.utils import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -54,7 +54,7 @@ def create_loss_scaler(loss_scaler_type, init_loss_scale, loss_scale_factor=2, s
 
 def main(args):
     # 1. init
-    _, rank_id, device_num = init_train_env(
+    _, rank_id, device_num = init_env(
         mode=args.mode,
         seed=args.seed,
         distributed=args.distributed,

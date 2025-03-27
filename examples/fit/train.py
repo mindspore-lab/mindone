@@ -18,7 +18,6 @@ from diffusion import create_diffusion
 from pipelines.train_pipeline import NetworkWithLoss
 from utils.model_utils import load_fit_ckpt_params
 
-import mindspore as ms
 from mindspore import Model, nn
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 from mindspore.train.callback import TimeMonitor
@@ -33,7 +32,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -63,17 +62,14 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_train_env(
+    _, rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
+        jit_level=args.jit_level,
         max_device_memory=args.max_device_memory,
     )
-
-    if args.mode == ms.GRAPH_MODE:
-        ms.set_context(jit_config={"jit_level": args.jit_level})
-
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading

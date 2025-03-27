@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../..")))
 
 from opensora.models.text_encoder import HFEmbedder
 
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +79,7 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
-    _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
+    _, rank_id, device_num = init_env(**args.env)
 
     paths, captions = prepare_captions(args.prompts_file, args.output_path, args.column_names, rank_id, device_num)
 
@@ -106,7 +106,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Text embeddings generation script.")
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_class_arguments(HFEmbedder, "model")
     parser.add_function_arguments(prepare_captions, as_group=False, skip={"rank_id", "device_num"})
     parser.add_argument("--batch_size", default=10, type=int, help="Inference batch size.")

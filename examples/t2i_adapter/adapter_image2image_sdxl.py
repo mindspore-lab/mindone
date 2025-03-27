@@ -12,11 +12,9 @@ from omegaconf import OmegaConf
 from PIL import Image
 from t2i_utils import read_images
 
-import mindspore as ms
-
 sys.path.append("../../")  # FIXME: remove in future when mindone is ready for install
 from mindone.utils import set_logger
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 
 sys.path.append("../stable_diffusion_xl/")
 from gm.helpers import SD_XL_BASE_RATIOS, VERSION2SPECS, create_model, init_sampling
@@ -63,9 +61,7 @@ def main(args):
     sample_path.mkdir(exist_ok=True, parents=True)
 
     # set ms context
-    init_train_env(**args.environment)
-    if args.environment.mode == ms.GRAPH_MODE:
-        ms.set_context(jit_config={"jit_level": args.jit_level})
+    init_env(**args.environment)
     # initialize SD and adapter models
     args.SDXL.config = OmegaConf.load(args.SDXL.config)  # NOQA
     overwrite = args.SDXL.pop("overwrite", {})
@@ -156,19 +152,7 @@ def main(args):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(
-        init_train_env, "environment", skip={"distributed", "enable_modelarts", "num_workers", "json_data_path"}
-    )
-    parser.add_argument(
-        "--jit_level",
-        default="O0",
-        type=str,
-        choices=["O0", "O1", "O2"],
-        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
-        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
-        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
-        "O2: Ultimate performance optimization, adopt Sink execution mode.",
-    )
+    parser.add_function_arguments(init_env, "environment", skip={"distributed"})
     # Stable Diffusion
     parser.add_function_arguments(create_model, "SDXL", skip={"config", "freeze", "load_filter"})
     parser.add_argument("--SDXL.config", type=str, default="configs/inference/sd_xl_base.yaml")

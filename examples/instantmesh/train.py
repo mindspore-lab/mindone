@@ -31,7 +31,7 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -193,7 +193,7 @@ def main(args):
         print("make sure you are debugging now, as no ckpt will be saved.")
 
     # 1. init
-    did, rank_id, device_num = init_train_env(
+    did, rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,

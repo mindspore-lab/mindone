@@ -12,7 +12,7 @@ import mindspore as ms
 from mindspore import mint
 
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.seed import set_random_seed
 
 
@@ -31,7 +31,7 @@ def get_edit_mask(
 
 def main(args):
     # init
-    init_train_env(
+    init_env(
         args.ms_mode,
         seed=args.seed,
         jit_level=args.jit_level,
