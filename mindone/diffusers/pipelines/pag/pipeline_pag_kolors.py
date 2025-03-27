@@ -284,7 +284,7 @@ class KolorsPAGPipeline(
                 # [max_sequence_length, batch, hidden_size] -> [batch, hidden_size]
                 pooled_prompt_embeds = output[2][-1][-1, :, :].copy()
                 bs_embed, seq_len, _ = prompt_embeds.shape
-                prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+                prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
                 prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
                 prompt_embeds_list.append(prompt_embeds)
@@ -347,7 +347,7 @@ class KolorsPAGPipeline(
 
                     negative_prompt_embeds = negative_prompt_embeds.to(dtype=text_encoder.dtype)
 
-                    negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+                    negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
                     negative_prompt_embeds = negative_prompt_embeds.view(
                         batch_size * num_images_per_prompt, seq_len, -1
                     )
@@ -357,12 +357,12 @@ class KolorsPAGPipeline(
             negative_prompt_embeds = negative_prompt_embeds_list[0]
 
         bs_embed = pooled_prompt_embeds.shape[0]
-        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
+        pooled_prompt_embeds = mint.tile(pooled_prompt_embeds, (1, num_images_per_prompt)).view(
             bs_embed * num_images_per_prompt, -1
         )
 
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
+            negative_pooled_prompt_embeds = mint.tile(negative_pooled_prompt_embeds, (1, num_images_per_prompt)).view(
                 bs_embed * num_images_per_prompt, -1
             )
 
@@ -943,7 +943,7 @@ class KolorsPAGPipeline(
             add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
             add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
-        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
+        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -988,7 +988,7 @@ class KolorsPAGPipeline(
         # 9. Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt))
+            guidance_scale_tensor = mint.tile(ms.Tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)

@@ -21,7 +21,7 @@ from packaging import version
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
@@ -386,7 +386,7 @@ class StableDiffusionPAGImg2ImgPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -440,7 +440,7 @@ class StableDiffusionPAGImg2ImgPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -462,7 +462,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][-2]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -470,7 +470,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -504,16 +504,16 @@ class StableDiffusionPAGImg2ImgPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
         ip_adapter_image_embeds = []
         for i, single_image_embeds in enumerate(image_embeds):
-            single_image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+            single_image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.cat([negative_image_embeds[i]] * num_images_per_prompt, axis=0)
-                single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds], axis=0)
+                single_negative_image_embeds = mint.cat([negative_image_embeds[i]] * num_images_per_prompt, dim=0)
+                single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds], dim=0)
 
             ip_adapter_image_embeds.append(single_image_embeds)
 
@@ -646,7 +646,7 @@ class StableDiffusionPAGImg2ImgPipeline(
 
             elif isinstance(generator, list):
                 if image.shape[0] < batch_size and batch_size % image.shape[0] == 0:
-                    image = ops.cat([image] * (batch_size // image.shape[0]), axis=0)
+                    image = mint.cat([image] * (batch_size // image.shape[0]), dim=0)
                 elif image.shape[0] < batch_size and batch_size % image.shape[0] != 0:
                     raise ValueError(
                         f"Cannot duplicate `image` of batch size {image.shape[0]} to effective batch_size {batch_size} "
@@ -656,7 +656,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                     retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator=generator[i])
                     for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator=generator)
 
@@ -672,13 +672,13 @@ class StableDiffusionPAGImg2ImgPipeline(
             )
             deprecate("len(prompt) != len(image)", "1.0.0", deprecation_message, standard_warn=False)
             additional_image_per_prompt = batch_size // init_latents.shape[0]
-            init_latents = ops.cat([init_latents] * additional_image_per_prompt, axis=0)
+            init_latents = mint.cat([init_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            init_latents = ops.cat([init_latents], axis=0)
+            init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -711,12 +711,12 @@ class StableDiffusionPAGImg2ImgPipeline(
         w = w * 1000.0
 
         half_dim = embedding_dim // 2
-        emb = ops.log(ms.tensor(10000.0)) / (half_dim - 1)
-        emb = ops.exp(ops.arange(half_dim, dtype=dtype) * -emb)
+        emb = mint.log(ms.tensor(10000.0)) / (half_dim - 1)
+        emb = mint.exp(mint.arange(half_dim, dtype=dtype) * -emb)
         emb = w.to(dtype)[:, None] * emb[None, :]
-        emb = ops.cat([ops.sin(emb), ops.cos(emb)], axis=1)
+        emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1)
         if embedding_dim % 2 == 1:  # zero pad
-            emb = ops.pad(emb, (0, 1))
+            emb = mint.nn.functional.pad(emb, (0, 1))
         assert emb.shape == (w.shape[0], embedding_dim)
         return emb
 
@@ -920,7 +920,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                 prompt_embeds, negative_prompt_embeds, self.do_classifier_free_guidance
             )
         elif self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             ip_adapter_image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -933,14 +933,14 @@ class StableDiffusionPAGImg2ImgPipeline(
             for i, image_embeds in enumerate(ip_adapter_image_embeds):
                 negative_image_embeds = None
                 if self.do_classifier_free_guidance:
-                    negative_image_embeds, image_embeds = image_embeds.chunk(2)
+                    negative_image_embeds, image_embeds = minnt.chunk(image_embeds, 2)
                 if self.do_perturbed_attention_guidance:
                     image_embeds = self._prepare_perturbed_attention_guidance(
                         image_embeds, negative_image_embeds, self.do_classifier_free_guidance
                     )
 
                 elif self.do_classifier_free_guidance:
-                    image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0)
+                    image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
                 ip_adapter_image_embeds[i] = image_embeds
 
         # 4. Preprocess image
@@ -949,7 +949,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         # 5. set timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
+        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
 
         # 6. Prepare latent variables
         latents = self.prepare_latents(
@@ -974,7 +974,7 @@ class StableDiffusionPAGImg2ImgPipeline(
         # 7.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = ms.tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
+            guidance_scale_tensor = mint.tile(ms.tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
@@ -996,7 +996,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
+                latent_model_input = mint.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual
@@ -1018,7 +1018,7 @@ class StableDiffusionPAGImg2ImgPipeline(
                         noise_pred, self.do_classifier_free_guidance, self.guidance_scale, t
                     )
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

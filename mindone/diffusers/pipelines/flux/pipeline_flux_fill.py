@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPTokenizer, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, T5EncoderModel
 
@@ -268,7 +268,7 @@ class FluxFillPipeline(
         _, seq_len, _ = prompt_embeds.shape
 
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         return prompt_embeds
@@ -312,7 +312,7 @@ class FluxFillPipeline(
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, -1)
 
         return prompt_embeds
@@ -353,7 +353,7 @@ class FluxFillPipeline(
                     f" a total batch size of {batch_size}, but {mask.shape[0]} masks were passed. Make sure the number"
                     " of masks that you pass is divisible by the total requested batch size."
                 )
-            mask = mask.tile((batch_size // mask.shape[0], 1, 1, 1))
+            mask = mint.tile(mask, (batch_size // mask.shape[0], 1, 1, 1))
         if masked_image_latents.shape[0] < batch_size:
             if not batch_size % masked_image_latents.shape[0] == 0:
                 raise ValueError(
@@ -361,7 +361,7 @@ class FluxFillPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
+            masked_image_latents = mint.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
         # 4. pack the masked_image_latents
         # batch_size, num_channels_latents, height, width -> batch_size, height//2 * width//2 , num_channels_latents*4
@@ -378,10 +378,10 @@ class FluxFillPipeline(
         mask = mask.view(
             batch_size, height, self.vae_scale_factor, width, self.vae_scale_factor
         )  # batch_size, height, 8, width, 8
-        mask = mask.permute(0, 2, 4, 1, 3)  # batch_size, 8, 8, height, width
-        mask = mask.reshape(
+        mask = mint.permute(mask, (0, 2, 4, 1, 3))  # batch_size, 8, 8, height, width
+        mask = mint.reshape(mask(
             batch_size, self.vae_scale_factor * self.vae_scale_factor, height, width
-        )  # batch_size, 8*8, height, width
+        ))  # batch_size, 8*8, height, width
 
         # 6. pack the mask:
         # batch_size, 64, height, width -> batch_size, height//2 * width//2 , 64*2*2
@@ -465,7 +465,7 @@ class FluxFillPipeline(
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
+        text_ids = mint.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -533,15 +533,15 @@ class FluxFillPipeline(
 
     @staticmethod
     def _prepare_latent_image_ids(batch_size, height, width, dtype):
-        latent_image_ids = ops.zeros((height, width, 3))
-        latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height)[:, None]
-        latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width)[None, :]
+        latent_image_ids = mint.zeros((height, width, 3))
+        latent_image_ids[..., 1] = latent_image_ids[..., 1] + mint.arange(height)[:, None]
+        latent_image_ids[..., 2] = latent_image_ids[..., 2] + mint.arange(width)[None, :]
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
-        latent_image_ids = latent_image_ids.reshape(
+        latent_image_ids = mint.reshape(latent_image_ids(
             latent_image_id_height * latent_image_id_width, latent_image_id_channels
-        )
+        ))
 
         return latent_image_ids.to(dtype=dtype)
 
@@ -549,8 +549,8 @@ class FluxFillPipeline(
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._pack_latents
     def _pack_latents(latents, batch_size, num_channels_latents, height, width):
         latents = latents.view(batch_size, num_channels_latents, height // 2, 2, width // 2, 2)
-        latents = latents.permute(0, 2, 4, 1, 3, 5)
-        latents = latents.reshape(batch_size, (height // 2) * (width // 2), num_channels_latents * 4)
+        latents = mint.permute(latents, (0, 2, 4, 1, 3, 5))
+        latents = mint.reshape(latents, (batch_size, (height // 2) * (width // 2), num_channels_latents * 4))
 
         return latents
 
@@ -565,9 +565,9 @@ class FluxFillPipeline(
         width = 2 * (int(width) // (vae_scale_factor * 2))
 
         latents = latents.view(batch_size, height // 2, width // 2, channels // 4, 2, 2)
-        latents = latents.permute(0, 3, 1, 4, 2, 5)
+        latents = mint.permute(latents, (0, 3, 1, 4, 2, 5))
 
-        latents = latents.reshape(batch_size, channels // (2 * 2), height, width)
+        latents = mint.reshape(latents, (batch_size, channels // (2 * 2), height, width))
 
         return latents
 
@@ -838,7 +838,7 @@ class FluxFillPipeline(
                 prompt_embeds.dtype,
                 generator,
             )
-            masked_image_latents = ops.cat((masked_image_latents, mask), axis=-1)
+            masked_image_latents = mint.cat((masked_image_latents, mask), dim=-1)
 
         # 6. Prepare timesteps
         sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps) if sigmas is None else sigmas
@@ -861,7 +861,7 @@ class FluxFillPipeline(
 
         # handle guidance
         if self.transformer.config.guidance_embeds:
-            guidance = ops.full([1], guidance_scale, dtype=ms.float32)
+            guidance = mint.full([1], guidance_scale, dtype=ms.float32)
             guidance = guidance.broadcast_to((latents.shape[0],))
         else:
             guidance = None
@@ -876,7 +876,7 @@ class FluxFillPipeline(
                 timestep = t.broadcast_to((latents.shape[0],)).to(latents.dtype)
 
                 noise_pred = self.transformer(
-                    hidden_states=ops.cat((latents, masked_image_latents), axis=2),
+                    hidden_states=mint.cat((latents, masked_image_latents), dim=2),
                     timestep=timestep / 1000,
                     guidance=guidance,
                     pooled_projections=pooled_prompt_embeds,

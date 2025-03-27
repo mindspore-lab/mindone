@@ -251,9 +251,9 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
-        prompt_attention_mask = prompt_attention_mask.tile((1, num_images_per_prompt))
+        prompt_attention_mask = mint.tile(prompt_attention_mask, (1, num_images_per_prompt))
         prompt_attention_mask = prompt_attention_mask.view(bs_embed * num_images_per_prompt, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -283,10 +283,10 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
-            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((1, num_images_per_prompt))
+            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (1, num_images_per_prompt))
             negative_prompt_attention_mask = negative_prompt_attention_mask.view(bs_embed * num_images_per_prompt, -1)
         else:
             negative_prompt_embeds = None

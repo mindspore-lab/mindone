@@ -353,13 +353,13 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
                 attention_mask=prompt_attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
-            prompt_attention_mask = prompt_attention_mask.tile((num_images_per_prompt, 1))
+            prompt_attention_mask = mint.tile(prompt_attention_mask, (num_images_per_prompt, 1))
 
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -398,7 +398,7 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
                 attention_mask=negative_prompt_attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
-            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((num_images_per_prompt, 1))
+            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (num_images_per_prompt, 1))
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -406,7 +406,7 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         return prompt_embeds, negative_prompt_embeds, prompt_attention_mask, negative_prompt_attention_mask
@@ -833,8 +833,8 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
             add_time_ids = mint.cat([add_time_ids] * 2, dim=0)
             style = mint.cat([style] * 2, dim=0)
 
-        add_time_ids = add_time_ids.to(dtype=prompt_embeds.dtype).tile((batch_size * num_images_per_prompt, 1))
-        style = style.tile((batch_size * num_images_per_prompt,))
+        add_time_ids = mint.tile(add_time_ids.to(dtype=prompt_embeds.dtype), (batch_size * num_images_per_prompt, 1))
+        style = mint.tile(style, (batch_size * num_images_per_prompt,))
 
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
