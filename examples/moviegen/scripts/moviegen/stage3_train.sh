@@ -14,7 +14,6 @@ msrun --bind_core=True --master_port=8200 --worker_num=8 --local_worker_num=8 --
 python scripts/train.py \
   --config configs/train/stage3_t2iv_768px.yaml \
   --env.mode 0 \
-  --env.jit_level O1 \
   --env.max_device_memory 59GB \
   --env.distributed True \
   --train.settings.zero_stage 2 \

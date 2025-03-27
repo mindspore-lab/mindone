@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 
 class BaseDataset(ABC):
@@ -65,3 +65,25 @@ class BaseDataset(ABC):
             >>>     return transforms
         """
         ...
+
+    @staticmethod
+    def _apply_transforms(data: Dict[str, Any], transforms: List[dict]) -> Dict[str, Any]:
+        """
+        Explicitly apply a list of transformations to the data immediately after loading
+        (i.e., instead of passing the data for later processing inside `.map()`).
+
+        Args:
+            data: A dictionary containing data in the form of {column_name: sample}.
+            transforms: A list of transformations to apply to the data (see `train_transforms()`).
+
+        Returns:
+            A dictionary containing transformed data in the form of {column_name: transformed_sample}.
+        """
+        for transform in transforms:
+            input_data = tuple(data[column] for column in transform["input_columns"])
+            for op in transform["operations"]:
+                input_data = op(*input_data)
+                if not isinstance(input_data, tuple):  # wrap numpy array in a tuple
+                    input_data = (input_data,)
+            data.update(zip(transform.get("output_columns", transform["input_columns"]), input_data))
+        return data

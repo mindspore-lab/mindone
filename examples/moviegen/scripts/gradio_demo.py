@@ -63,7 +63,7 @@ def load_embeddings(selected_prompts: List[str], args) -> Tuple[ms.Tensor, ms.Te
     byt5_emb = byt5_emb.unsqueeze(0)
 
     # Create placeholder metaclip embedding matching batch size
-    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 300, 1280)), dtype=ms.float32)
+    metaclip_emb = ms.Tensor(np.ones((ul2_emb.shape[0], 256, 1280)), dtype=ms.float32)
     return ul2_emb, metaclip_emb, byt5_emb
 
 
