@@ -19,7 +19,7 @@ import numpy as np
 from transformers import T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -226,8 +226,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         # but this can lead to overflow when placing the entire pipeline under the autocast context
         # adding this here so that we can enable zeroing prompts if necessary
         if self.config.force_zeros_for_empty_prompt and (prompt == "" or prompt[-1] == ""):
-            text_input_ids = ops.zeros_like(text_input_ids)
-            prompt_attention_mask = ops.zeros_like(prompt_attention_mask, dtype=ms.bool_)
+            text_input_ids = mint.zeros_like(text_input_ids)
+            prompt_attention_mask = mint.zeros_like(prompt_attention_mask, dtype=ms.bool_)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -245,11 +245,11 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         _, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         prompt_attention_mask = prompt_attention_mask.view(batch_size, -1)
-        prompt_attention_mask = prompt_attention_mask.tile((num_videos_per_prompt, 1))
+        prompt_attention_mask = mint.tile(prompt_attention_mask, (num_videos_per_prompt, 1))
 
         return prompt_embeds, prompt_attention_mask
 
@@ -622,8 +622,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
 
         # 5. Prepare timestep
         # from https://github.com/genmoai/models/blob/075b6e36db58f1242921deff83a1066887b9c9e1/src/mochi_preview/infer.py#L77
@@ -653,7 +653,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
 
@@ -669,7 +669,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 noise_pred = noise_pred.to(dtype=ms.float32)
 
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

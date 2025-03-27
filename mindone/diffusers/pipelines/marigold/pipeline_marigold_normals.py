@@ -661,7 +661,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
 
         uncertainty = None
         if output_uncertainty:
-            uncertainty = sim_cos.arccos()  # [E,1,H,W]
+            uncertainty = mint.arccos(sim_cos)  # [E,1,H,W]
             uncertainty = mint.mean(uncertainty, dim=0, keepdim=True) / ms.numpy.pi  # [1,1,H,W]
 
         if reduction == "mean":
