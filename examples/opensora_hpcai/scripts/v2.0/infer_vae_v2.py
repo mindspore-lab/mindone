@@ -14,9 +14,9 @@ from mindspore import nn
 from mindspore.communication.management import get_group_size, get_rank, init
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
 sys.path.insert(0, mindone_lib_path)
-sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "..")))
+sys.path.insert(0, os.path.abspath(os.path.join(__dir__, "../../")))
 
 from opensora.datasets.video_dataset import create_dataloader
 # from opensora.models.vae.vae import SD_CONFIG, AutoencoderKL
@@ -106,7 +106,7 @@ def init_env(
 def main(args):
     set_logger(name="", output_dir="logs/infer_vae")
     rank_id, device_num = init_env(
-        args.mode, args.seed, args.use_parallel, device_target=args.device_target, global_bf16=args.global_bf16
+        args.mode, args.seed, args.use_parallel, device_target=args.device_target,
     )
     print(f"rank_id {rank_id}, device_num {device_num}")
 
@@ -146,13 +146,24 @@ def main(args):
 
     # model initiate and weight loading
     logger.info("vae init")
-    with open(args.config, "r") as f:
-        config = yaml.load(f, Loader=yaml.FullLoader)
-    ae_config = config["ae"]
-    ae_config["from_pretrained"] = args.vae_checkpoint
-    ae_config["dtype"] = args.vae_precision
+    # with open(args.config, "r") as f:
+    #     config = yaml.load(f, Loader=yaml.FullLoader)
+    # ae_config = config["ae"]
+
+    # temp solution, copied from configs/opensora-v2-0/train/image.py
+    # TODO: will load config from yaml in the future
+    ae_config = dict(
+        type="hunyuan_vae",
+        from_pretrained=args.vae_checkpoint,
+        dtype=args.vae_precision,
+        in_channels=3,
+        out_channels=3,
+        layers_per_block=2,
+        latent_channels=16,
+        use_spatial_tiling=True,
+        use_temporal_tiling=False,
+    )
     model_ae = CausalVAE3D_HUNYUAN(**ae_config).set_train(False)
-    # dtype = PRECISION_TO_TYPE[args.vae_precision]
     del model_ae.decoder
 
 
@@ -296,6 +307,12 @@ def main(args):
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-c",
+        "--config",
+        default="configs/opensora-v2-0/train/stage1_i2v.yaml",
+        help="Path to load a config yaml file.",
+    )
     parser.add_argument(
         "--csv_path",
         default=None,
