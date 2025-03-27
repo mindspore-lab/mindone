@@ -5,8 +5,8 @@ This repository contains SoTA algorithms, models, and interesting projects in th
 ONE is short for "ONE for all"
 
 ## News
-- [2025.03.25] Release MindONE [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0)
-- [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus) 🔥
+- [2025.03.25] We release MindONE [v0.3.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.3.0). More than 15 SoTA generative models are added, including Flux, CogView4, OpenSora2.0, and HunyuanVideo. Have fun!
+- [2025.02.21] We support DeepSeek [Janus-Pro](https://huggingface.co/deepseek-ai/Janus-Pro-7B), a SoTA multimodal understanding and generation model. See [here](examples/janus)
 - [2024.11.06] MindONE [v0.2.0](https://github.com/mindspore-lab/mindone/releases/tag/v0.2.0) is released
 
 ## Quick tour
@@ -44,7 +44,7 @@ image.save("sd3.png")
 ### supported models under mindone/examples
 | model  |  features  
 | :---   |  :--  |
-| [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | support v1.0/1.1/1.2 large scale training with dp/sp/dsp/zero, 2.0 inference |
+| [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | support v1.0/1.1/1.2 large scale training with dp/sp/dsp/zero, v2.0 inference |
 | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | support v1.0/1.1/1.2/1.3 large scale training with dp/sp/zero |
 | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | support sd 1.5/2.0/2.1, vanilla fine-tune, lora, dreambooth, text inversion|
 | [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_xl)  |support sai style(stability AI) vanilla fine-tune, lora, dreambooth |
@@ -56,8 +56,8 @@ image.save("sd3.png")
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | support unconditional text to image fine-tune |
 | [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | support motion module and lora training |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | support conditional video generation with motion transfer and etc.|
-| [ip adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | refactoring  |
-| [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | refactoring |
+| [ip adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | support contronlable text to image generation, fine-tune|
+| [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | support contraollable text to image generation, fine-tune |
 | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | support image to video generation |
 | [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | support text to image fine-tune |
 | [movie gen](https://github.com/mindspore-lab/mindone/blob/master/examples/moviegen)     | support text to video training with model size up to 30B with dp/sp/zero3 |
@@ -88,7 +88,7 @@ image.save("sd3.png")
 <!-- TODO: add models in PR, emu3, var, etc -->
 
 ###  run hf diffusers on mindspore
-mindone diffusers is under active development, most tasks were tested with mindspore 2.5.0 and ascend 910 hardware.
+mindone diffusers is under active development, most tasks were tested with mindspore 2.5.0 and ascend A2 machines.
 
 | component  |  features  
 | :---   |  :--  

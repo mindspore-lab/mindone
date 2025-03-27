@@ -24,3 +24,20 @@
 | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | Tencent Research official | https://github.com/Doubiiu/DynamiCrafter
 | [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | Tencent Research official | https://github.com/Tencent/HunyuanDiT
 | [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | Noah Lab official | https://github.com/PixArt-alpha/PixArt-sigma
+| [cogview](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) | THUDM official | https://github.com/THUDM/CogView4 |
+| [flux](https://github.com/mindspore-lab/mindone/blob/master/examples/flux) | Black Forest Labs official | https://github.com/black-forest-labs/flux |
+| [movie gen](https://github.com/mindspore-lab/mindone/blob/master/examples/moviegen)     | implemented by MindONE team, based on the MovieGen paper by Meta | https://arxiv.org/pdf/2310.05737  |
+| [hunyuan3d-1.0](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan3d_1)     | Tencent official | https://github.com/Tencent/Hunyuan3D-1 |
+| [kohya_sd_scripts](https://github.com/mindspore-lab/mindone/blob/master/examples/kohya_sd_scripts) | kohya  | https://github.com/kohya-ss/sd-scripts |
+| [magvit](https://github.com/mindspore-lab/mindone/blob/master/examples/magvit) | implemented by MindONE team based on the MagViT-v2 paper by Google    | https://arxiv.org/pdf/2310.05737 |
+| [instantmesh](https://github.com/mindspore-lab/mindone/blob/master/examples/instantmesh) | Tencent ARC Lab official | https://github.com/TencentARC/InstantMesh |
+| [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | HunyuanVideo official | https://github.com/Tencent/HunyuanVideo |
+| [story_diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/story_diffusion) | HVision-NKU official | https://github.com/HVision-NKU/StoryDiffusion |
+| [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) | StepFun official | https://github.com/stepfun-ai/Step-Video-T2V   |
+| [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus) | DeepSeek AI official | https://github.com/deepseek-ai/Janus |
+| [svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd) | Stability AI official  | https://github.com/Stability-AI/generative-models  |
+| [wan2_1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) | Alibaba Wan Group official|  https://github.com/Wan-Video/Wan2.1 |
+| [mvdream](https://github.com/mindspore-lab/mindone/blob/master/examples/mvdream) | ByteDance official | https://github.com/bytedance/MVDream  |
+| [sv3d](https://github.com/mindspore-lab/mindone/blob/master/examples/sv3d) | Stability AI official   | https://github.com/Stability-AI/generative-models   |
+| [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) | Tencent official  | https://github.com/Tencent/HunyuanVideo-I2V  |
+| [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/VEnhancer |
