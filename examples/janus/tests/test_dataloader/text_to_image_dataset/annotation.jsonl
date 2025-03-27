@@ -1,0 +1,15 @@
+[
+  [
+    {
+      "role": "<|User|>",
+      "content": "A stunning princess from kabul in red, white traditional clothing, blue eyes, brown hair",
+      "images": [
+        "images/girl.jpg"
+      ]
+    },
+    {
+      "role": "<|Assistant|>",
+      "content": ""
+    }
+  ]
+]
