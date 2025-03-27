@@ -356,8 +356,38 @@ NODE_RANK="0"
   done
   ```
 
-要了解不同参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
+> [!TIP]
+> 如果想修改transformer的模型结构，可以设置`--transformer_config`。比如修改成30B的模型，可以设置`--transformer_config=configs/cogvideox1.5_30B.yaml`；
+> 当配置了`transformer_config`，可以配置`--transformer_ckpt_path`加载checkpoint权重。
 
+要了解更多参数的含义，你可以查看 [args](./scripts/args.py) 文件，或者使用 `--help` 运行训练脚本。
+
+## 性能数据
+
+### 训练
+
+|       model       | cards | DP | SP | zero  | vae cache | video shape | precision | jit level | s/step | memory usage |
+|:-----------------:|:-----:|:--:|:--:|:-----:|:---------:|:-----------:|:---------:|:---------:|:------:|:------------:|
+| CogvideoX 1.5 T2V 5B  |   8   | 8  | 1  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     | 39.23  |   35.6 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 4  | 2  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.9  |   19.9 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  10.1  |   14.6 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  5.16  |    8.2 GB    |
+| CogvideoX 1.5 T2V 5B  |  16   | 2  | 8  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  5.24  |    6.3 GB    |
+| CogvideoX 1.5 T2V 5B  |   8   | 8  | 1  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     |   49   |    40 GB     |
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 |    OFF    | 1x77x768x1360 |   bf16    |    O1     | 10.58  |    9.3 GB    |
+| CogvideoX 1.5 T2V 10B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  15.2  |   25.6 GB    |
+| CogvideoX 1.5 T2V 20B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.1  |   35.7 GB    |
+| CogvideoX 1.5 T2V 30B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  26.5  |   47.3 GB    |
+
+以上数据在Disney数据集，910*上获得。
+
+### 推理
+
+|       model       | cards | DP | SP | zero  |  video shape  | precision | jit level | s/step | total cost |
+|:-----------------:|:-----:|:--:|:--:|:-----:|:-------------:|:---------:|:---------:|:------:|:----------:|
+| CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 | 1x77x768x1360 |   bf16    |    O1     |  3.21  |   ~ 5min   |
+
+以上数据在910*上获得。
 
 ## 与原仓的差异&功能限制
 
