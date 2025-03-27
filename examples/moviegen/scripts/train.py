@@ -305,7 +305,6 @@ if __name__ == "__main__":
         "train.loss_scaler",
         fail_untyped=False,  # no typing in mindspore
         help="mindspore.nn.FixedLossScaleUpdateCell or mindspore.nn.DynamicLossScaleUpdateCell",
-        instantiate=False,
     )
     parser.add_function_arguments(
         prepare_train_network, "train.settings", skip={"network", "optimizer", "scale_sense", "ema"}
