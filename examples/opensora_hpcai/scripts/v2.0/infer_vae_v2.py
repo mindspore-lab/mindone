@@ -412,7 +412,7 @@ def main(args):
             i2v_head=5,  # train i2v (image as first frame) with weight 5
             i2v_loop=1,  # train image connection with weight 1
             i2v_tail=1,  # train i2v (image as last frame) with weight 1
-        ),
+        ) if args.return_cond else None,
     )
     model_ae = CausalVAE3D_HUNYUAN(**ae_config).set_train(False)
     del model_ae.decoder
@@ -482,7 +482,7 @@ def main(args):
                         
                         if cond_config.get("condition_config", None) is not None:
                             # condition for i2v & v2v
-                            x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config.condition_config, model_ae))
+                            x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
                             # TODO: pack function
                             # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
                             conds.append(cond.asnumpy())
@@ -513,7 +513,7 @@ def main(args):
                         
                         if cond_config.get("condition_config", None) is not None:
                             # condition for i2v & v2v
-                            x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config.condition_config, model_ae))
+                            x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
                             # TODO: pack function
                             # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
                             conds.append(cond.asnumpy())
@@ -558,6 +558,7 @@ def parse_args():
         "--caption_column", default="caption", type=str, help="name of column for captions saved in csv file"
     )
     parser.add_argument("--video_folder", default="", type=str, help="root dir for the video data")
+    parser.add_argument("--return_cond", default=False, type=str2bool, help="Whether return condition embedding or not")
     parser.add_argument("--filter_data", default=False, type=str2bool, help="Filter non-existing videos.")
     parser.add_argument("--image_size", nargs="+", default=[256, 256], type=int, help="image size")
     parser.add_argument(
