@@ -458,6 +458,15 @@ def parse_args(input_args=None):
     )
 
     parser.add_argument(
+        "--lora_layers",
+        type=str,
+        default=None,
+        help=(
+            'The transformer modules to apply LoRA training on. Please specify the layers in a comma seperated. E.g. - "to_k,to_q,to_v,to_out.0" will \
+                result in lora training of attention layers only'
+        ),
+    )
+    parser.add_argument(
         "--adam_epsilon",
         type=float,
         default=1e-08,
@@ -1037,12 +1046,27 @@ def main(args):
         # if args.train_text_encoder:
         #     text_encoder_one.gradient_checkpointing_enable()
 
+    if args.lora_layers is not None:
+        target_modules = [layer.strip() for layer in args.lora_layers.split(",")]
+    else:
+        target_modules = [
+            "attn.to_k",
+            "attn.to_q",
+            "attn.to_v",
+            "attn.to_out.0",
+            "attn.add_k_proj",
+            "attn.add_q_proj",
+            "attn.add_v_proj",
+            "attn.to_add_out",
+            "ff.net.0.proj",
+            "ff.net.2",
+            "ff_context.net.0.proj",
+            "ff_context.net.2",
+        ]
+
     # now we will add new LoRA weights to the attention layers
     transformer_lora_config = LoraConfig(
-        r=args.lora_rank,
-        lora_alpha=args.lora_rank,
-        init_lora_weights="gaussian",
-        target_modules=["to_k", "to_q", "to_v", "to_out.0"],
+        r=args.lora_rank, lora_alpha=args.lora_rank, init_lora_weights="gaussian", target_modules=target_modules
     )
     transformer.add_adapter(transformer_lora_config)
 
@@ -1519,7 +1543,7 @@ class TrainStepForFluxDevDB(TrainStep):
         self.vae_config_scaling_factor = vae.config.scaling_factor
         self.vae_config_shift_factor = vae.config.shift_factor
         self.vae_config_block_out_channels = vae.config.block_out_channels
-        self.vae_scale_factor = 2 ** (len(self.vae_config_block_out_channels))
+        self.vae_scale_factor = 2 ** (len(self.vae_config_block_out_channels) - 1)
 
         self.text_encoder_one = text_encoder_one
         self.text_encoder_two = text_encoder_two
@@ -1584,8 +1608,8 @@ class TrainStepForFluxDevDB(TrainStep):
 
         latent_image_ids = FluxPipeline._prepare_latent_image_ids(
             model_input.shape[0],
-            model_input.shape[2],
-            model_input.shape[3],
+            model_input.shape[2] // 2,
+            model_input.shape[3] // 2,
             self.weight_dtype,
         )
 
@@ -1642,8 +1666,8 @@ class TrainStepForFluxDevDB(TrainStep):
         )[0]
         model_pred = FluxPipeline._unpack_latents(
             model_pred,
-            height=int(model_input.shape[2] * self.vae_scale_factor / 2),
-            width=int(model_input.shape[3] * self.vae_scale_factor / 2),
+            height=model_input.shape[2] * self.vae_scale_factor,
+            width=model_input.shape[3] * self.vae_scale_factor,
             vae_scale_factor=self.vae_scale_factor,
         )
 
