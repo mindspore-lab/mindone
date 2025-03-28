@@ -68,36 +68,6 @@ from mindspore.nn import CrossEntropyLoss  # BCEWithLogitsLoss, MSELoss
 _CONFIG_FOR_DOC = "Emu3Config"
 
 
-def _get_unpad_data(attention_mask):
-    seqlens_in_batch = attention_mask.sum(dim=-1, dtype=ms.int32)
-    indices = ops.nonzero(attention_mask.flatten(start_dim=0), as_tuple=False).flatten(start_dim=0)
-    max_seqlen_in_batch = seqlens_in_batch.max().item()
-    cu_seqlens = ops.pad(ops.cumsum(seqlens_in_batch, axis=0, dtype=ms.int32), (1, 0))
-    return (
-        indices,
-        cu_seqlens,
-        max_seqlen_in_batch,
-    )
-
-
-def _expand_mask(mask: ms.Tensor, dtype: ms.dtype, tgt_len: Optional[int] = None):
-    warnings.warn(
-        "Calling `transformers.models.emu3.modeling_emu3._prepare_4d_attention_mask` is deprecated and will be removed in v4.37. "
-        "Use `transformers.modeling_attn_mask_utils._prepare_4d_attention_mask"
-    )
-    return _prepare_4d_attention_mask(mask=mask, dtype=dtype, tgt_len=tgt_len)
-
-
-def _make_causal_mask(input_ids_shape, dtype: ms.dtype, past_key_values_length: int = 0):
-    warnings.warn(
-        "Calling `transformers.models.emu3.modeling_emu3._make_causal_mask` is deprecated and will be removed in v4.37. "
-        "Use `transformers.models.emu3.modeling_emu3.AttentionMaskConverter._make_causal_mask"
-    )
-    return AttentionMaskConverter._make_causal_mask(
-        input_ids_shape=input_ids_shape, dtype=dtype, past_key_values_length=past_key_values_length
-    )
-
-
 class Emu3RMSNorm(nn.Cell):
     def __init__(self, hidden_size, eps=1e-6):
         """

@@ -154,7 +154,7 @@ def main():
 
     model_dtype = ms.bfloat16 if training_args.bf16 else (ms.float16 if training_args.fp16 else None)
 
-    if training_args.resume is not None:
+    if training_args.resume is None:
         model = Emu3ForCausalLM.from_pretrained(
             model_args.model_name_or_path,
             config=model_config,
@@ -297,7 +297,8 @@ def main():
                 ckpt_max_keep=training_args.save_total_limit,
                 ckpt_save_interval=training_args.save_steps,
                 step_mode=True if training_args.save_strategy == "steps" else False,  # epoch/steps, default: steps
-                ckpt_combine_online=True,  # Optional. If False, do offline ckpt combine
+                zero_stage=training_args.ms_zero_stage,
+                ckpt_combine_online=False,  # If False, do offline ckpt combine via `train/ckpt_combine`
             )
         )
     # if rank_id == 0:
