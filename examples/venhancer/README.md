@@ -15,6 +15,7 @@ VEnhancer, a generative space-time enhancement framework that improves the exist
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:     |   :---:       | :---:    | :---:              |
+| 2.3.1     |  23.0.3        |7.1.0.9.220    |   8.0.RC2.beta1   |
 | 2.5.0     |  24.1.RC3     |7.3.0.1.231    |   8.0.RC3.beta1   |
 
 ```shell
@@ -75,11 +76,20 @@ bash scripts/run_infer.sh
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on ascend 910* with pynative mode.
+
+- mindspore 2.5.0
 
 | model name    |  cards          | batch size      | resolution   |  sampler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
 |:-------------:|:------------:  |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
 | VEnhancer |  1               | 1               | 31x1214x1942  | heun | 15 | fp16 | / | / |  51.69 | 926 |
+
+
+- mindspore 2.3.1
+
+| model name    |  cards          | batch size      | resolution   |  sampler   | steps      | precision |  jit level | graph compile |s/step     | s/video |
+|:-------------:|:------------:  |:------------:   |:------------:|:------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| VEnhancer |  1               | 1               | 31x1214x1942  | heun | 15 | fp16 | / | / |  61.76 | 980 |
 
 
 ## References

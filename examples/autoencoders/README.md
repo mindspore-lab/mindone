@@ -12,7 +12,8 @@ This repository contains SoTA image and video autoencoders and their training an
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-| 2.5.0     |  24.1.RC3     |7.3.0.1.231    |   8.0.RC3.beta1   |
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231    | 8.0.RC2.beta1   |
+| 2.5.0     | 24.1.RC3      | 7.3.0.1.231    | 8.0.RC3.beta1   |
 
 ```shell
 pip install -r requirements.txt
@@ -65,13 +66,22 @@ For detailed arguments, please run `python infer.py -h`.
 
 ### Performance
 
-We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
+We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. Experiments are tested on ascend 910* with graph mode.
 
+- mindspore 2.5.0
 
 | model name  | cards|  batch size | resolution | precision |discriminator |jit_level  | graph compile  |  s/step  |  img/s  |   PSNR↑    | SSIM↑  |
 |:-----------|:-----|:-------------|:----------|:----------|:---|------:|:----------:|:------------:|:----------------:|:----------------:|:----------------:|
-| VAE-kl    |  1   |        12    | 256x256 |     fp32   |  OFF  |O2   |     3 min  |    0.59      |  20.34   |   32.58    |  0.91    |
-| VAE-vq    |  1   |        8    | 256x256  |     fp32   |  OFF  |O2   |     5 min  |    0.40     |  20.00   |   29.68    |  0.87    |
+| VAE-kl    |  1   |        12    | 256x256 |     fp32   |  OFF  |O1   |     1 min  |    0.57      |  21.05   |   32.58    |  0.91    |
+| VAE-vq    |  1   |        8    | 256x256  |     fp32   |  OFF  |O1   |     1 min  |    0.36     |  22.22   |   29.66    |  0.87    |
+
+
+- mindspore 2.3.1
+
+| model name  | cards|  batch size | resolution | precision |discriminator |jit_level  | graph compile  |  s/step  |  img/s  |   PSNR↑    | SSIM↑  |
+|:-----------|:-----|:-------------|:----------|:----------|:---|------:|:----------:|:------------:|:----------------:|:----------------:|:----------------:|
+| VAE-kl    |  1   |        12    | 256x256 |     fp32   |  OFF  |O2   |     3 min  |    0.58      |  20.69   |   32.48    |  0.91    |
+| VAE-vq    |  1   |        8    | 256x256  |     fp32   |  OFF  |O2   |     3 min  |    0.41     |  19.51   |   29.57    |  0.87    |
 
 
 Here are some reconstruction results (left is ground-truth, right is the reconstructed)
