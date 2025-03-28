@@ -4,7 +4,7 @@ from models import VAR, VQVAE
 
 from mindspore import mint, nn, ops
 
-from .utils import no_grad
+from mindone.diffusers.training_utils import pynative_no_grad as no_grad
 
 
 class GeneratorWithLoss(nn.Cell):
