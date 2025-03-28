@@ -14,6 +14,7 @@ def parse_train_args(parser):
     parser.add_argument(
         "--ms_mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
     )
+    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `59GB` for 910*")
     parser.add_argument(
         "--jit_level",
         default="O0",

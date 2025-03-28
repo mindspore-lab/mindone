@@ -47,6 +47,7 @@ def main(args):
         seed=args.seed,
         distributed=args.use_parallel,
         jit_level=args.jit_level,
+        max_device_memory=args.max_device_memory,
     )
     set_random_seed(args.seed)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -217,11 +218,11 @@ def main(args):
         )
         key_info += "\n" + "=" * 50
         logger.info(key_info)
-
+    global_step = start_epoch * dataset_size
+    global_step = ms.Tensor(global_step, dtype=ms.int32)
     for epoch in range(start_epoch, args.epochs):
         start_time_e = time.time()
-        global_step = epoch * dataset_size
-        global_step = ms.Tensor(global_step, dtype=ms.int64)
+
         for step, data in enumerate(ds_iter):
             start_time_s = time.time()
             inp = data[0]

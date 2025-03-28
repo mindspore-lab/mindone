@@ -18,7 +18,8 @@ output_dir=outputs/d16_train
 msrun --bind_core=True --master_port=8200 --worker_num=2 --local_worker_num=2 --log_dir=$output_dir  \
 	python train.py --data_path "./data/ImageNet2012" \
     --use_parallel=True \
-    --batch_size=32 \
+    --max_device_memory="59GB" \
+    --batch_size=96 \
     --tblr=1e-3 \
     --alng=1e-3 \
     --wpe=0.1 \
