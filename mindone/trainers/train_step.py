@@ -98,6 +98,11 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             self.zero_helper.split_params()
             if gradient_accumulation_steps > 1:
                 self.accumulated_grads = optimizer.parameters.clone(prefix="grad_accumulated_", init="zeros")
+            if hasattr(optimizer, "refresh_parallel_optimizer_states"):
+                optimizer.refresh_parallel_optimizer_states()
+        else:
+            if hasattr(optimizer, "disable_distributed_mode"):
+                optimizer.disable_distributed_mode()
 
     def set_train(self, mode: bool = True):
         # Delegate the setting of training mode behavior to the network.
