@@ -17,14 +17,23 @@ import random
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 
 import mindspore as ms
 
+from mindone.diffusers import KolorsImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -188,3 +197,41 @@ class KolorsPipelineImg2ImgFastTests(PipelineTesterMixin, unittest.TestCase):
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice) < threshold
+
+
+@slow
+@ddt
+class KolorsPipelineImg2ImgIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        if dtype == "float32":
+            pytest.skip("diffusers doesn't support fp32")
+
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe = KolorsImg2ImgPipeline.from_pretrained(
+            "Kwai-Kolors/Kolors-diffusers", variant="fp16", mindspore_dtype=ms_dtype
+        )
+
+        init_image = load_downloaded_image_from_hf_hub(
+            "huggingface/documentation-images",
+            "bunny_source.png",
+            subfolder="kolors",
+        )
+        prompt = (
+            "high quality image of a capybara wearing sunglasses. In the background of the image there are trees,"
+            " poles, grass and other objects. At the bottom of the object there is the road., 8k, highly detailed"
+            "."
+        )
+
+        torch.manual_seed(0)
+        image = pipe(prompt, image=init_image)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"kolors_i2i_{dtype}.npy",
+            subfolder="kolors",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

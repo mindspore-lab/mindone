@@ -43,6 +43,17 @@ def compute_snr(noise_scheduler, timesteps):
     """
     Computes SNR as per
     https://github.com/TiankaiHang/Min-SNR-Diffusion-Training/blob/521b624bd70c67cee4bdf49225915f5945a872e3/guided_diffusion/gaussian_diffusion.py#L847-L849
+    for the given timesteps using the provided noise scheduler.
+
+    Args:
+        noise_scheduler (`NoiseScheduler`):
+            An object containing the noise schedule parameters, specifically `alphas_cumprod`, which is used to compute
+            the SNR values.
+        timesteps (`ms.Tensor`):
+            A tensor of timesteps for which the SNR is computed.
+
+    Returns:
+        `ms.Tensor`: A tensor containing the computed SNR values for each timestep.
     """
     alphas_cumprod = noise_scheduler.alphas_cumprod
     sqrt_alphas_cumprod = alphas_cumprod**0.5
@@ -239,7 +250,7 @@ class EMAModel:
 
     @classmethod
     def from_pretrained(cls, path, model_cls, foreach=False) -> "EMAModel":
-        _, ema_kwargs = model_cls.load_config(path, return_unused_kwargs=True)
+        _, ema_kwargs = model_cls.from_config(path, return_unused_kwargs=True)
         model = model_cls.from_pretrained(path)
 
         ema_model = cls(model.get_parameters(), model_cls=model_cls, model_config=model.config, foreach=foreach)
@@ -958,7 +969,12 @@ class DiffusersTrainOneStepWrapper(TrainOneStepWrapper):
             optimizer_file = os.path.join(output_dir, "mindspore_model", f"zero_pp_{args.local_rank}_optim_states.ckpt")
         elif self.need_save_optimizer(args):
             optimizer_file = os.path.join(output_dir, "optimizer.ckpt")
-        ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+        else:
+            optimizer_file = None
+
+        if optimizer_file:
+            ms.save_checkpoint(self.optimizer, optimizer_file, choice_func=optimizer_state_filter)
+
         if is_master(args):
             # Loss Scaler states
             loss_scaler_file = os.path.join(output_dir, "loss_scaler.ckpt")

@@ -107,7 +107,6 @@ class PixArtSigmaPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
                 "tokenizer",
             ]
         }
-
         pt_components, ms_components = get_pipeline_components(components, self.pipeline_config)
         eval_components = ["transformer", "vae"]
 

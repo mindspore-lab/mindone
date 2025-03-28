@@ -88,13 +88,14 @@ def load_state_dict(
     ext = os.path.splitext(ckpt_path)[-1]
     if ext == ".ckpt":  # MindSpore
         sd = load_checkpoint(ckpt_path)
-    elif ext == ".safetensors":  # safetensors
+    elif ext == ".safetensors" and os.path.exists(ckpt_path):  # safetensors
         sd = _load_hf_state_dict(ckpt_path, name_map, param_shapes)
     elif not os.path.exists(ckpt_path):  # HuggingFace hub
-        # FIXME: scripts convert all paths to absolute paths for modelarts. Extract the original repo_id:
-        ckpt_path = "/".join(ckpt_path.split(os.sep)[-2:])
+        name = "*.safetensors"
+        if ckpt_path.endswith(".safetensors"):
+            ckpt_path, name = "/".join(ckpt_path.split(os.sep)[:-1]), ckpt_path.split(os.sep)[-1]
         ckpt_path = snapshot_download(ckpt_path, allow_patterns=["*.safetensors"], endpoint="https://hf-mirror.com")
-        ckpt_path = glob.glob(ckpt_path + "/*.safetensors")[0]
+        ckpt_path = glob.glob(os.path.join(ckpt_path, name))[0]
         sd = _load_hf_state_dict(ckpt_path, name_map, param_shapes)
     else:
         raise ValueError(f"Invalid checkpoint format: {ext}. Please convert to `.ckpt` or `.safetensors` first.")

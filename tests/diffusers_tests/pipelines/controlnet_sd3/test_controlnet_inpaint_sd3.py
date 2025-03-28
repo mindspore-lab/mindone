@@ -23,9 +23,16 @@ from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -61,8 +68,8 @@ class StableDiffusion3ControlInpaintNetPipelineFastTests(PipelineTesterMixin, un
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_sd3.SD3ControlNetModel",
-            "mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel",
+            "diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_sd3.SD3ControlNetModel",
             dict(
                 sample_size=32,
                 patch_size=1,
@@ -263,3 +270,67 @@ class StableDiffusion3ControlInpaintNetPipelineFastTests(PipelineTesterMixin, un
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@slow
+@ddt
+class StableDiffusion3ControlNetInpaintNetPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_controlnet_inpaint_sd3(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+        controlnet_cls = get_module("mindone.diffusers.models.controlnet_sd3.SD3ControlNetModel")
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.controlnet_sd3.pipeline_stable_diffusion_3_controlnet_inpainting.StableDiffusion3ControlNetInpaintingPipeline"
+        )
+        controlnet = controlnet_cls.from_pretrained(
+            "alimama-creative/SD3-Controlnet-Inpainting", use_safetensors=True, extra_conditioning_channels=1
+        )
+        pipe = pipe_cls.from_pretrained(
+            "stabilityai/stable-diffusion-3-medium-diffusers",
+            controlnet=controlnet,
+            mindspore_dtype=ms_dtype,
+        )
+
+        pipe.text_encoder.to(ms_dtype)
+        pipe.controlnet.to(ms_dtype)
+
+        image = load_downloaded_image_from_hf_hub(
+            "alimama-creative/SD3-Controlnet-Inpainting",
+            "dog.png",
+            subfolder="images",
+            repo_type="model",
+        )
+        mask = load_downloaded_image_from_hf_hub(
+            "alimama-creative/SD3-Controlnet-Inpainting",
+            "dog_mask.png",
+            subfolder="images",
+            repo_type="model",
+        )
+
+        prompt = "A cat is sitting next to a puppy."
+        negative_prompt = (
+            "deformed, distorted, disfigured, poorly drawn, bad anatomy, wrong anatomy, extra limb, "
+            "missing limb, floating limbs, mutated hands and fingers, disconnected limbs, mutation, "
+            "mutated, ugly, disgusting, blurry, amputation, NSFW"
+        )
+        torch.manual_seed(0)
+        image = pipe(
+            negative_prompt=negative_prompt,
+            prompt=prompt,
+            height=1024,
+            width=1024,
+            control_image=image,
+            control_mask=mask,
+            num_inference_steps=28,
+            controlnet_conditioning_scale=0.95,
+            guidance_scale=7,
+        )[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"controlnet_sd3_inpaint_{dtype}.npy",
+            subfolder="controlnet_sd3",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

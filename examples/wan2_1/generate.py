@@ -6,18 +6,20 @@ import random
 import sys
 from datetime import datetime
 
+from PIL import Image
+
+import mindspore as ms
+import mindspore.mint.distributed as dist
+from mindspore.communication import GlobalComm
+
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 import wan
-from PIL import Image
 from wan.configs import MAX_AREA_CONFIGS, SIZE_CONFIGS, SUPPORTED_SIZES, WAN_CONFIGS
+from wan.utils.prompt_extend import QwenPromptExpander
 from wan.utils.utils import cache_image, cache_video, str2bool
-
-import mindspore as ms
-import mindspore.mint.distributed as dist
-from mindspore.communication import GlobalComm
 
 EXAMPLE_PROMPT = {
     "t2v-1.3B": {
@@ -69,6 +71,12 @@ def _validate_args(args):
         args.size in SUPPORTED_SIZES[args.task]
     ), f"Unsupport size {args.size} for task {args.task}, supported sizes are: {', '.join(SUPPORTED_SIZES[args.task])}"
 
+    # Not implemented warning
+    if args.t5_cpu:
+        logging.warning("`t5_cpu` is not supported currently.")
+    if args.offload_model:
+        logging.warning("`offload_model` is not supported currently.")
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="Generate a image or video from a text prompt or image using Wan")
@@ -107,15 +115,15 @@ def _parse_args():
         "--prompt_extend_method",
         type=str,
         default="local_qwen",
-        choices=["dashscope", "local_qwen"],
+        choices=["local_qwen"],
         help="The prompt extend method to use.",
     )
     parser.add_argument("--prompt_extend_model", type=str, default=None, help="The prompt extend model to use.")
     parser.add_argument(
         "--prompt_extend_target_lang",
         type=str,
-        default="ch",
-        choices=["ch", "en"],
+        default="zh",
+        choices=["zh", "en"],
         help="The target language of prompt extend.",
     )
     parser.add_argument("--base_seed", type=int, default=0, help="The seed to use for generating the image or video.")
@@ -131,6 +139,12 @@ def _parse_args():
 
     # extra for mindspore
     parser.add_argument("--ulysses_sp", action="store_true", default=False, help="turn on ulysses parallelism in DiT.")
+    parser.add_argument(
+        "--qwen_zero3",
+        action="store_true",
+        default=False,
+        help="Whether to use ZeRO3 for Qwen model for prompt expansion.",
+    )
 
     args = parser.parse_args()
 
@@ -153,7 +167,7 @@ def _init_logging(rank):
 
 
 def generate(args):
-    if args.ulysses_sp or args.t5_zero3 or args.dit_zero3:
+    if args.ulysses_sp or args.t5_zero3 or args.dit_zero3 or args.qwen_zero3:
         dist.init_process_group(backend="hccl")
         ms.set_auto_parallel_context(parallel_mode="data_parallel")
 
@@ -184,7 +198,12 @@ def generate(args):
         ), "The number of ulysses_size and ring_size should be equal to the world size."
 
     if args.use_prompt_extend:
-        raise NotImplementedError("prompt_extend is not supported")
+        if args.prompt_extend_method == "local_qwen":
+            prompt_expander = QwenPromptExpander(
+                model_name=args.prompt_extend_model, is_vl="i2v" in args.task, qwen_zero3=args.qwen_zero3, device=rank
+            )
+        else:
+            raise NotImplementedError(f"Unsupport prompt_extend_method: {args.prompt_extend_method}")
 
     cfg = WAN_CONFIGS[args.task]
     if args.ulysses_size > 1:
@@ -204,7 +223,21 @@ def generate(args):
             args.prompt = EXAMPLE_PROMPT[args.task]["prompt"]
         logging.info(f"Input prompt: {args.prompt}")
         if args.use_prompt_extend:
-            raise NotImplementedError
+            logging.info("Extending prompt ...")
+            prompt_output = prompt_expander(args.prompt, tar_lang=args.prompt_extend_target_lang, seed=args.base_seed)
+            if prompt_output.status is False:
+                logging.info(f"Extending prompt failed: {prompt_output.message}")
+                logging.info("Falling back to original prompt.")
+                input_prompt = args.prompt
+            else:
+                input_prompt = prompt_output.prompt
+
+            input_prompt = [input_prompt]
+            # TODO: GlobalComm.INITED -> mint.is_initialzed
+            if GlobalComm.INITED:
+                dist.broadcast_object_list(input_prompt, src=0)
+            args.prompt = input_prompt[0]
+            logging.info(f"Extended prompt: {args.prompt}")
 
         logging.info("Creating WanT2V pipeline.")
         wan_t2v = wan.WanT2V(
@@ -240,7 +273,23 @@ def generate(args):
 
         img = Image.open(args.image).convert("RGB")
         if args.use_prompt_extend:
-            raise NotImplementedError
+            logging.info("Extending prompt ...")
+            prompt_output = prompt_expander(
+                args.prompt, tar_lang=args.prompt_extend_target_lang, image=img, seed=args.base_seed
+            )
+            if prompt_output.status is False:
+                logging.info(f"Extending prompt failed: {prompt_output.message}")
+                logging.info("Falling back to original prompt.")
+                input_prompt = args.prompt
+            else:
+                input_prompt = prompt_output.prompt
+
+            input_prompt = [input_prompt]
+            # TODO: GlobalComm.INITED -> mint.is_initialzeds
+            if GlobalComm.INITED:
+                dist.broadcast_object_list(input_prompt, src=0)
+            args.prompt = input_prompt[0]
+            logging.info(f"Extended prompt: {args.prompt}")
 
         logging.info("Creating WanI2V pipeline.")
         wan_i2v = wan.WanI2V(

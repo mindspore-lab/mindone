@@ -2,15 +2,25 @@ import random
 import unittest
 
 import numpy as np
+import pytest
 import torch
 from ddt import data, ddt, unpack
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
+from mindone.diffusers import FluxControlNetInpaintPipeline
+from mindone.diffusers.models import FluxControlNetModel
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     floats_tensor,
     get_module,
@@ -26,7 +36,7 @@ test_cases = [
 
 
 @ddt
-class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
+class FluxControlNetInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
         [
             "transformer",
@@ -105,8 +115,8 @@ class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase
         ],
         [
             "controlnet",
-            "diffusers.models.controlnet_flux.FluxControlNetModel",
-            "mindone.diffusers.models.controlnet_flux.FluxControlNetModel",
+            "diffusers.models.controlnets.controlnet_flux.FluxControlNetModel",
+            "mindone.diffusers.models.controlnets.controlnet_flux.FluxControlNetModel",
             dict(
                 patch_size=1,
                 in_channels=8,
@@ -214,3 +224,72 @@ class FluxControlInpaintPipelineFastTests(PipelineTesterMixin, unittest.TestCase
 
         threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
         assert np.max(np.linalg.norm(pt_image_slice - ms_image_slice) / np.linalg.norm(pt_image_slice)) < threshold
+
+
+@ddt
+@slow
+class FluxControlNetInpaintPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    def get_inputs(self):
+        # control_image = load_image(
+        #     "https://huggingface.co/InstantX/FLUX.1-dev-Controlnet-Canny-alpha/resolve/main/canny.jpg"
+        # )
+        control_image = load_downloaded_image_from_hf_hub(
+            "InstantX/FLUX.1-dev-Controlnet-Canny",
+            "canny.jpg",
+            subfolder=None,
+            repo_type="model",
+        )
+        init_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_input.png",
+            subfolder="stable_diffusion_xl",
+            repo_type="dataset",
+        )
+        mask_image = load_downloaded_image_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "inpaint_mask.png",
+            subfolder="stable_diffusion_xl",
+            repo_type="dataset",
+        )
+
+        inputs = {
+            "prompt": "A girl holding a sign that says InstantX",
+            "image": init_image,
+            "mask_image": mask_image,
+            "control_image": control_image,
+            "control_guidance_start": 0.2,
+            "control_guidance_end": 0.8,
+            "controlnet_conditioning_scale": 0.7,
+            "strength": 0.7,
+            "num_inference_steps": 28,
+            "guidance_scale": 3.5,
+        }
+
+        return inputs
+
+    @data(*test_cases)
+    @unpack
+    def test_inference(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+        if dtype == "float32":
+            pytest.skip("Skipping this case since this pipeline has precision issue in float32.")
+
+        controlnet = FluxControlNetModel.from_pretrained(
+            "InstantX/FLUX.1-dev-controlnet-canny", mindspore_dtype=ms_dtype
+        )
+        pipe = FluxControlNetInpaintPipeline.from_pretrained(
+            "black-forest-labs/FLUX.1-schnell", controlnet=controlnet, mindspore_dtype=ms_dtype
+        )
+
+        inputs = self.get_inputs()
+        torch.manual_seed(0)
+        image = pipe(**inputs)[0][0]
+
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"flux_controlnet_inpainting_{dtype}.npy",
+            subfolder="flux",
+        )
+
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL

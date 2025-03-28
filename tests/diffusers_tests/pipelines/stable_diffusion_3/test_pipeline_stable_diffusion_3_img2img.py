@@ -241,6 +241,8 @@ class StableDiffusion3Img2ImgPipelineSlowTests(PipelineTesterMixin, unittest.Tes
             "prompt": "A photo of a cat",
             "num_inference_steps": 2,
             "guidance_scale": 5.0,
+            "width": 768,
+            "height": 512,
             "image": init_image,
         }
 

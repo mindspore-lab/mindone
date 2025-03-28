@@ -21,9 +21,9 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 
 ## Requirements
 
-| mindspore | ascend driver | firmware | cann tookit/kernel |
-| :---:       |   :---:         | :---:      | :---:                |
-| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
+| mindspore | ascend driver | firmware    | cann tookit/kernel  |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
 
 ## 🎥 Demo
 
@@ -81,9 +81,9 @@ You contributions are welcome.
 Other useful documents and links are listed below.
 
 ## Installation
-1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
+1. Use python>=3.9 [[install]](https://www.python.org/downloads/)
 
-2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as recommended by the official installation website.
+2. Please install MindSpore 2.5.0 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1) as recommended by the official installation website.
 
 
 3. Install requirements
@@ -474,7 +474,7 @@ There are some arguments related to the training dataset path:
 - `num_frames`: the number of frames of each video sample.
 - `max_height` and `max_width`: the frame maximum height and width.
 - `force_resolution`: whether to train with fixed resolution or dynamic resolution. If `force_resolution` is True, all videos will be cropped and resized to the resolution of `args.max_height x args.max_width`. If `force_resolution` is False, `args.max_hxw` must be provided which determines the maximum token length of each video tensor.
-- `gradient_checkpointing`: it is referred to MindSpore [recomputation](https://www.mindspore.cn/docs/en/r2.3.1/api_python/mindspore/mindspore.recompute.html) feature, which can save memory by recomputing the intermediate activations in the backward pass.
+- `gradient_checkpointing`: it is referred to MindSpore [recomputation](https://www.mindspore.cn/docs/en/r2.5.0/api_python/mindspore/mindspore.recompute.html) feature, which can save memory by recomputing the intermediate activations in the backward pass.
 - `pretrained`: the pretrained checkpoint to be loaded as initial weights before training. If not provided, the OpenSoraT2V will use random initialization.
 - `parallel_mode`: the parallelism mode chosen from ["data", "optim", "zero"], which denotes the data parallelism, the optimizer parallelism and the deepspeed zero_x parallelism.
 - `zero_stage`: runs parallelism like deepspeed, supporting zero0, zero1, zero2, and zero3, if parallel_mode is "zero". By default, we use `--zero_stage 2` for all training stages.
@@ -502,13 +502,13 @@ See `train_t2v_stage2.sh` under `scripts/text_condition/mult-devices/` for detai
 
 #### Performance
 
-We evaluated the training performance on Ascend NPUs. All experiments are running in PYNATIVE mode with MindSpore(2.3.1). The results are as follows.
+We evaluated the training performance on Ascend NPUs. All experiments are running in PYNATIVE mode with MindSpore(2.5.0). The results are as follows.
 
 | model name      | cards       |  stage     | batch size (global)   | video size  | Paramllelism |recompute |data sink | jit level| step time | train imgs/s |
 |:----------------|:----------- |:---------:|:-----:|:----------:|:----------:|:----------:|:----------:|:----------:|-------------------:|:----------:|
-| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  32  |    1x256x256     |         zero2                     | TRUE | FALSE | O0 |  4.37  | 7.32  |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |  22.4s*  | 4.15 |
-| OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |  10.30  | 72.23 |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 1 |  32  |    1x256x256     |         zero2                     | TRUE | FALSE | O0 |  4.22  | 7.58  |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 2 |  1  |    up to 93x640x640    |         zero2  + SP(sp_size=8)  |  TRUE | FALSE | O0 |  12.6s*  | 7.38 |
+| OpenSoraT2V_v1_3-2B/122 |  8   | 3 |  8  |    93x352x640   |         zero2      |  TRUE | FALSE | O0 |  9.06  | 82.03 |
 
 > SP: sequence parallelism.
 

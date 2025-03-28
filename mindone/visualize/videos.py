@@ -62,7 +62,9 @@ def create_video_from_numpy_frames(frames: np.ndarray, path: str, fps: Union[int
         create_video_from_rgb_numpy_arrays(frames, path, fps=fps)
 
 
-def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=0, concat=False):
+def save_videos(
+    frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=0, concat=False, normalize: bool = True
+):
     """
     Save video frames to gif or mp4 files
     Args:
@@ -76,7 +78,8 @@ def save_videos(frames: np.ndarray, path: str, fps: Union[int, float] = 8, loop=
     assert fmt in ["gif", "mp4", "png"]
 
     # input frames: (b f H W 3), normalized to [0, 1]
-    frames = (frames * 255).round().clip(0, 255).astype(np.uint8)
+    if normalize:
+        frames = (frames * 255).round().clip(0, 255).astype(np.uint8)
     os.makedirs(os.path.dirname(path), exist_ok=True)
 
     if len(frames.shape) == 4:
