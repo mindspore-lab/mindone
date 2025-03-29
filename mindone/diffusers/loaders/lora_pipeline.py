@@ -18,7 +18,7 @@ from typing import Callable, Dict, List, Optional, Union
 from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ..utils import deprecate, logging
 from .lora_base import (  # noqa
@@ -1348,6 +1348,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         for k in keys:
             if "alpha" in k:
                 alpha_value = state_dict.get(k)
+                # todo: unavailable mint interface
                 if (ops.is_tensor(alpha_value) and ops.is_floating_point(alpha_value)) or isinstance(
                     alpha_value, float
                 ):
@@ -1752,7 +1753,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                     module_names.add(param_name.replace(".weight", ""))
 
             for name, module in transformer.cells_and_names():
-                if isinstance(module, nn.Dense) and name in module_names:
+                if (isinstance(module, mint.nn.Linear) or isinstance(module, nn.Dense)) and name in module_names:
                     module_weight = module.weight.data
                     module_bias = module.bias.data if module.bias is not None else None
                     bias = module_bias is not None
@@ -1762,7 +1763,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
 
                     current_param_weight = overwritten_params[f"{name}.weight"]
                     in_features, out_features = current_param_weight.shape[1], current_param_weight.shape[0]
-                    original_module = nn.Dense(in_features, out_features, has_bias=bias, dtype=module_weight.dtype)
+                    original_module = mint.nn.Linear(in_features, out_features, bias=bias, dtype=module_weight.dtype)
 
                     tmp_state_dict = {"weight": current_param_weight}
                     if module_bias is not None:
@@ -1809,7 +1810,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
 
         is_peft_loaded = getattr(transformer, "peft_config", None) is not None
         for name, module in transformer.cells_and_names():
-            if isinstance(module, nn.Dense):
+            if isinstance(module, nn.Dense) or isinstance(module, mint.nn.Linear):
                 module_weight = module.weight.data
                 module_bias = module.bias.data if module.bias is not None else None
                 bias = module_bias is not None
@@ -1850,12 +1851,12 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                     parent_module_name, _, current_module_name = name.rpartition(".")
                     parent_module = transformer.get_submodule(parent_module_name)
 
-                    expanded_module = nn.Dense(in_features, out_features, has_bias=bias, dtype=module_weight.dtype)
+                    expanded_module = mint.nn.Linear(in_features, out_features, bias=bias, dtype=module_weight.dtype)
                     # Only weights are expanded and biases are not. This is because only the input dimensions
                     # are changed while the output dimensions remain the same. The shape of the weight tensor
                     # is (out_features, in_features), while the shape of bias tensor is (out_features,), which
                     # explains the reason why only weights are expanded.
-                    new_weight = ops.zeros_like(expanded_module.weight.data, dtype=module_weight.dtype)
+                    new_weight = mint.zeros_like(expanded_module.weight.data, dtype=module_weight.dtype)
                     slices = tuple(slice(0, dim) for dim in module_weight.shape)
                     new_weight[slices] = module_weight
                     tmp_state_dict = {"weight": ms.Parameter(new_weight)}
@@ -1915,7 +1916,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
 
             if base_weight_param.shape[1] > lora_A_param.shape[1]:
                 shape = (lora_A_param.shape[0], base_weight_param.shape[1])
-                expanded_state_dict_weight = ops.zeros(shape)
+                expanded_state_dict_weight = mint.zeros(shape)
                 expanded_state_dict_weight[:, : lora_A_param.shape[1]] += lora_A_param
                 lora_state_dict[f"{prefix}{k}.lora_A.weight"] = expanded_state_dict_weight
                 expanded_module_names.add(k)
