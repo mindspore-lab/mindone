@@ -849,8 +849,8 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         # 6.1 Prepare micro-conditions.
         added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
         if self.transformer.config.sample_size == 128:
-            resolution = ms.tensor([height, width]).tile((batch_size * num_images_per_prompt, 1))
-            aspect_ratio = ms.tensor([float(height / width)]).tile((batch_size * num_images_per_prompt, 1))
+            resolution = mint.tile(ms.tensor([height, width]), (batch_size * num_images_per_prompt, 1))
+            aspect_ratio = mint.tile(ms.tensor([float(height / width)]), (batch_size * num_images_per_prompt, 1))
             resolution = resolution.to(dtype=prompt_embeds.dtype)
             aspect_ratio = aspect_ratio.to(dtype=prompt_embeds.dtype)
 

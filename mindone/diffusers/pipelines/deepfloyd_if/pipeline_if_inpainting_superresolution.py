@@ -725,7 +725,7 @@ class IFInpaintingSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         image = image.to(dtype=self.unet.dtype)
 
-        image = image.repeat_interleave(num_images_per_prompt, dim=0)
+        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
 
         return image
 
@@ -809,7 +809,7 @@ class IFInpaintingSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
 
-        image = image.repeat_interleave(num_images_per_prompt, dim=0)
+        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
         noised_image = self.scheduler.add_noise(image, noise, timestep)
 
         image = (1 - mask_image) * image + mask_image * noised_image
@@ -992,9 +992,9 @@ class IFInpaintingSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         mask_image = mask_image.to(dtype=dtype)
 
         if mask_image.shape[0] == 1:
-            mask_image = mask_image.repeat_interleave(batch_size * num_images_per_prompt, dim=0)
+            mask_image = mint.repeat_interleave(mask_image, batch_size * num_images_per_prompt, dim=0)
         else:
-            mask_image = mask_image.repeat_interleave(num_images_per_prompt, dim=0)
+            mask_image = mint.repeat_interleave(mask_image, num_images_per_prompt, dim=0)
 
         # 6. Prepare intermediate images
         noise_timestep = timesteps[0:1]
