@@ -323,6 +323,7 @@ def main(args):
         collate_fn=collate_fn,
         sampler=sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
+        dataset_iterator_do_copy=args.dataset_iterator_do_copy,
     )
     dataloader_size = dataloader.get_dataset_size()
     assert (
@@ -357,6 +358,7 @@ def main(args):
             collate_fn=collate_fn,
             sampler=sampler,
             column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
+            dataset_iterator_do_copy=args.dataset_iterator_do_copy,
         )
         val_dataloader_size = val_dataloader.get_dataset_size()
         assert (
