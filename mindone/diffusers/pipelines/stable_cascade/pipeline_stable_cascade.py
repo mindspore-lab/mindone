@@ -171,8 +171,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
         prompt_embeds_pooled = prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-        prompt_embeds_pooled = prompt_embeds_pooled.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        prompt_embeds_pooled = mint.repeat_interleave(prompt_embeds_pooled, num_images_per_prompt, dim=0)
 
         if negative_prompt_embeds is None and do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -219,7 +219,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
 
             seq_len = negative_prompt_embeds_pooled.shape[1]
             negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.tile((1, num_images_per_prompt, 1))
+            negative_prompt_embeds_pooled = mint.tile(negative_prompt_embeds_pooled, (1, num_images_per_prompt, 1))
             negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -286,8 +286,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
         clamp_range = [0, 1]
         min_var = mint.cos(s / (1 + s) * math.pi * 0.5) ** 2
         var = alphas_cumprod[t]
-        var = var.clamp(*clamp_range)
-        ratio = (((var * min_var) ** 0.5).acos() / (math.pi * 0.5)) * (1 + s) - s
+        var = mint.clamp(var, *clamp_range)
+        ratio = (mint.acos(((var * min_var) ** 0.5)) / (math.pi * 0.5)) * (1 + s) - s
         return ratio
 
     def __call__(

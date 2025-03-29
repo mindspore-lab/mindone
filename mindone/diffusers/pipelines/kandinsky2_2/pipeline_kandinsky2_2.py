@@ -219,8 +219,8 @@ class KandinskyV22Pipeline(DiffusionPipeline):
             negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if self.do_classifier_free_guidance:
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(
                 dtype=self.unet.dtype,

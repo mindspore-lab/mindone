@@ -174,7 +174,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
             prompt_embeds = text_encoder_output[0]
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
 
         if negative_prompt_embeds is None and do_classifier_free_guidance:
             uncond_tokens: List[str]

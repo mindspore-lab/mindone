@@ -411,8 +411,8 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
             negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if self.do_classifier_free_guidance:
-            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
 
@@ -436,11 +436,11 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
         mask_image = prepare_mask(mask_image)
         masked_image = image * mask_image
 
-        mask_image = mask_image.repeat_interleave(num_images_per_prompt, dim=0)
-        masked_image = masked_image.repeat_interleave(num_images_per_prompt, dim=0)
+        mask_image = mint.repeat_interleave(mask_image, num_images_per_prompt, dim=0)
+        masked_image = mint.repeat_interleave(masked_image, num_images_per_prompt, dim=0)
         if self.do_classifier_free_guidance:
             mask_image = mint.tile(mask_image, (2, 1, 1, 1))
-            masked_image = masked_image.tile((2, 1, 1, 1))
+            masked_image = mint.tile(masked_image, (2, 1, 1, 1))
 
         num_channels_latents = self.movq.config.latent_channels
 
