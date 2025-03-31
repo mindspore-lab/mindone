@@ -29,7 +29,7 @@ from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, ProfilerCallback, StopAtStepCallback
 from mindone.trainers.checkpoint import CheckpointManager
 from mindone.trainers.zero import prepare_train_network
-from mindone.utils import count_params, init_train_env, set_logger
+from mindone.utils import count_params, init_env, set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +77,9 @@ def main(args):
     # 1. init env
     args.train.output_path = os.path.abspath(args.train.output_path)
     os.makedirs(args.train.output_path, exist_ok=True)
-    device_id, rank_id, device_num = init_train_env(**args.env)
-    mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
-    # if graph mode and vae tiling is ON, uise dfs exec order
+    device_id, rank_id, device_num = init_env(**args.env)
+    mode = get_context("mode")  # `init_env()` may change the mode during debugging
+    # if graph mode and vae tiling is ON, use dfs exec order
     if mode == GRAPH_MODE and args.vae.tiling:
         set_context(exec_order="dfs")
     # 1.1 init model parallel
@@ -467,7 +467,7 @@ if __name__ == "__main__":
         action=ActionConfigFile,
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
     parser.add_function_arguments(load_vae_train, "vae", skip={"logger"})
     parser.add_class_arguments(VideoDataset, "dataset", instantiate=False)

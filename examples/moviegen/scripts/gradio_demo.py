@@ -24,7 +24,7 @@ from mg.models.tae import TemporalAutoencoder
 from mg.pipelines import InferPipeline
 from mg.utils import init_model, to_numpy
 
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 from mindone.visualize import save_videos
 
 logger = logging.getLogger(__name__)
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     )
 
     # Add all necessary arguments
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"in_channels"})
 
     # TAE parameters

@@ -19,7 +19,7 @@ from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -36,7 +36,7 @@ def main(args):
     # step 1: initialize environment
     train_cfg = OmegaConf.load(args.train_cfg)
     loss_scaler = nn.DynamicLossScaleUpdateCell(**train_cfg.LossScale)
-    device_id, rank_id, device_num = init_train_env(**train_cfg.environment)
+    device_id, rank_id, device_num = init_env(**train_cfg.environment)
     _debug = args.debug
     _mode = train_cfg.environment.mode
     if not _debug:
