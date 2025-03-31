@@ -68,11 +68,11 @@ EXAMPLE_DOC_STRING = """
 
 # Copied from diffusers.pipelines.flux.pipeline_flux.calculate_shift
 def calculate_shift(
-        image_seq_len,
-        base_seq_len: int = 256,
-        max_seq_len: int = 4096,
-        base_shift: float = 0.5,
-        max_shift: float = 1.16,
+    image_seq_len,
+    base_seq_len: int = 256,
+    max_seq_len: int = 4096,
+    base_shift: float = 0.5,
+    max_shift: float = 1.16,
 ):
     m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
     b = base_shift - m * base_seq_len
@@ -82,11 +82,11 @@ def calculate_shift(
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
 def retrieve_timesteps(
-        scheduler,
-        num_inference_steps: Optional[int] = None,
-        timesteps: Optional[List[int]] = None,
-        sigmas: Optional[List[float]] = None,
-        **kwargs,
+    scheduler,
+    num_inference_steps: Optional[int] = None,
+    timesteps: Optional[List[int]] = None,
+    sigmas: Optional[List[float]] = None,
+    **kwargs,
 ):
     r"""
     Calls the scheduler's `set_timesteps` method and retrieves timesteps from the scheduler after the call. Handles
@@ -139,7 +139,7 @@ def retrieve_timesteps(
 
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
 def retrieve_latents(
-        vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
 ):
     if sample_mode == "sample":
         return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
@@ -181,12 +181,12 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
     _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
 
     def __init__(
-            self,
-            scheduler: FlowMatchEulerDiscreteScheduler,
-            vae: AutoencoderKLLTXVideo,
-            text_encoder: T5EncoderModel,
-            tokenizer: T5TokenizerFast,
-            transformer: LTXVideoTransformer3DModel,
+        self,
+        scheduler: FlowMatchEulerDiscreteScheduler,
+        vae: AutoencoderKLLTXVideo,
+        text_encoder: T5EncoderModel,
+        tokenizer: T5TokenizerFast,
+        transformer: LTXVideoTransformer3DModel,
     ):
         super().__init__()
 
@@ -215,11 +215,11 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         self.default_frames = 121
 
     def _get_t5_prompt_embeds(
-            self,
-            prompt: Union[str, List[str]] = None,
-            num_videos_per_prompt: int = 1,
-            max_sequence_length: int = 128,
-            dtype: Optional[ms.Type] = None,
+        self,
+        prompt: Union[str, List[str]] = None,
+        num_videos_per_prompt: int = 1,
+        max_sequence_length: int = 128,
+        dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
 
@@ -241,7 +241,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.equal(text_input_ids, untruncated_ids):
-            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1: -1])
+            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, max_sequence_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because `max_sequence_length` is set to "
                 f" {max_sequence_length} tokens: {removed_text}"
@@ -262,17 +262,17 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
     # Copied from diffusers.pipelines.mochi.pipeline_mochi.MochiPipeline.encode_prompt with 256->128
     def encode_prompt(
-            self,
-            prompt: Union[str, List[str]],
-            negative_prompt: Optional[Union[str, List[str]]] = None,
-            do_classifier_free_guidance: bool = True,
-            num_videos_per_prompt: int = 1,
-            prompt_embeds: Optional[ms.Tensor] = None,
-            negative_prompt_embeds: Optional[ms.Tensor] = None,
-            prompt_attention_mask: Optional[ms.Tensor] = None,
-            negative_prompt_attention_mask: Optional[ms.Tensor] = None,
-            max_sequence_length: int = 128,
-            dtype: Optional[ms.Type] = None,
+        self,
+        prompt: Union[str, List[str]],
+        negative_prompt: Optional[Union[str, List[str]]] = None,
+        do_classifier_free_guidance: bool = True,
+        num_videos_per_prompt: int = 1,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_attention_mask: Optional[ms.Tensor] = None,
+        negative_prompt_attention_mask: Optional[ms.Tensor] = None,
+        max_sequence_length: int = 128,
+        dtype: Optional[ms.Type] = None,
     ):
         r"""
         Encodes the prompt into text encoder hidden states.
@@ -339,25 +339,24 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
     # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline.check_inputs
     def check_inputs(
-            self,
-            prompt,
-            height,
-            width,
-            callback_on_step_end_tensor_inputs=None,
-            prompt_embeds=None,
-            negative_prompt_embeds=None,
-            prompt_attention_mask=None,
-            negative_prompt_attention_mask=None,
+        self,
+        prompt,
+        height,
+        width,
+        callback_on_step_end_tensor_inputs=None,
+        prompt_embeds=None,
+        negative_prompt_embeds=None,
+        prompt_attention_mask=None,
+        negative_prompt_attention_mask=None,
     ):
         if height % 32 != 0 or width % 32 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 32 but are {height} and {width}.")
 
         if callback_on_step_end_tensor_inputs is not None and not all(
-                k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
+            k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
-                # noqa: E501
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -403,39 +402,53 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         post_patch_num_frames = num_frames // patch_size_t
         post_patch_height = height // patch_size
         post_patch_width = width // patch_size
-        latents = mint.reshape(latents, (
-            batch_size,
-            -1,
-            post_patch_num_frames,
-            patch_size_t,
-            post_patch_height,
-            patch_size,
-            post_patch_width,
-            patch_size,
-        ))
-        latents = mint.flatten(mint.flatten(mint.permute(latents, (0, 2, 4, 6, 1, 3, 5, 7)), start_dim=4, end_dim=7),
-                               start_dim=1, end_dim=3)
+        latents = mint.reshape(
+            latents,
+            (
+                batch_size,
+                -1,
+                post_patch_num_frames,
+                patch_size_t,
+                post_patch_height,
+                patch_size,
+                post_patch_width,
+                patch_size,
+            ),
+        )
+        latents = mint.flatten(
+            mint.flatten(mint.permute(latents, (0, 2, 4, 6, 1, 3, 5, 7)), start_dim=4, end_dim=7),
+            start_dim=1,
+            end_dim=3,
+        )
         return latents
 
     @staticmethod
     # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._unpack_latents
     def _unpack_latents(
-            latents: ms.Tensor, num_frames: int, height: int, width: int, patch_size: int = 1, patch_size_t: int = 1
+        latents: ms.Tensor, num_frames: int, height: int, width: int, patch_size: int = 1, patch_size_t: int = 1
     ) -> ms.Tensor:
         # Packed latents of shape [B, S, D] (S is the effective video sequence length, D is the effective feature dimensions)
         # are unpacked and reshaped into a video tensor of shape [B, C, F, H, W]. This is the inverse operation of
         # what happens in the `_pack_latents` method.
         batch_size = latents.shape[0]
-        latents = mint.reshape(latents,
-                               (batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size))
-        latents = mint.flatten(mint.flatten(mint.flatten(mint.permute(latents, (0, 4, 1, 5, 2, 6, 3, 7)), start_dim=6,
-                                                         end_dim=7), start_dim=4, end_dim=5), start_dim=2, end_dim=3)
+        latents = mint.reshape(
+            latents, (batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size)
+        )
+        latents = mint.flatten(
+            mint.flatten(
+                mint.flatten(mint.permute(latents, (0, 4, 1, 5, 2, 6, 3, 7)), start_dim=6, end_dim=7),
+                start_dim=4,
+                end_dim=5,
+            ),
+            start_dim=2,
+            end_dim=3,
+        )
         return latents
 
     @staticmethod
     # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._normalize_latents
     def _normalize_latents(
-            latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
+        latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
     ) -> ms.Tensor:
         # Normalize latents across the channel dimension [B, C, F, H, W]
         latents_mean = latents_mean.view(1, -1, 1, 1, 1).to(latents.dtype)
@@ -446,7 +459,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
     @staticmethod
     # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._denormalize_latents
     def _denormalize_latents(
-            latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
+        latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
     ) -> ms.Tensor:
         # Denormalize latents across the channel dimension [B, C, F, H, W]
         latents_mean = latents_mean.view(1, -1, 1, 1, 1).to(latents.dtype)
@@ -455,16 +468,16 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         return latents
 
     def prepare_latents(
-            self,
-            image: Optional[ms.Tensor] = None,
-            batch_size: int = 1,
-            num_channels_latents: int = 128,
-            height: int = 512,
-            width: int = 704,
-            num_frames: int = 161,
-            dtype: Optional[ms.Type] = None,
-            generator: Optional[np.random.Generator] = None,
-            latents: Optional[ms.Tensor] = None,
+        self,
+        image: Optional[ms.Tensor] = None,
+        batch_size: int = 1,
+        num_channels_latents: int = 128,
+        height: int = 512,
+        width: int = 704,
+        num_frames: int = 161,
+        dtype: Optional[ms.Type] = None,
+        generator: Optional[np.random.Generator] = None,
+        latents: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         height = height // self.vae_spatial_compression_ratio
         width = width // self.vae_spatial_compression_ratio
@@ -489,8 +502,9 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 )
 
             init_latents = [
-                retrieve_latents(self.vae, self.vae.encode(mint.unsqueeze(mint.unsqueeze(image[i], 0), 2))[0],
-                                 generator[i])
+                retrieve_latents(
+                    self.vae, self.vae.encode(mint.unsqueeze(mint.unsqueeze(image[i], 0), 2))[0], generator[i]
+                )
                 for i in range(batch_size)
             ]
         else:
@@ -508,9 +522,12 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
         latents = init_latents * conditioning_mask + noise * (1 - conditioning_mask)
 
-        conditioning_mask = mint.squeeze(self._pack_latents(
-            conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
-        ), -1)
+        conditioning_mask = mint.squeeze(
+            self._pack_latents(
+                conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
+            ),
+            -1,
+        )
         latents = self._pack_latents(latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size)
 
         return latents, conditioning_mask
@@ -536,32 +553,32 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         return self._interrupt
 
     def __call__(
-            self,
-            image: PipelineImageInput = None,
-            prompt: Union[str, List[str]] = None,
-            negative_prompt: Optional[Union[str, List[str]]] = None,
-            height: int = 512,
-            width: int = 704,
-            num_frames: int = 161,
-            frame_rate: int = 25,
-            num_inference_steps: int = 50,
-            timesteps: List[int] = None,
-            guidance_scale: float = 3,
-            num_videos_per_prompt: Optional[int] = 1,
-            generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
-            latents: Optional[ms.Tensor] = None,
-            prompt_embeds: Optional[ms.Tensor] = None,
-            prompt_attention_mask: Optional[ms.Tensor] = None,
-            negative_prompt_embeds: Optional[ms.Tensor] = None,
-            negative_prompt_attention_mask: Optional[ms.Tensor] = None,
-            decode_timestep: Union[float, List[float]] = 0.0,
-            decode_noise_scale: Optional[Union[float, List[float]]] = None,
-            output_type: Optional[str] = "pil",
-            return_dict: bool = False,
-            attention_kwargs: Optional[Dict[str, Any]] = None,
-            callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
-            callback_on_step_end_tensor_inputs: List[str] = ["latents"],
-            max_sequence_length: int = 128,
+        self,
+        image: PipelineImageInput = None,
+        prompt: Union[str, List[str]] = None,
+        negative_prompt: Optional[Union[str, List[str]]] = None,
+        height: int = 512,
+        width: int = 704,
+        num_frames: int = 161,
+        frame_rate: int = 25,
+        num_inference_steps: int = 50,
+        timesteps: List[int] = None,
+        guidance_scale: float = 3,
+        num_videos_per_prompt: Optional[int] = 1,
+        generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
+        latents: Optional[ms.Tensor] = None,
+        prompt_embeds: Optional[ms.Tensor] = None,
+        prompt_attention_mask: Optional[ms.Tensor] = None,
+        negative_prompt_embeds: Optional[ms.Tensor] = None,
+        negative_prompt_attention_mask: Optional[ms.Tensor] = None,
+        decode_timestep: Union[float, List[float]] = 0.0,
+        decode_noise_scale: Optional[Union[float, List[float]]] = None,
+        output_type: Optional[str] = "pil",
+        return_dict: bool = False,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
+        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
+        callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        max_sequence_length: int = 128,
     ):
         r"""
         Function invoked when calling the pipeline for generation.

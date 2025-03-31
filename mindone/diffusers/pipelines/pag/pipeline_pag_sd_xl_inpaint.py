@@ -846,7 +846,9 @@ class StableDiffusionXLPAGInpaintPipeline(
                         f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                         " Make sure the number of images that you pass is divisible by the total requested batch size."
                     )
-                masked_image_latents = mint.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
+                masked_image_latents = mint.tile(
+                    masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
+                )
 
             masked_image_latents = (
                 mint.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents

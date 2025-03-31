@@ -495,7 +495,9 @@ class StableDiffusionPAGInpaintPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = mint.repeat_interleave(
                 uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
             )

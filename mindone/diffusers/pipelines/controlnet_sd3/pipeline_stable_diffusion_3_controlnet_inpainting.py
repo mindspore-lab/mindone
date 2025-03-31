@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPTokenizer, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import mint, ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel
 
