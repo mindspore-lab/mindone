@@ -361,7 +361,9 @@ class FluxFillPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = mint.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
+            masked_image_latents = mint.tile(
+                masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
+            )
 
         # 4. pack the masked_image_latents
         # batch_size, num_channels_latents, height, width -> batch_size, height//2 * width//2 , num_channels_latents*4
@@ -379,9 +381,9 @@ class FluxFillPipeline(
             batch_size, height, self.vae_scale_factor, width, self.vae_scale_factor
         )  # batch_size, height, 8, width, 8
         mask = mint.permute(mask, (0, 2, 4, 1, 3))  # batch_size, 8, 8, height, width
-        mask = mint.reshape(mask(
-            batch_size, self.vae_scale_factor * self.vae_scale_factor, height, width
-        ))  # batch_size, 8*8, height, width
+        mask = mint.reshape(
+            mask, (batch_size, self.vae_scale_factor * self.vae_scale_factor, height, width)
+        )  # batch_size, 8*8, height, width
 
         # 6. pack the mask:
         # batch_size, 64, height, width -> batch_size, height//2 * width//2 , 64*2*2
@@ -539,9 +541,9 @@ class FluxFillPipeline(
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
-        latent_image_ids = mint.reshape(latent_image_ids, (
-            latent_image_id_height * latent_image_id_width, latent_image_id_channels
-        ))
+        latent_image_ids = mint.reshape(
+            latent_image_ids, (latent_image_id_height * latent_image_id_width, latent_image_id_channels)
+        )
 
         return latent_image_ids.to(dtype=dtype)
 

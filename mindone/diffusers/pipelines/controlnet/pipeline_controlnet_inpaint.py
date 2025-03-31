@@ -574,7 +574,7 @@ class StableDiffusionControlNetInpaintPipeline(
                 -2
             ]
             uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states,num_images_per_prompt, dim=0
+                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:

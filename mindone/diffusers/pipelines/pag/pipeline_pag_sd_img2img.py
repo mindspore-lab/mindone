@@ -462,7 +462,9 @@ class StableDiffusionPAGImg2ImgPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -933,7 +935,7 @@ class StableDiffusionPAGImg2ImgPipeline(
             for i, image_embeds in enumerate(ip_adapter_image_embeds):
                 negative_image_embeds = None
                 if self.do_classifier_free_guidance:
-                    negative_image_embeds, image_embeds = minnt.chunk(image_embeds, 2)
+                    negative_image_embeds, image_embeds = mint.chunk(image_embeds, 2)
                 if self.do_perturbed_attention_guidance:
                     image_embeds = self._prepare_perturbed_attention_guidance(
                         image_embeds, negative_image_embeds, self.do_classifier_free_guidance

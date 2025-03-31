@@ -36,7 +36,9 @@ def _searchsorted(sorted_sequence, values, *, out_int32=False, right=False):
     ), "Tensor sorted_sequence should be monotonically increasing along its last dimension."
     assert (
         # todo: unavailable mint interface
-        ops.is_tensor(values) and sorted_sequence.ndim == values.ndim and sorted_sequence.shape[0] == values.shape[0]
+        ops.is_tensor(values)
+        and sorted_sequence.ndim == values.ndim
+        and sorted_sequence.shape[0] == values.shape[0]
     ), "Tensor sorted_sequence and values should have the same number of dimensions (ndim) and batch size."
 
     values = mint.unsqueeze(values, -1)

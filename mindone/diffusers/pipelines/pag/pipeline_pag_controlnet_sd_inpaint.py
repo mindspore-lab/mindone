@@ -417,7 +417,9 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -817,7 +819,9 @@ class StableDiffusionControlNetPAGInpaintPipeline(
         # resize the mask to latents shape as we concatenate the mask to the latents
         # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
         # and half precision
-        mask = mint.nn.functional.interpolate(mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor))
+        mask = mint.nn.functional.interpolate(
+            mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
+        )
         mask = mask.to(dtype=dtype)
 
         masked_image = masked_image.to(dtype=dtype)
@@ -843,7 +847,9 @@ class StableDiffusionControlNetPAGInpaintPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = mint.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
+            masked_image_latents = mint.tile(
+                masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
+            )
 
         mask = mint.cat([mask] * 2) if do_classifier_free_guidance else mask
         masked_image_latents = (
@@ -1395,7 +1401,9 @@ class StableDiffusionControlNetPAGInpaintPipeline(
                         repeat_factor = (
                             first_dim_size + masked_image_latents.shape[0] - 1
                         ) // masked_image_latents.shape[0]
-                        masked_image_latents = mint.tile(masked_image_latents, (repeat_factor, 1, 1, 1))[:first_dim_size]
+                        masked_image_latents = mint.tile(masked_image_latents, (repeat_factor, 1, 1, 1))[
+                            :first_dim_size
+                        ]
                     # Perform the concatenation
                     latent_model_input = mint.cat([latent_model_input, mask, masked_image_latents], dim=1)
 

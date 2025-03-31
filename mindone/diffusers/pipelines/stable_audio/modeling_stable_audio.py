@@ -17,7 +17,7 @@ from math import pi
 from typing import Optional
 
 import mindspore as ms
-from mindspore import Parameter, mint, nn, ops
+from mindspore import Parameter, mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.modeling_utils import ModelMixin
@@ -130,7 +130,9 @@ class StableAudioProjectionModel(ModelMixin, ConfigMixin):
     def __init__(self, text_encoder_dim, conditioning_dim, min_value, max_value):
         super().__init__()
         self.text_projection = (
-            mint.nn.Identity() if conditioning_dim == text_encoder_dim else mint.nn.Linear(text_encoder_dim, conditioning_dim)
+            mint.nn.Identity()
+            if conditioning_dim == text_encoder_dim
+            else mint.nn.Linear(text_encoder_dim, conditioning_dim)
         )
         self.start_number_conditioner = StableAudioNumberConditioner(conditioning_dim, min_value, max_value)
         self.end_number_conditioner = StableAudioNumberConditioner(conditioning_dim, min_value, max_value)

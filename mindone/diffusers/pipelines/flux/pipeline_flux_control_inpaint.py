@@ -510,9 +510,9 @@ class FluxControlInpaintPipeline(
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
-        latent_image_ids = mint.reshape(latent_image_ids, (
-            latent_image_id_height * latent_image_id_width, latent_image_id_channels
-        ))
+        latent_image_ids = mint.reshape(
+            latent_image_ids, (latent_image_id_height * latent_image_id_width, latent_image_id_channels)
+        )
 
         return latent_image_ids.to(dtype=dtype)
 
@@ -706,7 +706,9 @@ class FluxControlInpaintPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = mint.tile(masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1))
+            masked_image_latents = mint.tile(
+                masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
+            )
 
         # aligning device to prevent device errors when concating it with the latent model input
         masked_image_latents = masked_image_latents.to(dtype=dtype)
