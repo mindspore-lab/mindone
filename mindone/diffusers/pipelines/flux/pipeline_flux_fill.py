@@ -539,7 +539,7 @@ class FluxFillPipeline(
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
-        latent_image_ids = mint.reshape(latent_image_ids(
+        latent_image_ids = mint.reshape(latent_image_ids, (
             latent_image_id_height * latent_image_id_width, latent_image_id_channels
         ))
 

@@ -401,7 +401,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         # are unpacked and reshaped into a video tensor of shape [B, C, F, H, W]. This is the inverse operation of
         # what happens in the `_pack_latents` method.
         batch_size = latents.shape[0]
-        latents = mint.reshape(latents(batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size))
+        latents = mint.reshape(latents, (batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size))
         latents = (
             mint.flatten(
                 mint.flatten(mint.flatten(mint.permute(latents, (0, 4, 1, 5, 2, 6, 3, 7)), start_dim=6, end_dim=7),
