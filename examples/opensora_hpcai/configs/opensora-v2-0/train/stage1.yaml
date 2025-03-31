@@ -61,6 +61,9 @@ dataloader:
   num_workers_dataset: 4
 
 train:
+  sequence_parallel:
+    shards: 1   # 1 == no SP
+
   options:
     steps: 20000
 

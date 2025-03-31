@@ -1,15 +1,9 @@
-from typing import Callable, Tuple, Union
+from typing import Callable, Literal, Tuple, Union
 
-import mindspore.mint as mint
-import mindspore.nn as nn
-import mindspore.ops as ops
-from mindspore import Tensor
+from mindspore import Tensor, mint, nn, ops
 from mindspore.communication import GlobalComm, get_group_size, get_rank
 
-try:
-    from typing import Literal
-except ImportError:
-    from typing_extensions import Literal
+__all__ = ["SplitForwardGatherBackward", "GatherForwardSplitBackward", "AlltoAll", "AlltoAll2"]
 
 
 def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
@@ -26,7 +20,7 @@ def _communicate_along_dim(x: Tensor, dim: int, func: Callable[[Tensor], Tensor]
     return x
 
 
-class SplitFowardGatherBackward(nn.Cell):
+class SplitForwardGatherBackward(nn.Cell):
     def __init__(
         self, dim: int = 0, grad_scale: Literal["up", "down"] = "down", group: str = GlobalComm.WORLD_COMM_GROUP
     ) -> None:
@@ -50,7 +44,7 @@ class SplitFowardGatherBackward(nn.Cell):
         return (dout,)
 
 
-class GatherFowardSplitBackward(nn.Cell):
+class GatherForwardSplitBackward(nn.Cell):
     def __init__(
         self, dim: int = 0, grad_scale: Literal["up", "down"] = "up", group: str = GlobalComm.WORLD_COMM_GROUP
     ) -> None:
@@ -96,3 +90,27 @@ class AlltoAll(nn.Cell):
         if concat_pad > 0:
             x = x.narrow(self.concat_dim, 0, x.shape[self.concat_dim] - concat_pad)
         return x
+
+
+class AlltoAll2(nn.Cell):
+    def __init__(self, split_dim: int, concat_dim: int, group: str = GlobalComm.WORLD_COMM_GROUP):
+        super().__init__()
+        assert split_dim >= 0 and concat_dim >= 0
+        self.split_dim = split_dim
+        self.concat_dim = concat_dim
+        self.group = group
+
+    @staticmethod
+    def _all_to_all(x: Tensor, split_dim: int, concat_dim: int, group: str = GlobalComm.WORLD_COMM_GROUP):
+        world_size = get_group_size(group)
+        input_list = list(mint.chunk(x, world_size, dim=split_dim))
+        output_list = [mint.empty_like(input_list[0]) for _ in range(world_size)]
+        mint.distributed.all_to_all(output_list, input_list, group=group)
+        return mint.cat(output_list, dim=concat_dim)
+
+    def construct(self, x: Tensor) -> Tensor:
+        return self._all_to_all(x, self.split_dim, self.concat_dim, group=self.group)
+
+    def bprop(self, x: Tensor, out: Tensor, dout: Tensor) -> Tuple[Tensor]:
+        dout = self._all_to_all(dout, self.concat_dim, self.split_dim, group=self.group)
+        return (dout,)

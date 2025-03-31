@@ -3,7 +3,7 @@ import numbers
 from typing import Optional, Tuple, Type, Union
 
 import numpy as np
-from opensora.acceleration.communications import AlltoAll, SplitFowardGatherBackward
+from opensora.acceleration.communications import AlltoAll, SplitForwardGatherBackward
 from opensora.acceleration.parallel_states import get_sequence_parallel_group
 
 import mindspore as ms
@@ -216,7 +216,7 @@ class SeqParallelMultiHeadCrossAttention(MultiHeadCrossAttention):
         sp_size = get_group_size(sp_group)
         self.alltoall = AlltoAll(split_dim=2, concat_dim=1, group=sp_group)
         self.alltoall_back = AlltoAll(split_dim=1, concat_dim=2, group=sp_group)
-        self.split = SplitFowardGatherBackward(dim=3, grad_scale="down", group=sp_group)
+        self.split = SplitForwardGatherBackward(dim=3, grad_scale="down", group=sp_group)
 
         if enable_flash_attention:
             attn_dtype = ms.bfloat16

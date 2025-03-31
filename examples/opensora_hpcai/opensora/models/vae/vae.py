@@ -7,7 +7,7 @@ import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.communication import get_group_size
 
-from ...acceleration.communications import GatherFowardSplitBackward, SplitFowardGatherBackward
+from ...acceleration.communications import GatherForwardSplitBackward, SplitForwardGatherBackward
 from ...acceleration.parallel_states import get_sequence_parallel_group
 from ...utils.model_utils import load_state_dict
 from ..layers.operation_selector import get_split_op
@@ -102,8 +102,8 @@ class VideoAutoencoderKL(nn.Cell):
             sp_group = get_sequence_parallel_group()
             _logger.info(f"Initialize Spatial VAE model with parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=0, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=0, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=0, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=0, grad_scale="up", group=sp_group)
             # TODO: drop the assertion once conv3d support fp32, test with test suites
             assert self.micro_batch_size == 1
 
@@ -302,8 +302,8 @@ class VideoAutoencoderPipeline(nn.Cell):
             sp_group = get_sequence_parallel_group()
             _logger.info(f"Initialize Temporal VAE model with parallel group `{sp_group}`.")
             self.sp_size = get_group_size(sp_group)
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=2, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=2, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=2, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=2, grad_scale="up", group=sp_group)
             if self.cal_loss:
                 raise NotImplementedError("Not Supported yet.")
 

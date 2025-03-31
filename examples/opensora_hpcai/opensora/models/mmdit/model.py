@@ -24,9 +24,11 @@ from typing import Literal, Optional
 from mindspore import Tensor
 from mindspore import dtype as mstype
 from mindspore import load_param_into_net, mint, nn
+from mindspore.communication import get_group_size
 
 from mindone.models.utils import zeros_
 
+from ...acceleration import GatherForwardSplitBackward, SplitForwardGatherBackward, get_sequence_parallel_group
 from ...utils.model_utils import load_state_dict
 from .layers import (
     DoubleStreamBlock,
@@ -63,6 +65,7 @@ class MMDiTConfig:
     use_liger_rope: bool = False
     patch_size: int = 2
     recompute_every_nth_block: Optional[int] = None
+    attn_type: Literal["eager", "flash_attention"] = "flash_attention"
 
     def get(self, attribute_name, default=None):
         return getattr(self, attribute_name, default)
@@ -119,6 +122,7 @@ class MMDiTModel(nn.Cell):
                     qkv_bias=config.qkv_bias,
                     fused_qkv=config.fused_qkv,
                     use_liger_rope=config.use_liger_rope,
+                    attn_type=self.config.attn_type,
                     dtype=dtype,
                 )
                 for _ in range(config.depth)
@@ -133,6 +137,7 @@ class MMDiTModel(nn.Cell):
                     mlp_ratio=config.mlp_ratio,
                     fused_qkv=config.fused_qkv,
                     use_liger_rope=config.use_liger_rope,
+                    attn_type=self.config.attn_type,
                     dtype=dtype,
                 )
                 for _ in range(config.depth_single_blocks)
@@ -141,6 +146,22 @@ class MMDiTModel(nn.Cell):
 
         self.timestep_embedding = SinusoidalEmbedding(256)
         self.final_layer = LastLayer(self.hidden_size, 1, self.out_channels, dtype=dtype)
+
+        # init sequence parallel
+        self._sp_group = get_sequence_parallel_group()
+        if self._sp_group is not None:
+            _logger.info(f"Initialize MMDiT model with sequence parallel group `{self._sp_group}`.")
+            self._sp_size = get_group_size(self._sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(
+                dim=1, grad_scale="down", group=self._sp_group
+            )
+            self.gather_forward_split_backward = GatherForwardSplitBackward(
+                dim=1, grad_scale="up", group=self._sp_group
+            )
+        else:
+            self.split_forward_gather_backward = nn.Identity()
+            self.gather_forward_split_backward = nn.Identity()
+
         self.initialize_weights()
         self._input_requires_grad = False
 
@@ -224,6 +245,22 @@ class MMDiTModel(nn.Cell):
     ) -> Tensor:
         img, txt, vec, pe = self.prepare_block_inputs(img, img_ids, txt, txt_ids, timesteps, y_vec, cond, guidance)
 
+        if self._sp_group is not None:
+            assert (
+                txt.shape[1] + img.shape[1]
+            ) % self._sp_size == 0, f"Expected `txt.shape[1] + img.shape[1]` ({txt.shape[1] + img.shape[1]}) % `SP size` ({self._sp_size}) == 0"
+
+            img = self.split_forward_gather_backward(img)
+            txt = self.split_forward_gather_backward(txt)
+            # instead of dynamically splitting `txt` and `img` tensors as done in OSv2,
+            # we rearrange the positional embeddings for simplicity
+            # TODO: separate txt and image positional embeddings to further simplify
+            dim = 1 if self.config.use_liger_rope else 2
+            splits = [txt.shape[1]] * self._sp_size + [img.shape[1]] * self._sp_size
+            pe = pe.split(splits, dim=dim)
+            pe = [pe[i + j * self._sp_size] for i in range(self._sp_size) for j in range(2)]
+            pe = mint.cat(pe, dim=dim)
+
         for block in self.double_blocks:
             img, txt = block(img, txt, vec, pe)
 
@@ -233,6 +270,8 @@ class MMDiTModel(nn.Cell):
         img = img[:, txt.shape[1] :, ...]
 
         img = self.final_layer(img, vec)  # (N, T, patch_size ** 2 * out_channels)
+        if self._sp_group is not None:
+            img = self.gather_forward_split_backward(img)
         return img
 
 

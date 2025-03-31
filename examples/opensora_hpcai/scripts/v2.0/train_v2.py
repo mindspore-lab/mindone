@@ -16,6 +16,7 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
 sys.path.append(mindone_lib_path)
 sys.path.append(os.path.join(__dir__, "../.."))
 
+from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.bucket import bucket_split_function
 from opensora.datasets.bucket_v2 import Bucket
 from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
@@ -108,7 +109,10 @@ def main(args):
 
     # 1.1 init model parallel
     shard_rank_id = rank_id
-    # TODO: add sequence parallel
+    if args.train.sequence_parallel.shards > 1:
+        create_parallel_group(**args.train.sequence_parallel)
+        device_num = device_num // args.train.sequence_parallel.shards
+        shard_rank_id = rank_id // args.train.sequence_parallel.shards
 
     # FIXME: Improve seed setting
     set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
@@ -138,6 +142,10 @@ def main(args):
     latent_diffusion_with_loss = DiffusionWithLoss(network, vae=vae)
 
     # 4. build train & val datasets
+    if args.train.sequence_parallel.shards > 1:
+        logger.info(
+            f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards."
+        )
     dataloader, dataset_len = initialize_dataset(
         args.dataset, args.dataloader, network, vae, args.bucket_config, device_num=device_num, rank_id=shard_rank_id
     )
@@ -163,15 +171,20 @@ def main(args):
 
     # Activate dynamic graph mode because bucketing is used
     if mode == GRAPH_MODE:
-        bs = Symbol(unique=True)
-        video = tensor(shape=[bs, None, 64], dtype=mstype.float32)
-        img_ids = tensor(bs, None, 3)
-        text_embed = tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
-        txt_ids = tensor(shape=[bs, 512, 3], dtype=mstype.float32)
-        y_vec = tensor(shape=[bs, 768], dtype=mstype.float32)
-        shift_alpha = tensor(shape=[bs], dtype=mstype.float32)
-        net_with_grads.set_inputs(video, img_ids, text_embed, txt_ids, y_vec, shift_alpha)
-        logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
+        if args.train.sequence_parallel.shards <= 1:
+            bs = Symbol(unique=True)
+            video = tensor(shape=[bs, None, 64], dtype=mstype.float32)
+            img_ids = tensor(shape=[bs, None, 3], dtype=mstype.int32)
+            text_embed = tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
+            txt_ids = tensor(shape=[bs, 512, 3], dtype=mstype.int32)
+            y_vec = tensor(shape=[bs, 768], dtype=mstype.float32)
+            shift_alpha = tensor(shape=[bs], dtype=mstype.float32)
+            net_with_grads.set_inputs(video, img_ids, text_embed, txt_ids, y_vec, shift_alpha)
+            logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
+        elif args.train.sequence_parallel.shards > 1:
+            logger.warning(
+                "Dynamic shape is not supported with sequence parallelism. The graph will be re-compiled for each new shape."
+            )
 
     model = Model(net_with_grads)
 
@@ -254,6 +267,7 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_env, "env")
+    parser.add_function_arguments(create_parallel_group, "train.sequence_parallel")
     parser.add_function_arguments(Flux, "model")
     parser.add_function_arguments(CausalVAE3D_HUNYUAN, "ae")
     parser.add_class_arguments(

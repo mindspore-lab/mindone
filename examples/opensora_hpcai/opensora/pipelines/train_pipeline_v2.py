@@ -4,7 +4,9 @@ import mindspore as ms
 from mindspore import Tensor, _no_grad
 from mindspore import dtype as mstype
 from mindspore import jit_class, mint, nn, ops, tensor
+from mindspore.communication import get_rank
 
+from ..acceleration import get_sequence_parallel_group
 from .utils_v2 import time_shift
 
 __all__ = ["DiffusionWithLoss"]
@@ -65,9 +67,21 @@ class DiffusionWithLoss(nn.Cell):
         self._guidance = tensor(guidance, dtype=self.network.dtype)
         self.loss = nn.MSELoss()
 
+        self.broadcast = None
+        if (sp_group := get_sequence_parallel_group()) is not None:
+            logging.info(
+                f"Broadcasting all random variables from rank (0) to current rank ({get_rank(sp_group)}) in group `{sp_group}`."
+            )
+            self.broadcast = ops.Broadcast(0, group=sp_group)
+
     def set_train(self, mode=True):
         # Set the diffusion model only to train or eval mode
         self.network.set_train(mode)
+
+    def _broadcast(self, x: Tensor) -> Tensor:
+        if self.broadcast is None:
+            return x
+        return self.broadcast((x,))[0]
 
     def get_latents(self, x):
         """
@@ -94,8 +108,9 @@ class DiffusionWithLoss(nn.Cell):
 
         t = mint.sigmoid(mint.randn((x.shape[0])))
         t = time_shift(shift_alpha, t)
+        t = self._broadcast(t)
 
-        noise = mint.randn_like(x)
+        noise = self._broadcast(mint.randn_like(x))
 
         t_rev = 1 - t
         x_t = t_rev[:, None, None] * x + (1 - (1 - self._sigma_min) * t_rev[:, None, None]) * noise
