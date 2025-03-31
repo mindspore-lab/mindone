@@ -87,7 +87,7 @@ from .models.phi3 import (
     Phi3PreTrainedModel,
 )
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
-from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
+#from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
 from .models.speecht5 import (
@@ -113,5 +113,17 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.wav2vec2 import (
+    Wav2Vec2FeatureExtractor,
+    Wav2Vec2Processor,
+    Wav2Vec2ForAudioFrameClassification,
+    Wav2Vec2ForCTC,
+    Wav2Vec2ForMaskedLM,
+    Wav2Vec2ForPreTraining,
+    Wav2Vec2ForSequenceClassification,
+    Wav2Vec2ForXVector,
+    Wav2Vec2Model,
+    Wav2Vec2PreTrainedModel,
+    )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin

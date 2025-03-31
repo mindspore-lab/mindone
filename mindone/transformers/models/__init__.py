@@ -13,10 +13,11 @@ from . import (
     llama,
     llava,
     phi3,
-    qwen2_5_vl,
+    #qwen2_5_vl,
     qwen2_vl,
     speecht5,
     t5,
     umt5,
+    wav2vec2,
     xlm_roberta,
 )
