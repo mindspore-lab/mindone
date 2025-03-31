@@ -11,7 +11,7 @@ from mindspore import lazy_inline, load_checkpoint, mint, nn, ops
 
 from mindone.models.utils import normal_, zeros_
 
-from ...acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
+from ...acceleration import GatherForwardSplitBackward, SplitForwardGatherBackward, get_sequence_parallel_group
 from ..text_encoders import TextProjector
 from .activation import ACT2FN
 from .block import (
@@ -235,8 +235,8 @@ class LlamaModel(nn.Cell):
         # init sequence parallel
         if (sp_group := get_sequence_parallel_group()) is not None:
             _logger.info(f"Initialize Llama model with sequence parallel group `{sp_group}`.")
-            self.split_forward_gather_backward = SplitFowardGatherBackward(dim=1, grad_scale="down", group=sp_group)
-            self.gather_forward_split_backward = GatherFowardSplitBackward(dim=1, grad_scale="up", group=sp_group)
+            self.split_forward_gather_backward = SplitForwardGatherBackward(dim=1, grad_scale="down", group=sp_group)
+            self.gather_forward_split_backward = GatherForwardSplitBackward(dim=1, grad_scale="up", group=sp_group)
         else:
             self.split_forward_gather_backward = nn.Identity()
             self.gather_forward_split_backward = nn.Identity()
