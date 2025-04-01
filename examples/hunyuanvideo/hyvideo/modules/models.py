@@ -390,23 +390,32 @@ class MMSingleStreamBlock(nn.Cell):
         k = self.k_norm(k)  # .to(v)
         if self.sp_group_size is not None:
             txt_len = txt_len // self.sp_group_size
+
+        img_q, txt_q = q[:, :-txt_len, :, :], q[:, -txt_len:, :, :]
+        img_k, txt_k = k[:, :-txt_len, :, :], k[:, -txt_len:, :, :]
+        img_v, txt_v = v[:, :-txt_len, :, :], v[:, -txt_len:, :, :]
+
         # Apply RoPE if needed.
         if freqs_cos is not None:
-            img_q, txt_q = q[:, :-txt_len, :, :], q[:, -txt_len:, :, :]
-            img_k, txt_k = k[:, :-txt_len, :, :], k[:, -txt_len:, :, :]
             img_qq, img_kk = RoPE()(img_q, img_k, freqs_cos, freqs_sin, head_first=False)
             # assert (
             #    img_qq.shape == img_q.shape and img_kk.shape == img_k.shape
             # ), f"img_kk: {img_qq.shape}, img_q: {img_q.shape}, img_kk: {img_kk.shape}, img_k: {img_k.shape}"
             img_q, img_k = img_qq.to(img_q.dtype), img_kk.to(img_k.dtype)
-            q = ops.concat((img_q, txt_q), axis=1)
-            k = ops.concat((img_k, txt_k), axis=1)
 
         # Compute attention.
         # sequence_parallel
-        q = self.alltoall(q)
-        k = self.alltoall(k)
-        v = self.alltoall(v)
+        img_q = self.alltoall(img_q)  # B S_v/sp H D -> B S_v H/sp, D if sp is enabled
+        img_k = self.alltoall(img_k)
+        img_v = self.alltoall(img_v)
+        txt_q = self.alltoall(txt_q)
+        txt_k = self.alltoall(txt_k)
+        txt_v = self.alltoall(txt_v)
+
+        q = ops.concat((img_q, txt_q), axis=1)
+        k = ops.concat((img_k, txt_k), axis=1)
+        v = ops.concat((img_v, txt_v), axis=1)
+
         attn = self.compute_attention(
             q,
             k,
@@ -414,8 +423,13 @@ class MMSingleStreamBlock(nn.Cell):
             actual_seq_qlen=actual_seq_qlen,
             actual_seq_kvlen=actual_seq_kvlen,
         )
+        if self.sp_group_size is not None:
+            txt_len = txt_len * self.sp_group_size
+
+        img_attn, txt_attn = attn[:, :-txt_len], attn[:, -txt_len:]
+        img_attn, txt_attn = self.alltoall_out(img_attn), self.alltoall_out(txt_attn)
         # attention computation end
-        attn = self.alltoall_out(attn)
+        attn = ops.concat((img_attn, txt_attn), axis=1)
         # Compute activation in mlp stream, cat again and run second linear layer.
         output = self.linear2(ops.concat((attn, self.mlp_act(mlp)), axis=2))
         return x + apply_gate(output, gate=mod_gate)
