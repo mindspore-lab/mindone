@@ -1,26 +1,8 @@
-# Copyright (c) 2025 SparkAudio
-#               2025 Xinsheng Wang (w.xinshawn@gmail.com)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
 import os
 import argparse
-import torch
 import soundfile as sf
 import logging
 from datetime import datetime
-import platform
 
 from cli.SparkTTS import SparkTTS
 
@@ -41,7 +23,6 @@ def parse_args():
         default="example/results",
         help="Directory to save generated audio files",
     )
-    parser.add_argument("--device", type=int, default=0, help="CUDA device number")
     parser.add_argument(
         "--text", type=str, required=True, help="Text for TTS generation"
     )
@@ -69,22 +50,8 @@ def run_tts(args):
     # Ensure the save directory exists
     os.makedirs(args.save_dir, exist_ok=True)
 
-    # Convert device argument to torch.device
-    if platform.system() == "Darwin" and torch.backends.mps.is_available():
-        # macOS with MPS support (Apple Silicon)
-        device = torch.device(f"mps:{args.device}")
-        logging.info(f"Using MPS device: {device}")
-    elif torch.cuda.is_available():
-        # System with CUDA support
-        device = torch.device(f"cuda:{args.device}")
-        logging.info(f"Using CUDA device: {device}")
-    else:
-        # Fall back to CPU
-        device = torch.device("cpu")
-        logging.info("GPU acceleration not available, using CPU")
-
     # Initialize the model
-    model = SparkTTS(args.model_dir, device)
+    model = SparkTTS(args.model_dir)
 
     # Generate unique filename using timestamp
     timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -93,16 +60,15 @@ def run_tts(args):
     logging.info("Starting inference...")
 
     # Perform inference and save the output audio
-    with torch.no_grad():
-        wav = model.inference(
-            args.text,
-            args.prompt_speech_path,
-            prompt_text=args.prompt_text,
-            gender=args.gender,
-            pitch=args.pitch,
-            speed=args.speed,
-        )
-        sf.write(save_path, wav, samplerate=16000)
+    wav = model.inference(
+        args.text,
+        args.prompt_speech_path,
+        prompt_text=args.prompt_text,
+        gender=args.gender,
+        pitch=args.pitch,
+        speed=args.speed,
+    )
+    sf.write(save_path, wav, samplerate=16000)
 
     logging.info(f"Audio saved at: {save_path}")
 

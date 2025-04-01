@@ -13,6 +13,7 @@ from . import (
     llama,
     llava,
     phi3,
+    qwen2,
     qwen2_vl,
     speecht5,
     t5,

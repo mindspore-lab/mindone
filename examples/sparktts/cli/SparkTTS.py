@@ -1,24 +1,16 @@
-# Copyright (c) 2025 SparkAudio
-#               2025 Xinsheng Wang (w.xinshawn@gmail.com)
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#   http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
+import os
+import sys
 import re
-import torch
+import mindspore as ms
 from typing import Tuple
 from pathlib import Path
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer
 
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+sys.path.insert(0, mindone_lib_path)
+
+from mindone.transformers import AutoModelForCausalLM
 from sparktts.utils.file import load_config
 from sparktts.models.audio_tokenizer import BiCodecTokenizer
 from sparktts.utils.token_parser import LEVELS_MAP, GENDER_MAP, TASK_TOKEN_MAP
@@ -29,15 +21,13 @@ class SparkTTS:
     Spark-TTS for text-to-speech generation.
     """
 
-    def __init__(self, model_dir: Path, device: torch.device = torch.device("cuda:0")):
+    def __init__(self, model_dir: Path):
         """
-        Initializes the SparkTTS model with the provided configurations and device.
+        Initializes the SparkTTS model with the provided configurations.
 
         Args:
             model_dir (Path): Directory containing the model and config files.
-            device (torch.device): The device (CPU/GPU) to run the model on.
         """
-        self.device = device
         self.model_dir = model_dir
         self.configs = load_config(f"{model_dir}/config.yaml")
         self.sample_rate = self.configs["sample_rate"]
@@ -47,15 +37,14 @@ class SparkTTS:
         """Initializes the tokenizer, model, and audio tokenizer for inference."""
         self.tokenizer = AutoTokenizer.from_pretrained(f"{self.model_dir}/LLM")
         self.model = AutoModelForCausalLM.from_pretrained(f"{self.model_dir}/LLM")
-        self.audio_tokenizer = BiCodecTokenizer(self.model_dir, device=self.device)
-        self.model.to(self.device)
+        self.audio_tokenizer = BiCodecTokenizer(self.model_dir)
 
     def process_prompt(
         self,
         text: str,
         prompt_speech_path: Path,
         prompt_text: str = None,
-    ) -> Tuple[str, torch.Tensor]:
+    ) -> Tuple[str, ms.Tensor]:
         """
         Process input for voice cloning.
 
@@ -65,7 +54,7 @@ class SparkTTS:
             prompt_text (str, optional): Transcript of the prompt audio.
 
         Return:
-            Tuple[str, torch.Tensor]: Input prompt; global tokens
+            Tuple[str, ms.Tensor]: Input prompt; global tokens
         """
 
         global_token_ids, semantic_token_ids = self.audio_tokenizer.tokenize(
@@ -154,7 +143,6 @@ class SparkTTS:
 
         return "".join(control_tts_inputs)
 
-    @torch.no_grad()
     def inference(
         self,
         text: str,
@@ -166,7 +154,7 @@ class SparkTTS:
         temperature: float = 0.8,
         top_k: float = 50,
         top_p: float = 0.95,
-    ) -> torch.Tensor:
+    ) -> ms.Tensor:
         """
         Performs inference to generate speech from text, incorporating prompt audio and/or text.
 
@@ -182,7 +170,7 @@ class SparkTTS:
             top_p (float, optional): Top-p (nucleus) sampling parameter. Default is 0.95.
 
         Returns:
-            torch.Tensor: Generated waveform as a tensor.
+            ms.Tensor: Generated waveform as a tensor.
         """
         if gender is not None:
             prompt = self.process_prompt_control(gender, pitch, speed, text)
@@ -191,7 +179,8 @@ class SparkTTS:
             prompt, global_token_ids = self.process_prompt(
                 text, prompt_speech_path, prompt_text
             )
-        model_inputs = self.tokenizer([prompt], return_tensors="pt").to(self.device)
+        model_inputs = self.tokenizer([prompt], return_tensors="np")
+        model_inputs = {k: ms.tensor(v) for k, v in model_inputs.items()}
 
         # Generate speech using the model
         generated_ids = self.model.generate(
@@ -201,12 +190,13 @@ class SparkTTS:
             top_k=top_k,
             top_p=top_p,
             temperature=temperature,
+            use_cache=False,  # TODO: remove this when qwen2 in mindone.transformers supports cache
         )
 
         # Trim the output tokens to remove the input tokens
         generated_ids = [
             output_ids[len(input_ids) :]
-            for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+            for input_ids, output_ids in zip(model_inputs["input_ids"], generated_ids)
         ]
 
         # Decode the generated tokens into text
@@ -214,14 +204,14 @@ class SparkTTS:
 
         # Extract semantic token IDs from the generated text
         pred_semantic_ids = (
-            torch.tensor([int(token) for token in re.findall(r"bicodec_semantic_(\d+)", predicts)])
+            ms.tensor([int(token) for token in re.findall(r"bicodec_semantic_(\d+)", predicts)])
             .long()
             .unsqueeze(0)
         )
 
         if gender is not None:
             global_token_ids = (
-                torch.tensor([int(token) for token in re.findall(r"bicodec_global_(\d+)", predicts)])
+                ms.tensor([int(token) for token in re.findall(r"bicodec_global_(\d+)", predicts)])
                 .long()
                 .unsqueeze(0)
                 .unsqueeze(0)
@@ -229,8 +219,8 @@ class SparkTTS:
 
         # Convert semantic tokens back to waveform
         wav = self.audio_tokenizer.detokenize(
-            global_token_ids.to(self.device).squeeze(0),
-            pred_semantic_ids.to(self.device),
+            global_token_ids.squeeze(0),
+            pred_semantic_ids,
         )
 
         return wav
