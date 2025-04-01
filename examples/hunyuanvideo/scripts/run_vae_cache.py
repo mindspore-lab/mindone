@@ -72,10 +72,6 @@ def process_folder(args, vae, dtype, rank_id, device_num):
             dynamic_start_index=False,
         )
     )
-    split_time_upsample = True
-    assert not (
-        args.num_frames % 2 == 0 and split_time_upsample
-    ), "num of frames must be odd if split_time_upsample is True"
 
     dataset = VideoDataset(**ds_config)
     dataloader = create_dataloader(
@@ -94,6 +90,11 @@ def process_folder(args, vae, dtype, rank_id, device_num):
         x = batch["video"]
         file_paths = batch["path"]
         x = x.to(dtype=dtype)  # b c t h w
+        num_frames = x.shape[2]
+        if num_frames % 2 == 0:
+            # only odd frames
+            num_frames -= 1
+            x = x[:, :, :-1, :, :]
         batch_mean, batch_std = vae_latent_cache(vae, x, dtype=dtype)
 
         for idx, mean, std in enumerate(zip(batch_mean, batch_std)):
@@ -129,7 +130,7 @@ def main(args):
     # if graph mode and vae tiling is ON, uise dfs exec order
     if mode == GRAPH_MODE and args.vae_tiling:
         set_context(exec_order="dfs")
-    set_logger(name="", output_dir=args.output_path, rank=0)
+    set_logger(name="", output_dir=".", rank=0)
 
     vae, _, s_ratio, t_ratio = load_vae(
         args.vae,
