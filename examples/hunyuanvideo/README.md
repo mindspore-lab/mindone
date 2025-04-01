@@ -139,6 +139,7 @@ python scripts/run_vae_cache.py \
   --latent-cache-dir /path/to/latent_cache_folder \
   --height $HEIGHT \
   --width $WIDTH \
+  --vae-tiling \
 ```
 Please set the `--input-video-dir` and `--latent-cache-dir` to specify the input video folder and the output latent cache folder.
 
