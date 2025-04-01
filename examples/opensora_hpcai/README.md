@@ -14,6 +14,7 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 | Official News from HPC-AI Tech                                                                                                                                                                                                                                                                                                                                                                                                                              | MindSpore Support                                                                              |
 |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| **[2025.03.12]** 🔥 We released **Open-Sora 2.0** (11B). 🎬 11B model achieves [on-par performance](#evaluation) with 11B HunyuanVideo & 30B Step-Video on 📐VBench & 📊Human Preference. 🛠️ Fully open-source: checkpoints and training codes for training with only **$200K**. [[report]](https://arxiv.org/abs/2503.09642)                                                                                                                              | Inference                                                                                      |
 | **[2024.06.17]** 🔥 HPC-AI released **Open-Sora 1.2**, which includes **3D-VAE**, **rectified flow**, and **score condition**. The video quality is greatly improved. [[checkpoints]](#model-weights) [[report]](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_03.md) [[blog]](https://hpc-ai.com/blog/open-sora-from-hpc-ai-tech-team-continues-open-source-generate-any-16-second-720p-hd-video-with-one-click-model-weights-ready-to-use) | Text-to-Video                                                                                  |
 | **[2024.04.25]** 🤗 HPC-AI Tech released the [Gradio demo for Open-Sora](https://huggingface.co/spaces/hpcai-tech/open-sora) on Hugging Face Spaces.                                                                                                                                                                                                                                                                                                        | N.A.                                                                                           |
 | **[2024.04.25]** 🔥 HPC-AI Tech released **Open-Sora 1.1**, which supports **2s~15s, 144p to 720p, any aspect ratio** text-to-image, **text-to-video, image-to-video, video-to-video, infinite time** generation. In addition, a full video processing pipeline is released. [[checkpoints]]() [[report]](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_02.md)                                                                               | Image/Video-to-Video; Infinite time generation; Variable resolutions, aspect ratios, durations |
@@ -23,9 +24,9 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 ## Requirements
 
-| mindspore | ascend driver | firmware | cann tookit/kernel |
-| :---:     |   :---:       | :---:    | :---:              |
-| 2.3.1     |  23.0.3     |7.1.0.9.220    |   8.0.RC2.beta1   |
+| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |    24.0.0     | 7.5.0.3.220 |     8.0.0.beta1     |
 
 
 
@@ -33,14 +34,31 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 The following videos are generated based on MindSpore and Ascend 910*.
 
+### OpenSora 2.0 Demo
+
+| 3s 576×1024                                                                                                                                                                                                                                                                                                                                                           | 5s 576×1024                                                                                                                                                                                                                                                                                                                           |
+|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| <video src="https://github.com/user-attachments/assets/e9335efb-bbbd-4a20-b5b2-e44bd39bfd2b" />                                                                                                                                                                                                                                                                       | <video src="https://github.com/user-attachments/assets/f61f8df4-7f34-4231-8abc-d2a4eec130ac" />                                                                                                                                                                                                                                       |
+| <details><summary>Caption</summary>A playful dog in a pink coat with a red leash dashes across a muddy field with sparse crops. The camera tracks its energetic movement from right to left against a backdrop of trees and distant power lines under an overcast sky. The realistic, medium shot captures a candid, lively moment in soft, diffused light.</details> | <details><summary>Caption</summary>A coastal landscape painting with a prominent archway is displayed on an easel in a bright studio. A camera pan reveals a table cluttered with art supplies and a potted plant, enhancing the artistic vibe. Large windows and soft natural lighting create a cozy, creative atmosphere.</details> |
+| <video src="https://github.com/user-attachments/assets/4766752e-0752-4b2a-8847-b20ddbc4a3c8" />                                                                                                                                                                                                                                                                       | <video src="https://github.com/user-attachments/assets/a05c3313-6b97-456a-a480-87abbbe31fb0" />                                                                                                                                                                                                                                       |
+| <details><summary>Caption</summary>Two women sit on a beige couch in a cozy, warmly lit room with a brick wall backdrop. They engage in a cheerful conversation, smiling and toasting red wine in an intimate medium shot.</details>                                                                                                                                  | <details><summary>Caption</summary>A drone camera circles a historic church on a rocky outcrop along the Amalfi Coast, highlighting its stunning architecture, tiered patios, and the dramatic coastal views with waves crashing below and people enjoying the scene in the warm afternoon light.</details>                           |
+
+> [!TIP]
+> To generate better-looking videos, you can try generating in two stages: Text-to-Image and then Image-to-Video.
+
 ### OpenSora 1.2 Demo
+
+<details>
+<summary>Demo</summary>
 
 | 4s 720×1280                                                                                     | 4s 720×1280                                                                                     | 4s 720×1280                                                                                     |
 |-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------|
 | <video src="https://github.com/user-attachments/assets/7d9c812b-1642-4019-99da-dabf94c41596" /> | <video src="https://github.com/user-attachments/assets/9f463262-9ee0-4931-9d39-63fe925cbe6e" /> | <video src="https://github.com/user-attachments/assets/e0fa61bd-8bd0-40aa-9ea6-c587d492482a" /> |
 
 > [!TIP]
-> To generate better looking videos, you can try generating in two stages: Text-to-Image and then Image-to-Video.
+> To generate better-looking videos, you can try generating in two stages: Text-to-Image and then Image-to-Video.
+
+</details>
 
 ### OpenSora 1.1 Demo
 
@@ -107,6 +125,16 @@ Videos are downsampled to `.gif` for display. Click for original videos. Prompts
 
 ## 🔆 Features
 
+- 📍 **Open-Sora 2.0** released. Model weights are available [here](#model-weights).
+  See [report 1.2](https://arxiv.org/abs/2503.09642) for more details.
+  - ✅ New backbone that is based on Flux.
+  - ✅ Uses reduced patch size of 1 for better training stability and finer details in video generation.
+  - ✅ Employs full attention and 3D RoPE.
+  - ✅ Uses Deep Compression Autoencoder (DC-AE) for increased spatial compression of 32x with an increased number of 128
+    latent channels.
+  - ✅ Employs two text encoders: T5, which captures complex textual semantics, and CLIP-Large, which improves alignment
+    between text and visual concepts.
+
 - 📍 **Open-Sora 1.2** released. Model weights are available [here](#model-weights). See [report 1.2](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_03.md) for more details.
     - ✅ Support rectified flow scheduling.
     - ✅ Support more conditioning including fps, aesthetic score, motion strength and camera motion.
@@ -161,10 +189,13 @@ Other useful documents and links are listed below.
 
 ## Installation
 
-1. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) as recommended by the official installation website.
+1. Please install MindSpore 2.5.0 according to the [MindSpore official website](https://www.mindspore.cn/install/) and
+   install [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
+   as recommended by the official installation website.
 
 2. Install requirements
-```bash
+
+```shell
 pip install -r requirements.txt
 ```
 
@@ -197,12 +228,43 @@ For EulerOS, instructions on ffmpeg and decord installation are as follows.
 
 ## Model Weights
 
+### Open-Sora 2.0 Model Weights
+
+| Model            | Model Size | URL                                                                     |
+|------------------|------------|-------------------------------------------------------------------------|
+| MMDiT            | 11B        | [Download](https://huggingface.co/hpcai-tech/Open-Sora-v2/)             |
+| HunyuanVideo VAE | 246M       | [Download](https://huggingface.co/hpcai-tech/Open-Sora-v2/)             |
+| MMDiT with DC-AE | 11B        | [Download](https://huggingface.co/hpcai-tech/Open-Sora-v2-Video-DC-AE/) |
+| DC-AE            | 459M       | [Download](https://huggingface.co/hpcai-tech/Open-Sora-v2-Video-DC-AE/) |
+| FLUX.1 \[dev]    | 11B        | [Download](https://huggingface.co/hpcai-tech/Open-Sora-v2/)             |
+| FLUX.1 \[dev] AE | 83M        | [Download](https://huggingface.co/hpcai-tech/Open-Sora-v2/)             |
+| T5-XXL           | 11B        | [Download](https://huggingface.co/DeepFloyd/t5-v1_1-xxl)                |
+| CLIP-Large       | 428M       | [Download](https://huggingface.co/openai/clip-vit-large-patch14)        |
+
+You can download the above models automatically using the following command:
+
+```shell
+python tools/download_convert_st.py "hpcai-tech/Open-Sora-v2"
+```
+
+If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
+
 ### Open-Sora 1.2 Model Weights
+
+<details>
+<summary>Instructions</summary>
 
 | Model              | Model size | Data | URL                                                             |
 |--------------------|------------|------|-----------------------------------------------------------------|
 | STDiT3 (Diffusion) | 1.1B       | 30M  | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v3) |
 | VAE                | 384M       | 3M   | [Download](https://huggingface.co/hpcai-tech/OpenSora-VAE-v1.2) |
+
+The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following commands to convert the model weights to the MindSpore format.
+
+<details>
+<summary>Convert to the MindSpore format</summary>
 
 - Convert STDiT3 to MS checkpoint:
 
@@ -213,11 +275,14 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v3/model.safetensors
 - Convert VAE to MS checkpoint:
 
 ```shell
-python convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
+python tools/convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --target models/OpenSora-VAE-v1.2/model.ckpt
 ```
 
-- The T5 model is identical to OpenSora 1.0 and can be downloaded from the links below.
+</details>
 
+- The T5 model is identical to OpenSora 1.0 and can be downloaded and converted using the links below.
+
+</details>
 
 ### Open-Sora 1.1 Model Weights
 
@@ -231,13 +296,16 @@ python convert_vae_3d.py --src /path/to/OpenSora-VAE-v1.2/model.safetensors --ta
 | 2     | mainly 144p & 240p | 700M       | 10M videos + 2M images     | 100k        | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage2) |
 | 3     | 144p to 720p       | 700M       | 500K HQ videos + 1M images | 4k          | [Download](https://huggingface.co/hpcai-tech/OpenSora-STDiT-v2-stage3) |
 
-Convert to MS checkpoint:
 
-```
+The weights above are automatically downloaded from Hugging Face during execution.
+Local `.safetensors` weights can also be used.
+Alternatively, you can use the following command to convert the model weights to the MindSpore format.
+
+```shell
 python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safetensors --target models/opensora_v1.1_stage3.ckpt
 ```
 
-- T5 and VAE models are identical to OpenSora 1.0 and can be downloaded from the links below.
+- T5 and VAE models are identical to OpenSora 1.0 and can be downloaded and converted using the links below.
 
 </details>
 
@@ -248,22 +316,24 @@ python tools/convert_pt2ms.py --src /path/to/OpenSora-STDiT-v2-stage3/model.safe
 
 Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows.
 
-- T5: Download the [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl/tree/main) folder and put it under `models/`
+- **T5**:
+  You can download and convert the T5 model automatically by running the following command:
+  ```shell
+  python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
+  ```
+  If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
 
-    Convert to ms checkpoint:
-    ```
-    python tools/convert_t5.py --src models/t5-v1_1-xxl/pytorch_model-00001-of-00002.bin  models/t5-v1_1-xxl/pytorch_model-00002-of-00002.bin --target models/t5-v1_1-xxl/model.ckpt
+- **VAE**: The model weights are automatically downloaded from Hugging Face during execution.  
+Local `.safetensors` weights can also be used.  
+Alternatively, you can use the following command to convert the model weights to the MindSpore format.
+First, download the `.safetensor` checkpoint from [here](https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main).
+Then execute the following command:
 
-    ```
-
-- VAE: Download the safetensor checkpoint from [here]((https://huggingface.co/stabilityai/sd-vae-ft-ema/tree/main))
-
-    Convert to ms checkpoint:
-    ```
+    ```shell
     python tools/convert_vae.py --src /path/to/sd-vae-ft-ema/diffusion_pytorch_model.safetensors --target models/sd-vae-ft-ema.ckpt
     ```
 
-- STDiT: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
+- **STDiT**: Download `OpenSora-v1-16x256x256.pth` / `OpenSora-v1-HQ-16x256x256.pth` / `OpenSora-v1-HQ-16x512x512.pth` from [here](https://huggingface.co/hpcai-tech/Open-Sora/tree/main)
 
     Convert to ms checkpoint:
 
@@ -276,7 +346,7 @@ Please prepare the model checkpoints of T5, VAE, and STDiT and put them under `m
     These model weights are partially initialized from [PixArt-α](https://github.com/PixArt-alpha/PixArt-alpha). The number of
 parameters is 724M. More information about training can be found in HPC-AI Tech's **[report](https://github.com/hpcaitech/Open-Sora/blob/main/docs/report_01.md)**. More about the dataset can be found in [datasets.md](https://github.com/hpcaitech/Open-Sora/blob/main/docs/datasets.md) from HPC-AI Tech. HQ means high quality.
 
-- PixArt-α: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
+- **PixArt-α**: Download the pth checkpoint from [here](https://download.openxlab.org.cn/models/PixArt-alpha/PixArt-alpha/weight/PixArt-XL-2-512x512.pth) (for training only)
 
     Convert to ms checkpoint:
     ```
@@ -285,11 +355,59 @@ parameters is 724M. More information about training can be found in HPC-AI Tech'
 
 </details>
 
-
-
 ## Inference
 
+### Open-Sora 2.0 Command Line Inference
+
+#### Text-to-Video Generation
+
+First, you will need to generate text embeddings with:
+
+```shell
+# CLIP-Large
+TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
+--model.from_pretrained="DeepFloyd/t5-v1_1-xxl" \
+--model.max_length=512 \
+--prompts_file=YOUR_PROMPTS.txt \
+--output_path=assets/texts/t5_512
+# T5
+TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
+--model.from_pretrained="openai/clip-vit-large-patch14" \
+--model.max_length=77 \
+--prompts_file=YOUR_PROMPTS.txt \
+--output_path=assets/texts/clip_77
+```
+
+Repeat the same for negative prompts.
+
+Then, you can generate videos by running the following command:
+
+```shell
+python scripts/v2.0/inference_v2.py --config=configs/opensora-v2-0/inference/256px.yaml \
+text_emb.t5_dir=assets/texts/t5_512 \
+text_emb.neg_t5_dir=assets/texts/t5_512_neg \
+text_emb.clip_dir=assets/texts/clip_77 \
+text_emb.neg_clip_dir=assets/texts/clip_77_neg
+```
+
+#### Inference Performance
+
+We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and
+the total sampling time of a video.
+
+Experiments are conducted on Ascend 910* with MindSpore 2.5.0 in PyNative mode.
+
+|  Model Name   | Stage | Cards | Batch Size |    Resolution    | Precision | Step | s/image | s/video |                       Recipe                       |
+|:-------------:|:-----:|:-----:|:----------:|:----------------:|:---------:|:----:|:-------:|:-------:|:--------------------------------------------------:|
+| FLUX.1 \[dev] |  T2I  |   1   |     1      |    576 x 1024    |   bf16    |  50  |  14.7s  |    -    | [yaml](configs/opensora-v2-0/inference/768px.yaml) |
+| OpenSora 2.0  | T/I2V |   1   |     1      | 129 x 192 x 336  |   bf16    |  50  |    -    |  156s   | [yaml](configs/opensora-v2-0/inference/256px.yaml) |
+| OpenSora 2.0  | T/I2V |   1   |     1      | 77 x 576 x 1024  |   bf16    |  50  |    -    |  1453s  | [yaml](configs/opensora-v2-0/inference/768px.yaml) |
+| OpenSora 2.0  | T/I2V |   1   |     1      | 129 x 576 x 1024 |   bf16    |  50  |    -    |  4973s  | [yaml](configs/opensora-v2-0/inference/768px.yaml) |
+
 ### Open-Sora 1.2 and 1.1 Command Line Inference
+
+<details>
+<summary>Instructions</summary>
 
 #### Image/Video-to-Video Generation (supports text guidance)
 
@@ -322,14 +440,13 @@ We evaluate the inference performance of text-to-video generation by measuring t
 
 All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
+| model name  | cards | batch size |  resolution  | jit level | precision | scheduler | step | graph compile | s/step | s/video |                         recipe                          |
+|:-----------:|:-----:|:----------:|:------------:|:---------:|:---------:|:---------:|:----:|:-------------:|:------:|:-------:|:-------------------------------------------------------:|
+| STDiT2-XL/2 |   1   |     1      |  16x640x360  |    O0     |   bf16    |   DDPM    | 100  |   1~2 mins    |  1.56  | 156.00  | [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
+| STDiT3-XL/2 |   1   |     1      | 51x720x1280  |    O0     |   bf16    |   RFlow   |  30  |   1~2 mins    |  5.88  | 176.40  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
+| STDiT3-XL/2 |   1   |     1      | 102x720x1280 |    O0     |   bf16    |   RFlow   |  30  |    1~2 min    | 13.71  | 411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
 
-| model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
-| :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
-| STDiT2-XL/2  |  1     | 1          | 16x640x360   | O0       | bf16       |  DDPM     |   100   |  1~2 mins |  1.56    |    156.00      |  [yaml](configs/opensora-v1-1/inference/sample_t2v.yaml) |
-| STDiT3-XL/2  |  1     | 1          | 51x720x1280   | O0      | bf16       |  RFlow    |   30    |  1~2 mins  |  5.88      |  176.40   | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
-| STDiT3-XL/2  |  1     | 1          | 102x720x1280  | O0      | bf16       |  RFlow    |   30    |  1~2 min   | 13.71      |  411.30  | [yaml](configs/opensora-v1-2/inference/sample_t2v.yaml) |
-
-
+</details>
 
 ### Open-Sora 1.0 Command Line Inference
 
@@ -537,7 +654,7 @@ OpenSora v1.2 supports training with multiple resolutions, aspect ratios, and fr
 
 To enable dynamic training for STDiT3, please set the `bucket_config` to fit your datasets and tasks at first. An example (from `configs/opensora-v1-2/train/train_stage2.yaml`) is
 
-```python
+```yaml
 bucket_config:
   # Structure: "resolution": { num_frames: [ keep_prob, batch_size ] }
   "144p": { 1: [ 1.0, 475 ], 51: [ 1.0, 51 ], 102: [ [ 1.0, 0.33 ], 27 ], 204: [ [ 1.0, 0.1 ], 13 ], 408: [ [ 1.0, 0.1 ], 6 ] }
@@ -976,7 +1093,7 @@ Here are some generation results after fine-tuning STDiT on a small dataset:
 
 ## Contribution
 
-Thanks go to the support from MindSpore team and the open-source contributions from the OpenSora project.
+Thanks go to the support from the MindSpore team and the open-source contributions from the OpenSora project.
 
 If you wish to contribute to this project, you can refer to the [Contribution Guideline](../../CONTRIBUTING.md).
 
@@ -988,11 +1105,33 @@ If you wish to contribute to this project, you can refer to the [Contribution Gu
 * [OpenDiT](https://github.com/NUS-HPC-AI-Lab/OpenDiT): An acceleration for DiT training. We adopt valuable acceleration
   strategies for training progress from OpenDiT.
 * [PixArt](https://github.com/PixArt-alpha/PixArt-alpha): An open-source DiT-based text-to-image model.
+* [Flux](https://github.com/black-forest-labs/flux): A powerful text-to-image generation model.
 * [Latte](https://github.com/Vchitect/Latte): An attempt to efficiently train DiT for video.
+* [HunyuanVideo](https://github.com/Tencent/HunyuanVideo/tree/main?tab=readme-ov-file): Open-Source text-to-video model.
 * [StabilityAI VAE](https://huggingface.co/stabilityai/sd-vae-ft-mse-original): A powerful image VAE model.
+* [DC-AE](https://github.com/mit-han-lab/efficientvit): Deep Compression AutoEncoder for image compression.
 * [CLIP](https://github.com/openai/CLIP): A powerful text-image embedding model.
 * [T5](https://github.com/google-research/text-to-text-transfer-transformer): A powerful text encoder.
 * [LLaVA](https://github.com/haotian-liu/LLaVA): A powerful image captioning model based on [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-v0.1) and [Yi-34B](https://huggingface.co/01-ai/Yi-34B).
+* [PLLaVA](https://github.com/magic-research/PLLaVA): A powerful video captioning model.
 * [DSP](https://github.com/NUS-HPC-AI-Lab/VideoSys): Dynamic Sequence Parallel introduced by NUS HPC AI Lab.
+* [MiraData](https://github.com/mira-space/MiraData): A large-scale video dataset with long durations and structured
+  caption.
+
+```bibtex
+@article{opensora,
+  title={Open-sora: Democratizing efficient video production for all},
+  author={Zheng, Zangwei and Peng, Xiangyu and Yang, Tianji and Shen, Chenhui and Li, Shenggui and Liu, Hongxin and Zhou, Yukun and Li, Tianyi and You, Yang},
+  journal={arXiv preprint arXiv:2412.20404},
+  year={2024}
+}
+
+@article{opensora2,
+    title={Open-Sora 2.0: Training a Commercial-Level Video Generation Model in $200k},
+    author={Xiangyu Peng and Zangwei Zheng and Chenhui Shen and Tom Young and Xinying Guo and Binluo Wang and Hang Xu and Hongxin Liu and Mingyan Jiang and Wenjun Li and Yuhui Wang and Anbang Ye and Gang Ren and Qianran Ma and Wanying Liang and Xiang Lian and Xiwen Wu and Yuting Zhong and Zhuangyan Li and Chaoyu Gong and Guojun Lei and Leijun Cheng and Limin Zhang and Minghao Li and Ruijie Zhang and Silan Hu and Shijie Huang and Xiaokang Wang and Yuanheng Zhao and Yuqi Wang and Ziang Wei and Yang You},
+    year={2025},
+    journal={arXiv preprint arXiv:2503.09642},
+}
+```
 
 We are grateful for their exceptional work and generous contribution to open source.

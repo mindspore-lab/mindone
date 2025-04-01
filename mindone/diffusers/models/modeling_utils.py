@@ -13,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 import inspect
 import json
 import os
@@ -20,7 +21,7 @@ import re
 from collections import OrderedDict
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 
 from huggingface_hub import create_repo
 from huggingface_hub.utils import validate_hf_hub_args
@@ -46,6 +47,7 @@ from ..utils import (
 from ..utils.hub_utils import PushToHubMixin, load_or_create_model_card, populate_model_card
 from .model_loading_utils import (
     _fetch_index_file,
+    _fetch_index_file_legacy,
     _load_state_dict_into_model,
     load_checkpoint_and_dispatch,
     load_state_dict,
@@ -100,9 +102,18 @@ def _convert_state_dict(m, state_dict_pt):
 
 
 def get_parameter_dtype(module: nn.Cell) -> ms.Type:
-    params = tuple(module.get_parameters())
-    if len(params) > 0:
-        return params[0].dtype
+    """
+    Returns the first found floating dtype in parameters if there is one, otherwise returns the last dtype it found.
+    """
+    last_dtype = None
+    for param in module.get_parameters():
+        last_dtype = param.dtype
+        if param.is_floating_point():
+            return param.dtype
+
+    if last_dtype is not None:
+        # if no floating dtype was found return whatever the first dtype is
+        return last_dtype
 
 
 class ModelMixin(nn.Cell, PushToHubMixin):
@@ -120,6 +131,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
     _supports_gradient_checkpointing = False
     _keys_to_ignore_on_load_unexpected = None
     _no_split_modules = None
+    _keep_in_fp32_modules = None
 
     def __init__(self):
         super().__init__()
@@ -319,17 +331,15 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         weights_name = SAFETENSORS_WEIGHTS_NAME if safe_serialization else WEIGHTS_NAME
         weights_name = _add_variant(weights_name, variant)
-        weight_name_split = weights_name.split(".")
-        if len(weight_name_split) in [2, 3]:
-            weights_name_pattern = weight_name_split[0] + "{suffix}." + ".".join(weight_name_split[1:])
-        else:
-            raise ValueError(f"Invalid {weights_name} provided.")
+        weights_name_pattern = weights_name.replace(".bin", "{suffix}.bin").replace(
+            ".safetensors", "{suffix}.safetensors"
+        )
 
         os.makedirs(save_directory, exist_ok=True)
 
         if push_to_hub:
             commit_message = kwargs.pop("commit_message", None)
-            private = kwargs.pop("private", False)
+            private = kwargs.pop("private", None)
             create_pr = kwargs.pop("create_pr", False)
             token = kwargs.pop("token", None)
             repo_id = kwargs.pop("repo_id", save_directory.split(os.path.sep)[-1])
@@ -539,26 +549,44 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             user_agent=user_agent,
             **kwargs,
         )
+        # no in-place modification of the original config.
+        config = copy.deepcopy(config)
+
+        # Check if `_keep_in_fp32_modules` is not None
+        use_keep_in_fp32_modules = (cls._keep_in_fp32_modules is not None) and (mindspore_dtype == ms.float16)
+
+        if use_keep_in_fp32_modules:
+            keep_in_fp32_modules = cls._keep_in_fp32_modules
+            if not isinstance(keep_in_fp32_modules, list):
+                keep_in_fp32_modules = [keep_in_fp32_modules]
+        else:
+            keep_in_fp32_modules = []
+        #######################################
 
         # Determine if we're loading from a directory of sharded checkpoints.
         is_sharded = False
         index_file = None
         is_local = os.path.isdir(pretrained_model_name_or_path)
-        index_file = _fetch_index_file(
-            is_local=is_local,
-            pretrained_model_name_or_path=pretrained_model_name_or_path,
-            subfolder=subfolder or "",
-            use_safetensors=use_safetensors,
-            cache_dir=cache_dir,
-            variant=variant,
-            force_download=force_download,
-            proxies=proxies,
-            local_files_only=local_files_only,
-            token=token,
-            revision=revision,
-            user_agent=user_agent,
-            commit_hash=commit_hash,
-        )
+        index_file_kwargs = {
+            "is_local": is_local,
+            "pretrained_model_name_or_path": pretrained_model_name_or_path,
+            "subfolder": subfolder or "",
+            "use_safetensors": use_safetensors,
+            "cache_dir": cache_dir,
+            "variant": variant,
+            "force_download": force_download,
+            "proxies": proxies,
+            "local_files_only": local_files_only,
+            "token": token,
+            "revision": revision,
+            "user_agent": user_agent,
+            "commit_hash": commit_hash,
+        }
+        index_file = _fetch_index_file(**index_file_kwargs)
+        # In case the index file was not found we still have to consider the legacy format.
+        # this becomes applicable when the variant is not None.
+        if variant is not None and (index_file is None or not os.path.exists(index_file)):
+            index_file = _fetch_index_file_legacy(**index_file_kwargs)
         if index_file is not None and index_file.is_file():
             is_sharded = True
 
@@ -626,7 +654,9 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 raise ValueError(
                     f"{mindspore_dtype} needs to be of type `ms.Type`, e.g. `ms.float16`, but is {type(mindspore_dtype)}."
                 )
-            elif mindspore_dtype is not None:
+            # When using `use_keep_in_fp32_modules` if we do a global `to()` here, then we will
+            # completely lose the effectivity of `use_keep_in_fp32_modules`.
+            elif mindspore_dtype is not None and not use_keep_in_fp32_modules:
                 model = model.to(mindspore_dtype)
 
             if is_sharded:
@@ -831,12 +861,21 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 for name, module_type in self.cells_and_names()
                 if isinstance(module_type, nn.Embedding)
             ]
-            non_embedding_parameters = [
+            total_parameters = [
                 parameter for name, parameter in self.parameters_and_names() if name not in embedding_param_names
             ]
-            return sum(p.numel() for p in non_embedding_parameters if p.requires_grad or not only_trainable)
         else:
-            return sum(p.numel() for p in self.get_parameters() if p.requires_grad or not only_trainable)
+            total_parameters = list(self.get_parameters())
+
+        total_numel = []
+
+        for param in total_parameters:
+            if param.requires_grad or not only_trainable:
+                # For 4bit models, we need to multiply the number of parameters by 2 as half of the parameters are
+                # used for the 4bit quantization (uint8 tensors are stored)
+                total_numel.append(param.numel())
+
+        return sum(total_numel)
 
     def _convert_deprecated_attention_blocks(self, state_dict: OrderedDict) -> None:
         deprecated_attention_block_paths = []
@@ -881,6 +920,69 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                 state_dict[f"{path}.to_out.0.weight"] = state_dict.pop(f"{path}.proj_attn.weight")
             if f"{path}.proj_attn.bias" in state_dict:
                 state_dict[f"{path}.to_out.0.bias"] = state_dict.pop(f"{path}.proj_attn.bias")
+
+    def get_submodule(self, target: str) -> nn.Cell:
+        """Return the submodule given by ``target`` if it exists, otherwise throw an error.
+
+        For example, let's say you have an ``nn.Cell`` ``A`` that
+        looks like this:
+
+        .. code-block:: text
+
+            A(
+                (net_b): Module(
+                    (net_c): Module(
+                        (conv): Conv2d(16, 33, kernel_size=(3, 3), stride=(2, 2))
+                    )
+                    (linear): Dense(input_channels=100, output_channels=200, has_bias=True)
+                )
+            )
+
+        (The diagram shows an ``nn.Cell`` ``A``. ``A`` has a nested
+        submodule ``net_b``, which itself has two submodules ``net_c``
+        and ``linear``. ``net_c`` then has a submodule ``conv``.)
+
+        To check whether or not we have the ``linear`` submodule, we
+        would call ``get_submodule("net_b.linear")``. To check whether
+        we have the ``conv`` submodule, we would call
+        ``get_submodule("net_b.net_c.conv")``.
+
+        The runtime of ``get_submodule`` is bounded by the degree
+        of module nesting in ``target``. A query against
+        ``named_modules`` achieves the same result, but it is O(N) in
+        the number of transitive modules. So, for a simple check to see
+        if some submodule exists, ``get_submodule`` should always be
+        used.
+
+        Args:
+            target: The fully-qualified string name of the submodule
+                to look for. (See above example for how to specify a
+                fully-qualified string.)
+
+        Returns:
+            nn.Cell: The submodule referenced by ``target``
+
+        Raises:
+            AttributeError: If the target string references an invalid
+                path or resolves to something that is not an
+                ``nn.Cell``
+        """
+        if target == "":
+            return self
+
+        atoms: List[str] = target.split(".")
+        mod: nn.Cell = self
+
+        for item in atoms:
+            if not hasattr(mod, item):
+                raise AttributeError(mod.cls_name + " has no " "attribute `" + item + "`")
+
+            mod = getattr(mod, item)
+
+            if not isinstance(mod, nn.Cell):
+                raise AttributeError("`" + item + "` is not " "an nn.Module")
+
+        return mod
 
 
 class LegacyModelMixin(ModelMixin):

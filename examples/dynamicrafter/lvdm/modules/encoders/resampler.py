@@ -3,16 +3,16 @@
 # and https://github.com/tencent-ailab/IP-Adapter/blob/main/ip_adapter/resampler.py
 import math
 
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, mint, nn, ops
 
 
 def FeedForward(dim, mult=4):
     inner_dim = int(dim * mult)
     return nn.SequentialCell(
-        nn.LayerNorm([dim], epsilon=1e-05),
-        nn.Dense(dim, inner_dim, has_bias=False),
-        nn.GELU(),
-        nn.Dense(inner_dim, dim, has_bias=False),
+        mint.nn.LayerNorm([dim], eps=1e-05),
+        mint.nn.Linear(dim, inner_dim, bias=False),
+        mint.nn.GELU(),
+        mint.nn.Linear(inner_dim, dim, bias=False),
     )
 
 
@@ -35,12 +35,12 @@ class PerceiverAttention(nn.Cell):
         self.heads = heads
         inner_dim = dim_head * heads
 
-        self.norm1 = nn.LayerNorm([dim], epsilon=1e-05)
-        self.norm2 = nn.LayerNorm([dim], epsilon=1e-05)
+        self.norm1 = mint.nn.LayerNorm([dim], eps=1e-05)
+        self.norm2 = mint.nn.LayerNorm([dim], eps=1e-05)
 
-        self.to_q = nn.Dense(dim, inner_dim, has_bias=False)
-        self.to_kv = nn.Dense(dim, inner_dim * 2, has_bias=False)
-        self.to_out = nn.Dense(inner_dim, dim, has_bias=False)
+        self.to_q = mint.nn.Linear(dim, inner_dim, bias=False)
+        self.to_kv = mint.nn.Linear(dim, inner_dim * 2, bias=False)
+        self.to_out = mint.nn.Linear(inner_dim, dim, bias=False)
 
     def construct(self, x, latents):
         """
@@ -56,7 +56,7 @@ class PerceiverAttention(nn.Cell):
         b, l, _ = latents.shape
 
         q = self.to_q(latents)
-        kv_input = ops.cat((x, latents), axis=-2)
+        kv_input = mint.cat((x, latents), dim=-2)
         k, v = self.to_kv(kv_input).chunk(2, axis=-1)
 
         q = reshape_tensor(q, self.heads)
@@ -66,7 +66,7 @@ class PerceiverAttention(nn.Cell):
         # attention
         scale = 1 / math.sqrt(math.sqrt(self.dim_head))
         weight = (q * scale) @ (k * scale).swapaxes(-2, -1)  # More stable with f16 than dividing afterwards
-        weight = ops.softmax(weight.float(), axis=-1).type(weight.dtype)
+        weight = mint.nn.functional.softmax(weight.float(), dim=-1).type(weight.dtype)
         out = weight @ v
 
         out = out.permute(0, 2, 1, 3).reshape(b, l, -1)
@@ -96,10 +96,11 @@ class Resampler(nn.Cell):
         if video_length is not None:
             num_queries = num_queries * video_length
 
+        # self.latents = Parameter(mint.randn(1, num_queries, dim) / dim**0.5)
         self.latents = Parameter(ops.randn(1, num_queries, dim) / dim**0.5)
-        self.proj_in = nn.Dense(embedding_dim, dim)
-        self.proj_out = nn.Dense(dim, output_dim)
-        self.norm_out = nn.LayerNorm([output_dim], epsilon=1e-05)
+        self.proj_in = mint.nn.Linear(embedding_dim, dim)
+        self.proj_out = mint.nn.Linear(dim, output_dim)
+        self.norm_out = mint.nn.LayerNorm([output_dim], eps=1e-05)
 
         self.layers = nn.CellList([])
         for _ in range(depth):

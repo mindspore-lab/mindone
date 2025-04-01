@@ -30,7 +30,7 @@ from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
 from mindone.utils.config import instantiate_from_config
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -52,8 +52,8 @@ def create_loss_scaler(loss_scaler_type, init_loss_scale, loss_scale_factor=2, s
 
 def main(args):
     # 1. init
-    # ascend_config={"precision_mode": "allow_fp32_to_fp16"}
-    device_id, rank_id, device_num = init_train_env(
+    # precision_mode="allow_fp32_to_fp16"
+    device_id, rank_id, device_num = init_env(
         args.mode,
         device_target=args.device_target,
         seed=args.seed,
@@ -231,6 +231,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
                 f"Learning rate: {learning_rate}",

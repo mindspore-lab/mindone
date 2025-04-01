@@ -21,9 +21,12 @@ from PIL import Image
 
 import mindspore as ms
 
+from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -184,3 +187,51 @@ class CogVideoXVideoToVideoPipelineFastTests(PipelineTesterMixin, unittest.TestC
             np.max(np.linalg.norm(pt_generated_video - ms_generated_video) / np.linalg.norm(pt_generated_video))
             < threshold
         )
+
+
+@slow
+@ddt
+class CogVideoXVideoToVideoPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_cogvideox(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.cogvideo.pipeline_cogvideox_video2video.CogVideoXVideoToVideoPipeline"
+        )
+        pipe = pipe_cls.from_pretrained("THUDM/CogVideoX-5b", mindspore_dtype=ms_dtype)
+        scheduler_cls = get_module("mindone.diffusers.schedulers.scheduling_dpm_cogvideox.CogVideoXDPMScheduler")
+        pipe.scheduler = scheduler_cls.from_config(pipe.scheduler.config)
+
+        input_video_np = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            "hiker.npy",
+            subfolder="cogvideo",
+        )
+
+        input_video = []
+        for img_array in input_video_np:
+            # 将 numpy 数组转换为 PIL 图像对象
+            image = Image.fromarray(img_array)
+            # 将 PIL 图像对象添加到列表中
+            input_video.append(image)
+
+        prompt = (
+            "An astronaut stands triumphantly at the peak of a towering mountain. Panorama of rugged peaks and "
+            "valleys. Very futuristic vibe and animated aesthetic. Highlights of purple and golden colors in "
+            "the scene. The sky is looks like an animated/cartoonish dream of galaxies, nebulae, stars, planets, "
+            "moons, but the remainder of the scene is mostly realistic."
+        )
+
+        torch.manual_seed(0)
+        videos = pipe(video=input_video, prompt=prompt, strength=0.8, guidance_scale=6, num_inference_steps=50)[0]
+        video = videos[0]
+
+        expected_video = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"cogvideox_video2video_{dtype}.npy",
+            subfolder="cogvideo",
+        )
+        assert np.mean(np.abs(np.array(video, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

@@ -261,6 +261,7 @@ class VLChatProcessor(ProcessorMixin):
         prompt: str = None,
         conversations: List[Dict[str, str]] = None,
         images: List[Image] = None,
+        return_tensor: bool = True,
         **kwargs,
     ):
         """
@@ -305,7 +306,10 @@ class VLChatProcessor(ProcessorMixin):
         )
 
         # load images
-        images_outputs = self.image_processor(images, return_tensors="ms")
+        if return_tensor:
+            images_outputs = self.image_processor(images, return_tensors="ms")
+        else:
+            images_outputs = self.image_processor(images, return_tensors="np")
         prepare = VLChatProcessorOutput(
             sft_format=sft_format,
             input_ids=input_ids,
@@ -322,6 +326,7 @@ class VLChatProcessor(ProcessorMixin):
         conversations: List[Dict[str, str]] = None,
         images: List[Image] = None,
         force_batchify: bool = True,
+        max_length: int = None,
         **kwargs,
     ):
         """
@@ -335,8 +340,8 @@ class VLChatProcessor(ProcessorMixin):
 
         Returns:
             outputs (BaseProcessorOutput): the output of the processor,
-                - input_ids (torch.LongTensor): [N + image tokens]
-                - images (torch.FloatTensor): [n_images, 3, H, W]
+                - input_ids (ms.Tensor): [N + image tokens]
+                - images (ms.Tensor): [n_images, 3, H, W]
                 - image_id (int): the id of the image token
                 - num_image_tokens (List[int]): the number of image tokens
         """
@@ -344,11 +349,11 @@ class VLChatProcessor(ProcessorMixin):
         prepare = self.process_one(prompt=prompt, conversations=conversations, images=images)
 
         if force_batchify:
-            prepare = self.batchify([prepare])
+            prepare = self.batchify([prepare], max_length=max_length)
 
         return prepare
 
-    def batchify(self, prepare_list: List[VLChatProcessorOutput]) -> BatchedVLChatProcessorOutput:
+    def batchify(self, prepare_list: List[VLChatProcessorOutput], max_length=None) -> BatchedVLChatProcessorOutput:
         """
         Preprocesses the inputs for multimodal inference.
 
@@ -367,7 +372,11 @@ class VLChatProcessor(ProcessorMixin):
             n_images.append(len(prepare.num_image_tokens))
             seq_lens.append(len(prepare))
 
-        input_token_max_len = max(seq_lens)
+        if max_length is None:
+            input_token_max_len = max(seq_lens)
+        else:
+            input_token_max_len = max_length
+
         max_n_images = max(1, max(n_images))
         batched_input_ids = ops.full((batch_size, input_token_max_len), self.pad_id).long()  # FIXME
 

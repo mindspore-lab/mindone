@@ -3,7 +3,7 @@ from lvdm.modules.networks.util import make_ddim_sampling_parameters, make_ddim_
 from tqdm import tqdm
 
 import mindspore as ms
-import mindspore.ops as ops
+from mindspore import mint
 
 from mindone.utils.misc import extract_into_tensor
 
@@ -14,7 +14,6 @@ class DDIMSampler(object):
         self.model = model
         self.ddpm_num_timesteps = model.num_timesteps
         self.schedule = schedule
-        self.split = ops.Split(0, 2)
 
     def make_schedule(self, ddim_num_steps, ddim_discretize="uniform", ddim_eta=0.0, verbose=True):
         self.ddim_timesteps = make_ddim_timesteps(
@@ -28,18 +27,18 @@ class DDIMSampler(object):
 
         if self.model.use_dynamic_rescale:
             self.ddim_scale_arr = self.model.scale_arr[self.ddim_timesteps]
-            self.ddim_scale_arr_prev = ops.cat([self.ddim_scale_arr[0:1], self.ddim_scale_arr[:-1]])
+            self.ddim_scale_arr_prev = mint.cat([self.ddim_scale_arr[0:1], self.ddim_scale_arr[:-1]])
 
         self.betas = self.model.betas
         self.alphas_cumprod = self.model.alphas_cumprod
         self.alphas_cumprod_prev = self.model.alphas_cumprod_prev
 
         # calculations for diffusion q(x_t | x_{t-1}) and others
-        self.sqrt_alphas_cumprod = ops.sqrt(alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = ops.sqrt(1.0 - alphas_cumprod)
-        self.log_one_minus_alphas_cumprod = ops.log(1.0 - alphas_cumprod)
-        self.sqrt_recip_alphas_cumprod = ops.sqrt(1.0 / alphas_cumprod)
-        self.sqrt_recipm1_alphas_cumprod = ops.sqrt(1.0 / alphas_cumprod - 1)
+        self.sqrt_alphas_cumprod = mint.sqrt(alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = mint.sqrt(1.0 - alphas_cumprod)
+        self.log_one_minus_alphas_cumprod = mint.log(1.0 - alphas_cumprod)
+        self.sqrt_recip_alphas_cumprod = mint.sqrt(1.0 / alphas_cumprod)
+        self.sqrt_recipm1_alphas_cumprod = mint.sqrt(1.0 / alphas_cumprod - 1)
 
         # ddim sampling parameters
         ddim_sigmas, ddim_alphas, ddim_alphas_prev = make_ddim_sampling_parameters(
@@ -49,8 +48,8 @@ class DDIMSampler(object):
         self.ddim_sigmas = ddim_sigmas
         self.ddim_alphas = ddim_alphas
         self.ddim_alphas_prev = ddim_alphas_prev
-        self.ddim_sqrt_one_minus_alphas = ops.sqrt(1.0 - ddim_alphas)
-        sigmas_for_original_sampling_steps = ddim_eta * ops.sqrt(
+        self.ddim_sqrt_one_minus_alphas = mint.sqrt(1.0 - ddim_alphas)
+        sigmas_for_original_sampling_steps = ddim_eta * mint.sqrt(
             (1 - self.alphas_cumprod_prev)
             / (1 - self.alphas_cumprod)
             * (1 - self.alphas_cumprod / self.alphas_cumprod_prev)
@@ -309,8 +308,8 @@ class DDIMSampler(object):
             pred_x0 = self.model.predict_start_from_z_and_v(x, t, model_output)
 
         if self.model.use_dynamic_rescale:
-            scale_t = ops.full(size, self.ddim_scale_arr[index], dtype=self.ddim_scale_arr[index].dtype)
-            prev_scale_t = ops.full(size, self.ddim_scale_arr_prev[index], dtype=self.ddim_scale_arr_prev[index].dtype)
+            scale_t = mint.full(size, self.ddim_scale_arr[index], dtype=self.ddim_scale_arr[index].dtype)
+            prev_scale_t = mint.full(size, self.ddim_scale_arr_prev[index], dtype=self.ddim_scale_arr_prev[index].dtype)
             rescale = prev_scale_t / scale_t
             pred_x0 *= rescale
 
@@ -321,7 +320,7 @@ class DDIMSampler(object):
         dir_xt = (1.0 - a_prev - sigma_t**2).sqrt() * e_t
         noise = sigma_t * noise_like(x.shape, repeat_noise) * temperature
         if noise_dropout > 0.0:
-            noise, _ = ops.dropout(noise, p=noise_dropout)
+            noise, _ = mint.nn.Dropout(p=noise_dropout)(noise)
         x_prev = a_prev.sqrt() * pred_x0 + dir_xt + noise
 
         return x_prev, pred_x0
@@ -392,7 +391,7 @@ class DDIMSampler(object):
             sqrt_alphas_cumprod = self.sqrt_alphas_cumprod
             sqrt_one_minus_alphas_cumprod = self.sqrt_one_minus_alphas_cumprod
         else:
-            sqrt_alphas_cumprod = ops.sqrt(self.ddim_alphas)
+            sqrt_alphas_cumprod = mint.sqrt(self.ddim_alphas)
             sqrt_one_minus_alphas_cumprod = self.ddim_sqrt_one_minus_alphas
 
         if noise is None:

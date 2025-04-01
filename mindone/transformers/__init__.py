@@ -1,4 +1,4 @@
-__version__ = "4.42.4"
+__version__ = "4.46.3"
 # Feature Extractor
 from .feature_extraction_utils import BatchFeature, FeatureExtractionMixin
 from .image_processing_base import ImageProcessingMixin
@@ -27,6 +27,15 @@ from .models.blip_2 import (
     Blip2QFormerModel,
     Blip2VisionModel,
 )
+from .models.clap import (
+    ClapAudioModel,
+    ClapAudioModelWithProjection,
+    ClapFeatureExtractor,
+    ClapModel,
+    ClapPreTrainedModel,
+    ClapTextModel,
+    ClapTextModelWithProjection,
+)
 from .models.clip import (
     CLIP_PRETRAINED_MODEL_ARCHIVE_LIST,
     CLIPModel,
@@ -45,7 +54,24 @@ from .models.gemma import (
     GemmaPreTrainedModel,
 )
 from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.glm import (
+    GlmForCausalLM,
+    GlmForSequenceClassification,
+    GlmForTokenClassification,
+    GlmModel,
+    GlmPreTrainedModel,
+)
+from .models.gpt2 import (
+    GPT2DoubleHeadsModel,
+    GPT2ForQuestionAnswering,
+    GPT2ForSequenceClassification,
+    GPT2ForTokenClassification,
+    GPT2LMHeadModel,
+    GPT2Model,
+    GPT2PreTrainedModel,
+)
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
+from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
@@ -59,6 +85,17 @@ from .models.phi3 import (
     Phi3ForTokenClassification,
     Phi3Model,
     Phi3PreTrainedModel,
+)
+from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
+from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
+from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.speecht5 import (
+    SpeechT5ForSpeechToSpeech,
+    SpeechT5ForSpeechToText,
+    SpeechT5ForTextToSpeech,
+    SpeechT5HifiGan,
+    SpeechT5Model,
+    SpeechT5PreTrainedModel,
 )
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,

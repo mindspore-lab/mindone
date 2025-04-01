@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-bgd"]
 build-backend = "hatchling.build"
 
 [project]
@@ -35,7 +35,7 @@ dependencies = [
     "numpy<2.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",
-    "transformers>=4.42.0",
+    "transformers==4.46.3",
 ]
 
 [project.optional-dependencies]
@@ -78,9 +78,9 @@ Source = "https://github.com/mindspore-lab/mindone"
 python = "3.8"
 
 [tool.hatch.version]
-# Since we always work in dev(or editable) mode at this stage, it makes sense to keep the version file.
-# In the future, we will deprecate the version file and use hatch-vcs to determine the project version.
-path = "mindone/version.py"
+source = "bgd"
+base-version = "0.3.0.dev0"
+build-type = "dev"  # ['dev', 'release']
 
 [tool.hatch.build.targets.sdist]
 exclude = [

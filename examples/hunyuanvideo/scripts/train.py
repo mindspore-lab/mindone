@@ -28,7 +28,7 @@ from mindone.data import create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
-from mindone.utils import count_params, init_train_env, set_logger
+from mindone.utils import count_params, init_env, set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +63,8 @@ def main(args):
     # 1. init env
     args.train.output_path = os.path.abspath(args.train.output_path)
     os.makedirs(args.train.output_path, exist_ok=True)
-    device_id, rank_id, device_num = init_train_env(**args.env)
-    mode = get_context("mode")  # `init_train_env()` may change the mode during debugging
+    device_id, rank_id, device_num = init_env(**args.env)
+    mode = get_context("mode")  # `init_env()` may change the mode during debugging
 
     # if bucketing is used in Graph mode, activate dynamic mode
     if mode == GRAPH_MODE and isinstance(args.dataloader.batch_size, dict):
@@ -328,7 +328,7 @@ if __name__ == "__main__":
         action=ActionConfigFile,
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_function_arguments(init_model, "model", skip={"resume"})
     parser.add_function_arguments(load_vae, "vae", skip={"logger"})
     parser.add_class_arguments(
