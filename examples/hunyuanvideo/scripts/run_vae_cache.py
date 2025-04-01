@@ -87,15 +87,17 @@ def process_folder(args, vae, dtype, rank_id, device_num):
     num_batches = dataloader.get_dataset_size()
     logger.info("Number of batches: %d", num_batches)
     ds_iter = dataloader.create_dict_iterator(1)
+    vae_compression_factor = 4
     for batch in tqdm(ds_iter, total=num_batches):
         x = batch["video"]
         file_paths = batch["path"]
         x = x.to(dtype=dtype)  # b c t h w
         num_frames = x.shape[2]
-        if num_frames % 2 == 0:
-            # only odd frames
-            num_frames -= 1
-            x = x[:, :, :-1, :, :]
+        vae_num_frames = (num_frames // vae_compression_factor) * vae_compression_factor + 1
+        if vae_num_frames > num_frames:
+            vae_num_frames = num_frames - vae_compression_factor
+
+        x = x[:, :, :vae_num_frames]
         batch_mean, batch_std = vae_latent_cache(vae, x, dtype=dtype)
 
         for idx, mean, std in enumerate(zip(batch_mean, batch_std)):
