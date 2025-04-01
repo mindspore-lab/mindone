@@ -45,7 +45,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
     input_video_dir = args.input_video_dir
     latent_cache_dir = args.latent_cache_dir
     height, width = args.height, args.width
-    num_frames = (10**5,)  # read the full video, limitation of `albumentations` (i.e., `additional_targets`)
+    num_frames = 10**5  # read the full video, limitation of `albumentations` (i.e., `additional_targets`)
     sample_rate = args.sample_rate
 
     batch_size = args.batch_size
