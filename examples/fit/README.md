@@ -12,6 +12,7 @@ Nature is infinitely resolution-free. In the context of this reality, existing d
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel         |
 |:---------:|:-------------:|:-----------:|:---------------------------:|
+| 2.3.1     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1               |
 | 2.5.0     | 24.1.0        | 7.5.0.3.22  | 8.0.0.beta1                 |
 
 Python: 3.9 or later.
@@ -87,7 +88,13 @@ Some generated example images of are shown below:
 
 ### Training Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode
+- Mindspore 2.3.1
+
+| model name | cards | batch size   | resolution  | recompute  | sink      | jit level | graph compile | s/step |         img/s |
+| :--------: | :---: | :-----------:| :--------:  | :--------: | :-------: | :-------: | :-----------: | :----: | :-----------: |
+| FiT-XL-2   |   4   |     64       |  256x256    |    ON      |    OFF    |    O0     |   3~5 mins    | 0.73   |    315        |
+
+- Mindspore 2.5.0
 
 | model name | cards | batch size   | resolution  | recompute  | sink      | jit level | graph compile | s/step |         img/s |
 | :--------: | :---: | :-----------:| :--------:  | :--------: | :-------: | :-------: | :-----------: | :----: | :-----------: |
