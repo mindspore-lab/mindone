@@ -99,8 +99,8 @@ def process_folder(args, vae, dtype, rank_id, device_num):
 
         x = x[:, :, :vae_num_frames]
         batch_mean, batch_std = vae_latent_cache(vae, x, dtype=dtype)
-
-        for idx, mean, std in enumerate(zip(batch_mean, batch_std)):
+        idx = 0
+        for mean, std in zip(batch_mean, batch_std):
             file_paths = eval(str(file_paths).replace("/n", ","))
             file_path = file_paths[idx]
             # change the file name to .npz
@@ -115,6 +115,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
             if not os.path.exists(os.path.dirname(output_path)):
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
             np.savez(output_path, latent_mean=mean, latent_std=std)
+            idx += 1
 
     logger.info(f"Finish latent caching, and save cache to {latent_cache_dir}")
 
