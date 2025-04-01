@@ -95,7 +95,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
         num_frames = x.shape[2]
         vae_num_frames = (num_frames // vae_compression_factor) * vae_compression_factor + 1
         if vae_num_frames > num_frames:
-            vae_num_frames = num_frames - vae_compression_factor
+            vae_num_frames = vae_num_frames - vae_compression_factor
 
         x = x[:, :, :vae_num_frames]
         batch_mean, batch_std = vae_latent_cache(vae, x, dtype=dtype)
