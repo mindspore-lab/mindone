@@ -137,13 +137,13 @@ class CogView4AttnProcessor:
             `hidden_state[:, :, start_index:, :] = self.apply_rotary_emb(hidden_state[:, :, start_index:, :], image_rotary_emb)`
         Rewrite it since implement above might call ops.ScatterNdUpdate which is super slow!
         """
-        hidden_state_text, hidden_state_image = ops.split(
-            hidden_state, (start_index, hidden_state.shape[axis] - start_index), axis=axis
+        hidden_state_text, hidden_state_image = mint.split(
+            hidden_state, (start_index, hidden_state.shape[axis] - start_index), dim=axis
         )
         hidden_state_image = self.apply_rotary_emb(
             hidden_state_image, image_rotary_emb, use_real_unbind_dim=use_real_unbind_dim
         )
-        hidden_state = ops.cat([hidden_state_text, hidden_state_image], axis=axis)
+        hidden_state = mint.cat([hidden_state_text, hidden_state_image], dim=axis)
         return hidden_state
 
     def __call__(
