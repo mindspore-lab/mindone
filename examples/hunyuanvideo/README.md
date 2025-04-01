@@ -134,7 +134,7 @@ To extract the latent cache for the train and validation dataset, please use the
 ```bash
 WIDTH=256
 HEIGHT=256
-python scripts/run_vae_latent_cache.py \
+python scripts/run_vae_cache.py \
   --input-video-dir /path/to/video_folder \
   --latent-cache-dir /path/to/latent_cache_folder \
   --height $HEIGHT \
