@@ -103,6 +103,7 @@ class ImageVideoDataset:
             disable_flip=False,
             num_frames=sample_n_frames,
         )
+        self.target_size = target_size
 
         self.vae_type = vae_type
         self.model_patch_size = model_patch_size
@@ -234,18 +235,34 @@ class ImageVideoDataset:
                         data.update({"prompt_embeds_2": td["prompt_embeds_2"]})
 
         if self._vae_latent_folder:
+            # 884
+            if "884" in self.vae_type:
+                latents_length = (num_frames - 1) // 4 + 1
+                min_length = (self._min_length - 1) // 4 + 1
+            elif "888" in self.vae_type:
+                latents_length = (num_frames - 1) // 8 + 1
+                min_length = (self._min_length - 1) // 8 + 1
+            else:
+                raise ValueError("vae_type must be 884 or 888")
+            height, width = self.target_size[0] // 8, self.target_size[1] // 8
+
             vae_latent_data = np.load(data["vae_latent"])
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]  # C T H W
-            if 1 < len(latent_mean) < self._min_length:  # TODO: add support for buckets
+            if 1 < len(latent_mean) < min_length:  # TODO: add support for buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - self._min_length)
-            batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
+            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - min_length)
+            batch_index = np.linspace(start_pos, start_pos + min_length - 1, latents_length, dtype=int)
 
             latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
             vae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
 
             vae_latent = vae_latent * self._vae_scale_factor
+            assert vae_latent.shape[1:] == (
+                latents_length,
+                height,
+                width,
+            ), f"Expect to have latent of shape (C, {latents_length, height, width})"
             data["video"] = vae_latent
         else:
             if data["video"].lower().endswith(IMAGE_EXT):
