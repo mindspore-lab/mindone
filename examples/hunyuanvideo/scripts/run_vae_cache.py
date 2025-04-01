@@ -48,7 +48,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
     num_frames = 10**5  # read the full video, limitation of `albumentations` (i.e., `additional_targets`)
     sample_rate = args.sample_rate
 
-    batch_size = args.batch_size
+    batch_size = 1  # dynamic num_frames , use bs=1
     num_workers = args.num_workers
 
     if not os.path.exists(args.latent_cache_dir):
@@ -70,6 +70,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
             sample_n_frames=num_frames,
             return_image=False,
             dynamic_start_index=False,
+            frames_duplications=False,
         )
     )
 
@@ -162,7 +163,7 @@ def get_parser():
         "--input-video-dir", type=str, default="", help="Directory containing input videos for processing."
     )
     parser.add_argument("--latent-cache-dir", type=str, default="", help="Directory to save latent cache.")
-    parser.add_argument("--batch-size", type=int, default=1, help="Batch size for processing.")
+    # parser.add_argument("--batch-size", type=int, default=1, help="Batch size for processing.")
     parser.add_argument("--num-workers", type=int, default=8, help="Number of workers for data loading.")
     parser.add_argument(
         "--data-file-path",
