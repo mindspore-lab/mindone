@@ -141,11 +141,14 @@ _import_structure = {
         "StableDiffusionXLPAGImg2ImgPipeline",
         "PixArtSigmaPAGPipeline",
     ],
+    "paint_by_example": ["PaintByExamplePipeline"],
+    "pia": ["PIAPipeline"],
     "pixart_alpha": [
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
     "sana": ["SanaPipeline"],
+    "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
     "stable_cascade": [
@@ -163,12 +166,15 @@ _import_structure = {
         "StableDiffusionLatentUpscalePipeline",
         "StableDiffusionPipeline",
         "StableDiffusionUpscalePipeline",
+        "StableUnCLIPImg2ImgPipeline",
+        "StableUnCLIPPipeline",
     ],
     "stable_diffusion_3": [
         "StableDiffusion3Pipeline",
         "StableDiffusion3Img2ImgPipeline",
         "StableDiffusion3InpaintPipeline",
     ],
+    "stable_diffusion_sag": ["StableDiffusionSAGPipeline"],
     "stable_diffusion_gligen": [
         "StableDiffusionGLIGENPipeline",
         "StableDiffusionGLIGENTextImagePipeline",
@@ -180,10 +186,17 @@ _import_structure = {
         "StableDiffusionXLPipeline",
     ],
     "stable_diffusion_diffedit": ["StableDiffusionDiffEditPipeline"],
+    "stable_diffusion_ldm3d": ["StableDiffusionLDM3DPipeline"],
+    "stable_diffusion_panorama": ["StableDiffusionPanoramaPipeline"],
     "stable_video_diffusion": ["StableVideoDiffusionPipeline"],
     "t2i_adapter": [
         "StableDiffusionAdapterPipeline",
         "StableDiffusionXLAdapterPipeline",
+    ],
+    "text_to_video_synthesis": [
+        "TextToVideoSDPipeline",
+        "TextToVideoZeroSDXLPipeline",
+        "VideoToVideoSDPipeline",
     ],
     "unclip": ["UnCLIPImageVariationPipeline", "UnCLIPPipeline"],
     "wuerstchen": [
@@ -314,9 +327,12 @@ if TYPE_CHECKING:
         StableDiffusionXLPAGInpaintPipeline,
         StableDiffusionXLPAGPipeline,
     )
+    from .paint_by_example import PaintByExamplePipeline
+    from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
     from .sana import SanaPipeline
+    from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
     from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline, StableCascadePriorPipeline
@@ -330,6 +346,8 @@ if TYPE_CHECKING:
         StableDiffusionLatentUpscalePipeline,
         StableDiffusionPipeline,
         StableDiffusionUpscalePipeline,
+        StableUnCLIPImg2ImgPipeline,
+        StableUnCLIPPipeline,
     )
     from .stable_diffusion_3 import (
         StableDiffusion3Img2ImgPipeline,
@@ -338,6 +356,9 @@ if TYPE_CHECKING:
     )
     from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
+    from .stable_diffusion_ldm3d import StableDiffusionLDM3DPipeline
+    from .stable_diffusion_panorama import StableDiffusionPanoramaPipeline
+    from .stable_diffusion_sag import StableDiffusionSAGPipeline
     from .stable_diffusion_xl import (
         StableDiffusionXLImg2ImgPipeline,
         StableDiffusionXLInpaintPipeline,
@@ -346,6 +367,7 @@ if TYPE_CHECKING:
     )
     from .stable_video_diffusion import StableVideoDiffusionPipeline
     from .t2i_adapter import StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline
+    from .text_to_video_synthesis import TextToVideoSDPipeline, TextToVideoZeroSDXLPipeline, VideoToVideoSDPipeline
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
