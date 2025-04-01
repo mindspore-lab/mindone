@@ -248,13 +248,13 @@ class ImageVideoDataset:
 
             vae_latent_data = np.load(data["vae_latent"])
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]  # C T H W
-            if 1 < len(latent_mean) < min_length:  # TODO: add support for buckets
+            if 1 < latent_mean.shape[1] < min_length:  # TODO: add support for buckets
                 raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - min_length)
+            start_pos = 0 if self._deterministic else random.randint(0, latent_mean.shape[1] - min_length)
             batch_index = np.linspace(start_pos, start_pos + min_length - 1, latents_length, dtype=int)
 
-            latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
+            latent_mean, latent_std = latent_mean[:, batch_index], latent_std[:, batch_index]
             vae_latent = np.random.normal(latent_mean, latent_std).astype(np.float32)
 
             vae_latent = vae_latent * self._vae_scale_factor
@@ -286,23 +286,22 @@ class ImageVideoDataset:
                 frame_indices = frame_indices[:num_frames]
                 data["video"] = decord_vr.get_batch(frame_indices)  # T H W C
                 data["fps"] = np.array(decord_vr.get_avg_fps() / self._stride, dtype=np.float32)
+            # video/image transforms: resize, crop, normalize, reshape
+            pixel_values = data["video"]
+            inputs = {"image": pixel_values[0]}
+            for i in range(num_frames - 1):
+                inputs[f"image{i}"] = pixel_values[i + 1]
 
-        data["num_frames"] = np.array(num_frames, dtype=np.float32)
+            output = self.pixel_transforms(**inputs)
+            pixel_values = np.stack(list(output.values()), axis=0)
+            # (t h w c) -> (c t h w)
+            pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
+            data["video"] = pixel_values / 127.5 - 1.0
+            data["num_frames"] = np.array(num_frames, dtype=np.float32)
 
         if self._fmask_gen is not None:
             # return frames mask with respect to the vae's latent temporal compression
             data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
-        # video/image transforms: resize, crop, normalize, reshape
-        pixel_values = data["video"]
-        inputs = {"image": pixel_values[0]}
-        for i in range(num_frames - 1):
-            inputs[f"image{i}"] = pixel_values[i + 1]
-
-        output = self.pixel_transforms(**inputs)
-        pixel_values = np.stack(list(output.values()), axis=0)
-        # (t h w c) -> (c t h w)
-        pixel_values = np.transpose(pixel_values, (3, 0, 1, 2))
-        data["video"] = pixel_values / 127.5 - 1.0
 
         # rope frequencies
         data["freqs_cos"] = self.freqs_cos
