@@ -47,7 +47,7 @@ def process_folder(args, vae, dtype, rank_id, device_num):
     height, width = args.height, args.width
     num_frames = (10**5,)  # read the full video, limitation of `albumentations` (i.e., `additional_targets`)
     sample_rate = args.sample_rate
-    # sample_fps = args.sample_fps
+
     batch_size = args.batch_size
     num_workers = args.num_workers
 
@@ -146,19 +146,6 @@ def main(args):
 def get_parser():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--input-type",
-        type=str,
-        default="video",
-        choices=["image", "video", "folder"],
-        help="Type of input data: image, video, or folder.",
-    )
-    parser.add_argument(
-        "--output-path", type=str, default="save_samples/", help="Path to save the reconstructed video or image path."
-    )
-    # Image Group
-    parser.add_argument("--image-path", type=str, default="", help="Path to the input image file")
-
     # Video Group
     parser.add_argument(
         "--height", type=int, default=336, help="Height of the processed video frames. It applies to image size too."
@@ -166,16 +153,8 @@ def get_parser():
     parser.add_argument(
         "--width", type=int, default=336, help="Width of the processed video frames. It applies to image size too."
     )
-    parser.add_argument("--video-path", type=str, default="", help="Path to the input video file.")
-    parser.add_argument(
-        "--rec-path",
-        type=str,
-        default="",
-        help="Path to save the reconstructed video/image path, relative to the given output path.",
-    )
-    parser.add_argument("--fps", type=int, default=30, help="Frames per second for the output video.")
-    # parser.add_argument("--num-frames", type=int, default=65, help="Number of frames to sample from the video.")
-    parser.add_argument("--sa,-rate", type=int, default=1, help="Sampling rate for video frames.")
+
+    parser.add_argument("--sample-rate", type=int, default=1, help="Sampling rate for video frames.")
 
     # Video Folder Group
     parser.add_argument(

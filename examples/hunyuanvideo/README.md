@@ -128,6 +128,20 @@ python scripts/run_text_encoder.py \
   --output-path /path/to/text_embed_folder \
 ```
 
+### Extract VAE Lantent Cache
+
+To extract the latent cache for the train and validation dataset, please use the following command respectively:
+```bash
+WIDTH=256
+HEIGHT=256
+python scripts/run_vae_latent_cache.py \
+  --input-video-dir /path/to/video_folder \
+  --latent-cache-dir /path/to/latent_cache_folder \
+  --height $HEIGHT \
+  --width $WIDTH \
+```
+Please set the `--input-video-dir` and `--latent-cache-dir` to specify the input video folder and the output latent cache folder.
+
 ### Distributed Training
 
 To run stage 1 (256px) trainig with HunyuanVideo (13B) on multiple NPUs, we use ZeRO3 and data parallelism with the following script:
