@@ -27,16 +27,16 @@ vae:
   trainable: False
 
 dataset:
-  csv_path: datasets/mixkit-100videos/video_caption_test.csv
+  csv_path: datasets/mixkit-100videos/video_caption_vid6.csv
   video_folder: datasets/mixkit-100videos/mixkit
   text_emb_folder: datasets/mixkit-100videos/text_embed
   empty_text_emb: datasets/mixkit-100videos/empty_string_text_embeddings.npz
   deterministic_sample: False
   text_drop_prob: 0.0
-  target_size: [ 256, 256 ]
-  sample_n_frames: 29
+  target_size: [ 720, 1280 ]
+  sample_n_frames: 129
   vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
-  vae_latent_folder: path/to/vae/latent/cache
+  vae_latent_folder: datasets/mixkit-100videos/mixkit_latent_720x1280/
   output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin"]
 
 dataloader:
