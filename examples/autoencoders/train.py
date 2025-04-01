@@ -231,6 +231,7 @@ def main(args):
         key_info += "\n".join(
             [
                 f"MindSpore mode[GRAPH(0)/PYNATIVE(1)]: {args.mode}",
+                f"Jit level: {args.jit_level}",
                 f"Distributed mode: {args.use_parallel}",
                 f"Data path: {args.data_path}",
                 f"Learning rate: {learning_rate}",

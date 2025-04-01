@@ -49,7 +49,7 @@ def parse_args():
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
     parser.add_argument(
         "--jit_level",
-        default="O2",
+        default="O1",
         type=str,
         choices=["O0", "O1", "O2"],
         help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
