@@ -32,6 +32,7 @@ class DiffusionWithLoss(nn.Cell):
         text_emb_cached: bool = True,
         video_emb_cached: bool = False,
         embedded_guidance_scale: float = 6.0,
+        vae_scaling_factor: float = 0.476986,
     ):
         super().__init__()
         # TODO: is set_grad() necessary?
@@ -43,7 +44,7 @@ class DiffusionWithLoss(nn.Cell):
         self.text_encoder_2 = text_encoder_2
         self.text_emb_cached = text_emb_cached
         self.video_emb_cached = video_emb_cached
-        self.vae_scaling_factor = self.vae.config.scaling_factor
+        self.vae_scaling_factor = vae_scaling_factor
 
         if self.text_emb_cached:
             self.text_encoder = None
