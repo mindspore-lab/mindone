@@ -4,7 +4,7 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-from mindspore.common.initializer import Normal, XavierUniform, initializer
+from mindspore.common.initializer import Normal, Zero, initializer
 
 from ..utils.helpers import to_2tuple
 
@@ -34,33 +34,32 @@ class PatchEmbed(nn.Cell):
             print("PatchEmbed with conv2d equivalence")
         if use_conv2d:
             assert patch_size[0] == 1
-            self.proj = nn.Conv2d(
+            self.proj = mint.nn.Conv2d(
                 in_chans,
                 embed_dim,
                 kernel_size=patch_size[1:],
                 stride=patch_size[1:],
-                has_bias=bias,
-                pad_mode="valid",
-                bias_init="zeros",
+                bias=bias,
                 **factory_kwargs,
             )
         else:
-            self.proj = nn.Conv3d(
+            self.proj = mint.nn.Conv3d(
                 in_chans,
                 embed_dim,
                 kernel_size=patch_size,
                 stride=patch_size,
-                has_bias=bias,
-                pad_mode="valid",
-                bias_init="zeros",
+                bias=bias,
                 **factory_kwargs,
             )
         # nn.init.xavier_uniform_(self.proj.weight.view(self.proj.weight.size(0), -1))
         # nn.init.zeros_(self.proj.bias)
-        self.proj = self.proj.to_float(ms.bfloat16)
-        w = self.proj.weight
-        w_flatted = w.reshape(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+
+        # TODO: this introduce the wrong intialization of all zero instead. need fix later
+        # w = self.proj.weight
+        # w_flatted = w.reshape(w.shape[0], -1)
+        # w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        if self.proj.bias is not None:
+            self.proj.bias.set_data(initializer(Zero(), self.proj.bias.shape, self.proj.bias.dtype))
 
         self.norm = norm_layer(embed_dim) if norm_layer else nn.Identity()
 

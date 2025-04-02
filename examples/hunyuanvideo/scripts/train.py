@@ -81,7 +81,7 @@ def main(args):
         shard_rank_id = rank_id // args.train.sequence_parallel.shards
 
     # set different seeds per NPU for sampling different timesteps, but if sp is enabled, force the timestep to be the same as rank_0
-    set_seed(args.env.seed + shard_rank_id)
+    set_seed(args.env.seed)
     ds.set_seed(args.env.seed)  # keep MS.dataset's seed consistent as datasets first shuffled and then distributed
 
     set_logger("", output_dir=args.train.output_path, rank=rank_id)

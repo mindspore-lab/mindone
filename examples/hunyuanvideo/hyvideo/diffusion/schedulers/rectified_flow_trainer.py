@@ -140,7 +140,8 @@ class RFlowLossWrapper(nn.Cell):
         guidance: (N, ), the guidance scale for distillation
         timestep: (N,) tensor to indicate a denoising step
         """
-        x = x.to(mstype.float32)
+        # TODO: ideally we should expect x is same in each SP group, but somehow it is not, need to fix.
+        x = self._broadcast(x.to(mstype.float32))
 
         if timestep is None:
             u = self._sample_func(x.shape[0]).to(mstype.int32)
