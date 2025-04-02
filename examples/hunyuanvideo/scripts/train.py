@@ -140,6 +140,7 @@ def main(args):
         vae,
         video_emb_cached=bool(args.dataset.vae_latent_folder),
         embedded_guidance_scale=embed_cfg_scale,
+        vae_scaling_factor=args.dataset.vae_scale_factor,
     )
 
     # 4. build train & val datasets
