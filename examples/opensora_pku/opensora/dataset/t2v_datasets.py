@@ -741,22 +741,22 @@ class T2V_dataset:
         )
 
         video_data = []
-        container = av.open(path)
-        stream = container.streams.video[0]
-        stream.thread_type = "AUTO"
-        current_idx = 0
+        with av.open(path) as container:
+            stream = container.streams.video[0]
+            stream.thread_type = "AUTO"
+            current_idx = 0
 
-        for frame in container.decode(stream):
-            if current_idx > frame_indices[-1]:
-                break
-            if current_idx in frame_indices:
-                img = frame.to_ndarray(format="rgb24")
-                if s_y is not None:
-                    img = img[s_y:e_y, s_x:e_x]
-                video_data.append(img)
-            current_idx += 1
+            for frame in container.decode(stream):
+                if current_idx > frame_indices[-1]:
+                    break
+                if current_idx in frame_indices:
+                    img = frame.to_ndarray(format="rgb24")
+                    if s_y is not None:
+                        img = img[s_y:e_y, s_x:e_x]
+                    video_data.append(img)
+                current_idx += 1
+
         video_data = np.stack(video_data)
-        container.close()
         return video_data
 
     def get_actual_frame(
