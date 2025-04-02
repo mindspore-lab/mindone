@@ -73,8 +73,9 @@ train:
   loss_scaler:
     class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
-      loss_scale_value: 1
-
+      loss_scale_value: 65536
+      scale_factor: 2
+      scale_window: 1000
   settings:
     zero_stage: 0
     gradient_accumulation_steps: 1

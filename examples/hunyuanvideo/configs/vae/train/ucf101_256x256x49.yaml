@@ -67,14 +67,18 @@ train:
     weight_decay: 0.0001
 
   loss_scaler_ae:
-    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    class_path: mindspore.nn.DynamicLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
-      loss_scale_value: 1
+      loss_scale_value: 65536
+      scale_factor: 2
+      scale_window: 1000
 
   loss_scaler_disc:
-    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    class_path: mindspore.nn.DynamicLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
-      loss_scale_value: 1
+      loss_scale_value: 65536
+      scale_factor: 2
+      scale_window: 1000
 
   settings:
     zero_stage: 0
