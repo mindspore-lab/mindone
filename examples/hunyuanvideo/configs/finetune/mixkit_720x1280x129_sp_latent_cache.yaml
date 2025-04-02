@@ -1,6 +1,6 @@
 env:
   mode: 0
-  jit_level: O0
+  jit_level: O1
   seed: 42
   distributed: True
   debug: False
