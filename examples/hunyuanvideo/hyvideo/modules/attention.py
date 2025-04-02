@@ -11,7 +11,7 @@ class VanillaAttention(nn.Cell):
         self.scale_factor = 1 / math.sqrt(head_dim)
         self.dropout = dropout
 
-    def construct(self, q, k, v, mask=None):
+    def construct(self, q, k, v, mask=None, actual_seq_qlen=None, actual_seq_kvlen=None):
         """
         q/k/v: (B S N D)
         mask: (B 1 S S),  1 - for retain, 0 - for drop. e.g. [[1, 1, 0, 0 ..], [1, 1, 0, 0 ..]]
