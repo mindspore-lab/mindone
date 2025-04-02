@@ -45,9 +45,7 @@ class TextDataset:
         answer = record["long_answer"]
 
         # process text
-        input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(
-            question, answer
-        )
+        input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
         task_type = np.array(1, dtype=np.int32)
 
         # add image and image_seq_mask item to pure text for batching
@@ -63,9 +61,7 @@ class TextDataset:
                 vision.Resize(image_size, interpolation=interpolation),
                 vision.CenterCrop(image_size),
                 vision.ToTensor(),
-                vision.Normalize(
-                    mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False
-                ),
+                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
             ]
         )
 

@@ -106,11 +106,7 @@ def create_unified_dataloader_weightrandsamp(
         sample_weights += [weight] * len(datasets[i])
 
     sampler = DistributedSampler(num_shards=rank_size, shard_id=rank, shuffle=False)
-    sampler.add_child(
-        WeightedRandomSampler(
-            weights=sample_weights, num_samples=len(sample_weights), replacement=True
-        )
-    )
+    sampler.add_child(WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True))
 
     dataloader = ms.dataset.GeneratorDataset(
         source=mixed_dataset,
