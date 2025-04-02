@@ -288,7 +288,7 @@ def main(args):
                 f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {model_dtype}",
-                f"vae dtype: {vae_dtype}",
+                f"vae dtype: {vae_dtype}" if not bool(args.dataset.vae_latent_folder) else "VAE latent cache: True",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
