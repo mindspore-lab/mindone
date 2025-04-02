@@ -9,7 +9,6 @@ from jsonargparse.typing import Path_fr, path_type
 from omegaconf import OmegaConf
 from utils import mixed_precision
 
-import mindspore as ms
 from mindspore import Callback, Model, nn
 from mindspore.train.callback import LossMonitor
 
@@ -19,7 +18,7 @@ from modules.helpers import create_model
 from mindone.data import BaseDataset, create_dataloader
 from mindone.trainers import create_optimizer, create_scheduler
 from mindone.utils import count_params, set_logger
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 
 sys.path.append("../stable_diffusion_v2")
 from ldm.modules.train.callback import EvalSaveCallback, OverflowMonitor
@@ -40,9 +39,7 @@ class SetTrainCallback(Callback):
 
 def main(args, initializer):
     # step 1: initialize environment
-    device_id, rank_id, device_num = init_train_env(**args.environment)
-    if args.environment.mode == ms.GRAPH_MODE:
-        ms.set_context(jit_config={"jit_level": args.jit_level})
+    device_id, rank_id, device_num = init_env(**args.environment)
     output_dir = Path(args.train.output_dir) / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_dir.mkdir(parents=True, exist_ok=True)
     logger = set_logger(name=__name__, output_dir=str(output_dir), rank=rank_id)
@@ -152,22 +149,12 @@ def main(args, initializer):
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--config", action=ActionConfigFile)
-    parser.add_function_arguments(init_train_env, "environment")
+    parser.add_function_arguments(init_env, "environment")
     parser.add_argument("--train.epochs", type=int, default=10, help="Number of epochs.")
     parser.add_argument("--train.save_interval", type=int, default=10, help="Checkpoints saving interval.")
     parser.add_argument("--train.temporal_only", type=bool, default=True, help="Train temporal layers only.")
     parser.add_argument("--train.pretrained", type=Path_fr, required=True, help="Path to pretrained model.")
     parser.add_argument("--train.amp_level", choices=["O0", "O2"], default="O2", help="Automatic Mixed Precision.")
-    parser.add_argument(
-        "--jit_level",
-        default="O0",
-        type=str,
-        choices=["O0", "O1", "O2"],
-        help="Used to control the compilation optimization level. Supports ['O0', 'O1', 'O2']."
-        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
-        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
-        "O2: Ultimate performance optimization, adopt Sink execution mode.",
-    )
 
     parser.add_argument(
         "--train.output_dir",

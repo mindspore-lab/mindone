@@ -27,7 +27,7 @@ from opensora.utils.inference import process_and_save
 from opensora.utils.sampling import SamplingOption
 from opensora.utils.saving import SavingOptions
 
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
-    _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
+    _, rank_id, device_num = init_env(**args.env)
 
     # ======================================================
     # 2. build dataset and dataloader
@@ -240,7 +240,7 @@ if __name__ == "__main__":
         action=ActionConfigFile,
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_function_arguments(prepare_captions, "text_emb", skip={"rank_id", "device_num"})
     parser.add_function_arguments(Flux, "model")
     parser.add_function_arguments(CausalVAE3D_HUNYUAN, "ae")
