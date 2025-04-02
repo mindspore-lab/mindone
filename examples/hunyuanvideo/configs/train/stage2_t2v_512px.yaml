@@ -11,7 +11,7 @@ model:
   pretrained_model_path: /ckpt/path/from/stage1
   text_states_dim: 4096
   text_states_dim_2: 768
-  enable_ms_amp: True
+  enable_ms_amp: False
   amp_level: O2
   factor_kwargs:
     dtype: bf16
