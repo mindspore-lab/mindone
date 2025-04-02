@@ -27,9 +27,10 @@ def create_dataloader(
     collate_fn=None,
     sampler=None,
     batch_sampler=None,
+    dataset_iterator_do_copy=True,
 ):
     datalen = len(dataset)
-
+    ms.dataset.config.set_iterator_mode(do_copy=dataset_iterator_do_copy)
     if prefetch_size is not None:
         assert isinstance(prefetch_size, int)
         ms.dataset.config.set_prefetch_size(prefetch_size)
