@@ -1,6 +1,6 @@
-import bisect
+# import bisect
 
-import numpy as np
+# import numpy as np
 from janus.train.t2i_dataset import TextImageDataset
 from janus.train.text_dataset import TextDataset
 from janus.train.vqa_dataset import VqaDataset
@@ -23,27 +23,25 @@ class UnifiedDataset:
             s += leng
         return r
 
-    def __init__(self, datasets, default_image_shape=(1, 3, 384, 384), max_token_length=1024):
-        self.default_image_shape = default_image_shape
+    def __init__(self, datasets, max_token_length=1024):
         self.max_token_length = max_token_length
         self.datasets = datasets
         self.num_dataset = len(datasets)
         self.cumulative_sizes = self.cumsum(self.datasets)
 
     def __getitem__(self, idx):
-        dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
-        if dataset_idx == 0:
-            sample_idx = idx
-        else:
-            sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
+        # comment for now, as graph mode mixed-data sft for now requires each batch contain all type of tasks, otherwise graph compilation err.
+        # dataset_idx = bisect.bisect_right(self.cumulative_sizes, idx)
+        # if dataset_idx == 0:
+        #     sample_idx = idx
+        # else:
+        #     sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
+
+        # fix 1:1:1 data src
+        dataset_idx = idx % 3
+        sample_idx = idx // 3
 
         ret = self.datasets[dataset_idx][sample_idx]
-
-        # add image and image_seq_mask item to pure text for batching
-        if dataset_idx == 0:
-            image = np.zeros(self.default_image_shape, np.float32)
-            image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
-            ret += (image_seq_mask, image)
 
         return ret
 
@@ -108,11 +106,15 @@ def create_unified_dataloader_weightrandsamp(
         sample_weights += [weight] * len(datasets[i])
 
     sampler = DistributedSampler(num_shards=rank_size, shard_id=rank, shuffle=False)
-    sampler.add_child(WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True))
+    sampler.add_child(
+        WeightedRandomSampler(
+            weights=sample_weights, num_samples=len(sample_weights), replacement=True
+        )
+    )
 
     dataloader = ms.dataset.GeneratorDataset(
         source=mixed_dataset,
-        sampler=sampler,
+        # sampler=sampler,  # comment for now for graph mode mixed-data sft
         column_names=[
             "task_type",
             "input_ids",
@@ -124,6 +126,11 @@ def create_unified_dataloader_weightrandsamp(
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,
     )
+
+    # TODO rm this when graph comp can be improved
+    assert (
+        batch_size % 3 == 0
+    ), f"graph mode mixed-data sft for now requires each batch contain all type of tasks, otherwise graph compilation err. But got {batch_size}"
 
     dataloader = dataloader.batch(batch_size, drop_remainder=True)
 

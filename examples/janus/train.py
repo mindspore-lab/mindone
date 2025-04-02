@@ -27,7 +27,9 @@ from janus.train.lr_schedule import WarmupCosineDecayLR
 from janus.train.t2i_dataset import create_dataloader_t2i
 from janus.train.text_dataset import create_dataloader_text
 from janus.train.unified_dataset import create_dataloader_unified
-from janus.train.unified_dataset_weightedrandsamp import create_unified_dataloader_weightrandsamp
+from janus.train.unified_dataset_weightedrandsamp import (
+    create_unified_dataloader_weightrandsamp,
+)
 from janus.train.vqa_dataset import create_dataloader_vqa
 from janus.utils.io import set_model_param_dtype
 
@@ -92,7 +94,9 @@ def main(args):
     config = MultiModalityConfig.from_pretrained(args.model_path)
     config.torch_dtype = args.dtype
     config.language_config.torch_dtype = args.dtype
-    config.language_config._attn_implementation = "flash_attention_2"  # use FA by default
+    config.language_config._attn_implementation = (
+        "flash_attention_2"  # use FA by default
+    )
     if args.load_weight:
         vl_gpt = MultiModalityCausalLM.from_pretrained(args.model_path, config=config)
     else:
@@ -101,7 +105,9 @@ def main(args):
 
     if args.ckpt_path is not None:
         parameter_dict = ms.load_checkpoint(args.ckpt_path)
-        param_not_load, ckpt_not_load = ms.load_param_into_net(vl_gpt, parameter_dict, strict_load=True)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(
+            vl_gpt, parameter_dict, strict_load=True
+        )
         logger.info("net param not load: {}".format(param_not_load))
         logger.info("ckpt param not load: {}".format(ckpt_not_load))
 
@@ -129,7 +135,9 @@ def main(args):
     if args.training_stage == 1:
         # Stage I: Training adaptors and image head
         # freeze sigLIP, VQ16, llm; train adaptors and image head
-        frozen_modules = set([vl_gpt.vision_model, vl_gpt.gen_vision_model, vl_gpt.language_model])
+        frozen_modules = set(
+            [vl_gpt.vision_model, vl_gpt.gen_vision_model, vl_gpt.language_model]
+        )
     elif args.training_stage == 2:
         # Stage II: unfied pretraining
         # further unfreeze llm
@@ -159,6 +167,17 @@ def main(args):
     # VQ encoder doesn't need grad
     vl_gpt.gen_vision_model.set_grad(requires_grad=False)
 
+    # mixed-data sft under graph mode, set dynamic-shape
+    input_ids = ms.Tensor(shape=[None, args.max_length], dtype=ms.int32)
+    input_embeds = ms.Tensor(
+        shape=[None, args.max_length, config.language_config.hidden_size],
+        dtype=ms.bfloat16,
+    )
+    attention_mask = ms.Tensor(shape=[None, args.max_length], dtype=ms.bool_)
+    vl_gpt.language_model.model.set_inputs(
+        input_ids=input_ids, input_embeds=input_embeds, attention_mask=attention_mask
+    )
+
     # debug to check gradient influence: set token embedding table for text and image to be non-trainable
     freeze_embed_tables = args.freeze_embedding
     if freeze_embed_tables:
@@ -167,8 +186,12 @@ def main(args):
             for param in module.get_parameters():
                 param.requires_grad = False
     tot_params = len(list(vl_gpt.get_parameters()))
-    print(f"tot params: {tot_params}, trainable params: {num_train_params}, frozen params: {num_frozen_params}")
-    assert num_frozen_params + num_train_params == tot_params, "All params should be set to trainable or frozen."
+    print(
+        f"tot params: {tot_params}, trainable params: {num_train_params}, frozen params: {num_frozen_params}"
+    )
+    assert (
+        num_frozen_params + num_train_params == tot_params
+    ), "All params should be set to trainable or frozen."
     # 1.3 save the model config
     config.save_pretrained(args.output_path)
 
@@ -262,16 +285,18 @@ def main(args):
     use_value_and_grad = args.use_value_and_grad
     if use_value_and_grad:
 
-        def forward_fn(data):
+        def forward_fn(*data):
             loss = vl_gpt(*data)
             return loss
 
-        grad_fn = ms.value_and_grad(forward_fn, None, optimizer.parameters, has_aux=False)
+        grad_fn = ms.value_and_grad(
+            forward_fn, None, optimizer.parameters, has_aux=False
+        )
         if args.use_parallel:
             grad_reducer = nn.DistributedGradReducer(optimizer.parameters)
 
         def train_step(data):
-            loss, grads = grad_fn(data)
+            loss, grads = grad_fn(*data)
             if args.use_parallel:
                 grads = grad_reducer(grads)
 
@@ -311,7 +336,9 @@ def main(args):
             record = PerfRecorder(output_dir, resume=True)
 
         with open(os.path.join(args.output_path, "args.yaml"), "w") as f:
-            yaml.safe_dump(vars(args), stream=f, default_flow_style=False, sort_keys=False)
+            yaml.safe_dump(
+                vars(args), stream=f, default_flow_style=False, sort_keys=False
+            )
 
         logger.info("Start training...")
 
@@ -363,7 +390,9 @@ def main(args):
                 ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
             start_time_s = time.time()
 
-            # TODO: allow stop at the last step
+            # allow stop at the last step + 1 for measurement, as we normally dump the 1st step in graph mode
+            if step == args.train_steps + 1:
+                break
 
     logger.info(f"Finished training. check results in {args.output_path}")
     reset_op_id()
@@ -372,7 +401,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
+    parser.add_argument(
+        "--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative"
+    )
     # TODO: support model_name "deepseek-ai/Janus-Pro-1B" for simplicity
     parser.add_argument(
         "--model_path",
@@ -407,7 +438,9 @@ if __name__ == "__main__":
         help="model dtype",
     )
     parser.add_argument("--seed", type=int, default=42, help="random seed")
-    parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
+    parser.add_argument(
+        "--use_parallel", default=False, type=str2bool, help="use parallel"
+    )
     parser.add_argument(
         "--use_value_and_grad",
         default=True,
@@ -428,7 +461,9 @@ if __name__ == "__main__":
     )
 
     # training hyperparms
-    parser.add_argument("--learning_rate", default=1e-4, type=float, help="learning rate")
+    parser.add_argument(
+        "--learning_rate", default=1e-4, type=float, help="learning rate"
+    )
     parser.add_argument(
         "--end_learning_rate",
         default=1e-5,
@@ -437,8 +472,12 @@ if __name__ == "__main__":
     )
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
-    parser.add_argument("--clip_grad", default=False, type=str2bool, help="clip graident")
-    parser.add_argument("--max_grad_norm", default=5.0, type=float, help="max gradient l2 norm")
+    parser.add_argument(
+        "--clip_grad", default=False, type=str2bool, help="clip graident"
+    )
+    parser.add_argument(
+        "--max_grad_norm", default=5.0, type=float, help="max gradient l2 norm"
+    )
     parser.add_argument(
         "--null_prompt_prob",
         default=0.0,
@@ -447,7 +486,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--train_steps", default=5000, type=int, help="training steps")
     parser.add_argument("--warmup_steps", default=50, type=int, help="lr warmup steps")
-    parser.add_argument("--ckpt_save_steps", default=500, type=int, help="save ckpt every this step")
+    parser.add_argument(
+        "--ckpt_save_steps", default=500, type=int, help="save ckpt every this step"
+    )
     parser.add_argument(
         "--ckpt_max_keep",
         default=3,
@@ -462,7 +503,9 @@ if __name__ == "__main__":
     )
 
     # training data config
-    parser.add_argument("--task", default="t2i", type=str, help="text, t2i, vqa, or mixed")
+    parser.add_argument(
+        "--task", default="t2i", type=str, help="text, t2i, vqa, or mixed"
+    )
     parser.add_argument(
         "--dataset_name",
         default="",
@@ -517,7 +560,9 @@ if __name__ == "__main__":
         type=int,
         help="image resize and crop to to size. Be cautious to change as Janus is trained using a fix image size of 384",
     )
-    parser.add_argument("--shuffle", default=True, type=str2bool, help="shuffle dataset or not")
+    parser.add_argument(
+        "--shuffle", default=True, type=str2bool, help="shuffle dataset or not"
+    )
 
     args = parser.parse_args()
     main(args)

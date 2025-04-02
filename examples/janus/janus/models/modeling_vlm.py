@@ -35,9 +35,13 @@ from mindone.transformers.modeling_utils import MSPreTrainedModel as PreTrainedM
 class vision_head(nn.Cell):
     def __init__(self, params):
         super().__init__()
-        self.output_mlp_projector = mint.nn.Linear(params.n_embed, params.image_token_embed)
+        self.output_mlp_projector = mint.nn.Linear(
+            params.n_embed, params.image_token_embed
+        )
         self.vision_activation = nn.GELU()
-        self.vision_head = mint.nn.Linear(params.image_token_embed, params.image_token_size)
+        self.vision_head = mint.nn.Linear(
+            params.image_token_embed, params.image_token_size
+        )
 
     def construct(self, x):
         x = self.output_mlp_projector(x)
@@ -208,7 +212,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         gen_head_cls = model_name_to_cls(gen_head_config.cls)
         self.gen_head = gen_head_cls(gen_head_config.params)
 
-        self.gen_embed = nn.Embedding(gen_vision_config.params.image_token_size, gen_vision_config.params.n_embed)
+        self.gen_embed = nn.Embedding(
+            gen_vision_config.params.image_token_size, gen_vision_config.params.n_embed
+        )
 
         language_config = config.language_config
         self.language_model = LlamaForCausalLM(language_config)
@@ -217,7 +223,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         self.text_vocab_size = language_config.vocab_size  # 102400
         self.vision_vocab_size = gen_head_config.params.image_token_size  # 16384
 
-        self.cross_entropy_loss = nn.CrossEntropyLoss()  # TODO: allow setting ignore_idex, default is -100
+        self.cross_entropy_loss = (
+            nn.CrossEntropyLoss()
+        )  # TODO: allow setting ignore_idex, default is -100
 
     def prepare_inputs_embeds(
         self,
@@ -301,7 +309,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             _, n, c, h, w = pixel_values.shape
             pixel_values = ops.reshape(pixel_values, (bs * n, c, h, w))
             # VQ16 is always frozen, no graident back there
-            z_q, _, token_info = ops.stop_gradient(self.gen_vision_model.encode(pixel_values))
+            z_q, _, token_info = ops.stop_gradient(
+                self.gen_vision_model.encode(pixel_values)
+            )
             image_tokens = token_info[-1]
             image_tokens = image_tokens.reshape(bs, n, -1)
 
@@ -323,13 +333,11 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # another way: inputs_embeds = inputs_embeds * (1 - image_seq_mask) + ops.stop_gradient(image_embeds) * image_seq_mask.to(ms.int)
-        # FIXME: this inplace op doens't support in graph mode
-        # FIXME: check whether need to bprop the graident from image_embedding to LlamModel.embed_tokens (nn.Embedding)
-        inputs_embeds[image_seq_mask] = ops.stop_gradient(image_embeds)
+        # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor(). Workaround: _tensor_setitem_by_int_tensor_with_tensor()
+        image_seq_mask = image_seq_mask.nonzero().squeeze()
+        inputs_embeds[image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
-        image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaModel forward
         outputs = self.language_model.model(
@@ -342,7 +350,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # 4. gen head projection
         # since Janus use decouple heads for image and text, only image seq is meaningful input to gen head. mask before linear should save compute cost.
         # TODO: tbc influence on gradient ?
-        image_hidden_states = hidden_states[image_seq_mask].reshape(B, -1, D)
+        image_hidden_states = hidden_states[image_seq_mask].reshape(B, T, D)
         logits = self.gen_head(image_hidden_states)
 
         # 5. loss compute
@@ -406,11 +414,11 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # FIXME: fix as gen_with_loss to support graph mode
-        inputs_embeds[image_seq_mask] = image_embeds  # ops.stop_gradient(image_embeds)
+        # FIXME same ms2.5.0 graph mode constraint as above
+        image_seq_mask = image_seq_mask.nonzero().squeeze()
+        inputs_embeds[image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
-        image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaForCausalLM forward with loss
         output = self.language_model(
@@ -420,11 +428,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             return_dict=False,
         )
         loss = output[0]
-        # logit = output[1]
 
         return loss
 
-    def construct(
+    def construct_pynative(
         self,
         task_type: Tensor = None,
         input_ids: Tensor = None,
@@ -474,12 +481,56 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
                     # labels,
                 )
             else:
-                raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
+                raise ValueError(
+                    f"task type should be one of [0, 1, 2], but get {task_type}"
+                )
 
             losses.append(loss)
 
         loss = mint.stack(losses)
 
+        return loss
+
+    def construct(
+        self,
+        task_type: Tensor = None,
+        input_ids: Tensor = None,
+        labels: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        image_seq_mask: Optional[Tensor] = None,
+        pixel_values: Optional[Tensor] = None,
+    ):
+        r"""
+        For training in graph mode.
+        Args:
+            input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
+            task_type: shape (bs,), 0 - vqa, 1 - pure text, 2 - t2i
+        """
+        is_vqa_index = (task_type == 0).nonzero().squeeze(-1)
+        loss_vqa = self.und_with_loss(
+            input_ids=input_ids[is_vqa_index],
+            attention_mask=attention_mask[is_vqa_index],
+            labels=labels[is_vqa_index],
+            image_seq_mask=image_seq_mask[is_vqa_index],
+            pixel_values=pixel_values[is_vqa_index],
+        )
+
+        is_text_index = (task_type == 1).nonzero().squeeze(-1)
+        loss_text = self.language_model(
+            input_ids=input_ids[is_text_index],
+            attention_mask=attention_mask[is_text_index],
+            labels=labels[is_text_index],
+        )[0]
+
+        is_t2i_index = (task_type == 2).nonzero().squeeze(-1)
+        loss_t2i = self.gen_with_loss(
+            input_ids=input_ids[is_t2i_index],
+            attention_mask=attention_mask[is_t2i_index],
+            image_seq_mask=image_seq_mask[is_t2i_index],
+            pixel_values=pixel_values[is_t2i_index],
+        )
+
+        loss = loss_vqa + loss_text + loss_t2i
         return loss
 
 

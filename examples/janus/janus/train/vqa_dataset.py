@@ -66,8 +66,14 @@ class VqaDataset:
 
         # preprocess
         ds_image_tag = "<image>"  # image tag used in the original dataset
-        assert question.count(ds_image_tag) == 1, "the question should contain one image exactly"
-        question = question.replace("\n<image>", "").replace("<image>\n", "").replace("<image>", "")
+        assert (
+            question.count(ds_image_tag) == 1
+        ), "the question should contain one image exactly"
+        question = (
+            question.replace("\n<image>", "")
+            .replace("<image>\n", "")
+            .replace("<image>", "")
+        )
         # janus_image_tag = self.vl_chat_processor.image_tag
 
         (
@@ -78,7 +84,6 @@ class VqaDataset:
             image,
         ) = self.prepare_sft_inputs_and_label(question, answer, image_path)
 
-        # FIXME
         task_type = np.array(0, dtype=np.int32)
 
         return task_type, input_ids, labels, attention_mask, image_seq_mask, image
@@ -90,7 +95,9 @@ class VqaDataset:
                 vision.Resize(image_size, interpolation=interpolation),
                 vision.CenterCrop(image_size),
                 vision.ToTensor(),
-                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
+                vision.Normalize(
+                    mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False
+                ),
             ]
         )
 
@@ -132,7 +139,9 @@ class VqaDataset:
         image = np.stack(image)  # list -> np [1, 3, 384, 384]
 
         # pad to pre-set max_length or max seq len in the current batch
-        padded_input_ids = np.ones((self.max_token_length), dtype=np.int32) * vlcp.pad_id
+        padded_input_ids = (
+            np.ones((self.max_token_length), dtype=np.int32) * vlcp.pad_id
+        )
         attention_mask = np.zeros((self.max_token_length), dtype=np.bool_)
         image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
 
@@ -189,7 +198,9 @@ def add_image_token(
         # add boi, image tokens, eoi and set the mask as False
         input_slices.append(vlcp.image_start_id * np.ones((1), dtype=np.int32))
         # FIXME: allow set num_image_tokens to fit different image size
-        input_slices.append(vlcp.image_id * np.ones((vlcp.num_image_tokens,), dtype=np.int32))
+        input_slices.append(
+            vlcp.image_id * np.ones((vlcp.num_image_tokens,), dtype=np.int32)
+        )
         input_slices.append(vlcp.image_end_id * np.ones((1), dtype=np.int32))
         start = int(index + 1)
 
@@ -198,7 +209,9 @@ def add_image_token(
 
     # concat all slices
     input_ids = np.concatenate(input_slices, axis=0)
-    num_image_tokens = np.array([vlcp.num_image_tokens] * len(image_indices), dtype=np.int32)
+    num_image_tokens = np.array(
+        [vlcp.num_image_tokens] * len(image_indices), dtype=np.int32
+    )
 
     return input_ids, num_image_tokens
 

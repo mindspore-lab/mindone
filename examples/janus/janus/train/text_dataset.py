@@ -20,6 +20,7 @@ class TextDataset:
         vl_chat_processor: VLChatProcessor = None,
         max_token_length: int = 1024,
         num_samples: int = -1,
+        default_image_shape=(1, 3, 384, 384),
     ) -> None:
         if dataset_name.lower() == "pubmedqa":
             self.dataset = load_dataset(data_dir, "default", split="train")
@@ -33,6 +34,7 @@ class TextDataset:
         self.length = len(self.dataset)
         self.vl_chat_processor = vl_chat_processor
         self.max_token_length = max_token_length
+        self.default_image_shape = default_image_shape
 
     def __len__(self) -> int:
         return self.length
@@ -43,10 +45,16 @@ class TextDataset:
         answer = record["long_answer"]
 
         # process text
-        input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
+        input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(
+            question, answer
+        )
         task_type = np.array(1, dtype=np.int32)
 
-        return task_type, input_ids, labels, attention_mask
+        # add image and image_seq_mask item to pure text for batching
+        image = np.zeros(self.default_image_shape, np.float32)
+        image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
+
+        return task_type, input_ids, labels, attention_mask, image_seq_mask, image
 
     @staticmethod
     def create_transform(image_size: int, interpolation: vision.Inter) -> Compose:
@@ -55,7 +63,9 @@ class TextDataset:
                 vision.Resize(image_size, interpolation=interpolation),
                 vision.CenterCrop(image_size),
                 vision.ToTensor(),
-                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
+                vision.Normalize(
+                    mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False
+                ),
             ]
         )
 
@@ -137,7 +147,14 @@ def create_dataloader_text(
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=["task_type", "input_ids", "labels", "attention_mask"],
+        column_names=[
+            "task_type",
+            "input_ids",
+            "labels",
+            "attention_mask",
+            "image_seq_mask",
+            "image",
+        ],
         shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,

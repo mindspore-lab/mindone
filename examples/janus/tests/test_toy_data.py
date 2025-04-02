@@ -44,7 +44,12 @@ def gen_t2i_train_sample(model_path="ckpts/Janus-Pro-1B", max_length=1088):  # 5
     )
 
     vlcp = vl_chat_processor
-    prompt = sft_format + vlcp.image_start_tag + (vlcp.image_tag * vlcp.num_image_tokens) + vlcp.image_end_tag
+    prompt = (
+        sft_format
+        + vlcp.image_start_tag
+        + (vlcp.image_tag * vlcp.num_image_tokens)
+        + vlcp.image_end_tag
+    )
     input_ids = vlcp.tokenizer.encode(
         prompt,
         add_special_tokens=True,
@@ -57,18 +62,18 @@ def gen_t2i_train_sample(model_path="ckpts/Janus-Pro-1B", max_length=1088):  # 5
 
     assert (
         input_ids == vlcp.image_id
-    ).sum() == vlcp.num_image_tokens, (
-        "text + image tokens exceeds max token length, please adjust max_length or num image token"
-    )
+    ).sum() == vlcp.num_image_tokens, "text + image tokens exceeds max token length, please adjust max_length or num image token"
 
-    attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
+    attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool_)
     attention_mask[input_ids == vlcp.pad_id] = 0
 
-    image_seq_mask = np.zeros(shape=[len(input_ids)], dtype=np.bool)
+    image_seq_mask = np.zeros(shape=[len(input_ids)], dtype=np.bool_)
     image_seq_mask[input_ids == vlcp.image_id] = 1
 
     # label, only train on vision seq
-    ignore_index = -100  # TODO: read from config? but CE Loss didn't accept setting ignore_index
+    ignore_index = (
+        -100
+    )  # TODO: read from config? but CE Loss didn't accept setting ignore_index
     labels = input_ids
     labels = np.where(
         (input_ids == vlcp.image_id),
@@ -79,7 +84,9 @@ def gen_t2i_train_sample(model_path="ckpts/Janus-Pro-1B", max_length=1088):  # 5
 
     # data check
     config = MultiModalityConfig.from_pretrained(model_path)
-    assert input_ids.max() < config.language_config.vocab_size, "input token should be smaller than vocab size of mllm"
+    assert (
+        input_ids.max() < config.language_config.vocab_size
+    ), "input token should be smaller than vocab size of mllm"
     assert image_seq_mask.sum() == vl_chat_processor.num_image_tokens
 
     print("toy data: ", input_ids.tolist())
