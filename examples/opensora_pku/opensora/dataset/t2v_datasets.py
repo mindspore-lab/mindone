@@ -736,9 +736,6 @@ class T2V_dataset:
         s_x, e_x, s_y, e_y = video_data.get("crop", [None, None, None, None])
 
         predefine_num_frames = len(predefine_frame_indice)
-        cv2_vr = cv2.VideoCapture(path)
-        if not cv2_vr.isOpened():
-            raise ValueError(f"can not open {path}")
         frame_indices = self.get_actual_frame(
             fps, start_frame_idx, clip_total_frames, path, predefine_num_frames, predefine_frame_indice
         )
