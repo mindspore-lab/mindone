@@ -191,6 +191,7 @@ _import_structure = {
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ],
+    "text_to_video_synthesis" : ["TextToVideoZeroPipeline"],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -348,6 +349,7 @@ if TYPE_CHECKING:
     from .t2i_adapter import StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
+    from .text_to_video_synthesis import TextToVideoZeroPipeline
 else:
     import sys
 
