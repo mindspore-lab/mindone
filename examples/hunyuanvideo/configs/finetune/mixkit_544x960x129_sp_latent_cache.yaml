@@ -11,7 +11,7 @@ model:
   pretrained_model_path: ../../ckpts/hunyuan-video-t2v-720p/transformers/mp_rank_00_model_states.pt # the path is relative to this config
   text_states_dim: 4096
   text_states_dim_2: 768
-  enable_ms_amp: True
+  enable_ms_amp: False
   amp_level: O2
   factor_kwargs:
     dtype: bf16
