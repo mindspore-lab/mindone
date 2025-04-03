@@ -15,7 +15,7 @@
 import re
 from typing import Dict, List, Tuple, Union
 
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...models.attention_processor import (
     Attention,
@@ -116,14 +116,14 @@ class PAGMixin:
         """
         pag_scale = self._get_pag_scale(t)
         if do_classifier_free_guidance:
-            noise_pred_uncond, noise_pred_text, noise_pred_perturb = noise_pred.chunk(3)
+            noise_pred_uncond, noise_pred_text, noise_pred_perturb = mint.chunk(noise_pred, 3)
             noise_pred = (
                 noise_pred_uncond
                 + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 + pag_scale * (noise_pred_text - noise_pred_perturb)
             )
         else:
-            noise_pred_text, noise_pred_perturb = noise_pred.chunk(2)
+            noise_pred_text, noise_pred_perturb = mint.chunk(noise_pred, 2)
             noise_pred = noise_pred_text + pag_scale * (noise_pred_text - noise_pred_perturb)
         if return_pred_text:
             return noise_pred, noise_pred_text
@@ -142,10 +142,10 @@ class PAGMixin:
             ms.Tensor: The prepared perturbed attention guidance tensor.
         """
 
-        cond = ops.cat([cond] * 2, axis=0)
+        cond = mint.cat([cond] * 2, dim=0)
 
         if do_classifier_free_guidance:
-            cond = ops.cat([uncond, cond], axis=0)
+            cond = mint.cat([uncond, cond], dim=0)
         return cond
 
     def set_pag_applied_layers(

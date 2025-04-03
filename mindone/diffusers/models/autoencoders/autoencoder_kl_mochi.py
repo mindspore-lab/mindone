@@ -20,7 +20,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -76,11 +76,12 @@ class MochiChunkedGroupNorm3D(nn.Cell):
     def construct(self, x: ms.Tensor = None) -> ms.Tensor:
         batch_size = x.shape[0]
 
-        x = x.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
-        output = ops.cat([self.norm_layer(chunk) for chunk in x.split(self.chunk_size, axis=0)], axis=0)
+        x = mint.flatten(mint.permute(x, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        output = mint.cat([self.norm_layer(chunk) for chunk in x.split(self.chunk_size, axis=0)], dim=0)
         # output = output.unflatten(0, (batch_size, -1)).permute(0, 2, 1, 3, 4)
-        output = output.reshape(batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1]).permute(
-            0, 2, 1, 3, 4
+        output = mint.permute(
+            mint.reshape(output, (batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1])),
+            (0, 2, 1, 3, 4),
         )
 
         return output
@@ -246,7 +247,9 @@ class MochiDownBlock3D(nn.Cell):
                 hidden_states = norm(hidden_states)
 
                 batch_size, num_channels, num_frames, height, width = hidden_states.shape
-                hidden_states = hidden_states.permute(0, 3, 4, 2, 1).flatten(start_dim=0, end_dim=2).contiguous()
+                hidden_states = mint.flatten(
+                    mint.permute(hidden_states, (0, 3, 4, 2, 1)), start_dim=0, end_dim=2
+                ).contiguous()
 
                 # Perform attention in chunks to avoid following error:
                 # RuntimeError: CUDA error: invalid configuration argument
@@ -258,11 +261,11 @@ class MochiDownBlock3D(nn.Cell):
                         hidden_states_chunk = hidden_states[i : i + chunk_size]
                         hidden_states_chunk = attn(hidden_states_chunk)
                         hidden_states_chunks.append(hidden_states_chunk)
-                    hidden_states = ops.cat(hidden_states_chunks)
+                    hidden_states = mint.cat(hidden_states_chunks)
 
                 # hidden_states = hidden_states.unflatten(0, (batch_size, height, width)).permute(0, 4, 3, 1, 2)
-                hidden_states = hidden_states.reshape(batch_size, height, width, num_frames, num_channels).permute(
-                    0, 4, 3, 1, 2
+                hidden_states = mint.permute(
+                    mint.reshape(hidden_states, (batch_size, height, width, num_frames, num_channels)), (0, 4, 3, 1, 2)
                 )
 
                 hidden_states = residual + hidden_states
@@ -352,11 +355,13 @@ class MochiMidBlock3D(nn.Cell):
                 hidden_states = norm(hidden_states)
 
                 batch_size, num_channels, num_frames, height, width = hidden_states.shape
-                hidden_states = hidden_states.permute(0, 3, 4, 2, 1).flatten(start_dim=0, end_dim=2).contiguous()
+                hidden_states = mint.flatten(
+                    mint.permute(hidden_states, (0, 3, 4, 2, 1)), start_dim=0, end_dim=2
+                ).contiguous()
                 hidden_states = attn(hidden_states)
                 # hidden_states = hidden_states.unflatten(0, (batch_size, height, width)).permute(0, 4, 3, 1, 2)
-                hidden_states = hidden_states.reshape(batch_size, height, width, num_frames, num_channels).permute(
-                    0, 4, 3, 1, 2
+                hidden_states = mint.permute(
+                    mint.reshape(hidden_states, (batch_size, height, width, num_frames, num_channels)), (0, 4, 3, 1, 2)
                 )
 
                 hidden_states = residual + hidden_states
@@ -398,7 +403,7 @@ class MochiUpBlock3D(nn.Cell):
             resnets.append(MochiResnetBlock3D(in_channels=in_channels))
         self.resnets = nn.CellList(resnets)
 
-        self.proj = nn.Dense(in_channels, out_channels * temporal_expansion * spatial_expansion**2)
+        self.proj = mint.nn.Linear(in_channels, out_channels * temporal_expansion * spatial_expansion**2)
 
         self._gradient_checkpointing = False
 
@@ -431,9 +436,9 @@ class MochiUpBlock3D(nn.Cell):
                 hidden_states, conv_cache=conv_cache.get(conv_cache_key)
             )
 
-        hidden_states = hidden_states.permute(0, 2, 3, 4, 1)
+        hidden_states = mint.permute(hidden_states, (0, 2, 3, 4, 1))
         hidden_states = self.proj(hidden_states)
-        hidden_states = hidden_states.permute(0, 4, 1, 2, 3)
+        hidden_states = mint.permute(hidden_states, (0, 4, 1, 2, 3))
 
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
         st = self.temporal_expansion
@@ -442,7 +447,7 @@ class MochiUpBlock3D(nn.Cell):
 
         # Reshape and unpatchify
         hidden_states = hidden_states.view(batch_size, -1, st, sh, sw, num_frames, height, width)
-        hidden_states = hidden_states.permute(0, 1, 5, 2, 6, 3, 7, 4).contiguous()
+        hidden_states = mint.permute(hidden_states, (0, 1, 5, 2, 6, 3, 7, 4)).contiguous()
         hidden_states = hidden_states.view(batch_size, -1, num_frames * st, height * sh, width * sw)
 
         return hidden_states, new_conv_cache
@@ -463,16 +468,16 @@ class FourierFeatures(nn.Cell):
         num_channels = inputs.shape[1]
         num_freqs = (self.stop - self.start) // self.step
 
-        freqs = ops.arange(self.start, self.stop, self.step, dtype=inputs.dtype)
-        w = ops.pow(2.0, freqs) * (2 * math.pi)  # [num_freqs]
+        freqs = mint.arange(self.start, self.stop, self.step, dtype=inputs.dtype)
+        w = mint.pow(2.0, freqs) * (2 * math.pi)  # [num_freqs]
         w = w.repeat(num_channels)[None, :, None, None, None]  # [1, num_channels * num_freqs, 1, 1, 1]
 
         # Interleaved repeat of input channels to match w
-        h = inputs.repeat_interleave(num_freqs, dim=1)  # [B, C * num_freqs, T, H, W]
+        h = mint.repeat_interleave(inputs, num_freqs, dim=1)  # [B, C * num_freqs, T, H, W]
         # Scale channels by frequency.
         h = w * h
 
-        return ops.cat([inputs, ops.sin(h), ops.cos(h)], axis=1).to(dtype=original_dtype)
+        return mint.cat([inputs, mint.sin(h), mint.cos(h)], dim=1).to(dtype=original_dtype)
 
 
 class MochiEncoder3D(nn.Cell):
@@ -513,7 +518,7 @@ class MochiEncoder3D(nn.Cell):
         self.nonlinearity = get_activation(act_fn)()
 
         self.fourier_features = FourierFeatures()
-        self.proj_in = nn.Dense(in_channels, block_out_channels[0])
+        self.proj_in = mint.nn.Linear(in_channels, block_out_channels[0])
         self.block_in = MochiMidBlock3D(
             in_channels=block_out_channels[0], num_layers=layers_per_block[0], add_attention=add_attention_block[0]
         )
@@ -535,7 +540,7 @@ class MochiEncoder3D(nn.Cell):
             in_channels=block_out_channels[-1], num_layers=layers_per_block[-1], add_attention=add_attention_block[-1]
         )
         self.norm_out = MochiChunkedGroupNorm3D(block_out_channels[-1])
-        self.proj_out = nn.Dense(block_out_channels[-1], 2 * out_channels, has_bias=False)
+        self.proj_out = mint.nn.Linear(block_out_channels[-1], 2 * out_channels, bias=False)
 
         self._gradient_checkpointing = False
 
@@ -559,9 +564,9 @@ class MochiEncoder3D(nn.Cell):
 
         hidden_states = self.fourier_features(hidden_states)
 
-        hidden_states = hidden_states.permute(0, 2, 3, 4, 1)
+        hidden_states = mint.permute(hidden_states, (0, 2, 3, 4, 1))
         hidden_states = self.proj_in(hidden_states)
-        hidden_states = hidden_states.permute(0, 4, 1, 2, 3)
+        hidden_states = mint.permute(hidden_states, (0, 4, 1, 2, 3))
 
         hidden_states, new_conv_cache["block_in"] = self.block_in(hidden_states, conv_cache=conv_cache.get("block_in"))
 
@@ -578,9 +583,9 @@ class MochiEncoder3D(nn.Cell):
         hidden_states = self.norm_out(hidden_states)
         hidden_states = self.nonlinearity(hidden_states)
 
-        hidden_states = hidden_states.permute(0, 2, 3, 4, 1)
+        hidden_states = mint.permute(hidden_states, (0, 2, 3, 4, 1))
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = hidden_states.permute(0, 4, 1, 2, 3)
+        hidden_states = mint.permute(hidden_states, (0, 4, 1, 2, 3))
 
         return hidden_states, new_conv_cache
 
@@ -621,9 +626,7 @@ class MochiDecoder3D(nn.Cell):
 
         self.nonlinearity = get_activation(act_fn)()
 
-        self.conv_in = nn.Conv3d(
-            in_channels, block_out_channels[-1], kernel_size=(1, 1, 1), pad_mode="pad", has_bias=True
-        )
+        self.conv_in = mint.nn.Conv3d(in_channels, block_out_channels[-1], kernel_size=(1, 1, 1))
         self.block_in = MochiMidBlock3D(
             in_channels=block_out_channels[-1],
             num_layers=layers_per_block[-1],
@@ -647,7 +650,7 @@ class MochiDecoder3D(nn.Cell):
             num_layers=layers_per_block[0],
             add_attention=False,
         )
-        self.proj_out = nn.Dense(block_out_channels[0], out_channels)
+        self.proj_out = mint.nn.Linear(block_out_channels[0], out_channels)
 
         self._gradient_checkpointing = False
 
@@ -686,9 +689,9 @@ class MochiDecoder3D(nn.Cell):
 
         hidden_states = self.nonlinearity(hidden_states)
 
-        hidden_states = hidden_states.permute(0, 2, 3, 4, 1)
+        hidden_states = mint.permute(hidden_states, (0, 2, 3, 4, 1))
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = hidden_states.permute(0, 4, 1, 2, 3)
+        hidden_states = mint.permute(hidden_states, (0, 4, 1, 2, 3))
 
         return hidden_states, new_conv_cache
 
@@ -936,8 +939,8 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            encoded_slices = [self._encode(x_slice) for x_slice in mint.split(x, 1)]
+            h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
 
@@ -966,7 +969,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                 z_intermediate, conv_cache = self.decoder(z_intermediate, conv_cache=conv_cache)
                 dec.append(z_intermediate)
 
-            dec = ops.cat(dec, axis=2)
+            dec = mint.cat(dec, dim=2)
         else:
             dec, _ = self.decoder(z)
 
@@ -993,8 +996,8 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                 returned.
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded_slices = [self._decode(z_slice)[0] for z_slice in mint.split(z, 1)]
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)[0]
 
@@ -1071,9 +1074,9 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, :tile_latent_stride_height, :tile_latent_stride_width])
-            result_rows.append(ops.cat(result_row, axis=4))
+            result_rows.append(mint.cat(result_row, dim=4))
 
-        enc = ops.cat(result_rows, axis=3)[:, :, :, :latent_height, :latent_width]
+        enc = mint.cat(result_rows, dim=3)[:, :, :, :latent_height, :latent_width]
         return enc
 
     def tiled_decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
@@ -1124,7 +1127,7 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                         tile, conv_cache = self.decoder(tile, conv_cache=conv_cache)
                         time.append(tile)
 
-                    time = ops.cat(time, axis=2)
+                    time = mint.cat(time, dim=2)
                 else:
                     time, _ = self.decoder(z[:, :, :, i : i + tile_latent_min_height, j : j + tile_latent_min_width])
 
@@ -1145,9 +1148,9 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
-            result_rows.append(ops.cat(result_row, axis=4))
+            result_rows.append(mint.cat(result_row, dim=4))
 
-        dec = ops.cat(result_rows, axis=3)[:, :, :, :sample_height, :sample_width]
+        dec = mint.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
 
         if not return_dict:
             return (dec,)

@@ -119,7 +119,7 @@ controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-depth", m
 motion_adapter = MotionAdapter.from_pretrained("wangfuyun/AnimateLCM")
 
 vae = AutoencoderKL.from_pretrained("stabilityai/sd-vae-ft-mse", mindspore_dtype=ms.float16)
-pipe: AnimateDiffControlNetPipeline = AnimateDiffControlNetPipeline.from_pretrained(
+pipe = AnimateDiffControlNetPipeline = AnimateDiffControlNetPipeline.from_pretrained(
     "SG161222/Realistic_Vision_V5.1_noVAE",
     motion_adapter=motion_adapter,
     controlnet=controlnet,

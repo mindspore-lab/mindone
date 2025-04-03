@@ -17,7 +17,7 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import UNet2DModel
 from ...schedulers import CMStochasticIterativeScheduler
@@ -107,12 +107,12 @@ class ConsistencyModelPipeline(DiffusionPipeline):
             )
 
         # Equivalent to diffusers.VaeImageProcessor.denormalize
-        sample = (sample / 2 + 0.5).clamp(0, 1)
+        sample = mint.clamp((sample / 2 + 0.5), 0, 1)
         if output_type == "ms":
             return sample
 
         # Equivalent to diffusers.VaeImageProcessor.ms_to_numpy
-        sample = sample.permute((0, 2, 3, 1)).numpy()
+        sample = mint.permute(sample, (0, 2, 3, 1)).numpy()
         if output_type == "np":
             return sample
 
@@ -130,7 +130,7 @@ class ConsistencyModelPipeline(DiffusionPipeline):
             elif class_labels is None:
                 # Randomly generate batch_size class labels
                 # TODO: should use generator here? int analogue of randn_tensor is not exposed in ...utils
-                class_labels = ops.randint(0, self.unet.config.num_class_embeds, size=(batch_size,))
+                class_labels = mint.randint(0, self.unet.config.num_class_embeds, size=(batch_size,))
         else:
             class_labels = None
         return class_labels

@@ -18,7 +18,7 @@ from typing import Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 
 @dataclass
@@ -52,13 +52,13 @@ class DifferentiableProjectiveCamera:
         """
         :return: coords of shape (width * height, 2)
         """
-        pixel_indices = ops.arange(self.height * self.width).to(ms.int32)
-        coords = ops.stack(
+        pixel_indices = mint.arange(self.height * self.width).to(ms.int32)
+        coords = mint.stack(
             [
                 pixel_indices % self.width,
-                ops.div(pixel_indices, self.width, rounding_mode="trunc"),
+                mint.div(pixel_indices, self.width, rounding_mode="trunc"),
             ],
-            axis=1,
+            dim=1,
         )
         return coords
 
@@ -68,7 +68,7 @@ class DifferentiableProjectiveCamera:
         inner_batch_size = int(np.prod(inner_shape))
 
         coords = self.get_image_coords()
-        coords = ops.broadcast_to(coords.unsqueeze(0), (batch_size * inner_batch_size, *coords.shape))
+        coords = mint.broadcast_to(mint.unsqueeze(coords, 0), (batch_size * inner_batch_size, *coords.shape))
         rays = self.get_camera_rays(coords)
 
         rays = rays.view(batch_size, inner_batch_size * self.height * self.width, 2, 3)
@@ -86,7 +86,7 @@ class DifferentiableProjectiveCamera:
         fov = self.fov()
 
         fracs = (flat.float() / (res - 1)) * 2 - 1
-        fracs = fracs * ops.tan(fov / 2)
+        fracs = fracs * mint.tan(fov / 2)
 
         fracs = fracs.view(batch_size, -1, 2)
         directions = (
@@ -95,12 +95,12 @@ class DifferentiableProjectiveCamera:
             + self.y.view(batch_size, 1, 3) * fracs[:, :, 1:]
         )
         directions = directions / directions.norm(dim=-1, keepdim=True)
-        rays = ops.stack(
+        rays = mint.stack(
             [
-                ops.broadcast_to(self.origin.view(batch_size, 1, 3), (batch_size, directions.shape[1], 3)),
+                mint.broadcast_to(self.origin.view(batch_size, 1, 3), (batch_size, directions.shape[1], 3)),
                 directions,
             ],
-            axis=2,
+            dim=2,
         )
         return rays.view(batch_size, *shape, 2, 3)
 
