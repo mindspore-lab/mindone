@@ -22,7 +22,6 @@
 #
 """ MindSpore Emu3 model."""
 import math
-import warnings
 from typing import List, Optional, Tuple, Union
 
 from emu3.acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
@@ -42,16 +41,8 @@ from mindspore.communication import get_group_size
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, DynamicCache  # , get_max_length, get_seq_length, update
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
-from mindone.transformers.modeling_attn_mask_utils import (
-    _MIN_FP16,
-    AttentionMaskConverter,
-    _prepare_4d_attention_mask,
-    _prepare_4d_causal_attention_mask,
-)
-from mindone.transformers.modeling_outputs import (  # SequenceClassifierOutputWithPast,
-    BaseModelOutputWithPast,
-    CausalLMOutputWithPast,
-)
+from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16, _prepare_4d_causal_attention_mask
+from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
