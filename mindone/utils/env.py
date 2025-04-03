@@ -60,7 +60,7 @@ def init_env(
     if device_id is not None:
         device_id = int(device_id)
 
-    context_kwargs = {}
+    context_kwargs = dict(mode=mode)
     if MS_VERSION >= "2.5.0":
         if cache_graph:
             os.environ["MS_COMPILER_CACHE_ENABLE"] = "1"
