@@ -45,6 +45,8 @@ image.save("sd3.png")
 
 | task | model  | infer | fine-tune | pretrain | features  |
 | :---   |  :---   |  :---     |  :---     |  :---     |  :--  |
+| Text/Image-to-Video | [opensora2.0](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai) 🔥🔥 |  ✅  | ❌ | ❌ | support text to image to video generation (training is coming) |
+| Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ❌ | ❌ | support image to video generation |
 | Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) 🔥🔥 | ✅ | ❌ | ❌ | support text to image generation |
 | Text/Image-to-Video | [wan2_1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥🔥 |  ✅  |  ❌ |  ❌  | support text to video and image to video generation  |
 | Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) 🔥🔥 | ✅   | ❌ | ❌  | support text to video generation |
@@ -70,18 +72,17 @@ image.save("sd3.png")
 | Image-to-3D | [instantmesh](https://github.com/mindspore-lab/mindone/blob/master/examples/instantmesh) | ✅  | ✅  | ✅  | support image to 3d generation, fine-tune |
 | Text-to-Video | [hunyuanvideo](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | ✅  | ✅  | ✅  | support text to video generation, fine-tune  |
 | Text-to-Image | [story_diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/story_diffusion) | ✅  | ❌| ❌ | support long-range image generation  |
-| Multi-modal | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus) | ✅  | ✅  | ✅  | support multi-modal understanding and generation, fine-tune, t2i/vqa/text |
+| Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus) | ✅  | ✅  | ✅  | support multi-modal understanding and generation (t2i/vqa/text) |
+| Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3) | ✅  | ✅  | ✅  | support multi-modal understanding and generation (t2i/vqa) |
+| Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/master/examples/var) | ✅  | ✅  | ✅  | support autoregressive image generation |
 | Image-to-Video | [svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd) | ✅  |  ✅ | ✅  | support image to video generation |
 | Text-to-3D | [mvdream](https://github.com/mindspore-lab/mindone/blob/master/examples/mvdream) |   ✅ |   ✅ |   ✅ | support text to 3d generation, fine-tune  |
 | Image-to-3D | [sv3d](https://github.com/mindspore-lab/mindone/blob/master/examples/sv3d) |   ✅ |   ✅ |   ✅ | support image to 3d generation, fine-tune |
-| Video Generation | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) | Yes | Yes | Yes | support image to video generation |
 | Text-to-Video | [t2v_turbo](https://github.com/mindspore-lab/mindone/blob/master/examples/t2v_turbo) |   ✅ |   ✅ |   ✅ | support text to video generation, fine-tune |
-| Video Enhancement | [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  ✅  | ❌ | ❌ | support video to video enhancement |
-| Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/master/examples/qwen2_vl) | Yes | Yes | Yes | support multi-modal understanding  |
+| Video-to-Video | [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  ✅  | ❌ | ❌ | support video to video enhancement |
+| Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/master/examples/qwen2_vl) |  ✅ |  ❌  |  ❌  | support multi-modal understanding  |
 
 
-
-<!-- TODO: add models in PR, emu3, var, etc -->
 
 ###  run hf diffusers on mindspore
 mindone diffusers is under active development, most tasks were tested with mindspore 2.5.0 and ascend A2 machines.
