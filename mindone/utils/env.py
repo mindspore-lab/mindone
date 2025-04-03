@@ -5,8 +5,6 @@ from typing import Literal, Optional, Union
 import mindspore as ms
 from mindspore.communication import get_group_size, get_rank, init
 
-from mindone.utils.seed import set_random_seed
-
 from .version_control import MS_VERSION
 
 _logger = logging.getLogger(__name__)
