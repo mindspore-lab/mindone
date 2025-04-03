@@ -1,0 +1,20 @@
+{
+  "multimodal_understanding": {
+    "root": "./multimodal_understanding_dataset/",
+    "annotation": "./multimodal_understanding_dataset/annotation.jsonl",
+    "length": 1,
+    "task_type": 0
+  },
+  "pure_text": {
+    "root": "./pure_text_dataset/",
+    "annotation": "./pure_text_dataset/annotation.jsonl",
+    "length": 1,
+    "task_type": 1
+  },
+  "text_to_image": {
+    "root": "./text_to_image_dataset/",
+    "annotation": "./text_to_image_dataset/annotation.jsonl",
+    "length": 1,
+    "task_type": 2
+  }
+}
