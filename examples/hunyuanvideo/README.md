@@ -14,6 +14,7 @@ Here is the development plan of the project:
 - HunyuanVideo (13B):
     - [x] Inference
     - [x] Sequence Parallel (Ulysses SP)
+    - [x] VAE latent cache
     - [x] Training stage 1: T2I 256px
     - [ ] Training stage 2: T2I  256px 512px (buckts)
     - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckts)
@@ -28,7 +29,7 @@ Here is the development plan of the project:
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.4.1   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
 
 </div>
 
@@ -97,7 +98,7 @@ bash scripts/hyvideo/run_t2v_sample.sh
 ```
 If you want change to another prompt, please set `--prompt` to the new prompt.
 
-If you want to run T2V inference using sequence parallel (Ulysses SP), please use `scripts/hyvideo/run_t2v_sample_sp.sh`. You can revise the SP size using `--sp-size`, which should be aligned with `ASCEND_RT_VISIBLE_DEVICES`, `--worker_num` and `--local_worker_num`. See more usage information about `msrun` from this [website](https://www.mindspore.cn/docs/en/r2.4.10/model_train/parallel/msrun_launcher.html).
+If you want to run T2V inference using sequence parallel (Ulysses SP), please use `scripts/hyvideo/run_t2v_sample_sp.sh`. You can revise the SP size using `--sp-size`, which should be aligned with `ASCEND_RT_VISIBLE_DEVICES`, `--worker_num` and `--local_worker_num`. See more usage information about `msrun` from this [website](https://www.mindspore.cn/docs/en/r2.5.0/model_train/parallel/msrun_launcher.html).
 
 ### Run Image-to-Video Inference
 
@@ -157,7 +158,13 @@ To run stage 2 (512px) trainig with HunyuanVideo (13B) on multiple NPUs using Ul
 bash scripts/hyvideo/train_t2v_stage2.sh
 ```
 
+### Finetuning Experiment
+
 For the finetuning experiment with a small dataset, please refer to `scripts/hyvideo/train_t2v_256x256x29_finetune.sh`.
+
+If you want to train with Sequence Parallel (Ulysses SP) and VAE latent cache, please run the [Extract Text Embeddings](#extract-text-embeddings) and [Extract VAE Lantent Cache](#extract-vae-lantent-cache) first.
+
+Then you can refer to `scripts/hyvideo/train_t2v_544x960x129_finetune.sh` or `scripts/hyvideo/train_t2v_720x1280x129_finetune.sh`.
 
 ## 📈 Evaluation
 
