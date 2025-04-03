@@ -21,8 +21,8 @@ The framework also involves the text-to-image model, i.e., [Hunyuan-DiT](https:/
 **- Features:**
 - (optional) text-to-image
 - image background removal
-- image-to-multiviews
-- multiviews-to-mesh
+- image-to-multiviews (pynative mode)
+- multiviews-to-mesh (pynative or graph mode)
 -  (optional) mesh rendering (display device required)
 
 
@@ -35,6 +35,8 @@ Differences from original [Hunyuan3D-1.0](https://github.com/Tencent/Hunyuan3D-1
 ### Requirements
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
+|2.5.0 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
+|2.4.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
 |2.3.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC2.beta1|
 
 ### Dependencies
@@ -101,16 +103,18 @@ We list some more useful configurations for easy usage:
 
 
 # Inference Performance
-Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 
 ## Stage 1: Image to 6 Views
+
+Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
+
 | model name|precision |  cards| batch size | resolution | jit level| flash attn| scheduler| steps| s/step |img/s|  weight|
 |---|---|---|---|---|---|---|---|---|---|---|---|
 |mvd_lite|fp16| 1 | 1 | 512x512 |O0| ON | euler ancestral discrete | 50 |   1.60| 0.075 | [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/mvd_lite)|
 |mvd_std |fp16| 1 | 1 | 512x512 |O0| ON | euler ancestral discrete | 50 |   3.20| 0.038 | [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/mvd_std)|
 
 
-\*note: checkpoint weights are originally float16. Flash attention uses bfloat16.
+\*note: checkpoint weights are originally float16. Flash attention uses bfloat16. Currently only support mindspore 2.3.1 pynative mode.
 
 ### Text/Image-to-views visual results
 |Input | Lite | Std |
@@ -125,9 +129,24 @@ Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 
 ## Stage 2: Views to Mesh
 
-| model name|precision |  cards| batch size | resolution | jit level| flash attn| steps| s/step |mesh/s| recipe| weight|
-|---|---|---|---|---|---|---|---|---|---|---|---|
-|svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 32| 0.031|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
+Experiments are tested on ascend 910* with pynative mode.
+
+|version | model name|precision |  cards| batch size | resolution | jit level| flash attn| steps| s/step |mesh/s| recipe| weight|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|mindspore 2.5.0 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 37| 0.027|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
+|mindspore 2.4.1 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 33| 0.030|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
+|mindspore 2.3.1 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 32| 0.031|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
+
+\*note: checkpoint weights are originally float16. Flash attention always uses bfloat16, customized LayerNorm uses float32.
+
+
+Experiments are tested on ascend 910* with graph mode.
+
+|version | model name|precision |  cards| batch size | resolution | jit level| flash attn| steps| s/step |mesh/s| recipe| weight|
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+|mindspore 2.5.0 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 69| 0.014|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
+|mindspore 2.4.1 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 66| 0.015|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
+|mindspore 2.3.1 |svrm |fp16| 1 | 1 | 7x512x512 |O0| ON| N/A | 63| 0.016|[svrm.yaml](./svrm/configs/svrm.yaml)| [weight](https://huggingface.co/tencent/Hunyuan3D-1/tree/main/svrm)|
 
 \*note: checkpoint weights are originally float16. Flash attention always uses bfloat16, customized LayerNorm uses float32.
 

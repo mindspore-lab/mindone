@@ -4,7 +4,6 @@ import time
 from typing import List, Literal, Optional, Union
 
 import numpy as np
-import pandas as pd
 
 from mindspore import Callback, Parameter, ReduceLROnPlateau, RunContext, Tensor
 from mindspore import dtype as mstype
@@ -27,7 +26,6 @@ class ValidationCallback(Callback):
     Args:
         network (nn.Cell): The neural network model to be validated.
         dataset (BatchDataset, BucketBatchByLengthDataset, GeneratorDataset): The dataset to use for validation.
-        alpha_smooth (float, optional): The smoothing factor for the loss. Defaults to 0.01.
         valid_frequency (int, optional): The frequency of validation in terms of training steps.
                                          Defaults to 100.
         ema (Optional[EMA], optional): An Exponential Moving Average object for the model weights.
@@ -44,21 +42,18 @@ class ValidationCallback(Callback):
         self,
         network: nn.Cell,
         dataset: Union[BatchDataset, BucketBatchByLengthDataset, GeneratorDataset],
-        alpha_smooth: float = 0.01,
         valid_frequency: int = 100,
         ema: Optional[EMA] = None,
     ):
         super().__init__()
         self.network = network
         self.dataset = dataset
-        self.alpha_smooth = alpha_smooth
         self.valid_frequency = valid_frequency
         self.ema = ema
         self.reduce, self.rank_size = None, 1
         if GlobalComm.INITED:
             self.reduce = ops.AllReduce(op=ops.ReduceOp.SUM)
             self.rank_size = get_group_size()
-        self.data = pd.Series(dtype=np.float32)
 
     def on_train_step_end(self, run_context: RunContext):
         cb_params = run_context.original_args()
@@ -70,19 +65,17 @@ class ValidationCallback(Callback):
                 self.ema.swap_before_eval()
             self.network.set_train(False)
 
-            loss = 0
-            for data in self.dataset.create_tuple_iterator(num_epochs=1):
+            loss, num = 0, 0
+            for num, data in enumerate(self.dataset.create_tuple_iterator(num_epochs=1), start=1):
                 loss += self.network(*data)
-            loss = loss / self.dataset.get_dataset_size()
+            # WARNING: avoid using `dataset.get_dataset_size()` since it produces incorrect results with dynamic batch sizes
+            loss = loss / num
             if self.reduce is not None:
                 loss = self.reduce(loss)
             loss = loss.item() / self.rank_size
 
-            self.data = pd.concat([self.data, pd.Series(loss)], ignore_index=True)
-            loss_smoothed = self.data.ewm(alpha=self.alpha_smooth).mean().iloc[-1]
-
-            cb_params.eval_results = {"eval_loss": loss, "eval_loss_smoothed": loss_smoothed}
-            _logger.info(f"Step: {cur_step}, Validation Loss: {loss}.")
+            cb_params.eval_results = {"val_loss": loss}
+            _logger.info(f"Step: {cur_step}, Validation Loss: {loss:.6f}")
 
             self.network.set_train(True)
             if self.ema is not None:
@@ -123,8 +116,8 @@ class PerfRecorderCallback(Callback):
         cur_step = cb_params.cur_step_num
         loss = cb_params.net_outputs
         loss = loss[0].asnumpy() if isinstance(loss, tuple) else np.mean(loss.asnumpy())
-        eval_loss = cb_params.get("eval_results", [])
-        metrics = (self._sep + self._sep.join([f"{eval_loss[m]:.6f}" for m in self._metrics])) if eval_loss else ""
+        metrics = cb_params.get("eval_results", [])
+        metrics = (self._sep + self._sep.join([f"{metrics[m]:.6f}" for m in self._metrics])) if metrics else ""
 
         with open(self._log_file, "a", encoding="utf-8") as fp:
             fp.write(
@@ -140,7 +133,7 @@ class ReduceLROnPlateauByStep(ReduceLROnPlateau):
     def __init__(
         self,
         optimizer,
-        monitor: str = "eval_loss_smoothed",
+        monitor: str = "val_loss",
         factor: float = 0.1,
         patience: int = 10,
         mode: Literal["auto", "min", "max"] = "auto",

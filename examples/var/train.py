@@ -19,7 +19,7 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.recorder import PerfRecorder
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 from mindone.utils.seed import set_random_seed
@@ -42,11 +42,12 @@ def create_loss_scaler(loss_scaler_type, init_loss_scale, loss_scale_factor=2, s
 
 def main(args):
     # init
-    device_id, rank_id, device_num = init_train_env(
+    device_id, rank_id, device_num = init_env(
         args.ms_mode,
         seed=args.seed,
         distributed=args.use_parallel,
         jit_level=args.jit_level,
+        max_device_memory=args.max_device_memory,
     )
     set_random_seed(args.seed)
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
@@ -217,11 +218,11 @@ def main(args):
         )
         key_info += "\n" + "=" * 50
         logger.info(key_info)
-
+    global_step = start_epoch * dataset_size
+    global_step = ms.Tensor(global_step, dtype=ms.int32)
     for epoch in range(start_epoch, args.epochs):
         start_time_e = time.time()
-        global_step = epoch * dataset_size
-        global_step = ms.Tensor(global_step, dtype=ms.int64)
+
         for step, data in enumerate(ds_iter):
             start_time_s = time.time()
             inp = data[0]
