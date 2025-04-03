@@ -28,7 +28,7 @@ from mindone.trainers.ema import EMA
 from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
-from mindone.utils import count_params, init_train_env, set_logger
+from mindone.utils import count_params, init_env, set_logger
 from mindone.utils.amp import auto_mixed_precision
 
 from .base_trainer import Trainer
@@ -51,7 +51,7 @@ class LRMTrainer(Trainer):
         print(f"Checkpoints and configs will be stored in {self.args.output_path}.")
 
         # 1. env init
-        did, self.rank_id, self.device_num = init_train_env(
+        did, self.rank_id, self.device_num = init_env(
             self.args.mode,
             seed=self.args.seed,
             distributed=self.args.use_parallel,

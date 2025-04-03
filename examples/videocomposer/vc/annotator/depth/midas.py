@@ -149,7 +149,7 @@ class VisionTransformer(nn.Cell):
 
         # embeddings
         x = ops.flatten(self.patch_embedding(x), start_dim=2).permute(0, 2, 1)
-        x = ops.concat([self.cls_embedding.repeat(b, axis=0).to(self.dtype), x.to(self.dtype)], axis=1)
+        x = ops.concat([self.cls_embedding.repeat_interleave(b, dim=0).to(self.dtype), x.to(self.dtype)], axis=1)
         x = x + self.pos_embedding
 
         # blocks
@@ -395,7 +395,7 @@ class MiDaS(nn.Cell):
         ).to(self.dtype)
 
         x = ops.flatten(self.patch_embedding(x), start_dim=2).permute(0, 2, 1)
-        x = ops.concat([self.cls_embedding.repeat(b, axis=0).to(self.dtype), x.to(self.dtype)], axis=1)
+        x = ops.concat([self.cls_embedding.repeat_interleave(b, dim=0).to(self.dtype), x.to(self.dtype)], axis=1)
         x = x + pos_embedding
 
         # stage1

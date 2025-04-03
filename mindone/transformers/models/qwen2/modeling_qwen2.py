@@ -24,6 +24,7 @@ from typing import List, Optional, Tuple, Union
 from transformers import Qwen2Config, logging
 
 import mindspore as ms
+import mindspore.mint.nn.functional as F
 from mindspore import Parameter, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
@@ -120,13 +121,12 @@ class Qwen2RMSNorm(nn.Cell):
         self.weight = Parameter(ops.ones(hidden_size))
         self.variance_epsilon = eps
 
-    @ms.jit
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        hidden_states = hidden_states.to(ms.float32)
-        variance = hidden_states.pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
-        return self.weight.to(input_dtype) * hidden_states.to(input_dtype)  # FIXME
+        output, _ = ops.rms_norm(
+            hidden_states.to(ms.float32), self.weight.to(ms.float32), epsilon=self.variance_epsilon
+        )
+        return output.to(input_dtype)
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
@@ -948,7 +948,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             # Padding to max_len when no cache
             if past_key_values is None:
                 pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
-                input_ids = ops.pad(input_ids, (0, pad_len), value=0)
+                input_ids = F.pad(input_ids, (0, pad_len), value=0)
 
             model_inputs = {"input_ids": input_ids}
 

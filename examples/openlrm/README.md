@@ -11,6 +11,7 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 ### Requirements
 |mindspore |	ascend driver | firmware | cann tookit/kernel|
 |--- | --- | --- | --- |
+|2.5.0 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
 |2.4.1 | 24.1RC2 | 7.3.0.1.231 | 8.0.RC3.beta1|
 
 ### Dependencies
@@ -161,8 +162,19 @@ LRM is the first Large Reconstruction Model that predicts the 3D model of an obj
 ## Performace
 
 ### Inference Performance
-Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
-- Input a single image, here reports speed of image-to-3D and image rendering.
+
+Input a single image, here reports speed of image-to-3D and image rendering.
+
+Experiments are tested on ascend 910* with pynative mode.
+
+- mindspore 2.5.0
+
+| model name|  cards| batch size | resolution | precision | flash attn| (image to 3D) s/step | (render) img/s|  recipe| weight|
+|---|---|---|---|---|---|---|---|---|---|
+|openlrm-obj-small-1.1 |  1 | 1 | 224x224 |fp32| OFF |  0.75  | 1.51 |[yaml](./configs/infer-s.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-small-1.1)|
+|openlrm-obj-base-1.1 |  1 | 1 | 336x336 |fp32| OFF |   0.72 |  1.40 |[yaml](./configs/infer-b.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-base-1.1)|
+
+- mindspore 2.4.1
 
 | model name|  cards| batch size | resolution | precision | flash attn| (image to 3D) s/step | (render) img/s|  recipe| weight|
 |---|---|---|---|---|---|---|---|---|---|
@@ -170,6 +182,8 @@ Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 |openlrm-obj-small-1.1 |  1 | 1 | 224x224 |fp32| OFF |  0.72  | 2.19 |[yaml](./configs/infer-s.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-small-1.1)|
 |openlrm-obj-base-1.1 |  1 | 1 | 336x336 |fp32| OFF | 0.76   | 0.98 |[yaml](./configs/infer-b.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-base-1.1)|
 |openlrm-obj-large-1.1 |  1 | 1 | 448x448 |fp32| OFF | 0.92  | 0.37|[yaml](./configs/infer-l.yaml)| [weight](https://huggingface.co/zxhezexin/openlrm-obj-large-1.1)|
+
+- Visual results:
 
 |Input| Output |
 |:---|:---|
@@ -187,16 +201,18 @@ Experiments are tested on ascend 910* with mindspore 2.4.1 pynative mode.
 |---|---|---|---|---|---|---|---|
 |small | 1 | 1 | (4x)224x224 | fp32 | OFF |  2.00 | 0.50 |
 |base | 1 | 1 | (4x)336x336 | fp32 | OFF |  2.63 | 0.38 |
-|large | 1 | 1 | (4x)448x448 | bf16 | ON |  3.12 | 0.32|  
+|large | 1 | 1 | (4x)448x448 | bf16 | ON |  3.12 | 0.32|
 
 
 - Evaluation on trained models:
 
 |model name	| epoch| cards	| batch size	| resolution	| precision|  (infer+render) s/step	| PSNR | SSIM |
 |---|---|---|---|---|---|---|---|---|
-|small | 100k |1 | 1 | 224x224 | fp32  | 0.99 | 26.38 | 0.91  
-|base | 100k |1 | 1 | 336x336 | fp32  | 1.64 | 27.44 | 0.92  
-|large | 50k |1 | 1 | 448x448 | bf16  | 2.87 | 22.98 | 0.89  
+|small | 100k |1 | 1 | 224x224 | fp32  | 0.99 | 26.38 | 0.91  |
+|base | 100k |1 | 1 | 336x336 | fp32  | 1.64 | 27.44 | 0.92  |
+|large | 100k |1 | 1 | 448x448 | bf16  | 2.79 | 25.96 | 0.92 |
+
+- Intermediate results:
 
 |Input| Output (small-ep50k)| Output (base-ep40k) |
 |:---|:---|:---|

@@ -15,10 +15,23 @@ The current implementation only supports text-to-image generation with consisten
 - [x] Gradio demo of comic generation
 - [ ] Motion predictor with condition images
 
-## Installation
-1. Use python>=3.8 [[install]](https://www.python.org/downloads/)
 
-2. Please install MindSpore 2.3.1 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.2.beta1) as recommended by the official installation website.
+## 📦 Requirements
+
+
+<div align="center">
+
+| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+
+</div>
+
+
+## Installation
+1. Use python>=3.9 [[install]](https://www.python.org/downloads/)
+
+2. Please install MindSpore 2.5.0 according to the [MindSpore official website](https://www.mindspore.cn/install/) and install [CANN 8.0.RC3.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC3.beta1) as recommended by the official installation website.
 
 
 3. Install requirements

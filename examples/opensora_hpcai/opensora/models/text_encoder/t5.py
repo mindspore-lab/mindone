@@ -13,6 +13,8 @@ from mindspore import Tensor, nn
 
 from mindone.transformers import T5EncoderModel
 
+__all__ = ["get_text_encoder_and_tokenizer"]
+
 logger = logging.getLogger(__name__)
 
 

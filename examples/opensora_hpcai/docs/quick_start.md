@@ -24,15 +24,43 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
 
 ## Requirements
 
-```
+Required MindSpore version: 2.5.0. Please refer to the [requirements](../README.md#requirements) section.
+After installing MindSpore, run the following command to complete the setup:
+
+```shell
 pip install -r requirements.txt
 ```
 
-MindSpore version: >= 2.2.12
-
-To enable flash attention, please use mindspore>=2.3-20240422.
-
 ## Preparation
+
+### OpenSora 2.0
+
+- **MMDiT backbone and VAEs**
+
+```shell
+# Hunyuan VAE version
+HF_ENDPOINT=https://hf-mirror.com huggingface-cli download hpcai-tech/Open-Sora-v2 --exclude *.bin
+# DC-AE version
+HF_ENDPOINT=https://hf-mirror.com huggingface-cli download hpcai-tech/Open-Sora-v2-Video-DC-AE
+```
+
+- **Text embedders**
+
+  **CLIP-Large**
+  ```shell
+  HF_ENDPOINT=https://hf-mirror.com huggingface-cli download openai/clip-vit-large-patch14
+  ```
+  **T5 v1.1 XXL** is available only in PyTorch. Therefore, the weights must be converted to `*.safetensors` first by
+  running the following command:
+  ```shell
+  python tools/download_convert_st.py "DeepFloyd/t5-v1_1-xxl"
+  ```
+  If you encounter a `certificate verify failed` error, you can set `--disable_ssl_verify` to `True`.
+
+### OpenSora 1.2 and below
+
+<details>
+<summary>Instructions</summary>
 
 Prepare the model checkpoints of T5, VAE, and STDiT and put them under `models/` folder as follows
 
@@ -92,10 +120,50 @@ Alternatively, you can use the following command to convert the model weights to
     Convert to ms checkpoint: `python tools/convert_pt2ms.py --src /path/to/PixArt-XL-2-512x512.pth --target models/PixArt-XL-2-512x512.ckpt`
     It will be used for better model initialization.
 
+</details>
+
 
 ## Inference
 
-### Text-to-Video
+### Open-Sora 2.0
+
+#### Text-to-Video
+
+First, you will need to generate text embeddings with:
+
+```shell
+# CLIP-Large
+TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
+--model.from_pretrained="DeepFloyd/t5-v1_1-xxl" \
+--model.max_length=512 \
+--prompts_file=YOUR_PROMPTS.txt \
+--output_path=assets/texts/t5_512
+# T5
+TRANSFORMERS_OFFLINE=1 python scripts/v2.0/text_embedding.py \
+--model.from_pretrained="openai/clip-vit-large-patch14" \
+--model.max_length=77 \
+--prompts_file=YOUR_PROMPTS.txt \
+--output_path=assets/texts/clip_77
+```
+
+Repeat the same for negative prompts.
+
+Then, you can generate videos by running the following command:
+
+```shell
+python scripts/v2.0/inference_v2.py --config=configs/opensora-v2-0/inference/256px.yaml \
+text_emb.t5_dir=assets/texts/t5_512 \
+text_emb.neg_t5_dir=assets/texts/t5_512_neg \
+text_emb.clip_dir=assets/texts/clip_77 \
+text_emb.neg_clip_dir=assets/texts/clip_77_neg
+```
+
+### OpenSora 1.2 and below
+
+<details>
+<summary>Instructions</summary>
+
+#### Text-to-Video
 Configuration files can be found in the desired OpenSora version folder:
 
 **OpenSora v1.2**
@@ -112,9 +180,6 @@ python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.
 ```shell
 python scripts/inference.py --config configs/opensora/inference/stdit_256x256x16.yaml
 ```
-
-- To run on GPU, append
-`--device_target GPU`
 
 - To run with cached t5 embedding, append
 `--embed_path outputs/t5_embed.npz`
@@ -144,8 +209,7 @@ Here are some generation results in 256x256 resolution.
 
 (source prompts from [here](https://github.com/hpcaitech/Open-Sora/blob/main/assets/texts/t2v_samples.txt))
 
-
-### Image/Video-to-Video (OpenSora v1.1 and above)
+#### Image/Video-to-Video (OpenSora v1.1 and above)
 
 Conditioning on images and videos in OpenSora is based on a frame masking strategy.
 Specifically, conditioning frames are unmasked and assigned a timestep of 0,
@@ -190,6 +254,8 @@ To generate a video with conditioning on images and videos, execute the followin
 ```shell
 python scripts/inference.py --config configs/opensora-v1-1/inference/sample_iv2v.yaml --ckpt_path /path/to/your/opensora-v1-1.ckpt
 ```
+
+</details>
 
 ## Training
 

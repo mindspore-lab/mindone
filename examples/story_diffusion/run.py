@@ -360,7 +360,7 @@ def load_sdxl_pipeline(args):
         sd_model_path,
         cache_dir=args.cache_dir,
         mindspore_dtype=ms.float16,
-        use_safetensors=False,
+        use_safetensors=True,
         local_files_only=args.local_files_only,
     )
     # pipe.enable_freeu(s1=0.6, s2=0.4, b1=1.1, b2=1.2)
