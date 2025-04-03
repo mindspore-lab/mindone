@@ -45,11 +45,11 @@ image.save("sd3.png")
 
 | task | model  | infer | fine-tune | pretrain | features  |
 | :---   |  :---   |  :---     |  :---     |  :---     |  :--  |
-| Text/Image-to-Video | [opensora2.0](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai) 🔥🔥 |  ✅  | ❌ | ❌ | support text to image to video generation (training is coming) |
-| Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ❌ | ❌ | support image to video generation |
-| Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) 🔥🔥 | ✅ | ❌ | ❌ | support text to image generation |
-| Text/Image-to-Video | [wan2_1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥🔥 |  ✅  |  ❌ |  ❌  | support text to video and image to video generation  |
-| Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) 🔥🔥 | ✅   | ❌ | ❌  | support text to video generation |
+| Text/Image-to-Video | 🔥 [opensora2.0](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)  |  ✅  | ❌ | ❌ | support text to image to video generation (training is coming) |
+| Image-to-Video |🔥 [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v)  |  ✅  | ❌ | ❌ | support image to video generation |
+| Text-to-Image |🔥 [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview)  | ✅ | ❌ | ❌ | support text to image generation |
+| Text/Image-to-Video |🔥 [wan2_1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1)  |  ✅  |  ❌ |  ❌  | support text to video and image to video generation  |
+| Text-to-Video |🔥 [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v)  | ✅   | ❌ | ❌  | support text to video generation |
 | Text-to-Video | [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | ✅ | ✅ | ✅ | support v1.0/1.1/1.2 large scale training with dp/sp/dsp/zero, v2.0 inference |
 | Text-to-Video | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | ✅ | ✅ | ✅ | support v1.0/1.1/1.2/1.3 large scale training with dp/sp/zero |
 | Text-to-Image | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | ✅ | ✅ | ✅ | support sd 1.5/2.0/2.1, vanilla fine-tune, lora, dreambooth, text inversion|
