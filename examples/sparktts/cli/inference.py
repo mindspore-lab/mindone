@@ -5,12 +5,26 @@ import logging
 from datetime import datetime
 
 from cli.SparkTTS import SparkTTS
-
+from mindone.utils import init_env
+from mindone.utils.config import str2bool
 
 def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Run TTS inference.")
 
+    parser.add_argument("--mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)")
+    parser.add_argument("--debug", type=str2bool, default=False, help="Execute inference in debug mode.")
+    parser.add_argument("--seed", type=int, default=42, help="Inference seed")
+    parser.add_argument(
+        "--jit_level",
+        default="O0",
+        type=str,
+        choices=["O0", "O1", "O2"],
+        help="Used to control the compilation optimization level. Supports [“O0”, “O1”, “O2”]."
+        "O0: Except for optimizations that may affect functionality, all other optimizations are turned off, adopt KernelByKernel execution mode."
+        "O1: Using commonly used optimizations and automatic operator fusion optimizations, adopt KernelByKernel execution mode."
+        "O2: Ultimate performance optimization, adopt Sink execution mode.",
+    )
     parser.add_argument(
         "--model_dir",
         type=str,
@@ -43,6 +57,12 @@ def parse_args():
 
 
 def run_tts(args):
+    device_id, rank_id, device_num = init_env(args.mode,
+                                              debug=args.debug,
+                                              seed=args.seed,
+                                              jit_level=args.jit_level,
+                                              )
+
     """Perform TTS inference and save the generated audio."""
     logging.info(f"Using model from: {args.model_dir}")
     logging.info(f"Saving audio to: {args.save_dir}")
