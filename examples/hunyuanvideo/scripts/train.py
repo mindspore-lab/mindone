@@ -29,6 +29,7 @@ from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_env, set_logger
+from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ def main(args):
     args.train.output_path = os.path.abspath(args.train.output_path)
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_env(**args.env)
+    set_random_seed(getattr(args.env, "seed", 42))
     mode = get_context("mode")  # `init_env()` may change the mode during debugging
 
     # if bucketing is used in Graph mode, activate dynamic mode
