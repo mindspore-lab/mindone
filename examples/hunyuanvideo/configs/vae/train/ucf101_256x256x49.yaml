@@ -1,6 +1,6 @@
 env:
   mode: 0
-  jit_level: O0
+  jit_level: O1
   seed: 42
   distributed: True
   debug: False
@@ -55,26 +55,30 @@ train:
     warmup_steps: 1000
 
   optimizer_ae:
-    name: adamw_re
+    name: adamw_bf16
     eps: 1e-15
     betas: [ 0.9, 0.999 ]
     weight_decay: 0.0001
 
   optimizer_disc:
-    name: adamw_re
+    name: adamw_bf16
     eps: 1e-15
     betas: [ 0.9, 0.999 ]
     weight_decay: 0.0001
 
   loss_scaler_ae:
-    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    class_path: mindspore.nn.DynamicLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
-      loss_scale_value: 1
+      loss_scale_value: 65536
+      scale_factor: 2
+      scale_window: 1000
 
   loss_scaler_disc:
-    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    class_path: mindspore.nn.DynamicLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
-      loss_scale_value: 1
+      loss_scale_value: 65536
+      scale_factor: 2
+      scale_window: 1000
 
   settings:
     zero_stage: 0

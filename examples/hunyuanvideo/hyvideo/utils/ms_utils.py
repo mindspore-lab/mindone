@@ -12,8 +12,6 @@ from mindspore.communication.management import get_group_size, get_rank, init
 from mindone.utils.params import load_param_into_net_with_filter
 from mindone.utils.seed import set_random_seed
 
-from .parallel_states import initialize_sequence_parallel_state
-
 logger = logging.getLogger(__name__)
 
 
@@ -28,7 +26,6 @@ def init_env(
     mempool_block_size: str = "9GB",
     strategy_ckpt_save_file: str = "",
     optimizer_weight_shard_size: int = 8,
-    sp_size: int = 1,
     jit_level: str = None,
     enable_parallel_fusion: bool = False,
     precision_mode: str = None,
@@ -55,8 +52,6 @@ def init_env(
             This strategy_ckpt is useful for merging multiple checkpoint shards.
         optimizer_weight_shard_size (int, default 8): Set the size of the communication domain split by the optimizer \
             weight when parallel_mode == "optim". The numerical range can be (0, device_num].
-        sp_size (int, default 1): Set the sequence parallel size. Default is 1. The device_num should be >= sp_size \
-            and device_num should be divisble by sp_size.
         jit_level (str, default None): If set, will set the compilation optimization level. Supports ["O0", "O1", "O2"]. \
             "O1" means KernelByKernel (KBK) mode, "O2" means DVM mode, and "O3" means GE mode.
         enable_parallel_fusion (bool, default None): If True, will enable optimizer parallel fusion for AdamW.
@@ -169,11 +164,6 @@ def init_env(
         ms.set_context(jit_syntax_level=jit_syntax_level)
     if precision_mode is not None and len(precision_mode) > 0:
         ms.set_context(ascend_config={"precision_mode": precision_mode})
-
-    assert device_num >= sp_size and device_num % sp_size == 0, (
-        f"unable to use sequence parallelism, " f"device num: {device_num}, sp size: {sp_size}"
-    )
-    initialize_sequence_parallel_state(sp_size)
 
     if memory_offload:
         assert mode == 0, "offloading only works in graph mode currently"

@@ -3,7 +3,7 @@ from math import ceil
 from typing import Literal, Optional, Tuple
 
 import numpy as np
-from hyvideo.utils.parallel_states import get_sequence_parallel_state, hccl_info
+from hyvideo.acceleration import get_sequence_parallel_group
 from tqdm import tqdm
 
 from mindspore import Tensor
@@ -101,7 +101,7 @@ class RFlowLossWrapper(nn.Cell):
         self._timesteps = Tensor(np.linspace(1, num_timesteps, num_timesteps, dtype=np.float32))
 
         self.broadcast = None
-        if get_sequence_parallel_state() and (sp_group := hccl_info.world_size) is not None:
+        if (sp_group := get_sequence_parallel_group()) is not None:
             logging.info(
                 f"Broadcasting all random variables from rank (0) to current rank ({get_rank(sp_group)}) in group `{sp_group}`."
             )
@@ -140,7 +140,8 @@ class RFlowLossWrapper(nn.Cell):
         guidance: (N, ), the guidance scale for distillation
         timestep: (N,) tensor to indicate a denoising step
         """
-        x = x.to(mstype.float32)
+        # TODO: ideally we should expect x is same in each SP group, but somehow it is not, need to fix.
+        x = self._broadcast(x.to(mstype.float32))
 
         if timestep is None:
             u = self._sample_func(x.shape[0]).to(mstype.int32)
