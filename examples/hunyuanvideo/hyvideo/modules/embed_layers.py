@@ -4,7 +4,7 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import mint, nn, ops
-from mindspore.common.initializer import Normal, Zero, initializer
+from mindspore.common.initializer import Normal, XavierUniform, Zero, initializer
 
 from ..utils.helpers import to_2tuple
 
@@ -54,10 +54,9 @@ class PatchEmbed(nn.Cell):
         # nn.init.xavier_uniform_(self.proj.weight.view(self.proj.weight.size(0), -1))
         # nn.init.zeros_(self.proj.bias)
 
-        # TODO: this introduce the wrong intialization of all zero instead. need fix later
-        # w = self.proj.weight
-        # w_flatted = w.reshape(w.shape[0], -1)
-        # w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w = self.proj.weight
+        w_flatted = w.reshape(w.shape[0], -1)
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
         if self.proj.bias is not None:
             self.proj.bias.set_data(initializer(Zero(), self.proj.bias.shape, self.proj.bias.dtype))
 
