@@ -2,12 +2,18 @@ from dataclasses import dataclass, field
 from typing import Any, List, Optional, Tuple, Union
 
 import numpy as np
-import threestudio
 from omegaconf import DictConfig
-from threestudio import register
-from threestudio.utils.base import Updateable
-from threestudio.utils.config import parse_structured
-from threestudio.utils.ops import get_mvp_matrix, get_projection_matrix, get_ray_directions, get_rays, l2norm_np
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.utils.base import Updateable
+from mindone.models.threestudio.utils.config import parse_structured
+from mindone.models.threestudio.utils.ops import (
+    get_mvp_matrix,
+    get_projection_matrix,
+    get_ray_directions,
+    get_rays,
+    l2norm_np,
+)
 
 
 @dataclass
@@ -206,7 +212,7 @@ class RandomCameraDataset:
         return batch
 
 
-@register("random-camera-datamodule")
+@threestudio.register("random-camera-datamodule")
 class RandomCameraDataModule:
     cfg: RandomCameraDataModuleConfig
 

@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Dict, Optional, Tuple
 
-import threestudio
-from threestudio.models.renderers.base import Renderer
-
 import mindspore as ms
 import mindspore.nn as nn
 from mindspore import Tensor, mint, ops
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.renderers.base import Renderer
 
 from . import math_utils
 from .ray_marcher import MipRayMarcher2, RayOpts
@@ -83,7 +83,7 @@ class NeRFVolumeRenderer(Renderer):
 
             # smooth weights
             weights = self.max_pool1d_layer(weights.unsqueeze(1))
-            weights = self.avg_pool1d_layer(weights).squeeze()
+            weights = mint.squeeze(self.avg_pool1d_layer(weights), dim=1)
             weights = weights + 0.01
 
             z_vals_mid = 0.5 * (z_vals[:, :-1] + z_vals[:, 1:])

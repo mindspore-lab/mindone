@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-from threestudio.utils.base import BaseModule
-
 from mindspore import Tensor
+
+from mindone.models.threestudio.utils.base import BaseModule
 
 
 class BaseBackground(BaseModule):

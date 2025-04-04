@@ -32,7 +32,7 @@ train:
       frames: 5                       # to accomodate training with obj-rendering dataset
 
   dataloader:
-    batch_size: 1
+    batch_size: 5
     num_workers: 4
     shuffle: False
     drop_remainder: True

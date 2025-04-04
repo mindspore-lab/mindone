@@ -262,7 +262,7 @@ class ImportanceRenderer(nn.Cell):
 
             # smooth weights
             weights = self.max_pool1d_layer(weights.unsqueeze(1))
-            weights = self.avg_pool1d_layer(weights).squeeze()
+            weights = mint.squeeze(self.avg_pool1d_layer(weights), 1)  # for <ms2.5 use tensor squeeze
             weights = weights + 0.01
 
             z_vals_mid = 0.5 * (z_vals[:, :-1] + z_vals[:, 1:])

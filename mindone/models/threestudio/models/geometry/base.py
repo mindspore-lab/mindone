@@ -1,15 +1,20 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
 
-import threestudio
 from omegaconf import DictConfig
-from threestudio.models.isosurface import IsosurfaceHelper, MarchingCubeCPUHelper, MarchingTetrahedraHelper
-from threestudio.models.mesh import Mesh
-from threestudio.utils.base import BaseModule
-from threestudio.utils.ops import chunk_batch, scale_tensor
 
 import mindspore as ms
 from mindspore import Tensor, mint
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.isosurface import (
+    IsosurfaceHelper,
+    MarchingCubeCPUHelper,
+    MarchingTetrahedraHelper,
+)
+from mindone.models.threestudio.models.mesh import Mesh
+from mindone.models.threestudio.utils.base import BaseModule
+from mindone.models.threestudio.utils.ops import chunk_batch, scale_tensor
 
 
 def contract_to_unisphere(x: Tensor, bbox: Tensor, unbounded: bool = False) -> Tensor:

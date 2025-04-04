@@ -1,10 +1,13 @@
 # reference to https://github.com/Stability-AI/generative-models
 # for modular debugging only
+import os
 import sys
 from typing import Dict, List, Optional, Tuple, Union
 
-sys.path.append("/mnt/disk4/fredhong/mindone_master/examples/sv3d/")
-sys.path.append("/mnt/disk4/fredhong/mindone_master/")
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sv3d_path = os.path.abspath(os.path.join(__dir__, "../../.."))
+sys.path.append(sv3d_path)
+
 import numpy as np
 from omegaconf import ListConfig, OmegaConf
 from sgm.modules.diffusionmodules.openaimodel import Timestep

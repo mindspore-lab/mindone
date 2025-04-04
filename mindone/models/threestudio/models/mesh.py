@@ -3,10 +3,11 @@ from __future__ import annotations
 from typing import Any, Dict, Optional, Union
 
 import numpy as np
-import threestudio
-from threestudio.utils.ops import dot
 
 from mindspore import Tensor, mint, ops
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.utils.ops import dot
 
 
 class Mesh:

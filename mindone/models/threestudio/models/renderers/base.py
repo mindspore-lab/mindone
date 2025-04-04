@@ -50,7 +50,7 @@ class Renderer(nn.Cell):
             )
             del prev_geometry
         else:
-            self.geometry = threestudio.find(self.cfg.geometry_type)(self.cfg.geometry)
+            self.geometry = threestudio.find(cfg.geometry_type)(cfg.geometry)
         self.cfg = self.Config(**cfg.renderer)
 
         # set up bounding box
