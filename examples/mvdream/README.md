@@ -94,8 +94,8 @@ Experiments are tested on Ascend 910* with mindspore 2.4.1 pynative mode.
 #### ms 2.5.0
 | # samples per ray  | renderer resolution | guidance batch size | speed (step/second) |
 |:---:|:---:|:---:|:---:|
-| 64 |64x64   | 8 |  |
-| 64 |256x256 | 4 |  |
+| 64 |64x64   | 8 | 0.574 |
+| 64 |256x256 | 4 | 0.310 |
 
 
 #### ms 2.4.1

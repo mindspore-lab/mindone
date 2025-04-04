@@ -24,7 +24,8 @@ pip install -r requirements.txt
 
 | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
 | :---:     | :---:    | :---:      | :---: |
-| 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
+| 2.5.0     | 24.1.RC2 | 7.3.0.1.231	| 8.0.RC3.beta1 |
+| 2.4.0	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
 You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/blob/main/sv3d_u.safetensors) with [our mindone script under svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd/svd_tools/convert.py).
@@ -125,7 +126,7 @@ python train.py \
 
 ## Perfromance
 
-Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend 910* with mindspore 2.4.0 graph mode.
 
 ### Training
 | model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |steps/s | frame/s |
