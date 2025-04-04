@@ -154,7 +154,9 @@ class MultiviewDiffusionGuidance(BaseModule):
                     latents_recon_reshape.std((1, 2, 3, 4), keepdims=True) + 1e-8
                 )
 
-                latents_recon_adjust = latents_recon * factor.squeeze(1).repeat_interleave(self.cfg.n_view, dim=0)
+                latents_recon_adjust = latents_recon * mint.squeeze(factor, dim=1).repeat_interleave(
+                    self.cfg.n_view, dim=0
+                )
                 latents_recon = (
                     self.cfg.recon_std_rescale * latents_recon_adjust + (1 - self.cfg.recon_std_rescale) * latents_recon
                 )

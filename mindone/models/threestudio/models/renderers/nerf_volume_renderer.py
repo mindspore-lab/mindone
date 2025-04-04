@@ -83,7 +83,7 @@ class NeRFVolumeRenderer(Renderer):
 
             # smooth weights
             weights = self.max_pool1d_layer(weights.unsqueeze(1))
-            weights = self.avg_pool1d_layer(weights).squeeze()
+            weights = mint.squeeze(self.avg_pool1d_layer(weights), dim=1)
             weights = weights + 0.01
 
             z_vals_mid = 0.5 * (z_vals[:, :-1] + z_vals[:, 1:])

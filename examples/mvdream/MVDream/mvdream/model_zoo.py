@@ -3,10 +3,11 @@ import os
 
 import pkg_resources
 from huggingface_hub import hf_hub_download
-from mvdream.ldm.util import instantiate_from_config
 from omegaconf import OmegaConf
 
 import mindspore as ms
+
+from .ldm.util import instantiate_from_config
 
 PRETRAINED_MODELS = {
     "sd-v2.1-base-4view": {

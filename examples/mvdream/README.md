@@ -17,6 +17,7 @@ pip install -r requirements.txt
 ```
 | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
 | :---:     | :---:    | :---:      | :---: |
+| 2.5.0     | 24.1.RC2 | 7.3.0.1.231	| 8.0.RC3.beta1 |
 | 2.4.1	    | 24.1.RC2 | 7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Inference
@@ -90,6 +91,14 @@ These videos are rendered from the trained 3D implicit field in our MVDream mode
 Experiments are tested on Ascend 910* with mindspore 2.4.1 pynative mode.
 
 ### Training
+#### ms 2.5.0
+| # samples per ray  | renderer resolution | guidance batch size | speed (step/second) |
+|:---:|:---:|:---:|:---:|
+| 64 |64x64   | 8 |  |
+| 64 |256x256 | 4 |  |
+
+
+#### ms 2.4.1
 | # samples per ray  | renderer resolution | guidance batch size | speed (step/second) |
 |:---:|:---:|:---:|:---:|
 | 64 |64x64 | 8 | 0.857 |
