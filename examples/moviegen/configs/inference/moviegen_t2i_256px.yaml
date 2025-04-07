@@ -1,6 +1,6 @@
 env:
   mode: 0
-  jit_level: O0
+  jit_level: O1
   seed: 42
   distributed: False
   debug: False
@@ -9,6 +9,7 @@ model:
   name: llama-5B
   pretrained_model_path:
   enable_flash_attention: True
+  max_length: [ 1, 24, 24 ]
   dtype: bf16
 
 tae:

@@ -15,13 +15,17 @@ Currently, we support
 
 ## Environment
 
-The script work on Ascend 910* with CANN 7.3.0 and [MindSpore 2.3.1](https://www.mindspore.cn/versions).
+| mindspore | ascend driver |  firmware   | cann toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |    24.1.0     | 7.5.0.3.220 |     8.0.0.beta1     |
+|   2.3.1   |   24.1.RC2    | 7.3.0.1.231 |    8.0.RC2.beta1    |
+
 
 Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
 
 ```bash
 cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
-# see a version number as [7.3.0.1.231:8.0.RC2]
+# see a version number like [7.3.0.1.231:8.0.RC2]
 
 python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
 # MindSpore version: 2.3.1

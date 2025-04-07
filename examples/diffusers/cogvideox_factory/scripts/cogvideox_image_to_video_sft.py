@@ -662,10 +662,12 @@ class TrainStepForCogVideo(nn.Cell):
         if self.enable_sequence_parallelism:
             from cogvideox.acceleration import get_sequence_parallel_group
 
-            from mindspore.communication import get_rank
+            from mindspore.communication import get_group_size, get_rank
 
             self.sp_group = get_sequence_parallel_group()
+            self.global_rank = get_rank()
             self.sp_rank = get_rank(self.sp_group)
+            self.sp_group_size = get_group_size(self.sp_group)
 
     def compute_prompt_embeddings(
         self,
@@ -696,7 +698,8 @@ class TrainStepForCogVideo(nn.Cell):
     def _broadcast_out(self, x):
         x = x.contiguous()
         if self.enable_sequence_parallelism:
-            mint.distributed.broadcast(tensor=x, src=0, group=self.sp_group)
+            src_global_rank = self.global_rank // self.sp_group_size * self.sp_group_size
+            mint.distributed.broadcast(tensor=x, src=src_global_rank, group=self.sp_group)
         return x
 
     def prepare_transformer_inputs(self, images, videos, text_input_ids_or_prompt_embeds, image_rotary_emb=None):
