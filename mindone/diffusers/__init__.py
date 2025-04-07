@@ -86,6 +86,9 @@ _import_structure = {
     ],
     "pipelines": [
         "AllegroPipeline",
+        "AmusedImg2ImgPipeline",
+        "AmusedInpaintPipeline",
+        "AmusedPipeline",
         "AnimateDiffControlNetPipeline",
         "AnimateDiffPAGPipeline",
         "AnimateDiffPipeline",
@@ -162,6 +165,8 @@ _import_structure = {
         "LattePipeline",
         "LDMSuperResolutionPipeline",
         "LDMTextToImagePipeline",
+        "LEditsPPPipelineStableDiffusion",
+        "LEditsPPPipelineStableDiffusionXL",
         "LTXImageToVideoPipeline",
         "LTXPipeline",
         "LuminaText2ImgPipeline",
@@ -234,6 +239,7 @@ _import_structure = {
         "WuerstchenPriorPipeline",
     ],
     "schedulers": [
+        "AmusedScheduler",
         "ConsistencyDecoderScheduler",
         "CosineDPMSolverMultistepScheduler",
         "CMStochasticIterativeScheduler",
@@ -350,6 +356,9 @@ if TYPE_CHECKING:
     )
     from .pipelines import (
         AllegroPipeline,
+        AmusedImg2ImgPipeline,
+        AmusedInpaintPipeline,
+        AmusedPipeline,
         AnimateDiffControlNetPipeline,
         AnimateDiffPAGPipeline,
         AnimateDiffPipeline,
@@ -425,6 +434,8 @@ if TYPE_CHECKING:
         LattePipeline,
         LDMSuperResolutionPipeline,
         LDMTextToImagePipeline,
+        LEditsPPPipelineStableDiffusion,
+        LEditsPPPipelineStableDiffusionXL,
         LTXImageToVideoPipeline,
         LTXPipeline,
         LuminaText2ImgPipeline,
@@ -497,6 +508,7 @@ if TYPE_CHECKING:
         WuerstchenPriorPipeline,
     )
     from .schedulers import (
+        AmusedScheduler,
         CMStochasticIterativeScheduler,
         CogVideoXDDIMScheduler,
         CogVideoXDPMScheduler,
