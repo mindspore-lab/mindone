@@ -13,4 +13,6 @@ xatlas
 ninja
 gradio
 open3d
+PyMCubes
+typeguard
 # pyglet<2 # if do rendering locally

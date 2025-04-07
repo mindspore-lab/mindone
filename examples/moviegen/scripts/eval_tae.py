@@ -27,7 +27,7 @@ from mg.dataset.tae_dataset import VideoDataset
 from mg.models.tae import TemporalAutoencoder
 
 from mindone.data import create_dataloader
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 
 # from mg.models.tae.lpips import LPIPS
 
@@ -89,8 +89,7 @@ def rearrange_out(x, t):
 
 def main(args):
     # set env
-    # TODO: rename as train and infer are identical?
-    _, rank_id, device_num = init_train_env(mode=args.mode, ascend_config={"precision_mode": "must_keep_origin_dtype"})
+    _, rank_id, device_num = init_env(mode=args.mode, precision_mode="must_keep_origin_dtype")
     set_logger(name="", output_dir=args.output_path, rank=rank_id)
 
     # build model
@@ -109,13 +108,12 @@ def main(args):
     dataset = VideoDataset(
         csv_path=args.csv_path,
         folder=args.folder,
-        size=args.image_size,
-        crop_size=args.image_size,
+        size=args.size,
         sample_n_frames=args.sample_n_frames,
         sample_stride=args.sample_stride,
         video_column=args.video_column,
         random_crop=False,
-        flip=False,
+        random_flip=False,
         output_columns=["video"],
     )
     dataset = create_dataloader(
@@ -209,9 +207,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_function_arguments(
-        init_train_env, skip={"ascend_config", "num_workers", "json_data_path", "enable_modelarts"}
-    )
+    parser.add_function_arguments(init_env)
     parser.add_class_arguments(TemporalAutoencoder, instantiate=False)
     parser.add_class_arguments(VideoDataset, skip={"output_columns"}, instantiate=False)
     parser.add_function_arguments(

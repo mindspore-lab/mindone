@@ -14,12 +14,12 @@ from tqdm import tqdm
 
 import mindspore as ms
 from mindspore.dataset.transforms import Compose
-from mindspore.dataset.vision import CenterCrop, Inter, Normalize
+from mindspore.dataset.vision import CenterCrop, Inter
 
 from mindone.data.video_reader import VideoReader as VideoReader_CV2
 
 from .bucket import Bucket
-from .transforms import BucketResizeAndCrop, BucketResizeCrop, Resize, ResizeAndCrop
+from .transforms import BucketResizeAndCrop, BucketResizeCrop, Resize, ResizeAndCrop, ResizeCrop
 
 # FIXME: remove in future when mindone is ready for install
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
@@ -31,13 +31,11 @@ from ..models.layers.rotary_embedding import precompute_freqs_cis
 _logger = logging.getLogger(__name__)
 
 
-def create_infer_transforms(target_size: Tuple[int, int], interpolation=Inter.BILINEAR):
+def create_infer_transforms(target_size: Tuple[int, int], interpolation=cv2.INTER_LINEAR):
     return Compose(
         [
-            Resize(target_size, interpolation=interpolation),
-            CenterCrop(target_size),
-            lambda x: (x / 255.0).astype(np.float32),  # ms.ToTensor() doesn't support 4D data
-            Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            ResizeCrop(target_size, interpolation=interpolation),
+            lambda x: x.astype(np.float32) / 127.5 - 1,
             lambda x: x[None, ...] if x.ndim == 3 else x,  # if image
             lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
         ]

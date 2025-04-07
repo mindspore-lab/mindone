@@ -15,7 +15,8 @@ from mindspore.communication import GlobalComm
 from mindspore.nn.utils import no_init_parameters
 
 from mindone.trainers.zero import prepare_network
-from mindone.transformers import Qwen2_5_VLForConditionalGeneration, Qwen2ForCausalLM
+from mindone.transformers.models.qwen2 import Qwen2ForCausalLM
+from mindone.transformers.models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration
 from mindone.transformers.models.qwen2_vl.qwen_vl_utils import process_vision_info
 
 # fmt: off

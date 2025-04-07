@@ -22,7 +22,7 @@ sys.path.append(os.path.join(__dir__, ".."))
 from mg.utils import MODEL_DTYPE, to_numpy
 
 from mindone.transformers.models.t5.modeling_t5 import T5EncoderModel
-from mindone.utils import init_train_env, set_logger
+from mindone.utils import init_env, set_logger
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def main(args):
     os.makedirs(save_dir, exist_ok=True)
     set_logger(name="", output_dir=save_dir)
 
-    _, rank_id, device_num = init_train_env(**args.env)  # TODO: rename as train and infer are identical?
+    _, rank_id, device_num = init_env(**args.env)
 
     paths, captions = prepare_captions(args.prompts_file, args.output_path, args.column_names, rank_id, device_num)
 
@@ -105,7 +105,7 @@ def main(args):
         tokens = inputs.input_ids
         masks = inputs.attention_mask
         output = model(ms.Tensor(inputs.input_ids, dtype=ms.int32), ms.Tensor(inputs.attention_mask, dtype=ms.uint8))[0]
-        output = to_numpy(output).astype(np.float32)
+        output = to_numpy(output)
 
         for j in range(len(output)):
             paths[i + j].parent.mkdir(parents=True, exist_ok=True)
@@ -117,13 +117,13 @@ def main(args):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Text embeddings generation script.")
-    parser.add_function_arguments(init_train_env, "env")
+    parser.add_function_arguments(init_env, "env")
     parser.add_argument("--model_name", type=str, default="google/byt5-small", help="Text encoder model name.")
     parser.add_argument(
         "--dtype", default="fp32", type=str, choices=["fp32", "fp16", "bf16"], help="Text encoder model precision."
     )
     parser.add_function_arguments(prepare_captions, as_group=False, skip={"rank_id", "device_num"})
     parser.add_argument("--batch_size", default=10, type=int, help="Inference batch size.")
-    parser.add_argument("--model_max_length", type=int, default=300, help="Model's embedded sequence length.")
+    parser.add_argument("--model_max_length", type=int, required=True, help="Model's embedded sequence length.")
     cfg = parser.parse_args()
     main(cfg)

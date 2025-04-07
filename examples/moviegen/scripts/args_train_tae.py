@@ -14,7 +14,7 @@ from mg.dataset.tae_dataset import BatchTransform, VideoDataset
 from mg.models.tae import TemporalAutoencoder
 
 from mindone.data import create_dataloader
-from mindone.utils import init_train_env
+from mindone.utils import init_env
 from mindone.utils.misc import to_abspath
 
 logger = logging.getLogger()
@@ -27,9 +27,7 @@ def parse_train_args():
         action=ActionConfigFile,
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
-    parser.add_function_arguments(
-        init_train_env, skip={"ascend_config", "num_workers", "json_data_path", "enable_modelarts"}
-    )
+    parser.add_function_arguments(init_env)
     parser.add_class_arguments(TemporalAutoencoder, instantiate=False)
     parser.add_class_arguments(VideoDataset, skip={"output_columns"}, instantiate=False)
     parser.add_class_arguments(BatchTransform, instantiate=False)

@@ -20,3 +20,4 @@ beautifulsoup4
 # for T5 tokenizer
 tiktoken
 sentencepiece
+jsonargparse[signatures,omegaconf,urls]~=4.37.0

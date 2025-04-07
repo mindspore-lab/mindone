@@ -74,7 +74,9 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| VAR-d16 |  1               | 96               | 256x256  | ON | fp16 | / | / |  1.70 | 56.47 |
 | VAR-d16 |  2               | 32               | 256x256  | ON | fp16 | / | / |  0.71 | 90.14 |
+| VAR-d16 |  2               | 96               | 256x256  | ON | fp16 | / | / |  1.75 | 109.71 |
 
 
 ## Inference
