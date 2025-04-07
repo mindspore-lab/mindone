@@ -15,7 +15,6 @@
 
 
 import mindspore as ms
-from mindspore import nn, mint
 import numpy as np
 
 from pathlib import Path

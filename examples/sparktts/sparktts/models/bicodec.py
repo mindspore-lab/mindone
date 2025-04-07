@@ -17,8 +17,7 @@ import mindspore as ms
 from mindspore import nn, mint
 from pathlib import Path
 from typing import Dict, Any
-from omegaconf import DictConfig
-# from safetensors.torch import load_file
+
 from mindone.diffusers.models.model_loading_utils import load_state_dict
 from mindone.diffusers.models.modeling_utils import _convert_state_dict
 

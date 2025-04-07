@@ -21,7 +21,7 @@ from typing import Any, Dict
 import mindspore as ms
 from mindspore import nn, mint
 import mindspore.mint.nn.functional as F
-from einops import rearrange
+
 from mindone.utils import WeightNorm
 
 

@@ -22,8 +22,6 @@ from mindspore import nn, mint, Parameter
 import mindspore.mint.nn.functional as F
 from mindspore.common.initializer import Normal, initializer
 
-from packaging import version
-
 
 
 def exists(val):
@@ -76,42 +74,6 @@ class Attend(nn.Cell):
         self.mask = mask
         return mask
 
-    # def flash_attn(self, q, k, v, mask=None):
-    #     _, heads, q_len, _, k_len, is_cuda = *q.shape, k.shape[-2], q.is_cuda
-
-    #     # Recommended for multi-query single-key-value attention by Tri Dao
-    #     # kv shape ms.Size([1, 512, 64]) -> ms.Size([1, 8, 512, 64])
-
-    #     if k.ndim == 3:
-    #         k = rearrange(k, "b ... -> b 1 ...").expand_as(q)
-
-    #     if v.ndim == 3:
-    #         v = rearrange(v, "b ... -> b 1 ...").expand_as(q)
-
-    #     # Check if mask exists and expand to compatible shape
-    #     # The mask is B L, so it would have to be expanded to B H N L
-
-    #     if exists(mask):
-    #         mask = rearrange(mask, "b j -> b 1 1 j")
-    #         mask = mask.expand(-1, heads, q_len, -1)
-
-    #     # Check if there is a compatible device for flash attention
-
-    #     config = self.cuda_config if is_cuda else self.cpu_config
-
-    #     # pytorch 2.0 flash attn: q, k, v, mask, dropout, causal, softmax_scale
-
-    #     with torch.backends.cuda.sdp_kernel(**config._asdict()):
-    #         out = F.scaled_dot_product_attention(
-    #             q,
-    #             k,
-    #             v,
-    #             attn_mask=mask,
-    #             dropout_p=self.dropout if self.training else 0.0,
-    #             is_causal=self.causal,
-    #         )
-
-        return out
 
     def construct(self, q, k, v, mask=None):
         """
@@ -125,9 +87,6 @@ class Attend(nn.Cell):
         n = q.shape[-2]
 
         scale = q.shape[-1] ** -0.5
-
-        # if self.use_flash:
-        #     return self.flash_attn(q, k, v, mask=mask)
 
         kv_einsum_eq = "b j d" if k.ndim == 3 else "b h j d"
 
@@ -222,9 +181,9 @@ def FeedForward(dim, mult=4, causal_conv=False):
     conv = None
     if causal_conv:
         conv = nn.SequentialCell(
-            Rearrange("b n d -> b d n"),
+            lambda t: mint.permute(t, (0, 2, 1)),
             CausalConv1d(dim_inner, dim_inner, 3),
-            Rearrange("b d n -> b n d"),
+            lambda t: mint.permute(t, (0, 2, 1)),
         )
 
     return Sequential(

@@ -11,8 +11,6 @@ from typing import List, Tuple
 import mindspore as ms
 from mindspore import nn, mint
 
-#from torch.amp import autocast
-
 from einops import pack, unpack
 
 # helper functions
@@ -210,15 +208,8 @@ class FSQ(nn.Cell):
 
         # whether to force quantization step to be full precision or not
 
-        # force_f32 = self.force_quantization_f32
-        # quantization_context = (
-        #     partial(autocast, "cuda", enabled=False) if force_f32 else nullcontext
-        # )
-
-        # with quantization_context():
         orig_dtype = z.dtype
 
-        #if force_f32 and orig_dtype not in self.allowed_dtypes:
         z = z.float()
 
         codes = self.quantize(z)

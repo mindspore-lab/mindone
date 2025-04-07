@@ -6,10 +6,6 @@ from typing import Tuple
 from pathlib import Path
 from transformers import AutoTokenizer
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
-sys.path.insert(0, mindone_lib_path)
-
 from mindone.transformers import AutoModelForCausalLM
 from sparktts.utils.file import load_config
 from sparktts.models.audio_tokenizer import BiCodecTokenizer
