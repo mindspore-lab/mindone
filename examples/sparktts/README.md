@@ -8,6 +8,7 @@
     </p>
     <p>
     <img src="src/logo/SparkTTS.jpg" alt="Spark-TTS Logo" style="width: 200px; height: 200px;">
+</div>
 
 ## Spark-TTS 🔥
 

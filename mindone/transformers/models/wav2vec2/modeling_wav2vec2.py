@@ -49,8 +49,7 @@ from transformers.utils import (
 WAV2VEC2_ADAPTER_PT_FILE = "adapter.{}.bin"
 WAV2VEC2_ADAPTER_SAFE_FILE = "adapter.{}.safetensors"
 
-if is_safetensors_available():
-    from safetensors.torch import load_file as safe_load_file
+from ....safetensors.mindspore import load_file as safe_load_file
 
 
 logger = logging.get_logger(__name__)
@@ -1301,7 +1300,7 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
         Examples:
 
         ```python
-        >>> from transformers import Wav2Vec2ForCTC, AutoProcessor
+        >>> from mindone.transformers import Wav2Vec2ForCTC, AutoProcessor
 
         >>> ckpt = "facebook/mms-1b-all"
         >>> processor = AutoProcessor.from_pretrained(ckpt)
@@ -1661,8 +1660,7 @@ class Wav2Vec2ForPreTraining(Wav2Vec2PreTrainedModel):
         Example:
 
         ```python
-        >>> import torch
-        >>> from transformers import AutoFeatureExtractor, Wav2Vec2ForPreTraining
+        >>> from mindone.transformers import AutoFeatureExtractor, Wav2Vec2ForPreTraining
         >>> from transformers.models.wav2vec2.modeling_wav2vec2 import _compute_mask_indices, _sample_negative_indices
         >>> from datasets import load_dataset
 
