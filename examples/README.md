@@ -37,4 +37,4 @@
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/Latte |
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)      | ali vilab official | https://github.com/ali-vilab/videocomposer
 | [animatediff](https://github.com/mindspore-lab/mindone/tree/master/examples/animatediff) | Yuwei Guo official | https://github.com/guoyww/animatediff/
-| [qwen2-vl](https://github.com/mindspore-lab/mindone/tree/master/examples/qwen2_vl) | HF transformers official | https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct | 
+| [qwen2-vl](https://github.com/mindspore-lab/mindone/tree/master/examples/qwen2_vl) | HF transformers official | https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct |
