@@ -150,9 +150,9 @@ class Phi3LongRoPEScaledRotaryEmbedding(Phi3RotaryEmbedding):
             ext_factors = ms.Tensor(self.short_factor, dtype=ms.float32)
 
         inv_freq_shape = ops.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim
-        self.inv_freq = 1.0 / (ext_factors * self.base**inv_freq_shape)
+        inv_freq = 1.0 / (ext_factors * self.base**inv_freq_shape)
 
-        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
+        inv_freq_expanded = inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         # Force float32 since bfloat16 loses precision on long contexts
@@ -757,6 +757,25 @@ class Phi3Model(Phi3PreTrainedModel):
         )
 
         return causal_mask
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        if gradient_checkpointing_kwargs is None:
+            # gradient_checkpointing_kwargs = {"mp_comm_recompute": True, "parallel_optimizer_comm_recompute": True}
+            gradient_checkpointing_kwargs = {}
+
+        # llama layers
+        for decoder_layer in self.layers:
+            assert isinstance(decoder_layer, Phi3DecoderLayer)
+            for name, cell in decoder_layer.name_cells().items():
+                if "output_identity" in name:
+                    assert isinstance(cell, nn.Identity)
+                    pass
+                else:
+                    cell.recompute(**gradient_checkpointing_kwargs)
+        self.embed_tokens.recompute(**gradient_checkpointing_kwargs)
+        self.norm.recompute(**gradient_checkpointing_kwargs)
+
+        logger.info(f"{self.__class__.__name__}: enable recompute.")
 
 
 class Phi3ForCausalLM(Phi3PreTrainedModel):
