@@ -19,8 +19,8 @@
 from typing import Any, Dict
 
 import mindspore as ms
-from mindspore import nn, mint
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 from mindone.utils import WeightNorm
 
@@ -108,23 +108,15 @@ class FactorizedVectorQuantize(nn.Cell):
             active_num = sum(self.cluster_size > self.threshold_ema_dead_code)
 
         if self.training:
-            commit_loss = (
-                F.mse_loss(z_e, z_q, reduction="none").mean([1, 2])
-                * self.commitment
-            )
+            commit_loss = F.mse_loss(z_e, z_q, reduction="none").mean([1, 2]) * self.commitment
 
-            codebook_loss = (
-                F.mse_loss(z_q, z_e, reduction="none").mean([1, 2])
-                * self.codebook_loss_weight
-            )
+            codebook_loss = F.mse_loss(z_q, z_e, reduction="none").mean([1, 2]) * self.codebook_loss_weight
 
         else:
             commit_loss = mint.zeros(0)
             codebook_loss = mint.zeros(0)
 
-        z_q = (
-            z_e + (z_q - z_e)
-        )  # noop in forward pass, straight-through gradient estimator in backward pass
+        z_q = z_e + (z_q - z_e)  # noop in forward pass, straight-through gradient estimator in backward pass
 
         z_q = self.out_project(z_q)
 
@@ -169,7 +161,7 @@ class FactorizedVectorQuantize(nn.Cell):
     def decode_latents(self, latents):
         b, d, t = latents.shape
         encodings = latents.permute(0, 2, 1).reshape(b * t, d)
-        #encodings = rearrange(latents, "b d t -> (b t) d")
+        # encodings = rearrange(latents, "b d t -> (b t) d")
         codebook = self.codebook.embedding_table
 
         # L2 normalize encodings and codebook
@@ -185,7 +177,7 @@ class FactorizedVectorQuantize(nn.Cell):
         )
         b = latents.shape[0]
         indices = (-dist).max(1)[1].reshape(b, -1)
-        #indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))
+        # indices = rearrange((-dist).max(1)[1], "(b t) -> b t", b=latents.size(0))
         z_q = self.decode_code(indices)
 
         return z_q, indices, dist

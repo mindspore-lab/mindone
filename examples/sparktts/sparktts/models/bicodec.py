@@ -13,20 +13,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mindspore as ms
-from mindspore import nn, mint
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+from sparktts.modules.encoder_decoder.feat_decoder import Decoder
+from sparktts.modules.encoder_decoder.feat_encoder import Encoder
+from sparktts.modules.encoder_decoder.wave_generator import WaveGenerator
+from sparktts.modules.speaker.speaker_encoder import SpeakerEncoder
+from sparktts.modules.vq.factorized_vector_quantize import FactorizedVectorQuantize
+from sparktts.utils.file import load_config
+
+import mindspore as ms
+from mindspore import mint, nn
 
 from mindone.diffusers.models.model_loading_utils import load_state_dict
 from mindone.diffusers.models.modeling_utils import _convert_state_dict
-
-from sparktts.utils.file import load_config
-from sparktts.modules.speaker.speaker_encoder import SpeakerEncoder
-from sparktts.modules.encoder_decoder.feat_encoder import Encoder
-from sparktts.modules.encoder_decoder.feat_decoder import Decoder
-from sparktts.modules.encoder_decoder.wave_generator import WaveGenerator
-from sparktts.modules.vq.factorized_vector_quantize import FactorizedVectorQuantize
 
 
 class BiCodec(nn.Cell):
@@ -44,7 +45,7 @@ class BiCodec(nn.Cell):
         speaker_encoder: nn.Cell,
         prenet: nn.Cell,
         postnet: nn.Cell,
-        **kwargs
+        **kwargs,
     ) -> None:
         """
         Initializes the BiCodec model with the required components.
@@ -74,12 +75,12 @@ class BiCodec(nn.Cell):
 
         Args:
             model_dir (Path): Path to the model directory containing checkpoint and config.
-        
+
         Returns:
             BiCodec: The initialized BiCodec model.
         """
-        ckpt_path = f'{model_dir}/model.safetensors'
-        config = load_config(f'{model_dir}/config.yaml')['audio_tokenizer']
+        ckpt_path = f"{model_dir}/model.safetensors"
+        config = load_config(f"{model_dir}/config.yaml")["audio_tokenizer"]
         mel_params = config["mel_params"]
         encoder = Encoder(**config["encoder"])
         quantizer = FactorizedVectorQuantize(**config["quantizer"])
@@ -118,7 +119,7 @@ class BiCodec(nn.Cell):
 
         Args:
             batch (dict): A dictionary containing features, reference waveform, and target waveform.
-        
+
         Returns:
             dict: A dictionary containing the reconstruction, features, and other metrics.
         """
@@ -213,7 +214,6 @@ class BiCodec(nn.Cell):
 
 # Test the model
 if __name__ == "__main__":
-
     config = load_config("pretrained_models/SparkTTS-0.5B/BiCodec/config.yaml")
     model = BiCodec.load_from_checkpoint(
         model_dir="pretrained_models/SparkTTS-0.5B/BiCodec",

@@ -20,15 +20,14 @@ Description:
 """
 
 
-import os
-import json
-import json
 import csv
-
-from tqdm import tqdm
-from typing import List, Dict, Any, Set, Union
+import json
+import os
 from pathlib import Path
-from omegaconf import OmegaConf, DictConfig
+from typing import Any, Dict, List
+
+from omegaconf import DictConfig, OmegaConf
+from tqdm import tqdm
 
 
 def resolve_symbolic_link(symbolic_link_path: Path) -> Path:
@@ -91,16 +90,16 @@ def read_jsonl(file_path: Path) -> List[dict]:
     # Return the list of metadata
     return metadata
 
+
 def read_json_as_jsonl(file_path: Path) -> List[dict]:
     metadata = []
-    with open(file_path, 'r', encoding='utf-8') as infile:
-        data = json.load(infile) 
+    with open(file_path, "r", encoding="utf-8") as infile:
+        data = json.load(infile)
     for k in sorted(data.keys()):
-        meta = {'index': k}
+        meta = {"index": k}
         meta.update(data[k])
         metadata.append(meta)
     return metadata
-
 
 
 def decode_unicode_strings(meta: Dict[str, Any]) -> Dict[str, Any]:
@@ -130,46 +129,45 @@ def load_config(config_path: Path) -> DictConfig:
     return config
 
 
-
 def jsonl_to_csv(jsonl_file_path: str, csv_file_path: str) -> None:
     """
     Converts a JSONL file to a CSV file.
-    
+
     This function reads a JSONL file, determines all unique keys present in the file,
     and writes the data to a CSV file with columns for all these keys.
     """
-    
+
     all_keys = set()
     data_rows = []
-    
+
     # Read the JSONL file once to extract keys and collect data
-    with open(jsonl_file_path, 'r') as file:
+    with open(jsonl_file_path, "r") as file:
         for line in file:
             data = json.loads(line.strip())
             data_rows.append(data)
             all_keys.update(data.keys())
-    
+
     # Convert the set of keys to a sorted list for consistent column order
     sorted_keys = sorted(all_keys)
-    
+
     # Write the data to a CSV file
-    with open(csv_file_path, 'w', newline='') as csvfile:
+    with open(csv_file_path, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=sorted_keys)
-        
+
         # Write the header row
         writer.writeheader()
-        
+
         # Write each row of data
         for data in data_rows:
             writer.writerow(data)
-    
+
     print(f"CSV file has been created at {csv_file_path}")
 
 
 def save_metadata(data, filename, headers=None):
     """
     Save metadata to a file.
-    
+
     Args:
         data (list of dict): Metadata to be saved.
         filename (str): Name of the file to save the metadata.
@@ -178,7 +176,7 @@ def save_metadata(data, filename, headers=None):
     # Set headers to keys from the first dictionary in data if not explicitly provided
     if headers is None:
         headers = list(data[0].keys())
-    
+
     with open(filename, "w", encoding="utf-8") as file:
         # Write the headers to the file
         file.write("|".join(headers) + "\n")
@@ -192,10 +190,10 @@ def save_metadata(data, filename, headers=None):
 def read_metadata(filename, headers=None):
     """
     Read metadata from a file.
-    
+
     Args:
         filename (str): The file from which to read the metadata.
-    
+
     Returns:
         list of dict: The metadata read from the file.
         list of str: The headers used in the file.
@@ -217,5 +215,5 @@ def read_metadata(filename, headers=None):
         # Split the line by '|' and pair with headers to form a dictionary
         entry_data = dict(zip(headers, line.split("|")))
         data.append(entry_data)
-    
+
     return data, headers

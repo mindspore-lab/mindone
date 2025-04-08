@@ -14,16 +14,17 @@
 # limitations under the License.
 
 
-import mindspore as ms
-import numpy as np
-
 from pathlib import Path
 from typing import Any, Dict, Tuple
-from mindone.transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 
-from sparktts.utils.file import load_config
-from sparktts.utils.audio import load_audio
+import numpy as np
 from sparktts.models.bicodec import BiCodec
+from sparktts.utils.audio import load_audio
+from sparktts.utils.file import load_config
+
+import mindspore as ms
+
+from mindone.transformers import Wav2Vec2FeatureExtractor, Wav2Vec2Model
 
 
 class BiCodecTokenizer:
@@ -42,12 +43,8 @@ class BiCodecTokenizer:
     def _initialize_model(self):
         """Load and initialize the BiCodec model and Wav2Vec2 feature extractor."""
         self.model = BiCodec.load_from_checkpoint(f"{self.model_dir}/BiCodec")
-        self.processor = Wav2Vec2FeatureExtractor.from_pretrained(
-            f"{self.model_dir}/wav2vec2-large-xlsr-53"
-        )
-        self.feature_extractor = Wav2Vec2Model.from_pretrained(
-            f"{self.model_dir}/wav2vec2-large-xlsr-53"
-        )
+        self.processor = Wav2Vec2FeatureExtractor.from_pretrained(f"{self.model_dir}/wav2vec2-large-xlsr-53")
+        self.feature_extractor = Wav2Vec2Model.from_pretrained(f"{self.model_dir}/wav2vec2-large-xlsr-53")
         self.feature_extractor.config.output_hidden_states = True
 
     def get_ref_clip(self, wav: np.ndarray) -> np.ndarray:
@@ -88,9 +85,7 @@ class BiCodecTokenizer:
             output_hidden_states=True,
         ).input_values
         feat = self.feature_extractor(ms.tensor(inputs))
-        feats_mix = (
-            feat.hidden_states[11] + feat.hidden_states[14] + feat.hidden_states[16]
-        ) / 3
+        feats_mix = (feat.hidden_states[11] + feat.hidden_states[14] + feat.hidden_states[16]) / 3
 
         return feats_mix
 
@@ -125,9 +120,7 @@ class BiCodecTokenizer:
 
         return global_tokens, semantic_tokens
 
-    def detokenize(
-        self, global_tokens: ms.tensor, semantic_tokens: ms.tensor
-    ) -> np.array:
+    def detokenize(self, global_tokens: ms.tensor, semantic_tokens: ms.tensor) -> np.array:
         """detokenize the tokens to waveform
 
         Args:

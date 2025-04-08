@@ -12,21 +12,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch Wav2Vec2 model."""
-
+"""MindSpore Wav2Vec2 model."""
 import math
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.wav2vec2.configuration_wav2vec2 import Wav2Vec2Config
+from transformers.utils import ModelOutput, cached_file, is_safetensors_available, logging
+
 import mindspore as ms
-from mindspore import nn, mint, Parameter
+from mindspore import Parameter, mint, nn
+from mindspore.common.initializer import Constant, HeNormal, Normal, One, Uniform, Zero, initializer
 from mindspore.mint.nn import CrossEntropyLoss
-from mindspore.common.initializer import initializer, Constant, Uniform, HeNormal, One, Zero, Normal
 
+from ....safetensors.mindspore import load_file as safe_load_file
 from ...activations import ACT2FN
-
 from ...modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
@@ -37,20 +39,9 @@ from ...modeling_outputs import (
     XVectorOutput,
 )
 from ...modeling_utils import MSPreTrainedModel
-from transformers.models.wav2vec2.configuration_wav2vec2 import Wav2Vec2Config
-from transformers.utils import (
-    ModelOutput,
-    cached_file,
-    is_safetensors_available,
-    logging,
-)
-
 
 WAV2VEC2_ADAPTER_PT_FILE = "adapter.{}.bin"
 WAV2VEC2_ADAPTER_SAFE_FILE = "adapter.{}.safetensors"
-
-from ....safetensors.mindspore import load_file as safe_load_file
-
 
 logger = logging.get_logger(__name__)
 
@@ -221,9 +212,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.broadcast_to(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.broadcast_to(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -243,9 +232,7 @@ def _compute_mask_indices(
     return spec_aug_mask
 
 
-def _sample_negative_indices(
-    features_shape: Tuple, num_negatives: int, mask_time_indices: Optional[np.ndarray] = None
-):
+def _sample_negative_indices(features_shape: Tuple, num_negatives: int, mask_time_indices: Optional[np.ndarray] = None):
     """
     Sample `num_negatives` vectors from feature vectors.
     """
@@ -361,14 +348,13 @@ class Wav2Vec2PositionalConvEmbedding(nn.Cell):
             padding=config.num_conv_pos_embeddings // 2,
             group=config.num_conv_pos_embedding_groups,
             pad_mode="pad",
-            has_bias=True
+            has_bias=True,
         )
         from ....utils import WeightNorm
-        #weight_norm = WeightNorm()
 
+        # weight_norm = WeightNorm()
         # if is_deepspeed_zero3_enabled():
         #     import deepspeed
-
         #     with deepspeed.zero.GatheredParameters(self.conv.weight, modifier_rank=0):
         #         self.conv = weight_norm(self.conv, name="weight", dim=2)
         #     if hasattr(self.conv, "parametrizations"):
@@ -789,7 +775,7 @@ class Wav2Vec2Encoder(nn.Cell):
         hidden_states = self.layer_norm(hidden_states)
         hidden_states = self.dropout(hidden_states)
 
-        #synced_gpus = is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
+        # synced_gpus = is_deepspeed_zero3_enabled() or is_fsdp_managed_module(self)
 
         for layer in self.layers:
             if output_hidden_states:
@@ -800,18 +786,16 @@ class Wav2Vec2Encoder(nn.Cell):
 
             skip_the_layer = True if self.training and (dropout_probability < self.config.layerdrop) else False
             # if not skip_the_layer or synced_gpus:
-                # under fsdp or deepspeed zero3 all gpus must run in sync
-                # if self.gradient_checkpointing and self.training:
-                #     layer_outputs = self._gradient_checkpointing_func(
-                #         layer.__call__,
-                #         hidden_states,
-                #         attention_mask,
-                #         output_attentions,
-                #     )
-                # else:
-            layer_outputs = layer(
-                hidden_states, attention_mask=attention_mask, output_attentions=output_attentions
-            )
+            # under fsdp or deepspeed zero3 all gpus must run in sync
+            # if self.gradient_checkpointing and self.training:
+            #     layer_outputs = self._gradient_checkpointing_func(
+            #         layer.__call__,
+            #         hidden_states,
+            #         attention_mask,
+            #         output_attentions,
+            #     )
+            # else:
+            layer_outputs = layer(hidden_states, attention_mask=attention_mask, output_attentions=output_attentions)
             hidden_states = layer_outputs[0]
 
             if skip_the_layer:
@@ -896,9 +880,7 @@ class Wav2Vec2EncoderStableLayerNorm(nn.Cell):
             #             output_attentions,
             #         )
             #     else:
-            layer_outputs = layer(
-                hidden_states, attention_mask=attention_mask, output_attentions=output_attentions
-            )
+            layer_outputs = layer(hidden_states, attention_mask=attention_mask, output_attentions=output_attentions)
             hidden_states = layer_outputs[0]
 
             if skip_the_layer:
@@ -1038,7 +1020,7 @@ class Wav2Vec2AdapterLayer(nn.Cell):
             stride=config.adapter_stride,
             padding=1,
             pad_mode="pad",
-            has_bias=True
+            has_bias=True,
         )
 
     def construct(self, hidden_states):
@@ -1096,86 +1078,77 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
             module.project_q._is_hf_initialized = True
         # gumbel softmax requires special init
         elif isinstance(module, Wav2Vec2GumbelVectorQuantizer):
-            module.weight_proj.weight.set_data(initializer
-                    (Normal(mean=0.0, sigma=1),
+            module.weight_proj.weight.set_data(
+                initializer(
+                    Normal(mean=0.0, sigma=1),
                     shape=module.weight_proj.weight.shape,
-                    dtype=module.weight_proj.weight.dtype))
-            module.weight_proj.bias.set_data(initializer(
-                    Zero(),
-                    shape=module.weight_proj.bias.shape,
-                    dtype=module.weight_proj.bias.dtype))
-            module.codevectors.set_data(initializer(
-                    Uniform(scale=k),
-                    shape=module.codevectors.shape,
-                    dtype=module.codevectors.dtype))
+                    dtype=module.weight_proj.weight.dtype,
+                )
+            )
+            module.weight_proj.bias.set_data(
+                initializer(Zero(), shape=module.weight_proj.bias.shape, dtype=module.weight_proj.bias.dtype)
+            )
+            module.codevectors.set_data(
+                initializer(Uniform(), shape=module.codevectors.shape, dtype=module.codevectors.dtype)
+            )
         elif isinstance(module, Wav2Vec2PositionalConvEmbedding):
-        # for name, _ in module.cells_and_names():
-        #     if "weight_norm_cell" in name:
-            module.conv.weight_norm_cell.weight.set_data(initializer(
-                    Normal(mean=0, sigma=2 * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.weight_norm_cell.in_channels))),
+            # for name, _ in module.cells_and_names():
+            #     if "weight_norm_cell" in name:
+            module.conv.weight_norm_cell.weight.set_data(
+                initializer(
+                    Normal(
+                        mean=0,
+                        sigma=2
+                        * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.weight_norm_cell.in_channels)),
+                    ),
                     shape=module.conv.weight_norm_cell.weight.shape,
-                    dtype=module.conv.weight_norm_cell.weight.dtype))
-            module.conv.weight_norm_cell.bias.set_data(initializer(
+                    dtype=module.conv.weight_norm_cell.weight.dtype,
+                )
+            )
+            module.conv.weight_norm_cell.bias.set_data(
+                initializer(
                     Constant(0),
                     shape=module.conv.weight_norm_cell.bias.shape,
-                    dtype=module.conv.weight_norm_cell.bias.dtype))
+                    dtype=module.conv.weight_norm_cell.bias.dtype,
+                )
+            )
         #     else:
-            # module.conv.weight.set_data(initializer(
-            #         Normal(mean=0, sigma=2 * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.in_channels))),
-            #         shape=module.conv.weight.shape,
-            #         dtype=module.conv.weight.dtype))
-            # module.conv.bias.set_data(initializer(
-            #         Constant(0),
-            #         shape=module.conv.bias.shape,
-            #         dtype=module.conv.bias.dtype))
+        # module.conv.weight.set_data(initializer(
+        #         Normal(mean=0, sigma=2 * math.sqrt(1 / (module.conv.kernel_size[0] * module.conv.in_channels))),
+        #         shape=module.conv.weight.shape,
+        #         dtype=module.conv.weight.dtype))
+        # module.conv.bias.set_data(initializer(
+        #         Constant(0),
+        #         shape=module.conv.bias.shape,
+        #         dtype=module.conv.bias.dtype))
         elif isinstance(module, Wav2Vec2FeatureProjection):
             k = math.sqrt(1 / module.projection.in_features)
-            module.projection.weight.set_data(initializer(
-                    Uniform(scale=k),
-                    shape=module.projection.weight.shape,
-                    dtype=module.projection.weight.dtype))
-            module.projection.bias.set_data(initializer(
-                    Uniform(scale=k),
-                    shape=module.projection.bias.shape,
-                    dtype=module.projection.bias.dtype))
+            module.projection.weight.set_data(
+                initializer(
+                    Uniform(scale=k), shape=module.projection.weight.shape, dtype=module.projection.weight.dtype
+                )
+            )
+            module.projection.bias.set_data(
+                initializer(Uniform(scale=k), shape=module.projection.bias.shape, dtype=module.projection.bias.dtype)
+            )
         elif isinstance(module, mint.nn.Linear):
-            module.weight.set_data(initializer(
+            module.weight.set_data(
+                initializer(
                     Normal(mean=0.0, sigma=self.config.initializer_range),
                     shape=module.weight.shape,
-                    dtype=module.weight.dtype))
+                    dtype=module.weight.dtype,
+                )
+            )
             if module.bias is not None:
-                module.bias.set_data(initializer(
-                    Zero(),
-                    shape=module.bias.shape,
-                    dtype=module.bias.dtype
-                    )
-                )
+                module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
         elif isinstance(module, (mint.nn.LayerNorm, mint.nn.LayerNorm)):
-            module.bias.set_data(initializer(
-                Zero(),
-                shape=module.bias.shape,
-                dtype=module.bias.dtype
-                )
-            )
-            module.weight.set_data(initializer(
-                One(),
-                shape=module.weight.shape,
-                dtype=module.weight.dtype
-                )
-            )
+            module.bias.set_data(initializer(Zero(), shape=module.bias.shape, dtype=module.bias.dtype))
+            module.weight.set_data(initializer(One(), shape=module.weight.shape, dtype=module.weight.dtype))
         elif isinstance(module, nn.Conv1d):
-            module.weight.set_data(initializer(
-                HeNormal(),
-                shape=module.weight.shape,
-                dtype=module.weight.dtype
-                )
-            )
+            module.weight.set_data(initializer(HeNormal(), shape=module.weight.shape, dtype=module.weight.dtype))
             if module.bias is not None:
                 k = math.sqrt(module.group / (module.in_channels * module.kernel_size[0]))
-                module.bias.set_data(initializer(
-                    Uniform(scale=k),
-                    shape=module.bias.shape,
-                    dtype=module.bias.dtype))
+                module.bias.set_data(initializer(Uniform(scale=k), shape=module.bias.shape, dtype=module.bias.dtype))
 
     def _get_feat_extract_output_lengths(
         self, input_lengths: Union[ms.Tensor, int], add_adapter: Optional[bool] = None
@@ -1211,8 +1184,7 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
 
         batch_size = attention_mask.shape[0]
 
-        attention_mask = mint.zeros(
-            (batch_size, feature_vector_length), dtype=attention_mask.dtype)
+        attention_mask = mint.zeros((batch_size, feature_vector_length), dtype=attention_mask.dtype)
         # these two operations makes sure that all values before the output lengths idxs are attended to
         attention_mask[(mint.arange(attention_mask.shape[0]), output_lengths - 1)] = 1
         attention_mask = attention_mask.flip([-1]).cumsum(-1).flip([-1]).bool()
@@ -1425,9 +1397,7 @@ class Wav2Vec2PreTrainedModel(MSPreTrainedModel):
         # make sure now vocab size is correct
         target_vocab_size = state_dict["lm_head.weight"].shape[0]
         if target_vocab_size != self.config.vocab_size:
-            self.lm_head = mint.nn.Linear(
-                self.config.output_hidden_size, target_vocab_size, dtype=self.dtype
-            )
+            self.lm_head = mint.nn.Linear(self.config.output_hidden_size, target_vocab_size, dtype=self.dtype)
             self.config.vocab_size = target_vocab_size
 
         # make sure that adapter weights are put in exactly the same precision and overwritten adapter weights
@@ -1963,7 +1933,6 @@ class Wav2Vec2ForCTC(Wav2Vec2PreTrainedModel):
             # ctc_loss doesn't support fp16
             log_probs = mint.nn.functional.log_softmax(logits, dim=-1, dtype=ms.float32).transpose(0, 1)
 
-            
             loss = mint.nn.functional.ctc_loss(
                 log_probs,
                 flattened_targets,

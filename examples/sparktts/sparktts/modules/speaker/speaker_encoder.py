@@ -13,13 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import mindspore as ms
-from mindspore import nn, mint
-
 from typing import List, Tuple
+
 from sparktts.modules.fsq.residual_fsq import ResidualFSQ
 from sparktts.modules.speaker.ecapa_tdnn import ECAPA_TDNN_GLOB_c512
 from sparktts.modules.speaker.perceiver_encoder import PerceiverResampler
+
+import mindspore as ms
+from mindspore import mint, nn
 
 """
 x-vector + d-vector
@@ -52,12 +53,8 @@ class SpeakerEncoder(nn.Cell):
     ):
         super(SpeakerEncoder, self).__init__()
 
-        self.speaker_encoder = ECAPA_TDNN_GLOB_c512(
-            feat_dim=input_dim, embed_dim=out_dim
-        )
-        self.perceiver_sampler = PerceiverResampler(
-            dim=latent_dim, dim_context=512 * 3, num_latents=token_num
-        )
+        self.speaker_encoder = ECAPA_TDNN_GLOB_c512(feat_dim=input_dim, embed_dim=out_dim)
+        self.perceiver_sampler = PerceiverResampler(dim=latent_dim, dim_context=512 * 3, num_latents=token_num)
         self.quantizer = ResidualFSQ(
             levels=fsq_levels,
             num_quantizers=fsq_num_quantizers,
@@ -96,20 +93,21 @@ class SpeakerEncoder(nn.Cell):
         d_vector = self.project(x)
 
         return x_vector, d_vector
-    
+
     def tokenize(self, mels: ms.Tensor) -> ms.Tensor:
         """tokenize the input mel spectrogram"""
         _, features = self.speaker_encoder(mels, True)
         x = self.perceiver_sampler(features.transpose(1, 2)).transpose(1, 2)
         zq, indices = self.quantizer(x)
         return indices
-    
+
     def detokenize(self, indices: ms.Tensor) -> ms.Tensor:
         """detokenize the input indices to d-vector"""
         zq = self.quantizer.get_output_from_indices(indices.transpose(1, 2)).transpose(1, 2)
         x = zq.reshape(zq.shape[0], -1)
         d_vector = self.project(x)
         return d_vector
+
 
 if __name__ == "__main__":
     model = SpeakerEncoder(

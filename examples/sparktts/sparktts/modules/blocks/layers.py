@@ -16,9 +16,9 @@
 # Adapted from https://github.com/descriptinc/descript-audio-codec under the Apache License 2.0
 
 
-import mindspore as ms
-from mindspore import nn, mint, Parameter
-from mindspore.common.initializer import initializer, Constant, TruncatedNormal
+from mindspore import Parameter, mint, nn
+from mindspore.common.initializer import Constant, TruncatedNormal, initializer
+
 from mindone.utils import WeightNorm
 
 
@@ -68,15 +68,5 @@ class ResidualUnit(nn.Cell):
 
 def init_weights(m):
     if isinstance(m, nn.Conv1d):
-        m.weight.set_data(initializer(
-                TruncatedNormal(sigma=0.02),
-                shape=m.weight.shape,
-                dtype=m.weight.dtype
-                )
-            )
-        m.bias.set_data(initializer(
-                Constant(0),
-                shape=m.bias.shape,
-                dtype=m.bias.dtype
-                )
-            )
+        m.weight.set_data(initializer(TruncatedNormal(sigma=0.02), shape=m.weight.shape, dtype=m.weight.dtype))
+        m.bias.set_data(initializer(Constant(0), shape=m.bias.shape, dtype=m.bias.dtype))

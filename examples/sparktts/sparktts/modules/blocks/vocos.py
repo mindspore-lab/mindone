@@ -14,14 +14,13 @@
 # limitations under the License.
 
 
+from typing import Optional, Tuple
+
 import mindspore as ms
-from mindspore import nn, mint, Parameter
-from mindspore.common.initializer import One, Zero, initializer, Constant, TruncatedNormal
+from mindspore import Parameter, mint, nn
+from mindspore.common.initializer import Constant, One, TruncatedNormal, Zero, initializer
 
-from typing import Tuple
 from mindone.utils import WeightNorm
-
-from typing import Optional
 
 
 class ConvNeXtBlock(nn.Cell):
@@ -45,16 +44,20 @@ class ConvNeXtBlock(nn.Cell):
     ):
         super().__init__()
         self.dwconv = nn.Conv1d(
-            dim, dim, kernel_size=7, padding=3, group=dim, pad_mode="pad", has_bias=True,
+            dim,
+            dim,
+            kernel_size=7,
+            padding=3,
+            group=dim,
+            pad_mode="pad",
+            has_bias=True,
         )  # depthwise conv
         self.adanorm = condition_dim is not None
         if condition_dim:
             self.norm = AdaLayerNorm(condition_dim, dim, eps=1e-6)
         else:
             self.norm = mint.nn.LayerNorm(dim, eps=1e-6)
-        self.pwconv1 = mint.nn.Linear(
-            dim, intermediate_dim
-        )  # pointwise/1x1 convs, implemented with linear layers
+        self.pwconv1 = mint.nn.Linear(dim, intermediate_dim)  # pointwise/1x1 convs, implemented with linear layers
         self.act = nn.GELU()
         self.pwconv2 = mint.nn.Linear(intermediate_dim, dim)
         self.gamma = (
@@ -63,9 +66,7 @@ class ConvNeXtBlock(nn.Cell):
             else None
         )
 
-    def construct(
-        self, x: ms.Tensor, cond_embedding_id: Optional[ms.Tensor] = None
-    ) -> ms.Tensor:
+    def construct(self, x: ms.Tensor, cond_embedding_id: Optional[ms.Tensor] = None) -> ms.Tensor:
         residual = x
         x = self.dwconv(x)
         x = x.transpose(1, 2)  # (B, C, T) -> (B, T, C)
@@ -101,17 +102,19 @@ class AdaLayerNorm(nn.Cell):
         self.scale = mint.nn.Linear(condition_dim, embedding_dim)
         self.shift = mint.nn.Linear(condition_dim, embedding_dim)
         self.scale.weight.set_data(
-                initializer(
-                    One(),
-                    shape=self.scale.weight.shape,
-                    dtype=self.scale.weight.dtype,
-                ))
+            initializer(
+                One(),
+                shape=self.scale.weight.shape,
+                dtype=self.scale.weight.dtype,
+            )
+        )
         self.shift.weight.set_data(
-                initializer(
-                    Zero(),
-                    shape=self.shift.weight.shape,
-                    dtype=self.shift.weight.dtype,
-                ))
+            initializer(
+                Zero(),
+                shape=self.shift.weight.shape,
+                dtype=self.shift.weight.dtype,
+            )
+        )
 
     def construct(self, x: ms.Tensor, cond_embedding: ms.Tensor) -> ms.Tensor:
         scale = self.scale(cond_embedding)
@@ -157,7 +160,7 @@ class ResBlock1(nn.Cell):
                         1,
                         dilation=dilation[0],
                         padding=self.get_padding(kernel_size, dilation[0]),
-                        pad_mode="pad", 
+                        pad_mode="pad",
                         has_bias=True,
                     )
                 ),
@@ -169,7 +172,7 @@ class ResBlock1(nn.Cell):
                         1,
                         dilation=dilation[1],
                         padding=self.get_padding(kernel_size, dilation[1]),
-                        pad_mode="pad", 
+                        pad_mode="pad",
                         has_bias=True,
                     )
                 ),
@@ -181,7 +184,7 @@ class ResBlock1(nn.Cell):
                         1,
                         dilation=dilation[2],
                         padding=self.get_padding(kernel_size, dilation[2]),
-                        pad_mode="pad", 
+                        pad_mode="pad",
                         has_bias=True,
                     )
                 ),
@@ -198,7 +201,7 @@ class ResBlock1(nn.Cell):
                         1,
                         dilation=1,
                         padding=self.get_padding(kernel_size, 1),
-                        pad_mode="pad", 
+                        pad_mode="pad",
                         has_bias=True,
                     )
                 ),
@@ -210,7 +213,7 @@ class ResBlock1(nn.Cell):
                         1,
                         dilation=1,
                         padding=self.get_padding(kernel_size, 1),
-                        pad_mode="pad", 
+                        pad_mode="pad",
                         has_bias=True,
                     )
                 ),
@@ -222,7 +225,7 @@ class ResBlock1(nn.Cell):
                         1,
                         dilation=1,
                         padding=self.get_padding(kernel_size, 1),
-                        pad_mode="pad", 
+                        pad_mode="pad",
                         has_bias=True,
                     )
                 ),
@@ -230,28 +233,22 @@ class ResBlock1(nn.Cell):
         )
 
         self.gamma = [
-                (
-                    Parameter(
-                        layer_scale_init_value * mint.ones((dim, 1)), requires_grad=True
-                    )
-                    if layer_scale_init_value is not None
-                    else None
-                ),
-                (
-                    Parameter(
-                        layer_scale_init_value * mint.ones((dim, 1)), requires_grad=True
-                    )
-                    if layer_scale_init_value is not None
-                    else None
-                ),
-                (
-                    Parameter(
-                        layer_scale_init_value * mint.ones((dim, 1)), requires_grad=True
-                    )
-                    if layer_scale_init_value is not None
-                    else None
-                ),
-            ]
+            (
+                Parameter(layer_scale_init_value * mint.ones((dim, 1)), requires_grad=True)
+                if layer_scale_init_value is not None
+                else None
+            ),
+            (
+                Parameter(layer_scale_init_value * mint.ones((dim, 1)), requires_grad=True)
+                if layer_scale_init_value is not None
+                else None
+            ),
+            (
+                Parameter(layer_scale_init_value * mint.ones((dim, 1)), requires_grad=True)
+                if layer_scale_init_value is not None
+                else None
+            ),
+        ]
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         for c1, c2, gamma in zip(self.convs1, self.convs2, self.gamma):
@@ -310,7 +307,14 @@ class VocosBackbone(Backbone):
     ):
         super().__init__()
         self.input_channels = input_channels
-        self.embed = nn.Conv1d(input_channels, dim, kernel_size=7, padding=3, pad_mode="pad", has_bias=True,)
+        self.embed = nn.Conv1d(
+            input_channels,
+            dim,
+            kernel_size=7,
+            padding=3,
+            pad_mode="pad",
+            has_bias=True,
+        )
         self.adanorm = condition_dim is not None
         if condition_dim:
             self.norm = AdaLayerNorm(condition_dim, dim, eps=1e-6)
@@ -333,14 +337,8 @@ class VocosBackbone(Backbone):
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Conv1d, mint.nn.Linear)):
-            m.weight.set_data(initializer(
-                TruncatedNormal(sigma=0.02),
-                shape=m.weight.shape,
-                dtype=m.weight.dtype))
-            m.bias.set_data(initializer(
-                Constant(0),
-                shape=m.bias.shape,
-                dtype=m.bias.dtype))
+            m.weight.set_data(initializer(TruncatedNormal(sigma=0.02), shape=m.weight.shape, dtype=m.weight.dtype))
+            m.bias.set_data(initializer(Constant(0), shape=m.bias.shape, dtype=m.bias.dtype))
 
     def construct(self, x: ms.Tensor, condition: ms.Tensor = None) -> ms.Tensor:
         x = self.embed(x)
@@ -376,15 +374,10 @@ class VocosResNetBackbone(Backbone):
     ):
         super().__init__()
         self.input_channels = input_channels
-        self.embed = WeightNorm(
-            nn.Conv1d(input_channels, dim, kernel_size=3, padding=1, pad_mode="pad", has_bias=True)
-        )
+        self.embed = WeightNorm(nn.Conv1d(input_channels, dim, kernel_size=3, padding=1, pad_mode="pad", has_bias=True))
         layer_scale_init_value = layer_scale_init_value or 1 / num_blocks / 3
         self.resnet = nn.SequentialCell(
-            *[
-                ResBlock1(dim=dim, layer_scale_init_value=layer_scale_init_value)
-                for _ in range(num_blocks)
-            ]
+            *[ResBlock1(dim=dim, layer_scale_init_value=layer_scale_init_value) for _ in range(num_blocks)]
         )
 
     def construct(self, x: ms.Tensor, **kwargs) -> ms.Tensor:

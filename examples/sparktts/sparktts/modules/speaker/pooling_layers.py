@@ -19,9 +19,8 @@ High-order statistics are surprisingly effective, TSDP acts similarly as TSTP,
 even though we remove the mean statistic, on Voxceleb.
 """
 
-import mindspore as ms
-from mindspore import nn, mint
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 
 class TAP(nn.Cell):
@@ -90,15 +89,11 @@ class TSTP(nn.Cell):
 
 
 class ASTP(nn.Cell):
-    """ Attentive statistics pooling: Channel- and context-dependent
-        statistics pooling, first used in ECAPA_TDNN.
+    """Attentive statistics pooling: Channel- and context-dependent
+    statistics pooling, first used in ECAPA_TDNN.
     """
 
-    def __init__(self,
-                 in_dim,
-                 bottleneck_dim=128,
-                 global_context_att=False,
-                 **kwargs):
+    def __init__(self, in_dim, bottleneck_dim=128, global_context_att=False, **kwargs):
         super(ASTP, self).__init__()
         self.in_dim = in_dim
         self.global_context_att = global_context_att
@@ -107,14 +102,13 @@ class ASTP(nn.Cell):
         # need to transpose inputs.
         if global_context_att:
             self.linear1 = nn.Conv1d(
-                in_dim * 3, bottleneck_dim,
-                kernel_size=1, has_bias=True)  # equals W and b in the paper
+                in_dim * 3, bottleneck_dim, kernel_size=1, has_bias=True
+            )  # equals W and b in the paper
         else:
             self.linear1 = nn.Conv1d(
-                in_dim, bottleneck_dim,
-                kernel_size=1, has_bias=True)  # equals W and b in the paper
-        self.linear2 = nn.Conv1d(bottleneck_dim, in_dim,
-                                 kernel_size=1, has_bias=True)  # equals V and k in the paper
+                in_dim, bottleneck_dim, kernel_size=1, has_bias=True
+            )  # equals W and b in the paper
+        self.linear2 = nn.Conv1d(bottleneck_dim, in_dim, kernel_size=1, has_bias=True)  # equals V and k in the paper
 
     def construct(self, x):
         """
@@ -128,15 +122,13 @@ class ASTP(nn.Cell):
 
         if self.global_context_att:
             context_mean = mint.mean(x, dim=-1, keepdim=True).expand_as(x)
-            context_std = mint.sqrt(
-                mint.var(x, dim=-1, keepdim=True) + 1e-7).expand_as(x)
+            context_std = mint.sqrt(mint.var(x, dim=-1, keepdim=True) + 1e-7).expand_as(x)
             x_in = mint.cat((x, context_mean, context_std), dim=1)
         else:
             x_in = x
 
         # DON'T use ReLU here! ReLU may be hard to converge.
-        alpha = mint.tanh(
-            self.linear1(x_in))  # alpha = F.relu(self.linear1(x_in))
+        alpha = mint.tanh(self.linear1(x_in))  # alpha = F.relu(self.linear1(x_in))
         alpha = mint.softmax(self.linear2(alpha), dim=2)
         mean = mint.sum(alpha * x, dim=2)
         var = mint.sum(alpha * (x**2), dim=2) - mean**2
@@ -149,22 +141,15 @@ class ASTP(nn.Cell):
 
 
 class MHASTP(nn.Cell):
-    """ Multi head attentive statistics pooling
+    """Multi head attentive statistics pooling
     Reference:
         Self Multi-Head Attention for Speaker Recognition
         https://arxiv.org/pdf/1906.09890.pdf
     """
 
-    def __init__(self,
-                 in_dim,
-                 layer_num=2,
-                 head_num=2,
-                 d_s=1,
-                 bottleneck_dim=64,
-                 **kwargs):
+    def __init__(self, in_dim, layer_num=2, head_num=2, d_s=1, bottleneck_dim=64, **kwargs):
         super(MHASTP, self).__init__()
-        assert (in_dim % head_num
-                ) == 0  # make sure that head num can be divided by input_dim
+        assert (in_dim % head_num) == 0  # make sure that head num can be divided by input_dim
         self.in_dim = in_dim
         self.head_num = head_num
         d_model = int(in_dim / head_num)
@@ -180,13 +165,13 @@ class MHASTP(nn.Cell):
             att_trans = nn.SequentialCell()
             for i in range(layer_num - 1):
                 att_trans.add_module(
-                    'att_' + str(i),
-                    nn.Conv1d(channel_dims[i], channel_dims[i + 1], 1, 1, has_bias=True))
-                att_trans.add_module('tanh' + str(i), nn.Tanh())
+                    "att_" + str(i), nn.Conv1d(channel_dims[i], channel_dims[i + 1], 1, 1, has_bias=True)
+                )
+                att_trans.add_module("tanh" + str(i), nn.Tanh())
             att_trans.add_module(
-                'att_' + str(layer_num - 1),
-                nn.Conv1d(channel_dims[layer_num - 1], channel_dims[layer_num],
-                          1, 1, has_bias=True))
+                "att_" + str(layer_num - 1),
+                nn.Conv1d(channel_dims[layer_num - 1], channel_dims[layer_num], 1, 1, has_bias=True),
+            )
             heads_att_trans.append(att_trans)
         self.heads_att_trans = nn.CellList(heads_att_trans)
 
@@ -197,9 +182,7 @@ class MHASTP(nn.Cell):
             0-dim: batch-dimension, last-dim: time-dimension (frame-dimension)
         """
         if len(input.shape) == 4:  # B x F x T
-            input = input.reshape(input.shape[0],
-                                  input.shape[1] * input.shape[2],
-                                  input.shape[3])
+            input = input.reshape(input.shape[0], input.shape[1] * input.shape[2], input.shape[3])
         assert len(input.shape) == 3
         bs, f_dim, t_dim = input.shape
         chunks = mint.chunk(input, self.head_num, 1)
@@ -211,7 +194,7 @@ class MHASTP(nn.Cell):
             att_score = layer(chunks[i])
             alpha = F.softmax(att_score, dim=-1)
             mean = mint.sum(alpha * chunks[i], dim=2)
-            var = mint.sum(alpha * chunks[i]**2, dim=2) - mean**2
+            var = mint.sum(alpha * chunks[i] ** 2, dim=2) - mean**2
             std = mint.sqrt(var.clamp(min=1e-7))
             chunks_out.append(mint.cat((mean, std), dim=1))
         out = mint.cat(chunks_out, dim=1)
@@ -223,7 +206,7 @@ class MHASTP(nn.Cell):
 
 
 class MQMHASTP(nn.Cell):
-    """ An attentive pooling
+    """An attentive pooling
     Reference:
         multi query multi head attentive statistics pooling
         https://arxiv.org/pdf/2110.05042.pdf
@@ -244,22 +227,14 @@ class MQMHASTP(nn.Cell):
         http://www.interspeech2020.org/uploadfile/pdf/Mon-2-10-5.pdf
     """
 
-    def __init__(self,
-                 in_dim,
-                 layer_num=2,
-                 query_num=2,
-                 head_num=8,
-                 d_s=2,
-                 bottleneck_dim=64,
-                 **kwargs):
+    def __init__(self, in_dim, layer_num=2, query_num=2, head_num=8, d_s=2, bottleneck_dim=64, **kwargs):
         super(MQMHASTP, self).__init__()
-        self.n_query = nn.CellList([
-            MHASTP(in_dim,
-                   layer_num=layer_num,
-                   head_num=head_num,
-                   d_s=d_s,
-                   bottleneck_dim=bottleneck_dim) for i in range(query_num)
-        ])
+        self.n_query = nn.CellList(
+            [
+                MHASTP(in_dim, layer_num=layer_num, head_num=head_num, d_s=d_s, bottleneck_dim=bottleneck_dim)
+                for i in range(query_num)
+            ]
+        )
         self.query_num = query_num
         self.in_dim = in_dim
 
@@ -270,9 +245,7 @@ class MQMHASTP(nn.Cell):
             0-dim: batch-dimension, last-dim: time-dimension (frame-dimension)
         """
         if len(input.shape) == 4:  # B x F x T
-            input = input.reshape(input.shape[0],
-                                  input.shape[1] * input.shape[2],
-                                  input.shape[3])
+            input = input.reshape(input.shape[0], input.shape[1] * input.shape[2], input.shape[3])
         assert len(input.shape) == 3
         res = []
         for i, layer in enumerate(self.n_query):
@@ -285,7 +258,7 @@ class MQMHASTP(nn.Cell):
         return self.out_dim
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     data = mint.randn(16, 512, 10, 35)
     # model = StatisticsPooling()
     model = MQMHASTP(512 * 10)

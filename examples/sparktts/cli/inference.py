@@ -1,12 +1,14 @@
-import os
 import argparse
-import soundfile as sf
 import logging
+import os
 from datetime import datetime
 
+import soundfile as sf
 from cli.SparkTTS import SparkTTS
+
 from mindone.utils import init_env
 from mindone.utils.config import str2bool
+
 
 def parse_args():
     """Parse command-line arguments."""
@@ -37,9 +39,7 @@ def parse_args():
         default="example/results",
         help="Directory to save generated audio files",
     )
-    parser.add_argument(
-        "--text", type=str, required=True, help="Text for TTS generation"
-    )
+    parser.add_argument("--text", type=str, required=True, help="Text for TTS generation")
     parser.add_argument("--prompt_text", type=str, help="Transcript of prompt audio")
     parser.add_argument(
         "--prompt_speech_path",
@@ -47,21 +47,18 @@ def parse_args():
         help="Path to the prompt audio file",
     )
     parser.add_argument("--gender", choices=["male", "female"])
-    parser.add_argument(
-        "--pitch", choices=["very_low", "low", "moderate", "high", "very_high"]
-    )
-    parser.add_argument(
-        "--speed", choices=["very_low", "low", "moderate", "high", "very_high"]
-    )
+    parser.add_argument("--pitch", choices=["very_low", "low", "moderate", "high", "very_high"])
+    parser.add_argument("--speed", choices=["very_low", "low", "moderate", "high", "very_high"])
     return parser.parse_args()
 
 
 def run_tts(args):
-    device_id, rank_id, device_num = init_env(args.mode,
-                                              debug=args.debug,
-                                              seed=args.seed,
-                                              jit_level=args.jit_level,
-                                              )
+    device_id, rank_id, device_num = init_env(
+        args.mode,
+        debug=args.debug,
+        seed=args.seed,
+        jit_level=args.jit_level,
+    )
 
     """Perform TTS inference and save the generated audio."""
     logging.info(f"Using model from: {args.model_dir}")
@@ -94,9 +91,7 @@ def run_tts(args):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     args = parse_args()
     run_tts(args)

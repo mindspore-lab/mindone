@@ -20,10 +20,11 @@ import warnings
 from contextlib import contextmanager
 from typing import List, Optional, Union
 
-from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
-from transformers.tokenization_utils_base import AudioInput, PreTokenizedInput, TextInput
-from .feature_extraction_wav2vec2 import Wav2Vec2FeatureExtractor
 from transformers.models.wav2vec2.tokenization_wav2vec2 import Wav2Vec2CTCTokenizer
+from transformers.tokenization_utils_base import AudioInput, PreTokenizedInput, TextInput
+
+from ...processing_utils import ProcessingKwargs, ProcessorMixin, Unpack
+from .feature_extraction_wav2vec2 import Wav2Vec2FeatureExtractor
 
 
 class Wav2Vec2ProcessorKwargs(ProcessingKwargs, total=False):

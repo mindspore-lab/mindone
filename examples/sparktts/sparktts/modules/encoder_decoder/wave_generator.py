@@ -15,15 +15,9 @@
 # Adapted from https://github.com/descriptinc/descript-audio-codec under the Apache License 2.0
 
 
-from mindspore import nn
+from sparktts.modules.blocks.layers import ResidualUnit, Snake1d, WNConv1d, WNConvTranspose1d, init_weights
 
-from sparktts.modules.blocks.layers import (
-    Snake1d,
-    WNConv1d,
-    ResidualUnit,
-    WNConvTranspose1d,
-    init_weights,
-)
+from mindspore import nn
 
 
 class DecoderBlock(nn.Cell):

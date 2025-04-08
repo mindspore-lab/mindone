@@ -4,14 +4,14 @@ Code adapted from Jax version in Appendix A.1
 """
 
 from __future__ import annotations
-from functools import wraps, partial
-from contextlib import nullcontext
+
+from functools import wraps
 from typing import List, Tuple
 
-import mindspore as ms
-from mindspore import nn, mint
-
 from einops import pack, unpack
+
+import mindspore as ms
+from mindspore import mint, nn
 
 # helper functions
 
@@ -195,9 +195,7 @@ class FSQ(nn.Cell):
             z = z.permute(0, 2, 3, 1)
             z, ps = pack_one(z, "b * d")
 
-        assert (
-            z.shape[-1] == self.dim
-        ), f"expected dimension of {self.dim} but found dimension of {z.shape[-1]}"
+        assert z.shape[-1] == self.dim, f"expected dimension of {self.dim} but found dimension of {z.shape[-1]}"
 
         z = self.project_in(z)
 

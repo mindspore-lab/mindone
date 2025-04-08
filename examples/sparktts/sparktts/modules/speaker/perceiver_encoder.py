@@ -18,10 +18,9 @@ from collections import namedtuple
 from functools import wraps
 
 import mindspore as ms
-from mindspore import nn, mint, Parameter
 import mindspore.mint.nn.functional as F
+from mindspore import Parameter, mint, nn
 from mindspore.common.initializer import Normal, initializer
-
 
 
 def exists(val):
@@ -74,7 +73,6 @@ class Attend(nn.Cell):
         self.mask = mask
         return mask
 
-
     def construct(self, q, k, v, mask=None):
         """
         einstein notation
@@ -120,10 +118,6 @@ class Attend(nn.Cell):
 
 def Sequential(*mods):
     return nn.SequentialCell(*filter(exists, mods))
-
-
-def exists(x):
-    return x is not None
 
 
 def default(val, d):
@@ -186,9 +180,7 @@ def FeedForward(dim, mult=4, causal_conv=False):
             lambda t: mint.permute(t, (0, 2, 1)),
         )
 
-    return Sequential(
-        mint.nn.Linear(dim, dim_inner * 2), GEGLU(), conv, mint.nn.Linear(dim_inner, dim)
-    )
+    return Sequential(mint.nn.Linear(dim, dim_inner * 2), GEGLU(), conv, mint.nn.Linear(dim_inner, dim))
 
 
 class Attention(nn.Cell):
@@ -226,14 +218,14 @@ class Attention(nn.Cell):
             context = mint.cat((x, context), dim=-2)
 
         q, k, v = (self.to_q(x), *self.to_kv(context).chunk(2, dim=-1))
-        
+
         b, n, _ = q.shape
         q = q.view(b, n, h, -1).permute(0, 2, 1, 3)
         b, n, _ = k.shape
         k = k.view(b, n, h, -1).permute(0, 2, 1, 3)
         b, n, _ = v.shape
         v = v.view(b, n, h, -1).permute(0, 2, 1, 3)
-        #q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=h), (q, k, v))
+        # q, k, v = map(lambda t: rearrange(t, "b n (h d) -> b h n d", h=h), (q, k, v))
 
         out = self.attend(q, k, v, mask=mask)
 
@@ -258,17 +250,16 @@ class PerceiverResampler(nn.Cell):
         super().__init__()
         dim_context = default(dim_context, dim)
 
-        self.proj_context = (
-            mint.nn.Linear(dim_context, dim) if dim_context != dim else nn.Identity()
-        )
+        self.proj_context = mint.nn.Linear(dim_context, dim) if dim_context != dim else nn.Identity()
 
         self.latents = Parameter(mint.randn(num_latents, dim))
         self.latents.set_data(
-                initializer(
-                    Normal(sigma=0.02),
-                    shape=self.latents.shape,
-                    dtype=self.latents.dtype,
-                ))
+            initializer(
+                Normal(sigma=0.02),
+                shape=self.latents.shape,
+                dtype=self.latents.dtype,
+            )
+        )
 
         self.layers = nn.CellList([])
         for _ in range(depth):
@@ -297,7 +288,7 @@ class PerceiverResampler(nn.Cell):
             latents = self.latents.unsqueeze(0).repeat((batch, 1, 1))
         else:
             latents = self.latents.unsqueeze(0)
-        #latents = repeat(self.latents, "n d -> b n d", b=batch)
+        # latents = repeat(self.latents, "n d -> b n d", b=batch)
 
         for attn, ff in self.layers:
             latents = attn(latents, x, mask=mask) + latents

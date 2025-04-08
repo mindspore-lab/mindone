@@ -19,15 +19,16 @@ Description:
 """
 
 import random
-import soxr
-import soundfile
-
-import mindspore.dataset.audio as msaudio
-import numpy as np
-
 from pathlib import Path
 from typing import Tuple
+
+import numpy as np
+import soundfile
+import soxr
 from numpy.lib.stride_tricks import sliding_window_view
+
+import mindspore as ms
+import mindspore.dataset.audio as msaudio
 
 
 def audio_volume_normalize(audio: np.ndarray, coeff: float = 0.2) -> np.ndarray:
@@ -46,9 +47,7 @@ def audio_volume_normalize(audio: np.ndarray, coeff: float = 0.2) -> np.ndarray:
 
     # If the maximum value is less than 0.1, scale the array to have a maximum of 0.1
     if temp[-1] < 0.1:
-        scaling_factor = max(
-            temp[-1], 1e-3
-        )  # Prevent division by zero with a small constant
+        scaling_factor = max(temp[-1], 1e-3)  # Prevent division by zero with a small constant
         audio = audio / scaling_factor * 0.1
 
     # Filter out values less than 0.01 from temp
@@ -152,71 +151,62 @@ def detect_speech_boundaries(
     sample_rate: int,
     window_duration: float = 0.1,
     energy_threshold: float = 0.01,
-    margin_factor: int = 2
+    margin_factor: int = 2,
 ) -> Tuple[int, int]:
     """Detect the start and end points of speech in an audio signal using RMS energy.
-    
+
     Args:
         wav: Input audio signal array with values in [-1, 1]
         sample_rate: Audio sample rate in Hz
         window_duration: Duration of detection window in seconds
         energy_threshold: RMS energy threshold for speech detection
         margin_factor: Factor to determine extra margin around detected boundaries
-        
+
     Returns:
         tuple: (start_index, end_index) of speech segment
-        
+
     Raises:
         ValueError: If the audio contains only silence
     """
     window_size = int(window_duration * sample_rate)
     margin = margin_factor * window_size
     step_size = window_size // 10
-    
+
     # Create sliding windows using stride tricks to avoid loops
     windows = sliding_window_view(wav, window_size)[::step_size]
-    
+
     # Calculate RMS energy for each window
-    energy = np.sqrt(np.mean(windows ** 2, axis=1))
+    energy = np.sqrt(np.mean(windows**2, axis=1))
     speech_mask = energy >= energy_threshold
-    
+
     if not np.any(speech_mask):
         raise ValueError("No speech detected in audio (only silence)")
-    
+
     start = max(0, np.argmax(speech_mask) * step_size - margin)
     end = min(len(wav), (len(speech_mask) - 1 - np.argmax(speech_mask[::-1])) * step_size + margin)
-    
+
     return start, end
 
 
 def remove_silence_on_both_ends(
-    wav: np.ndarray,
-    sample_rate: int,
-    window_duration: float = 0.1,
-    volume_threshold: float = 0.01
+    wav: np.ndarray, sample_rate: int, window_duration: float = 0.1, volume_threshold: float = 0.01
 ) -> np.ndarray:
     """Remove silence from both ends of an audio signal.
-    
+
     Args:
         wav: Input audio signal array
         sample_rate: Audio sample rate in Hz
         window_duration: Duration of detection window in seconds
         volume_threshold: Amplitude threshold for silence detection
-        
+
     Returns:
         np.ndarray: Audio signal with silence removed from both ends
-        
+
     Raises:
         ValueError: If the audio contains only silence
     """
-    start, end = detect_speech_boundaries(
-        wav,
-        sample_rate,
-        window_duration,
-        volume_threshold
-    )
+    start, end = detect_speech_boundaries(wav, sample_rate, window_duration, volume_threshold)
     return wav[start:end]
-
 
 
 def hertz_to_mel(pitch: float) -> float:

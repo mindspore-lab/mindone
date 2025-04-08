@@ -1,22 +1,19 @@
-import random
-import mindspore as ms
-from mindspore import mint
-import mindspore.mint.nn.functional as F
-
 from typing import List
-from mindspore import nn
 
 from einx import get_at
-
 from sparktts.modules.fsq.finite_scalar_quantization import FSQ
+
+import mindspore as ms
+import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 
 def exists(val):
     return val is not None
 
 
-def first(l):
-    return l[0]
+def first(ll):
+    return ll[0]
 
 
 def default(val, d):
@@ -43,12 +40,8 @@ class ResidualFSQ(nn.Cell):
         dim = default(dim, codebook_dim)
 
         requires_projection = codebook_dim != dim
-        self.project_in = (
-            mint.nn.Linear(dim, codebook_dim) if requires_projection else nn.Identity()
-        )
-        self.project_out = (
-            mint.nn.Linear(codebook_dim, dim) if requires_projection else nn.Identity()
-        )
+        self.project_in = mint.nn.Linear(dim, codebook_dim) if requires_projection else nn.Identity()
+        self.project_out = mint.nn.Linear(codebook_dim, dim) if requires_projection else nn.Identity()
         self.has_projections = requires_projection
 
         self.is_channel_first = is_channel_first
@@ -79,7 +72,9 @@ class ResidualFSQ(nn.Cell):
         assert quantize_dropout_cutoff_index >= 0
 
         self.quantize_dropout_cutoff_index = quantize_dropout_cutoff_index
-        self.quantize_dropout_multiple_of = quantize_dropout_multiple_of  # encodec paper proposes structured dropout, believe this was set to 4
+        self.quantize_dropout_multiple_of = (
+            quantize_dropout_multiple_of  # encodec paper proposes structured dropout, believe this was set to 4
+        )
 
     @property
     def codebooks(self):
@@ -88,12 +83,11 @@ class ResidualFSQ(nn.Cell):
         return codebooks
 
     def get_codes_from_indices(self, indices):
-
-        batch, quantize_dim = indices.shape[0], indices.shape[-1]
+        _, quantize_dim = indices.shape[0], indices.shape[-1]
 
         # may also receive indices in the shape of 'b h w q' (accept_image_fmap)
 
-        #indices, ps = pack([indices], "b * q")
+        # indices, ps = pack([indices], "b * q")
         _, ps, _ = indices.shape
 
         # because of quantize dropout, one can pass in indices that are coarse
@@ -108,9 +102,7 @@ class ResidualFSQ(nn.Cell):
         # take care of quantizer dropout
 
         mask = indices == -1
-        indices = indices.masked_fill(
-            mask, 0
-        )  # have it fetch a dummy code to be masked out later
+        indices = indices.masked_fill(mask, 0)  # have it fetch a dummy code to be masked out later
 
         all_codes = ms.tensor(get_at("q [c] d, b n q -> q b n d", self.codebooks.numpy(), indices.numpy()))
 
@@ -125,28 +117,25 @@ class ResidualFSQ(nn.Cell):
 
         # if (accept_image_fmap = True) then return shape (quantize, batch, height, width, dimension)
 
-        #(all_codes,) = unpack(all_codes, ps, "q b * d")
+        # (all_codes,) = unpack(all_codes, ps, "q b * d")
 
         return all_codes
 
     def get_output_from_indices(self, indices):
         codes = self.get_codes_from_indices(indices)
         codes_summed = codes.sum(dim=0)
-        #codes_summed = reduce(codes, "q ... -> ...", "sum")
+        # codes_summed = reduce(codes, "q ... -> ...", "sum")
         return self.project_out(codes_summed)
 
     def construct(self, x, return_all_codes=False, rand_quantize_dropout_fixed_seed=None):
-        num_quant, quant_dropout_multiple_of = (
-            self.num_quantizers,
-            self.quantize_dropout_multiple_of
-        )
+        # num_quant, quant_dropout_multiple_of = (self.num_quantizers, self.quantize_dropout_multiple_of)
 
         # handle channel first
 
         if self.is_channel_first:
             x = x.movedim(1, -1)
             _, ps, _ = x.shape
-            #x, ps = pack([x], "b * d")
+            # x, ps = pack([x], "b * d")
 
         # maybe project in
 
@@ -159,10 +148,7 @@ class ResidualFSQ(nn.Cell):
 
         # go through the layers
 
-        for quantizer_index, (layer, scale) in enumerate(
-            zip(self.layers, self.scales)
-        ):
-
+        for quantizer_index, (layer, scale) in enumerate(zip(self.layers, self.scales)):
             quantized, indices = layer(residual / scale)
 
             quantized = quantized * scale
@@ -234,17 +220,11 @@ class GroupedResidualFSQ(nn.Cell):
         return 1 if self.accept_image_fmap else -1
 
     def get_codes_from_indices(self, indices):
-        codes = tuple(
-            rvq.get_codes_from_indices(chunk_indices)
-            for rvq, chunk_indices in zip(self.rvqs, indices)
-        )
+        codes = tuple(rvq.get_codes_from_indices(chunk_indices) for rvq, chunk_indices in zip(self.rvqs, indices))
         return mint.stack(codes)
 
     def get_output_from_indices(self, indices):
-        outputs = tuple(
-            rvq.get_output_from_indices(chunk_indices)
-            for rvq, chunk_indices in zip(self.rvqs, indices)
-        )
+        outputs = tuple(rvq.get_output_from_indices(chunk_indices) for rvq, chunk_indices in zip(self.rvqs, indices))
         return mint.cat(outputs, dim=self.split_dim)
 
     def construct(self, x, return_all_codes=False):
