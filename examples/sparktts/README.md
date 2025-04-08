@@ -200,7 +200,8 @@ python -m cli.inference \
 </td>
 <td align="center">
 
-[female](https://github.com/user-attachments/assets/80eeb9c7-0443-4758-a1ce-55ac59e64bd6)
+[ads_coarse_fe_vh_vh.webm](https://github.com/user-attachments/assets/321ba9d4-8087-47ea-8d0c-ea3040ad86dc)
+
 
 </td>
 </tr>
