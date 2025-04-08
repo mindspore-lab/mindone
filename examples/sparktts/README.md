@@ -85,22 +85,6 @@ You can simply run the demo with the following commands:
 cd example
 bash infer.sh
 ```
-<table>
-<tr>
-<td align="center">
-
-**infer**
-</td>
-<td align="center">
-
-[ads.webm](https://github.com/user-attachments/assets/35ea1925-2a14-4ee8-a23f-4d2143507af2)
-
-
-</td>
-</tr>
-</table>
-
----
 
 Alternatively, you can directly execute the following command in the command line to perform inference：
 
