@@ -93,7 +93,8 @@ bash infer.sh
 </td>
 <td align="center">
 
-[infer](https://github.com/user-attachments/assets/fb225780-d9fe-44b2-9b2e-54390cb3d8fd)
+[ads.webm](https://github.com/user-attachments/assets/35ea1925-2a14-4ee8-a23f-4d2143507af2)
+
 
 </td>
 </tr>
@@ -139,7 +140,8 @@ python -m cli.inference \
 </td>
 <td align="center">
 
-[Jay](https://github.com/user-attachments/assets/80eeb9c7-0443-4758-a1ce-55ac59e64bd6)
+[jay.webm](https://github.com/user-attachments/assets/9c34d0e0-e94f-4454-a279-1424fafbf67b)
+
 
 </td>
 </tr>
@@ -168,7 +170,8 @@ python -m cli.inference \
 </td>
 <td align="center">
 
-[Trump](https://github.com/user-attachments/assets/80eeb9c7-0443-4758-a1ce-55ac59e64bd6)
+[trump_cn.webm](https://github.com/user-attachments/assets/36002a91-785a-4795-9454-1f905af9e675)
+
 
 </td>
 </tr>
