@@ -7,6 +7,7 @@ stage=3
 npp=0.05
 
 python train.py \
+    --ms_mode 0 \
     --model_path ckpts/Janus-Pro-1B \
     --load_weight True \
     --use_value_and_grad False \
