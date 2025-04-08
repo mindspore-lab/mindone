@@ -116,6 +116,7 @@ def log_validation(pipeline, args, step, trackers, logging_dir, is_final_validat
                 guidance_scale=3.5,
                 generator=generator,
             )[0][0]
+            image = image.resize((args.resolution, args.resolution))
             images.append(image)
         image_logs.append(
             {"validation_image": validation_image, "images": images, "validation_prompt": validation_prompt}
@@ -1349,8 +1350,8 @@ class FluxControlNetWithLoss(nn.Cell):
 
         latent_image_ids = FluxControlNetPipeline._prepare_latent_image_ids(
             batch_size=pixel_latents_tmp.shape[0],  # no use
-            height=pixel_latents_tmp.shape[2],
-            width=pixel_latents_tmp.shape[3],
+            height=pixel_latents_tmp.shape[2] // 2,
+            width=pixel_latents_tmp.shape[3] // 2,
             dtype=self.weight_dtype,
         )
 
