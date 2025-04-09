@@ -293,7 +293,7 @@ In order to train vae with LPIPS loss, please also download [lpips_vgg-426bf45c.
 **Steps 3: Hyper-parameters Setting**
 
 As introduced in the [Open-Sora Plan Arxiv paper](https://arxiv.org/abs/2412.00131), the hyper-parameters of each stage is summerized in the following table:
-| stage |  resolution | num of frames | fps | batch size  | train Steps | discrminator |  $\lambda_{lpips}$ |
+| stage |  resolution | num of frames | fps | batch size  | train steps | discrminator |  $\lambda_{lpips}$ |
 |:---   |:---         |:---           |:--- |:---         |:---         |:---          |:---                |
 | 1     | 256x256     | 25            | Original fps       |   8 |   800K     | TRUE         | -                  |
 | 2     | 256x256     | 49            | Original fps / 2   |   8 |   200K     | TRUE         | -                  |
