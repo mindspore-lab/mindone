@@ -93,9 +93,7 @@ def run_tts(args):
 
 if __name__ == "__main__":
     start = time()
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
     args = parse_args()
     run_tts(args)

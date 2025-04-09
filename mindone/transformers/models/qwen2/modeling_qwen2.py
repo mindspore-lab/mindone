@@ -24,11 +24,10 @@ from typing import List, Optional, Tuple, Union
 from transformers import Qwen2Config, logging
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
-from mindspore import Parameter, mint, nn, ops, Tensor
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
-from mindone.transformers.cache_utils import Cache, get_seq_length, get_max_length, update
+from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
