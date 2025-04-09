@@ -94,7 +94,7 @@ For more detailed usage of the inference script, please run `python sample.py -h
 
 ### Vanilla Finetune
 
-We support finetune PixArt-Σ model on Ascend Atlas 800T A2 machines.
+We support finetune PixArt-Σ model on Ascend Atlas 800T A2 device.
 
 #### Prepare the Dataset
 
@@ -143,7 +143,7 @@ python sample.py -c configs/inference/pixart-sigma-512-MS.yaml --prompt "your ma
 
 #### Distributed Training (Optional):
 
-You can launch distributed training using multiple Ascend Atlas 800T A2 machines Devices:
+You can launch distributed training using multiple Ascend Atlas 800T A2 Devices:
 
 ```bash
 msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py \
