@@ -15,9 +15,10 @@ Here is the development plan of the project:
     - [x] Inference
     - [x] Sequence Parallel (Ulysses SP)
     - [x] VAE latent cache
+    - [x] Training up to `544x960x129` and `720x1280x129` with SP and VAE latent cache
     - [x] Training stage 1: T2I 256px
-    - [ ] Training stage 2: T2I  256px 512px (buckts)
-    - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckts)
+    - [ ] Training stage 2: T2I  256px 512px (buckets)
+    - [ ] Training stage 3: T2I/V up to 720x1280x129 (buckets)
     - [ ] LoRA finetune
 
 
