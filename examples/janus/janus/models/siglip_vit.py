@@ -31,7 +31,16 @@ from mindspore.mint.nn import LayerNorm
 
 from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
 
-from .timm import (AttentionPoolLatent, DropPath, LayerType, Mlp, PatchDropout, PatchEmbed, no_grad_trunc_normal_, resample_abs_pos_embed)
+from .timm import (
+    AttentionPoolLatent,
+    DropPath,
+    LayerType,
+    Mlp,
+    PatchDropout,
+    PatchEmbed,
+    no_grad_trunc_normal_,
+    resample_abs_pos_embed,
+)
 
 
 def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
@@ -110,7 +119,7 @@ class Attention(nn.Cell):
 
     def construct(self, x: Tensor) -> Tensor:
         B, N, C = x.shape
-        qkv = (self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4))
+        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
 
@@ -306,7 +315,7 @@ class VisionTransformer(nn.Cell):
         embed_len = num_patches if no_embed_class else num_patches + self.num_prefix_tokens
         # self.pos_embed = Parameter(mint.randn(1, embed_len, embed_dim) * 0.02) # doesn't support graph mode
         self.pos_embed = Parameter(
-            ms.Tensor(np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32)* 0.02)
+            ms.Tensor(np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32) * 0.02)
         )
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
         if patch_drop_rate > 0:
@@ -407,10 +416,13 @@ class VisionTransformer(nn.Cell):
 
         param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
         if param_not_load:
-            print("Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load)))
+            print(
+                "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+            )
         if ckpt_not_load:
             print(
-                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load)))
+                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+            )
         print("finish loading ckpt siglip")
 
     def no_weight_decay(self) -> Set:
@@ -437,7 +449,7 @@ class VisionTransformer(nn.Cell):
             elif global_pool != "map " and self.attn_pool is not None:
                 self.attn_pool = None  # remove attention pooling
             self.global_pool = global_pool
-        self.head = (mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity())
+        self.head = mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
     def _pos_embed(self, x: Tensor) -> Tensor:
         if self.dynamic_img_size:
@@ -512,7 +524,9 @@ class VisionTransformer(nn.Cell):
 
         if reshape:
             grid_size = self.patch_embed.grid_size
-            outputs = [out.reshape(x.shape[0], grid_size[0], grid_size[1], -1).permute(0, 3, 1, 2).contiguous() for out in outputs]
+            outputs = [
+                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1).permute(0, 3, 1, 2).contiguous() for out in outputs
+            ]
 
         if return_prefix_tokens:
             return tuple(zip(outputs, prefix_tokens))

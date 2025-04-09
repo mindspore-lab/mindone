@@ -79,7 +79,7 @@ def trunc_normal_tf_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
         >>> w = mint.empty(3, 5)
         >>> nn.init.trunc_normal_(w)
     """
-    _no_grad_trunc_normal_(tensor, 0, 1.0, a, b)
+    no_grad_trunc_normal_(tensor, 0, 1.0, a, b)
     with ms._no_grad():
         tensor.mul_(std).add_(mean)
     return tensor
