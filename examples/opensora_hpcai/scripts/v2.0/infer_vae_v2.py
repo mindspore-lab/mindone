@@ -362,6 +362,9 @@ def main(args):
             f"Batch size must be 1 when `resize_by_max_value=True`, but get `batch_size={args.batch_size}`."
         )
 
+    if args.vae_micro_batch_size is None:
+        args.vae_micro_batch_size = args.num_frames
+
     # build dataloader for large amount of captions
     ds_config = dict(
         csv_path=args.csv_path,
@@ -481,7 +484,7 @@ def main(args):
                     x = np.expand_dims(np.transpose(x, (1, 0, 2, 3)), axis=0)  # [f, c, h, w] -> [b, c, f, h, w], b must be 1
                     bs = args.vae_micro_batch_size
 
-                    if args.num_frames > 0:
+                    if args.num_frames > 0:  # TODO
                         if x.shape[2] < args.num_frames:
                             raise ValueError(f"Video {video_path} has {x.shape[2]} frames, but expected >= {args.num_frames} frames.")
                         x = x[:, :, : args.num_frames, :, :]
@@ -647,7 +650,7 @@ def parse_args():
     parser.add_argument(
         "--vae_micro_batch_size",
         type=int,
-        default=64,
+        default=None,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
     
