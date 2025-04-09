@@ -460,7 +460,6 @@ def main(args):
         ds_iter = dataloader.create_dict_iterator(1, output_numpy=True)
         for step, data in tqdm(enumerate(ds_iter), total=dataset_size):
             start_time = time.time()
-            # caption = data["caption"]
 
             if args.dl_return_all_frames:
                 frame_data = data["frame_data"]
@@ -482,16 +481,25 @@ def main(args):
                     x = np.expand_dims(np.transpose(x, (1, 0, 2, 3)), axis=0)  # [f, c, h, w] -> [b, c, f, h, w], b must be 1
                     bs = args.vae_micro_batch_size
 
+                    if args.num_frames > 0:
+                        if x.shape[2] < args.num_frames:
+                            raise ValueError(f"Video {video_path} has {x.shape[2]} frames, but expected >= {args.num_frames} frames.")
+                        x = x[:, :, : args.num_frames, :, :]
+                    else:
+                        logger.warning(f"Invalid args.num_frames value: {args.num_frames}. Using all frames in the video.")
+
+                    logger.info(f"The shape [b, c, f, h, w] of video for vae encoding: {x.shape}")
+
                     for j in range(0, x.shape[2], bs):
                         x_bs = x[:, :, j : min(j + bs, x.shape[2]), :, :]
                         
                         if cond_config.get("condition_config", None) is not None:
                             raise NotImplementedError
                             # condition for i2v & v2v
-                            x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
-                            # TODO: pack function
-                            # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
-                            conds.append(cond.asnumpy())
+                            # x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
+                            # # TODO: pack function
+                            # # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
+                            # conds.append(cond.asnumpy())
                         else:
                             x_0, posterior = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32), return_posterior=True))
                         video_latent_mean.append(posterior.mean.asnumpy())
@@ -523,10 +531,10 @@ def main(args):
                         if cond_config.get("condition_config", None) is not None:
                             raise NotImplementedError
                             # condition for i2v & v2v
-                            x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
-                            # TODO: pack function
-                            # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
-                            conds.append(cond.asnumpy())
+                            # x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
+                            # # TODO: pack function
+                            # # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
+                            # conds.append(cond.asnumpy())
                         else:
                             x_0, posterior = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32), return_posterior=True))
                         video_latent_mean.append(posterior.mean.asnumpy())
@@ -631,11 +639,18 @@ def parse_args():
                 the AR of target image size then resize, suitable for where target h != target w.",
     )
     parser.add_argument(
+        "--num_frames",
+        type=int,
+        default=129,
+        help="Crop the video to num_frames frames.",
+    )
+    parser.add_argument(
         "--vae_micro_batch_size",
         type=int,
         default=64,
         help="If not None, split batch_size*num_frames into smaller ones for VAE encoding to reduce memory limitation",
     )
+    
     parser.add_argument(
         "--use_recompute",
         default=False,
