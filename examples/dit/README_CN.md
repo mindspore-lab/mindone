@@ -82,7 +82,7 @@ seed: 42
 ddim_sampling: True
 ```
 
-实验在MindSpore图模式Ascend Atlas 800T A2 machines上进行验证：
+实验在MindSpore图模式Ascend Atlas 800T A2训练服务器上进行验证：
 
 - mindspore 2.5.0
 
@@ -142,7 +142,7 @@ bash scripts/run_distributed.sh -h
 
 ## 评估
 
-实验在MindSpore图模式的Ascend Atlas 800T A2 machines上进行验证：
+实验在MindSpore图模式的Ascend Atlas 800T A2 训练服务器上进行验证：
 
 - mindspore 2.5.0
 
