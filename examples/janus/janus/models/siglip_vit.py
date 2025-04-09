@@ -688,38 +688,3 @@ def create_siglip_vit(
     )
 
     return model
-
-
-if __name__ == "__main__":
-    from mindone.utils.logger import set_logger
-
-    ms.set_context(device_id=7)
-    _debug = True
-    # put name as ""
-    logger = set_logger(name="", output_dir=str(".") if not _debug else None)
-
-    jp1b = "/mnt/disk2/fredhong/hf_ckpts/Janus-Pro-1B"
-
-    # load input and golden gt, run this testing under Janus dir
-    input_tensor = Tensor(np.load("./image_tensor.npy")).to(ms.bfloat16)
-    gt_tensor = np.load("./image_forward_outs.npy")
-    print(input_tensor)
-    print(f"gt tensor dtype is {gt_tensor.dtype}")
-
-    # default setup, unit load hard to load ckpt this way, do entire model loading
-    from modeling_vlm import MultiModalityCausalLM
-
-    vl_gpt: MultiModalityCausalLM = MultiModalityCausalLM.from_pretrained(
-        jp1b, local_files_only=True
-    )
-    vl_gpt = vl_gpt.to(ms.bfloat16)
-    vision_tower = vl_gpt.vision_model.vision_tower
-
-    # cal & eval
-    out = vision_tower(input_tensor)
-    out = out.to(ms.float32).asnumpy()
-
-    assert np.allclose(
-        out, gt_tensor, rtol=1e-1, atol=1e-1
-    ), f"recal result is not closed to gt!, out:{out.shape}\n{out}\ngt:{gt_tensor.shape}\n{gt_tensor}"
-    print("test success")
