@@ -16,7 +16,6 @@
 #
 # This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
-from dataclasses import dataclass
 from typing import Literal, Optional
 
 import numpy as np
@@ -88,9 +87,9 @@ class SinusoidalEmbedding(nn.Cell):
 class MLPEmbedder(nn.Cell):
     def __init__(self, in_dim: int, hidden_dim: int, dtype: mstype.Type = mstype.float32):
         super().__init__()
-        self.in_layer = nn.Linear(in_dim, hidden_dim, bias=True, dtype=dtype)
+        self.in_layer = nn.Dense(in_dim, hidden_dim, has_bias=True, dtype=dtype)
         self.silu = nn.SiLU()
-        self.out_layer = nn.Linear(hidden_dim, hidden_dim, bias=True, dtype=dtype)
+        self.out_layer = nn.Dense(hidden_dim, hidden_dim, has_bias=True, dtype=dtype)
 
     def construct(self, x: Tensor) -> Tensor:
         return self.out_layer(self.silu(self.in_layer(x)))
@@ -164,13 +163,13 @@ class SelfAttention(nn.Cell):
         self.flash_attention = FlashAttentionScore(num_heads, scale_value=head_dim**-0.5, input_layout="BNSD")
 
         if fused_qkv:
-            self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias, dtype=dtype)
+            self.qkv = nn.Dense(dim, dim * 3, has_bias=qkv_bias, dtype=dtype)
         else:
-            self.q_proj = nn.Linear(dim, dim, bias=qkv_bias, dtype=dtype)
-            self.k_proj = nn.Linear(dim, dim, bias=qkv_bias, dtype=dtype)
-            self.v_proj = nn.Linear(dim, dim, bias=qkv_bias, dtype=dtype)
+            self.q_proj = nn.Dense(dim, dim, has_bias=qkv_bias, dtype=dtype)
+            self.k_proj = nn.Dense(dim, dim, has_bias=qkv_bias, dtype=dtype)
+            self.v_proj = nn.Dense(dim, dim, has_bias=qkv_bias, dtype=dtype)
         self.norm = QKNorm(head_dim, dtype=dtype)
-        self.proj = nn.Linear(dim, dim, dtype=dtype)
+        self.proj = nn.Dense(dim, dim, dtype=dtype)
 
     def construct(self, x: Tensor, pe: Tensor) -> Tensor:
         if self.fused_qkv:
@@ -202,28 +201,28 @@ class SelfAttention(nn.Cell):
         return x
 
 
-@dataclass
-class ModulationOut:
-    shift: Tensor
-    scale: Tensor
-    gate: Tensor
-
-
-class Modulation(nn.Cell):
-    def __init__(self, dim: int, double: bool, dtype: mstype.Type = mstype.float32):
+class SingleModulation(nn.Cell):
+    def __init__(self, dim: int, dtype: mstype.Type = mstype.float32):
         super().__init__()
-        self.is_double = double
-        self.multiplier = 6 if double else 3
-        self.lin = nn.Linear(dim, self.multiplier * dim, bias=True, dtype=dtype)
+        self.multiplier = 3
+        self.lin = nn.Dense(dim, self.multiplier * dim, has_bias=True, dtype=dtype)
         self.silu = nn.SiLU()
 
-    def construct(self, vec: Tensor) -> tuple[ModulationOut, Optional[ModulationOut]]:
+    def construct(self, vec: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         out = self.lin(self.silu(vec))[:, None, :].chunk(self.multiplier, dim=-1)
+        return out
 
-        return (
-            ModulationOut(*out[:3]),
-            ModulationOut(*out[3:]) if self.is_double else None,
-        )
+
+class DoubleModulation(nn.Cell):
+    def __init__(self, dim: int, dtype: mstype.Type = mstype.float32):
+        super().__init__()
+        self.multiplier = 6
+        self.lin = nn.Dense(dim, self.multiplier * dim, has_bias=True, dtype=dtype)
+        self.silu = nn.SiLU()
+
+    def construct(self, vec: Tensor) -> tuple[tuple[Tensor, Tensor, Tensor], tuple[Tensor, Tensor, Tensor]]:
+        out = self.lin(self.silu(vec))[:, None, :].chunk(self.multiplier, dim=-1)
+        return out[:3], out[3:]
 
 
 class DoubleStreamBlock(nn.Cell):
@@ -266,7 +265,7 @@ class DoubleStreamBlock(nn.Cell):
             self.attention = Attention(self.head_dim)
 
         # image stream
-        self.img_mod = Modulation(hidden_size, double=True, dtype=dtype)
+        self.img_mod = DoubleModulation(hidden_size, dtype=dtype)
         self.img_norm1 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, dtype=dtype)
         self.img_attn = SelfAttention(
             dim=hidden_size, num_heads=self.num_heads, qkv_bias=qkv_bias, fused_qkv=fused_qkv, dtype=dtype
@@ -274,13 +273,13 @@ class DoubleStreamBlock(nn.Cell):
 
         self.img_norm2 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, dtype=dtype)
         self.img_mlp = nn.SequentialCell(
-            nn.Linear(hidden_size, mlp_hidden_dim, bias=True, dtype=dtype),
+            nn.Dense(hidden_size, mlp_hidden_dim, has_bias=True, dtype=dtype),
             nn.GELU(),
-            nn.Linear(mlp_hidden_dim, hidden_size, bias=True, dtype=dtype),
+            nn.Dense(mlp_hidden_dim, hidden_size, has_bias=True, dtype=dtype),
         )
 
         # text stream
-        self.txt_mod = Modulation(hidden_size, double=True, dtype=dtype)
+        self.txt_mod = DoubleModulation(hidden_size, dtype=dtype)
         self.txt_norm1 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, dtype=dtype)
         self.txt_attn = SelfAttention(
             dim=hidden_size,
@@ -293,9 +292,9 @@ class DoubleStreamBlock(nn.Cell):
 
         self.txt_norm2 = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, dtype=dtype)
         self.txt_mlp = nn.SequentialCell(
-            nn.Linear(hidden_size, mlp_hidden_dim, bias=True, dtype=dtype),
+            nn.Dense(hidden_size, mlp_hidden_dim, has_bias=True, dtype=dtype),
             nn.GELU(),
-            nn.Linear(mlp_hidden_dim, hidden_size, bias=True, dtype=dtype),
+            nn.Dense(mlp_hidden_dim, hidden_size, has_bias=True, dtype=dtype),
         )
 
     def construct(self, img: Tensor, txt: Tensor, vec: Tensor, pe: Tensor, **kwargs) -> tuple[Tensor, Tensor]:
@@ -307,7 +306,7 @@ class DoubleStreamBlock(nn.Cell):
 
         # prepare image for attention
         img_modulated = self.img_norm1(img)
-        img_modulated = (1 + img_mod1.scale) * img_modulated + img_mod1.shift
+        img_modulated = (1 + img_mod1[1]) * img_modulated + img_mod1[0]
 
         if self.img_attn.fused_qkv:
             img_qkv = self.img_attn.qkv(img_modulated)
@@ -334,7 +333,7 @@ class DoubleStreamBlock(nn.Cell):
 
         # prepare txt for attention
         txt_modulated = self.txt_norm1(txt)
-        txt_modulated = (1 + txt_mod1.scale) * txt_modulated + txt_mod1.shift
+        txt_modulated = (1 + txt_mod1[1]) * txt_modulated + txt_mod1[0]
         if self.txt_attn.fused_qkv:
             txt_qkv = self.txt_attn.qkv(txt_modulated)
             # B L (K H D) -> K B H L D
@@ -364,7 +363,7 @@ class DoubleStreamBlock(nn.Cell):
         q, k, v = self.alltoall(q), self.alltoall(k), self.alltoall(v)
 
         if self._use_lr:
-            cos, sin = mint.chunk(pe, 2)
+            cos, sin = pe[: pe.shape[0] // 2], pe[pe.shape[0] // 2 :]
             q, k = apply_rotary_pos_emb(q, k, cos, sin)
         else:
             q, k = apply_rope(q, k, pe)
@@ -380,12 +379,12 @@ class DoubleStreamBlock(nn.Cell):
         txt_attn, img_attn = attn1[:, : txt_q.shape[2]], attn1[:, txt_q.shape[2] :]
 
         # calculate the img blocks
-        img = img + img_mod1.gate * self.img_attn.proj(img_attn)
-        img = img + img_mod2.gate * self.img_mlp((1 + img_mod2.scale) * self.img_norm2(img) + img_mod2.shift)
+        img = img + img_mod1[2] * self.img_attn.proj(img_attn)
+        img = img + img_mod2[2] * self.img_mlp((1 + img_mod2[1]) * self.img_norm2(img) + img_mod2[0])
 
         # calculate the txt blocks
-        txt = txt + txt_mod1.gate * self.txt_attn.proj(txt_attn)
-        txt = txt + txt_mod2.gate * self.txt_mlp((1 + txt_mod2.scale) * self.txt_norm2(txt) + txt_mod2.shift)
+        txt = txt + txt_mod1[2] * self.txt_attn.proj(txt_attn)
+        txt = txt + txt_mod2[2] * self.txt_mlp((1 + txt_mod2[1]) * self.txt_norm2(txt) + txt_mod2[0])
         return img, txt
 
 
@@ -437,14 +436,14 @@ class SingleStreamBlock(nn.Cell):
         self.mlp_hidden_dim = int(hidden_size * mlp_ratio)
         if fused_qkv:
             # qkv and mlp_in
-            self.linear1 = nn.Linear(hidden_size, hidden_size * 3 + self.mlp_hidden_dim, dtype=dtype)
+            self.linear1 = nn.Dense(hidden_size, hidden_size * 3 + self.mlp_hidden_dim, dtype=dtype)
         else:
-            self.q_proj = nn.Linear(hidden_size, hidden_size, dtype=dtype)
-            self.k_proj = nn.Linear(hidden_size, hidden_size, dtype=dtype)
-            self.v_mlp = nn.Linear(hidden_size, hidden_size + self.mlp_hidden_dim, dtype=dtype)
+            self.q_proj = nn.Dense(hidden_size, hidden_size, dtype=dtype)
+            self.k_proj = nn.Dense(hidden_size, hidden_size, dtype=dtype)
+            self.v_mlp = nn.Dense(hidden_size, hidden_size + self.mlp_hidden_dim, dtype=dtype)
 
         # proj and mlp_out
-        self.linear2 = nn.Linear(hidden_size + self.mlp_hidden_dim, hidden_size, dtype=dtype)
+        self.linear2 = nn.Dense(hidden_size + self.mlp_hidden_dim, hidden_size, dtype=dtype)
 
         self.norm = QKNorm(self.head_dim, dtype=dtype)
 
@@ -452,11 +451,11 @@ class SingleStreamBlock(nn.Cell):
         self.pre_norm = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, dtype=dtype)
 
         self.mlp_act = nn.GELU()
-        self.modulation = Modulation(hidden_size, double=False, dtype=dtype)
+        self.modulation = SingleModulation(hidden_size, dtype=dtype)
 
     def construct(self, x: Tensor, vec: Tensor, pe: Tensor, **kwargs) -> Tensor:
-        mod, _ = self.modulation(vec)
-        x_mod = (1 + mod.scale) * self.pre_norm(x) + mod.shift
+        mod = self.modulation(vec)
+        x_mod = (1 + mod[1]) * self.pre_norm(x) + mod[0]
         if self.fused_qkv:
             qkv, mlp = mint.split(self.linear1(x_mod), [3 * self.hidden_size, self.mlp_hidden_dim], dim=-1)
             # B L (K H D) -> K B H L D
@@ -480,7 +479,7 @@ class SingleStreamBlock(nn.Cell):
 
         # compute attention
         if self._use_lr:
-            cos, sin = mint.chunk(pe, 2)
+            cos, sin = pe[: pe.shape[0] // 2], pe[pe.shape[0] // 2 :]
             q, k = apply_rotary_pos_emb(q, k, cos, sin)
         else:
             q, k = apply_rope(q, k, pe)
@@ -494,7 +493,7 @@ class SingleStreamBlock(nn.Cell):
 
         # compute activation in mlp stream, cat again, and run the second linear layer
         output = self.linear2(mint.cat((attn_1, self.mlp_act(mlp)), 2))
-        output = x + mod.gate * output
+        output = x + mod[2] * output
         return output
 
 
@@ -502,9 +501,9 @@ class LastLayer(nn.Cell):
     def __init__(self, hidden_size: int, patch_size: int, out_channels: int, dtype: mstype.Type = mstype.float32):
         super().__init__()
         self.norm_final = mint.nn.LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6, dtype=dtype)
-        self.linear = nn.Linear(hidden_size, patch_size * patch_size * out_channels, bias=True, dtype=dtype)
+        self.linear = nn.Dense(hidden_size, patch_size * patch_size * out_channels, has_bias=True, dtype=dtype)
         self.adaLN_modulation = nn.SequentialCell(
-            nn.SiLU(), nn.Linear(hidden_size, 2 * hidden_size, bias=True, dtype=dtype)
+            nn.SiLU(), nn.Dense(hidden_size, 2 * hidden_size, has_bias=True, dtype=dtype)
         )
 
     def construct(self, x: Tensor, vec: Tensor) -> Tensor:

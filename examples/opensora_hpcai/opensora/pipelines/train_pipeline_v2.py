@@ -65,7 +65,7 @@ class DiffusionWithLoss(nn.Cell):
         self.scale_factor = scale_factor
         self._sigma_min = sigma_min
         self._guidance = tensor(guidance, dtype=self.network.dtype)
-        self.loss = nn.MSELoss()
+        self.loss = mint.nn.MSELoss()
 
         self.broadcast = None
         if (sp_group := get_sequence_parallel_group()) is not None:
@@ -93,8 +93,8 @@ class DiffusionWithLoss(nn.Cell):
     def construct(
         self, x: Tensor, img_ids: Tensor, text_embed: Tensor, txt_ids: Tensor, y_vec: Tensor, shift_alpha: Tensor
     ) -> Tensor:
-        with no_grad():
-            if self.vae is not None:
+        if self.vae is not None:
+            with no_grad():
                 x = self.get_latents(x)
 
         loss = self.compute_loss(x, img_ids, text_embed, txt_ids, y_vec, shift_alpha)
@@ -122,7 +122,7 @@ class DiffusionWithLoss(nn.Cell):
             txt_ids=txt_ids.to(self.network.dtype),
             timesteps=t.to(self.network.dtype),
             y_vec=y_vec.to(self.network.dtype),
-            guidance=self._guidance.repeat(x_t.shape[0]),
+            guidance=mint.tile(self._guidance, (x_t.shape[0],)),
         )
         v_t = (1 - self._sigma_min) * noise - x
 

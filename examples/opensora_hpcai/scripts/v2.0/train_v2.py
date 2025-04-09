@@ -8,7 +8,7 @@ from jsonargparse import ActionConfigFile, ArgumentParser
 import mindspore.dataset as mds
 from mindspore import GRAPH_MODE, Model, Symbol
 from mindspore import dtype as mstype
-from mindspore import get_context, nn, set_seed, tensor
+from mindspore import get_context, nn, tensor
 
 # TODO: remove in future when mindone is ready for install
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -113,10 +113,6 @@ def main(args):
         create_parallel_group(**args.train.sequence_parallel)
         device_num = device_num // args.train.sequence_parallel.shards
         shard_rank_id = rank_id // args.train.sequence_parallel.shards
-
-    # FIXME: Improve seed setting
-    set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
-    mds.set_seed(args.env.seed)  # keep MS.dataset's seed consistent as datasets first shuffled and then distributed
 
     # instantiate classes only after initializing the training environment
     initializer = parser.instantiate_classes(cfg)

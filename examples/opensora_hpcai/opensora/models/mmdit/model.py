@@ -98,7 +98,7 @@ class MMDiTModel(nn.Cell):
         pe_embedder_cls = LigerEmbedND if config.use_liger_rope else EmbedND
         self.pe_embedder = pe_embedder_cls(dim=pe_dim, theta=config.theta, axes_dim=config.axes_dim)
 
-        self.img_in = nn.Linear(self.in_channels, self.hidden_size, bias=True, dtype=dtype)
+        self.img_in = nn.Dense(self.in_channels, self.hidden_size, has_bias=True, dtype=dtype)
         self.time_in = MLPEmbedder(in_dim=256, hidden_dim=self.hidden_size, dtype=dtype)
         self.vector_in = MLPEmbedder(config.vec_in_dim, self.hidden_size, dtype=dtype)
         self.guidance_in = (
@@ -107,11 +107,11 @@ class MMDiTModel(nn.Cell):
             else nn.Identity()
         )
         self.cond_in = (
-            nn.Linear(self.in_channels + self.patch_size**2, self.hidden_size, bias=True, dtype=dtype)
+            nn.Dense(self.in_channels + self.patch_size**2, self.hidden_size, has_bias=True, dtype=dtype)
             if config.cond_embed
             else nn.Identity()
         )
-        self.txt_in = nn.Linear(config.context_in_dim, self.hidden_size, dtype=dtype)
+        self.txt_in = nn.Dense(config.context_in_dim, self.hidden_size, dtype=dtype)
 
         self.double_blocks = nn.CellList(
             [
@@ -254,11 +254,11 @@ class MMDiTModel(nn.Cell):
             txt = self.split_forward_gather_backward(txt)
             # instead of dynamically splitting `txt` and `img` tensors as done in OSv2,
             # we rearrange the positional embeddings for simplicity
-            # TODO: separate txt and image positional embeddings to further simplify
             dim = 1 if self.config.use_liger_rope else 2
             splits = [txt.shape[1]] * self._sp_size + [img.shape[1]] * self._sp_size
-            pe = pe.split(splits, dim=dim)
-            pe = [pe[i + j * self._sp_size] for i in range(self._sp_size) for j in range(2)]
+            pe = mint.split(pe, splits, dim=dim)
+            # MindSpore doesn't support nested list comprehensions, so perform PE concatenation twice
+            pe = [mint.cat([pe[i], pe[i + self._sp_size]], dim=dim) for i in range(self._sp_size)]
             pe = mint.cat(pe, dim=dim)
 
         for block in self.double_blocks:
