@@ -379,7 +379,7 @@ NODE_RANK="0"
 | CogvideoX 1.5 T2V 20B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.1  |   35.7 GB    |
 | CogvideoX 1.5 T2V 30B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  26.5  |   47.3 GB    |
 
-以上数据在Disney数据集，Ascend Atlas 800T A2 machines上获得。
+以上数据在Disney数据集，Ascend Atlas 800T A2训练服务器上获得。
 
 ### 推理
 
@@ -387,7 +387,7 @@ NODE_RANK="0"
 |:-----------------:|:-----:|:--:|:--:|:-----:|:-------------:|:---------:|:---------:|:------:|:----------:|
 | CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 | 1x77x768x1360 |   bf16    |    O1     |  3.21  |   ~ 5min   |
 
-以上数据在Ascend Atlas 800T A2 machines上获得。
+以上数据在Ascend Atlas 800T A2训练服务器上获得。
 
 ## 与原仓的差异&功能限制
 
