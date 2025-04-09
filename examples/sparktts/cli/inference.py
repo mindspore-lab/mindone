@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 from datetime import datetime
+from time import time
 
 import soundfile as sf
 from cli.SparkTTS import SparkTTS
@@ -91,7 +92,11 @@ def run_tts(args):
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    start = time()
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
 
     args = parse_args()
     run_tts(args)
+    print(f"Time cost: {time() - start:.2f}s")

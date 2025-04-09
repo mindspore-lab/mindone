@@ -176,7 +176,7 @@ class SparkTTS:
             top_k=top_k,
             top_p=top_p,
             temperature=temperature,
-            use_cache=False,  # TODO: remove this when qwen2 in mindone.transformers supports cache
+            use_cache=True,
         )
 
         # Decode the generated tokens into text
