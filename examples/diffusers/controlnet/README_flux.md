@@ -44,7 +44,7 @@ We also support importing data from jsonl(xxx.jsonl),using `--jsonl_for_train` t
 
 ## Training
 
-Our experiments were conducted on a single 64GB 910* NPU.
+Our experiments were conducted on a single 64GB Ascend Atlas 800T A2 NPU.
 
 We can define the num_layers, num_single_layers, which determines the size of the control.
 

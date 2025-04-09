@@ -133,7 +133,7 @@ Following the paper, during training, 3 images are processed with the ViT Image 
 
 
 ## Performance
-Experiments are tested on Ascend 910* with mindspore pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore pynative mode.
 
 Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
 

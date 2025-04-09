@@ -11,14 +11,14 @@ The `chinese_art_blip` dataset can be downloaded [here](https://openi.pcl.ac.cn/
 
 ## Supported Platforms & Version
 
-This test example is mainly developed and tested on Ascend 910* platforms with MindSpore framework.
+This test example is mainly developed and tested on Ascend Atlas 800T A2 machines platforms with MindSpore framework.
 The compatible framework version that are well-tested are listed as follows.
 
 <div align="center">
 
 | Ascend    |  MindSpore   | CANN   | driver |  firmware |
 |:-----------:|:----------------:|:--------:|:---------:|:---------:|
-| 910*      |     2.2.10 (20231120)    |   7.1.0.1.118  | 23.0.rc3.5.b050   | 7.1.0.1.118|
+| Atlas 800T A2      |     2.2.10 (20231120)    |   7.1.0.1.118  | 23.0.rc3.5.b050   | 7.1.0.1.118|
 
 </div>
 

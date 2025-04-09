@@ -106,7 +106,7 @@ We list some more useful configurations for easy usage:
 
 ## Stage 1: Image to 6 Views
 
-Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindSpore 2.3.1 pynative mode.
 
 | model name|precision |  cards| batch size | resolution | jit level| flash attn| scheduler| steps| s/step |img/s|  weight|
 |---|---|---|---|---|---|---|---|---|---|---|---|
@@ -129,7 +129,7 @@ Experiments are tested on ascend 910* with mindSpore 2.3.1 pynative mode.
 
 ## Stage 2: Views to Mesh
 
-Experiments are tested on ascend 910* with pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with pynative mode.
 
 |version | model name|precision |  cards| batch size | resolution | jit level| flash attn| steps| s/step |mesh/s| recipe| weight|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -140,7 +140,7 @@ Experiments are tested on ascend 910* with pynative mode.
 \*note: checkpoint weights are originally float16. Flash attention always uses bfloat16, customized LayerNorm uses float32.
 
 
-Experiments are tested on ascend 910* with graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with graph mode.
 
 |version | model name|precision |  cards| batch size | resolution | jit level| flash attn| steps| s/step |mesh/s| recipe| weight|
 |---|---|---|---|---|---|---|---|---|---|---|---|---|

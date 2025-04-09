@@ -128,7 +128,7 @@ python train.py \
 
 ## Perfromance
 
-Experiments are tested on Ascend 910* with mindspore 2.4.0 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.0 graph mode.
 
 ### Training
 #### ms 2.5.0

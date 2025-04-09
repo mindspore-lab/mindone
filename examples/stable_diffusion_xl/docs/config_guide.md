@@ -13,7 +13,7 @@
 - `--max_grad_norm`: max gradient norm for clipping, effective when `clip_grad` is enabled.
 - `--use_ema`: whether use ema
 - `--scale_lr`: whether scale lr with global batch size
-- `--max_device_memory`: set the maximum memory usage for model training, recommended to `59GB` on 910*
+- `--max_device_memory`: set the maximum memory usage for model training, recommended to `59GB` on Ascend Atlas 800T A2 machines
 
 - `--is_parallel`: whether to train the model in parallel, must be `True` during multi-card training
 

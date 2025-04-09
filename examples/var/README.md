@@ -70,7 +70,7 @@ bash script/run_train_d16.sh
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
@@ -88,7 +88,7 @@ python inference_demo.py --var_ckpt path/to/var-d16.ckpt
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile | s/img |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:------------------------:|:----------------:|:----------------:|

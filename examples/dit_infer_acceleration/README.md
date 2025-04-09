@@ -7,7 +7,7 @@
 * Easy integration into DiT
 
 ## Performance
-Stable Diffusion 3(SD3) uses the prompt "A cat holding a sign that says hello world" to run on Ascend 910B* at *graph mode*, and the performance data is as follows, which is spending time per image(s/img).
+Stable Diffusion 3(SD3) uses the prompt "A cat holding a sign that says hello world" to run on Ascend Atlas 800T A2 machines at *graph mode*, and the performance data is as follows, which is spending time per image(s/img).
 
 |Base model|DiTCache|DiTCache+PromptGate|DiTCache+PromptGate+ToDo|
 |:--:|:--:|:--:|:--:|

@@ -4,7 +4,7 @@ This folder contains [Stable Diffusion XL (SDXL)](https://arxiv.org/abs/2307.019
 
 > [!IMPORTANT]
 >
-> The features works on MindSpore 2.3.1 on Ascend 910* and mainly follow the offical codebase. We highly recommend you use [`mindone.diffusers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) and [example/diffusers](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers) for more state-of-the-art SDXL training and inference tools.
+> The features works on MindSpore 2.3.1 on Ascend Atlas 800T A2 machines and mainly follow the offical codebase. We highly recommend you use [`mindone.diffusers`](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers) and [example/diffusers](https://github.com/mindspore-lab/mindone/tree/master/examples/diffusers) for more state-of-the-art SDXL training and inference tools.
 
 
 ## Guide

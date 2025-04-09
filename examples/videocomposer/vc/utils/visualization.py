@@ -55,7 +55,7 @@ def resize_tensor_for_visual(x: Tensor, n: int, h: int, w: int) -> Tensor:
     Args:
         x: b c f h w
     """
-    # TODO: change to ops.interpolate(mode="trilinear") once it is ok on 910B
+    # TODO: change to ops.interpolate(mode="trilinear") once it is ok on Ascend Atlas 800T A2 machines
     b, c, f, _, _ = x.shape
     x = ops.reshape(x, (-1, f, x.shape[3], x.shape[4]))
     x = ops.interpolate(x, size=(h, w), mode="bilinear")

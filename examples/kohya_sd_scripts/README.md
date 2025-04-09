@@ -14,7 +14,7 @@ Currently, we support
 
 ## Requirements
 
-The scripts work on Ascend 910* with [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and [MindSpore 2.3.0 ](https://www.mindspore.cn/versions#2.3.0).
+The scripts work on Ascend Atlas 800T A2 machines with [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and [MindSpore 2.3.0 ](https://www.mindspore.cn/versions#2.3.0).
 
 | mindspore | ascend driver | firmware    | cann toolkit/kernel |
 |:--------: |:------------: |:----------: | :----------------:  |
@@ -297,7 +297,7 @@ python sdxl_minimal_inference.py \
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode, enabling unet training only.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.0 graph mode, enabling unet training only.
 
 | model name | cards |batch size    | resolution| precision | graph compile | jit level | s/step |
 | :----:    | :----: | :----------: | :-------: | :---------------: | :-------------: | :--------------: | :--------------: |

@@ -34,7 +34,7 @@ cfg.sketch_std = [0.229, 0.224, 0.225]
 # dataloader
 cfg.max_words = 1000
 cfg.feature_framerate = 4
-cfg.max_frames = 16  # 16 for 910B, set 8 for 910A
+cfg.max_frames = 16  # 16 for Ascend Atlas 800T A2 machines, set 8 for Ascend 910
 cfg.batch_size = 1
 cfg.chunk_size = 64
 cfg.num_workers = 8  # not used yet
@@ -135,7 +135,7 @@ cfg.warmup_steps = 10
 cfg.decay_steps = None  # None for auto compute
 
 # training - optim
-cfg.optim = "adamw"  # "momentum" for 910A, 'adamw' for 910B
+cfg.optim = "adamw"  # "momentum" for 910, 'adamw' for Ascend Atlas 800T A2 machines
 cfg.betas = [0.9, 0.98]
 cfg.weight_decay = 0  # not mentioned in paper. let's start with small value
 cfg.use_ema = False
