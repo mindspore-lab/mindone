@@ -94,7 +94,7 @@ def main(args):
     # 2. model initialize and weight loading
     # 2.1 vae
     if not args.dataset.vae_latent_folder or (
-        args.valid.dataset and not args.valid.dataset.init_args.vae_latent_folder
+        hasattr(args.valid, "dataset") and args.valid.dataset and not args.valid.dataset.init_args.vae_latent_folder
     ):
         logger.info("Initializing vae...")
         vae, _, s_ratio, t_ratio = load_vae(
@@ -154,7 +154,7 @@ def main(args):
     logger.info(f"Num train batches: {dataloader.get_dataset_size()}")
 
     eval_diffusion_with_loss, val_dataloader = None, None
-    if args.valid.dataset is not None:
+    if hasattr(args.valid, "dataset") and args.valid.dataset is not None:
         val_dataloader, _ = initialize_dataset(
             args.valid.dataset.init_args, args.valid.dataloader, device_num, shard_rank_id
         )
