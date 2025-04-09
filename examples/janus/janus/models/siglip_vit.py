@@ -21,19 +21,7 @@
 
 from dataclasses import dataclass
 from functools import partial
-from typing import (
-    Callable,
-    Dict,
-    Final,
-    List,
-    Literal,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import Callable, Dict, Final, List, Literal, Optional, Sequence, Set, Tuple, Type, Union
 
 import numpy as np
 
@@ -41,9 +29,7 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.mint.nn import LayerNorm
 
-from mindone.transformers.mindspore_adapter.attention import (
-    scaled_dot_product_attention,
-)
+from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
 
 from .timm import (
     AttentionPoolLatent,
