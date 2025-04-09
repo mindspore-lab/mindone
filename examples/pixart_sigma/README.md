@@ -94,7 +94,7 @@ For more detailed usage of the inference script, please run `python sample.py -h
 
 ### Vanilla Finetune
 
-We support finetune PixArt-Σ model on Ascend Atlas 800T A2 device.
+We support finetune PixArt-Σ model on Ascend Atlas 800T A2 devices.
 
 #### Prepare the Dataset
 
@@ -117,7 +117,7 @@ We support finetune PixArt-Σ model on Ascend Atlas 800T A2 device.
     - Replace `file1.png` with the actual image file path.
     - The `prompt` field contains a description of the image.
     - If you have captions generated from ShareGPT4V, add them to the `sharegpt4v` field. Otherwise, copy the label from the `prompt` line.
-    - `height` and `width` field corresponds to the image height and width, and `ratio` corresponds to the value of `height` / `width`.
+    - `height` and `width` field correspond to the image height and width, and `ratio` corresponds to the value of `height` / `width`.
 
 #### Finetune the Model:
 
