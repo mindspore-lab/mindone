@@ -43,8 +43,8 @@ image.save("sd3.png")
 
 ### supported models under mindone/examples
 
-| task | model  | infer | fine-tune | pretrain | features  |
-| :---   |  :---   |  :---     |  :---     |  :---     |  :--  |
+| task | model  | inference | finetune | pretrain | features  |
+| :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
 | Text-to-Image | [cogview4](https://github.com/mindspore-lab/mindone/blob/master/examples/cogview) 🔥🔥 | ✅ | ✖️  | ✖️  | support text to image generation |
 | Text-to-Image | [flux](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth/README_flux.md) | ✅ | ✅ | ✖️  | support text to image generation, fine-tune  |
 | Text-to-Image | [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | ✅ | ✅ | ✅ | support text to image fine-tune |
@@ -59,7 +59,6 @@ image.save("sd3.png")
 | Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/master/examples/var) | ✅  | ✅  | ✅  | support autoregressive image generation |
 | Class-to-Image | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | ✅  | ✅  | ✅  | support text to image fine-tune |
 | Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) 🔥🔥 | ✅   | ✖️  | ✖️   | support text to video generation |
-| Text/Image-to-Video | [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | ✅ | ✅ | ✅ | support v1.0/1.1/1.2 large scale training with dp/sp/dsp/zero, and v2.0 inference 🔥🔥 |
 | Text-to-Video | [open sora plan](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | ✅ | ✅ | ✅ | support v1.0/1.1/1.2/1.3 large scale training with dp/sp/zero |
 | Text-to-Video | [movie gen](https://github.com/mindspore-lab/mindone/blob/master/examples/moviegen)     | ✅ | ✅ | ✅ | support text to video training with model size up to 30B with dp/sp/zero3 |
 | Text-to-Video | [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | ✅  | ✅  | ✅  | support motion module and lora training |
@@ -68,22 +67,21 @@ image.save("sd3.png")
 | Image-to-Video | [svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd) | ✅  |  ✅ | ✅  | support image to video generation |
 | Image-to-Video | [hunyuanvideo-i2v](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo-i2v) 🔥🔥 |  ✅  | ✖️  | ✖️  | support image to video generation |
 | Image-to-Video | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | ✅  | ✖️  | ✖️  | support image to video generation |
+| Text/Image-to-Video | [hpcai open sora](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | ✅ | ✅ | ✅ | support v1.0/1.1/1.2 large scale training with dp/sp/dsp/zero, and v2.0 inference 🔥🔥 |
 | Text/Image-to-Video | [wan2_1](https://github.com/mindspore-lab/mindone/blob/master/examples/wan2_1) 🔥🔥 |  ✅  |  ✖️  |  ✖️   | support text to video and image to video generation  |
 | Text/Image-to-Video | [cogvideox](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogvideox_factory)  | ✅ |  ✅  | ✅  | support text/image to video generation |
 | Text/Image-to-Video | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | ✅  | ✅  | ✅  | support conditional video generation with motion transfer and etc.|
 | Video-to-Video | [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  ✅  | ✖️  | ✖️  | support video to video enhancement |
 | Video-Encode-Decode | [magvit](https://github.com/mindspore-lab/mindone/blob/master/examples/magvit) |  ✅  |  ✅  |  ✅  | support video encode and decode|
 | Class-to-Video | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     |✅  | ✅ | ✅  | support class-conditional video generation and fine-tune |
-|
 | Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus)  🔥🔥 | ✅  | ✅  | ✅  | support multi-modal understanding and generation (t2i/vqa/text) |
 | Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  | support multi-modal understanding and generation (t2i/vqa) |
-|
 | Text-to-3D | [mvdream](https://github.com/mindspore-lab/mindone/blob/master/examples/mvdream) |   ✅ |   ✅ |   ✅ | support text to 3d generation, fine-tune  |
 | Image-to-3D | [instantmesh](https://github.com/mindspore-lab/mindone/blob/master/examples/instantmesh) | ✅  | ✅  | ✅  | support image to 3d generation, fine-tune |
 | Image-to-3D | [sv3d](https://github.com/mindspore-lab/mindone/blob/master/examples/sv3d) |   ✅ |   ✅ |   ✅ | support image to 3d generation, fine-tune |
 | Text/Image-to-3D | [hunyuan3d-1.0](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan3d_1)     | ✅ | ✅ | ✅ | support text-to-3D and image-to-3D generation |
-| Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/master/examples/qwen2_vl) |  ✅ |  ✖️   |  ✖️   | support multi-modal understanding  |
-| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/master/tools/captioners/PLLaVA) |  ✅ |  ✖️   |  ✖️   | support video and image captioning |
+| Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/master/examples/qwen2_vl) |  ✅ |  ✖️ |  ✖️   | support multi-modal understanding  |
+| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/master/tools/captioners/PLLaVA) |  ✅ |  ✖️ |  ✖️   | support video and image captioning |
 
 
 ###  run hf diffusers on mindspore
