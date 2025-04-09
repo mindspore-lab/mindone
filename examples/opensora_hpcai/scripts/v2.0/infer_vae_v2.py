@@ -252,7 +252,11 @@ def prepare_visual_condition_causal(x: ms.tensor, condition_config: dict, model_
     return x_0, cond
 
 
-def save_output(output_folder: Path, video_name: Path, latent: np.array, conds: Optional[np.array] = None):
+def save_output(output_folder: Path,
+                video_name: Path,
+                mean: np.array,
+                std: np.array,
+                conds: Optional[np.array] = None):
     fn = video_name.with_suffix(".npz")
     npz_fp = os.path.join(output_folder, fn)
     if not os.path.exists(os.path.dirname(npz_fp)):
@@ -263,13 +267,15 @@ def save_output(output_folder: Path, video_name: Path, latent: np.array, conds: 
     if conds is not None:
         np.savez(
             npz_fp,
-            latent=latent.astype(np.float32),
+            latent_mean=mean.astype(np.float32),
+            latent_std=std.astype(np.float32),
             cond=conds.astype(np.float32),
         )
     else:
         np.savez(
             npz_fp,
-            latent=latent.astype(np.float32),
+            latent_mean=mean.astype(np.float32),
+            latent_std=std.astype(np.float32),
         )
 
 
@@ -459,8 +465,6 @@ def main(args):
             if args.dl_return_all_frames:
                 frame_data = data["frame_data"]
                 num_videos = frame_data.shape[0]
-                # fps = data["fps"][0]
-                # ori_size = data["ori_size"][0]
                 assert args.batch_size == 1, "batch size > 1 is not supported due to dynamic frame numbers among videos"
                 for i in range(num_videos):
                     abs_video_path = data["video_path"][i]
@@ -471,28 +475,32 @@ def main(args):
                         logger.info(f"{npz_fp} exists, skip vae encoding")
                         continue
 
-                    latent = []
+                    video_latent_mean = []
+                    video_latent_std = []
                     conds = []
                     x = frame_data[i]
                     x = np.expand_dims(np.transpose(x, (1, 0, 2, 3)), axis=0)  # [f, c, h, w] -> [b, c, f, h, w], b must be 1
                     bs = args.vae_micro_batch_size
 
-                    for j in range(0, x.shape[0], bs):
+                    for j in range(0, x.shape[2], bs):
                         x_bs = x[:, :, j : min(j + bs, x.shape[2]), :, :]
                         
                         if cond_config.get("condition_config", None) is not None:
+                            raise NotImplementedError
                             # condition for i2v & v2v
                             x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
                             # TODO: pack function
                             # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
                             conds.append(cond.asnumpy())
                         else:
-                            x_0 = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32)))
-                        latent.append(x_0.asnumpy())
+                            x_0, posterior = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32), return_posterior=True))
+                        video_latent_mean.append(posterior.mean.asnumpy())
+                        video_latent_std.append(posterior.std.asnumpy())
 
-                    latent = np.concatenate(latent, axis=0)
-                    conds = np.concatenate(conds, axis=0) if len(conds) > 0 else None
-                    save_output(output_folder, video_path, latent, conds)
+                    video_latent_mean = np.concatenate(video_latent_mean, axis=2)
+                    video_latent_std = np.concatenate(video_latent_std, axis=2)
+                    conds = np.concatenate(conds, axis=2) if len(conds) > 0 else None
+                    save_output(output_folder, video_path, video_latent_mean, video_latent_std, conds)
             else:
                 num_videos = data["video_path"].shape[0]
                 for i in range(num_videos):
@@ -504,7 +512,8 @@ def main(args):
                         logger.info(f"{npz_fp} exists, skip vae encoding")
                         continue
 
-                    latent = []
+                    video_latent_mean = []
+                    video_latent_std = []
                     conds = []
                     for x_bs, fps, ori_size in ds.get_video_frames_in_batch(
                         abs_video_path, micro_batch_size=args.vae_micro_batch_size, sample_stride=args.frame_stride
@@ -512,18 +521,22 @@ def main(args):
                         x_bs = np.expand_dims(np.transpose(x_bs, (1, 0, 2, 3)), axis=0)  # [f, c, h, w] -> [b, c, f, h, w]
                         
                         if cond_config.get("condition_config", None) is not None:
+                            raise NotImplementedError
                             # condition for i2v & v2v
                             x_0, cond = ms.ops.stop_gradient(prepare_visual_condition(x_bs, cond_config["condition_config"], model_ae))
                             # TODO: pack function
                             # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
                             conds.append(cond.asnumpy())
                         else:
-                            x_0 = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32)))
-                        latent.append(x_0.asnumpy())
+                            x_0, posterior = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32), return_posterior=True))
+                        video_latent_mean.append(posterior.mean.asnumpy())
+                        video_latent_std.append(posterior.std.asnumpy())
 
-                    latent = np.concatenate(latent, axis=0)
-                    conds = np.concatenate(conds, axis=0) if len(conds) > 0 else None
-                    save_output(output_folder, video_path, latent, conds)
+                    video_latent_mean = np.concatenate(video_latent_mean, axis=2)
+                    video_latent_std = np.concatenate(video_latent_std, axis=2)
+                    conds = np.concatenate(conds, axis=2) if len(conds) > 0 else None
+                    save_output(output_folder, video_path, video_latent_mean, video_latent_std, conds)
+
 
             end_time = time.time()
             logger.info(f"Time cost: {end_time-start_time:0.3f}s")
