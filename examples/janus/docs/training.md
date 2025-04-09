@@ -1,4 +1,4 @@
-# JanusPro Training
+# Janus-Pro Training
 
 ## Requirements
 

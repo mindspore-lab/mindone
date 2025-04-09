@@ -21,7 +21,19 @@
 
 from dataclasses import dataclass
 from functools import partial
-from typing import Callable, Dict, Final, List, Literal, Optional, Sequence, Set, Tuple, Type, Union
+from typing import (
+    Callable,
+    Dict,
+    Final,
+    List,
+    Literal,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 import numpy as np
 
@@ -29,7 +41,9 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.mint.nn import LayerNorm
 
-from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
+from mindone.transformers.mindspore_adapter.attention import (
+    scaled_dot_product_attention,
+)
 
 from .timm import (
     AttentionPoolLatent,
@@ -60,7 +74,7 @@ def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
         b: the maximum cutoff value
     Examples:
         >>> w = mint.empty(3, 5)
-        >>> nn.init.trunc_normal_(w)
+        >>> trunc_normal_(w)
     """
 
     # with ms._no_grad(): # dosn't support graph mode
@@ -84,7 +98,7 @@ def init_weights_vit_timm(module: nn.Cell, name: str = "") -> None:
     if isinstance(module, mint.nn.Linear):
         trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
-            nn.init.zeros_(module.bias)
+            module.bias.fill_(0)
     elif hasattr(module, "init_weights"):
         module.init_weights()
 
@@ -119,7 +133,11 @@ class Attention(nn.Cell):
 
     def construct(self, x: Tensor) -> Tensor:
         B, N, C = x.shape
-        qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, self.head_dim).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x)
+            .reshape(B, N, 3, self.num_heads, self.head_dim)
+            .permute(2, 0, 3, 1, 4)
+        )
         q, k, v = qkv.unbind(0)
         q, k = self.q_norm(q), self.k_norm(k)
 
@@ -184,7 +202,9 @@ class Block(nn.Cell):
             proj_drop=proj_drop,
             norm_layer=norm_layer,
         )
-        self.ls1 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+        self.ls1 = (
+            LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+        )
         self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
         self.norm2 = norm_layer([dim])
@@ -194,7 +214,9 @@ class Block(nn.Cell):
             act_layer=act_layer,
             drop=proj_drop,
         )
-        self.ls2 = LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+        self.ls2 = (
+            LayerScale(dim, init_values=init_values) if init_values else nn.Identity()
+        )
         self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
 
     def construct(self, x: Tensor) -> Tensor:
@@ -285,12 +307,16 @@ class VisionTransformer(nn.Cell):
 
         self.num_classes = num_classes
         self.global_pool = global_pool
-        self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
+        self.num_features = (
+            self.embed_dim
+        ) = embed_dim  # num_features for consistency with other models
         self.num_prefix_tokens = 1 if class_token else 0
         self.num_prefix_tokens += reg_tokens
         self.num_reg_tokens = reg_tokens
         self.has_class_token = class_token
-        self.no_embed_class = no_embed_class  # don't embed prefix positions (includes reg)
+        self.no_embed_class = (
+            no_embed_class  # don't embed prefix positions (includes reg)
+        )
         self.dynamic_img_size = dynamic_img_size
         self.grad_checkpointing = False
         self.ignore_head = ignore_head
@@ -311,11 +337,18 @@ class VisionTransformer(nn.Cell):
         num_patches = self.patch_embed.num_patches
 
         self.cls_token = Parameter(mint.zeros(1, 1, embed_dim)) if class_token else None
-        self.reg_token = Parameter(mint.zeros(1, reg_tokens, embed_dim)) if reg_tokens else None
-        embed_len = num_patches if no_embed_class else num_patches + self.num_prefix_tokens
+        self.reg_token = (
+            Parameter(mint.zeros(1, reg_tokens, embed_dim)) if reg_tokens else None
+        )
+        embed_len = (
+            num_patches if no_embed_class else num_patches + self.num_prefix_tokens
+        )
         # self.pos_embed = Parameter(mint.randn(1, embed_len, embed_dim) * 0.02) # doesn't support graph mode
         self.pos_embed = Parameter(
-            ms.Tensor(np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32) * 0.02)
+            ms.Tensor(
+                np.random.normal(size=(1, embed_len, embed_dim)).astype(np.float32)
+                * 0.02
+            )
         )
         self.pos_drop = nn.Dropout(p=pos_drop_rate)
         if patch_drop_rate > 0:
@@ -327,7 +360,9 @@ class VisionTransformer(nn.Cell):
             self.patch_drop = nn.Identity()
         self.norm_pre = norm_layer([embed_dim]) if pre_norm else nn.Identity()
 
-        dpr = [x.item() for x in mint.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
+        dpr = [
+            x.item() for x in mint.linspace(0, drop_path_rate, depth)
+        ]  # stochastic depth decay rule
         self.blocks = nn.SequentialCell(
             *[
                 block_fn(
@@ -362,7 +397,11 @@ class VisionTransformer(nn.Cell):
             self.attn_pool = None
         self.fc_norm = norm_layer([embed_dim]) if use_fc_norm else nn.Identity()
         self.head_drop = nn.Dropout(p=drop_rate)
-        self.head = mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.head = (
+            mint.nn.Linear(self.embed_dim, num_classes)
+            if num_classes > 0
+            else nn.Identity()
+        )
 
         # if weight_init != "skip":
         #     self.init_weights(weight_init)
@@ -392,9 +431,13 @@ class VisionTransformer(nn.Cell):
                     new_pname = p.replace("vision_model.vision_tower.", "")
                     # special: weight (pt) - > embedding_table (ms)
                     if "embedding.weight" in p:
-                        new_pname = new_pname.replace("embedding.weight", "embedding.embedding_table")
+                        new_pname = new_pname.replace(
+                            "embedding.weight", "embedding.embedding_table"
+                        )
                     elif "norm" in p:
-                        new_pname = new_pname.replace("weight", "gamma").replace("bias", "beta")
+                        new_pname = new_pname.replace("weight", "gamma").replace(
+                            "bias", "beta"
+                        )
 
                     sd[new_pname] = sd.pop(p)
 
@@ -406,21 +449,29 @@ class VisionTransformer(nn.Cell):
                 # print(pname, sd[pname].shape, sd[pname].dtype)
                 np_val = sd[pname].cpu().detach().float().numpy()
                 # TODO: support bf16 param loading
-                parameter_dict[pname] = ms.Parameter(ms.Tensor(np_val, dtype=param_dtype))
+                parameter_dict[pname] = ms.Parameter(
+                    ms.Tensor(np_val, dtype=param_dtype)
+                )
 
         elif ckpt_path.endswith(".ckpt"):
             parameter_dict = ms.load_checkpoint(ckpt_path)
         else:
             raise ValueError("Unsupported checkpoint format")
 
-        param_not_load, ckpt_not_load = ms.load_param_into_net(self, parameter_dict, strict_load=True)
+        param_not_load, ckpt_not_load = ms.load_param_into_net(
+            self, parameter_dict, strict_load=True
+        )
         if param_not_load:
             print(
-                "Net params not load: {}, Total net params not loaded: {}".format(param_not_load, len(param_not_load))
+                "Net params not load: {}, Total net params not loaded: {}".format(
+                    param_not_load, len(param_not_load)
+                )
             )
         if ckpt_not_load:
             print(
-                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(ckpt_not_load, len(ckpt_not_load))
+                "Ckpt params not load: {}, Total ckpt params not loaded: {}".format(
+                    ckpt_not_load, len(ckpt_not_load)
+                )
             )
         print("finish loading ckpt siglip")
 
@@ -444,11 +495,17 @@ class VisionTransformer(nn.Cell):
         if global_pool is not None:
             assert global_pool in ("", "avg", "token", "map")
             if global_pool == "map" and self.attn_pool is None:
-                assert False, "Cannot currently add attention pooling in reset_classifier()."
+                assert (
+                    False
+                ), "Cannot currently add attention pooling in reset_classifier()."
             elif global_pool != "map " and self.attn_pool is not None:
                 self.attn_pool = None  # remove attention pooling
             self.global_pool = global_pool
-        self.head = mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        self.head = (
+            mint.nn.Linear(self.embed_dim, num_classes)
+            if num_classes > 0
+            else nn.Identity()
+        )
 
     def _pos_embed(self, x: Tensor) -> Tensor:
         if self.dynamic_img_size:
@@ -489,7 +546,9 @@ class VisionTransformer(nn.Cell):
         n: Union[int, Sequence] = 1,
     ) -> List[Tensor]:
         outputs, num_blocks = [], len(self.blocks)
-        take_indices = set(range(num_blocks - n, num_blocks) if isinstance(n, int) else n)
+        take_indices = set(
+            range(num_blocks - n, num_blocks) if isinstance(n, int) else n
+        )
 
         # forward pass
         x = self.patch_embed(x)
@@ -524,7 +583,9 @@ class VisionTransformer(nn.Cell):
         if reshape:
             grid_size = self.patch_embed.grid_size
             outputs = [
-                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1).permute(0, 3, 1, 2).contiguous()
+                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1)
+                .permute(0, 3, 1, 2)
+                .contiguous()
                 for out in outputs
             ]
 
@@ -615,7 +676,9 @@ def create_siglip_vit(
     select_layer: int = -1,
     **kwargs,
 ):
-    assert model_name in SigLIP_MODEL_CONFIG.keys(), f"model name should be in {SigLIP_MODEL_CONFIG.keys()}"
+    assert (
+        model_name in SigLIP_MODEL_CONFIG.keys()
+    ), f"model name should be in {SigLIP_MODEL_CONFIG.keys()}"
 
     vision_cfg = SigLIPVisionCfg(**SigLIP_MODEL_CONFIG[model_name])
 
@@ -660,7 +723,9 @@ if __name__ == "__main__":
     # default setup, unit load hard to load ckpt this way, do entire model loading
     from modeling_vlm import MultiModalityCausalLM
 
-    vl_gpt: MultiModalityCausalLM = MultiModalityCausalLM.from_pretrained(jp1b, local_files_only=True)
+    vl_gpt: MultiModalityCausalLM = MultiModalityCausalLM.from_pretrained(
+        jp1b, local_files_only=True
+    )
     vl_gpt = vl_gpt.to(ms.bfloat16)
     vision_tower = vl_gpt.vision_model.vision_tower
 
