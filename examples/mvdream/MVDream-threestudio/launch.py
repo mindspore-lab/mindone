@@ -52,7 +52,8 @@ def launch(args, extras) -> None:
         cfg.data.update({"height": 256})
         global_step = 5000
     else:
-        train_cfg.params.update({"max_steps": 5000})  # for lowres only train to s5k
+        if train_cfg.params.max_steps > 5000:
+            train_cfg.params.update({"max_steps": 5000})  # for lowres only train to s5k
 
     # put name as ""
     logger = set_logger(name="", output_dir=str(output_dir) if not args.debug else None, rank=rank_id)
@@ -147,7 +148,7 @@ def launch(args, extras) -> None:
             system,
             optimizer=optimizer,
             scale_sense=loss_scaler,
-            **cfg.train_cfg.settings,  # alignment: no clip grap & overflow handling related for now, but if amp not ok then needs to clip it and loss-scale it
+            # **cfg.train_cfg.settings,  # alignment: no clip grap & overflow handling related for now
         )
 
         if rank_id == 0:

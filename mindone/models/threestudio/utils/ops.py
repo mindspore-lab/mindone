@@ -4,12 +4,13 @@ from collections import defaultdict
 from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 import numpy as np
-import threestudio
 from igl import fast_winding_number_for_meshes, point_mesh_squared_distance, read_obj
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint, nn
+
+import mindone.models.threestudio as threestudio
 
 
 def dot(x, y):

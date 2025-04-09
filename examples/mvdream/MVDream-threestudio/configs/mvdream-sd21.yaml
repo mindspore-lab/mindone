@@ -3,6 +3,7 @@ tag: "out_from_training"
 trial_dir: "outputs_trial_120views"
 exp_root_dir: "outputs"
 resume:
+run_suffix: ""
 
 data_type: "random-multiview-camera-datamodule"
 data:
@@ -71,7 +72,7 @@ system:
   guidance_type: "multiview-diffusion-guidance"
   guidance:
     model_name: "sd-v2.1-base-4view"
-    ckpt_path: "~/examples/mvdream/MVDream/sd-v2.1-base-4view.ckpt"
+    ckpt_path: "YOUR_PATH/sd-v2.1-base-4view.ckpt"
     guidance_scale: 50.0
     min_step_percent: [0, 0.98, 0.02, 8000]  # (start_iter, start_val, end_val, end_iter)
     max_step_percent: [0, 0.98, 0.50, 8000]
