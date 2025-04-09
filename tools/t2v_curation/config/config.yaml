@@ -124,7 +124,8 @@ pipeline_steps:
       run: true # this will only be run if `run` in `nsfw_scoring` is also true
 
   captioning:
-    run: true
+    run: true # use ONLY ONE of the following captioning models
+
     qwen2vl_caption: # use ascend by default
       run: true
       question: "Describe the video in details."
@@ -132,6 +133,19 @@ pipeline_steps:
       width: 672 # resized video width
       fps: 4 # fps to sample from video
       batch_size: 1
+      max_new_tokens: 200
+      worker_num: 2
+
+    llava_caption:
+      run: false
+      question: "Describe the video in details."
+      max_new_tokens: 200
+      worker_num: 2
+
+    pllava_caption:
+      run: false
+      question: "Describe the video in details."
+      num_frames: 4
       max_new_tokens: 200
       worker_num: 2
 

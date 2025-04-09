@@ -2,14 +2,14 @@ import math
 from numbers import Number
 from typing import Optional
 
-import mindspore.ops as ops
+import mindspore.mint as mint
 from mindspore import Tensor
 
 
 def pad_along_axis(
     x: Tensor,
     value: Optional[Number] = None,
-    multiplier: int = 512,
+    multiplier: int = 1024,
     axis: int = -1,
     shift: int = 0,
     padding_direction: str = "right",
@@ -26,5 +26,5 @@ def pad_along_axis(
 
     padding = (0, pad_num) if padding_direction == "right" else (pad_num, 0)
     padding = (-axis - 1) * (0, 0) + padding
-    x = ops.pad(x, padding=padding, value=value)
+    x = mint.nn.functional.pad(x, pad=padding, value=value)
     return x

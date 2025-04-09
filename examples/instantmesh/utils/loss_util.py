@@ -28,9 +28,10 @@ class LPIPS(nn.Cell):
         self.load_from_pretrained("YOUR_PATH/lpips_vgg-426bf45c.ckpt")
 
         # create vision backbone and load pretrained weights
+        # download from https://download.pytorch.org/models/vgg16-397923af.pth and convert to ms ckpt
         self.net = vgg16(
             pretrained=pretrained_vgg_mindcv,
-            ckpt_path="./th-vgg16-397923af.ckpt",  # torch ckpt different from mindcv ckpt
+            ckpt_path="YOUR_PATH/th-vgg16-397923af.ckpt",  # torch ckpt different from mindcv ckpt
             requires_grad=False,
         )
 

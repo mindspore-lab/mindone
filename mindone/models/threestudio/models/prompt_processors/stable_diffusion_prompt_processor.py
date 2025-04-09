@@ -2,13 +2,13 @@ import os
 from dataclasses import dataclass
 from typing import List, Tuple, Union
 
-import threestudio
-from threestudio.models.prompt_processors.base import PromptProcessor, hash_prompt
 from transformers import AutoTokenizer
 
 import mindspore as ms
 from mindspore import Tensor
 
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.prompt_processors.base import PromptProcessor, hash_prompt
 from mindone.transformers import CLIPTextModel
 
 
