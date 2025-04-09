@@ -13,7 +13,6 @@
 # limitations under the License.
 from typing import TYPE_CHECKING
 
-from .processing_whisper import WhisperProcessor
 from .modeling_whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,
@@ -21,3 +20,4 @@ from .modeling_whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
 )
+from .processing_whisper import WhisperProcessor

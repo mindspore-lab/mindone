@@ -20,7 +20,6 @@ from typing import Iterator, List, Match, Optional, Union
 
 import regex
 
-
 # non-ASCII letters that are not separated by "NFKD" normalization
 ADDITIONAL_DIACRITICS = {
     "œ": "oe",
@@ -110,14 +109,13 @@ class EnglishNumberNormalizer:
         self.ones = {
             name: i
             for i, name in enumerate(
-                ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"],
+                ["one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+                 "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"],
                 start=1,
             )
         }
         # fmt: on
-        self.ones_plural = {
-            "sixes" if name == "six" else name + "s": (value, "s") for name, value in self.ones.items()
-        }
+        self.ones_plural = {"sixes" if name == "six" else name + "s": (value, "s") for name, value in self.ones.items()}
         self.ones_ordinal = {
             "zeroth": (0, "th"),
             "first": (1, "st"),

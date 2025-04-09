@@ -18,10 +18,12 @@ import math
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.whisper.configuration_whisper import WhisperConfig
+
 import mindspore
 
 # import torch.utils.checkpoint
-from mindspore import ops, mint, nn, Parameter
+from mindspore import Parameter, mint, nn, ops
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
@@ -35,18 +37,8 @@ from ...modeling_outputs import (
     SequenceClassifierOutput,
 )
 from ...modeling_utils import MSPreTrainedModel
-from ...utils import (
-    is_flash_attn_2_available,
-    logging,
-)
-from transformers.models.whisper.configuration_whisper import WhisperConfig
+from ...utils import logging
 from .generation_whisper import WhisperGenerationMixin
-
-
-# if is_flash_attn_2_available():
-#     from flash_attn import flash_attn_func, flash_attn_varlen_func
-#     from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input  # noqa
-
 
 logger = logging.get_logger(__name__)
 
@@ -196,9 +188,7 @@ def _compute_mask_indices(
     spec_aug_mask_idxs = np.array(spec_aug_mask_idxs)
 
     # expand masked indices to masked spans
-    spec_aug_mask_idxs = np.broadcast_to(
-        spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length)
-    )
+    spec_aug_mask_idxs = np.broadcast_to(spec_aug_mask_idxs[:, :, None], (batch_size, max_num_masked_span, mask_length))
     spec_aug_mask_idxs = spec_aug_mask_idxs.reshape(batch_size, max_num_masked_span * mask_length)
 
     # add offset to the starting indexes so that indexes now create a span
@@ -389,226 +379,6 @@ class WhisperAttention(nn.Cell):
         return attn_output, attn_weights_reshaped, past_key_value
 
 
-# # Copied from transformers.models.bart.modeling_bart.BartFlashAttention2 with Bart->Whisper
-# class WhisperFlashAttention2(WhisperAttention):
-#     """
-#     Whisper flash attention module. This module inherits from `WhisperAttention` as the weights of the module stays
-#     untouched. The only required change would be on the forward pass where it needs to correctly call the public API of
-#     flash attention and deal with padding tokens in case the input contains any of them.
-#     """
-
-#     # Copied from transformers.models.llama.modeling_llama.LlamaFlashAttention2.__init__
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-
-#         # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-#         # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignement, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
-#         # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
-#         # self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
-
-#     def _reshape(self, tensor: mindspore.tensor, seq_len: int, bsz: int):
-#         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim)
-
-#     def construct(
-#         self,
-#         hidden_states: mindspore.tensor,
-#         key_value_states: Optional[mindspore.tensor] = None,
-#         past_key_value: Optional[Tuple[mindspore.tensor]] = None,
-#         attention_mask: Optional[mindspore.tensor] = None,
-#         layer_head_mask: Optional[mindspore.tensor] = None,
-#         output_attentions: bool = False,
-#     ) -> Tuple[mindspore.tensor, Optional[mindspore.tensor], Optional[Tuple[mindspore.tensor]]]:
-#         # WhisperFlashAttention2 attention does not support output_attentions
-#         if output_attentions:
-#             raise ValueError("WhisperFlashAttention2 attention does not support output_attentions")
-
-#         # if key_value_states are provided this layer is used as a cross-attention layer
-#         # for the decoder
-#         is_cross_attention = key_value_states is not None
-
-#         bsz, q_len, _ = hidden_states.shape
-
-#         # get query proj
-#         query_states = self._reshape(self.q_proj(hidden_states), -1, bsz)
-#         # get key, value proj
-#         # `past_key_value[0].shape[2] == key_value_states.shape[1]`
-#         # is checking that the `sequence_length` of the `past_key_value` is the same as
-#         # the provided `key_value_states` to support prefix tuning
-#         if (
-#             is_cross_attention
-#             and past_key_value is not None
-#             and past_key_value[0].shape[2] == key_value_states.shape[1]
-#         ):
-#             # reuse k,v, cross_attentions
-#             key_states = past_key_value[0].transpose(1, 2)
-#             value_states = past_key_value[1].transpose(1, 2)
-#         elif is_cross_attention:
-#             # cross_attentions
-#             key_states = self._reshape(self.k_proj(key_value_states), -1, bsz)
-#             value_states = self._reshape(self.v_proj(key_value_states), -1, bsz)
-#         elif past_key_value is not None:
-#             # reuse k, v, self_attention
-#             key_states = self._reshape(self.k_proj(hidden_states), -1, bsz)
-#             value_states = self._reshape(self.v_proj(hidden_states), -1, bsz)
-#             key_states = mint.cat([past_key_value[0].transpose(1, 2), key_states], dim=1)
-#             value_states = mint.cat([past_key_value[1].transpose(1, 2), value_states], dim=1)
-#         else:
-#             # self_attention
-#             key_states = self._reshape(self.k_proj(hidden_states), -1, bsz)
-#             value_states = self._reshape(self.v_proj(hidden_states), -1, bsz)
-
-#         if self.is_decoder:
-#             # if cross_attention save Tuple(mindspore.tensor, mindspore.tensor) of all cross attention key/value_states.
-#             # Further calls to cross_attention layer can then reuse all cross-attention
-#             # key/value_states (first "if" case)
-#             # if uni-directional self-attention (decoder) save Tuple(mindspore.tensor, mindspore.tensor) of
-#             # all previous decoder key/value_states. Further calls to uni-directional self-attention
-#             # can concat previous decoder key/value_states to current projected key/value_states (third "elif" case)
-#             # if encoder bi-directional self-attention `past_key_value` is always `None`
-#             past_key_value = (key_states.transpose(1, 2), value_states.transpose(1, 2))
-
-#         kv_seq_len = key_states.shape[-2]
-#         if past_key_value is not None:
-#             kv_seq_len += past_key_value[0].shape[-2]
-
-#         # In PEFT, usually we cast the layer norms in float32 for training stability reasons
-#         # therefore the input hidden states gets silently casted in float32. Hence, we need
-#         # cast them back in the correct dtype just to be sure everything works as expected.
-#         # This might slowdown training & inference so it is recommended to not cast the LayerNorms
-#         # in fp32. (LlamaRMSNorm handles it correctly)
-
-#         input_dtype = query_states.dtype
-#         if input_dtype == mindspore.float32:
-#             # if torch.is_autocast_enabled():
-#             #     target_dtype = torch.get_autocast_gpu_dtype()
-#             # Handle the case where the model is quantized
-#             if hasattr(self.config, "_pre_quantization_dtype"):
-#                 target_dtype = self.config._pre_quantization_dtype
-#             else:
-#                 target_dtype = self.q_proj.weight.dtype
-
-#             logger.warning_once(
-#                 f"The input hidden states seems to be silently casted in float32, this might be related to"
-#                 f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
-#                 f" {target_dtype}."
-#             )
-
-#             query_states = query_states.to(target_dtype)
-#             key_states = key_states.to(target_dtype)
-#             value_states = value_states.to(target_dtype)
-
-#         attn_output = self._flash_attention_forward(
-#             query_states, key_states, value_states, attention_mask, q_len, dropout=self.dropout
-#         )
-
-#         attn_output = attn_output.reshape(bsz, q_len, -1)
-#         attn_output = self.out_proj(attn_output)
-
-#         if not output_attentions:
-#             attn_weights = None
-
-#         return attn_output, attn_weights, past_key_value
-
-#     # Copied from transformers.models.llama.modeling_llama.LlamaFlashAttention2._flash_attention_forward
-#     def _flash_attention_forward(
-#         self, query_states, key_states, value_states, attention_mask, query_length, dropout=0.0, softmax_scale=None
-#     ):
-#         """
-#         Calls the forward method of Flash Attention - if the input hidden states contain at least one padding token
-#         first unpad the input, then computes the attention scores and pad the final attention scores.
-
-#         Args:
-#             query_states (`mindspore.tensor`):
-#                 Input query states to be passed to Flash Attention API
-#             key_states (`mindspore.tensor`):
-#                 Input key states to be passed to Flash Attention API
-#             value_states (`mindspore.tensor`):
-#                 Input value states to be passed to Flash Attention API
-#             attention_mask (`mindspore.tensor`):
-#                 The padding mask - corresponds to a tensor of size `(batch_size, seq_len)` where 0 stands for the
-#                 position of padding tokens and 1 for the position of non-padding tokens.
-#             dropout (`float`):
-#                 Attention dropout
-#             softmax_scale (`float`, *optional*):
-#                 The scaling of QK^T before applying softmax. Default to 1 / sqrt(head_dim)
-#         """
-#         # if not self._flash_attn_uses_top_left_mask:
-#         #     causal = self.is_causal
-#         # else:
-#             # TODO: Remove the `query_length != 1` check once Flash Attention for RoCm is bumped to 2.1. For details, please see the comment in LlamaFlashAttention2 __init__.
-#         causal = self.is_causal and query_length != 1
-
-#         # Contains at least one padding token in the sequence
-#         if attention_mask is not None:
-#             batch_size = query_states.shape[0]
-#             query_states, key_states, value_states, indices_q, cu_seq_lens, max_seq_lens = self._upad_input(
-#                 query_states, key_states, value_states, attention_mask, query_length
-#             )
-
-#             cu_seqlens_q, cu_seqlens_k = cu_seq_lens
-#             max_seqlen_in_batch_q, max_seqlen_in_batch_k = max_seq_lens
-
-#             attn_output_unpad = flash_attn_varlen_func(
-#                 query_states,
-#                 key_states,
-#                 value_states,
-#                 cu_seqlens_q=cu_seqlens_q,
-#                 cu_seqlens_k=cu_seqlens_k,
-#                 max_seqlen_q=max_seqlen_in_batch_q,
-#                 max_seqlen_k=max_seqlen_in_batch_k,
-#                 dropout_p=dropout,
-#                 softmax_scale=softmax_scale,
-#                 causal=causal,
-#             )
-
-#             attn_output = pad_input(attn_output_unpad, indices_q, batch_size, query_length)
-#         else:
-#             attn_output = flash_attn_func(
-#                 query_states, key_states, value_states, dropout, softmax_scale=softmax_scale, causal=causal
-#             )
-
-#         return attn_output
-
-#     # Copied from transformers.models.llama.modeling_llama.LlamaFlashAttention2._upad_input
-#     def _upad_input(self, query_layer, key_layer, value_layer, attention_mask, query_length):
-#         indices_k, cu_seqlens_k, max_seqlen_in_batch_k = _get_unpad_data(attention_mask)
-#         batch_size, kv_seq_len, num_key_value_heads, head_dim = key_layer.shape
-
-#         key_layer = index_first_axis(
-#             key_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim), indices_k
-#         )
-#         value_layer = index_first_axis(
-#             value_layer.reshape(batch_size * kv_seq_len, num_key_value_heads, head_dim), indices_k
-#         )
-#         if query_length == kv_seq_len:
-#             query_layer = index_first_axis(
-#                 query_layer.reshape(batch_size * kv_seq_len, self.num_heads, head_dim), indices_k
-#             )
-#             cu_seqlens_q = cu_seqlens_k
-#             max_seqlen_in_batch_q = max_seqlen_in_batch_k
-#             indices_q = indices_k
-#         elif query_length == 1:
-#             max_seqlen_in_batch_q = 1
-#             cu_seqlens_q = mint.arange(
-#                 batch_size + 1, dtype=mindspore.int32, device=query_layer.device
-#             )  # There is a memcpy here, that is very bad.
-#             indices_q = cu_seqlens_q[:-1]
-#             query_layer = query_layer.squeeze(1)
-#         else:
-#             # The -q_len: slice assumes left padding.
-#             attention_mask = attention_mask[:, -query_length:]
-#             query_layer, indices_q, cu_seqlens_q, max_seqlen_in_batch_q = unpad_input(query_layer, attention_mask)
-
-#         return (
-#             query_layer,
-#             key_layer,
-#             value_layer,
-#             indices_q,
-#             (cu_seqlens_q, cu_seqlens_k),
-#             (max_seqlen_in_batch_q, max_seqlen_in_batch_k),
-#         )
-
-
 class WhisperSdpaAttention(WhisperAttention):
     # Copied from transformers.models.bart.modeling_bart.BartSdpaAttention.forward with BART->whisper, Bart->Whisper
     def construct(
@@ -624,8 +394,10 @@ class WhisperSdpaAttention(WhisperAttention):
         if output_attentions or layer_head_mask is not None:
             # TODO: Improve this warning with e.g. `model.config._attn_implementation = "manual"` once this is implemented.
             logger.warning_once(
-                "WhisperModel is using WhisperSdpaAttention, but `torch.nn.functional.scaled_dot_product_attention` does not support `output_attentions=True` or `layer_head_mask` not None. Falling back to the manual attention"
-                ' implementation, but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "WhisperModel is using WhisperSdpaAttention, but `torch.nn.functional.scaled_dot_product_attention` does not support\
+                      `output_attentions=True` or `layer_head_mask` not None. Falling back to the manual attention"
+                ' implementation, but specifying the manual implementation will be required from Transformers version v5.0.0 onwards.\
+                      This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
             )
             return super().forward(
                 hidden_states,
@@ -935,7 +707,7 @@ class WhisperPreTrainedModel(MSPreTrainedModel):
             if module.padding_idx is not None:
                 module.embedding_table.data[module.padding_idx].zero_()
         elif isinstance(module, WhisperEncoder):
-            #with torch.no_grad():
+            # with torch.no_grad():
             embed_positions = module.embed_positions.embedding_table
             embed_positions.copy_(sinusoids(*embed_positions.shape))
 
@@ -972,7 +744,7 @@ class WhisperEncoder(WhisperPreTrainedModel):
         self.conv2 = nn.Conv1d(embed_dim, embed_dim, kernel_size=3, stride=2, padding=1, pad_mode="pad", has_bias=True)
 
         self.embed_positions = nn.Embedding(self.max_source_positions, embed_dim)
-        #self.embed_positions.requires_grad_(False)
+        # self.embed_positions.requires_grad_(False)
 
         self.layers = nn.CellList([WhisperEncoderLayer(config) for _ in range(config.encoder_layers)])
         self.layer_norm = mint.nn.LayerNorm(config.d_model)
@@ -1030,7 +802,8 @@ class WhisperEncoder(WhisperPreTrainedModel):
         expected_seq_length = self.config.max_source_positions * self.conv1.stride[1] * self.conv2.stride[1]
         if input_features.shape[-1] != expected_seq_length:
             raise ValueError(
-                f"Whisper expects the mel input features to be of length {expected_seq_length}, but found {input_features.shape[-1]}. Make sure to pad the input mel features to {expected_seq_length}."
+                f"Whisper expects the mel input features to be of length {expected_seq_length}, but found {input_features.shape[-1]}. \
+                    Make sure to pad the input mel features to {expected_seq_length}."
             )
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -1098,9 +871,7 @@ class WhisperEncoder(WhisperPreTrainedModel):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class WhisperDecoder(WhisperPreTrainedModel):
@@ -1689,9 +1460,7 @@ class WhisperForConditionalGeneration(WhisperGenerationMixin, WhisperPreTrainedM
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 
@@ -1922,9 +1691,7 @@ class WhisperForCausalLM(WhisperPreTrainedModel):
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 

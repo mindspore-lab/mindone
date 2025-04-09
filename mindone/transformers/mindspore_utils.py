@@ -252,6 +252,6 @@ def isin_mps_friendly(elements: ms.Tensor, test_elements: ms.Tensor) -> ms.Tenso
         and False otherwise
     """
     import numpy as np
-    
+
     # Note: don't use named arguments in `torch.isin`, see https://github.com/pytorch/pytorch/issues/126045
     return ms.tensor(np.isin(elements.numpy(), test_elements.numpy()))

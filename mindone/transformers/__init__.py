@@ -113,12 +113,12 @@ from .models.umt5 import (
     UMT5PreTrainedModel,
 )
 from .models.whisper import (
-    WhisperProcessor,
     WhisperForAudioClassification,
     WhisperForCausalLM,
     WhisperForConditionalGeneration,
     WhisperModel,
     WhisperPreTrainedModel,
+    WhisperProcessor,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin

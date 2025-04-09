@@ -19,10 +19,13 @@ import zlib
 from typing import Callable, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
+from transformers.generation.configuration_utils import GenerationConfig
+from transformers.models.whisper.tokenization_whisper import TASK_IDS, TO_LANGUAGE_CODE
+
 import mindspore
+import mindspore.mint.nn.functional as F
 from mindspore import mint
 
-from transformers.generation.configuration_utils import GenerationConfig
 from ...generation.logits_process import (
     LogitsProcessorList,
     SuppressTokensAtBeginLogitsProcessor,
@@ -33,8 +36,6 @@ from ...generation.logits_process import (
 from ...generation.stopping_criteria import StoppingCriteriaList
 from ...modeling_outputs import BaseModelOutput
 from ...utils import logging
-from transformers.models.whisper.tokenization_whisper import TASK_IDS, TO_LANGUAGE_CODE
-
 
 logger = logging.get_logger(__name__)
 
@@ -121,9 +122,7 @@ def _get_attr_from_logit_processors(logits_processor, logit_processor_class, att
     return None
 
 
-def _pad_to_max_length(
-    current_segments, pad_token_id, padding="right", bos_token_tensor=None, cut_off_length=None
-):
+def _pad_to_max_length(current_segments, pad_token_id, padding="right", bos_token_tensor=None, cut_off_length=None):
     max_total_length = 0
     sequences = []
     if padding not in ["right", "left"]:
@@ -173,7 +172,7 @@ class WhisperGenerationMixin:
 
         # Select specific cross-attention layers and heads. This is a tensor
         # of shape (batch size, num selected, output length, input length).
-        weights = mint.stack([cross_attentions[l][:, h] for l, h in alignment_heads])
+        weights = mint.stack([cross_attentions[ll][:, h] for ll, h in alignment_heads])
         weights = weights.permute([1, 0, 2, 3])
 
         weight_length = None
@@ -346,7 +345,9 @@ class WhisperGenerationMixin:
                 transcription, e.g. custom vocabularies or proper nouns to make it more likely to predict those words
                 correctly. It cannot be used in conjunction with `decoder_start_token_id` as it overwrites this value.
             prompt_condition_type (`str`, *optional*):
-                Only relevant for long-form transcription. Condition type of `prompt_ids`. 'first-segment' means only the first segment is conditioned on `prompt_ids`. 'all-segments' means each segment is conditioned on `prompt_ids`. Make sure to enable `condition_on_prev_tokens` for 'all-segments'.
+                Only relevant for long-form transcription. Condition type of `prompt_ids`. 'first-segment' means only
+                the first segment is conditioned on `prompt_ids`. 'all-segments' means each segment is conditioned on
+                `prompt_ids`. Make sure to enable `condition_on_prev_tokens` for 'all-segments'.
                 Defaults to 'first-segment'. For short-term transcription only 'first-segment' is possible.
             condition_on_prev_tokens (`bool`, *optional*):
                 Only relevant for long-form transcription. Whether to condition each segment on the previous segment.
@@ -355,19 +356,22 @@ class WhisperGenerationMixin:
             temperature (`float` or list of `float`, *optional*):
                 The temperature to be used for generation. Passing a single `float` value and `do_sample=True` activates
                 generation using sampling. For long-form transcription, temperature fallback can be activated by passing
-                a list of float values such as (0.0, 0.2, 0.4, 0.6, 0.8, 1.0). As shown in the [the Whisper paper](https://cdn.openai.com/papers/whisper.pdf), this can help to improve
-                performance.
+                a list of float values such as (0.0, 0.2, 0.4, 0.6, 0.8, 1.0). As shown in the [the Whisper paper]
+                (https://cdn.openai.com/papers/whisper.pdf), this can help to improve performance.
             compression_ratio_threshold (`float`, *optional*):
-                Only relevant for long-form transcription. If defined, the zlib compression rate of each segment will be computed. If the compression rate of
-                a segment is higher than `compression_ratio_threshold`, temperature fallback is activated: the generated segment is discarded and the generation is
-                repeated using a higher temperature. The intuition behind this feature is that segments with very high compression rates
-                suffer from a lot of repetition. The unwanted repetition can be reduced by injecting more randomness by increasing the temperature. If `compression_ratio_threshold` is defined
+                Only relevant for long-form transcription. If defined, the zlib compression rate of each segment will be
+                computed. If the compression rate of a segment is higher than `compression_ratio_threshold`, temperature
+                fallback is activated: the generated segment is discarded and the generation is
+                repeated using a higher temperature. The intuition behind this feature is that segments with very high
+                compression rates suffer from a lot of repetition. The unwanted repetition can be reduced by injecting more
+                randomness by increasing the temperature. If `compression_ratio_threshold` is defined
                 make sure that `temperature` is a list of values. A common value for `compression_ratio_threshold` is 1.35.
                 As shown in the [the Whisper paper](https://cdn.openai.com/papers/whisper.pdf), this can help to improve
                 performance.
             logprob_threshold (`float`, *optional*):
-                Only relevant for long-form transcription. If defined, the average log-probability of each segment will be computed. If the log-probability of
-                a given segment is lower than `logprob_threshold`, temperature fallback is activated: the generated segment is discarded and the generation is
+                Only relevant for long-form transcription. If defined, the average log-probability of each segment will
+                be computed. If the log-probability of a given segment is lower than `logprob_threshold`, temperature
+                fallback is activated: the generated segment is discarded and the generation is
                 repeated using a higher temperature. The intuition behind this feature is that segments of low log-probability
                 can be improved by injecting more randomness by increasing the temperature. If `logprob_threshold` is defined
                 make sure that `temperature` is a list of values. A common value for `logprob_threshold` is -1.0.
@@ -405,10 +409,12 @@ class WhisperGenerationMixin:
                 specific kwargs should not be prefixed and decoder specific kwargs should be prefixed with *decoder_*.
 
         Return:
-            [`~utils.ModelOutput`] or `mindspore.int64Tensor` or `Dict[str, Any]`: A [`~utils.ModelOutput`] (if `return_dict_in_generate=True`
+            [`~utils.ModelOutput`] or `mindspore.int64Tensor` or `Dict[str, Any]`: A [`~utils.ModelOutput`]
+            (if `return_dict_in_generate=True`
             or when `config.return_dict_in_generate=True`) or a `mindspore.tensor` or a dict of segments when `return_segments=True`.
 
-                If the passed input is > 30 seconds / > 3000 mel input features and `return_segments=True` then a dictionary of generated sequence ids, called `sequences` and a list of each generated segment is returned.
+                If the passed input is > 30 seconds / > 3000 mel input features and `return_segments=True` then a dictionary of
+                generated sequence ids, called `sequences` and a list of each generated segment is returned.
 
                 else if the passed input is <= 30 seconds / >= 3000 mel input features, the possible [`~utils.ModelOutput`] types are:
 
@@ -419,7 +425,8 @@ class WhisperGenerationMixin:
 
         Example:
 
-        - *Longform transcription*: To transcribe or translate audios longer than 30 seconds, process the audio files without truncation and pass all mel features at once to generate.
+        - *Longform transcription*: To transcribe or translate audios longer than 30 seconds, process the audio files without
+         truncation and pass all mel features at once to generate.
 
         ```python
         >>> import mindspore
@@ -447,7 +454,14 @@ class WhisperGenerationMixin:
 
         >>> transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)
         >>> transcription[0]
-        " Folks, if you watch the show, you know, I spent a lot of time right over there. Patiently and astutely scrutinizing the boxwood and mahogany chest set of the day's biggest stories developing the central headline pawns, definitely maneuvering an oso topical night to F6, fainting a classic Sicilian, nade door variation on the news, all the while seeing eight moves deep and patiently marshalling the latest press releases into a fisher's shows in Lip Nitsky attack that culminates in the elegant lethal slow-played, all-passant checkmate that is my nightly monologue. But sometimes, sometimes, folks, I. CHEERING AND APPLAUSE Sometimes I startle away, cubside down in the monkey bars of a condemned playground on a super fun site. Get all hept up on goofballs. Rummage that were discarded tag bag of defective toys. Yank out a fist bowl of disembodied doll limbs, toss them on a stained kid's place mat from a defunct dennies. set up a table inside a rusty cargo container down by the Wharf and challenged toothless drifters to the godless bughouse blitz of tournament that is my segment. Meanwhile."
+        " Folks, if you watch the show, you know, I spent a lot of time right over there. Patiently and astutely scrutinizing the boxwood and mahogany
+        chest set of the day's biggest stories developing the central headline pawns, definitely maneuvering an oso topical night to F6, fainting a
+        classic Sicilian, nade door variation on the news, all the while seeing eight moves deep and patiently marshalling the latest press releases into
+        a fisher's shows in Lip Nitsky attack that culminates in the elegant lethal slow-played, all-passant checkmate that is my nightly monologue. But
+        sometimes, sometimes, folks, I. CHEERING AND APPLAUSE Sometimes I startle away, cubside down in the monkey bars of a condemned playground on a super
+        fun site. Get all hept up on goofballs. Rummage that were discarded tag bag of defective toys. Yank out a fist bowl of disembodied doll limbs, toss
+        them on a stained kid's place mat from a defunct dennies. set up a table inside a rusty cargo container down by the Wharf and challenged toothless
+        drifters to the godless bughouse blitz of tournament that is my segment. Meanwhile."
         ```
 
         - *Shortform transcription*: If passed mel input features are < 30 seconds, the whole audio will be transcribed with a single call to generate.
@@ -573,7 +587,8 @@ class WhisperGenerationMixin:
             max_new_tokens = generation_config.max_new_tokens if generation_config.max_new_tokens is not None else 0
             if max_new_tokens + decoder_input_ids.shape[-1] > self.config.max_target_positions:
                 raise ValueError(
-                    f"The length of `decoder_input_ids` equal `prompt_ids` plus special start tokens is {decoder_input_ids.shape[-1]}, and the `max_new_tokens` "
+                    f"The length of `decoder_input_ids` equal `prompt_ids` plus special start tokens is {decoder_input_ids.shape[-1]}, \
+                        and the `max_new_tokens` "
                     f"is {max_new_tokens}. Thus, the combined length of "
                     f"`decoder_input_ids` and `max_new_tokens` is: {max_new_tokens + decoder_input_ids.shape[-1]}. This exceeds the "
                     f"`max_target_positions` of the Whisper model: {self.config.max_target_positions}. "
@@ -733,9 +748,7 @@ class WhisperGenerationMixin:
             if (prompt_ids is not None and generation_config.prompt_condition_type == "first-segment")
             else current_segments
         )
-        sequences = _pad_to_max_length(
-            final_segments, generation_config.pad_token_id, padding="right"
-        )
+        sequences = _pad_to_max_length(final_segments, generation_config.pad_token_id, padding="right")
 
         # 8. If we return all segments, the predicted output sequences are put under `"sequences"`.
         if return_segments:
@@ -907,8 +920,7 @@ class WhisperGenerationMixin:
 
         sequence_tokens = seek_outputs["sequences"]
         seek_outputs = [
-            {k: split_by_batch_index(v, k, i) for k, v in seek_outputs.items()}
-            for i in range(sequence_tokens.shape[0])
+            {k: split_by_batch_index(v, k, i) for k, v in seek_outputs.items()} for i in range(sequence_tokens.shape[0])
         ]
 
         return sequence_tokens, seek_outputs
@@ -1010,7 +1022,8 @@ class WhisperGenerationMixin:
         if isinstance(temperature, (list, tuple)):
             raise ValueError(
                 f"Audio input consists of only {total_input_frames}. Short-form transcription is activated."
-                f"temperature cannot be set to {temperature} which can only be used for temperature fallback for long-form generation. Make sure to set `temperature` to a float value or `None` for short-form generation."
+                f"temperature cannot be set to {temperature} which can only be used for temperature fallback for long-form generation.\
+                Make sure to set `temperature` to a float value or `None` for short-form generation."
             )
 
     @staticmethod
@@ -1038,7 +1051,8 @@ class WhisperGenerationMixin:
             if return_timestamps is False:
                 raise ValueError(
                     "You have passed more than 3000 mel input features (> 30 seconds) which automatically enables long-form generation which "
-                    "requires the model to predict timestamp tokens. Please either pass `return_timestamps=True` or make sure to pass no more than 3000 mel input features."
+                    "requires the model to predict timestamp tokens. Please either pass `return_timestamps=True` or make sure to pass no more than 3000\
+                     mel input features."
                 )
 
             logger.info("Setting `return_timestamps=True` for long-form generation.")
@@ -1048,7 +1062,8 @@ class WhisperGenerationMixin:
             raise ValueError(
                 "You are trying to return timestamps, but the generation config is not properly set. "
                 "Make sure to initialize the generation config with the correct attributes that are needed such as `no_timestamps_token_id`. "
-                "For more details on how to generate the approtiate config, refer to https://github.com/huggingface/transformers/issues/21878#issuecomment-1451902363"
+                "For more details on how to generate the approtiate config, refer to \
+                https://github.com/huggingface/transformers/issues/21878#issuecomment-1451902363"
             )
 
         generation_config.return_timestamps = return_timestamps
@@ -1128,20 +1143,24 @@ class WhisperGenerationMixin:
         if forced_decoder_ids is not None:
             if language is None and task is None and forced_decoder_ids[0][1] is None:
                 logger.warning_once(
-                    "Due to a bug fix in https://github.com/huggingface/transformers/pull/28687 transcription using a multilingual Whisper will default to language detection followed by transcription instead of translation to English."
-                    "This might be a breaking change for your use case. If you want to instead always translate your audio to English, make sure to pass `language='en'`."
+                    "Due to a bug fix in https://github.com/huggingface/transformers/pull/28687 transcription using a multilingual Whisper\
+                    will default to language detection followed by transcription instead of translation to English."
+                    "This might be a breaking change for your use case. If you want to instead always translate your audio to English,\
+                          make sure to pass `language='en'`."
                 )
         elif hasattr(config, "forced_decoder_ids") and config.forced_decoder_ids is not None:
             forced_decoder_ids = config.forced_decoder_ids
 
         if forced_decoder_ids is not None and task is not None:
             logger.warning_once(
-                f"You have passed task={task}, but also have set `forced_decoder_ids` to {forced_decoder_ids} which creates a conflict. `forced_decoder_ids` will be ignored in favor of task={task}."
+                f"You have passed task={task}, but also have set `forced_decoder_ids` to {forced_decoder_ids} which creates a conflict.\
+                     `forced_decoder_ids` will be ignored in favor of task={task}."
             )
             forced_decoder_ids = None
         elif forced_decoder_ids is not None and language is not None:
             logger.warning_once(
-                f"You have passed language={language}, but also have set `forced_decoder_ids` to {forced_decoder_ids} which creates a conflict. `forced_decoder_ids` will be ignored in favor of language={language}."
+                f"You have passed language={language}, but also have set `forced_decoder_ids` to {forced_decoder_ids} which creates a conflict.\
+                     `forced_decoder_ids` will be ignored in favor of language={language}."
             )
             forced_decoder_ids = None
 
@@ -1155,7 +1174,8 @@ class WhisperGenerationMixin:
 
             if len(forced_decoder_ids) > 0:
                 raise ValueError(
-                    f"You are using token ids in `forced_decoder_ids` that do not seem to correctly follow the prompt pattern of Whisper. Make sure that {forced_decoder_ids} has an entry for all indices >= 1 and < {forced_decoder_ids[0][0]}.",
+                    f"You are using token ids in `forced_decoder_ids` that do not seem to correctly follow the prompt pattern of Whisper. \
+                        Make sure that {forced_decoder_ids} has an entry for all indices >= 1 and < {forced_decoder_ids[0][0]}.",
                 )
 
         # from v4.39 the forced decoder ids are always None in favour of decoder input ids
@@ -1165,9 +1185,10 @@ class WhisperGenerationMixin:
 
         # Make sure language is a list of strings of the correct length
         if isinstance(language, (list, tuple)):
-            if any(l is None for l in language):
+            if any(ll is None for ll in language):
                 raise TypeError(
-                    "Expected `language` to be `None`, a single string (e.g. `'en'`), or a list of strings with length equal to the batch size (e.g. `('en', 'fr')` for a batch size of 2). Got a list containing `None`."
+                    "Expected `language` to be `None`, a single string (e.g. `'en'`), or a list of strings with length equal to the batch size\
+                          (e.g. `('en', 'fr')` for a batch size of 2). Got a list containing `None`."
                 )
             if len(language) != batch_size:
                 raise ValueError(
@@ -1187,7 +1208,7 @@ class WhisperGenerationMixin:
         # Update init_tokens with languages
         lang_ids = None
         if language is not None:
-            lang_ids = [language_to_id(l) for l in languages]
+            lang_ids = [language_to_id(ll) for ll in languages]
         elif hasattr(generation_config, "lang_to_id") and is_lang_id_undefined:
             # language is not defined or intentially set to `None` to trigger language detection
             lang_ids = self.detect_language(
@@ -1227,9 +1248,7 @@ class WhisperGenerationMixin:
                 and init_tokens[i][-1] != generation_config.no_timestamps_token_id
             ):
                 init_tokens[i].append(generation_config.no_timestamps_token_id)
-            elif (
-                generation_config.return_timestamps and init_tokens[i][-1] == generation_config.no_timestamps_token_id
-            ):
+            elif generation_config.return_timestamps and init_tokens[i][-1] == generation_config.no_timestamps_token_id:
                 logger.info(
                     "<|notimestamps|> prompt token is removed from generation_config since `return_timestamps` is set to `'True'`."
                 )
@@ -1288,12 +1307,9 @@ class WhisperGenerationMixin:
             )
 
         generation_config = generation_config or self.generation_config
-        decoder_input_ids = (
-            mint.ones((batch_size, 1), dtype=mindspore.int64)
-            * generation_config.decoder_start_token_id
-        )
+        decoder_input_ids = mint.ones((batch_size, 1), dtype=mindspore.int64) * generation_config.decoder_start_token_id
 
-        #with torch.no_grad():
+        # with torch.no_grad():
         logits = self(**inputs, decoder_input_ids=decoder_input_ids).logits[:, -1]
 
         non_lang_mask = mint.ones_like(logits[0], dtype=mindspore.bool_)
@@ -1364,7 +1380,8 @@ class WhisperGenerationMixin:
 
         if prompt_condition_type not in allowed_cond_types:
             raise ValueError(
-                f"`prompt_condition_type={prompt_condition_type} does not exist. Make sure to set `prompt_condition_type` to one of {', '.join(allowed_cond_types)}"
+                f"`prompt_condition_type={prompt_condition_type} does not exist. Make sure to set\
+                      `prompt_condition_type` to one of {', '.join(allowed_cond_types)}"
             )
 
         if generation_config.condition_on_prev_tokens is not True and prompt_condition_type == "all-segments":
@@ -1387,7 +1404,8 @@ class WhisperGenerationMixin:
     def _retrieve_max_frames_and_seek(batch_size, attention_mask, total_input_frames):
         if batch_size > 1 and attention_mask is None:
             raise ValueError(
-                "When doing batched long-form audio transcription, make sure to pass an `attention_mask`. You can retrieve the `attention_mask` by doing `processor(audio, ..., return_attention_mask=True)` "
+                "When doing batched long-form audio transcription, make sure to pass an `attention_mask`. You can retrieve the `attention_mask` \
+                    by doing `processor(audio, ..., return_attention_mask=True)` "
             )
         elif batch_size > 1:
             max_frames = attention_mask.sum(-1).to(mindspore.int64)
@@ -1398,9 +1416,7 @@ class WhisperGenerationMixin:
 
         return max_frames, seek
 
-    def _retrieve_logit_processors(
-        self, generation_config, logits_processor, begin_index, is_shortform, num_beams
-    ):
+    def _retrieve_logit_processors(self, generation_config, logits_processor, begin_index, is_shortform, num_beams):
         if generation_config.return_timestamps is True:
             timestamp_processor = WhisperTimeStampLogitsProcessor(generation_config, begin_index=begin_index)
             logits_processor = (
@@ -1652,5 +1668,3 @@ class WhisperGenerationMixin:
             segment_offset = seek_num_frames[prev_idx]
 
         return segments, segment_offset
-    
-

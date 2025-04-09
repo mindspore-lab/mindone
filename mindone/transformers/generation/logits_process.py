@@ -1,9 +1,7 @@
 import inspect
 from typing import Callable, List, Optional, Union
 
-
 import numpy as np
-from ..mindspore_utils import isin_mps_friendly
 from transformers.utils import add_start_docstrings
 from transformers.utils.logging import get_logger
 
@@ -12,6 +10,8 @@ import mindspore.numpy as mnp
 from mindspore import mint, ops
 
 from mindone.transformers.mindspore_adapter.utils import dtype_to_min
+
+from ..mindspore_utils import isin_mps_friendly
 
 INF = 1e5
 
@@ -481,7 +481,6 @@ class LogitNormalization(LogitsProcessor):
         return scores_processed
 
 
-<<<<<<< HEAD
 class UnbatchedClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
     r"""
     Logits processor for Classifier-Free Guidance (CFG). The processors computes a weighted average across scores
@@ -507,19 +506,10 @@ class UnbatchedClassifierFreeGuidanceLogitsProcessor(LogitsProcessor):
         use_cache (`bool`, *optional*, defaults to `True`):
             Whether to cache key/values during the negative prompt forward pass.
 
-=======
-class SuppressTokensAtBeginLogitsProcessor(LogitsProcessor):
-    r"""
-    [`SuppressTokensAtBeginLogitsProcessor`] supresses a list of tokens as soon as the `generate` function starts
-    generating using `begin_index` tokens. This should ensure that the tokens defined by `begin_suppress_tokens` are
-    not generated at the beginning. Originally created for
-    [Whisper](https://huggingface.co/docs/transformers/model_doc/whisper).
->>>>>>> fb2ce731 (whisper)
-
     Examples:
 
     ```python
-<<<<<<< HEAD
+
     >>> from mindone.transformers import AutoTokenizer, AutoModelForCausalLM
     >>> from mindspore import Tensor
 
@@ -541,7 +531,83 @@ class SuppressTokensAtBeginLogitsProcessor(LogitsProcessor):
     >>> out = model.generate(Tensor(inputs["input_ids"]), guidance_scale=0, negative_prompt_ids=neg_inputs["input_ids"])
     >>> tokenizer.batch_decode(out, skip_special_tokens=True)[0]
     "Today, a dragon flew over Paris, France, and I'm very happy to be here. I"
-=======
+    """
+
+    def __init__(
+        self,
+        guidance_scale: float,
+        model,
+        unconditional_ids: Optional[ms.Tensor] = None,
+        unconditional_attention_mask: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = True,
+    ):
+        self.guidance_scale = guidance_scale
+        self.model = model
+        self.unconditional_context = {
+            "input_ids": unconditional_ids,
+            "attention_mask": unconditional_attention_mask,
+            "use_cache": use_cache,
+            "past_key_values": None,
+            "first_pass": True,
+        }
+
+    def get_unconditional_logits(self, input_ids):
+        if self.unconditional_context["first_pass"]:
+            if self.unconditional_context["input_ids"] is None:
+                self.unconditional_context["input_ids"] = input_ids[:, -1:]
+            if self.unconditional_context["attention_mask"] is None:
+                self.unconditional_context["attention_mask"] = ops.ones_like(
+                    self.unconditional_context["input_ids"], dtype=ms.int32
+                )
+            input_ids = self.unconditional_context["input_ids"]
+            attention_mask = self.unconditional_context["attention_mask"]
+            self.unconditional_context["first_pass"] = False
+        else:
+            attention_mask = mint.cat(
+                [
+                    self.unconditional_context["attention_mask"],
+                    ops.ones_like(input_ids[:, -1:], dtype=ms.int32),
+                ],
+                dim=1,
+            )
+            if not self.unconditional_context["use_cache"]:
+                input_ids = mint.cat([self.unconditional_context["input_ids"], input_ids[:, -1:]], dim=1)
+            else:
+                input_ids = input_ids[:, -1:]
+            self.unconditional_context["input_ids"] = input_ids
+            self.unconditional_context["attention_mask"] = attention_mask
+
+        out = self.model(
+            input_ids,
+            attention_mask=attention_mask,
+            use_cache=self.unconditional_context["use_cache"],
+            past_key_values=self.unconditional_context["past_key_values"],
+        )
+        self.unconditional_context["past_key_values"] = out.get("past_key_values", None)
+
+        return out.logits
+
+    def __call__(self, input_ids, scores):
+        scores = mint.nn.functional.log_softmax(scores, dim=-1)
+        if self.guidance_scale == 1:
+            return scores
+
+        logits = self.get_unconditional_logits(input_ids)
+
+        unconditional_logits = mint.nn.functional.log_softmax(logits[:, -1], dim=-1)
+        scores_processed = self.guidance_scale * (scores - unconditional_logits) + unconditional_logits
+        return scores_processed
+
+
+class SuppressTokensAtBeginLogitsProcessor(LogitsProcessor):
+    r"""
+    [`SuppressTokensAtBeginLogitsProcessor`] supresses a list of tokens as soon as the `generate` function starts
+    generating using `begin_index` tokens. This should ensure that the tokens defined by `begin_suppress_tokens` are
+    not generated at the beginning. Originally created for
+    [Whisper](https://huggingface.co/docs/transformers/model_doc/whisper).
+
+
+
     >>> from mindone.transformers import AutoProcessor, WhisperForConditionalGeneration
     >>> from datasets import load_dataset
 
@@ -626,7 +692,8 @@ class SuppressTokensLogitsProcessor(LogitsProcessor):
 
 
 class WhisperNoSpeechDetection(LogitsProcessor):
-    r"""This processor can be used to detect silence when using Whisper. It should take as input unprocessed logits to follow the original implementation"""
+    r"""This processor can be used to detect silence when using Whisper. It should take as input unprocessed logits
+    to follow the original implementation"""
 
     def __init__(self, no_speech_token: int, begin_index: int, scores_is_logprobs: bool = False):
         self.no_speech_token = no_speech_token
@@ -657,7 +724,6 @@ class WhisperNoSpeechDetection(LogitsProcessor):
     def set_begin_index(self, begin_index):
         self.begin_index = begin_index
 
-    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
     def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
         is_scores_logprobs = self.is_scores_logprobs
 
@@ -723,7 +789,8 @@ class WhisperTimeStampLogitsProcessor(LogitsProcessor):
     >>> generated_ids = model.generate(inputs=input_features, return_timestamps=True)
     >>> transcription = processor.batch_decode(generated_ids, decode_with_timestamps=True)[0]
     >>> print("Transcription:", transcription)
-    Transcription: <|startoftranscript|><|0.00|> He has grave doubts whether Sir Frederick Layton's work is really Greek after all, and can<|6.44|><|6.44|> discover in it but little of rocky Ithaca.<|9.44|><|endoftext|>
+    Transcription: <|startoftranscript|><|0.00|> He has grave doubts whether Sir Frederick Layton's work is really Greek after all,
+    and can<|6.44|><|6.44|> discover in it but little of rocky Ithaca.<|9.44|><|endoftext|>
 
 
     >>> #No timestamps & change EOS:
@@ -733,75 +800,12 @@ class WhisperTimeStampLogitsProcessor(LogitsProcessor):
     >>> transcription = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
     >>> print("Transcription:", transcription)
     Transcription:  He has grave doubts whether Sir Frederick Layton's work is really Greek after all and can
->>>>>>> fb2ce731 (whisper)
+
     ```
     """
 
     def __init__(
         self,
-<<<<<<< HEAD
-        guidance_scale: float,
-        model,
-        unconditional_ids: Optional[ms.Tensor] = None,
-        unconditional_attention_mask: Optional[ms.Tensor] = None,
-        use_cache: Optional[bool] = True,
-    ):
-        self.guidance_scale = guidance_scale
-        self.model = model
-        self.unconditional_context = {
-            "input_ids": unconditional_ids,
-            "attention_mask": unconditional_attention_mask,
-            "use_cache": use_cache,
-            "past_key_values": None,
-            "first_pass": True,
-        }
-
-    def get_unconditional_logits(self, input_ids):
-        if self.unconditional_context["first_pass"]:
-            if self.unconditional_context["input_ids"] is None:
-                self.unconditional_context["input_ids"] = input_ids[:, -1:]
-            if self.unconditional_context["attention_mask"] is None:
-                self.unconditional_context["attention_mask"] = ops.ones_like(
-                    self.unconditional_context["input_ids"], dtype=ms.int32
-                )
-            input_ids = self.unconditional_context["input_ids"]
-            attention_mask = self.unconditional_context["attention_mask"]
-            self.unconditional_context["first_pass"] = False
-        else:
-            attention_mask = mint.cat(
-                [
-                    self.unconditional_context["attention_mask"],
-                    ops.ones_like(input_ids[:, -1:], dtype=ms.int32),
-                ],
-                dim=1,
-            )
-            if not self.unconditional_context["use_cache"]:
-                input_ids = mint.cat([self.unconditional_context["input_ids"], input_ids[:, -1:]], dim=1)
-            else:
-                input_ids = input_ids[:, -1:]
-            self.unconditional_context["input_ids"] = input_ids
-            self.unconditional_context["attention_mask"] = attention_mask
-
-        out = self.model(
-            input_ids,
-            attention_mask=attention_mask,
-            use_cache=self.unconditional_context["use_cache"],
-            past_key_values=self.unconditional_context["past_key_values"],
-        )
-        self.unconditional_context["past_key_values"] = out.get("past_key_values", None)
-
-        return out.logits
-
-    def __call__(self, input_ids, scores):
-        scores = mint.nn.functional.log_softmax(scores, dim=-1)
-        if self.guidance_scale == 1:
-            return scores
-
-        logits = self.get_unconditional_logits(input_ids)
-
-        unconditional_logits = mint.nn.functional.log_softmax(logits[:, -1], dim=-1)
-        scores_processed = self.guidance_scale * (scores - unconditional_logits) + unconditional_logits
-=======
         generate_config,
         begin_index: Optional[int] = None,
         _detect_timestamp_from_logprob: Optional[bool] = None,
@@ -829,7 +833,6 @@ class WhisperTimeStampLogitsProcessor(LogitsProcessor):
     def set_begin_index(self, begin_index):
         self.begin_index = begin_index
 
-    @add_start_docstrings(LOGITS_PROCESSOR_INPUTS_DOCSTRING)
     def __call__(self, input_ids: ms.Tensor, scores: ms.Tensor) -> ms.Tensor:
         # suppress <|notimestamps|> which is handled by without_timestamps
         scores_processed = scores.clone()
@@ -877,5 +880,4 @@ class WhisperTimeStampLogitsProcessor(LogitsProcessor):
             if timestamp_logprob > max_text_token_logprob and self._detect_timestamp_from_logprob:
                 scores_processed[k, : self.timestamp_begin] = -float("inf")
 
->>>>>>> fb2ce731 (whisper)
         return scores_processed
