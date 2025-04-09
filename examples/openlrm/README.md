@@ -194,8 +194,16 @@ Experiments are tested on Ascend Atlas 800T A2 machines with pynative mode.
 
 
 ### Training Performance
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.1 pynative mode.
-- Train with objaverse data only:
+Experiments are tested on Ascend Atlas 800T A2 machines with pynative mode.
+- Train with objaverse data only, mindspore 2.5.0:
+
+|model name	| cards	| batch size	| resolution	| precision| recompute	|  s/step	| batch/s|
+|---|---|---|---|---|---|---|---|
+|small | 1 | 1 | (4x)224x224 | fp32 | OFF |  1.98 | 0.50 |
+|base | 1 | 1 | (4x)336x336 | fp32 | OFF | 2.58  | 0.39 |
+|large | 1 | 1 | (4x)448x448 | bf16 | ON |  3.19 | 0.31|
+
+- Train with objaverse data only, mindspore 2.4.1:
 
 |model name	| cards	| batch size	| resolution	| precision| recompute	|  s/step	| batch/s|
 |---|---|---|---|---|---|---|---|

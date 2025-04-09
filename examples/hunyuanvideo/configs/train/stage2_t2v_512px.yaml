@@ -8,7 +8,7 @@ env:
 model:
   name: "HYVideo-T/2-cfgdistill"
   in_channels: 16
-  pretrained_model_path: # use random initialization
+  pretrained_model_path: /ckpt/path/from/stage1
   text_states_dim: 4096
   text_states_dim_2: 768
   enable_ms_amp: False
@@ -23,7 +23,7 @@ model:
 vae:
   type: "884-16c-hy"
   precision: fp16
-  tiling: False
+  tiling: True
   trainable: False
 
 dataset:
@@ -33,9 +33,10 @@ dataset:
   empty_text_emb: EMPTY_TEXT_EMB_PATH
   deterministic_sample: False
   text_drop_prob: 0.2
-  target_size: [ 256, 256 ]
-  sample_n_frames: 29
+  target_size: [ 512, 512 ]
+  sample_n_frames: 79
   vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
+  vae_latent_folder: datasets/mixkit-100videos/mixkit_latent_512x512/
   output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin" ]
 
 dataloader:
@@ -45,12 +46,12 @@ dataloader:
 
 train:
   steps: 30000
-  output_path: ../../output/stage1_t2v_256px  # the path is relative to this config
+  output_path: ../../output/stage2_t2v_512px  # the path is relative to this config
   data_sink_mode: True
   data_sink_size: -1 # sink size same to dataset size
 
   sequence_parallel:
-    shards: 1
+    shards: 8
 
   lr_scheduler:
     name: constant
@@ -71,7 +72,7 @@ train:
     weight_decay: 0.0001
 
   loss_scaler:
-    class_path: mindspore.nn.FixedLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
+    class_path: mindspore.nn.DynamicLossScaleUpdateCell   # or DynamicLossScaleUpdateCell in FP16
     init_args:
       loss_scale_value: 65536
       scale_factor: 2
@@ -99,9 +100,10 @@ valid:
     csv_path: CSV_PATH
     video_folder: VIDEO_FOLDER
     text_emb_folder: TEXT_EMB_FOLDER
-    target_size: [ 256, 256 ]
-    sample_n_frames: 29
+    target_size: [ 512, 512 ]
+    sample_n_frames: 79
     vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
+    vae_latent_folder: datasets/mixkit-100videos/mixkit_latent_512x512/
     output_columns:  [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin"]
 
   dataloader:

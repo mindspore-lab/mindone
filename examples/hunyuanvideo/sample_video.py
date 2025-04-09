@@ -14,6 +14,7 @@ from mindone.visualize.videos import save_videos
 
 # from hyvideo.utils.file_utils import save_videos_grid
 sys.path.append(".")
+from hyvideo.acceleration import create_parallel_group
 from hyvideo.config import parse_args
 from hyvideo.inference import HunyuanVideoSampler
 from hyvideo.utils.file_utils import process_prompt_and_text_embed
@@ -40,10 +41,14 @@ def main():
         device_target="Ascend",
         max_device_memory=args.max_device_memory,
         parallel_mode=args.parallel_mode,
-        sp_size=args.sp_size,
         jit_level=args.jit_level,
         jit_syntax_level=args.jit_syntax_level,
     )
+    shard_rank_id = rank_id
+    if args.sp_size > 1:
+        create_parallel_group(args.sp_size)
+        shard_rank_id = shard_rank_id // args.sp_size
+        logger.info(f"Using sequence parallel size {args.sp_size}, group id {shard_rank_id}, rank_id {rank_id}")
 
     # Load models
     hunyuan_video_sampler = HunyuanVideoSampler.from_pretrained(models_root_path, args=args, rank_id=rank_id)

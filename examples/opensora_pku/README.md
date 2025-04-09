@@ -293,7 +293,7 @@ In order to train vae with LPIPS loss, please also download [lpips_vgg-426bf45c.
 **Steps 3: Hyper-parameters Setting**
 
 As introduced in the [Open-Sora Plan Arxiv paper](https://arxiv.org/abs/2412.00131), the hyper-parameters of each stage is summerized in the following table:
-| Stage |  Resolution | Num of frames | FPS | Batch size  | Train Steps | Discrminator |  $\lambda_{lpips}$ |
+| stage |  resolution | num of frames | fps | batch size  | train steps | discrminator |  $\lambda_{lpips}$ |
 |:---   |:---         |:---           |:--- |:---         |:---         |:---          |:---                |
 | 1     | 256x256     | 25            | Original fps       |   8 |   800K     | TRUE         | -                  |
 | 2     | 256x256     | 49            | Original fps / 2   |   8 |   200K     | TRUE         | -                  |
@@ -329,7 +329,7 @@ python examples/rec_video_folder.py \
 
 Runing this command will generate reconstructed videos under the given `output_generated_video_dir`. You can then evalute some common metrics (e.g., ssim, psnr) using the script under `opensora/eval/script`.
 
-### Training Diffusion Model
+### Training OpenSora v1.3.0
 
 #### Preparation
 

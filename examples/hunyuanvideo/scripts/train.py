@@ -29,6 +29,7 @@ from mindone.trainers import create_optimizer, create_scheduler
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
 from mindone.trainers.zero import prepare_train_network
 from mindone.utils import count_params, init_env, set_logger
+from mindone.utils.seed import set_random_seed
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +65,7 @@ def main(args):
     args.train.output_path = os.path.abspath(args.train.output_path)
     os.makedirs(args.train.output_path, exist_ok=True)
     device_id, rank_id, device_num = init_env(**args.env)
+    set_random_seed(getattr(args.env, "seed", 42))
     mode = get_context("mode")  # `init_env()` may change the mode during debugging
 
     # if bucketing is used in Graph mode, activate dynamic mode
@@ -80,8 +82,8 @@ def main(args):
         device_num = device_num // args.train.sequence_parallel.shards
         shard_rank_id = rank_id // args.train.sequence_parallel.shards
 
-    # FIXME: Improve seed setting
-    set_seed(args.env.seed + shard_rank_id)  # set different seeds per NPU for sampling different timesteps
+    # set different seeds per NPU for sampling different timesteps, but if sp is enabled, force the timestep to be the same as rank_0
+    set_seed(args.env.seed)
     ds.set_seed(args.env.seed)  # keep MS.dataset's seed consistent as datasets first shuffled and then distributed
 
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
@@ -92,7 +94,7 @@ def main(args):
     # 2. model initialize and weight loading
     # 2.1 vae
     if not args.dataset.vae_latent_folder or (
-        args.valid.dataset and not args.valid.dataset.init_args.vae_latent_folder
+        hasattr(args.valid, "dataset") and args.valid.dataset and not args.valid.dataset.init_args.vae_latent_folder
     ):
         logger.info("Initializing vae...")
         vae, _, s_ratio, t_ratio = load_vae(
@@ -140,6 +142,7 @@ def main(args):
         vae,
         video_emb_cached=bool(args.dataset.vae_latent_folder),
         embedded_guidance_scale=embed_cfg_scale,
+        vae_scaling_factor=args.dataset.vae_scale_factor,
     )
 
     # 4. build train & val datasets
@@ -148,9 +151,10 @@ def main(args):
             f"Initializing the dataloader: assigning shard ID {shard_rank_id} out of {device_num} total shards."
         )
     dataloader, dataset_len = initialize_dataset(args.dataset, args.dataloader, device_num, shard_rank_id)
+    logger.info(f"Num train batches: {dataloader.get_dataset_size()}")
 
     eval_diffusion_with_loss, val_dataloader = None, None
-    if args.valid.dataset is not None:
+    if hasattr(args.valid, "dataset") and args.valid.dataset is not None:
         val_dataloader, _ = initialize_dataset(
             args.valid.dataset.init_args, args.valid.dataloader, device_num, shard_rank_id
         )
@@ -161,6 +165,7 @@ def main(args):
             video_emb_cached=bool(args.valid.dataset.init_args.vae_latent_folder),
             embedded_guidance_scale=embed_cfg_scale,
         )
+        logger.info(f"Num validation batches: {val_dataloader.get_dataset_size()}")
 
     # 5. build training utils: lr, optim, callbacks, trainer
     # 5.1 LR
@@ -285,7 +290,7 @@ def main(args):
                 f"Number of samples: {dataset_len}",
                 f"Model name: {args.model.name}",
                 f"Model dtype: {model_dtype}",
-                f"vae dtype: {vae_dtype}",
+                f"vae dtype: {vae_dtype}" if not bool(args.dataset.vae_latent_folder) else "VAE latent cache: True",
                 f"Num params: {num_params:,} (network: {num_params_network:,}, vae: {num_params_vae:,})",
                 f"Num trainable params: {num_params_trainable:,}",
                 f"Learning rate: {args.train.lr_scheduler.lr:.0e}",
@@ -301,6 +306,7 @@ def main(args):
                 f"Max grad norm: {args.train.settings.clip_norm}",
                 f"EMA: {ema is not None}",
                 f"Attention mode: {args.model.factor_kwargs['attn_mode']}",
+                f"Sequence parallelism shards: {args.train.sequence_parallel.shards}",
             ]
         )
         key_info += "\n" + "=" * 50

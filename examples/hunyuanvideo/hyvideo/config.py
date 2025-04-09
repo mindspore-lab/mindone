@@ -423,18 +423,18 @@ def add_parallel_args(parser: argparse.ArgumentParser):
     )
     group.add_argument("--sp-size", type=int, default=1, help="For sequence parallel")
     # ======================== Model loads ========================
-    group.add_argument(
-        "--ulysses-degree",
-        type=int,
-        default=1,
-        help="Ulysses degree.",
-    )
-    group.add_argument(
-        "--ring-degree",
-        type=int,
-        default=1,
-        help="Ulysses degree.",
-    )
+    # group.add_argument(
+    #     "--ulysses-degree",
+    #     type=int,
+    #     default=1,
+    #     help="Ulysses degree.",
+    # )
+    # group.add_argument(
+    #     "--ring-degree",
+    #     type=int,
+    #     default=1,
+    #     help="Ulysses degree.",
+    # )
 
     return parser
 

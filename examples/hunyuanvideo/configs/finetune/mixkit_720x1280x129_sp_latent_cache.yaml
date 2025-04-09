@@ -27,30 +27,31 @@ vae:
   trainable: False
 
 dataset:
-  csv_path: datasets/mixkit-100videos/video_caption_test.csv
+  csv_path: datasets/mixkit-100videos/video_caption_vid6.csv
   video_folder: datasets/mixkit-100videos/mixkit
   text_emb_folder: datasets/mixkit-100videos/text_embed
   empty_text_emb: datasets/mixkit-100videos/empty_string_text_embeddings.npz
   deterministic_sample: False
   text_drop_prob: 0.0
-  target_size: [ 256, 256 ]
-  sample_n_frames: 29
+  target_size: [ 720, 1280 ]
+  sample_n_frames: 129
   vae_scale_factor: 0.476986  # must be the same to vae scaling_factor
+  vae_latent_folder: datasets/mixkit-100videos/mixkit_latent_720x1280/
   output_columns: [ "video", "prompt_embeds", "prompt_mask", "prompt_embeds_2", "freqs_cos", "freqs_sin"]
 
 dataloader:
   batch_size: 1
   shuffle: True
-  num_workers_dataset: 2
+  num_workers_dataset: 4
 
 train:
   steps: 10000
-  output_path: ../../output/finetune_t2v_256px  # the path is relative to this config
+  output_path: ../../output/finetune_t2v_720px_sp_latent_cache  # the path is relative to this config
   data_sink_mode: True
   data_sink_size: -1 # sink size same to dataset size
 
   sequence_parallel:
-    shards: 1
+    shards: 8
 
   lr_scheduler:
     name: constant
@@ -69,7 +70,6 @@ train:
       loss_scale_value: 65536
       scale_factor: 2
       scale_window: 1000
-
   # ema:
   #   ema_decay: 0.9999
   #   offloading: True
