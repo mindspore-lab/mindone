@@ -87,6 +87,23 @@ def main(args):
 
     set_logger("", output_dir=args.train.output_path, rank=rank_id)
 
+    # 2. model initialize and weight loading
+    # 2.1 vae
+    if not args.dataset.vae_latent_folder or (
+        args.valid.dataset and not args.valid.dataset.init_args.vae_latent_folder
+    ):
+        logger.info("Initializing vae...")
+        vae, _, s_ratio, t_ratio = load_vae(
+            logger=logger,
+            **args.vae,
+        )
+        # vae_kwargs = {"s_ratio": s_ratio, "t_ratio": t_ratio}
+        vae_dtype = args.vae.precision
+
+    else:
+        logger.info("vae latent folder provided. Skipping vae initialization.")
+        vae = None
+
     sample_n_frames = args.dataset.sample_n_frames
     # size verification: num_frames -1 should be a multiple of 4, height and width should be a multiple of 16
     if (sample_n_frames - 1) % 4 != 0:
