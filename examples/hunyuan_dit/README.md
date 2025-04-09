@@ -9,7 +9,8 @@
 
 | mindspore | ascend driver | firmware | cann tookit/kernel |
 | :---:       |   :---:        | :---:      | :---:      |
-| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1   |
+| 2.5.0     |  24.1RC2      |7.3.0.1.231|   8.0.0.beta1   |
+| 2.3.1     |  24.1RC2      |7.3.0.1.231|   8.0.RC2.beta1 |
 
 ## Features
 
@@ -172,15 +173,33 @@ python sample_controlnet.py --infer-mode fa --no-enhance --load-key distill --in
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
-
 ### Training
+
+- mindspore 2.5.0
+
+| model name    |cards|batch size |  resolution |precision|jit level |step/s |
+|:---:          |:---:|:---:      |  :---:      |:---:|:---:|:---:|
+|HunyuanDiT-v1.2|1    |1          |  1024x1024  |fp16|O1|0.73|
+|HunyuanDiT-v1.2|1    |1          |  1024x1024  |fp32|O1|0.58|
+
+- mindspore 2.3.1
+
 | model name    |cards|batch size |  resolution |precision|jit level |step/s |
 |:---:          |:---:|:---:      |  :---:      |:---:|:---:|:---:|
 |HunyuanDiT-v1.2|1    |1          |  1024x1024  |fp16|O1|0.62|
 |HunyuanDiT-v1.2|1    |1          |  1024x1024  |fp32|O1|0.45|
 
 ### Inference
+
+- mindspore 2.5.0
+
+| model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|step/s |  
+|:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
+|HunyuanDiT-v1.0|1         |1           |1024x1024     |ddpm            |100|O0|2.98|
+|HunyuanDiT-v1.1|1         |1           |1024x1024     |ddpm            |100|O0|3.02|
+|HunyuanDiT-v1.2|1         |1           |1024x1024     |ddpm            |100|O0|3.00|
+
+- mindspore 2.3.1
 
 | model name    | cards    | batch size | resolution   | scheduler |    steps |  jit level|step/s |  
 |:-------:      |:--------:|:-------:   |:-----------: |:--------------:|:------------:|:-------:|:---------:|
