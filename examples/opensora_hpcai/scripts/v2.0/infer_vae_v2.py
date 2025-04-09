@@ -80,11 +80,11 @@ def prepare_visual_condition_uncausal(
                 if pad:
                     pad_num = model_ae.time_compression_ratio - 1  # 32 --> new video: 7 + (1+31-7)
                     padded_x = mint.cat([x[i, :, :1]] * pad_num + [x[i, :, :-pad_num]], dim=1).unsqueeze(0)
-                    x_0[i] = model_ae.encoder(padded_x)[0]
+                    x_0[i] = model_ae.encode(padded_x)[0]
                 else:
-                    x_0[i] = model_ae.encoder(x[i : i + 1])[0]
+                    x_0[i] = model_ae.encode(x[i : i + 1])[0]
                 # condition: encode the image only
-                latent[i, :, :1, :, :] = model_ae.encoder(
+                latent[i, :, :1, :, :] = model_ae.encode(
                     x[i, :, :1, :, :].unsqueeze(0)
                 ) 
             elif mask_cond == "i2v_loop":  # # NOTE: modify video, mask first and last latent frame
@@ -101,47 +101,47 @@ def prepare_visual_condition_uncausal(
                     ).unsqueeze(
                         0
                     )  # remove the last pad_num * 2 frames from the end of the video
-                    x_0[i] = model_ae.encoder(padded_x)[0]
+                    x_0[i] = model_ae.encode(padded_x)[0]
                     # condition: encode the image only
-                    latent[i, :, :1, :, :] = model_ae.encoder(x[i, :, :1, :, :].unsqueeze(0))
-                    latent[i, :, -1:, :, :] = model_ae.encoder(x[i, :, -pad_num * 2 - 1, :, :].unsqueeze(1).unsqueeze(0))
+                    latent[i, :, :1, :, :] = model_ae.encode(x[i, :, :1, :, :].unsqueeze(0))
+                    latent[i, :, -1:, :, :] = model_ae.encode(x[i, :, -pad_num * 2 - 1, :, :].unsqueeze(1).unsqueeze(0))
                 else:
-                    x_0[i] = model_ae.encoder(x[i : i + 1])[0]
-                    latent[i, :, :1, :, :] = model_ae.encoder(x[i, :, :1, :, :].unsqueeze(0))
-                    latent[i, :, -1:, :, :] = model_ae.encoder(x[i, :, -1:, :, :].unsqueeze(0))
+                    x_0[i] = model_ae.encode(x[i : i + 1])[0]
+                    latent[i, :, :1, :, :] = model_ae.encode(x[i, :, :1, :, :].unsqueeze(0))
+                    latent[i, :, -1:, :, :] = model_ae.encode(x[i, :, -1:, :, :].unsqueeze(0))
             elif mask_cond == "i2v_tail":  # mask the last latent frame
                 masks[i, :, -1, :, :] = 1
                 if pad:
                     pad_num = model_ae.time_compression_ratio - 1
                     padded_x = mint.cat([x[i, :, pad_num:]] + [x[i, :, -1:]] * pad_num, dim=1).unsqueeze(0)
-                    x_0[i] = model_ae.encoder(padded_x)[0]
-                    latent[i, :, -1:, :, :] = model_ae.encoder(x[i, :, -pad_num * 2 - 1, :, :].unsqueeze(1).unsqueeze(0))
+                    x_0[i] = model_ae.encode(padded_x)[0]
+                    latent[i, :, -1:, :, :] = model_ae.encode(x[i, :, -pad_num * 2 - 1, :, :].unsqueeze(1).unsqueeze(0))
                 else:
-                    x_0[i] = model_ae.encoder(x[i : i + 1])[0]
-                    latent[i, :, -1:, :, :] = model_ae.encoder(x[i, :, -1:, :, :].unsqueeze(0))
+                    x_0[i] = model_ae.encode(x[i : i + 1])[0]
+                    latent[i, :, -1:, :, :] = model_ae.encode(x[i, :, -1:, :, :].unsqueeze(0))
             elif mask_cond == "v2v_head":  # mask the first 32 video frames
                 assert T > 32 // model_ae.time_compression_ratio
                 conditioned_t = 32 // model_ae.time_compression_ratio
                 masks[i, :, :conditioned_t, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 latent[i, :, :conditioned_t, :, :] = x_0[i, :, :conditioned_t, :, :]
             elif mask_cond == "v2v_tail":  # mask the last 32 video frames
                 assert T > 32 // model_ae.time_compression_ratio
                 conditioned_t = 32 // model_ae.time_compression_ratio
                 masks[i, :, -conditioned_t:, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 latent[i, :, -conditioned_t:, :, :] = x_0[i, :, -conditioned_t:, :, :]
             elif mask_cond == "v2v_head_easy":  # mask the first 64 video frames
                 assert T > 64 // model_ae.time_compression_ratio
                 conditioned_t = 64 // model_ae.time_compression_ratio
                 masks[i, :, :conditioned_t, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 latent[i, :, :conditioned_t, :, :] = x_0[i, :, :conditioned_t, :, :]
             elif mask_cond == "v2v_tail_easy":  # mask the last 64 video frames
                 assert T > 64 // model_ae.time_compression_ratio
                 conditioned_t = 64 // model_ae.time_compression_ratio
                 masks[i, :, -conditioned_t:, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 latent[i, :, -conditioned_t:, :, :] = x_0[i, :, -conditioned_t:, :, :]
             # elif mask_cond == "v2v_head":  # mask from the beginning to a random point
             #     masks[i, :, : random.randint(1, T - 2), :, :] = 1
@@ -150,9 +150,9 @@ def prepare_visual_condition_uncausal(
             else:
                 # "t2v" is the fallback case where no specific condition is specified
                 assert mask_cond == "t2v", f"Unknown mask condition {mask_cond}"
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
     else:  # image
-        x_0 = model_ae.encoder(x)  # latent video
+        x_0 = model_ae.encode(x)  # latent video
 
     latent = masks * latent  # condition latent
     # merge the masks and the masked_x into a single tensor
@@ -203,48 +203,48 @@ def prepare_visual_condition_causal(x: ms.tensor, condition_config: dict, model_
 
             if mask_cond == "i2v_head":  # NOTE: modify video, mask first latent frame
                 masks[i, :, 0, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 # condition: encode the image only
-                latent[i, :, :1, :, :] = model_ae.encoder(x[i, :, :1, :, :].unsqueeze(0))
+                latent[i, :, :1, :, :] = model_ae.encode(x[i, :, :1, :, :].unsqueeze(0))
 
             elif mask_cond == "i2v_loop":  # # NOTE: modify video, mask first and last latent frame
                 # pad video such that first and last latent frame correspond to image only
                 masks[i, :, 0, :, :] = 1
                 masks[i, :, -1, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 # condition: encode the image only
-                latent[i, :, :1, :, :] = model_ae.encoder(x[i, :, :1, :, :].unsqueeze(0))
-                latent[i, :, -1:, :, :] = model_ae.encoder(x[i, :, -1:, :, :].unsqueeze(0))
+                latent[i, :, :1, :, :] = model_ae.encode(x[i, :, :1, :, :].unsqueeze(0))
+                latent[i, :, -1:, :, :] = model_ae.encode(x[i, :, -1:, :, :].unsqueeze(0))
 
             elif mask_cond == "i2v_tail":  # mask the last latent frame
                 masks[i, :, -1, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 # condition: encode the last image only
-                latent[i, :, -1:, :, :] = model_ae.encoder(x[i, :, -1:, :, :].unsqueeze(0))
+                latent[i, :, -1:, :, :] = model_ae.encode(x[i, :, -1:, :, :].unsqueeze(0))
 
             elif "v2v_head" in mask_cond:  # mask the first 33 video frames
                 ref_t = 33 if not "easy" in mask_cond else 65
                 assert (ref_t - 1) % model_ae.time_compression_ratio == 0
                 conditioned_t = (ref_t - 1) // model_ae.time_compression_ratio + 1
                 masks[i, :, :conditioned_t, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 # encode the first ref_t frame video separately
-                latent[i, :, :conditioned_t, :, :] = model_ae.encoder(x[i, :, :ref_t, :, :].unsqueeze(0))
+                latent[i, :, :conditioned_t, :, :] = model_ae.encode(x[i, :, :ref_t, :, :].unsqueeze(0))
 
             elif "v2v_tail" in mask_cond:  # mask the last 32 video frames
                 ref_t = 33 if not "easy" in mask_cond else 65
                 assert (ref_t - 1) % model_ae.time_compression_ratio == 0
                 conditioned_t = (ref_t - 1) // model_ae.time_compression_ratio + 1
                 masks[i, :, -conditioned_t:, :, :] = 1
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
                 # encode the first ref_t frame video separately
-                latent[i, :, -conditioned_t:, :, :] = model_ae.encoder(x[i, :, -ref_t:, :, :].unsqueeze(0))
+                latent[i, :, -conditioned_t:, :, :] = model_ae.encode(x[i, :, -ref_t:, :, :].unsqueeze(0))
             else:
                 # "t2v" is the fallback case where no specific condition is specified
                 assert mask_cond == "t2v", f"Unknown mask condition {mask_cond}"
-                x_0[i] = model_ae.encoder(x[i].unsqueeze(0))[0]
+                x_0[i] = model_ae.encode(x[i].unsqueeze(0))[0]
     else:  # image
-        x_0 = model_ae.encoder(x)  # latent video
+        x_0 = model_ae.encode(x)  # latent video
 
     latent = masks * latent  # condition latent
     # merge the masks and the masked_x into a single tensor
@@ -487,7 +487,7 @@ def main(args):
                             # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
                             conds.append(cond.asnumpy())
                         else:
-                            x_0 = ms.ops.stop_gradient(model_ae.encoder(ms.Tensor(x_bs, ms.float32)))
+                            x_0 = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32)))
                         latent.append(x_0.asnumpy())
 
                     latent = np.concatenate(latent, axis=0)
@@ -518,7 +518,7 @@ def main(args):
                             # cond = pack(cond, patch_size=ae_config.get("patch_size", 2))  # FIXME: general config, not ae_config
                             conds.append(cond.asnumpy())
                         else:
-                            x_0 = ms.ops.stop_gradient(model_ae.encoder(ms.Tensor(x_bs, ms.float32)))
+                            x_0 = ms.ops.stop_gradient(model_ae.encode(ms.Tensor(x_bs, ms.float32)))
                         latent.append(x_0.asnumpy())
 
                     latent = np.concatenate(latent, axis=0)
