@@ -52,7 +52,7 @@ from .timm import (
     Mlp,
     PatchDropout,
     PatchEmbed,
-    _no_grad_trunc_normal_,
+    no_grad_trunc_normal_,
     resample_abs_pos_embed,
 )
 
@@ -80,7 +80,7 @@ def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
     # with ms._no_grad(): # dosn't support graph mode
     dtype = tensor.dtype
     tensor_fp32 = tensor.float()
-    tensor_fp32 = _no_grad_trunc_normal_(tensor_fp32, mean, std, a, b)
+    tensor_fp32 = no_grad_trunc_normal_(tensor_fp32, mean, std, a, b)
     tensor_dtype = tensor_fp32.to(dtype=dtype)
     tensor.copy_(tensor_dtype)
 
