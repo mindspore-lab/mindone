@@ -364,7 +364,6 @@ class VisionTransformer(nn.Cell):
         self.head_drop = nn.Dropout(p=drop_rate)
         self.head = mint.nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
-
         # if weight_init != "skip":
         #     self.init_weights(weight_init)
 
@@ -525,7 +524,8 @@ class VisionTransformer(nn.Cell):
         if reshape:
             grid_size = self.patch_embed.grid_size
             outputs = [
-                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1).permute(0, 3, 1, 2).contiguous() for out in outputs
+                out.reshape(x.shape[0], grid_size[0], grid_size[1], -1).permute(0, 3, 1, 2).contiguous()
+                for out in outputs
             ]
 
         if return_prefix_tokens:
