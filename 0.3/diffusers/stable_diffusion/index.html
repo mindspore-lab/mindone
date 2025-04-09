@@ -7147,7 +7147,7 @@ That is, do nothing! MindSpore will automatically take care of model placement, 
     <img src="https://github.com/user-attachments/assets/67b06273-9081-4b4f-a31f-585b23f70f27">
 </div>
 
-<p>This process took ~5.6 seconds on a Ascend 910B in Graph mode. By default, the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline"><code>DiffusionPipeline</code></a> runs inference with full <code>float32</code> precision for 50 inference steps. You can speed this up by switching to a lower precision like <code>float16</code> or running fewer inference steps.</p>
+<p>This process took ~5.6 seconds on a Ascend Atlas 800T A2 machine in Graph mode. By default, the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline"><code>DiffusionPipeline</code></a> runs inference with full <code>float32</code> precision for 50 inference steps. You can speed this up by switching to a lower precision like <code>float16</code> or running fewer inference steps.</p>
 <p>Let's start by loading the model in <code>float16</code> and generate an image:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span>
 
@@ -7223,7 +7223,7 @@ That is, do nothing! MindSpore will automatically take care of model placement, 
     <img src="https://github.com/user-attachments/assets/5028a23d-7acd-4bb0-8633-38f8371eb393">
 </div>
 
-<p>Whereas before you couldn't even generate a batch of 4 images, now you can generate a batch of 8 images at ~1.6 seconds per image! This is probably the fastest you can go on a Ascend 910B without sacrificing quality.</p>
+<p>Whereas before you couldn't even generate a batch of 4 images, now you can generate a batch of 8 images at ~1.6 seconds per image! This is probably the fastest you can go on a Ascend Atlas 800T A2 machine without sacrificing quality.</p>
 <h2 id="quality">Quality<a class="headerlink" href="#quality" title="Permanent link">&para;</a></h2>
 <p>In the last two sections, you learned how to optimize the speed of your pipeline by using <code>fp16</code>, reducing the number of inference steps by using a more performant scheduler, and enabling attention slicing to reduce memory consumption. Now you're going to focus on how to improve the quality of generated images.</p>
 <h3 id="better-checkpoints">Better checkpoints<a class="headerlink" href="#better-checkpoints" title="Permanent link">&para;</a></h3>
@@ -7304,7 +7304,7 @@ That is, do nothing! MindSpore will automatically take care of model placement, 
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="February 27, 2025 14:59:15">February 27, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 9, 2025 12:53:39">April 9, 2025</span>
   </span>
 
     
@@ -7331,6 +7331,7 @@ That is, do nothing! MindSpore will automatically take care of model placement, 
       
         <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>, 
         <a href="mailto:74176172+geniuspatrick@users.noreply.github.com">Genius Patrick</a>, 
+        <a href="mailto:52945530+songyuanwei@users.noreply.github.com">Songyuanwei</a>, 
         <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
     </nav>
   </span>
