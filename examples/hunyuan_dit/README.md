@@ -172,7 +172,7 @@ python sample_controlnet.py --infer-mode fa --no-enhance --load-key distill --in
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 ### Training
 | model name    |cards|batch size |  resolution |precision|jit level |step/s |

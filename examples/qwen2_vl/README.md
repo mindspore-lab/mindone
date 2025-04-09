@@ -90,7 +90,7 @@ print(output_text)
 ## Inference
 
 ### Inference Speed
-Experiments are tested on ascend 910* pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines pynative mode.
 
 Input an image or a list of video frames, and a text prompt, output textual response.
 

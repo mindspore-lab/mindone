@@ -27,7 +27,7 @@ Here we provide an efficient MindSpore version of [Open-Sora-Plan](https://githu
 
 ## 🎥 Demo
 
-The following videos are generated based on MindSpore and Ascend 910*.
+The following videos are generated based on MindSpore and Ascend Atlas 800T A2 machines.
 
 <summary>Open-Sora-Plan v1.3.0 Demo</summary>
 

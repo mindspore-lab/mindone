@@ -32,7 +32,7 @@ This repository is built on the models and code released by HPC-AI Tech. We are 
 
 ## 🎥 Demo
 
-The following videos are generated based on MindSpore and Ascend 910*.
+The following videos are generated based on MindSpore and Ascend Atlas 800T A2 machines.
 
 ### OpenSora 2.0 Demo
 
@@ -395,7 +395,7 @@ text_emb.neg_clip_dir=assets/texts/clip_77_neg
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and
 the total sampling time of a video.
 
-Experiments are conducted on Ascend 910* with MindSpore 2.5.0 in PyNative mode.
+Experiments are conducted on Ascend Atlas 800T A2 machines with MindSpore 2.5.0 in PyNative mode.
 
 |  Model Name   | Stage | Cards | Batch Size |    Resolution    | Precision | Step | s/image | s/video |                       Recipe                       |
 |:-------------:|:-----:|:-----:|:----------:|:----------------:|:---------:|:----:|:-------:|:-------:|:--------------------------------------------------:|
@@ -438,7 +438,7 @@ python scripts/inference.py --config configs/opensora-v1-1/inference/sample_t2v.
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name  | cards | batch size |  resolution  | jit level | precision | scheduler | step | graph compile | s/step | s/video |                         recipe                          |
 |:-----------:|:-----:|:----------:|:------------:|:---------:|:---------:|:---------:|:----:|:-------------:|:------:|:-------:|:-------------------------------------------------------:|
@@ -475,7 +475,7 @@ For more usage on the inference script, please run `python scripts/inference.py 
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name      |  cards | batch size | resolution |  jit level | precision |  scheduler   | step      | graph compile | s/step     | s/video | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:       | :--:       | :--:       | :--:      |:--:    | :--:   |:--:   |
@@ -762,7 +762,7 @@ You may also see the example shell scripts in `scripts/run` for quick reference.
 
 ### Open-Sora 1.2
 
-Open-Sora 1.2 based on MindSpore and Ascend 910* supports 0s\~16s, 144p to 720p, various aspect ratios video generation. The supported configurations are listed below.
+Open-Sora 1.2 based on MindSpore and Ascend Atlas 800T A2 machines supports 0s\~16s, 144p to 720p, various aspect ratios video generation. The supported configurations are listed below.
 
 |      | image | 2s  | 4s  | 8s  | 16s |
 | ---- | ----- | --- | --- | --- | --- |
@@ -778,7 +778,7 @@ Here ✅ means that the data is seen during training, and 🆗 means although no
 
 We evaluate the training performance of Open-Sora v1.2 on the MixKit dataset with high-resolution videos (1080P, duration 12s to 100s).
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 | model name   | cards  | batch size | resolution | precision  | sink      | jit level | graph compile |  s/step | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  8     | 1          | 51x720x1280| bf16       | ON      | O1        |    12 mins   | 14.23   | [yaml](configs/opensora-v1-2/train/train_720x1280x51.yaml)
@@ -821,7 +821,7 @@ Below are some generation results after fine-tuning STDiT3 with **Stage 2** buck
 
 We evaluate the training performance of Open-Sora v1.1 on a subset of the MixKit dataset.
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   | vae cache  | precision  | sink       | jit level    | graph compile | s/step    | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:       | :--:       | :--:         | :--:          | :--:      | :--:   |
@@ -864,7 +864,7 @@ Here are some generation results after fine-tuning STDiT2 on a mixkit subset.
 
 #### Training Performance
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 | model name   | cards  | batch size | resolution   | stage | precision | sink |  jit level   | graph compile | s/step | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:  | :--:      |:--:  | :--:         | :--:          |:--:    |:--:    |
 | STDiT-XL/2  |  8     | 3          | 16x256x256   | 1     | fp16      |  ON  | O1           | 5~6 mins      |  1.53  | [yaml](configs/opensora/train/stdit_256x256x16_ms.yaml) |
@@ -977,7 +977,7 @@ You can change the `csv_path` and `video_folder` to evaluate on your own data.
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
 
-All experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name   | cards  | batch size | resolution   |  precision  |  jit level    | graph compile | s/step    | PSNR   | SSIM  | recipe |
 | :--:         | :--:   | :--:       | :--:         | :--:       | :--:         | :--:          | :--:      | :--:   | :--:      | :--:      |
@@ -993,7 +993,7 @@ Note that we train with mixed video ang image strategy i.e. `--mixed_strategy=mi
 
 We support training with the OpenSora v1.2 model using SP (Sequence Parallel) and [DSP](https://arxiv.org/abs/2403.10266) (Dynamic Sequence Parallel), handling up to 408 frames (~16 seconds) on 4 NPU* cards. Additionally, we have optimized the training speed by implementing micro-batch parallelism in the VAE’s spatial and temporal domains, achieving approximately a 20% speed boost. We evaluate the training performance using the MixKit dataset, which includes high-resolution videos (1080P, duration 12s to 100s). The training performance results are reported below.
 
-All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.0 graph mode.
 | model name   | cards  | batch size | resolution  | sink | precision   | jit level | graph compile |  s/step | recipe |
 | :--:         | :--:   | :--:       | :--:       | :--:       | :--:      | :--:      |:--:          | :--:       | :--:   |
 | STDiT3-XL/2  |  4     | 1          | 408x720x1280| OFF     |   bf16    | O1        |    12 mins   | 48.30   | [script](scripts/run/run_train_os1.2_stage2_sp.sh)
@@ -1006,7 +1006,7 @@ All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
 
 We evaluate the inference performance of text-to-video generation by measuring the average sampling time per step and the total sampling time of a video.
 
-All experiments are tested on ascend 910* with mindspore 2.4.0 graph mode.
+All experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.0 graph mode.
 
 
 | model name      |  cards | batch size | resolution |  precision | scheduler   |  steps   |  jit level |   graph compile | s/step     | s/video | recipe |

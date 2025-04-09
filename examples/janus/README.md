@@ -138,7 +138,7 @@ Please refer to [training.md](docs/training.md)
 
 ### Multimodal Understanding
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **graph** mode:
 
 | model | # card(s) | image size | attn. type | throughput (token/s)|
 |:-:|:-:|:-:|:-:|:-:|
@@ -146,7 +146,7 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
 | Janus-Pro-7B | 1 | 384x384 | Eager | 12.2|
 
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
 
 | model | # card(s) | image size | attn. type | throughput (token/s)|
 |:-:|:-:|:-:|:-:|:-:|
@@ -155,14 +155,14 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
 
 ### Visual Generation
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **graph** mode:
 
 | model | # card(s) | batch Size | image size | attn. type | throughput (token/s)| s/img |
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 16.2 | ~ 40 |
 | Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 11.9 | ~ 52 |
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
 
 | model | # card(s) | batch size| image size | attn. type | throughput (token/s)| s/img |
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|

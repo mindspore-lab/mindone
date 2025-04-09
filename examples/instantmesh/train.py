@@ -74,7 +74,12 @@ def parse_train_args(parser):
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"
     )
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument(
+        "--max_device_memory",
+        type=str,
+        default=None,
+        help="e.g. `30GB` for Ascend 910, `59GB` for Ascend Atlas 800T A2 machines",
+    )
     parser.add_argument(
         "--dtype",
         default="fp32",  # if amp level O0/1, must pass fp32

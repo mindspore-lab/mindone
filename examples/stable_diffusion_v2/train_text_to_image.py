@@ -414,7 +414,7 @@ def main(args):
             lora_rank=args.lora_rank,
             log_interval=args.callback_size,
             start_epoch=start_epoch,
-            record_lr=False,  # LR retrival is not supportted on 910b currently
+            record_lr=False,  # LR retrival is not supportted on Ascend Atlas 800T A2 machines currently
         )
 
         callback.append(save_cb)

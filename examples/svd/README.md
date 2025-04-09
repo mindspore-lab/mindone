@@ -99,7 +99,7 @@ python train.py --config=configs/svd_train.yaml \
 --train.dataset.init_args.metadata=PATH_TO_LABELS
 ```
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 |  model_name  | cards | batch size  | resolution | grad accu  |sink | jit_level | graph compile | s/step | recipe |
 |:-------------:|:-------:|:-------------:|:-------------:|:-----------:|:-----:|:---------:|:--------------:|:---------:|:------:|

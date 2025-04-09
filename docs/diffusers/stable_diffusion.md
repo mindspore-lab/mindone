@@ -61,7 +61,7 @@ image
     <img src="https://github.com/user-attachments/assets/67b06273-9081-4b4f-a31f-585b23f70f27">
 </div>
 
-This process took ~5.6 seconds on a Ascend 910B in Graph mode. By default, the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) runs inference with full `float32` precision for 50 inference steps. You can speed this up by switching to a lower precision like `float16` or running fewer inference steps.
+This process took ~5.6 seconds on a Ascend Atlas 800T A2 machines in Graph mode. By default, the [`DiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline) runs inference with full `float32` precision for 50 inference steps. You can speed this up by switching to a lower precision like `float16` or running fewer inference steps.
 
 Let's start by loading the model in `float16` and generate an image:
 
@@ -163,7 +163,7 @@ make_image_grid(images, rows=2, cols=4)
     <img src="https://github.com/user-attachments/assets/5028a23d-7acd-4bb0-8633-38f8371eb393">
 </div>
 
-Whereas before you couldn't even generate a batch of 4 images, now you can generate a batch of 8 images at ~1.6 seconds per image! This is probably the fastest you can go on a Ascend 910B without sacrificing quality.
+Whereas before you couldn't even generate a batch of 4 images, now you can generate a batch of 8 images at ~1.6 seconds per image! This is probably the fastest you can go on a Ascend Atlas 800T A2 machines without sacrificing quality.
 
 ## Quality
 

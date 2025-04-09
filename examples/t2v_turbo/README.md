@@ -19,7 +19,7 @@ Paper: https://arxiv.org/abs/2405.18750
 
 ## 🏭 Requirements
 
-The scripts have been tested on Ascend 910B chips under the following requirements:
+The scripts have been tested on Ascend Atlas 800T A2 machines chips under the following requirements:
 
 | mindspore | ascend driver | firmware | cann toolkit/kernel |
 | --------- | ------------- | -------- | ------------------- |
@@ -232,7 +232,7 @@ bash scripts/train_t2v_turbo_vc2_stages_parallel.sh
 
 ## 📋 Benchmarking
 
-Experiments are tested on Ascend 910B with mindpsore 2.4.0 under pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindpsore 2.4.0 under pynative mode.
 
 ### Inference Performance
 

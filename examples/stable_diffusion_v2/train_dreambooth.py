@@ -108,7 +108,12 @@ def parse_args():
         "O2: Ultimate performance optimization, adopt Sink execution mode.",
     )
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="Enable parallel processing")
-    parser.add_argument("--max_device_memory", type=str, default="30GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument(
+        "--max_device_memory",
+        type=str,
+        default="30GB",
+        help="e.g. `30GB` for 910, `59GB` for Ascend Atlas 800T A2 machines",
+    )
     parser.add_argument("--use_lora", default=False, type=str2bool, help="Enable LoRA finetuning")
     parser.add_argument("--lora_ft_unet", default=False, type=str2bool, help="whether to apply lora finetune to unet")
     parser.add_argument(
@@ -499,7 +504,7 @@ def main(args):
             ckpt_save_interval=args.ckpt_save_interval,
             lora_rank=args.lora_rank,
             log_interval=args.callback_size,
-            record_lr=False,  # LR retrival is not supportted on 910b currently
+            record_lr=False,  # LR retrival is not supportted on Ascend Atlas 800T A2 machines currently
         )
 
         callback.append(save_cb)
