@@ -308,6 +308,8 @@ class OpenSoraAttnProcessor2_0:
         # print(f'q {query.shape}, k {key.shape}, v {value.shape}')
         if not self.is_cross_attn:
             # require the shape of (ntokens x batch_size x nheads x dim) or (batch_size x ntokens x nheads x dim)
+            # self.position_getter has a certain output when the input is certain.
+            # just run the func once when the processor is initialized to prevent subsequent double calculation.
             if self.pos_thw is None or self.pos_thw_shape != (batch_size, total_frame, height, width):
                 self.pos_thw = self.position_getter(batch_size, t=total_frame, h=height, w=width)
                 self.pos_thw_shape = (batch_size, total_frame, height, width)
