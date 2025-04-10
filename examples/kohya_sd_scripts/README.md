@@ -233,7 +233,7 @@ Choose a dataset config pattern and prepare the toml file as [prepare learning d
 The environment variable `pretrainedModel` could be the model name of sdxl from the hugging face, such as [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main), or a local checkpoint path in `.safetensor` format.
 
 ```bash
-export pretrainedModel= "path_to/sd_xl_base_1.0.safetensors"
+export pretrainedModel="path_to/sd_xl_base_1.0.safetensors"
 # export pretrainedMode="stabilityai/stable-diffusion-xl-base-1.0"
 export outputName="pokemon"
 export outputDir="path_to/sdxl_lora_pokemon"
