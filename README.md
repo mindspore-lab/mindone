@@ -95,4 +95,4 @@ image.save("sd3.png")
 ### supported captioner
 | task | model  | inference | finetune | pretrain | features  |
 | :---   |  :---   |  :---:    |  :---:  |  :---:     |  :--  |
-| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/master/tools/captioners/PLLaVA) 🔥🔥|  ✅ |  ✖️ |  ✖️   | support video and image captioning |
+| Image-Text-to-Text | [pllava](https://github.com/mindspore-lab/mindone/tree/master/tools/captioners/PLLaVA) 🔥|  ✅ |  ✖️ |  ✖️   | support video and image captioning |
