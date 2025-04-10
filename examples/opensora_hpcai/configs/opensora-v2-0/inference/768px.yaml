@@ -2,6 +2,8 @@ env:
   mode: 1
   debug: False
 
+enable_sequence_parallel: True
+
 model:
   from_pretrained: hpcai-tech/Open-Sora-v2/Open_Sora_v2.safetensors
   guidance_embed: False

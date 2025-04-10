@@ -1,4 +1,5 @@
 import os
+from itertools import zip_longest
 
 import numpy as np
 from PIL import Image
@@ -11,7 +12,7 @@ from mindone.visualize.videos import save_videos
 from ..utils.cond_data import get_references
 
 
-def process_and_save(x: Tensor, ids: list[int], save_dir: str, fps: int = 24):
+def process_and_save(x: Tensor, ids: list[int], sub_ids: list[int], save_dir: str, fps: int = 24):
     """
     x: B C T H W
     """
@@ -24,8 +25,8 @@ def process_and_save(x: Tensor, ids: list[int], save_dir: str, fps: int = 24):
         x = x.squeeze(axis=1)
 
     paths = []
-    for im, id_ in zip(x, ids):
-        paths.append(os.path.join(save_dir, f"{id_:05d}{ext}"))
+    for im, id_, sid in zip_longest(x, ids, sub_ids):
+        paths.append(os.path.join(save_dir, f"{id_:05d}{f'_{sid:03d}' if sid else ''}{ext}"))
         if is_image:
             Image.fromarray(im).save(paths[-1])
         else:
