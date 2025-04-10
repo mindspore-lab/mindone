@@ -78,6 +78,17 @@ git lfs install
 git clone https://huggingface.co/SparkAudio/Spark-TTS-0.5B pretrained_models/Spark-TTS-0.5B
 ```
 
+**Prepare Weight Format**
+
+convert `.bin` weight (hunyuan-clip) format from `pytorch_model.bin` to `model.safetensors`
+
+```shell
+python convert.py --pt_filename where_bin_file --sf_filename where_safetensors_file --config_path where_{config.json}_file
+
+# example as:
+python convert.py --pt_filename pretrained_models/Spark-TTS-0.5B/wav2vec2-large-xlsr-53/pytorch_model.bin --sf_filename pretrained_models/Spark-TTS-0.5B/wav2vec2-large-xlsr-53/model.safetensors --config_path /pretrained_models/Spark-TTS-0.5B/wav2vec2-large-xlsr-53/config.json
+```
+
 **Basic Usage**
 
 You can simply run the demo with the following commands:
