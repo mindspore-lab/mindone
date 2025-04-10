@@ -139,7 +139,7 @@ def parse_train_args(parser):
         "dataset_iterator_do_copy",
         default=True,
         type=str2bool,
-        help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor without copy."
+        help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor with copy."
     )
 
     #################################################################################
