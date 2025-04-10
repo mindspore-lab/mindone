@@ -60,7 +60,7 @@ image.save("sd3.png")
 | Text-to-Video | [step_video_t2v](https://github.com/mindspore-lab/mindone/blob/master/examples/step_video_t2v) 🔥🔥 | ✅   | ✖️  | ✖️   | StepFun  |
 | Image-Text-to-Text | [qwen2_vl](https://github.com/mindspore-lab/mindone/blob/master/examples/qwen2_vl) 🔥🔥🔥|  ✅ |  ✖️ |  ✖️   | Alibaba |
 | Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus)  🔥🔥🔥 | ✅  | ✅  | ✅  | DeepSeek |
-| Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  |  BAAIVision  |
+| Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  |  BAAI |
 | Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/master/examples/var)🔥🔥 | ✅  | ✅  | ✅  | ByteDance  |
 | Text/Image-to-Video | [hpcai open sora 1.2/2.0🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | ✅ | ✅ | ✅ | HPC-AI Tech  |
 | Text/Image-to-Video | [cogvideox 1.5 5B~30B 🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogvideox_factory) | ✅ |  ✅  | ✅  | Zhipu  |
