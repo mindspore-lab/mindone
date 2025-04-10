@@ -295,15 +295,15 @@ python sdxl_minimal_inference.py \
 
 ### Performance
 
-Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.0 graph mode, enabling unet training only.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 graph mode, enabling unet training only.
 
 | model name | cards |batch size    | resolution| precision | graph compile | jit level | s/step |
 | :----:    | :----: | :----------: | :-------: | :---------------: | :-------------: | :--------------: | :--------------: |
-| SDXL-Base | 1      |1             | 1024x1024 | None     | 24mins | O1 | 1.73     |
-| SDXL-Base | 1      |1             | 1024x1024 | fp16            | 33mins | O1   | 1.75     |
-| SDXL-Base | 1      |1             | 1024x1024 | bf16 | 28mins | O1 | 1.85 |
-| SDXL-Base | 1      |1             | 1024x1024 | fp16 (full_fp16) | 30mins        | O1  | 1.80    |
-| SDXL-Base | 1      |1             | 1024x1024 | bf16 (full_bf16) | 31mins | O1 | 1.75 |
+| SDXL-Base | 1      |1             | 1024x1024 | None     | 20mins | O1 | 1.01     |
+| SDXL-Base | 1      |1             | 1024x1024 | fp16            | 20mins | O1   | 1.18     |
+| SDXL-Base | 1      |1             | 1024x1024 | bf16 | 21mins | O1 | 1.27 |
+| SDXL-Base | 1      |1             | 1024x1024 | fp16 (full_fp16) | 21mins        | O1  | 1.09    |
+| SDXL-Base | 1      |1             | 1024x1024 | bf16 (full_bf16) | 22mins | O1 | 1.05 |
 
 > Notes: precision here means the arg `mixed_precision` of the training script.
 >
