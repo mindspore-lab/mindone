@@ -80,7 +80,7 @@ git clone https://huggingface.co/SparkAudio/Spark-TTS-0.5B pretrained_models/Spa
 
 **Prepare Weight Format**
 
-convert `.bin` weight (hunyuan-clip) format from `pytorch_model.bin` to `model.safetensors`
+convert `.bin` weight (wav2vec2-large-xlsr-53) format from `pytorch_model.bin` to `model.safetensors`
 
 ```shell
 python convert.py --pt_filename where_bin_file --sf_filename where_safetensors_file --config_path where_{config.json}_file
