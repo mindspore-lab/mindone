@@ -62,7 +62,7 @@ dataloader:
 
 train:
   sequence_parallel:
-    shards: 1   # 1 == no SP
+    shards: 8   # 1 == no SP
 
   options:
     steps: 20000

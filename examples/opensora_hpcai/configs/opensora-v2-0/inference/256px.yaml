@@ -32,7 +32,7 @@ ae:
   use_temporal_tiling: False
   dtype: bf16
 
-text_emb:
+prompts:
   prompts:
   neg_prompts:
   t5_dir:
@@ -64,9 +64,9 @@ sampling_option:
   image_osci: True  # enable image guidance oscillation
   scale_temporal_osci: True
   method: i2v
-  motion_score: "4"  # motion score for video generation
+  motion_score: 4  # motion score for video generation
   batch_size: 1
-  cond_type: "t2v"
+  cond_type: t2v
 
 saving_option:
   output_path: ../../../samples  # save directory
@@ -119,6 +119,6 @@ sampling_option_t2i:
   image_osci: True  # enable image guidance oscillation
   scale_temporal_osci: True
   method: distill
-  motion_score: "4"  # motion score for video generation
+  motion_score: 4  # motion score for video generation
   batch_size: 1
-  cond_type: "t2v"
+  cond_type: t2v

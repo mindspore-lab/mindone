@@ -69,7 +69,7 @@ train:
 
   lr_scheduler:
     name: constant
-    lr: 5e-5
+    lr: 1e-5
     warmup_steps: 0
 
   optimizer:
@@ -84,7 +84,7 @@ train:
       loss_scale_value: 1
 
   settings:
-    zero_stage: 3
+    zero_stage: 2
     gradient_accumulation_steps: 1
     clip_grad: True
     clip_norm: 1.0
@@ -96,7 +96,6 @@ train:
     log_interval: 1
     save_ema_only: False
     record_lr: False
-    ckpt_combine_online: False
 
 save:
   output_path: ../../../output/stage1  # the path is relative to this config

@@ -241,7 +241,7 @@ if __name__ == "__main__":
         help="Path to load a config yaml file that describes the setting which will override the default arguments.",
     )
     parser.add_function_arguments(init_env, "env")
-    parser.add_function_arguments(prepare_captions, "text_emb", skip={"rank_id", "device_num"})
+    parser.add_function_arguments(prepare_captions, "prompts", skip={"rank_id", "device_num"})
     parser.add_function_arguments(Flux, "model")
     parser.add_function_arguments(CausalVAE3D_HUNYUAN, "ae")
     parser.add_function_arguments(Flux, "img_model")
