@@ -31,10 +31,10 @@ def compute_density_for_timestep_sampling(
         u = mint.normal(mean=logit_mean, std=logit_std, size=(batch_size,))
         u = mint.nn.functional.sigmoid(u)
     elif weighting_scheme == "mode":
-        u = mint.rand(size=(batch_size,))
+        u = ops.stop_gradient(mint.rand(size=(batch_size,)))
         u = 1 - u - mode_scale * (mint.cos(math.pi * u / 2) ** 2 - 1 + u)
     else:
-        u = mint.rand(size=(batch_size,))
+        u = ops.stop_gradient(mint.rand(size=(batch_size,)))
     return u
 
 
@@ -217,12 +217,12 @@ class DiffusionWithLoss(nn.Cell):
 
     def compute_loss(self, x, attention_mask, text_embed, encoder_attention_mask):
         use_image_num = self.use_image_num
-        noise = ops.randn_like(x)
+        noise = ops.stop_gradient(mint.randn_like(x))
         bsz = x.shape[0]
         if not self.rf_scheduler:
             if self.noise_offset:
                 # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-                noise += self.noise_offset * ops.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype)
+                noise += self.noise_offset * ops.stop_gradient(mint.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype))
         current_step_frame = x.shape[2]
         if get_sequence_parallel_state() and current_step_frame > 1:
             x = self.all_gather(x[None])[0]
@@ -394,11 +394,11 @@ class DiffusionWithLossEval(DiffusionWithLoss):
 
     def compute_loss(self, x, attention_mask, text_embed, encoder_attention_mask):
         use_image_num = self.use_image_num
-        noise = ops.randn_like(x)
+        noise = ops.stop_gradient(mint.randn_like(x))
         bsz = x.shape[0]
         if self.noise_offset:
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-            noise += self.noise_offset * ops.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype)
+            noise += self.noise_offset * ops.stop_gradient(mint.randn((bsz, x.shape[1], 1, 1, 1), dtype=x.dtype))
         current_step_frame = x.shape[2]
         if get_sequence_parallel_state() and current_step_frame > 1:
             x = self.all_gather(x[None])[0]
@@ -411,7 +411,7 @@ class DiffusionWithLossEval(DiffusionWithLoss):
                 use_image_num,
             ) = prepare_parallel_data(x, noise, text_embed, attention_mask, encoder_attention_mask, use_image_num)
 
-        t = ops.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32)
+        t = ops.stop_gradient(mint.randint(0, self.num_train_timesteps, (x.shape[0],), dtype=ms.int32))
         if get_sequence_parallel_state():
             t = self.reduce_t(t) % self.num_train_timesteps
         x_t = self.noise_scheduler.add_noise(x, noise, t)
