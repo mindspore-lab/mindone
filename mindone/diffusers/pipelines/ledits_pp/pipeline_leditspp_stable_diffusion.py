@@ -18,7 +18,7 @@ from ...models.attention_processor import Attention, AttnProcessor
 from ...pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from ...schedulers import DDIMScheduler, DPMSolverMultistepScheduler
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import LEditsPPDiffusionPipelineOutput, LEditsPPInversionPipelineOutput
 
@@ -446,7 +446,7 @@ class LEditsPPPipelineStableDiffusion(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
             )
         if negative_prompt is not None and negative_prompt_embeds is not None:
             raise ValueError(
@@ -813,7 +813,7 @@ class LEditsPPPipelineStableDiffusion(
 
         if self.inversion_steps is None:
             raise ValueError(
-                "You need to invert an input image first before calling the pipeline. The `invert` method has to be called beforehand. Edits will always be performed for the last inverted image(s)."
+                "You need to invert an input image first before calling the pipeline. The `invert` method has to be called beforehand. Edits will always be performed for the last inverted image(s)."  # noqa: E501
             )
 
         eta = self.eta
@@ -916,142 +916,193 @@ class LEditsPPPipelineStableDiffusion(
 
         # 7. Denoising loop
         num_warmup_steps = 0
-        with self.progress_bar(total=len(timesteps)) as progress_bar:
-            for i, t in enumerate(timesteps):
-                # expand the latents if we are doing classifier free guidance
+        with pynative_context():
+            with self.progress_bar(total=len(timesteps)) as progress_bar:
+                for i, t in enumerate(timesteps):
+                    # expand the latents if we are doing classifier free guidance
 
-                if enable_edit_guidance:
-                    latent_model_input = mint.cat([latents] * (1 + self.enabled_editing_prompts))
-                else:
-                    latent_model_input = latents
+                    if enable_edit_guidance:
+                        latent_model_input = mint.cat([latents] * (1 + self.enabled_editing_prompts))
+                    else:
+                        latent_model_input = latents
 
-                latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
+                    latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
-                text_embed_input = text_embeddings
+                    text_embed_input = text_embeddings
 
-                # predict the noise residual
-                noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)[0]
+                    # predict the noise residual
+                    noise_pred = self.unet(latent_model_input, t, encoder_hidden_states=text_embed_input)[0]
 
-                noise_pred_out = noise_pred.chunk(1 + self.enabled_editing_prompts)  # [b,4, 64, 64]
-                noise_pred_uncond = noise_pred_out[0]
-                noise_pred_edit_concepts = noise_pred_out[1:]
+                    noise_pred_out = noise_pred.chunk(1 + self.enabled_editing_prompts)  # [b,4, 64, 64]
+                    noise_pred_uncond = noise_pred_out[0]
+                    noise_pred_edit_concepts = noise_pred_out[1:]
 
-                noise_guidance_edit = mint.zeros(
-                    noise_pred_uncond.shape,
-                    dtype=noise_pred_uncond.dtype,
-                )
+                    noise_guidance_edit = mint.zeros(
+                        noise_pred_uncond.shape,
+                        dtype=noise_pred_uncond.dtype,
+                    )
 
-                if sem_guidance is not None and len(sem_guidance) > i:
-                    noise_guidance_edit += sem_guidance[i]
+                    if sem_guidance is not None and len(sem_guidance) > i:
+                        noise_guidance_edit += sem_guidance[i]
 
-                elif enable_edit_guidance:
-                    if self.activation_mask is None:
-                        self.activation_mask = mint.zeros(
-                            (len(timesteps), len(noise_pred_edit_concepts), *noise_pred_edit_concepts[0].shape)
-                        )
-
-                    if self.sem_guidance is None:
-                        self.sem_guidance = mint.zeros((len(timesteps), *noise_pred_uncond.shape))
-
-                    for c, noise_pred_edit_concept in enumerate(noise_pred_edit_concepts):
-                        if isinstance(edit_warmup_steps, list):
-                            edit_warmup_steps_c = edit_warmup_steps[c]
-                        else:
-                            edit_warmup_steps_c = edit_warmup_steps
-                        if i < edit_warmup_steps_c:
-                            continue
-
-                        if isinstance(edit_guidance_scale, list):
-                            edit_guidance_scale_c = edit_guidance_scale[c]
-                        else:
-                            edit_guidance_scale_c = edit_guidance_scale
-
-                        if isinstance(edit_threshold, list):
-                            edit_threshold_c = edit_threshold[c]
-                        else:
-                            edit_threshold_c = edit_threshold
-                        if isinstance(reverse_editing_direction, list):
-                            reverse_editing_direction_c = reverse_editing_direction[c]
-                        else:
-                            reverse_editing_direction_c = reverse_editing_direction
-
-                        if isinstance(edit_cooldown_steps, list):
-                            edit_cooldown_steps_c = edit_cooldown_steps[c]
-                        elif edit_cooldown_steps is None:
-                            edit_cooldown_steps_c = i + 1
-                        else:
-                            edit_cooldown_steps_c = edit_cooldown_steps
-
-                        if i >= edit_cooldown_steps_c:
-                            continue
-
-                        noise_guidance_edit_tmp = noise_pred_edit_concept - noise_pred_uncond
-
-                        if reverse_editing_direction_c:
-                            noise_guidance_edit_tmp = noise_guidance_edit_tmp * -1
-
-                        noise_guidance_edit_tmp = noise_guidance_edit_tmp * edit_guidance_scale_c
-
-                        if user_mask is not None:
-                            noise_guidance_edit_tmp = noise_guidance_edit_tmp * user_mask
-
-                        if use_cross_attn_mask:
-                            out = self.attention_store.aggregate_attention(
-                                attention_maps=self.attention_store.step_store,
-                                prompts=self.text_cross_attention_maps,
-                                res=att_res,
-                                from_where=["up", "down"],
-                                is_cross=True,
-                                select=self.text_cross_attention_maps.index(editing_prompt[c]),
+                    elif enable_edit_guidance:
+                        if self.activation_mask is None:
+                            self.activation_mask = mint.zeros(
+                                (len(timesteps), len(noise_pred_edit_concepts), *noise_pred_edit_concepts[0].shape)
                             )
-                            attn_map = out[:, :, :, 1 : 1 + num_edit_tokens[c].item()]  # 0 -> startoftext
 
-                            # average over all tokens
-                            if attn_map.shape[3] != num_edit_tokens[c]:
-                                raise ValueError(
-                                    f"Incorrect shape of attention_map. Expected size {num_edit_tokens[c]}, but found {attn_map.shape[3]}!"
-                                )
+                        if self.sem_guidance is None:
+                            self.sem_guidance = mint.zeros((len(timesteps), *noise_pred_uncond.shape))
 
-                            attn_map = mint.sum(attn_map, dim=3)
-
-                            # gaussian_smoothing
-                            attn_map = mint.nn.functional.pad(attn_map.unsqueeze(1), (1, 1, 1, 1), mode="reflect")
-                            attn_map = self.smoothing(attn_map).squeeze(1)
-
-                            # ops.quantile function expects float32
-                            # TODO: ops.quantile is not supported
-                            if attn_map.dtype == ms.float32:
-                                tmp = ms.tensor(
-                                    np.quantile(attn_map.flatten(start_dim=1).numpy(), edit_threshold_c, axis=1)
-                                )
+                        for c, noise_pred_edit_concept in enumerate(noise_pred_edit_concepts):
+                            if isinstance(edit_warmup_steps, list):
+                                edit_warmup_steps_c = edit_warmup_steps[c]
                             else:
-                                tmp = ms.tensor(
-                                    np.quantile(
-                                        attn_map.flatten(start_dim=1).to(ms.float32).numpy(), edit_threshold_c, axis=1
+                                edit_warmup_steps_c = edit_warmup_steps
+                            if i < edit_warmup_steps_c:
+                                continue
+
+                            if isinstance(edit_guidance_scale, list):
+                                edit_guidance_scale_c = edit_guidance_scale[c]
+                            else:
+                                edit_guidance_scale_c = edit_guidance_scale
+
+                            if isinstance(edit_threshold, list):
+                                edit_threshold_c = edit_threshold[c]
+                            else:
+                                edit_threshold_c = edit_threshold
+                            if isinstance(reverse_editing_direction, list):
+                                reverse_editing_direction_c = reverse_editing_direction[c]
+                            else:
+                                reverse_editing_direction_c = reverse_editing_direction
+
+                            if isinstance(edit_cooldown_steps, list):
+                                edit_cooldown_steps_c = edit_cooldown_steps[c]
+                            elif edit_cooldown_steps is None:
+                                edit_cooldown_steps_c = i + 1
+                            else:
+                                edit_cooldown_steps_c = edit_cooldown_steps
+
+                            if i >= edit_cooldown_steps_c:
+                                continue
+
+                            noise_guidance_edit_tmp = noise_pred_edit_concept - noise_pred_uncond
+
+                            if reverse_editing_direction_c:
+                                noise_guidance_edit_tmp = noise_guidance_edit_tmp * -1
+
+                            noise_guidance_edit_tmp = noise_guidance_edit_tmp * edit_guidance_scale_c
+
+                            if user_mask is not None:
+                                noise_guidance_edit_tmp = noise_guidance_edit_tmp * user_mask
+
+                            if use_cross_attn_mask:
+                                out = self.attention_store.aggregate_attention(
+                                    attention_maps=self.attention_store.step_store,
+                                    prompts=self.text_cross_attention_maps,
+                                    res=att_res,
+                                    from_where=["up", "down"],
+                                    is_cross=True,
+                                    select=self.text_cross_attention_maps.index(editing_prompt[c]),
+                                )
+                                attn_map = out[:, :, :, 1 : 1 + num_edit_tokens[c].item()]  # 0 -> startoftext
+
+                                # average over all tokens
+                                if attn_map.shape[3] != num_edit_tokens[c]:
+                                    raise ValueError(
+                                        f"Incorrect shape of attention_map. Expected size {num_edit_tokens[c]}, but found {attn_map.shape[3]}!"
                                     )
-                                ).to(attn_map.dtype)
-                            attn_mask = mint.where(
-                                attn_map >= tmp.unsqueeze(1).unsqueeze(1).tile((1, *att_res)), 1.0, 0.0
-                            )
 
-                            # resolution must match latent space dimension
-                            attn_mask = mint.nn.functional.interpolate(
-                                attn_mask.unsqueeze(1),
-                                noise_guidance_edit_tmp.shape[-2:],  # 64,64
-                            ).tile((1, 4, 1, 1))
-                            self.activation_mask[i, c] = ops.stop_gradient(attn_mask)
-                            if not use_intersect_mask:
-                                noise_guidance_edit_tmp = noise_guidance_edit_tmp * attn_mask
+                                attn_map = mint.sum(attn_map, dim=3)
 
-                        if use_intersect_mask:
-                            if t <= 800:
+                                # gaussian_smoothing
+                                attn_map = mint.nn.functional.pad(attn_map.unsqueeze(1), (1, 1, 1, 1), mode="reflect")
+                                attn_map = self.smoothing(attn_map).squeeze(1)
+
+                                # ops.quantile function expects float32
+                                # TODO: ops.quantile is not supported
+                                if attn_map.dtype == ms.float32:
+                                    tmp = ms.tensor(
+                                        np.quantile(attn_map.flatten(start_dim=1).numpy(), edit_threshold_c, axis=1)
+                                    )
+                                else:
+                                    tmp = ms.tensor(
+                                        np.quantile(
+                                            attn_map.flatten(start_dim=1).to(ms.float32).numpy(),
+                                            edit_threshold_c,
+                                            axis=1,
+                                        )
+                                    ).to(attn_map.dtype)
+                                attn_mask = mint.where(
+                                    attn_map >= tmp.unsqueeze(1).unsqueeze(1).tile((1, *att_res)), 1.0, 0.0
+                                )
+
+                                # resolution must match latent space dimension
+                                attn_mask = mint.nn.functional.interpolate(
+                                    attn_mask.unsqueeze(1),
+                                    noise_guidance_edit_tmp.shape[-2:],  # 64,64
+                                ).tile((1, 4, 1, 1))
+                                self.activation_mask[i, c] = ops.stop_gradient(attn_mask)
+                                if not use_intersect_mask:
+                                    noise_guidance_edit_tmp = noise_guidance_edit_tmp * attn_mask
+
+                            if use_intersect_mask:
+                                if t <= 800:
+                                    noise_guidance_edit_tmp_quantile = mint.abs(noise_guidance_edit_tmp)
+                                    noise_guidance_edit_tmp_quantile = mint.sum(
+                                        noise_guidance_edit_tmp_quantile, dim=1, keepdim=True
+                                    )
+                                    noise_guidance_edit_tmp_quantile = noise_guidance_edit_tmp_quantile.tile(
+                                        (1, self.unet.config.in_channels, 1, 1)
+                                    )
+
+                                    # ops.quantile function expects float32
+                                    # TODO: ops.quantile is not supported
+                                    if noise_guidance_edit_tmp_quantile.dtype == ms.float32:
+                                        tmp = ms.tensor(
+                                            np.quantile(
+                                                noise_guidance_edit_tmp_quantile.flatten(start_dim=2).numpy(),
+                                                edit_threshold_c,
+                                                axis=2,
+                                                keepdims=False,
+                                            )
+                                        )
+                                    else:
+                                        tmp = ms.tensor(
+                                            np.quantile(
+                                                noise_guidance_edit_tmp_quantile.flatten(start_dim=2)
+                                                .to(ms.float32)
+                                                .numpy(),
+                                                edit_threshold_c,
+                                                axis=2,
+                                                keepdims=False,
+                                            )
+                                        ).to(noise_guidance_edit_tmp_quantile.dtype)
+
+                                    intersect_mask = (
+                                        mint.where(
+                                            noise_guidance_edit_tmp_quantile >= tmp[:, :, None, None],
+                                            mint.ones_like(noise_guidance_edit_tmp),
+                                            mint.zeros_like(noise_guidance_edit_tmp),
+                                        )
+                                        * attn_mask
+                                    )
+
+                                    self.activation_mask[i, c] = ops.stop_gradient(intersect_mask)
+
+                                    noise_guidance_edit_tmp = noise_guidance_edit_tmp * intersect_mask
+
+                                else:
+                                    # print(f"only attention mask for step {i}")
+                                    noise_guidance_edit_tmp = noise_guidance_edit_tmp * attn_mask
+
+                            elif not use_cross_attn_mask:
+                                # calculate quantile
                                 noise_guidance_edit_tmp_quantile = mint.abs(noise_guidance_edit_tmp)
                                 noise_guidance_edit_tmp_quantile = mint.sum(
                                     noise_guidance_edit_tmp_quantile, dim=1, keepdim=True
                                 )
-                                noise_guidance_edit_tmp_quantile = noise_guidance_edit_tmp_quantile.tile(
-                                    (1, self.unet.config.in_channels, 1, 1)
-                                )
+                                noise_guidance_edit_tmp_quantile = noise_guidance_edit_tmp_quantile.tile((1, 4, 1, 1))
 
                                 # ops.quantile function expects float32
                                 # TODO: ops.quantile is not supported
@@ -1076,101 +1127,57 @@ class LEditsPPPipelineStableDiffusion(
                                         )
                                     ).to(noise_guidance_edit_tmp_quantile.dtype)
 
-                                intersect_mask = (
+                                self.activation_mask[i, c] = ops.stop_gradient(
                                     mint.where(
                                         noise_guidance_edit_tmp_quantile >= tmp[:, :, None, None],
                                         mint.ones_like(noise_guidance_edit_tmp),
                                         mint.zeros_like(noise_guidance_edit_tmp),
                                     )
-                                    * attn_mask
                                 )
 
-                                self.activation_mask[i, c] = ops.stop_gradient(intersect_mask)
-
-                                noise_guidance_edit_tmp = noise_guidance_edit_tmp * intersect_mask
-
-                            else:
-                                # print(f"only attention mask for step {i}")
-                                noise_guidance_edit_tmp = noise_guidance_edit_tmp * attn_mask
-
-                        elif not use_cross_attn_mask:
-                            # calculate quantile
-                            noise_guidance_edit_tmp_quantile = mint.abs(noise_guidance_edit_tmp)
-                            noise_guidance_edit_tmp_quantile = mint.sum(
-                                noise_guidance_edit_tmp_quantile, dim=1, keepdim=True
-                            )
-                            noise_guidance_edit_tmp_quantile = noise_guidance_edit_tmp_quantile.tile((1, 4, 1, 1))
-
-                            # ops.quantile function expects float32
-                            # TODO: ops.quantile is not supported
-                            if noise_guidance_edit_tmp_quantile.dtype == ms.float32:
-                                tmp = ms.tensor(
-                                    np.quantile(
-                                        noise_guidance_edit_tmp_quantile.flatten(start_dim=2).numpy(),
-                                        edit_threshold_c,
-                                        axis=2,
-                                        keepdims=False,
-                                    )
-                                )
-                            else:
-                                tmp = ms.tensor(
-                                    np.quantile(
-                                        noise_guidance_edit_tmp_quantile.flatten(start_dim=2).to(ms.float32).numpy(),
-                                        edit_threshold_c,
-                                        axis=2,
-                                        keepdims=False,
-                                    )
-                                ).to(noise_guidance_edit_tmp_quantile.dtype)
-
-                            self.activation_mask[i, c] = ops.stop_gradient(
-                                mint.where(
+                                noise_guidance_edit_tmp = mint.where(
                                     noise_guidance_edit_tmp_quantile >= tmp[:, :, None, None],
-                                    mint.ones_like(noise_guidance_edit_tmp),
+                                    noise_guidance_edit_tmp,
                                     mint.zeros_like(noise_guidance_edit_tmp),
                                 )
-                            )
 
-                            noise_guidance_edit_tmp = mint.where(
-                                noise_guidance_edit_tmp_quantile >= tmp[:, :, None, None],
-                                noise_guidance_edit_tmp,
-                                mint.zeros_like(noise_guidance_edit_tmp),
-                            )
+                            noise_guidance_edit += noise_guidance_edit_tmp
 
-                        noise_guidance_edit += noise_guidance_edit_tmp
+                        self.sem_guidance[i] = ops.stop_gradient(noise_guidance_edit)
 
-                    self.sem_guidance[i] = ops.stop_gradient(noise_guidance_edit)
+                    noise_pred = noise_pred_uncond + noise_guidance_edit
 
-                noise_pred = noise_pred_uncond + noise_guidance_edit
+                    if enable_edit_guidance and self.guidance_rescale > 0.0:
+                        # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                        noise_pred = rescale_noise_cfg(
+                            noise_pred,
+                            noise_pred_edit_concepts.mean(dim=0, keepdim=False),
+                            guidance_rescale=self.guidance_rescale,
+                        )
 
-                if enable_edit_guidance and self.guidance_rescale > 0.0:
-                    # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
-                    noise_pred = rescale_noise_cfg(
-                        noise_pred,
-                        noise_pred_edit_concepts.mean(dim=0, keepdim=False),
-                        guidance_rescale=self.guidance_rescale,
-                    )
+                    idx = t_to_idx[int(t)]
+                    latents = self.scheduler.step(noise_pred, t, latents, variance_noise=zs[idx], **extra_step_kwargs)[
+                        0
+                    ]
 
-                idx = t_to_idx[int(t)]
-                latents = self.scheduler.step(noise_pred, t, latents, variance_noise=zs[idx], **extra_step_kwargs)[0]
+                    # step callback
+                    if use_cross_attn_mask:
+                        store_step = i in attn_store_steps
+                        self.attention_store.between_steps(store_step)
 
-                # step callback
-                if use_cross_attn_mask:
-                    store_step = i in attn_store_steps
-                    self.attention_store.between_steps(store_step)
+                    if callback_on_step_end is not None:
+                        callback_kwargs = {}
+                        for k in callback_on_step_end_tensor_inputs:
+                            callback_kwargs[k] = locals()[k]
+                        callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
 
-                if callback_on_step_end is not None:
-                    callback_kwargs = {}
-                    for k in callback_on_step_end_tensor_inputs:
-                        callback_kwargs[k] = locals()[k]
-                    callback_outputs = callback_on_step_end(self, i, t, callback_kwargs)
+                        latents = callback_outputs.pop("latents", latents)
+                        # prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
+                        negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
 
-                    latents = callback_outputs.pop("latents", latents)
-                    # prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
-                    negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
-
-                # call the callback, if provided
-                if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
-                    progress_bar.update()
+                    # call the callback, if provided
+                    if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
+                        progress_bar.update()
 
         # 8. Post-processing
         if not output_type == "latent":

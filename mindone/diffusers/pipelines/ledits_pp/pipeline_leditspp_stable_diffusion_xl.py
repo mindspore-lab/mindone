@@ -32,7 +32,7 @@ from ...loaders import (
     TextualInversionLoaderMixin,
 )
 from ...models import AutoencoderKL, UNet2DConditionModel
-from ...models.attention_processor import Attention, AttnProcessor, AttnProcessor2_0, XFormersAttnProcessor
+from ...models.attention_processor import Attention, AttnProcessor
 from ...schedulers import DDIMScheduler, DPMSolverMultistepScheduler
 from ...utils import is_invisible_watermark_available, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
@@ -624,7 +624,7 @@ class LEditsPPPipelineStableDiffusionXL(
 
         if negative_prompt_embeds is not None and negative_pooled_prompt_embeds is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."
+                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."  # noqa: E501
             )
 
     # Modified from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents
@@ -647,7 +647,7 @@ class LEditsPPPipelineStableDiffusionXL(
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa: E501
             )
 
         add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
@@ -902,7 +902,7 @@ class LEditsPPPipelineStableDiffusionXL(
         """
         if self.inversion_steps is None:
             raise ValueError(
-                "You need to invert an input image first before calling the pipeline. The `invert` method has to be called beforehand. Edits will always be performed for the last inverted image(s)."
+                "You need to invert an input image first before calling the pipeline. The `invert` method has to be called beforehand. Edits will always be performed for the last inverted image(s)."  # noqa: E501
             )
 
         eta = self.eta
