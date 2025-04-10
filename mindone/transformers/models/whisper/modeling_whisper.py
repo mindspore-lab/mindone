@@ -1255,7 +1255,7 @@ class WhisperForConditionalGeneration(WhisperGenerationMixin, WhisperPreTrainedM
         >>> inputs = processor(ds[0]["audio"]["array"], return_tensors="np")
         >>> input_features = inputs.input_features
 
-        >>> generated_ids = model.generate(inputs=mindspore.tensor(input_features))
+        >>> generated_ids = model.generate(inputs=mindspore.tensor(input_features), use_cache=False)
 
         >>> transcription = processor.batch_decode(generated_ids.numpy(), skip_special_tokens=True)[0]
         >>> transcription
