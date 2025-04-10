@@ -24,7 +24,8 @@ pip install -r requirements.txt
 
 | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
 | :---:     | :---:    | :---:      | :---: |
-| 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
+| 2.5.0     | 24.1.RC2 | 7.3.0.1.231	| 8.0.RC3.beta1 |
+| 2.4.0	    | 24.1.RC2 | 7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
 You can easily convert [the SV3D ckpt](https://huggingface.co/stabilityai/sv3d/blob/main/sv3d_u.safetensors) with [our mindone script under svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd/svd_tools/convert.py).
@@ -110,6 +111,8 @@ More demos can be found below. Input images are from [the Unique 3D repo](https:
 +     video_kernel_size: [ 3, 1, 1 ]
 ```
 
+Also, modify `num_frames` into 16 for finetuning on objaverse dataset.
+
 4. Launch training by running the following script:
 ```shell
 python train.py \
@@ -125,9 +128,15 @@ python train.py \
 
 ## Perfromance
 
-Experiments are tested on Ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.0 graph mode.
 
 ### Training
+#### ms 2.5.0
+| model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |steps/s | frame/s |
+| :---:      | :---:    | :---:         | :---:          | :---:         | :---:     | :---:     | :---:     | :---:     | :---:         | :---:|
+| SV3D       | 1        | 576x576   	| 8~9 mins       | 5 frames	     | ON        |  OFF	     | O0        | 3.81s     | 0.26          | 1.31 |
+
+#### ms 2.4.0
 | model name | cards    | image size    | graph compile  | batch size    | recompute | data sink | jit level | step time |steps/s | frame/s |
 | :---:      | :---:    | :---:         | :---:          | :---:         | :---:     | :---:     | :---:     | :---:     | :---:         | :---:|
 | SV3D       | 1        | 576x576   	| 3~5 mins       | 5 frames	     | ON        |  OFF	     | O0        | 2.29s     | 0.44          | 2.18 |

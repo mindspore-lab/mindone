@@ -1,6 +1,6 @@
-# export MS_ENABLE_REF_MODE=1 # NEEDED for 910B + MS2.2 0907 version for saving checkpoint correctly
-export MS_ASCEND_CHECK_OVERFLOW_MODE=1 # for ms+910B, check overflow
-#export INF_NAN_MODE_ENABLE=1 # For pytorch+npu, recommend to enable it for mixed precision training for 910B. it determines how overflow is detected
+# export MS_ENABLE_REF_MODE=1 # NEEDED for Ascend Atlas 800T A2 machines + MS2.2 0907 version for saving checkpoint correctly
+export MS_ASCEND_CHECK_OVERFLOW_MODE=1 # for ms+Ascend Atlas 800T A2 machines, check overflow
+#export INF_NAN_MODE_ENABLE=1 # For pytorch+npu, recommend to enable it for mixed precision training for Ascend Atlas 800T A2 machines. it determines how overflow is detected
 
 task_name=get_short_videos
 yaml_file=configs/train_exp02_motion_transfer.yaml

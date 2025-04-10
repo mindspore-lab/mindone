@@ -686,7 +686,7 @@ class Encoder(nn.Cell):
                 curr_res = curr_res // 2
                 self.downsample_flag[i_level] = 1
             else:
-                # TODO: still need it for 910b in new MS version?
+                # TODO: still need it for Ascend Atlas 800T A2 machines in new MS version?
                 down.downsample = nn.Identity()
 
             # do temporal downsample according to config
@@ -695,7 +695,7 @@ class Encoder(nn.Cell):
                 down.time_downsample = resolve_str_to_obj(temporal_downsample[i_level])(block_in, block_in)
                 self.time_downsample_flag[i_level] = 1
             else:
-                # TODO: still need it for 910b in new MS version?
+                # TODO: still need it for Ascend Atlas 800T A2 machines in new MS version?
                 down.time_downsample = nn.Identity()
 
             down.update_parameters_name(prefix=self.param_prefix + f"down.{i_level}.")

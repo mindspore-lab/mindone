@@ -4,7 +4,7 @@ This repository is the MindSpore implementation of [AnimateDiff](https://arxiv.o
 
 ## Features
 
-- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend 910*
+- [x] Text-to-video generation with AnimdateDiff v2, supporting 16 frames @512x512 resolution on Ascend Atlas 800T A2 machines
 - [x] MotionLoRA inference
 - [x] Motion Module Training
 - [X] Motion LoRA Training
@@ -253,7 +253,7 @@ Here are some generation results after lora fine-tuning on 512x512 resolution an
 
 ## Performance (AnimateDiff v2)
 
-Experiments are tested on ascend 910* graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with graph mode.
 
 ### Inference
 

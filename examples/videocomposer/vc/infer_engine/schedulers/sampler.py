@@ -170,7 +170,7 @@ class DiffusionSampler:
                 break
 
         if self.scheduler_name == "PLMS":
-            # TODO: on MS2.1 + 910B, it does not work. Uncomment this after fix.
+            # TODO: on MS2.1 + Ascend Atlas 800T A2 machines, it does not work. Uncomment this after fix.
             # self.scheduler.reset_cache()
             pass
 

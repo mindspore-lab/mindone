@@ -36,7 +36,7 @@ from mindone.trainers.lr_schedule import create_scheduler
 from mindone.trainers.optim import create_optimizer
 from mindone.trainers.train_step import TrainOneStepWrapper
 from mindone.utils.amp import auto_mixed_precision
-from mindone.utils.env import init_train_env
+from mindone.utils.env import init_env
 from mindone.utils.logger import set_logger
 from mindone.utils.params import count_params
 
@@ -50,28 +50,15 @@ def main(args):
     args.output_path = os.path.join(args.output_path, time_str)
 
     # 1. init
-    _, rank_id, device_num = init_train_env(
+    _, rank_id, device_num = init_env(
         args.mode,
         seed=args.seed,
         distributed=args.use_parallel,
         device_target=args.device_target,
+        jit_level=args.jit_level,
         max_device_memory=args.max_device_memory,
-        ascend_config=None if args.precision_mode is None else {"precision_mode": args.precision_mode},
+        precision_mode=args.precision_mode,
     )
-    if args.ms_mode == ms.GRAPH_MODE:
-        try:
-            if args.jit_level in ["O0", "O1", "O2"]:
-                ms.set_context(jit_config={"jit_level": args.jit_level})
-                logger.info(f"set jit_level: {args.jit_level}.")
-            else:
-                logger.warning(
-                    f"Unsupport jit_level: {args.jit_level}. The framework automatically selects the execution method"
-                )
-        except Exception:
-            logger.warning(
-                "The current jit_level is not suitable because current MindSpore version does not match,"
-                "please ensure the MindSpore version >= ms2.3_0615."
-            )
     set_logger(name="", output_dir=args.output_path, rank=rank_id, log_level=eval(args.log_level))
 
     # 2. model initiate and weight loading
@@ -258,7 +245,7 @@ def main(args):
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name="Latte",
-            record_lr=False,  # TODO: check LR retrival for new MS on 910b
+            record_lr=False,  # TODO: check LR retrival for new MS on Ascend Atlas 800T A2 machines
         )
         callback.append(save_cb)
         if args.profile:

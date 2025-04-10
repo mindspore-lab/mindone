@@ -15,6 +15,9 @@ def parse_train_args(parser):
         "--ms_mode", type=int, default=1, help="Running in GRAPH_MODE(0) or PYNATIVE_MODE(1) (default=1)"
     )
     parser.add_argument(
+        "--max_device_memory", type=str, default=None, help="e.g. `59GB` for Ascend Atlas 800T A2 machines"
+    )
+    parser.add_argument(
         "--jit_level",
         default="O0",
         type=str,

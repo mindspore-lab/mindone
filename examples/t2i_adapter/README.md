@@ -365,7 +365,7 @@ python adapter_image2image_sd.py \
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name    |  cards           | batch size      | resolution   |  scheduler   | steps      | precision |  jit level | graph compile |s/step  | img/s |
 |:---------------:|:------------:  |:------------:   |:------------:|:------------:|:---------:|:----------:|:---------:|:-------------:|:-----:|:-------:|
@@ -383,7 +383,7 @@ Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
 
 ## Training
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 
 |     model_name           | cards | batch size  | resolution |   sink | jit_level | graph compile  | s/step | img/s |

@@ -22,7 +22,7 @@ experiments are tested on ascend 910 with mindspore 2.1.0 graph mode
 | sd 2.1-v           |    LoRA    |   1   | 4                 |     768x768         |   ON  |      N/A |   8.92          |
 | sd 2.1-v           |    LoRA    |   8   | 4                 |     768x768         |   ON  |     N/A |    76.56          |
 
-experiments are tested on ascend 910* with mindspore 2.3.0 graph mode
+experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.0 graph mode
 | model name     |     method      |    cards | batch size  |   resolution       |   flash attn   | jit level  | img/s  |
 |:----------:|:--------------:|         :----:|:----:                 |:------------------:|:----------------:|:----------------:|:----------:|
 | sd 1.5           |       Vanilla    |   1   | 3                 |     512x512         |  OFF  |     O2 |   11.86          |
@@ -40,7 +40,7 @@ experiments are tested on ascend 910* with mindspore 2.3.0 graph mode
 | sd 2.1-v           |        LoRA    |   1   | 4                     |     768x768         |   ON |   O2 |   9.51        |
 | sd 2.1-v           |        LoRA    |   8   | 4                     |     768x768         |   ON  |   O2 |    71.51        |
 
-experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
+experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode
 | model name      |     method      |   cards | batch size    |   resolution       |   flash attn   | jit level  | img/s  |
 |:----------:|:--------------:| :--:|        :------------:|:------------------:|:----------------:|:----------------:|:----------:|
 | sd 1.5           |       Vanilla    |   1 |  3             |     512x512         |  OFF  |     O0 |   7.52          |
@@ -85,14 +85,14 @@ experiments are tested on ascend 910 with mindspore 2.1.0 graph mode
 | sd 2.1-v         |       4       |    768x768    |  DDIM       |   30      | N/A      |     1.14     |         0.14      |
 
 
-experiments are tested on ascend 910* with mindspore 2.3.0 graph mode
+experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.0 graph mode
 | model name     |   batch size |  resolution   |  scheduler   | steps       |  jit level  | step/s     | img/s     |
 |:--------------:|:------------:|:-------------:| :------------:|:----------:|:----------------:|:----------:|:----------:|
 | sd 1.5         |       4      |    512x512    |    DDIM       |   30       | O2      |       6.69     |         0.77      |
 | sd 2.0         |       4      |    512x512    |    DDIM       |   30       | O2     |      8.30     |         0.91      |
 | sd 2.1-v       |       4      |    768x768    |    DDIM       |   30       | O2     |      2.91     |         0.36      |
 
-experiments are tested on ascend 910* with mindspore 2.3.1 graph mode
+experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode
 | model name       |      batch size   |  resolution   |  scheduler  | steps    |  jit level  |  step/s     | img/s     |
 |:---------------: |:------------:     |:-------------:|:-----------:|:--------:|:----------------:|:----------:|:----------:|
 | sd 1.5           |       4           |    512x512    |  DDIM       |   30     | O0      |       5.72     |         0.45      |

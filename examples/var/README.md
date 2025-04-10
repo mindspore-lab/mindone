@@ -70,11 +70,13 @@ bash script/run_train_d16.sh
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile |s/step     | img/s |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:----------------:|:----------------:|:----------------:|:----------------:|
+| VAR-d16 |  1               | 96               | 256x256  | ON | fp16 | / | / |  1.70 | 56.47 |
 | VAR-d16 |  2               | 32               | 256x256  | ON | fp16 | / | / |  0.71 | 90.14 |
+| VAR-d16 |  2               | 96               | 256x256  | ON | fp16 | / | / |  1.75 | 109.71 |
 
 
 ## Inference
@@ -86,7 +88,7 @@ python inference_demo.py --var_ckpt path/to/var-d16.ckpt
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 | model name    |  cards          | batch size      | resolution   |  FA   |  precision |  jit level | graph compile | s/img |
 |:-------------:|:------------:|:------------:|:-----------------------:|:------------:|:------------------:|:------------------------:|:----------------:|:----------------:|

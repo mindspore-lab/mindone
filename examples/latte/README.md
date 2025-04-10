@@ -85,7 +85,7 @@ For example, to run inference of `skytimelapse.ckpt` model with the `256x256` im
 python sample.py -c configs/inference/sky.yaml
 ```
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode:
 
 | model name | cards | resolution | scheduler | steps | jit level | graph compile | s/video |
 | :--------: | :---: | :--------: | :----: | :---: | :-------: | :----------: | :---------------: |
@@ -232,7 +232,7 @@ The first number `0` indicates the start index of the training devices, and the 
 
 ## 5. Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode:
 
 | model name | cards |batch size | resolution    | recompute | sink | cache | jit level | graph compile | s/step | img/s |
 | :--------: | :---: | :--------:| :--------:     | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
