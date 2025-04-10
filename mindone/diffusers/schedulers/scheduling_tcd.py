@@ -22,7 +22,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..schedulers.scheduling_utils import SchedulerMixin
@@ -109,7 +109,7 @@ def rescale_zero_terminal_snr(betas: ms.Tensor) -> ms.Tensor:
     """
     # Convert betas to alphas_bar_sqrt
     alphas = 1.0 - betas
-    alphas_cumprod = ops.cumprod(alphas, dim=0)
+    alphas_cumprod = mint.cumprod(alphas, dim=0)
     alphas_bar_sqrt = alphas_cumprod.sqrt()
 
     # Store old values.
@@ -125,7 +125,7 @@ def rescale_zero_terminal_snr(betas: ms.Tensor) -> ms.Tensor:
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
     alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = ops.cat([alphas_bar[0:1], alphas])
+    alphas = mint.cat([alphas_bar[0:1], alphas])
     betas = 1 - alphas
 
     return betas
@@ -235,7 +235,7 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
             self.betas = rescale_zero_terminal_snr(self.betas)
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         # At every step in ddim, we are looking into the previous alphas_cumprod
         # For the final step, there is no previous alphas_cumprod because we are already at 0
@@ -259,7 +259,7 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if (schedule_timesteps == timestep).sum() > 1:
+        if mint.sum(schedule_timesteps == timestep) > 1:
             pos = 1
         else:
             pos = 0
@@ -347,18 +347,18 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
             sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
-        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
+        sample = mint.reshape(sample, (batch_size, channels * np.prod(remaining_dims).item()))
 
-        abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
+        abs_sample = mint.abs(sample)  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        s = mint.unsqueeze(s, 1)  # (batch_size, 1) because clamp will broadcast along dim=0
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
-        sample = sample.reshape(batch_size, channels, *remaining_dims)
+        sample = mint.reshape(sample, (batch_size, channels, *remaining_dims))
         sample = sample.to(dtype)
 
         return sample
@@ -577,7 +577,7 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
         else:
             prev_timestep = ms.tensor(0)
 
-        timestep_s = ops.floor((1 - eta) * prev_timestep).to(dtype=ms.int64)
+        timestep_s = mint.floor((1 - eta) * prev_timestep).to(dtype=ms.int64)
 
         # 2. compute alphas, betas
         alpha_prod_t = self.alphas_cumprod[timestep]
@@ -658,16 +658,16 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 
@@ -681,16 +681,16 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
+        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
         # while len(sqrt_alpha_prod.shape) < len(sample.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
-        sqrt_alpha_prod = ops.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
+        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
         # while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
-        sqrt_one_minus_alpha_prod = ops.reshape(
+        sqrt_one_minus_alpha_prod = mint.reshape(
             sqrt_one_minus_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1)
         )
 

@@ -19,6 +19,7 @@ from typing import Callable, Dict, Union
 from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
+from mindspore import mint
 
 from mindone.safetensors.mindspore import load_file, save_file
 
@@ -465,7 +466,7 @@ class UNet2DConditionLoadersMixin:
                 elif "norm2" in diffusers_name:
                     updated_state_dict[diffusers_name.replace("0.norm2", "1")] = value
                 elif "to_kv" in diffusers_name:
-                    v_chunk = value.chunk(2, axis=0)
+                    v_chunk = mint.chunk(value, 2, dim=0)
                     updated_state_dict[diffusers_name.replace("to_kv", "to_k")] = ms.Parameter(
                         v_chunk[0], name=diffusers_name.replace("to_kv", "to_k")
                     )
@@ -543,7 +544,7 @@ class UNet2DConditionLoadersMixin:
                     parts = diffusers_name.split(".")
                     parts[2] = "attn"
                     diffusers_name = ".".join(parts)
-                    v_chunk = value.chunk(2, axis=0)
+                    v_chunk = mint.chunk(value, 2, dim=0)
                     updated_state_dict[diffusers_name.replace("to_kv", "to_k")] = ms.Parameter(
                         v_chunk[0], name=diffusers_name.replace("to_kv", "to_k")
                     )

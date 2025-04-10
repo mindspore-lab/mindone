@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers.models.clip.modeling_clip import CLIPTextModelOutput, CLIPTextModelWithProjection
 from ...models import PriorTransformer, UNet2DConditionModel, UNet2DModel
@@ -160,9 +160,9 @@ class UnCLIPPipeline(DiffusionPipeline):
             prompt_embeds, text_enc_hid_states = text_model_output[0], text_model_output[1]
             text_mask = text_attention_mask
 
-        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-        text_enc_hid_states = text_enc_hid_states.repeat_interleave(num_images_per_prompt, dim=0)
-        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        text_enc_hid_states = mint.repeat_interleave(text_enc_hid_states, num_images_per_prompt, dim=0)
+        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens = [""] * batch_size
@@ -185,25 +185,25 @@ class UnCLIPPipeline(DiffusionPipeline):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt))
+            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len)
 
             seq_len = uncond_text_enc_hid_states.shape[1]
-            uncond_text_enc_hid_states = uncond_text_enc_hid_states.tile((1, num_images_per_prompt, 1))
+            uncond_text_enc_hid_states = mint.tile(uncond_text_enc_hid_states, (1, num_images_per_prompt, 1))
             uncond_text_enc_hid_states = uncond_text_enc_hid_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
 
             # done duplicates
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_enc_hid_states = ops.cat([uncond_text_enc_hid_states, text_enc_hid_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_enc_hid_states = mint.cat([uncond_text_enc_hid_states, text_enc_hid_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_enc_hid_states, text_mask
 
@@ -310,7 +310,7 @@ class UnCLIPPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(prior_timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([prior_latents] * 2) if do_classifier_free_guidance else prior_latents
+            latent_model_input = mint.cat([prior_latents] * 2) if do_classifier_free_guidance else prior_latents
 
             predicted_image_embedding = self.prior(
                 latent_model_input,
@@ -321,7 +321,9 @@ class UnCLIPPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
+                predicted_image_embedding_uncond, predicted_image_embedding_text = mint.chunk(
+                    predicted_image_embedding, 2
+                )
                 predicted_image_embedding = predicted_image_embedding_uncond + prior_guidance_scale * (
                     predicted_image_embedding_text - predicted_image_embedding_uncond
                 )
@@ -354,7 +356,7 @@ class UnCLIPPipeline(DiffusionPipeline):
             do_classifier_free_guidance=do_classifier_free_guidance,
         )
 
-        decoder_text_mask = ops.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=1.0)
+        decoder_text_mask = mint.nn.functional.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=1.0)
 
         self.decoder_scheduler.set_timesteps(decoder_num_inference_steps)
         decoder_timesteps_tensor = self.decoder_scheduler.timesteps
@@ -373,7 +375,7 @@ class UnCLIPPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(decoder_timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([decoder_latents] * 2) if do_classifier_free_guidance else decoder_latents
+            latent_model_input = mint.cat([decoder_latents] * 2) if do_classifier_free_guidance else decoder_latents
 
             noise_pred = self.decoder(
                 sample=latent_model_input,
@@ -384,11 +386,11 @@ class UnCLIPPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                noise_pred_uncond, _ = noise_pred_uncond.split(latent_model_input.shape[1], axis=1)
-                noise_pred_text, predicted_variance = noise_pred_text.split(latent_model_input.shape[1], axis=1)
+                noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                noise_pred_uncond, _ = mint.split(noise_pred_uncond, latent_model_input.shape[1], dim=1)
+                noise_pred_text, predicted_variance = mint.split(noise_pred_text, latent_model_input.shape[1], dim=1)
                 noise_pred = noise_pred_uncond + decoder_guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
             if i + 1 == decoder_timesteps_tensor.shape[0]:
                 prev_timestep = None
@@ -400,7 +402,7 @@ class UnCLIPPipeline(DiffusionPipeline):
                 noise_pred, t, decoder_latents, prev_timestep=prev_timestep, generator=generator
             )[0]
 
-        decoder_latents = decoder_latents.clamp(-1, 1)
+        decoder_latents = mint.clamp(decoder_latents, -1, 1)
 
         image_small = decoder_latents
 
@@ -424,6 +426,7 @@ class UnCLIPPipeline(DiffusionPipeline):
         )
 
         interpolate_antialias = {}
+        # # todo: `antialias` is not supported in `mint.nn.functional.interpolate`. Accuracy issues exist in pynative_fp16
         if "antialias" in inspect.signature(ops.interpolate).parameters:
             interpolate_antialias["antialias"] = True
 
@@ -439,7 +442,7 @@ class UnCLIPPipeline(DiffusionPipeline):
             else:
                 unet = self.super_res_first
 
-            latent_model_input = ops.cat([super_res_latents, image_upscaled], axis=1)
+            latent_model_input = mint.cat([super_res_latents, image_upscaled], dim=1)
 
             noise_pred = unet(
                 sample=latent_model_input,
@@ -461,8 +464,8 @@ class UnCLIPPipeline(DiffusionPipeline):
 
         # post processing
         image = image * 0.5 + 0.5
-        image = image.clamp(0, 1)
-        image = image.permute(0, 2, 3, 1).float().numpy()
+        image = mint.clamp(image, 0, 1)
+        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
 
         if output_type == "pil":
             image = self.numpy_to_pil(image)

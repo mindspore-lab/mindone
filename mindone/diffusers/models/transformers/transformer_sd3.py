@@ -14,7 +14,7 @@
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin, SD3Transformer2DLoadersMixin
@@ -81,14 +81,14 @@ class SD3SingleTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        attn_output = gate_msa.unsqueeze(1) * attn_output
+        attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
 
         ff_output = self.ff(norm_hidden_states)
-        ff_output = gate_mlp.unsqueeze(1) * ff_output
+        ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
 
         hidden_states = hidden_states + ff_output
 
@@ -155,7 +155,7 @@ class SD3Transformer2DModel(
         self.time_text_embed = CombinedTimestepTextProjEmbeddings(
             embedding_dim=self.inner_dim, pooled_projection_dim=self.config.pooled_projection_dim
         )
-        self.context_embedder = nn.Dense(self.config.joint_attention_dim, self.config.caption_projection_dim)
+        self.context_embedder = mint.nn.Linear(self.config.joint_attention_dim, self.config.caption_projection_dim)
 
         # `attention_head_dim` is doubled to account for the mixing.
         # It needs to crafted when we get the actual checkpoints.
@@ -174,7 +174,7 @@ class SD3Transformer2DModel(
         )
 
         self.norm_out = AdaLayerNormContinuous(self.inner_dim, self.inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
         self._gradient_checkpointing = False
 
@@ -380,18 +380,20 @@ class SD3Transformer2DModel(
         height = height // patch_size
         width = width // patch_size
 
-        hidden_states = hidden_states.reshape(
-            hidden_states.shape[0],
-            height,
-            width,
-            patch_size,
-            patch_size,
-            self.out_channels,
+        hidden_states = mint.reshape(
+            hidden_states,
+            (
+                hidden_states.shape[0],
+                height,
+                width,
+                patch_size,
+                patch_size,
+                self.out_channels,
+            ),
         )
-        # hidden_states = torch.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
-        output = hidden_states.reshape(
-            hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
+        output = mint.reshape(
+            hidden_states, (hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size)
         )
 
         if not return_dict:

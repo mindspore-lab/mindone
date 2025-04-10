@@ -15,6 +15,8 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
+from mindspore import mint
+
 from ...schedulers import DDIMScheduler
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
@@ -93,7 +95,7 @@ class DDIMPipeline(DiffusionPipeline):
         >>> image = pipe(eta=0.0, num_inference_steps=50)
 
         >>> # process image to PIL
-        >>> image_processed = image.cpu().permute(0, 2, 3, 1)
+        >>> image_processed = image.permute(0, 2, 3, 1)
         >>> image_processed = (image_processed + 1.0) * 127.5
         >>> image_processed = image_processed.numpy().astype(np.uint8)
         >>> image_pil = PIL.Image.fromarray(image_processed[0])
@@ -141,8 +143,8 @@ class DDIMPipeline(DiffusionPipeline):
                 model_output, t, image, eta=eta, use_clipped_model_output=use_clipped_model_output, generator=generator
             )[0]
 
-        image = (image / 2 + 0.5).clamp(0, 1)
-        image = image.permute(0, 2, 3, 1).numpy()
+        image = mint.clamp((image / 2 + 0.5), 0, 1)
+        image = mint.permute(image, (0, 2, 3, 1)).numpy()
         if output_type == "pil":
             image = self.numpy_to_pil(image)
 

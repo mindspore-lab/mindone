@@ -20,7 +20,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -197,7 +197,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         _, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
+        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         return prompt_embeds
@@ -546,7 +546,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -573,13 +573,13 @@ class CogView3PlusPipeline(DiffusionPipeline):
         crops_coords_top_left = ms.tensor([crops_coords_top_left], dtype=prompt_embeds.dtype)
 
         if self.do_classifier_free_guidance:
-            original_size = ops.cat([original_size, original_size])
-            target_size = ops.cat([target_size, target_size])
-            crops_coords_top_left = ops.cat([crops_coords_top_left, crops_coords_top_left])
+            original_size = mint.cat([original_size, original_size])
+            target_size = mint.cat([target_size, target_size])
+            crops_coords_top_left = mint.cat([crops_coords_top_left, crops_coords_top_left])
 
-        original_size = original_size.tile((batch_size * num_images_per_prompt, 1))
-        target_size = target_size.tile((batch_size * num_images_per_prompt, 1))
-        crops_coords_top_left = crops_coords_top_left.tile((batch_size * num_images_per_prompt, 1))
+        original_size = mint.tile(original_size, (batch_size * num_images_per_prompt, 1))
+        target_size = mint.tile(target_size, (batch_size * num_images_per_prompt, 1))
+        crops_coords_top_left = mint.tile(crops_coords_top_left, (batch_size * num_images_per_prompt, 1))
 
         # 8. Denoising loop
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
@@ -591,7 +591,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -611,7 +611,7 @@ class CogView3PlusPipeline(DiffusionPipeline):
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
