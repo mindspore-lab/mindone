@@ -34,9 +34,9 @@
 | [ip adaptor](https://github.com/vigo999/mindone/tree/master/examples/ip_adapter)     | Tencent-ailab official | https://github.com/tencent-ailab/IP-Adapter
 | [t2i-adapter](https://github.com/vigo999/mindone/tree/master/examples/t2i_adapter)     | ARC Lab, Tencent PCG official | https://github.com/TencentARC/T2I-Adapter
 | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | Facebook Research official | https://github.com/facebookresearch/DiT
-| [fit](https://github.com/mindspore-lab/mindone/blob/master/examples/fit)     | Shanghai AI Lab official | https://github.com/whlzy/Fit 
+| [fit](https://github.com/mindspore-lab/mindone/blob/master/examples/fit)     | Shanghai AI Lab official | https://github.com/whlzy/Fit
 | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     | Vchitect Shanghai AI Laboratory official | https://github.com/Vchitect/Latte |
-| [t2v_turbo](https://github.com/mindspore-lab/mindone/tree/master/examples/t2v_turbo)      | Google official | https://github.com/Ji4chenLi/t2v-turbo 
+| [t2v_turbo](https://github.com/mindspore-lab/mindone/tree/master/examples/t2v_turbo)      | Google official | https://github.com/Ji4chenLi/t2v-turbo
 | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)      | ali vilab official | https://github.com/ali-vilab/videocomposer
 | [animatediff](https://github.com/mindspore-lab/mindone/tree/master/examples/animatediff) | Yuwei Guo official | https://github.com/guoyww/animatediff/
 | [qwen2-vl](https://github.com/mindspore-lab/mindone/tree/master/examples/qwen2_vl) | HF transformers official | https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct |

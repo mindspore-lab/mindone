@@ -62,7 +62,7 @@ image.save("sd3.png")
 | Any-to-Any | [janus](https://github.com/mindspore-lab/mindone/blob/master/examples/janus)  🔥🔥🔥 | ✅  | ✅  | ✅  | DeepSeek |
 | Any-to-Any | [emu3](https://github.com/mindspore-lab/mindone/blob/master/examples/emu3)  🔥🔥 | ✅  | ✅  | ✅  |  BAAIVision  |
 | Class-to-Image | [var](https://github.com/mindspore-lab/mindone/blob/master/examples/var)🔥🔥 | ✅  | ✅  | ✅  | ByteDance  |
-| Text/Image-to-Video | [hpcai open sora 1.2/2.0🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | ✅ | ✅ | ✅ |  |
+| Text/Image-to-Video | [hpcai open sora 1.2/2.0🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_hpcai)      | ✅ | ✅ | ✅ | HPC-AI Tech  |
 | Text/Image-to-Video | [cogvideox 1.5 5B~30B 🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/cogvideox_factory) | ✅ |  ✅  | ✅  | Zhipu  |
 | Text-to-Video | [open sora plan 1.3🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/opensora_pku) | ✅ | ✅ | ✅ | PKU |
 | Text-to-Video | [hunyuanvideo🔥🔥](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuanvideo) | ✅  | ✅  | ✅  | Tencent  |
