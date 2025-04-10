@@ -72,21 +72,17 @@ image.save("sd3.png")
 | Image-to-Video | [dynamicrafter](https://github.com/mindspore-lab/mindone/blob/master/examples/dynamicrafter)     | ✅  | ✖️  | ✖️  | Tencent  |
 | Video-to-Video | [venhancer](https://github.com/mindspore-lab/mindone/blob/master/examples/venhancer) |  ✅  | ✖️  | ✖️  | Shanghai AI Lab |
 | Text-to-Video | [t2v_turbo](https://github.com/mindspore-lab/mindone/blob/master/examples/t2v_turbo) |   ✅ |   ✅ |   ✅ | Google |
-| Image-to-Video | [svd](https://github.com/mindspore-lab/mindone/blob/master/examples/svd) | ✅  |  ✅ | ✅  | Stability AI |
 | Text-to-Video | [animate diff](https://github.com/mindspore-lab/mindone/blob/master/examples/animatediff) | ✅  | ✅  | ✅  | CUHK |
 | Text/Image-to-Video | [video composer](https://github.com/mindspore-lab/mindone/tree/master/examples/videocomposer)     | ✅  | ✅  | ✅  | Alibaba |
 | Text-to-Image | [flux](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth/README_flux.md)  🔥 | ✅ | ✅ | ✖️  | Black Forest Lab |
 | Text-to-Image | [stable diffusion 3](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/dreambooth/README_sd3.md) 🔥| ✅ | ✅ | ✖️ | Stability AI |
 | Text-to-Image | [kohya_sd_scripts](https://github.com/mindspore-lab/mindone/blob/master/examples/kohya_sd_scripts) | ✅ | ✅ | ✖️  | kohya |
 | Text-to-Image | [stable diffusion xl](https://github.com/mindspore-lab/mindone/blob/master/examples/diffusers/text_to_image/README_sdxl.md)  | ✅ | ✅ | ✅ | Stability AI|
-| Text-to-Image | [stable diffusion](https://github.com/mindspore-lab/mindone/blob/master/examples/stable_diffusion_v2) | ✅ | ✅ | ✅ | Stability AI |
 | Text-to-Image | [hunyuan_dit](https://github.com/mindspore-lab/mindone/blob/master/examples/hunyuan_dit)     | ✅ | ✅ | ✅ | Tencent |
 | Text-to-Image | [pixart_sigma](https://github.com/mindspore-lab/mindone/blob/master/examples/pixart_sigma)     | ✅ | ✅ | ✅ | Huawei |
 | Text-to-Image | [fit](https://github.com/mindspore-lab/mindone/blob/master/examples/fit) | ✅ | ✅ | ✅ | Shanghai AI Lab  |
 | Class-to-Video | [latte](https://github.com/mindspore-lab/mindone/blob/master/examples/latte)     |✅  | ✅ | ✅  | Shanghai AI Lab |
 | Class-to-Image | [dit](https://github.com/mindspore-lab/mindone/blob/master/examples/dit)     | ✅  | ✅  | ✅  | Meta |
-| Text-to-Image | [t2i-adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/t2i_adapter)     | ✅  | ✅  | ✅  | Shanghai AI Lab |
-| Text-to-Image | [ip adapter](https://github.com/mindspore-lab/mindone/blob/master/examples/ip_adapter)     | ✅  | ✅  | ✅  | Tencent  |
 | Text-to-3D | [mvdream](https://github.com/mindspore-lab/mindone/blob/master/examples/mvdream) |   ✅ |   ✅ |   ✅ | ByteDance  |
 | Image-to-3D | [instantmesh](https://github.com/mindspore-lab/mindone/blob/master/examples/instantmesh) | ✅  | ✅  | ✅  | Tencent  |
 | Image-to-3D | [sv3d](https://github.com/mindspore-lab/mindone/blob/master/examples/sv3d) |   ✅ |   ✅ |   ✅ | Stability AI  |
