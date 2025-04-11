@@ -112,5 +112,17 @@ from .models.umt5 import (
     UMT5Model,
     UMT5PreTrainedModel,
 )
+from .models.wav2vec2 import (
+    Wav2Vec2FeatureExtractor,
+    Wav2Vec2ForAudioFrameClassification,
+    Wav2Vec2ForCTC,
+    Wav2Vec2ForMaskedLM,
+    Wav2Vec2ForPreTraining,
+    Wav2Vec2ForSequenceClassification,
+    Wav2Vec2ForXVector,
+    Wav2Vec2Model,
+    Wav2Vec2PreTrainedModel,
+    Wav2Vec2Processor,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin

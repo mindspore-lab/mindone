@@ -80,6 +80,15 @@ def _get_pt2ms_mappings(m):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=x.name
             )
+            if "weight_norm_cell" in name:
+                ori_name = name.replace(".weight_norm_cell", "")
+                mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
