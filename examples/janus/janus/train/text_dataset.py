@@ -20,9 +20,10 @@ class TextDataset:
         vl_chat_processor: VLChatProcessor = None,
         max_token_length: int = 1024,
         num_samples: int = -1,
+        default_image_shape=(1, 3, 384, 384),
     ) -> None:
         if dataset_name.lower() == "pubmedqa":
-            self.dataset = load_dataset(data_dir, "pqa_labeled", split="train")
+            self.dataset = load_dataset(data_dir, "default", split="train")
         else:
             raise NotImplementedError
 
@@ -33,6 +34,7 @@ class TextDataset:
         self.length = len(self.dataset)
         self.vl_chat_processor = vl_chat_processor
         self.max_token_length = max_token_length
+        self.default_image_shape = default_image_shape
 
     def __len__(self) -> int:
         return self.length
@@ -44,11 +46,13 @@ class TextDataset:
 
         # process text
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
+        task_type = np.array(1, dtype=np.int32)
 
-        # FIXME
-        task_type = np.array(0, dtype=np.int32)
+        # add image and image_seq_mask item to pure text for batching
+        image = np.zeros(self.default_image_shape, np.float32)
+        image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
 
-        return task_type, input_ids, labels, attention_mask
+        return task_type, input_ids, labels, attention_mask, image_seq_mask, image
 
     @staticmethod
     def create_transform(image_size: int, interpolation: vision.Inter) -> Compose:
@@ -89,8 +93,7 @@ class TextDataset:
             truncation=True,
         )
         input_ids = np.array(input_ids, np.int32)
-
-        attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool)
+        attention_mask = np.ones(shape=[len(input_ids)], dtype=np.bool_)
         attention_mask[input_ids == vlcp.pad_id] = 0
         """
         inputs = vlcp.tokenizer(
@@ -102,7 +105,7 @@ class TextDataset:
             truncation=True,
         )
         input_ids = np.array(inputs["input_ids"], dtype=np.int32)
-        attention_mask = np.array(inputs["attention_mask"], dtype=np.bool)
+        attention_mask = np.array(inputs["attention_mask"], dtype=np.bool_)
 
         # make labels
         # label, only train on answer seq
@@ -140,7 +143,14 @@ def create_dataloader_text(
 
     dataloader = ms.dataset.GeneratorDataset(
         source=dataset,
-        column_names=["task_type", "input_ids", "labels", "attention_mask"],
+        column_names=[
+            "task_type",
+            "input_ids",
+            "labels",
+            "attention_mask",
+            "image_seq_mask",
+            "image",
+        ],
         shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,

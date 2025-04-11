@@ -17,21 +17,17 @@ from mindspore import nn
 from mindspore._c_expression import reset_op_id
 from mindspore.communication.management import get_group_size, get_rank, init
 
-# from mindspore.nn.utils import no_init_parameters
-
-# from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
-# from mindspore.train.callback import TimeMonitor
-
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
-# sys.path.insert(0, ".")
 
 from janus.models import MultiModalityCausalLM, VLChatProcessor
 from janus.models.modeling_vlm import MultiModalityConfig
 from janus.train.lr_schedule import WarmupCosineDecayLR
 from janus.train.t2i_dataset import create_dataloader_t2i
 from janus.train.text_dataset import create_dataloader_text
+from janus.train.unified_dataset import create_dataloader_unified
+from janus.train.unified_dataset_weightedrandsamp import create_unified_dataloader_weightrandsamp
 from janus.train.vqa_dataset import create_dataloader_vqa
 from janus.utils.io import set_model_param_dtype
 
@@ -163,6 +159,17 @@ def main(args):
     # VQ encoder doesn't need grad
     vl_gpt.gen_vision_model.set_grad(requires_grad=False)
 
+    # mixed-data sft under graph mode, set dynamic-shape
+    input_ids = ms.Tensor(shape=[None, args.max_length], dtype=ms.int32)
+    input_embeds = ms.Tensor(
+        shape=[None, args.max_length, config.language_config.hidden_size],
+        dtype=ms.bfloat16,
+    )
+    attention_mask = ms.Tensor(shape=[None, args.max_length], dtype=ms.bool_)
+    vl_gpt.language_model.model.set_inputs(
+        input_ids=input_ids, input_embeds=input_embeds, attention_mask=attention_mask
+    )
+
     # debug to check gradient influence: set token embedding table for text and image to be non-trainable
     freeze_embed_tables = args.freeze_embedding
     if freeze_embed_tables:
@@ -177,23 +184,22 @@ def main(args):
     config.save_pretrained(args.output_path)
 
     # 2. prepare dataset and loader
-    # FIXME: output task_type in dataloader
     task = args.task
-    if task == "text":
-        # FIXME: allow setting path
-        dataloader = create_dataloader_text(
+    if task == "vqa":
+        dataloader = create_dataloader_vqa(
             dataset_name=args.dataset_name,
-            data_dir=args.data_dir,
+            data_dir=args.vqa_data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
-    elif task == "vqa":
-        dataloader = create_dataloader_vqa(
+    elif task == "text":
+        # FIXME: allow setting path
+        dataloader = create_dataloader_text(
             dataset_name=args.dataset_name,
-            data_dir=args.data_dir,
+            data_dir=args.text_qa_data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             batch_size=args.batch_size,
@@ -202,8 +208,8 @@ def main(args):
         )
     elif task == "t2i":
         dataloader = create_dataloader_t2i(
-            csv_path=args.csv_path,
-            data_dir=args.data_dir,
+            csv_path=args.t2i_csv_path,
+            data_dir=args.t2i_data_dir,
             vl_chat_processor=vl_chat_processor,
             max_token_length=args.max_length,
             image_size=args.image_size,
@@ -212,9 +218,39 @@ def main(args):
             shuffle=args.shuffle,
             num_samples=args.num_samples,
         )
+    elif task == "mixed":
+        if args.mixed_task_rand_samp:
+            dataloader = create_unified_dataloader_weightrandsamp(
+                vl_chat_processor,
+                t2i_parquet_dir=args.t2i_parquet_dir,
+                text_data_dir=args.text_data,
+                vqa_data_dir=args.vqa_data_dir,
+                max_token_length=args.max_length,
+                image_size=args.image_size,
+                null_prompt_prob=args.null_prompt_prob,
+                batch_size=args.batch_size,
+                shuffle=args.shuffle,
+                num_samples=args.num_samples,
+            )
+        else:
+            dataloader = create_dataloader_unified(
+                vl_chat_processor,
+                t2i_csv_path=args.t2i_csv_path,
+                t2i_data_path=args.t2i_data_path,
+                vqa_data_dir=args.vqa_data_dir,
+                text_qa_data_dir=args.text_qa_data_dir,
+                num_samples_vqa=100,
+                num_samples_puretext=20,
+                num_samples_t2i=80,
+                shuffle=args.shuffle,
+                batch_size=args.batch_size,
+                max_token_length=args.max_length,
+                image_size=args.image_size,
+                null_prompt_prob=args.null_prompt_prob,
+            )
     else:
         raise NotImplementedError
-    # task_map = {"text": 0, "vqa": 1, "t2i": 2}
+    # task_map = {"vqa": 0, "text": 1, "t2i": 2}
 
     # 3. setup trainer and config hyper-params
     # loss_scaler = nn.FixedLossScaleUpdateCell(1024)  # tune
@@ -237,7 +273,7 @@ def main(args):
     use_value_and_grad = args.use_value_and_grad
     if use_value_and_grad:
 
-        def forward_fn(data):
+        def forward_fn(*data):
             loss = vl_gpt(*data)
             return loss
 
@@ -246,7 +282,7 @@ def main(args):
             grad_reducer = nn.DistributedGradReducer(optimizer.parameters)
 
         def train_step(data):
-            loss, grads = grad_fn(data)
+            loss, grads = grad_fn(*data)
             if args.use_parallel:
                 grads = grad_reducer(grads)
 
@@ -338,7 +374,9 @@ def main(args):
                 ckpt_manager.save(vl_gpt, None, ckpt_name=ckpt_name, append_dict=None)
             start_time_s = time.time()
 
-            # TODO: allow stop at the last step
+            # allow stop at the last step + 1 for measurement, as we normally dump the 1st step in graph mode
+            if step == args.train_steps + 1:
+                break
 
     logger.info(f"Finished training. check results in {args.output_path}")
     reset_op_id()
@@ -349,9 +387,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--ms_mode", type=int, default=1, help="mindspore mode, 0: graph, 1: pynative")
     # TODO: support model_name "deepseek-ai/Janus-Pro-1B" for simplicity
-    parser.add_argument("--model_path", type=str, default="ckpts/Janus-Pro-1B", help="path to Janus model")
     parser.add_argument(
-        "--training_stage", type=int, default=3, choices=[1, 2, 3], help="model training stage, can be 1, 2, or 3"
+        "--model_path",
+        type=str,
+        default="ckpts/Janus-Pro-1B",
+        help="path to Janus model",
+    )
+    parser.add_argument(
+        "--training_stage",
+        type=int,
+        default=3,
+        choices=[1, 2, 3],
+        help="model training stage, can be 1, 2, or 3",
     )
     parser.add_argument(
         "--ckpt_path",
@@ -360,10 +407,17 @@ if __name__ == "__main__":
         help="path to model checkpoint in .ckpt format, if None, will use the pretrained weight in mode_path",
     )
     parser.add_argument(
-        "--load_weight", type=str2bool, default=True, help="if True, will not load pretrained weight in model_path"
+        "--load_weight",
+        type=str2bool,
+        default=True,
+        help="if True, will not load pretrained weight in model_path",
     )
     parser.add_argument(
-        "--dtype", type=str, default="bfloat16", choices=["bfloat16", "float16", "float32"], help="model dtype"
+        "--dtype",
+        type=str,
+        default="bfloat16",
+        choices=["bfloat16", "float16", "float32"],
+        help="model dtype",
     )
     parser.add_argument("--seed", type=int, default=42, help="random seed")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
@@ -380,12 +434,20 @@ if __name__ == "__main__":
         help="if Ture, freeze llm embedding table and gen embedding table (nn.Embedding)",
     )
     parser.add_argument(
-        "--output_path", default="outputs/janus-sft", type=str, help="output directory to save training results"
+        "--output_path",
+        default="outputs/janus-sft",
+        type=str,
+        help="output directory to save training results",
     )
 
     # training hyperparms
     parser.add_argument("--learning_rate", default=1e-4, type=float, help="learning rate")
-    parser.add_argument("--end_learning_rate", default=1e-5, type=float, help="end learning rate for cosine decay")
+    parser.add_argument(
+        "--end_learning_rate",
+        default=1e-5,
+        type=float,
+        help="end learning rate for cosine decay",
+    )
     parser.add_argument("--batch_size", default=1, type=int, help="batch size")
     parser.add_argument("--weight_decay", default=0.1, type=float, help="weight decay")
     parser.add_argument("--clip_grad", default=False, type=str2bool, help="clip graident")
@@ -399,7 +461,12 @@ if __name__ == "__main__":
     parser.add_argument("--train_steps", default=5000, type=int, help="training steps")
     parser.add_argument("--warmup_steps", default=50, type=int, help="lr warmup steps")
     parser.add_argument("--ckpt_save_steps", default=500, type=int, help="save ckpt every this step")
-    parser.add_argument("--ckpt_max_keep", default=3, type=int, help="num of checkpoints to keep during training")
+    parser.add_argument(
+        "--ckpt_max_keep",
+        default=3,
+        type=int,
+        help="num of checkpoints to keep during training",
+    )
     parser.add_argument(
         "--max_length",
         default=1024,
@@ -410,19 +477,46 @@ if __name__ == "__main__":
     # training data config
     parser.add_argument("--task", default="t2i", type=str, help="text, t2i, vqa, or mixed")
     parser.add_argument(
-        "--csv_path",
+        "--dataset_name",
+        default="",
+        type=str,
+        help="dataset name, used for the right vqa and text dataset loader",
+    )
+    parser.add_argument(
+        "--mixed_task_rand_samp",
+        action="store_true",
+        help="true to weighted rand sample from an arbitral number of "
+        + "combination the dataset entries following the ratio within, false to slice the dataset beforehand",
+    )
+    parser.add_argument(
+        "--t2i_csv_path",
         default="",
         type=str,
         help="path to csv annotation, contain `image_path` and `text_en` column for image path and caption respectively",
     )
     parser.add_argument(
-        "--dataset_name", default="", type=str, help="dataset name, used for the right vqa and text dataset loader"
-    )
-    parser.add_argument(
-        "--data_dir",
+        "--t2i_data_dir",
         default="datasets/",
         type=str,
         help="dataset directory contatining the images specified by `image_path` in csv_path",
+    )
+    parser.add_argument(
+        "--t2i_parquet_dir",
+        default="datasets/",
+        type=str,
+        help="dataset directory contatining the images specified by `image_path` in csv_path",
+    )
+    parser.add_argument(
+        "--text_qa_data_dir",
+        default="datasets/",
+        type=str,
+        help="dataset directory for text qa",
+    )
+    parser.add_argument(
+        "--vqa_data_dir",
+        default="datasets/",
+        type=str,
+        help="dataset directory for text qa",
     )
     parser.add_argument(
         "--num_samples",

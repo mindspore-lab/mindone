@@ -289,7 +289,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             attention_mask: shape (bs seq_len), where 1 for valid input seq, 0 for padded seq
             image_seq_mask: 1 - image tokens (exclude BOI and EOI)
             pixel_values: images resized to (384, 384), shape (bs n_images 3 h w)
-            image_tokens: image tokens encoded and quantized by VQ16, shape (bs n_images per_img_seq_len)
+            image_tokens: deprecated, image tokens encoded and quantized by VQ16, shape (bs n_images per_img_seq_len)
 
         Note: pre-compute VQ encoded tokens for efficiency
         """
@@ -321,15 +321,13 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # these reshape ops is to solve the wierd error in InferShape in MS
         inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
-        image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
+        image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # another way: inputs_embeds = inputs_embeds * (1 - image_seq_mask) + ops.stop_gradient(image_embeds) * image_seq_mask.to(ms.int)
-        # FIXME: this inplace op doens't support in graph mode
-        # FIXME: check whether need to bprop the graident from image_embedding to LlamModel.embed_tokens (nn.Embedding)
-        inputs_embeds[image_seq_mask] = ops.stop_gradient(image_embeds)
+        # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor(). Workaround: _tensor_setitem_by_int_tensor_with_tensor()
+        image_seq_mask = image_seq_mask.nonzero().squeeze()
+        inputs_embeds[image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
-        image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaModel forward
         outputs = self.language_model.model(
@@ -342,7 +340,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # 4. gen head projection
         # since Janus use decouple heads for image and text, only image seq is meaningful input to gen head. mask before linear should save compute cost.
         # TODO: tbc influence on gradient ?
-        image_hidden_states = hidden_states[image_seq_mask].reshape(B, -1, D)
+        image_hidden_states = hidden_states[image_seq_mask].reshape(B, T, D)
         logits = self.gen_head(image_hidden_states)
 
         # 5. loss compute
@@ -404,13 +402,13 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # these reshape ops is to solve the wierd error in InferShape in MS
         inputs_embeds = inputs_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
-        image_embeds = image_embeds.reshape(-1, D)  # (B, S, D) -> (B * S, D)
+        image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # FIXME: fix as gen_with_loss to support graph mode
-        inputs_embeds[image_seq_mask] = image_embeds  # ops.stop_gradient(image_embeds)
+        # FIXME same ms2.5.0 graph mode constraint as above
+        image_seq_mask = image_seq_mask.nonzero().squeeze()
+        inputs_embeds[image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
-        image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaForCausalLM forward with loss
         output = self.language_model(
@@ -420,11 +418,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             return_dict=False,
         )
         loss = output[0]
-        # logit = output[1]
 
         return loss
 
-    def construct(
+    def construct_pynative(
         self,
         task_type: Tensor = None,
         input_ids: Tensor = None,
@@ -438,38 +435,90 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         Added for training, and only used in training!
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
-            task_type: shape (bs,), 0 - pure text, 1 - vqa, 2 - t2i
+            task_type: shape (bs,), 0 - vqa, 1 - pure text, 2 - t2i
         """
+        losses = []
+        for ti, task in enumerate(task_type):
+            _input_ids = input_ids[ti][None, ...]
+            _labels = labels[ti][None, ...]
+            _attention_mask = attention_mask[ti][None, ...]
+            _image_seq_mask = image_seq_mask[ti][None, ...]
+            _pixel_values = pixel_values[ti][None, ...]
+            if task == 0:
+                # mm understand
+                loss = self.und_with_loss(
+                    input_ids=_input_ids,
+                    attention_mask=_attention_mask,
+                    labels=_labels,
+                    image_seq_mask=_image_seq_mask,
+                    pixel_values=_pixel_values,
+                )
+            elif task == 1:
+                # text
+                loss = self.language_model(
+                    input_ids=_input_ids,
+                    attention_mask=_attention_mask,
+                    labels=_labels,
+                )[0]
+            elif task == 2:
+                # t2i
+                loss = self.gen_with_loss(
+                    input_ids=_input_ids,
+                    attention_mask=_attention_mask,
+                    image_seq_mask=_image_seq_mask,
+                    pixel_values=_pixel_values,
+                    # image_tokens=image_tokens,
+                    # labels,
+                )
+            else:
+                raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
 
-        if task_type[0] == 0:
-            # text
-            loss = self.language_model(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-            )[0]
-        elif task_type[0] == 1:
-            # mm understand
-            loss = self.und_with_loss(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                labels=labels,
-                image_seq_mask=image_seq_mask,
-                pixel_values=pixel_values,
-            )
-        elif task_type[0] == 2:
-            # t2i
-            loss = self.gen_with_loss(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                image_seq_mask=image_seq_mask,
-                pixel_values=pixel_values,
-                image_tokens=image_tokens,
-                # labels,
-            )
-        else:
-            raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
+            losses.append(loss)
 
+        loss = mint.stack(losses)
+
+        return loss
+
+    def construct(
+        self,
+        task_type: Tensor = None,
+        input_ids: Tensor = None,
+        labels: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        image_seq_mask: Optional[Tensor] = None,
+        pixel_values: Optional[Tensor] = None,
+    ):
+        r"""
+        For training in graph mode.
+        Args:
+            input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
+            task_type: shape (bs,), 0 - vqa, 1 - pure text, 2 - t2i
+        """
+        is_vqa_index = (task_type == 0).nonzero().squeeze(-1)
+        loss_vqa = self.und_with_loss(
+            input_ids=input_ids[is_vqa_index],
+            attention_mask=attention_mask[is_vqa_index],
+            labels=labels[is_vqa_index],
+            image_seq_mask=image_seq_mask[is_vqa_index],
+            pixel_values=pixel_values[is_vqa_index],
+        )
+
+        is_text_index = (task_type == 1).nonzero().squeeze(-1)
+        loss_text = self.language_model(
+            input_ids=input_ids[is_text_index],
+            attention_mask=attention_mask[is_text_index],
+            labels=labels[is_text_index],
+        )[0]
+
+        is_t2i_index = (task_type == 2).nonzero().squeeze(-1)
+        loss_t2i = self.gen_with_loss(
+            input_ids=input_ids[is_t2i_index],
+            attention_mask=attention_mask[is_t2i_index],
+            image_seq_mask=image_seq_mask[is_t2i_index],
+            pixel_values=pixel_values[is_t2i_index],
+        )
+
+        loss = loss_vqa + loss_text + loss_t2i
         return loss
 
 
