@@ -3,7 +3,7 @@
     Spark-TTS
     </h1>
     <p>
-    MindSpore code for inference of <br>
+    A MindSpore implementation for inference of <br>
     <b><em>Spark-TTS: An Efficient LLM-Based Text-to-Speech Model with Single-Stream Decoupled Speech Tokens</em></b>
     </p>
     <p>
@@ -37,7 +37,7 @@ Spark-TTS is an advanced text-to-speech system that uses the power of large lang
 
 ## 🚀 News
 
-- **[2025-04-08]** MindSpore Inference is now supported.
+- **[2025-04-08]** MindSpore implementation of SparkTTS inference is now supported.
 
 ## 🔧 Dependencies and Installation
 
