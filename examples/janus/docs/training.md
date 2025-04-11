@@ -63,7 +63,7 @@ We also implemented a stage-3 SFT for medical data aiming for building a radiolo
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode:
 
 | model | task | # card(s) | image size | max_length | batch size | step time (s/step)|
 |:-:|:--:| :-:|:-:|:-:|:-:|:-:|

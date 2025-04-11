@@ -34,7 +34,7 @@ Here is the illustrations of OmniGen's capabilities:
 
 ## 🏭 Requirements
 
-The scripts have been tested on Ascend 910B chips under the following requirements:
+The scripts have been tested on Ascend Atlas 800T A2 machines chips under the following requirements:
 
 | mindspore | ascend driver | firmware | cann toolkit/kernel |
 | --------- | ------------- | -------- | ------------------- |
@@ -107,7 +107,7 @@ python infer_lora.py --lora_path PATH_TO_LORA
 ## Performance
 
 ### Training
-Experiments are tested on ascend 910* with mindspore 2.4.10, using `bfloat16`.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.10, using `bfloat16`.
 
 | model     | cards | recompute      | mode  | image size | attn  | batch size | step time (s/step) |
 |---------------|:-------:|:-------:|:-----------:|:------------:|:------------:|:------------:|:--------------------:|
@@ -115,7 +115,7 @@ Experiments are tested on ascend 910* with mindspore 2.4.10, using `bfloat16`.
 | OmniGen       | 1     | ✓| graph     | 512x512    | eager | 1                    | 0.42              |
 | OmniGen    | 1     | ✓|graph     | 1024x1024    | eager | 1                   | 3.2               |
 ### Inference
-Experiments are tested on ascend 910* with mindspore 2.4.10 **pynative** mode, using `bfloat16` as floating point and enable `kv_cache` during inference. The subject-driven generation depends on number of input images that feed into the model.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.10 **pynative** mode, using `bfloat16` as floating point and enable `kv_cache` during inference. The subject-driven generation depends on number of input images that feed into the model.
 
 | model     | task | cards   | image size |  step time (s/img) |
 |---------------|:-------:|:-----------:|:------------:|:------------:|

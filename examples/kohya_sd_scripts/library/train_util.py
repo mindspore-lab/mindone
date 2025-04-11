@@ -25,7 +25,6 @@ import library.sai_model_spec as sai_model_spec
 import numpy as np
 import toml
 from library import custom_train_functions
-from library.original_unet import UNet2DConditionModel
 from library.utils import setup_logging
 
 # from huggingface_hub import hf_hub_download
@@ -1221,30 +1220,24 @@ class BaseDataset:
         example = {}
         example["loss_weights"] = ms.Tensor(loss_weights)
 
+        # note: ms2.5 GeneratorDataset.create_dict_iterator raise error in None value scenario,
+        # so we do not return key of None value here
         if len(text_encoder_outputs1_list) == 0:
             if self.token_padding_disabled:
                 # padding=True means pad in the batch
                 example["input_ids"] = self.tokenizer[0](
-                    captions, padding=True, truncation=True, return_tensors="pt"
+                    captions, padding=True, truncation=True, return_tensors="np"
                 ).input_ids
                 if len(self.tokenizers) > 1:
                     example["input_ids2"] = self.tokenizer[1](
-                        captions, padding=True, truncation=True, return_tensors="pt"
+                        captions, padding=True, truncation=True, return_tensors="np"
                     ).input_ids
-                else:
-                    example["input_ids2"] = None
+
             else:
                 example["input_ids"] = ops.stack(input_ids_list)
                 example["input_ids2"] = ops.stack(input_ids2_list) if len(self.tokenizers) > 1 else None
-            example["text_encoder_outputs1_list"] = None
-            example["text_encoder_outputs2_list"] = None
-            example["text_encoder_pool2_list"] = None
+
         else:
-            example["input_ids"] = None
-            example["input_ids2"] = None
-            # # for assertion
-            # example["input_ids"] = ops.stack([self.get_input_ids(cap, self.tokenizers[0]) for cap in captions])
-            # example["input_ids2"] = ops.stack([self.get_input_ids(cap, self.tokenizers[1]) for cap in captions])
             example["text_encoder_outputs1_list"] = ops.stack(text_encoder_outputs1_list)
             example["text_encoder_outputs2_list"] = ops.stack(text_encoder_outputs2_list)
             example["text_encoder_pool2_list"] = ops.stack(text_encoder_pool2_list)
@@ -1253,11 +1246,10 @@ class BaseDataset:
             images = ops.stack(images)
             images = images.float()
             # images = images.to(memory_format=torch.contiguous_format).float()
-        else:
-            images = None
-        example["images"] = images
+            example["images"] = images
 
-        example["latents"] = ops.stack(latents_list) if latents_list[0] is not None else None
+        if latents_list[0] is not None:
+            example["latents"] = ops.stack(latents_list)
         example["captions"] = captions
 
         example["original_sizes_hw"] = ops.stack([ms.Tensor(x) for x in original_sizes_hw])
@@ -2424,7 +2416,7 @@ def get_git_revision_hash() -> str:
         return "(unknown)"
 
 
-def replace_unet_modules(unet: UNet2DConditionModel, flash_attn):
+def replace_unet_modules(unet, flash_attn):
     if flash_attn:
         logger.info("Enable mindspore flash attention for U-Net")
         unet.set_use_memory_efficient_attention(True, False)
@@ -2668,7 +2660,7 @@ def add_training_arguments(parser: argparse.ArgumentParser, support_dreambooth: 
         "--save_precision",
         type=str,
         default=None,
-        choices=[None, "float", "fp16", "bf16"],
+        choices=[None, "float", "fp32", "fp16", "bf16"],
         help="precision in saving / 保存時に精度を変更して保存する",
     )
     parser.add_argument(

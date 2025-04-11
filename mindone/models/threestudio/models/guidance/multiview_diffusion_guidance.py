@@ -1,19 +1,22 @@
+import os
 import sys
 from dataclasses import dataclass
 from typing import Any, Optional
-
-import threestudio
-from threestudio.models.prompt_processors.base import PromptProcessorOutput
-from threestudio.utils.base import BaseModule
-from threestudio.utils.misc import C
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import Tensor, mint, ops
 
-sys.path.insert(0, "../MVDream/")  # relative to the run path of `launch.py`
-from mvdream.camera_utils import normalize_camera
-from mvdream.model_zoo import build_model
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.prompt_processors.base import PromptProcessorOutput
+from mindone.models.threestudio.utils.base import BaseModule
+from mindone.models.threestudio.utils.misc import C
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+mvdream_path = os.path.abspath(os.path.join(__dir__, "../../../../../examples/mvdream/MVDream"))
+sys.path.insert(0, mvdream_path)  # ensure mvdream is in sys.path for model loading
+from examples.mvdream.MVDream.mvdream.camera_utils import normalize_camera
+from examples.mvdream.MVDream.mvdream.model_zoo import build_model
 
 
 @threestudio.register("multiview-diffusion-guidance")
@@ -154,7 +157,9 @@ class MultiviewDiffusionGuidance(BaseModule):
                     latents_recon_reshape.std((1, 2, 3, 4), keepdims=True) + 1e-8
                 )
 
-                latents_recon_adjust = latents_recon * factor.squeeze(1).repeat_interleave(self.cfg.n_view, dim=0)
+                latents_recon_adjust = latents_recon * mint.squeeze(factor, dim=1).repeat_interleave(
+                    self.cfg.n_view, dim=0
+                )
                 latents_recon = (
                     self.cfg.recon_std_rescale * latents_recon_adjust + (1 - self.cfg.recon_std_rescale) * latents_recon
                 )

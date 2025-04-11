@@ -3,9 +3,10 @@ import re
 from typing import Any, Callable, Tuple
 
 from packaging import version
-from threestudio.utils.config import config_to_primitive
 
 import mindspore as ms
+
+from mindone.models.threestudio.utils.config import config_to_primitive
 
 
 def parse_version(ver: str):

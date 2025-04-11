@@ -366,7 +366,7 @@ DATA_DIR
 
 Input an image or a clip of video frames, outout the reconstructed image(s).
 <br>
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 | model name	| precision* | cards | batch size| resolution |	s/step | img/s |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -376,7 +376,7 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
 *note: mixed precision, `BatchNorm3d` uses fp32, `Conv3d` and `Flash Attention` use fp16.
 
 <br>
-Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 graph mode.
 
 | model name | precision* | cards | batch size| resolution | graph compile |	s/step | img/s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -388,7 +388,7 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 graph mode.
 #### Text-to-Image Generation
 Input a text prompt, output an image.
 <br>
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 |model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | img/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -400,7 +400,7 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
 #### VQA
 Input an image and a text prompt, output textual response.
 <br>
-Experiments are tested on ascend 910* with mindspore 2.5.0  pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0  pynative mode.
 
 |model name	| precision* | cards | batch size| resolution | flash attn |	s/step	| step | response/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -411,7 +411,7 @@ Experiments are tested on ascend 910* with mindspore 2.5.0  pynative mode.
 
 ### Training
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pynative mode.
 
 | stage | pre-trained model	| precision* | cards | batch size| resolution | max token | init lr | recompute | zero stage | grad accu |flash attn | sequence parallel |	s/step	| step | sample/s |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

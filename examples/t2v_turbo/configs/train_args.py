@@ -41,7 +41,10 @@ def add_ms_environment_arguments(parser):
         "--jit_level", type=str, default="O0", choices=["O0", "O1", "O2"], help="Compilation optimization level."
     )
     ms_env_group.add_argument(
-        "--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b"
+        "--max_device_memory",
+        type=str,
+        default=None,
+        help="e.g. `30GB` for Ascend 910, `59GB` for Ascend Atlas 800T A2 machines",
     )
 
 

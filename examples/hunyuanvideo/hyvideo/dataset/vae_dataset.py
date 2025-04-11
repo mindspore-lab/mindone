@@ -51,6 +51,7 @@ class VideoDataset:
         dynamic_sample: bool = False,  # random sample rate
         dynamic_start_index: bool = True,  # random start index
         output_columns: Union[Tuple[str], List[str]] = ["video", "path"],
+        frames_duplications: bool = True,  # if True, will allow duplications of frames if sample_n_frames is greater than video length
     ):
         if data_file_path is not None:
             logger.info(f"loading videos from data file {data_file_path} ...")
@@ -71,6 +72,7 @@ class VideoDataset:
         self.return_image = return_image
         self.dynamic_sample = dynamic_sample
         self.dynamic_start_index = dynamic_start_index
+        self.frames_duplications = frames_duplications
         if not self.dynamic_start_index:
             logger.info(
                 f"Always using the first frame as the start index for {sample_n_frames} frames sampling. Better to use it for inference not training!"
@@ -146,7 +148,13 @@ class VideoDataset:
                 start_idx = random.randint(0, video_length - clip_length)
             else:
                 start_idx = 0
-            batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+            if self.frames_duplications:
+                batch_index = np.linspace(start_idx, start_idx + clip_length - 1, self.sample_n_frames, dtype=int)
+            else:
+                batch_index = np.linspace(
+                    start_idx, start_idx + clip_length - 1, clip_length, dtype=int
+                )  # only sample clip_length frames
+
         else:
             batch_index = [random.randint(0, video_length - 1)]
 

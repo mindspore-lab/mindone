@@ -94,7 +94,7 @@ For more detailed usage of the inference script, please run `python sample.py -h
 
 ### Vanilla Finetune
 
-We support finetune PixArt-Σ model on 910* Ascend device.
+We support finetune PixArt-Σ model on Ascend Atlas 800T A2 devices.
 
 #### Prepare the Dataset
 
@@ -117,7 +117,7 @@ We support finetune PixArt-Σ model on 910* Ascend device.
     - Replace `file1.png` with the actual image file path.
     - The `prompt` field contains a description of the image.
     - If you have captions generated from ShareGPT4V, add them to the `sharegpt4v` field. Otherwise, copy the label from the `prompt` line.
-    - `height` and `width` field corresponds to the image height and width, and `ratio` corresponds to the value of `height` / `width`.
+    - `height` and `width` field correspond to the image height and width, and `ratio` corresponds to the value of `height` / `width`.
 
 #### Finetune the Model:
 
@@ -143,7 +143,7 @@ python sample.py -c configs/inference/pixart-sigma-512-MS.yaml --prompt "your ma
 
 #### Distributed Training (Optional):
 
-You can launch distributed training using multiple Ascend 910* Devices:
+You can launch distributed training using multiple Ascend Atlas 800T A2 Devices:
 
 ```bash
 msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py \
@@ -158,7 +158,7 @@ msrun --worker_num=8 --local_worker_num=8 --log_dir="log" train.py \
 
 #### Finetune Result
 
-We use the first 1,600 images for training and the remaining 400 images for testing. The experiment is conducted on two 910* NPUs based on the [configuration](configs/train/pixart-sigma-512-MS.yaml). We evaluate the model’s performance using the [FID score](https://github.com/mindspore-lab/mindone/tree/master/examples/stable_diffusion_v2/tools/eval).
+We use the first 1,600 images for training and the remaining 400 images for testing. The experiment is conducted on two Atlas 800T A2 NPUs based on the [configuration](configs/train/pixart-sigma-512-MS.yaml). We evaluate the model’s performance using the [FID score](https://github.com/mindspore-lab/mindone/tree/master/examples/stable_diffusion_v2/tools/eval).
 
 Below is the FID score curve
 <p align="center"><img width="512" src="https://github.com/user-attachments/assets/b3d74961-15f7-4836-9b26-db3b470c3565"/></p>

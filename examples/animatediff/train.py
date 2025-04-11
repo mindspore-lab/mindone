@@ -459,7 +459,7 @@ def main(args):
             use_lora=args.motion_lora_finetune,
             lora_rank=args.motion_lora_rank,
             param_save_filter=[".temporal_transformer."] if args.save_mm_only else None,
-            record_lr=False,  # TODO: check LR retrival for new MS on 910b
+            record_lr=False,  # TODO: check LR retrival for new MS on Ascend Atlas 800T A2 machines
         )
         callback.append(save_cb)
         if args.profile:

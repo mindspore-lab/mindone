@@ -196,7 +196,7 @@ def init_env(args):
     # rank_id - global card id, device_num - num of cards
     set_random_seed(args.seed)
 
-    # ms.set_context(max_device_memory="30GB")  # adapt for 910b
+    # ms.set_context(max_device_memory="30GB")  # adapt for Ascend Atlas 800T A2 machines
     ms.set_context(mode=args.ms_mode)  # needed for MS2.0
     if args.use_parallel:
         init()
