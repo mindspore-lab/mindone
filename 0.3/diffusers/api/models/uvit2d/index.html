@@ -7162,13 +7162,7 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 30</span>
-<span class="normal"> 31</span>
-<span class="normal"> 32</span>
-<span class="normal"> 33</span>
-<span class="normal"> 34</span>
-<span class="normal"> 35</span>
-<span class="normal"> 36</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 36</span>
 <span class="normal"> 37</span>
 <span class="normal"> 38</span>
 <span class="normal"> 39</span>
@@ -7399,7 +7393,15 @@ specific language governing permissions and limitations under the License.
 <span class="normal">264</span>
 <span class="normal">265</span>
 <span class="normal">266</span>
-<span class="normal">267</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UVit2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UVit2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
     <span class="n">_supports_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">True</span>
 
     <span class="nd">@register_to_config</span>
@@ -7629,7 +7631,9 @@ specific language governing permissions and limitations under the License.
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="n">CROSS_ATTENTION_PROCESSORS</span> <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="n">ADDED_KV_ATTENTION_PROCESSORS</span> <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+            <span class="n">processor</span> <span class="o">=</span> <span class="n">AttnAddedKVProcessor</span><span class="p">()</span>
+        <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="n">CROSS_ATTENTION_PROCESSORS</span> <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
             <span class="n">processor</span> <span class="o">=</span> <span class="n">AttnProcessor</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -7729,13 +7733,7 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">230</span>
 <span class="normal">231</span>
 <span class="normal">232</span>
 <span class="normal">233</span>
@@ -7758,7 +7756,13 @@ Parameters:
 <span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
-<span class="normal">253</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>  <span class="c1"># type: ignore</span>
+<span class="normal">253</span>
+<span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>  <span class="c1"># type: ignore</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 <span class="sd">    Parameters:</span>
@@ -7809,22 +7813,26 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">256</span>
-<span class="normal">257</span>
-<span class="normal">258</span>
-<span class="normal">259</span>
-<span class="normal">260</span>
-<span class="normal">261</span>
-<span class="normal">262</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">262</span>
 <span class="normal">263</span>
 <span class="normal">264</span>
 <span class="normal">265</span>
 <span class="normal">266</span>
-<span class="normal">267</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="n">CROSS_ATTENTION_PROCESSORS</span> <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+    <span class="k">if</span> <span class="nb">all</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="n">ADDED_KV_ATTENTION_PROCESSORS</span> <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+        <span class="n">processor</span> <span class="o">=</span> <span class="n">AttnAddedKVProcessor</span><span class="p">()</span>
+    <span class="k">elif</span> <span class="nb">all</span><span class="p">(</span><span class="n">proc</span><span class="o">.</span><span class="vm">__class__</span> <span class="ow">in</span> <span class="n">CROSS_ATTENTION_PROCESSORS</span> <span class="k">for</span> <span class="n">proc</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">attn_processors</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
         <span class="n">processor</span> <span class="o">=</span> <span class="n">AttnProcessor</span><span class="p">()</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -7864,19 +7872,19 @@ Parameters:
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">270</span>
-<span class="normal">271</span>
-<span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
-<span class="normal">275</span>
-<span class="normal">276</span>
-<span class="normal">277</span>
-<span class="normal">278</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">278</span>
 <span class="normal">279</span>
 <span class="normal">280</span>
 <span class="normal">281</span>
-<span class="normal">282</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UVit2DConvEmbed</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UVit2DConvEmbed</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">,</span> <span class="n">block_out_channels</span><span class="p">,</span> <span class="n">vocab_size</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">bias</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">embeddings</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">vocab_size</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">)</span>
@@ -7930,15 +7938,7 @@ Parameters:
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">285</span>
-<span class="normal">286</span>
-<span class="normal">287</span>
-<span class="normal">288</span>
-<span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
 <span class="normal">296</span>
@@ -8026,7 +8026,15 @@ Parameters:
 <span class="normal">378</span>
 <span class="normal">379</span>
 <span class="normal">380</span>
-<span class="normal">381</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UVitBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
+<span class="normal">386</span>
+<span class="normal">387</span>
+<span class="normal">388</span>
+<span class="normal">389</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UVitBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">channels</span><span class="p">,</span>
@@ -8164,15 +8172,7 @@ Parameters:
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">384</span>
-<span class="normal">385</span>
-<span class="normal">386</span>
-<span class="normal">387</span>
-<span class="normal">388</span>
-<span class="normal">389</span>
-<span class="normal">390</span>
-<span class="normal">391</span>
-<span class="normal">392</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">392</span>
 <span class="normal">393</span>
 <span class="normal">394</span>
 <span class="normal">395</span>
@@ -8207,7 +8207,15 @@ Parameters:
 <span class="normal">424</span>
 <span class="normal">425</span>
 <span class="normal">426</span>
-<span class="normal">427</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ConvNextBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ConvNextBlock</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">channels</span><span class="p">,</span> <span class="n">layer_norm_eps</span><span class="p">,</span> <span class="n">ln_elementwise_affine</span><span class="p">,</span> <span class="n">use_bias</span><span class="p">,</span> <span class="n">hidden_dropout</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">res_ffn_factor</span><span class="o">=</span><span class="mi">4</span>
     <span class="p">):</span>
@@ -8223,7 +8231,7 @@ Parameters:
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">RMSNorm</span><span class="p">(</span><span class="n">channels</span><span class="p">,</span> <span class="n">layer_norm_eps</span><span class="p">,</span> <span class="n">ln_elementwise_affine</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">channelwise_linear_1</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">channels</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">channels</span> <span class="o">*</span> <span class="n">res_ffn_factor</span><span class="p">),</span> <span class="n">has_bias</span><span class="o">=</span><span class="n">use_bias</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">channelwise_act</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">GELU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">channelwise_act</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">GELU</span><span class="p">(</span><span class="n">approximate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">channelwise_norm</span> <span class="o">=</span> <span class="n">GlobalResponseNorm</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">channels</span> <span class="o">*</span> <span class="n">res_ffn_factor</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">channelwise_linear_2</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">channels</span> <span class="o">*</span> <span class="n">res_ffn_factor</span><span class="p">),</span> <span class="n">channels</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="n">use_bias</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">channelwise_dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">hidden_dropout</span><span class="p">)</span>
@@ -8292,15 +8300,7 @@ Parameters:
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/uvit_2d.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">430</span>
-<span class="normal">431</span>
-<span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">438</span>
 <span class="normal">439</span>
 <span class="normal">440</span>
 <span class="normal">441</span>
@@ -8311,7 +8311,15 @@ Parameters:
 <span class="normal">446</span>
 <span class="normal">447</span>
 <span class="normal">448</span>
-<span class="normal">449</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ConvMlmLayer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ConvMlmLayer</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">block_out_channels</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
