@@ -1,4 +1,6 @@
 - sections:
   - local: zero
     title: ZeRO
+  - local: t2v_curation
+    title: Text-Video Dataset Curation
   title: Get started
