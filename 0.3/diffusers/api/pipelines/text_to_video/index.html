@@ -14,7 +14,7 @@
         <link rel="prev" href="../stable_unclip/">
       
       
-        <link rel="next" href="../unclip/">
+        <link rel="next" href="../text_to_video_zero/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
@@ -5839,6 +5839,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../text_to_video_zero/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Text2Video-Zero
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -12761,9 +12784,7 @@ denoised</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_output.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">11</span>
-<span class="normal">12</span>
-<span class="normal">13</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">13</span>
 <span class="normal">14</span>
 <span class="normal">15</span>
 <span class="normal">16</span>
@@ -12774,7 +12795,9 @@ denoised</p>
 <span class="normal">21</span>
 <span class="normal">22</span>
 <span class="normal">23</span>
-<span class="normal">24</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">TextToVideoSDPipelineOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">     Output class for text-to-video pipelines.</span>
@@ -12787,7 +12810,7 @@ denoised</p>
 <span class="sd">    `(batch_size, num_frames, channels, height, width)`</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="n">frames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]]]</span>
+    <span class="n">frames</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]]]</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -12911,13 +12934,13 @@ denoised</p>
         
         
           
-          <a href="../unclip/" class="md-footer__link md-footer__link--next" aria-label="Next: unCLIP">
+          <a href="../text_to_video_zero/" class="md-footer__link md-footer__link--next" aria-label="Next: Text2Video-Zero">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                unCLIP
+                Text2Video-Zero
               </div>
             </div>
             <div class="md-footer__button md-icon">
