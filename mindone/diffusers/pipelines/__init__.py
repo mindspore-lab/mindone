@@ -188,6 +188,12 @@ _import_structure = {
         "StableDiffusionXLAdapterPipeline",
     ],
     "unclip": ["UnCLIPImageVariationPipeline", "UnCLIPPipeline"],
+    ["unidiffuser"]: [
+        "ImageTextPipelineOutput",
+        "UniDiffuserModel",
+        "UniDiffuserPipeline",
+        "UniDiffuserTextDecoder",
+    ],
     "wuerstchen": [
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
@@ -356,6 +362,7 @@ if TYPE_CHECKING:
     from .stable_video_diffusion import StableVideoDiffusionPipeline
     from .t2i_adapter import StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
+    from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys
