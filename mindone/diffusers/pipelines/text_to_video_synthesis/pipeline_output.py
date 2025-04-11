@@ -3,9 +3,11 @@ from typing import List, Union
 
 import numpy as np
 import PIL
-import torch
+import mindspore as ms
 
-from ...utils import BaseOutput
+from ...utils import (
+    BaseOutput,
+)
 
 
 @dataclass
@@ -21,4 +23,4 @@ class TextToVideoSDPipelineOutput(BaseOutput):
     `(batch_size, num_frames, channels, height, width)`
     """
 
-    frames: Union[torch.Tensor, np.ndarray, List[List[PIL.Image.Image]]]
+    frames: Union[ms.Tensor, np.ndarray, List[List[PIL.Image.Image]]]

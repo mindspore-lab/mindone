@@ -251,6 +251,7 @@ _import_structure = {
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
+        "TextToVideoZeroPipeline",
     ],
     "schedulers": [
         "AmusedScheduler",
@@ -534,6 +535,7 @@ if TYPE_CHECKING:
         WuerstchenCombinedPipeline,
         WuerstchenDecoderPipeline,
         WuerstchenPriorPipeline,
+        TextToVideoZeroPipeline,
     )
     from .schedulers import (
         AmusedScheduler,

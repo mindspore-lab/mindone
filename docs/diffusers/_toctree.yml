@@ -404,6 +404,8 @@
       title: Stable unCLIP
     - local: api/pipelines/text_to_video
       title: Text-to-video
+    - local: api/pipelines/text_to_video_zero
+      title: Text2Video-Zero
     - local: api/pipelines/unclip
       title: unCLIP
     - local: api/pipelines/wuerstchen
