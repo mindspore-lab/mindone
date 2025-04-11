@@ -2,12 +2,12 @@ import logging
 from dataclasses import dataclass
 from typing import List
 
-import threestudio
-from threestudio.systems.base import BaseLift3DSystem
-from threestudio.utils.ops import binary_cross_entropy, dot
-
 import mindspore as ms
 from mindspore import Tensor, nn, ops
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.systems.base import BaseLift3DSystem
+from mindone.models.threestudio.utils.ops import binary_cross_entropy, dot
 
 logger = logging.getLogger("")
 

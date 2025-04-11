@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 from ..utils import _LazyModule
 
 _import_structure = {
+    "scheduling_amused": ["AmusedScheduler"],
     "scheduling_consistency_models": ["CMStochasticIterativeScheduler"],
     "scheduling_consistency_decoder": ["ConsistencyDecoderScheduler"],
     "scheduling_ddim_inverse": ["DDIMInverseScheduler"],
@@ -56,6 +57,7 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
+    from .scheduling_amused import AmusedScheduler
     from .scheduling_consistency_decoder import ConsistencyDecoderScheduler
     from .scheduling_consistency_models import CMStochasticIterativeScheduler
     from .scheduling_cosine_dpmsolver_multistep import CosineDPMSolverMultistepScheduler

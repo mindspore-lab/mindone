@@ -13,7 +13,7 @@ In this repository, we present an efficient MindSpore implementation of [Wan2.1]
 
 ## Video Demos
 
-The following videos are generated based on MindSpore and Ascend 910*.
+The following videos are generated based on MindSpore and Ascend Atlas 800T A2 machines.
 
 - Text-to-Video
 
@@ -347,7 +347,7 @@ msrun --worker_num=2 --local_worker_num=2 generate.py \
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
 
 | model        | h x w x f   | cards | steps | npu peak memory  |   s/video   |
 |:------------:|:-----------:|:-----:|:-----:|:----------------:|:-----------:|

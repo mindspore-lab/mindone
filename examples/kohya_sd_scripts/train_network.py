@@ -747,14 +747,15 @@ class NetworkTrainer:
                         raise NotImplementedError("multipliers for each sample is not supported yet")
                     network.set_multiplier(multipliers)
 
+                # ms2.5 tensors were squeezed by ops.stack in dataset.getitem definition, check later
                 inputs = (
-                    batch["loss_weights"],
-                    batch["input_ids"],
-                    batch["input_ids2"],
-                    batch["images"],
-                    batch["original_sizes_hw"],
-                    batch["crop_top_lefts"],
-                    batch["target_sizes_hw"],
+                    batch["loss_weights"].squeeze(0),
+                    batch["input_ids"].squeeze(0),
+                    batch["input_ids2"].squeeze(0),
+                    batch["images"].squeeze(0),
+                    batch["original_sizes_hw"].squeeze(0),
+                    batch["crop_top_lefts"].squeeze(0),
+                    batch["target_sizes_hw"].squeeze(0),
                 )
 
                 s = time.time()

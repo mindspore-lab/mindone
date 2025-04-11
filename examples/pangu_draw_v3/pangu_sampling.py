@@ -357,7 +357,7 @@ def sample(args):
         print(f"WARNING: Running with {version2} as the second stage model. Make sure to provide (V)RAM :) ")
         if args.device_target == "Ascend" and args.sd_xl_base_ratios not in ("1.0_768", "1.0_512"):
             print(
-                "Warning: Using the 'add_pipeline' function on device Ascend 910A may cause OOM. "
+                "Warning: Using the 'add_pipeline' function on device Ascend 910 may cause OOM. "
                 "It is recommended to use txt2img and img2img tasks respectively. "
                 "Alternatively, use smaller generation sizes such as (768, 768) "
                 "by configuring `--sd_xl_base_ratios '1.0_768'`."

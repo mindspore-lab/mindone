@@ -59,8 +59,8 @@ You may click the link in the table to access the running instructions directly.
 | ascend    |  mindspore   | cann   | driver | python |
 |:-----------:|:----------------:|:--------:|:---------:|:------:|
 | 910      |     2.1.0         |   6.3.RC2   |  24.1.RC1 | 3.9  |
-| 910*      |     2.3.0     |   7.3  | 23.0.3   |  3.8  |
-| 910*      |     2.3.1     |   8.0.RC2.bata1  | 24.1.RC2   |  3.8  |
+| Atlas 800T A2       |     2.3.0     |   7.3  | 23.0.3   |  3.8  |
+| Atlas 800T A2      |     2.3.1     |   8.0.RC2.bata1  | 24.1.RC2   |  3.8  |
 
 
 

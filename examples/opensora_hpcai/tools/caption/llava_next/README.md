@@ -42,12 +42,13 @@ The axes represent different metrics or benchmarks, such as MM-Vet, MM-Vet, MM-V
 
 ### Inference
 
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3
+
 To perform the benchmark, you may first download the image [llava_v1_5_radar.jpg](https://github.com/user-attachments/assets/8e016871-82fd-488a-8629-5ca71222e0e3) and save it in `./assets`, and then run `python predict --benchmark` to get the throughput.
 
-|         Model         | Context       | Batch Size | Throughput (tokens/second)|
+|         Model         | card       | Batch Size | Throughput (tokens/second)|
 |-----------------------|---------------|------------|---------------------------|
-| llava-v1.6-mistral-7b | D910*x1-MS2.3 |    1       | 21.2                      |
+| llava-v1.6-mistral-7b | 1 |    1       | 21.2                      |
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.\
 > Throughput (tokens/second): number of generated tokens per second.\
 > We use the second round of inference as the benchmark result.

@@ -1092,7 +1092,7 @@ class UNetSD_temporal(nn.Cell):
             # sample_type = ops.multinomial(self.type_dist, batch)
             # zero_mask = sample_type == 0
             # keep_mask = sample_type == 1
-            p_sample_type = ops.rand([batch, 1], dtype=ms.float32)  # adapt for 910b
+            p_sample_type = ops.rand([batch, 1], dtype=ms.float32)  # adapt for Ascend Atlas 800T A2 machines
             zero_mask = ops.logical_and(p_sample_type >= 0, p_sample_type < self.type_dist[0])
             keep_mask = ops.logical_and(
                 p_sample_type >= self.type_dist[0], p_sample_type < (self.type_dist[0] + self.type_dist[1])

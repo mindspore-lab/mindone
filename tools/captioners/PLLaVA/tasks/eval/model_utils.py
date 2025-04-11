@@ -1,28 +1,35 @@
 import logging
 import os
-
-from models.pipeline import TextGenerator
-from models.pllava import PllavaConfig, PllavaForConditionalGeneration, PllavaProcessor
+import sys
 
 import mindspore as ms
+from mindspore.nn.utils import no_init_parameters
+
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+pllava_path = os.path.abspath(os.path.join(__dir__, "../.."))
+sys.path.insert(0, pllava_path)
+
+from models.pipeline import TextGenerator  # noqa: E402
+from models.pllava import PllavaConfig, PllavaForConditionalGeneration, PllavaProcessor  # noqa: E402
 
 
-def load_pllava(repo_id, num_frames, pooling_shape=(16, 12, 12), vision_hidden_size=1024, text_hidden_size=4096):
+def load_pllava(repo_id, num_frames, pooling_shape, vision_hidden_size=1024, text_hidden_size=4096):
     kwargs = {
         "num_frames": num_frames,
     }
     if num_frames == 0:
         kwargs.update(pooling_shape=(0, 12, 12))
 
-    config = PllavaConfig.from_pretrained(
-        repo_id,
-        vision_hidden_size=vision_hidden_size,
-        text_hidden_size=text_hidden_size,
-        pooling_shape=pooling_shape,
-        **kwargs,
-    )
+    with no_init_parameters():
+        config = PllavaConfig.from_pretrained(
+            repo_id,
+            vision_hidden_size=vision_hidden_size,
+            text_hidden_size=text_hidden_size,
+            pooling_shape=pooling_shape,
+            **kwargs,
+        )
 
-    model = PllavaForConditionalGeneration(config)
+        model = PllavaForConditionalGeneration(config)
     model_path = os.path.join(repo_id, "model.ckpt")
     logging.info(f"Loading model from {model_path}")
     ms.load_checkpoint(model_path, model)

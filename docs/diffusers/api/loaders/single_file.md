@@ -43,6 +43,7 @@ The [`from_single_file`](single_file.md#mindone.diffusers.loaders.single_file.Fr
 - [`LatentConsistencyModelImg2ImgPipeline`](../pipelines/latent_consistency_models.md)
 - [`StableDiffusionControlNetXSPipeline`](../pipelines/controlnetxs.md)
 - [`StableDiffusionXLControlNetXSPipeline`](../pipelines/controlnetxs_sdxl.md)
+- [`PIAPipeline`](../pipelines/pia.md)
 
 ## Supported models
 

@@ -254,7 +254,7 @@ lr_scheduler = get_cosine_schedule_with_warmup(
 optimizer = nn.AdamWeightDecay(model.trainable_params(), learning_rate=lr_scheduler)
 ```
 
-Then, you'll need a way to evaluate the model. For evaluation, you can use the [`DDPMPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/models/unet2d/#mindone.diffusers.DDPMPipeline) to generate a batch of sample images and save it as a grid:
+Then, you'll need a way to evaluate the model. For evaluation, you can use the [`DDPMPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/ddpm/#mindone.diffusers.DDPMPipeline) to generate a batch of sample images and save it as a grid:
 
 ```python
 import numpy as np
