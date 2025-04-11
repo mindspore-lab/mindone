@@ -60,16 +60,16 @@ huggingface-cli download   --repo-type dataset Wild-Heart/Disney-VideoGeneration
 
 ```
 # 对 CogVideoX 模型进行文本到视频的 LoRA 微调
-./train_text_to_video_lora.sh
+./scripts/train_text_to_video_lora.sh
 
 # 对 CogVideoX 模型进行文本到视频的完整微调
-./train_text_to_video_sft.sh
+./scripts/train_text_to_video_sft.sh
 
 # 对 CogVideoX 模型进行图像到视频的 LoRA 微调
-./train_image_to_video_lora.sh
+./scripts/train_image_to_video_lora.sh
 
 # 对 CogVideoX 模型进行图像到视频的完整微调
-./train_image_to_video_sft.sh
+./scripts/train_image_to_video_sft.sh
 ```
 
 假设您的 LoRA 已保存到本地，并且路径为 `/path/to/my-awesome-lora`，现在我们可以使用微调模型进行推理：
