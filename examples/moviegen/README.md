@@ -256,7 +256,7 @@ For more details, check `scripts/tae/encode_tae.sh` or run `scripts/inference_ta
 
 ### Performance
 
-Experiments were conducted on Ascend 910* using MindSpore 2.3.1 in Graph mode.
+Experiments were conducted on Ascend Atlas 800T A2 machines using MindSpore 2.3.1 in Graph mode.
 
 > [!NOTE]
 > We trained all the models using BF16 precision and JIT level `O1`.  
@@ -351,7 +351,7 @@ The reconstructed videos will be saved in `samples/recons`.
 
 Here, we report the training performance and evaluation results on the UCF-101 dataset.
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name | cards | batch size | resolution | precision | jit level | graph compile | s/step | PSNR  | SSIM |                      recipe                       |
 |:----------:|:-----:|:----------:|:----------:|:---------:|:---------:|:-------------:|:------:|:-----:|:----:|:-------------------------------------------------:|

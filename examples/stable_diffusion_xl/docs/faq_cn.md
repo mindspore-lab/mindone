@@ -1,6 +1,6 @@
 # FAQ - Frequently Asked Questions
 
-### 1、如何使用相同的权重，达成在 MindSpore + Ascend 910* 上推理结果与 PyTorch [Diffusers](https://github.com/huggingface/diffusers/blob/main/examples/text_to_image/README_sdxl.md) + A100 一致?
+### 1、如何使用相同的权重，达成在 MindSpore + Ascend Atlas 800T A2 machines 上推理结果与 PyTorch [Diffusers](https://github.com/huggingface/diffusers/blob/main/examples/text_to_image/README_sdxl.md) + A100 一致?
 
 #### 回答：
 
@@ -35,7 +35,7 @@
 - (可选, 仅带随机采样的sampler需要配置) 在diffusers运行过程中保存每个sample step添加的随机噪声为`.npy文件`, 通过 `--init_noise_scheduler_path` 配置固定每个sample step添加的随机噪声一致，当前仅`EulerA采样器`生效；
 
 
-### 2、如何使用相同的权重，达成在 MindSpore + Ascend 910* 上推理结果与 PyTorch [Stability-AI](https://github.com/Stability-AI/generative-models) + A100 一致?
+### 2、如何使用相同的权重，达成在 MindSpore + Ascend Atlas 800T A2 machines 上推理结果与 PyTorch [Stability-AI](https://github.com/Stability-AI/generative-models) + A100 一致?
 
 
 #### 回答：
@@ -56,7 +56,7 @@
 - 在stability-ai代码运行过程中保存输入latent为`.npy文件`, 通过 `--init_latent_path` 接口控制输入latent noise 固定输入噪声一致；
 
 
-### 3、如何达成在 MindSpore + Ascend 910* 上 vanilla finetune 训练结果与 PyTorch [Diffusers](https://github.com/huggingface/diffusers/blob/main/examples/text_to_image/README_sdxl.md) + A100 相近?
+### 3、如何达成在 MindSpore + Ascend Atlas 800T A2 machines 上 vanilla finetune 训练结果与 PyTorch [Diffusers](https://github.com/huggingface/diffusers/blob/main/examples/text_to_image/README_sdxl.md) + A100 相近?
 
 
 #### 回答：

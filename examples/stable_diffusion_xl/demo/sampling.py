@@ -290,7 +290,7 @@ if __name__ == "__main__":
         st.warning(f"Warning: Running with {version2} as the second stage model. Make sure to provide (V)RAM :) ")
         if DEVICE_TARGET == "Ascend":
             st.warning(
-                "Warning: Using the 'add_pipeline' function on device Ascend 910A may cause OOM. "
+                "Warning: Using the 'add_pipeline' function on device Ascend 910 may cause OOM. "
                 "It is recommended to use txt2img and img2img tasks respectively. "
                 "Alternatively, choose a smaller generation sizes, such as (768, 768)."
             )

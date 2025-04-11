@@ -1,4 +1,4 @@
-# Only for MS2.1, uncomment the below line if use MS2.1 on 910B
+# Only for MS2.1, uncomment the below line if use MS2.1 on Ascend Atlas 800T A2 machines
 #export MS_ENABLE_GE=1
 
 # since ms2.2 0907

@@ -69,7 +69,7 @@ python demo/pangu/pangu_sampling.py \
 
 ## 样例
 
-注: 样例基于昇腾910*硬件，通过40步采样得到
+注: 样例基于昇腾Atlas 800T A2硬件，通过40步采样得到
 
 <div align="center">
 <img src="https://github.com/Stability-AI/generative-models/assets/143256262/0a8b0b1a-3b54-4a35-beec-4163be61fa88" width="320" />

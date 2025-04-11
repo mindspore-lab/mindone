@@ -66,7 +66,7 @@ For detailed arguments, please run `python infer.py -h`.
 
 ### Performance
 
-We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. Experiments are tested on ascend 910* with graph mode.
+We split the CelebA-HQ dataset into 24,000 images for training and 6,000 images for testing. Experiments are tested on Ascend Atlas 800T A2 machines with graph mode.
 
 - mindspore 2.5.0
 

@@ -176,7 +176,7 @@ class TimeDownsample2x(nn.Cell):
     def __init__(
         self,
         kernel_size: int = 3,
-        replace_avgpool3d: bool = True,  # FIXME: currently, ms+910b does not support nn.AvgPool3d
+        replace_avgpool3d: bool = True,  # FIXME: currently, ms+Ascend Atlas 800T A2 machines does not support nn.AvgPool3d
     ):
         super().__init__()
         self.kernel_size = kernel_size
@@ -214,7 +214,7 @@ class TimeUpsample2x(nn.Cell):
         if x.shape[2] > 1:
             if self.exclude_first_frame:
                 x, x_ = x[:, :, :1], x[:, :, 1:]
-                # FIXME: ms2.2.10 cannot support trilinear on 910b
+                # FIXME: ms2.2.10 cannot support trilinear on Ascend Atlas 800T A2 machines
                 x_ = ops.interpolate(x_, scale_factor=(2.0, 1.0, 1.0), mode="trilinear")
                 x = mint.cat([x, x_], dim=2)
             else:
@@ -230,7 +230,7 @@ class TimeDownsampleRes2x(nn.Cell):
         out_channels,
         kernel_size: int = 3,
         mix_factor: float = 2.0,
-        replace_avgpool3d: bool = True,  # FIXME: currently, ms+910b does not support nn.AvgPool3d
+        replace_avgpool3d: bool = True,  # FIXME: currently, ms+Ascend Atlas 800T A2 machines does not support nn.AvgPool3d
     ):
         super().__init__()
         self.kernel_size = cast_tuple(kernel_size, 3)
@@ -297,7 +297,7 @@ class TimeUpsampleRes2x(nn.Cell):
         if x.shape[2] > 1:
             x, x_ = x[:, :, :1], x[:, :, 1:]
             ori_dtype = x.dtype
-            # FIXME: ms2.2.10 cannot support trilinear on 910b
+            # FIXME: ms2.2.10 cannot support trilinear on Ascend Atlas 800T A2 machines
             x_ = self.interpolate(x_, scale_factor=(2.0, 1.0, 1.0)).to(ori_dtype)
             x = mint.cat([x, x_], dim=2)
 

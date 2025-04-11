@@ -88,7 +88,7 @@ The videos [here](#training-1) will be generated. Color mesh extractions are als
 These videos are rendered from the trained 3D implicit field in our MVDream model. Color meshes are extracted with the script [`MVDream-threestudio/extract_color_mesh.py`](MVDream-threestudio/extract_color_mesh.py).
 
 ## Performance
-Experiments are tested on Ascend 910* with mindspore 2.4.1 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.4.1 pynative mode.
 
 ### Training
 #### ms 2.5.0

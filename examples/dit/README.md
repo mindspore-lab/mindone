@@ -80,7 +80,7 @@ seed: 42
 ddim_sampling: True
 ```
 
-Experiments are tested on ascend 910* with mindspore graph mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore graph mode:
 
 - mindspore 2.5.0
 
@@ -143,7 +143,7 @@ bash scripts/run_distributed.sh -h
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore graph mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore graph mode:
 
 - mindspore 2.5.0
 

@@ -47,7 +47,7 @@ def init_env(args):
     # rank_id - global card id, device_num - num of cards
     set_random_seed(args.seed)
 
-    # ms.set_context(max_device_memory="30GB")  # adapt for 910b
+    # ms.set_context(max_device_memory="30GB")  # adapt for Ascend Atlas 800T A2 machines
     ms.set_context(mode=args.ms_mode)  # needed for MS2.0
     if args.use_parallel:
         init()
@@ -327,7 +327,7 @@ def main(cfg):
             ckpt_save_interval=cfg.ckpt_save_interval,
             log_interval=cfg.log_interval,
             start_epoch=start_epoch,
-            record_lr=False,  # LR retrival is not supportted on 910b currently
+            record_lr=False,  # LR retrival is not supportted on Ascend Atlas 800T A2 machines currently
             model_name=model_name,
         )
         callbacks.append(save_cb)

@@ -236,10 +236,10 @@ class CLIPAttention(nn.Cell):
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
-        self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
-        self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
-        self.q_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
-        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.k_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.v_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.q_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.out_proj = nn.Dense(self.embed_dim, self.embed_dim)
 
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).swapaxes(1, 2)
@@ -328,8 +328,8 @@ class CLIPMLP(nn.Cell):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
-        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
+        self.fc1 = nn.Dense(config.hidden_size, config.intermediate_size)
+        self.fc2 = nn.Dense(config.intermediate_size, config.hidden_size)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
@@ -777,8 +777,8 @@ class CLIPModel(CLIPPreTrainedModel):
         self.text_model = CLIPTextTransformer(text_config)
         self.vision_model = CLIPVisionTransformer(vision_config)
 
-        self.visual_projection = mint.nn.Linear(self.vision_embed_dim, self.projection_dim, bias=False)
-        self.text_projection = mint.nn.Linear(self.text_embed_dim, self.projection_dim, bias=False)
+        self.visual_projection = nn.Dense(self.vision_embed_dim, self.projection_dim, has_bias=False)
+        self.text_projection = nn.Dense(self.text_embed_dim, self.projection_dim, has_bias=False)
         self.logit_scale = ms.Parameter(ms.Tensor(self.logit_scale_init_value), name="logit_scale")
 
         # Initialize weights and apply final processing
@@ -977,7 +977,7 @@ class CLIPTextModelWithProjection(CLIPPreTrainedModel):
 
         self.text_model = CLIPTextTransformer(config)
 
-        self.text_projection = mint.nn.Linear(config.hidden_size, config.projection_dim, bias=False)
+        self.text_projection = nn.Dense(config.hidden_size, config.projection_dim, has_bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1051,7 +1051,7 @@ class CLIPVisionModelWithProjection(CLIPPreTrainedModel):
 
         self.vision_model = CLIPVisionTransformer(config)
 
-        self.visual_projection = mint.nn.Linear(config.hidden_size, config.projection_dim, bias=False)
+        self.visual_projection = nn.Dense(config.hidden_size, config.projection_dim, has_bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()

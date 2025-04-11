@@ -83,7 +83,7 @@ python tools/vae_converter.py --source path/to/vae/ckpt --target models/sd-vae-f
 python sample.py -c configs/inference/sky.yaml
 ```
 
-实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
+实验在MindSpore 2.3.1（图模式）的Ascend Atlas 800T A2 machines上进行验证：
 
 | model name | cards | resolution | scheduler | steps | jit level | graph compile | s/video |
 | :--------: | :---: | :--------: | :----: | :---: | :-------: | :----------: | :---------------: |
@@ -229,7 +229,7 @@ bash scripts/run_distributed_sky_numpy_video.sh path/to/rank/table 0 4
 
 ## 5. 评估
 
-实验在MindSpore 2.3.1（图模式）的Ascend 910*上进行验证：
+实验在MindSpore 2.3.1（图模式）的Ascend Atlas 800T A2 machines上进行验证：
 
 | model name | cards |batch size | resolution    | recompute | sink | cache | jit level | graph compile | s/step | img/s |
 | :--------: | :---: | :--------:| :--------:     | :--------: | :-------: | :---------------: | :-------------: | :-------: | :-----------: | :-----------: |
