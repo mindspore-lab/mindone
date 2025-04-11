@@ -43,7 +43,7 @@ python demo/sampling_without_streamlit.py \
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name| cards  |batch size  |    resolution    | grad accu        |   sink   | flash attn |jit level| graph compile |  ms/step  |   img/s |
 |:---------:|:------:|:----------:|:--------:       |:----------------:|:--------:|:--:|:----------:|:------:|------------------|:----------------:|

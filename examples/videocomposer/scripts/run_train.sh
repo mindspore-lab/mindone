@@ -1,6 +1,6 @@
 export MS_ENABLE_REF_MODE=0 # will be set to 1 in latest ms version. TODO: remove for future MS version
-export MS_ASCEND_CHECK_OVERFLOW_MODE=1 #"INFNAN_MODE" # for ms+910B, check overflow
-#export INF_NAN_MODE_ENABLE=1 # For pytorch+npu, recommend to enable it for mixed precision training for 910B. it determines how overflow is detected
+export MS_ASCEND_CHECK_OVERFLOW_MODE=1 #"INFNAN_MODE" # for ms+Ascend Atlas 800T A2 machines, check overflow
+#export INF_NAN_MODE_ENABLE=1 # For pytorch+npu, recommend to enable it for mixed precision training for Ascend Atlas 800T A2 machines. it determines how overflow is detected
 
 export GLOG_v=2  # Log message at or above this level. 0:INFO, 1:WARNING, 2:ERROR, 3:FATAL
 export HCCL_CONNECT_TIMEOUT=6000 # the real error info in modelarts can be blocked by the timeout error if this value is larger than HCCL_EXEC_TIMEOUT!

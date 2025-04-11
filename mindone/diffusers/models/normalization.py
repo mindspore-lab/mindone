@@ -711,7 +711,7 @@ class GlobalResponseNorm(nn.Cell):
         self.beta = ms.Parameter(ops.zeros(size=(1, 1, 1, dim)), name="beta")
 
     def construct(self, x):
-        gx = ops.norm(x, ord=2, dim=(1, 2), keepdim=True)
+        gx = ms.mint.norm(x, p=2, dim=(1, 2), keepdim=True)
         nx = gx / (gx.mean(axis=-1, keep_dims=True) + 1e-6)
         out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
         return out

@@ -14,20 +14,18 @@ Currently, we support
 
 ## Requirements
 
-The scripts work on Ascend 910* with [CANN 8.0.RC2.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.RC2.beta1) and [MindSpore 2.3.0 ](https://www.mindspore.cn/versions#2.3.0).
+The scripts work on Ascend Atlas 800T A2 machines.
 
-| mindspore | ascend driver | firmware    | cann toolkit/kernel |
-|:--------: |:------------: |:----------: | :----------------:  |
-| 2.3.0     | 24.1.RC2      | 7.3.0.1.231 | 8.0.RC2.beta1       |
+| MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
+|:---------:|:-------------:|:-----------:|:-------------------:|
+|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
 
 Check your versions by running the following commands. The default installation path of CANN is usually  `/usr/local/Ascend/ascend-toolkit` unless you specify a custom one.
 
 ```bash
 cat /usr/local/Ascend/ascend-toolkit/latest/version.cfg  
-# see a version number as [7.3.0.1.231:8.0.RC2]
 
 python -c "import mindspore;mindspore.set_context(device_target='Ascend');mindspore.run_check()"
-# MindSpore version: 2.3.0
 ```
 
 To ensure you can successfully run the latest versions of the example scripts, we highly recommend **installing from source** and keeping the installation up to date as we update the example scripts frequently and install some example-specific requirements. To do this, execute the following steps in a new virtual environment:
@@ -235,11 +233,11 @@ Choose a dataset config pattern and prepare the toml file as [prepare learning d
 The environment variable `pretrainedModel` could be the model name of sdxl from the hugging face, such as [stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0/tree/main), or a local checkpoint path in `.safetensor` format.
 
 ```bash
-$pretrainedModel = "path_to/sd_xl_base_1.0.safetensors"
-# $pretrainedModel = "stabilityai/stable-diffusion-xl-base-1.0"
-$outputName = "pokemon"
-$outputDir = "path_to/sdxl_lora_pokemon"
-$dataConfig = "path_to/dataset_config_finetune.toml"
+export pretrainedModel="path_to/sd_xl_base_1.0.safetensors"
+# export pretrainedMode="stabilityai/stable-diffusion-xl-base-1.0"
+export outputName="pokemon"
+export outputDir="path_to/sdxl_lora_pokemon"
+export dataConfig="path_to/dataset_config_finetune.toml"
 
 python sdxl_train_network.py \
   --pretrained_model_name_or_path=$pretrainedModel \
@@ -252,7 +250,7 @@ python sdxl_train_network.py \
   --network_train_unet_only \
   --network_dropout="0.1" \
   --no_half_vae \
-  --lr_scheduler="costant" \
+  --lr_scheduler="constant" \
   --optimizer_type="AdamW" \
   --optimizer_args weight_decay=0.05 betas=0.9,0.98 \
   --max_data_loader_n_workers="0" \
@@ -297,15 +295,15 @@ python sdxl_minimal_inference.py \
 
 ### Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.0 graph mode, enabling unet training only.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 graph mode, enabling unet training only.
 
 | model name | cards |batch size    | resolution| precision | graph compile | jit level | s/step |
 | :----:    | :----: | :----------: | :-------: | :---------------: | :-------------: | :--------------: | :--------------: |
-| SDXL-Base | 1      |1             | 1024x1024 | None     | 24mins | O1 | 1.73     |
-| SDXL-Base | 1      |1             | 1024x1024 | fp16            | 33mins | O1   | 1.75     |
-| SDXL-Base | 1      |1             | 1024x1024 | bf16 | 28mins | O1 | 1.85 |
-| SDXL-Base | 1      |1             | 1024x1024 | fp16 (full_fp16) | 30mins        | O1  | 1.80    |
-| SDXL-Base | 1      |1             | 1024x1024 | bf16 (full_bf16) | 31mins | O1 | 1.75 |
+| SDXL-Base | 1      |1             | 1024x1024 | None     | 20mins | O1 | 1.01     |
+| SDXL-Base | 1      |1             | 1024x1024 | fp16            | 20mins | O1   | 1.18     |
+| SDXL-Base | 1      |1             | 1024x1024 | bf16 | 21mins | O1 | 1.27 |
+| SDXL-Base | 1      |1             | 1024x1024 | fp16 (full_fp16) | 21mins        | O1  | 1.09    |
+| SDXL-Base | 1      |1             | 1024x1024 | bf16 (full_bf16) | 22mins | O1 | 1.05 |
 
 > Notes: precision here means the arg `mixed_precision` of the training script.
 >

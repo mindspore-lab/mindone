@@ -121,7 +121,7 @@ class LinearAttention(nn.Cell):
 
 class CrossAttention(nn.Cell):
     """
-    Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on 910B up to MS2.2.1-20231122 version,
+    Flash attention doesnot work well (leading to noisy images) for SD1.5-based models on Ascend Atlas 800T A2 machines up to MS2.2.1-20231122 version,
     due to the attention head dimension is 40, num heads=5. Require test on future versions
     """
 

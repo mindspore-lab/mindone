@@ -5,6 +5,7 @@ from ..utils import _LazyModule
 # These modules contain pipelines from multiple libraries/frameworks
 _import_structure = {
     "allegro": ["AllegroPipeline"],
+    "amused": ["AmusedImg2ImgPipeline", "AmusedInpaintPipeline", "AmusedPipeline"],
     "animatediff": [
         "AnimateDiffPipeline",
         "AnimateDiffControlNetPipeline",
@@ -80,6 +81,7 @@ _import_structure = {
     "hunyuan_video": ["HunyuanVideoPipeline"],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
+    "ledits_pp": ["LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL"],
     "kandinsky": [
         "KandinskyCombinedPipeline",
         "KandinskyImg2ImgCombinedPipeline",
@@ -199,6 +201,12 @@ _import_structure = {
         "VideoToVideoSDPipeline",
     ],
     "unclip": ["UnCLIPImageVariationPipeline", "UnCLIPPipeline"],
+    ["unidiffuser"]: [
+        "ImageTextPipelineOutput",
+        "UniDiffuserModel",
+        "UniDiffuserPipeline",
+        "UniDiffuserTextDecoder",
+    ],
     "wuerstchen": [
         "WuerstchenCombinedPipeline",
         "WuerstchenDecoderPipeline",
@@ -214,6 +222,7 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .allegro import AllegroPipeline
+    from .amused import AmusedImg2ImgPipeline, AmusedInpaintPipeline, AmusedPipeline
     from .animatediff import (
         AnimateDiffControlNetPipeline,
         AnimateDiffPipeline,
@@ -303,6 +312,12 @@ if TYPE_CHECKING:
     from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
     from .latent_diffusion import LDMSuperResolutionPipeline, LDMTextToImagePipeline
     from .latte import LattePipeline
+    from .ledits_pp import (
+        LEditsPPDiffusionPipelineOutput,
+        LEditsPPInversionPipelineOutput,
+        LEditsPPPipelineStableDiffusion,
+        LEditsPPPipelineStableDiffusionXL,
+    )
     from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
@@ -369,6 +384,7 @@ if TYPE_CHECKING:
     from .t2i_adapter import StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline
     from .text_to_video_synthesis import TextToVideoSDPipeline, TextToVideoZeroSDXLPipeline, VideoToVideoSDPipeline
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
+    from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys

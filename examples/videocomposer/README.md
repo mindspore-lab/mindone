@@ -131,7 +131,7 @@ MindSpore implementation & optimization of [VideoComposer: Compositional Video S
     - [x] Single sketch to videos with or without style guidance (exp03 and exp04)
     - [x] Depth to video with or without style guidance (exp5 and exp6)
     - [x] Generate videos based on multiple conditions: depth maps, local image, masks, motion, and sketch
-- [x] Model Training (vanilla finetuning) supporting both Ascend 910 and 910*
+- [x] Model Training (vanilla finetuning) supporting both Ascend 910 and Atlas 800T A2 machines
 - [x] Acceleration and Memory Reduction
     - [x] Mixed Precision
     - [x] Graph Mode for Training
@@ -196,13 +196,13 @@ video_name2.mp4,"a pigeon sitting on the street near the house"
 
 ### Online Inference
 
-To run all video generation tasks on 910 or 910*, please run
+To run all video generation tasks on Ascend 910 or Atlas 800T A2 machines, please run
 
 ```shell
 bash scripts/run_infer.sh
 ```
 
-On 910, to run a single task, you can pick the corresponding snippet of code in `scripts/run_infer.sh`, such as
+On Ascend 910, to run a single task, you can pick the corresponding snippet of code in `scripts/run_infer.sh`, such as
 
 ```shell
 python infer.py \
@@ -363,9 +363,9 @@ Both json and csv file are supported. JSON has a higher priority.
 
 You can adjust the arguments in `configs/train_base.py` (lower-priority) or `configs/train_exp{task_name}.yaml` (higher-priority, will overwrite train_base.py if overlap). Below are the key arguments.
 
-- max_frames: number of frames to generate for each sample. Without memory reduction tricks, it can be set up to 8 for 910, and 16 for 910* for task-2 finetuning.
-- optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for 910 to avoid OOM and `adamw` for 910* for better loss convergence.
-- use_recompute: by enabling it, you can reduce memory usage with a small increase in time cost. For example, on 910, the max number of trainable frames per batch increases from 8 to 14 after recomputing is enabled.
+- max_frames: number of frames to generate for each sample. Without memory reduction tricks, it can be set up to 8 for 910, and 16 for Ascend Atlas 800T A2 machines for task-2 finetuning.
+- optim: optimizer name, `adamw` or `momentum`. Recommend `momentum` for Ascend 910 to avoid OOM and `adamw` for Ascend Atlas 800T A2 machines for better loss convergence.
+- use_recompute: by enabling it, you can reduce memory usage with a small increase in time cost. For example, on Ascend 910, the max number of trainable frames per batch increases from 8 to 14 after recomputing is enabled.
 - `root_dir`: dataset root dir which should contain a csv annotation file. default is `demo_video`, which contains an example annotation file `demo_video/video_caption.csv` for demo traning.
 - `num_parallel_workers`: default is 2. Increasing it can help reduce video processing time cost if CPU cores are enough (i.e. num_workers * num_cards < num_cpu_cores) and Memory is enough (i.e. approximately, prefetch_size * max_row_size * num_workers < mem size)
 
@@ -375,7 +375,7 @@ You can adjust the arguments in `configs/train_base.py` (lower-priority) or `con
 
 ### Training
 
-The training performance for exp02-motion transfer on ascend 910* with different modes is as follows:
+The training performance for exp02-motion transfer on Ascend Atlas 800T A2 machines with different modes is as follows:
 
 | model name   | cards |  batch size | resolution   | recompute | sink | graph compile | mode | jit level  | s/step |  video/s                                                                  |
 |:------------:|:-----:|:-----------:|:------------:|:----------:|:----------:|:----------:|:---------:|:---------:|:---------:|:-----------:|

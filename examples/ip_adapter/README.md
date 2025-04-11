@@ -349,29 +349,26 @@ python tools/prepare_coco.py --label path_of_captions_train2017.json --image pat
 
 ### Training
 
-| SD Model | Context       | Global Batch Size x Grad. Accu. | Resolution | Acceleration | FPS (img/s) |
-|----------|---------------|---------------------------------|------------|--------------|-------------|
-| 1.5      | D910*x1-MS2.2 | 16x1                            | 512x512    | FP16         | 14.41       |
-| XL       | D910*x4-MS2.2 | 16x1                            | 1024x1024  | FP16         | 8.37        |
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.2.
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Acceleration: FP16: float16 computation. Flash attention is not used in the test currently.
-> FPS: images per second during training. average training time (s/step) = batch_size / FPS
+| model name | cards | batch size   | resolution   |  precision   |  flash attn |  jit level | s/step | img/s |
+|:--------:|:-------:|:------------:|:-----------:|:------:|:------------------:|:------------------------:|:----------------:|:----------------:|
+|     1.5 |    1    | 16           | 512x512   | fp16 |  OFF | N/A | 1.11 | 14.41 |
+|      XL |    4    | 4           | 1024x1024  | fp16 |  OFF | N/A | 1.91 | 8.37 |
+
 
 ### Inference
 
-| SD Model | Context       | Task             | Scheduler | Steps | Resolution | Batch Size | Speed (step/s) | FPS (img/s) |
-|----------|---------------|------------------|-----------|-------|------------|------------|----------------|-------------|
-| 1.5      | D910*x1-MS2.2 | Image Variation  | DDIM      | 50    | 512x512    | 4          | 4.97           | 0.36        |
-| 1.5      | D910*x1-MS2.2 | Image-To-Image   | DDIM      | 30    | 512x512    | 4          | 4.81           | 0.52        |
-| 1.5      | D910*x1-MS2.2 | Image Inpainting | DDIM      | 35    | 512x768    | 4          | 2.69           | 0.26        |
-| 1.5      | D910*x1-MS2.2 | ControlNet       | DDIM      | 50    | 512x512    | 4          | 2.87           | 0.22        |
-| XL       | D910*x1-MS2.2 | Image Variation  | Euler EDM | 30    | 1024x1024  | 4          | 1.24           | 0.15        |
-| XL       | D910*x1-MS2.2 | ControlNet       | Euler EDM | 30    | 1024x1024  | 3          | 2.55           | 0.25        |
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.2.
 
-> Context: {Ascend chip}-{number of NPUs}-{mindspore version}.
-> Speed (step/s): sampling speed measured in the number of sampling steps per second.
-> FPS (img/s): image generation throughput measured in the number of image generated per second.
+| model name | Task  | cards | batch size   | resolution   |  Scheduler   |  Steps |  jit level | step/s | img/s |
+|:-------:|:-----:|:-------:|:------------:|:-----------:|:------:|:------------------:|:------------------------:|:----------------:|:----------------:|
+|     1.5 | Image Variation  |  1    | 4           | 512x512      | DDIM |  50 | N/A | 4.97 | 0.36 |
+|      1.5 | Image-To-Image  |  1    | 4           | 512x512     | DDIM |  30 | N/A | 4.81 | 0.52 |
+|     1.5 | Image Inpainting  |  1    | 4          | 512x768      | DDIM |  35 | N/A | 2.69 | 0.26 |
+|      1.5 | ControlNet      |   1    | 4           | 512x512     | DDIM |  50 | N/A | 2.87 | 0.22 |
+|     XL |  Image Variation  | 1    | 4           | 1024x1024   | Euler EDM | 30 | N/A | 1.24 | 0.15 |
+|      XL | ControlNet        |  1    | 3           | 1024x1024  | Euler EDM |  30 | N/A | 2.55 | 0.25 |
 
 ## Acknowledgments
 

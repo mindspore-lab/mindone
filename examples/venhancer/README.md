@@ -25,7 +25,7 @@ conda install ffmpeg
 
 ## Demo
 
-The following videos are generated based on MindSpore and Ascend 910*.
+The following videos are generated based on MindSpore and Ascend Atlas 800T A2 machines.
 
 
 
@@ -76,7 +76,7 @@ bash scripts/run_infer.sh
 
 ### Performance
 
-Experiments are tested on ascend 910* with pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with pynative mode.
 
 - mindspore 2.5.0
 

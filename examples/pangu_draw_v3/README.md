@@ -69,7 +69,7 @@ python demo/pangu/pangu_sampling.py \
 
 ## Examples
 
-Note: sampled 40 steps by PanGu Draw 3.0 on Ascend 910*.
+Note: sampled 40 steps by PanGu Draw 3.0 on Ascend Atlas 800T A2 machines.
 
 <div align="center">
 <img src="https://github.com/Stability-AI/generative-models/assets/143256262/0a8b0b1a-3b54-4a35-beec-4163be61fa88" width="320" />
