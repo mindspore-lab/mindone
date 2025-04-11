@@ -108,7 +108,7 @@ class PatchEmbed(nn.Cell):
     def construct(self, latent):
         latent = self.proj(latent)
         if self.flatten:
-            latent = latent.flatten(2).transpose(1, 2)  # BCHW -> BNC
+            latent = mint.transpose(latent.flatten(2), 1, 2)  # BCHW -> BNC
         if self.layer_norm:
             latent = self.norm(latent)
         if self.use_pos_embed:
@@ -795,7 +795,8 @@ class UTransformer2DModel(ModelMixin, ConfigMixin):
 
         # Out ("upsample") blocks
         for out_block in self.transformer_out_blocks:
-            hidden_states = out_block["skip"](hidden_states, skips.pop())
+            hidden_states = out_block["skip"](hidden_states, skips[-1])
+            skips = skips[:-1]
             hidden_states = out_block["block"](
                 hidden_states,
                 encoder_hidden_states=encoder_hidden_states,

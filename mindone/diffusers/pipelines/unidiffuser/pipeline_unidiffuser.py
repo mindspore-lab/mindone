@@ -576,7 +576,7 @@ class UniDiffuserPipeline(DiffusionPipeline):
 
         if isinstance(generator, list):
             image_latents = [
-                self.vae.encode(image[i : i + 1]).latent_dist.sample(generator=generator[i])
+                self.vae.diag_gauss_dist.sample(self.vae.encode(image[i : i + 1])[0], generator=generator[i])
                 * self.vae.config.scaling_factor
                 for i in range(batch_size)
             ]

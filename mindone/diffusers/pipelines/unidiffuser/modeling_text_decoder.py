@@ -245,7 +245,7 @@ class UniDiffuserTextDecoder(ModelMixin, ConfigMixin, ModuleUtilsMixin):
 
         for i in range(entry_length):
             outputs = self.transformer(inputs_embeds=generated)
-            logits = outputs.logits
+            logits = outputs[0]
             logits = logits[:, -1, :] / (temperature if temperature > 0 else 1.0)
             logits = logits.softmax(-1).log()
 

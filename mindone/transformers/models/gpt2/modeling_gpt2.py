@@ -952,7 +952,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel, GenerationMixin):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-        return_dict: Optional[bool] = None,
+        return_dict: Optional[bool] = False,
     ) -> Union[Tuple, CausalLMOutputWithCrossAttentions]:
         r"""
         labels (`mindspore.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
