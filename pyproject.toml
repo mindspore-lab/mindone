@@ -80,8 +80,8 @@ python = "3.8"
 
 [tool.hatch.version]
 source = "bgd"
-base-version = "0.3.0.dev0"
-build-type = "dev"  # ['dev', 'release']
+base-version = "0.3.0"
+build-type = "release"  # ['dev', 'release']
 
 [tool.hatch.build.targets.sdist]
 exclude = [
