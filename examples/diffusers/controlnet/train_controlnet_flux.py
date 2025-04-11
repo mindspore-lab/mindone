@@ -35,6 +35,7 @@ from mindspore import nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
+from mindone.utils.config import str2bool
 from mindone.diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler, FluxTransformer2DModel
 from mindone.diffusers.models.controlnet_flux import FluxControlNetModel
 from mindone.diffusers.optimization import get_scheduler
@@ -418,6 +419,12 @@ def parse_args(input_args=None):
             " behaviors, so disable this argument if it causes any problems. More info:"
             " https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html"
         ),
+    )
+    parser.add_argument(
+        "dataset_iterator_do_copy",
+        default=True,
+        type=str2bool,
+        help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor with copy."
     )
     parser.add_argument(
         "--dataset_name",
@@ -1165,7 +1172,10 @@ def main():
         # Only show the progress bar once on each machine.
         disable=not is_master(args),
     )
-    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(
+        num_epochs=args.num_train_epochs - first_epoch,
+        do_copy=args.dataset_iterator_do_copy,
+        )
 
     for epoch in range(first_epoch, args.num_train_epochs):
         flux_controlnet.set_train(True)
