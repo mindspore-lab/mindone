@@ -4,7 +4,8 @@
 
 ## Overview
 This pipeline is designed to gather video-text pairs to train video generation models
-based on text inputs.
+based on text inputs. You may find
+this pipeline under `tools/t2v_curation/`.
 
 First, raw videos — whether sourced from the internet or public
 datasets — are divided into shorter clips using scene detection
