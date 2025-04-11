@@ -291,6 +291,7 @@ def Flux(
         model = MMDiTModel(config, dtype=dtype)
     if from_pretrained:
         sd, ckpt_path = load_state_dict(from_pretrained)
+        sd = {k.replace("network.", ""): v for k, v in sd.items()}
         m, u = load_param_into_net(model, sd)
         if m or u:
             _logger.info(f"net param not load {len(m)}: {m}")

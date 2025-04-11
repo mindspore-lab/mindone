@@ -22,7 +22,7 @@ import numpy as np
 
 from mindspore import PYNATIVE_MODE, Parameter, Tensor
 from mindspore import dtype as mstype
-from mindspore import get_context, mint, nn, ops, tensor
+from mindspore import get_context, lazy_inline, mint, nn, ops, tensor
 from mindspore.communication import get_group_size
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
@@ -226,6 +226,7 @@ class DoubleModulation(nn.Cell):
 
 
 class DoubleStreamBlock(nn.Cell):
+    @lazy_inline()
     def __init__(
         self,
         hidden_size: int,
@@ -394,6 +395,7 @@ class SingleStreamBlock(nn.Cell):
     https://arxiv.org/abs/2302.05442 and adapted modulation interface.
     """
 
+    @lazy_inline()
     def __init__(
         self,
         hidden_size: int,

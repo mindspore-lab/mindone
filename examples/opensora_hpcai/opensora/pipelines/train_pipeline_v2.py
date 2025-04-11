@@ -106,11 +106,11 @@ class DiffusionWithLoss(nn.Cell):
     ) -> Tensor:
         # TODO: prepare_visual_condition
 
-        t = mint.sigmoid(mint.randn((x.shape[0])))
+        t = mint.sigmoid(ops.randn(x.shape[0]))
         t = time_shift(shift_alpha, t)
         t = self._broadcast(t)
 
-        noise = self._broadcast(mint.randn_like(x))
+        noise = self._broadcast(ops.randn_like(x))
 
         t_rev = 1 - t
         x_t = t_rev[:, None, None] * x + (1 - (1 - self._sigma_min) * t_rev[:, None, None]) * noise
