@@ -14,7 +14,7 @@
         <link rel="prev" href="../marigold/">
       
       
-        <link rel="next" href="../panorama/">
+        <link rel="next" href="../musicldm/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Mochi 1 Preview - MindOne - One for All</title>
+        <title>Mochi - MindOne - One for All</title>
       
     
     
@@ -116,7 +116,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Mochi 1 Preview
+              Mochi
             
           </span>
         </div>
@@ -3293,6 +3293,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/mochi_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MochiTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/pixart_transformer2d/" class="md-nav__link">
         
   
@@ -3345,6 +3368,29 @@
   
   <span class="md-ellipsis">
     SD3Transformer2DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/sana_transformer2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaTransformer2DModel
     
   </span>
   
@@ -3792,6 +3838,29 @@
   
   <span class="md-ellipsis">
     AutoencoderKLLTXVideo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_mochi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AutoencoderKLMochi
     
   </span>
   
@@ -4965,7 +5034,7 @@
   
   
   <span class="md-ellipsis">
-    Mochi 1 Preview
+    Mochi
     
   </span>
   
@@ -4978,7 +5047,7 @@
   
   
   <span class="md-ellipsis">
-    Mochi 1 Preview
+    Mochi
     
   </span>
   
@@ -5004,6 +5073,24 @@
   <a href="#generating-videos-with-mochi-1-preview" class="md-nav__link">
     <span class="md-ellipsis">
       Generating videos with Mochi-1 Preview
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-a-lower-precision-variant-to-save-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a lower precision variant to save memory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-single-file-loading-with-the-mochi-transformer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using single file loading with the Mochi Transformer
     </span>
   </a>
   
@@ -5091,29 +5178,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../panorama/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    MultiDiffusion
-    
-  </span>
-  
-
-      </a>
     </li>
   
 
@@ -5247,6 +5311,29 @@
   
   <span class="md-ellipsis">
     PixArt-Σ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sana
     
   </span>
   
@@ -7240,6 +7327,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#using-a-lower-precision-variant-to-save-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using a lower precision variant to save memory
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#using-single-file-loading-with-the-mochi-transformer" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using single file loading with the Mochi Transformer
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#mindone.diffusers.MochiPipeline" class="md-nav__link">
     <span class="md-ellipsis">
       MochiPipeline
@@ -7387,6 +7492,57 @@
 <span class="n">frames</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">28</span><span class="p">,</span> <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">3.5</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
 
 <span class="n">export_to_video</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="s2">&quot;mochi.mp4&quot;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="using-a-lower-precision-variant-to-save-memory">Using a lower precision variant to save memory<a class="headerlink" href="#using-a-lower-precision-variant-to-save-memory" title="Permanent link">&para;</a></h2>
+<p>The following example will use the <code>bfloat16</code> variant of the model and requires 22GB VRAM to run. There is a slight drop in the quality of the generated video as a result.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ms</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MochiPipeline</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">export_to_video</span>
+
+<span class="n">pipe</span> <span class="o">=</span> <span class="n">MochiPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;genmo/mochi-1-preview&quot;</span><span class="p">,</span> <span class="n">variant</span><span class="o">=</span><span class="s2">&quot;bf16&quot;</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">bfloat16</span><span class="p">)</span>
+
+<span class="c1"># Enable memory savings</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">enable_vae_tiling</span><span class="p">()</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Close-up of a chameleon&#39;s eye, with its scaly skin changing color. Ultra high resolution 4k.&quot;</span>
+<span class="n">frames</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">num_frames</span><span class="o">=</span><span class="mi">85</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">export_to_video</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="s2">&quot;mochi.mp4&quot;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+</code></pre></div>
+<h2 id="using-single-file-loading-with-the-mochi-transformer">Using single file loading with the Mochi Transformer<a class="headerlink" href="#using-single-file-loading-with-the-mochi-transformer" title="Permanent link">&para;</a></h2>
+<p>You can use <code>from_single_file</code> to load the Mochi transformer in its original format.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>Diffusers currently doesn't support using the FP8 scaled versions of the Mochi single file checkpoints.</p>
+</div>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ms</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">MochiPipeline</span><span class="p">,</span> <span class="n">MochiTransformer3DModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">export_to_video</span>
+
+<span class="n">model_id</span> <span class="o">=</span> <span class="s2">&quot;genmo/mochi-1-preview&quot;</span>
+
+<span class="n">ckpt_path</span> <span class="o">=</span> <span class="s2">&quot;https://huggingface.co/Comfy-Org/mochi_preview_repackaged/blob/main/split_files/diffusion_models/mochi_preview_bf16.safetensors&quot;</span>
+
+<span class="n">transformer</span> <span class="o">=</span> <span class="n">MochiTransformer3DModel</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">ckpt_path</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">bfloat16</span><span class="p">)</span>
+
+<span class="n">pipe</span> <span class="o">=</span> <span class="n">MochiPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">model_id</span><span class="p">,</span>  <span class="n">transformer</span><span class="o">=</span><span class="n">transformer</span><span class="p">)</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">enable_vae_tiling</span><span class="p">()</span>
+
+<span class="n">frames</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span>
+    <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;Close-up of a chameleon&#39;s eye, with its scaly skin changing color. Ultra high resolution 4k.&quot;</span><span class="p">,</span>
+    <span class="n">negative_prompt</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="n">height</span><span class="o">=</span><span class="mi">480</span><span class="p">,</span>
+    <span class="n">width</span><span class="o">=</span><span class="mi">848</span><span class="p">,</span>
+    <span class="n">num_frames</span><span class="o">=</span><span class="mi">85</span><span class="p">,</span>
+    <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">4.5</span><span class="p">,</span>
+    <span class="n">num_videos_per_prompt</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">generator</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span>
+    <span class="n">max_sequence_length</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span>
+    <span class="n">output_type</span><span class="o">=</span><span class="s2">&quot;pil&quot;</span><span class="p">,</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">export_to_video</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="s2">&quot;output.mp4&quot;</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
 </code></pre></div>
 
 
@@ -10203,7 +10359,7 @@ denoised PIL image sequences of length <code>num_frames.</code> It can also be a
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2025 02:45:18">March 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 11, 2025 15:11:23">April 11, 2025</span>
   </span>
 
     
@@ -10282,13 +10438,13 @@ denoised PIL image sequences of length <code>num_frames.</code> It can also be a
         
         
           
-          <a href="../panorama/" class="md-footer__link md-footer__link--next" aria-label="Next: MultiDiffusion">
+          <a href="../musicldm/" class="md-footer__link md-footer__link--next" aria-label="Next: MusicLDM">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                MultiDiffusion
+                MusicLDM
               </div>
             </div>
             <div class="md-footer__button md-icon">

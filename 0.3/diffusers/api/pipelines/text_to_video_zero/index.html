@@ -3293,6 +3293,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/mochi_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    MochiTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/pixart_transformer2d/" class="md-nav__link">
         
   
@@ -3345,6 +3368,29 @@
   
   <span class="md-ellipsis">
     SD3Transformer2DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/sana_transformer2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    SanaTransformer2DModel
     
   </span>
   
@@ -3792,6 +3838,29 @@
   
   <span class="md-ellipsis">
     AutoencoderKLLTXVideo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_mochi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AutoencoderKLMochi
     
   </span>
   
@@ -4956,30 +5025,7 @@
   
   
   <span class="md-ellipsis">
-    Mochi 1 Preview
-    
-  </span>
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../panorama/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    MultiDiffusion
+    Mochi
     
   </span>
   
@@ -5118,6 +5164,29 @@
   
   <span class="md-ellipsis">
     PixArt-Σ
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sana/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sana
     
   </span>
   
@@ -7638,8 +7707,7 @@ about a model's potential harms.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">285</span>
-<span class="normal">286</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">286</span>
 <span class="normal">287</span>
 <span class="normal">288</span>
 <span class="normal">289</span>
@@ -8497,7 +8565,8 @@ about a model's potential harms.</p>
             <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">callback_on_step_end_tensor_inputs</span>
         <span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;`callback_on_step_end_tensor_inputs` has to be in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="si">}</span><span class="s2">, but found </span><span class="si">{</span><span class="p">[</span><span class="n">k</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">callback_on_step_end_tensor_inputs</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;`callback_on_step_end_tensor_inputs` has to be in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="si">}</span><span class="s2">, but found </span><span class="se">\</span>
+<span class="s2">                    </span><span class="si">{</span><span class="p">[</span><span class="n">k</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">callback_on_step_end_tensor_inputs</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">prompt_embeds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -8743,7 +8812,7 @@ about a model's potential harms.</p>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler_copy</span>
         <span class="n">x_1k_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backward_loop</span><span class="p">(</span>
-            <span class="n">timesteps</span><span class="o">=</span><span class="n">timesteps</span><span class="p">[</span><span class="o">-</span><span class="n">t1</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:],</span>
+            <span class="n">timesteps</span><span class="o">=</span><span class="n">timesteps</span><span class="p">[</span><span class="o">-</span><span class="n">t1</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:],</span>
             <span class="n">prompt_embeds</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
             <span class="n">latents</span><span class="o">=</span><span class="n">x_1k_t1</span><span class="p">,</span>
             <span class="n">guidance_scale</span><span class="o">=</span><span class="n">guidance_scale</span><span class="p">,</span>
@@ -8877,9 +8946,7 @@ about a model's potential harms.</p>
             <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">mint</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
                 <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
             <span class="p">):</span>
-                <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span>
-                    <span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-                <span class="p">)</span>
+                <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
                     <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span><span class="si">}</span><span class="s2"> tokens: </span><span class="si">{</span><span class="n">removed_text</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -9426,9 +9493,7 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">521</span>
 <span class="normal">522</span>
 <span class="normal">523</span>
 <span class="normal">524</span>
@@ -9651,7 +9716,9 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 <span class="normal">741</span>
 <span class="normal">742</span>
 <span class="normal">743</span>
-<span class="normal">744</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">video_length</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8</span><span class="p">,</span>
@@ -9847,7 +9914,7 @@ video contains "not-safe-for-work" (nsfw) content..</p>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span> <span class="o">=</span> <span class="n">scheduler_copy</span>
     <span class="n">x_1k_0</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">backward_loop</span><span class="p">(</span>
-        <span class="n">timesteps</span><span class="o">=</span><span class="n">timesteps</span><span class="p">[</span><span class="o">-</span><span class="n">t1</span> <span class="o">-</span> <span class="mi">1</span><span class="p">:],</span>
+        <span class="n">timesteps</span><span class="o">=</span><span class="n">timesteps</span><span class="p">[</span><span class="o">-</span><span class="n">t1</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:],</span>
         <span class="n">prompt_embeds</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
         <span class="n">latents</span><span class="o">=</span><span class="n">x_1k_t1</span><span class="p">,</span>
         <span class="n">guidance_scale</span><span class="o">=</span><span class="n">guidance_scale</span><span class="p">,</span>
@@ -10038,8 +10105,7 @@ every step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">370</span>
-<span class="normal">371</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">371</span>
 <span class="normal">372</span>
 <span class="normal">373</span>
 <span class="normal">374</span>
@@ -10111,7 +10177,8 @@ every step.</p>
 <span class="normal">440</span>
 <span class="normal">441</span>
 <span class="normal">442</span>
-<span class="normal">443</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">backward_loop</span><span class="p">(</span>
+<span class="normal">443</span>
+<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">backward_loop</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">latents</span><span class="p">,</span>
     <span class="n">timesteps</span><span class="p">,</span>
@@ -10356,9 +10423,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">780</span>
-<span class="normal">781</span>
-<span class="normal">782</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">782</span>
 <span class="normal">783</span>
 <span class="normal">784</span>
 <span class="normal">785</span>
@@ -10597,9 +10662,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
         <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">mint</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
             <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
         <span class="p">):</span>
-            <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span>
-                <span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-            <span class="p">)</span>
+            <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
             <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                 <span class="s2">&quot;The following part of your input was truncated because CLIP can only handle sequences up to&quot;</span>
                 <span class="sa">f</span><span class="s2">&quot; </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span><span class="si">}</span><span class="s2"> tokens: </span><span class="si">{</span><span class="n">removed_text</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -10800,8 +10863,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/text_to_video_synthesis/pipeline_text_to_video_zero.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">347</span>
-<span class="normal">348</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">348</span>
 <span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
@@ -10821,7 +10883,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 <span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
-<span class="normal">368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">forward_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_t0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">,</span> <span class="n">generator</span><span class="p">):</span>
+<span class="normal">368</span>
+<span class="normal">369</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">forward_loop</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x_t0</span><span class="p">,</span> <span class="n">t0</span><span class="p">,</span> <span class="n">t1</span><span class="p">,</span> <span class="n">generator</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Perform DDPM forward process from time t0 to t1. This is the same as adding noise with corresponding variance.</span>
 
