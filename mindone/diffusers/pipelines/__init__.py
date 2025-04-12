@@ -201,7 +201,7 @@ _import_structure = {
         "VideoToVideoSDPipeline",
     ],
     "unclip": ["UnCLIPImageVariationPipeline", "UnCLIPPipeline"],
-    ["unidiffuser"]: [
+    "unidiffuser": [
         "ImageTextPipelineOutput",
         "UniDiffuserModel",
         "UniDiffuserPipeline",
