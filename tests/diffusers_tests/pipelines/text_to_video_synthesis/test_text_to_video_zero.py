@@ -22,15 +22,15 @@ test_cases = [
 @ddt
 @slow
 class StableTextToVideoZeroPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
-
     @data(*test_cases)
     @unpack
     def test_text_to_video_zero(self, mode, dtype):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipe = TextToVideoZeroPipeline.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5",
-                                                       mindspore_dtype=ms_dtype)
+        pipe = TextToVideoZeroPipeline.from_pretrained(
+            "stable-diffusion-v1-5/stable-diffusion-v1-5", mindspore_dtype=ms_dtype
+        )
         pipe.scheduler = DDIMScheduler.from_config(pipe.scheduler.config)
 
         prompt = "A bear is playing a guitar on Times Square"

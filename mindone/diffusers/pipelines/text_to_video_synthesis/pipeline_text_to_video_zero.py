@@ -1,13 +1,14 @@
 import copy
 import inspect
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Union, Tuple
+from typing import Callable, List, Optional, Union
 
 import numpy as np
 import PIL.Image
+from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
+
 import mindspore as ms
 from mindspore import mint, ops
-from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer
 
 from ...image_processor import VaeImageProcessor
 from ...loaders import StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
@@ -17,7 +18,6 @@ from ...utils import BaseOutput, logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionSafetyChecker
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -226,7 +226,8 @@ def warp_single_latent(latent, reference_flow):
     # mint.nn.functional.grid_sample not support dtype float16.
     if latent.dtype == ms.float16:
         warped = mint.nn.functional.grid_sample(
-            latent.to(ms.float32), coords_t0.to(ms.float32), mode="nearest", padding_mode="reflection").to(ms.float16)
+            latent.to(ms.float32), coords_t0.to(ms.float32), mode="nearest", padding_mode="reflection"
+        ).to(ms.float16)
     else:
         warped = mint.nn.functional.grid_sample(latent, coords_t0, mode="nearest", padding_mode="reflection")
     return warped
@@ -466,7 +467,8 @@ class TextToVideoZeroPipeline(
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found \
+                    {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -712,7 +714,7 @@ class TextToVideoZeroPipeline(
 
         self.scheduler = scheduler_copy
         x_1k_0 = self.backward_loop(
-            timesteps=timesteps[-t1 - 1:],
+            timesteps=timesteps[-t1 - 1 :],
             prompt_embeds=prompt_embeds,
             latents=x_1k_t1,
             guidance_scale=guidance_scale,
@@ -846,9 +848,7 @@ class TextToVideoZeroPipeline(
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not mint.equal(
                 text_input_ids, untruncated_ids
             ):
-                removed_text = self.tokenizer.batch_decode(
-                    untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1]
-                )
+                removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     "The following part of your input was truncated because CLIP can only handle sequences up to"
                     f" {self.tokenizer.model_max_length} tokens: {removed_text}"

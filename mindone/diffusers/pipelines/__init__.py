@@ -199,6 +199,7 @@ _import_structure = {
         "TextToVideoSDPipeline",
         "TextToVideoZeroSDXLPipeline",
         "VideoToVideoSDPipeline",
+        "TextToVideoZeroPipeline",
     ],
     "unclip": ["UnCLIPImageVariationPipeline", "UnCLIPPipeline"],
     "unidiffuser": [
@@ -212,7 +213,6 @@ _import_structure = {
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ],
-    "text_to_video_synthesis" : ["TextToVideoZeroPipeline"],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -383,11 +383,15 @@ if TYPE_CHECKING:
     )
     from .stable_video_diffusion import StableVideoDiffusionPipeline
     from .t2i_adapter import StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline
-    from .text_to_video_synthesis import TextToVideoSDPipeline, TextToVideoZeroSDXLPipeline, VideoToVideoSDPipeline
+    from .text_to_video_synthesis import (
+        TextToVideoSDPipeline,
+        TextToVideoZeroPipeline,
+        TextToVideoZeroSDXLPipeline,
+        VideoToVideoSDPipeline,
+    )
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
-    from .text_to_video_synthesis import TextToVideoZeroPipeline
 else:
     import sys
 
