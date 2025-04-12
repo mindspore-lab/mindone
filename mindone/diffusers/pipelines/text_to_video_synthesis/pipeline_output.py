@@ -3,11 +3,10 @@ from typing import List, Union
 
 import numpy as np
 import PIL
+
 import mindspore as ms
 
-from ...utils import (
-    BaseOutput,
-)
+from ...utils import BaseOutput
 
 
 @dataclass

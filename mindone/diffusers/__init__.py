@@ -525,6 +525,7 @@ if TYPE_CHECKING:
         StableUnCLIPPipeline,
         StableVideoDiffusionPipeline,
         TextToVideoSDPipeline,
+        TextToVideoZeroPipeline,
         TextToVideoZeroSDXLPipeline,
         UnCLIPImageVariationPipeline,
         UnCLIPPipeline,
@@ -535,7 +536,6 @@ if TYPE_CHECKING:
         WuerstchenCombinedPipeline,
         WuerstchenDecoderPipeline,
         WuerstchenPriorPipeline,
-        TextToVideoZeroPipeline,
     )
     from .schedulers import (
         AmusedScheduler,
