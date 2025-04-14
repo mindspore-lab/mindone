@@ -24,6 +24,7 @@ def build_vae_var(
     init_adaln_gamma=1e-5,
     init_head=0.02,
     init_std=-1,  # init_std < 0: automated
+    use_recompute=False,
 ) -> Tuple[VQVAE, VAR]:
     heads = depth
     width = depth * 64
@@ -60,6 +61,7 @@ def build_vae_var(
         cond_drop_rate=0.1,
         attn_l2_norm=attn_l2_norm,
         patch_nums=patch_nums,
+        use_recompute=use_recompute,
     )
     var_wo_ddp.init_weights(
         init_adaln=init_adaln, init_adaln_gamma=init_adaln_gamma, init_head=init_head, init_std=init_std
