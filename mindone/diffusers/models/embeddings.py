@@ -1139,7 +1139,8 @@ def get_1d_rotary_pos_embed(
         return freqs_cos, freqs_sin
     else:
         # lumina
-        freqs_cis = ops.polar(ops.ones_like(freqs), freqs)  # complex64     # [S, D/2]
+        # TODO: the dtype of abs required to be float32
+        freqs_cis = ops.polar(ops.ones_like(freqs).float(), freqs.float())  # complex64     # [S, D/2]
         return freqs_cis
 
 
@@ -1190,7 +1191,7 @@ def apply_rotary_emb(
         return out
     else:
         # used for lumina
-        x_rotated = view_as_complex(x.float().reshape(*x.shape[:-1], -1, 2))
+        x_rotated = view_as_complex(x.float().reshape(x.shape[:-1] + (-1, 2)))
         freqs_cis = freqs_cis.unsqueeze(2)
         x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
 

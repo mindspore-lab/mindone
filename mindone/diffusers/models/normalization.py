@@ -208,14 +208,13 @@ class LuminaRMSNormZero(nn.Cell):
             4 * embedding_dim,
             has_bias=True,
         )
-        self.norm = RMSNorm(embedding_dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm = RMSNorm(embedding_dim, eps=norm_eps)
 
     def construct(
         self,
         x: ms.Tensor,
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
-        # emb = self.emb(timestep, encoder_hidden_states, encoder_mask)
         emb = self.linear(self.silu(emb))
         scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, axis=1)
         x = self.norm(x) * (1 + scale_msa[:, None])
