@@ -18,6 +18,7 @@ from . import (
     speecht5,
     t5,
     umt5,
+    vits,
     wav2vec2,
     xlm_roberta,
 )

@@ -124,5 +124,6 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin
