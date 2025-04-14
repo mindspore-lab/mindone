@@ -720,10 +720,11 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--force_resolution", action="store_true")
     parser.add_argument("--trained_data_global_step", type=int, default=None)
     parser.add_argument(
-        "--use_decord",
-        type=str2bool,
-        default=True,
-        help="whether to use decord to load videos. If not, use opencv to load videos.",
+        "--video_reader",
+        type=str,
+        default="decord",
+        choices=["decord", "opencv", "pyav"],
+        help="what method to use to load videos. Default is decord.",
     )
 
     # text encoder & vae & diffusion model
