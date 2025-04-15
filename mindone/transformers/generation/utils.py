@@ -889,21 +889,9 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-
-                if not self._supports_default_dynamic_cache():  # use tuple cache
-                    cur_lens = attention_mask.sum(-1)
-                    for batch_idx in range(attention_mask.shape[0]):
-                        cur_len = int(cur_lens[batch_idx])
-                        if cur_len < attention_mask.shape[-1]:
-                            attention_mask[batch_idx, cur_len] = 1
-                        else:
-                            attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
-                            attention_mask[batch_idx, -1:] = 1
-                    model_kwargs["attention_mask"] = attention_mask
-                else:  # use Cache class
-                    model_kwargs["attention_mask"] = ops.cat(
-                        [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
-                    )
+                model_kwargs["attention_mask"] = ops.cat(
+                    [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
+                )
         else:
             # update decoder attention mask
             if "decoder_attention_mask" in model_kwargs:
@@ -1695,31 +1683,6 @@ class GenerationMixin:
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
-        # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        if not self._supports_default_dynamic_cache():  # if tuple cache
-            (
-                padded_input_ids,
-                padded_inputs_embeds,
-                padded_labels,
-                padded_position_ids,
-                padded_attention_mask,
-            ) = self._padding_inputs(
-                generation_config,
-                input_ids,
-                model_kwargs.get("inputs_embeds", None),
-                model_kwargs.get("labels", None),
-                model_kwargs.get("position_ids", None),
-                model_kwargs.get("attention_mask", None),
-            )
-            input_ids = padded_input_ids
-            model_kwargs["attention_mask"] = padded_attention_mask
-            if model_kwargs.get("inputs_embeds", None) is not None:
-                model_kwargs["inputs_embeds"] = padded_inputs_embeds
-            if model_kwargs.get("labels", None) is not None:
-                model_kwargs["labels"] = padded_labels
-            if model_kwargs.get("position_ids", None) is not None:
-                model_kwargs["position_ids"] = padded_position_ids
-
         # keep track of which sequences are already finished
         batch_size = input_ids.shape[0]
         this_peer_finished = False
@@ -1733,7 +1696,7 @@ class GenerationMixin:
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
-            model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
+            model_inputs = self.prepare_inputs_for_generation(input_ids, step=step, **model_kwargs)
 
             # forward pass to get next token
             outputs = self(
