@@ -2,7 +2,7 @@
 Use small-size video input to verify the correctness of the Hunyuan VAE.
 Please run pytorch hunyuan_vae with the same settings as the mindspore one.
 
-python tests/test_vae.py --video_path test.mp4 --output_pt_path output_pt.npz
+python tests/test_hunyuan_vae.py --video_path test.mp4 --output_pt_path output_pt.npz
 """
 import argparse
 import os

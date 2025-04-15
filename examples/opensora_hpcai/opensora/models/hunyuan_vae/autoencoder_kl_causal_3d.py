@@ -595,7 +595,7 @@ def CausalVAE3D_HUNYUAN(
     dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[dtype]
     config = AutoEncoder3DConfig(from_pretrained=from_pretrained, **kwargs)
     with nn.no_init_parameters():
-        model = AutoencoderKLCausal3D(config).to(dtype)  # TODO: check model dtype
+        model = AutoencoderKLCausal3D(config).to(dtype)
     if from_pretrained:
         sd, ckpt_path = load_state_dict(from_pretrained)
         m, u = load_param_into_net(model, sd)
