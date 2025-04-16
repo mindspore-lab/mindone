@@ -264,7 +264,7 @@ class Qwen2Attention(nn.Cell):
         self.is_causal = True
         self.attention_dropout = config.attention_dropout
 
-        # for dynamic shape
+        # # this is commented for solving control flow problem in dynamic shape scene
         # if (self.head_dim * self.num_heads) != self.hidden_size:
         #     raise ValueError(
         #         f"hidden_size must be divisible by num_heads (got `hidden_size`: {self.hidden_size}"
@@ -305,7 +305,7 @@ class Qwen2Attention(nn.Cell):
 
         kv_seq_len = key_states.shape[-2]  # seq/1
         if past_key_value is not None:
-            # for dynamic shape
+            # this is commented for solving control flow problem in dynamic shape scene
             # if self.layer_idx is None:
             #     raise ValueError(
             #         f"The cache structure has changed since version v4.36. If you are using {self.__class__.__name__} "
@@ -341,7 +341,7 @@ class Qwen2Attention(nn.Cell):
         attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
-        # for dynamic shape
+        # this is commented for solving control flow problem in dynamic shape scene
         # if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
         #     raise ValueError(
         #         f"`attn_output` should be of size {(bsz, self.num_heads, q_len, self.head_dim)}, but is"
@@ -421,7 +421,7 @@ class Qwen2PageAttention(Qwen2Attention):
 
 QWEN2_ATTENTION_CLASSES = {
     "eager": Qwen2Attention,
-    "page_attention": Qwen2PageAttention,
+    "paged_attention": Qwen2PageAttention,
 }
 
 
@@ -834,7 +834,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-        if self.config._attn_implementation == "page_attention":
+        if self.config._attn_implementation == "paged_attention":
             self.freqs_mgr = FreqsMgr(
                 head_dim = config.hidden_size // config.num_attention_heads,
                 seq_length=config.max_position_embeddings,
@@ -1020,7 +1020,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         inputs_embeds=None,
         cache_position=None,
         use_cache=False,
-        step=0,
         **kwargs,
     ):
         past_length = 0
@@ -1095,8 +1094,9 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
                 "attention_mask": attention_mask,
             }
         )
-        if self.config._attn_implementation == "page_attention":
+        if self.config._attn_implementation == "paged_attention":
             bs, seq_len = input_ids.shape
+            step = kwargs.get("step", None)
             if step == 0:
                 self.enable_dynamic_shape()
 
@@ -1212,7 +1212,7 @@ class Qwen2ForSequenceClassification(Qwen2PreTrainedModel):
         else:
             batch_size = inputs_embeds.shape[0]
 
-        # for dynamic shape
+        # this is commented for solving control flow problem in dynamic shape scene
         # if self.config.pad_token_id is None and batch_size != 1:
         #     raise ValueError("Cannot handle batch sizes > 1 if no padding token is defined.")
         if self.config.pad_token_id is None:

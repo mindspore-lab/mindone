@@ -9,7 +9,7 @@ model_name = "/mnt/disk2/wcr/Qwen2.5-14B-Instruct"
 model = Qwen2ForCausalLM.from_pretrained(
     model_name,
     mindspore_dtype = ms.bfloat16,
-    attn_implementation = "page_attention",
+    attn_implementation = "paged_attention",
 )
 
 # infer boost

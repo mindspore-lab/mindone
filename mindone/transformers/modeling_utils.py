@@ -675,7 +675,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
                 )
 
-            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2", "page_attention"]:
+            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2", "paged_attention"]:
                 message = (
                     f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
                     f'The only possible arguments are `attn_implementation="eager"`'
@@ -709,8 +709,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 config,
                 hard_check_only=False if requested_attn_implementation is None else True,
             )
-        elif requested_attn_implementation == "page_attention":
-            config._attn_implementation = "page_attention"
         else:
             config._attn_implementation = "eager"
 
