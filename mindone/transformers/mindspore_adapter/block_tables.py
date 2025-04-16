@@ -2,11 +2,11 @@
 from typing import List
 
 import numpy as np
-
 from transformers import logging
-logger = logging.get_logger(__name__)
 
 from .cache_engine import BlockMemPool, CacheEngine
+
+logger = logging.get_logger(__name__)
 
 
 class BlockTables:
@@ -43,9 +43,10 @@ class BlockTables:
         self.cache_engines.clear()
         if batch_size * self.seq_length // self.block_size > self.num_blocks:
             logger.warning(
-                f"Argument `num blocks` is less than the maximum possible block numbers. "
-                f"May cause `block pool is out of memory` error. "
-                f"Please make sure batch_size * seq_length <= block_size * num_blocks. ")
+                "Argument `num blocks` is less than the maximum possible block numbers. "
+                "May cause `block pool is out of memory` error. "
+                "Please make sure batch_size * seq_length <= block_size * num_blocks. "
+            )
         for _ in range(batch_size):
             self.cache_engines.append(CacheEngine(self.block_size, self.block_mem_pool))
         logger.info("init cache engine success.")
@@ -58,8 +59,9 @@ class BlockTables:
             if not is_finished[i]:
                 logger.debug("prepare cache for full: %s", batch_valid_length[i])
                 self.cache_engines[i].prepare_cache(batch_valid_length[i])
-            padded_table = self.cache_engines[i].block_table + \
-                            [-1] * (self.max_num_blocks_per_seq - len(self.cache_engines[i].block_table))
+            padded_table = self.cache_engines[i].block_table + [-1] * (
+                self.max_num_blocks_per_seq - len(self.cache_engines[i].block_table)
+            )
             block_tables.append(padded_table)
         block_tables = np.array(block_tables, dtype=np.int32)
 

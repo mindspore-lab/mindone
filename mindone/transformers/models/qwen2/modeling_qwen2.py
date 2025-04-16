@@ -20,9 +20,9 @@
 """Mindspore Qwen2 model."""
 
 import math
-import numpy as np
 from typing import List, Optional, Tuple, Union
 
+import numpy as np
 from transformers import Qwen2Config, logging
 
 import mindspore as ms
@@ -30,6 +30,10 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
+from mindone.transformers.mindspore_adapter.block_tables import BlockTables
+from mindone.transformers.mindspore_adapter.freqs import FreqsMgr
+from mindone.transformers.mindspore_adapter.infer_attention import InferAttention
+from mindone.transformers.mindspore_adapter.mask import LowerTriangularMaskWithDynamic
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
@@ -38,10 +42,6 @@ from mindone.transformers.modeling_outputs import (
     TokenClassifierOutput,
 )
 from mindone.transformers.modeling_utils import MSPreTrainedModel
-from mindone.transformers.mindspore_adapter.infer_attention import InferAttention
-from mindone.transformers.mindspore_adapter.freqs import FreqsMgr
-from mindone.transformers.mindspore_adapter.block_tables import BlockTables
-from mindone.transformers.mindspore_adapter.mask import LowerTriangularMaskWithDynamic
 
 logger = logging.get_logger(__name__)
 
@@ -373,18 +373,18 @@ class Qwen2PageAttention(Qwen2Attention):
             config.num_attention_heads,
             config.hidden_size // config.num_attention_heads,
             config.num_key_value_heads,
-            seq_length = config.max_position_embeddings,
-            pa_n_head_split = config.num_attention_heads,
-            pa_n_kv_head_split = config.hidden_size // config.num_attention_heads,
-            scale_value = 1./(math.sqrt(config.hidden_size // config.num_attention_heads)),
-            pre_tokens = 2147483647,
-            next_tokens = 0,
-            block_size = 32,
-            num_blocks = 1024,
-            is_dynamic = True,
-            use_flash_attention = True,
-            rotary_cos_format= 2,
-            compute_dtype = config.mindspore_dtype,
+            seq_length=config.max_position_embeddings,
+            pa_n_head_split=config.num_attention_heads,
+            pa_n_kv_head_split=config.hidden_size // config.num_attention_heads,
+            scale_value=1.0 / (math.sqrt(config.hidden_size // config.num_attention_heads)),
+            pre_tokens=2147483647,
+            next_tokens=0,
+            block_size=32,
+            num_blocks=1024,
+            is_dynamic=True,
+            use_flash_attention=True,
+            rotary_cos_format=2,
+            compute_dtype=config.mindspore_dtype,
         )
 
         self.is_first_iteration = True
@@ -405,19 +405,28 @@ class Qwen2PageAttention(Qwen2Attention):
         batch_valid_length: Optional = None,
         **kwargs,
     ):
-
         bsz, q_len, _ = hidden_states.shape
 
         query_states = self.q_proj(hidden_states)
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-        attn_output = self.infer_attention(query_states, key_states, value_states, batch_valid_length, block_tables, slot_mapping,
-                                           freqs_cis, mask, q_seq_lens=None)
+        attn_output = self.infer_attention(
+            query_states,
+            key_states,
+            value_states,
+            batch_valid_length,
+            block_tables,
+            slot_mapping,
+            freqs_cis,
+            mask,
+            q_seq_lens=None,
+        )
 
         attn_output = self.o_proj(attn_output)
 
         return attn_output, None, past_key_value
+
 
 QWEN2_ATTENTION_CLASSES = {
     "eager": Qwen2Attention,
@@ -836,12 +845,12 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
 
         if self.config._attn_implementation == "paged_attention":
             self.freqs_mgr = FreqsMgr(
-                head_dim = config.hidden_size // config.num_attention_heads,
+                head_dim=config.hidden_size // config.num_attention_heads,
                 seq_length=config.max_position_embeddings,
                 max_position_embedding=config.max_position_embeddings,
                 rotary_dtype=config.mindspore_dtype,
                 theta=config.rope_theta,
-                is_dynamic=True
+                is_dynamic=True,
             )
 
             self.casual_mask = LowerTriangularMaskWithDynamic(
@@ -902,8 +911,22 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         slot_mapping = Tensor(shape=[None], dtype=ms.int32)
         batch_valid_length = ms.mutable(Tensor(shape=[None], dtype=ms.int32))
 
-        self.set_inputs(input_ids, attention_mask, position_ids, past_key_values, inputs_embeds, labels, use_cache, output_attentions,
-                        output_hidden_states, return_dict, cache_position, block_tables, slot_mapping, batch_valid_length)
+        self.set_inputs(
+            input_ids,
+            attention_mask,
+            position_ids,
+            past_key_values,
+            inputs_embeds,
+            labels,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+            return_dict,
+            cache_position,
+            block_tables,
+            slot_mapping,
+            batch_valid_length,
+        )
 
     def construct(
         self,
@@ -1108,9 +1131,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
                 max_input_length = self.config.max_position_embeddings
                 self.valid_length_each_example = ms.tensor(seq_len).reshape(bs)
                 block_tables, slot_mapping = self.block_mgr.assemble_pa_full_inputs(
-                    max_input_length,
-                    self.valid_length_each_example,
-                    [False]
+                    max_input_length, self.valid_length_each_example, [False]
                 )
                 slot_mapping = np.delete(slot_mapping, np.where(slot_mapping == -1))
 
@@ -1120,17 +1141,12 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
                 self.phase = "prefill"
                 self.add_flags_custom(True)
             else:
-                model_inputs.update(
-                    {
-                        "input_ids": input_ids[:, -1].reshape(bs, 1)
-                    }
-                )
+                model_inputs.update({"input_ids": input_ids[:, -1].reshape(bs, 1)})
 
                 # get slot mapping and block tables
                 self.valid_length_each_example += 1
                 block_tables, slot_mapping = self.block_mgr.assemble_pa_inc_inputs(
-                    self.valid_length_each_example,
-                    [False]
+                    self.valid_length_each_example, [False]
                 )
 
                 # set batch valid length

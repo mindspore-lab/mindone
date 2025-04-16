@@ -1,15 +1,14 @@
 """Infer Attention Layer"""
 import math
 
-import mindspore as ms
 import mindspore.common.dtype as mstype
 from mindspore import ops
 from mindspore.common.tensor import Tensor
 from mindspore.nn.cell import Cell
 from mindspore.ops import operations as P
 
-from .paged_attention_mgr import PagedAttentionMgr
 from .flash_attention import FlashAttention
+from .paged_attention_mgr import PagedAttentionMgr
 
 
 class InferRotaryEmbedding(Cell):
@@ -38,6 +37,7 @@ class InferRotaryEmbedding(Cell):
         """Forward of rotary position embedding."""
         freqs_cos, freqs_sin, _ = freqs_cis
         return self.rotary_embedding_op(query, key, freqs_cos, freqs_sin, batch_valid_length)
+
 
 class InferAttention(Cell):
     """Infer Attention Layer.
@@ -129,29 +129,30 @@ class InferAttention(Cell):
         ``Ascend910B``
     """
 
-    def __init__(self,
-                 n_head,
-                 head_dim,
-                 n_kv_head,
-                 pa_n_head_split=None,
-                 pa_n_kv_head_split=None,
-                 keep_prob=1.0,
-                 scale_value=1.0,
-                 pre_tokens=2147483647,
-                 next_tokens=2147483647,
-                 sparse_mode=0,
-                 block_size=16,
-                 num_blocks=1024,
-                 seq_length=-1,
-                 is_dynamic=True,
-                 use_flash_attention=True,
-                 use_alibi_mask=False,
-                 use_rope_rotary_emb=True,
-                 rotary_cos_format=0,
-                 compute_dtype=mstype.float16,
-                 parallel_decoding=False,
-                 chunk_prefill=False,
-                 ):
+    def __init__(
+        self,
+        n_head,
+        head_dim,
+        n_kv_head,
+        pa_n_head_split=None,
+        pa_n_kv_head_split=None,
+        keep_prob=1.0,
+        scale_value=1.0,
+        pre_tokens=2147483647,
+        next_tokens=2147483647,
+        sparse_mode=0,
+        block_size=16,
+        num_blocks=1024,
+        seq_length=-1,
+        is_dynamic=True,
+        use_flash_attention=True,
+        use_alibi_mask=False,
+        use_rope_rotary_emb=True,
+        rotary_cos_format=0,
+        compute_dtype=mstype.float16,
+        parallel_decoding=False,
+        chunk_prefill=False,
+    ):
         super(InferAttention, self).__init__()
         self.n_head = n_head
         self.head_dim = head_dim
@@ -198,26 +199,29 @@ class InferAttention(Cell):
             self.input_layout = "BSH"
             self.use_attention_mask = False
 
-        self.flash_attention = FlashAttention(head_num=self.n_head,
-                                              pre_tokens=self.pre_tokens,
-                                              next_tokens=self.next_tokens,
-                                              keep_prob=self.keep_prob,
-                                              scale_value=self.scale_value,
-                                              sparse_mode=self.sparse_mode,
-                                              use_attention_mask=self.use_attention_mask,
-                                              use_alibi_mask=self.use_alibi_mask,
-                                              input_layout=self.input_layout)
+        self.flash_attention = FlashAttention(
+            head_num=self.n_head,
+            pre_tokens=self.pre_tokens,
+            next_tokens=self.next_tokens,
+            keep_prob=self.keep_prob,
+            scale_value=self.scale_value,
+            sparse_mode=self.sparse_mode,
+            use_attention_mask=self.use_attention_mask,
+            use_alibi_mask=self.use_alibi_mask,
+            input_layout=self.input_layout,
+        )
 
         kv_shape = (self.num_blocks, self.block_size, self.n_kv_head, self.head_dim)
-        self.paged_attention_mgr = PagedAttentionMgr(self.pa_n_head_split,
-                                                     self.head_dim,
-                                                     self.pa_n_kv_head_split,
-                                                     kv_shape,
-                                                     seq_length,
-                                                     compute_dtype=self.compute_dtype,
-                                                     parallel_decoding=parallel_decoding,
-                                                     chunk_prefill=chunk_prefill,
-                                                     )
+        self.paged_attention_mgr = PagedAttentionMgr(
+            self.pa_n_head_split,
+            self.head_dim,
+            self.pa_n_kv_head_split,
+            kv_shape,
+            seq_length,
+            compute_dtype=self.compute_dtype,
+            parallel_decoding=parallel_decoding,
+            chunk_prefill=chunk_prefill,
+        )
         if use_rope_rotary_emb:
             self.rotary_embedding = InferRotaryEmbedding(self.rotary_cos_format)
 
@@ -312,7 +316,7 @@ class InferAttention(Cell):
         raise ValueError("Prefill attention input layout:{} is not supported.".format(self.input_layout))
 
     def _core_attention_bsh(self, query, key, value, attn_mask, alibi_mask):
-        """ flash attention with bsh format """
+        """flash attention with bsh format"""
         # [B, S, H]
         bs, _, _ = query.shape
         key_seq_len = key.shape[1]
@@ -337,8 +341,9 @@ class InferAttention(Cell):
                 key = self.reshape(key, (-1, self.n_kv_head * self.head_dim))
                 value = self.reshape(value, (-1, self.n_kv_head * self.head_dim))
                 # [actual_seq_len, H]
-                output = self.flash_attention(query, key, value, attn_mask, alibi_mask, None, None, actual_seq_qlen,
-                                              actual_seq_kvlen)
+                output = self.flash_attention(
+                    query, key, value, attn_mask, alibi_mask, None, None, actual_seq_qlen, actual_seq_kvlen
+                )
                 # [actual_seq_len, H] -> [1, actual_seq_len, H]
                 output = self.reshape(output, (bs, seq_len, self.n_head * self.head_dim))
                 return output
@@ -352,15 +357,29 @@ class InferAttention(Cell):
 
         raise ValueError("FlashAttention input layout:{} is not supported.".format(self.input_layout))
 
-    def _incre_attention(self, query, batch_valid_length, block_tables, alibi_mask=None, attn_mask=None,
-                         q_seq_lens=None):
+    def _incre_attention(
+        self, query, batch_valid_length, block_tables, alibi_mask=None, attn_mask=None, q_seq_lens=None
+    ):
         if self.use_alibi_mask:
             return self.paged_attention_mgr.paged_attn_with_alibi(query, batch_valid_length, block_tables, alibi_mask)
-        return self.paged_attention_mgr.paged_attn(query, batch_valid_length, block_tables, attn_mask=attn_mask,
-                                                   q_seq_lens=q_seq_lens)
+        return self.paged_attention_mgr.paged_attn(
+            query, batch_valid_length, block_tables, attn_mask=attn_mask, q_seq_lens=q_seq_lens
+        )
 
-    def construct(self, query, key, value, batch_valid_length, block_tables, slot_mapping, freqs_cis=None,
-                  attn_mask=None, alibi_mask=None, prefix_keys_values=None, q_seq_lens=None):
+    def construct(
+        self,
+        query,
+        key,
+        value,
+        batch_valid_length,
+        block_tables,
+        slot_mapping,
+        freqs_cis=None,
+        attn_mask=None,
+        alibi_mask=None,
+        prefix_keys_values=None,
+        q_seq_lens=None,
+    ):
         """Forward process of the Infer Attention Cell"""
         if self.use_rope_rotary_emb:
             query, key = self._apply_rotary_pos_emb(query, key, freqs_cis, batch_valid_length)
@@ -369,7 +388,8 @@ class InferAttention(Cell):
         query = ops.depend(query, key_out)
 
         if self.is_first_iteration:
-            return self._prefill_attention(query, key, value, attn_mask, alibi_mask, batch_valid_length,
-                                           batch_valid_length)
+            return self._prefill_attention(
+                query, key, value, attn_mask, alibi_mask, batch_valid_length, batch_valid_length
+            )
         else:
             return self._incre_attention(query, batch_valid_length, block_tables, alibi_mask, attn_mask, q_seq_lens)

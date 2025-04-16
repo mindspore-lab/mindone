@@ -1,24 +1,26 @@
 import math
-import numpy as np
 from enum import Enum
 
+import numpy as np
+
 import mindspore
-from mindspore import nn, ops, Tensor, Parameter
-from mindspore.ops import functional as F
+from mindspore import Tensor, context, nn
 from mindspore.ops import operations as P
 
-from mindspore import context
 
 def is_pynative():
     """get whether the mode is pynative"""
     mode = context.get_context("mode")
     return mode == context.PYNATIVE_MODE
 
+
 def _check_llama3_scaling_factor(scaling_factor, max_position_embedding):
     """check llama3 scaling factor"""
     if not isinstance(scaling_factor, dict):
-        raise ValueError(f"`scaling_factor` must be a dict for {SeqExtendMethod.LLAMA3.value} rope extend method,"
-                         f" but got {scaling_factor}")
+        raise ValueError(
+            f"`scaling_factor` must be a dict for {SeqExtendMethod.LLAMA3.value} rope extend method,"
+            f" but got {scaling_factor}"
+        )
 
     required_keys = {"factor", "original_max_position_embeddings", "low_freq_factor", "high_freq_factor"}
     received_keys = set(scaling_factor.keys())
@@ -58,14 +60,16 @@ def _check_llama3_scaling_factor(scaling_factor, max_position_embedding):
             f"{original_max_position_embeddings} and max_position_embeddings={max_position_embedding}"
         )
 
+
 def _check_yarn_scaling_factor(scaling_factor, max_position_embedding):
     """check YARN scaling factor"""
     if not isinstance(scaling_factor, dict):
-        raise ValueError(f"`scaling_factor` must be a dict for {SeqExtendMethod.YARN.value} rope extend method,"
-                         f" but got {scaling_factor}")
+        raise ValueError(
+            f"`scaling_factor` must be a dict for {SeqExtendMethod.YARN.value} rope extend method,"
+            f" but got {scaling_factor}"
+        )
 
-    required_keys = {"factor", "original_max_position_embeddings", "beta_slow", "beta_fast",
-                     "mscale", "mscale_all_dim"}
+    required_keys = {"factor", "original_max_position_embeddings", "beta_slow", "beta_fast", "mscale", "mscale_all_dim"}
     received_keys = set(scaling_factor.keys())
 
     missing_keys = required_keys - received_keys
@@ -107,8 +111,10 @@ def _check_yarn_scaling_factor(scaling_factor, max_position_embedding):
 def _check_linear_scaling_factor(scaling_factor):
     """check LINEAR scaling factor"""
     if not isinstance(scaling_factor, dict):
-        raise ValueError(f"`scaling_factor` must be a dict for {SeqExtendMethod.LINEAR.value} rope extend method,"
-                         f" but got {scaling_factor}")
+        raise ValueError(
+            f"`scaling_factor` must be a dict for {SeqExtendMethod.LINEAR.value} rope extend method,"
+            f" but got {scaling_factor}"
+        )
     required_keys = {"factor"}
     received_keys = set(scaling_factor.keys())
     missing_keys = required_keys - received_keys
@@ -129,12 +135,8 @@ def _yarn_find_correction_dim(num_rotations, dim, base=10000, max_position_embed
 
 def _yarn_find_correction_range(low_rot, high_rot, dim, base=10000, max_position_embeddings=2048):
     """Find dim range bounds based on rotations"""
-    low = math.floor(
-        _yarn_find_correction_dim(low_rot, dim, base, max_position_embeddings)
-    )
-    high = math.ceil(
-        _yarn_find_correction_dim(high_rot, dim, base, max_position_embeddings)
-    )
+    low = math.floor(_yarn_find_correction_dim(low_rot, dim, base, max_position_embeddings))
+    high = math.ceil(_yarn_find_correction_dim(high_rot, dim, base, max_position_embeddings))
     return max(low, 0), min(high, dim - 1)  # Clamp values just in case
 
 
@@ -155,6 +157,7 @@ def _yarn_linear_ramp_mask(min_, max_, dim):
 
 class SeqExtendMethod(Enum):
     """Stores the acceptable string identifiers for seq length extend method"""
+
     PI = "PI"
     NTK = "NTK"
     YARN = "YARN"
@@ -167,17 +170,19 @@ class SeqExtendMethod(Enum):
 class FreqsMgr(nn.Cell):
     r"""freqs_cis manager."""
 
-    def __init__(self,
-                 head_dim,
-                 seq_length=None,
-                 max_position_embedding=4096,
-                 rotary_dtype=mindspore.float16,
-                 theta=10000,
-                 scaling_factor=1.0,
-                 extend_method=SeqExtendMethod.NONE.value,
-                 parallel_config=None,
-                 is_dynamic=False,
-                 limit_not_apply_seq_pipe=False):
+    def __init__(
+        self,
+        head_dim,
+        seq_length=None,
+        max_position_embedding=4096,
+        rotary_dtype=mindspore.float16,
+        theta=10000,
+        scaling_factor=1.0,
+        extend_method=SeqExtendMethod.NONE.value,
+        parallel_config=None,
+        is_dynamic=False,
+        limit_not_apply_seq_pipe=False,
+    ):
         super().__init__()
         self.is_pynative = is_pynative()
         if seq_length is not None and seq_length > max_position_embedding:
@@ -208,12 +213,12 @@ class FreqsMgr(nn.Cell):
             extra_freq_base = np.arange(0, head_dim, 2)[: (head_dim // 2)].astype(np.float32)
             extra_freq = 1.0 / (theta ** (extra_freq_base / head_dim))
 
-            low, high = _yarn_find_correction_range(beta_fast, beta_slow, head_dim, base,
-                                                    original_max_position_embeddings)
+            low, high = _yarn_find_correction_range(
+                beta_fast, beta_slow, head_dim, base, original_max_position_embeddings
+            )
             inv_freq_mask = 1.0 - _yarn_linear_ramp_mask(low, high, head_dim // 2)
             freqs = internal_freq * (1 - inv_freq_mask) + extra_freq * inv_freq_mask
-            mscale = float(_yarn_get_mscale(factor, mscale_)
-                           / _yarn_get_mscale(factor, mscale_all_dim))
+            mscale = float(_yarn_get_mscale(factor, mscale_) / _yarn_get_mscale(factor, mscale_all_dim))
 
         if extend_method == SeqExtendMethod.LLAMA3.value:
             _check_llama3_scaling_factor(scaling_factor, max_position_embedding)
@@ -238,9 +243,11 @@ class FreqsMgr(nn.Cell):
                     new_freqs.append(freq / factor)
                 else:
                     if low_freq_wavelen == high_freq_wavelen:
-                        raise ValueError(f"low_freq_wavelen should not equal high_freq_wavelen, "
-                                         f"but low_freq_wavelen got {low_freq_wavelen},"
-                                         f"high_freq_wavelen got {high_freq_wavelen}.")
+                        raise ValueError(
+                            f"low_freq_wavelen should not equal high_freq_wavelen, "
+                            f"but low_freq_wavelen got {low_freq_wavelen},"
+                            f"high_freq_wavelen got {high_freq_wavelen}."
+                        )
                     smooth = (old_context_len / wavelen - low_freq_factor) / (high_freq_factor - low_freq_factor)
                     new_freqs.append((1 - smooth) * freq / factor + smooth * freq)
             freqs = np.array(new_freqs, dtype=freqs.dtype)
@@ -254,7 +261,7 @@ class FreqsMgr(nn.Cell):
         freqs = np.outer(t, freqs)  # (max_position_embedding, head_dim // 2)
         emb = np.concatenate((freqs, freqs), axis=-1)
         freqs_cos = np.cos(emb) * mscale  # (seq_len, head_dim)
-        freqs_sin = np.sin(emb) * mscale # (seq_len, head_dim)
+        freqs_sin = np.sin(emb) * mscale  # (seq_len, head_dim)
         swap_mask = FreqsMgr.get_swap_mask(head_dim)
 
         if parallel_config is not None and parallel_config.context_parallel > 1:
@@ -276,8 +283,12 @@ class FreqsMgr(nn.Cell):
         self.cos = P.Cos()
         self.gather = P.Gather()
         self.tile = P.Tile()
-        self.seq_pipe = parallel_config and parallel_config.seq_split_num and parallel_config.seq_split_num > 1 \
-                        and not limit_not_apply_seq_pipe
+        self.seq_pipe = (
+            parallel_config
+            and parallel_config.seq_split_num
+            and parallel_config.seq_split_num > 1
+            and not limit_not_apply_seq_pipe
+        )
         if self.seq_pipe:
             self.seq_split_num = parallel_config.seq_split_num
             self.seq_seg_len = seq_length // self.seq_split_num
@@ -286,7 +297,7 @@ class FreqsMgr(nn.Cell):
             self.add_seq = P.Add()
 
     def construct(self, seq_length=None, position_ids=None, seq_chunk=None):
-        '''Get freqs_cos and freqs_sin'''
+        """Get freqs_cos and freqs_sin"""
         if position_ids is None:
             if self.seq_pipe:
                 seg_seq_range = self.add_seq(self.seq_seg_range, self.seq_seg_len * seq_chunk)

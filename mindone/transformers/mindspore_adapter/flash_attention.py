@@ -5,7 +5,6 @@ from mindspore.common.tensor import Tensor
 from mindspore.nn.cell import Cell
 from mindspore.ops import functional as F
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
-from mindspore.parallel.shard import Layout
 
 
 class FlashAttention(Cell):
@@ -119,24 +118,25 @@ class FlashAttention(Cell):
         (1, 16, 2048)
     """
 
-    def __init__(self,
-                 head_num,
-                 keep_prob=1.0,
-                 scale_value=1.0,
-                 pre_tokens=2147483647,
-                 next_tokens=2147483647,
-                 input_layout="BSH",
-                 sparse_mode=0,
-                 use_attention_mask=True,
-                 use_alibi_mask=False,
-                 use_mqa=False,
-                 use_ring_attention=False,
-                 use_3d_tensor_parallel=False,
-                 use_actual_seqlen=False,
-                 tp_x=1,
-                 tp_y=1,
-                 tp_z=1
-                 ):
+    def __init__(
+        self,
+        head_num,
+        keep_prob=1.0,
+        scale_value=1.0,
+        pre_tokens=2147483647,
+        next_tokens=2147483647,
+        input_layout="BSH",
+        sparse_mode=0,
+        use_attention_mask=True,
+        use_alibi_mask=False,
+        use_mqa=False,
+        use_ring_attention=False,
+        use_3d_tensor_parallel=False,
+        use_actual_seqlen=False,
+        tp_x=1,
+        tp_y=1,
+        tp_z=1,
+    ):
         super(FlashAttention, self).__init__()
         self.head_num = head_num
         self.enable_dropout = keep_prob < 1.0
@@ -152,14 +152,16 @@ class FlashAttention(Cell):
         self.tp_y = tp_y
         self.tp_z = tp_z
 
-        self.flash_attention = FlashAttentionScore(head_num=head_num,
-                                                   keep_prob=keep_prob,
-                                                   scale_value=scale_value,
-                                                   pre_tokens=pre_tokens,
-                                                   next_tokens=next_tokens,
-                                                   inner_precise=0,
-                                                   input_layout=self.input_layout,
-                                                   sparse_mode=self.sparse_mode)
+        self.flash_attention = FlashAttentionScore(
+            head_num=head_num,
+            keep_prob=keep_prob,
+            scale_value=scale_value,
+            pre_tokens=pre_tokens,
+            next_tokens=next_tokens,
+            inner_precise=0,
+            input_layout=self.input_layout,
+            sparse_mode=self.sparse_mode,
+        )
         if self.use_ring_attention:
             self.flash_attention.add_prim_attr("enable_ring_attention", True)
             self.flash_attention.add_prim_attr("enable_ra_send_recv", True)
@@ -183,34 +185,20 @@ class FlashAttention(Cell):
         kv_head_split_num = 1 if self.use_mqa else mp
         if self.input_layout == "BSH":
             if self.use_ring_attention:
-                fa_strategies = ((dp, cp, mp),
-                                 (dp, cp, kv_head_split_num),
-                                 (dp, cp, kv_head_split_num))
+                fa_strategies = ((dp, cp, mp), (dp, cp, kv_head_split_num), (dp, cp, kv_head_split_num))
             else:
-                fa_strategies = ((dp, cp, mp),
-                                 (dp, 1, kv_head_split_num),
-                                 (dp, 1, kv_head_split_num))
+                fa_strategies = ((dp, cp, mp), (dp, 1, kv_head_split_num), (dp, 1, kv_head_split_num))
         elif self.input_layout == "BNSD":
             if self.use_ring_attention:
-                fa_strategies = ((dp, mp, cp, 1),
-                                 (dp, kv_head_split_num, cp, 1),
-                                 (dp, kv_head_split_num, cp, 1))
+                fa_strategies = ((dp, mp, cp, 1), (dp, kv_head_split_num, cp, 1), (dp, kv_head_split_num, cp, 1))
             else:
-                fa_strategies = ((dp, mp, cp, 1),
-                                 (dp, kv_head_split_num, 1, 1),
-                                 (dp, kv_head_split_num, 1, 1))
+                fa_strategies = ((dp, mp, cp, 1), (dp, kv_head_split_num, 1, 1), (dp, kv_head_split_num, 1, 1))
         elif self.input_layout == "TH":
-            fa_strategies = ((dp, mp),
-                             (dp, mp),
-                             (dp, mp))
+            fa_strategies = ((dp, mp), (dp, mp), (dp, mp))
         elif self.input_layout == "TND":
-            fa_strategies = ((dp, mp, 1),
-                             (dp, mp, 1),
-                             (dp, mp, 1))
+            fa_strategies = ((dp, mp, 1), (dp, mp, 1), (dp, mp, 1))
         else:
-            raise ValueError(
-                "Input layout:{} is not supported in flash attention.".format(self.input_layout)
-            )
+            raise ValueError("Input layout:{} is not supported in flash attention.".format(self.input_layout))
 
         if self.use_alibi_mask:
             fa_strategies += ((dp, mp, cp, 1),)
@@ -227,7 +215,10 @@ class FlashAttention(Cell):
             else:
                 raise RuntimeError(f"sparse_mode: {self.sparse_mode} is not support currently")
         if self.input_layout in ["TH", "TND"] or self.use_actual_seqlen:
-            fa_strategies += ((dp,), (dp,),)
+            fa_strategies += (
+                (dp,),
+                (dp,),
+            )
 
         return fa_strategies
 
@@ -235,30 +226,40 @@ class FlashAttention(Cell):
         """get FA generate strategies with use_3d_tensor_parallel"""
         # ulysses fa strategy
         if cp_ds > 1:
-            raise ValueError("Currently, when the use_3d_tensor_parallel = True, "
-                             "the cp_ds of the ulysses context parallel must be 1")
+            raise ValueError(
+                "Currently, when the use_3d_tensor_parallel = True, "
+                "the cp_ds of the ulysses context parallel must be 1"
+            )
         if self.use_mqa:
             kv_head_split_layout = "None"
         else:
             kv_head_split_layout = "y"
         if self.input_layout == "BSH":
             if self.use_ring_attention:
-                fa_strategies = (layout_3dtp("dp", "cpzx", "y"),
-                                 layout_3dtp("dp", "cpzx", kv_head_split_layout),
-                                 layout_3dtp("dp", "cpzx", kv_head_split_layout))
+                fa_strategies = (
+                    layout_3dtp("dp", "cpzx", "y"),
+                    layout_3dtp("dp", "cpzx", kv_head_split_layout),
+                    layout_3dtp("dp", "cpzx", kv_head_split_layout),
+                )
             else:
-                fa_strategies = (layout_3dtp("dp", "cpzx", "y"),
-                                 layout_3dtp("dp", "None", kv_head_split_layout),
-                                 layout_3dtp("dp", "None", kv_head_split_layout))
+                fa_strategies = (
+                    layout_3dtp("dp", "cpzx", "y"),
+                    layout_3dtp("dp", "None", kv_head_split_layout),
+                    layout_3dtp("dp", "None", kv_head_split_layout),
+                )
         elif self.input_layout == "BNSD":
             if self.use_ring_attention:
-                fa_strategies = (layout_3dtp("dp", "y", "cpzx", "None"),
-                                 layout_3dtp("dp", kv_head_split_layout, "cpzx", "None"),
-                                 layout_3dtp("dp", kv_head_split_layout, "cpzx", "None"))
+                fa_strategies = (
+                    layout_3dtp("dp", "y", "cpzx", "None"),
+                    layout_3dtp("dp", kv_head_split_layout, "cpzx", "None"),
+                    layout_3dtp("dp", kv_head_split_layout, "cpzx", "None"),
+                )
             else:
-                fa_strategies = (layout_3dtp("dp", "y", "cpzx", "None"),
-                                 layout_3dtp("dp", kv_head_split_layout, "None", "None"),
-                                 layout_3dtp("dp", kv_head_split_layout, "None", "None"))
+                fa_strategies = (
+                    layout_3dtp("dp", "y", "cpzx", "None"),
+                    layout_3dtp("dp", kv_head_split_layout, "None", "None"),
+                    layout_3dtp("dp", kv_head_split_layout, "None", "None"),
+                )
         else:
             raise ValueError(
                 "Input layout:{} is not supported when use_3d_tensor_parallel is True.".format(self.input_layout)
@@ -283,20 +284,23 @@ class FlashAttention(Cell):
                 raise RuntimeError(f"sparse_mode: {self.sparse_mode} is not support currently")
         return fa_strategies
 
-    def construct(self, query, key, value, attn_mask=None, alibi_mask=None, prefix=None, padding_mask=None,
-                  actual_seq_qlen=None, actual_seq_kvlen=None):
+    def construct(
+        self,
+        query,
+        key,
+        value,
+        attn_mask=None,
+        alibi_mask=None,
+        prefix=None,
+        padding_mask=None,
+        actual_seq_qlen=None,
+        actual_seq_kvlen=None,
+    ):
         """Forward process of the AttentionMaskMF"""
         if self.input_layout in ["TH", "TND"]:
-            _, _, _, output = self.flash_attention(query,
-                                                   key,
-                                                   value,
-                                                   alibi_mask,
-                                                   None,
-                                                   padding_mask,
-                                                   attn_mask,
-                                                   prefix,
-                                                   actual_seq_qlen,
-                                                   actual_seq_kvlen)
+            _, _, _, output = self.flash_attention(
+                query, key, value, alibi_mask, None, padding_mask, attn_mask, prefix, actual_seq_qlen, actual_seq_kvlen
+            )
             return output
 
         if self.input_layout == "BSH":
@@ -308,19 +312,22 @@ class FlashAttention(Cell):
         if self.enable_dropout:
             drop_mask_bits = F.reshape(
                 self.drop_gen_mask((bsz, self.head_num, q_seq_len, kv_seq_len), self.keep_prob_tensor),
-                (bsz, self.head_num, q_seq_len, kv_seq_len // 8))
+                (bsz, self.head_num, q_seq_len, kv_seq_len // 8),
+            )
         else:
             drop_mask_bits = None
         if self.use_alibi_mask:
             alibi_mask = self.alibi_rescale_mul(alibi_mask, F.cast(self.alibi_rescale_factor, alibi_mask.dtype))
-        _, _, _, output = self.flash_attention(query,
-                                               key,
-                                               value,
-                                               alibi_mask,
-                                               drop_mask_bits,
-                                               padding_mask,
-                                               attn_mask,
-                                               prefix,
-                                               actual_seq_qlen,
-                                               actual_seq_kvlen)
+        _, _, _, output = self.flash_attention(
+            query,
+            key,
+            value,
+            alibi_mask,
+            drop_mask_bits,
+            padding_mask,
+            attn_mask,
+            prefix,
+            actual_seq_qlen,
+            actual_seq_kvlen,
+        )
         return output

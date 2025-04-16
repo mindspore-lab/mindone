@@ -889,7 +889,9 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-                if not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention":  # use tuple cache
+                if (
+                    not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
+                ):  # use tuple cache
                     cur_lens = attention_mask.sum(-1)
                     for batch_idx in range(attention_mask.shape[0]):
                         cur_len = int(cur_lens[batch_idx])

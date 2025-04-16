@@ -1,8 +1,11 @@
 import numpy as np
+
 import mindspore
-from mindspore import nn, ops, Tensor, Parameter, context
-from mindspore.ops import operations as P
+from mindspore import Parameter, Tensor, context, nn
+from mindspore.common.initializer import Zero
 from mindspore.ops import functional as F
+from mindspore.ops import operations as P
+
 
 def is_pynative():
     mode = context.get_context("mode")
@@ -25,7 +28,7 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
         use_attn_mask_compression=False,
         use_past=False,
         seq_split_num=1,
-        chunk_prefill=False
+        chunk_prefill=False,
     ):
         super().__init__()
         self.dtype = compute_type
@@ -40,12 +43,14 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
         self.is_pynative = is_pynative()
         self.chunk_prefill = chunk_prefill
         if use_past and chunk_prefill:
-            self.lower_triangle_mask = Tensor(np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)),
-                                              dtype=compute_type)
+            self.lower_triangle_mask = Tensor(
+                np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)), dtype=compute_type
+            )
         elif use_past and not self.is_pynative:
             if not self.use_flash_attention:
-                self.lower_triangle_mask = Tensor(np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)),
-                                                  dtype=compute_type)
+                self.lower_triangle_mask = Tensor(
+                    np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)), dtype=compute_type
+                )
             elif self.is_dynamic:
                 mask_coeff = 1.0 if compute_type == mindspore.bfloat16 else -10000.0
                 self.lower_triangle_mask = Tensor(
@@ -57,10 +62,13 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
             if use_attn_mask_compression:
                 if seq_length < 2048:
                     raise ValueError("seq_length should be larger than 2048 when use mask_compression")
-                self.lower_triangle_mask = mindspore.Tensor(np.triu(np.ones((2048, 2048), dtype=np.int8), k=1), dtype=mindspore.uint8)
+                self.lower_triangle_mask = mindspore.Tensor(
+                    np.triu(np.ones((2048, 2048), dtype=np.int8), k=1), dtype=mindspore.uint8
+                )
             else:
-                self.lower_triangle_mask = Tensor(np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)),
-                                                  dtype=compute_type)
+                self.lower_triangle_mask = Tensor(
+                    np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)), dtype=compute_type
+                )
         self.shape = P.Shape()
         self.cast = P.Cast()
         self.reshape = P.Reshape()
@@ -79,12 +87,16 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
         self.seq_split_num = seq_split_num
         self.seq_pipe = seq_split_num > 1
         if self.seq_pipe:
-            self.mask_cache = Parameter(Tensor(shape=(batch_size, seq_length), dtype=mindspore.float32, init=Zero()),
-                                        name="mask_cache", requires_grad=False, parallel_optimizer=False)
+            self.mask_cache = Parameter(
+                Tensor(shape=(batch_size, seq_length), dtype=mindspore.float32, init=Zero()),
+                name="mask_cache",
+                requires_grad=False,
+                parallel_optimizer=False,
+            )
             mask_mask = np.zeros((batch_size, seq_length), dtype=np.int32)
             self.seq_seg_len = seq_length // self.seq_split_num
             for s in range(self.seq_split_num):
-                mask_mask[:, s * self.seq_seg_len: (s + 1) * self.seq_seg_len] = s
+                mask_mask[:, s * self.seq_seg_len : (s + 1) * self.seq_seg_len] = s
             self.mask_mask = Tensor(mask_mask)
             self.add_mask = P.Add()
             self.tile_mask = P.Tile()

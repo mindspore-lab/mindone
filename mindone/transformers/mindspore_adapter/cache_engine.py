@@ -22,6 +22,7 @@ class BlockMemPool:
     +------+------+------+------+
 
     """
+
     def __init__(self, num_blocks: int, block_size: int):
         self.num_blocks = num_blocks
         self.block_size = block_size
@@ -30,7 +31,7 @@ class BlockMemPool:
 
     def allocate_block(self, num_new_block: int):
         if len(self.free_blocks) < num_new_block:
-            raise RuntimeError('block pool is out of memory')
+            raise RuntimeError("block pool is out of memory")
 
         new_blocks = self.free_blocks[0:num_new_block]
         self.used_blocks += new_blocks
@@ -48,6 +49,7 @@ class BlockMemPool:
 
 class CacheEngine:
     """allocate a big chunk memory."""
+
     # pylint: disable=C0326
     def __init__(self, block_size: int, pool: BlockMemPool = None):
         self.block_size = block_size
