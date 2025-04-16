@@ -1758,6 +1758,7 @@ class GenerationMixin:
                 )
             s_time = time.time()
             step += 1
+            model_kwargs["step"] == step
 
             if not isinstance(outputs, CausalLMOutputWithPast):
                 outputs = CausalLMOutputWithPast(

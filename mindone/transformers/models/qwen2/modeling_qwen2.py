@@ -1096,7 +1096,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         )
         if self.config._attn_implementation == "paged_attention":
             bs, seq_len = input_ids.shape
-            step = kwargs.get("step", None)
+            step = kwargs["step"]
             if step == 0:
                 self.enable_dynamic_shape()
 
