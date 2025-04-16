@@ -398,11 +398,11 @@ class Qwen2PageAttention(Qwen2Attention):
         output_attentions: bool = False,
         use_cache: bool = False,
         cache_position: Optional[ms.Tensor] = None,
-        block_tables: Optional = None,
-        slot_mapping: Optional = None,
-        freqs_cis: Optional = None,
-        mask: Optional = None,
-        batch_valid_length: Optional = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[ms.Tensor] = None,
+        mask: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
         **kwargs,
     ):
         bsz, q_len, _ = hidden_states.shape
@@ -461,11 +461,11 @@ class Qwen2DecoderLayer(nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
-        block_tables: Optional = None,
-        slot_mapping: Optional = None,
-        freqs_cis: Optional = None,
-        mask: Optional = None,
-        batch_valid_length: Optional = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[ms.Tensor] = None,
+        mask: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
         **kwargs,
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
@@ -694,11 +694,11 @@ class Qwen2Model(Qwen2PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
-        block_tables: Optional = None,
-        slot_mapping: Optional = None,
-        freqs_cis: Optional = None,
-        mask: Optional = None,
-        batch_valid_length: Optional = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[ms.Tensor] = None,
+        mask: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -941,9 +941,9 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
-        block_tables: Optional = None,
-        slot_mapping: Optional = None,
-        batch_valid_length: Optional = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
