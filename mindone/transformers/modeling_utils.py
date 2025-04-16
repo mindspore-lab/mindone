@@ -709,8 +709,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 config,
                 hard_check_only=False if requested_attn_implementation is None else True,
             )
-        else:
-            config._attn_implementation = "eager"
 
         return config
 
