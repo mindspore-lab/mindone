@@ -2189,8 +2189,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         dtype=None,
         keep_in_fp32_modules=None,
     ):
-        model.tie_weights()
-
         # Retrieve missing & unexpected_keys
         model_state_dict = {k: v for k, v in model.parameters_and_names()}
         expected_keys = list(model_state_dict.keys())
@@ -2232,6 +2230,8 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
         if cls._keys_to_ignore_on_load_unexpected is not None:
             for pat in cls._keys_to_ignore_on_load_unexpected:
                 unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
+
+        model.tie_weights()
 
         # Set some modules to fp32 if any
         if keep_in_fp32_modules is not None:
