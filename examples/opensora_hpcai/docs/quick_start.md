@@ -28,6 +28,9 @@ Required MindSpore version: 2.5.0. Please refer to the [requirements](../README.
 After installing MindSpore, run the following command to complete the setup:
 
 ```shell
+# Install MindONE
+pip install -e .[training]
+# Install project requirements
 pip install -r requirements.txt
 ```
 

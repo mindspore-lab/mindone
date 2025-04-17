@@ -3,7 +3,6 @@ import glob
 import logging
 import os
 import random
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from math import sqrt
 from pathlib import Path
@@ -16,18 +15,14 @@ from tqdm import tqdm
 
 from mindspore.dataset.transforms import Compose
 
-from mindone.data.video_reader import VideoReader as VideoReader_CV2
-
-from ..pipelines.utils_v2 import get_res_lin_function
-from .bucket import Bucket
-from .transforms import ResizeCrop
-
-# FIXME: remove in future when mindone is ready for install
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../.."))
 from mindone.data import BaseDataset
+from mindone.data.video_reader import VideoReader as VideoReader_CV2
 from mindone.models.modules.pos_embed import get_2d_sincos_pos_embed
 
 from ..models.layers.rotary_embedding import precompute_freqs_cis
+from ..pipelines.utils_v2 import get_res_lin_function
+from .bucket import Bucket
+from .transforms import ResizeCrop
 
 _logger = logging.getLogger(__name__)
 

@@ -10,12 +10,13 @@ from mindspore import GRAPH_MODE, Model, Symbol
 from mindspore import dtype as mstype
 from mindspore import get_context, nn, tensor
 
-# TODO: remove in future when mindone is ready for install
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
-sys.path.append(mindone_lib_path)
-sys.path.append(os.path.join(__dir__, "../.."))
+from mindone.data import create_dataloader
+from mindone.trainers import create_optimizer, create_scheduler
+from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
+from mindone.trainers.zero import prepare_train_network
+from mindone.utils import count_params, init_env, set_logger
 
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from opensora.acceleration.parallel_states import create_parallel_group
 from opensora.datasets.bucket import bucket_split_function
 from opensora.datasets.bucket_v2 import Bucket
@@ -27,12 +28,6 @@ from opensora.utils.callbacks import PerfRecorderCallback
 from opensora.utils.ema import EMA
 from opensora.utils.saving import TrainingSavingOptions
 from opensora.utils.training import TrainingOptions
-
-from mindone.data import create_dataloader
-from mindone.trainers import create_optimizer, create_scheduler
-from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor, StopAtStepCallback
-from mindone.trainers.zero import prepare_train_network
-from mindone.utils import count_params, init_env, set_logger
 
 logger = logging.getLogger(__name__)
 

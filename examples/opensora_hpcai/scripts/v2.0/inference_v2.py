@@ -12,12 +12,9 @@ from jsonargparse.typing import Path_fr, path_type
 from mindspore import runtime
 from mindspore.communication import GlobalComm
 
-# TODO: remove in future when mindone is ready for install
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../../"))
-sys.path.append(mindone_lib_path)
-sys.path.append(os.path.join(__dir__, "../.."))
+from mindone.utils import init_env, set_logger
 
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from opensora.acceleration.parallel_states import set_sequence_parallel_group
 from opensora.models.flux_vae.autoencoder import AutoEncoderFlux
 from opensora.models.hunyuan_vae.autoencoder_kl_causal_3d import CausalVAE3D_HUNYUAN
@@ -28,8 +25,6 @@ from opensora.pipelines.infer_pipeline_v2 import InferPipelineV2
 from opensora.utils.inference import process_and_save
 from opensora.utils.sampling import SamplingOption
 from opensora.utils.saving import SavingOptions
-
-from mindone.utils import init_env, set_logger
 
 logger = logging.getLogger(__name__)
 

@@ -193,7 +193,13 @@ Other useful documents and links are listed below.
    install [CANN 8.0.0.beta1](https://www.hiascend.com/developer/download/community/result?module=cann&cann=8.0.0.beta1)
    as recommended by the official installation website.
 
-2. Install requirements
+2. Install MindONE
+
+```shell
+pip install -e .[training]
+```
+
+3. Install requirements
 
 ```shell
 pip install -r requirements.txt

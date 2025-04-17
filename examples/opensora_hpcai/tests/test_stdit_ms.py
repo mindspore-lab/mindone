@@ -1,14 +1,10 @@
 # flake8: noqa
-import os
 import sys
 
 import numpy as np
 
 import mindspore as ms
 
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
-sys.path.insert(0, mindone_lib_path)
 from mindone.utils.amp import auto_mixed_precision
 
 sys.path.append("../")
