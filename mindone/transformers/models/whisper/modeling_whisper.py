@@ -1247,7 +1247,7 @@ class WhisperForConditionalGeneration(WhisperGenerationMixin, WhisperPreTrainedM
         >>> from mindone.transformers import WhisperProcessor, WhisperForConditionalGeneration
         >>> from datasets import load_dataset
 
-        >>> processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
+        >>> processor = WhisperProcessor.from_pretrained("openai/whisper-large-v3")
         >>> model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-large-v3")
 
         >>> ds = load_dataset("distil-whisper/librispeech_long", "clean", split="validation", trust_remote_code=True)
