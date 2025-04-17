@@ -1244,7 +1244,7 @@ class WhisperForConditionalGeneration(WhisperGenerationMixin, WhisperPreTrainedM
 
         ```python
         >>> import mindspore
-        >>> from mindone.transformers import WhiperProcessor, WhisperForConditionalGeneration
+        >>> from mindone.transformers import WhisperProcessor, WhisperForConditionalGeneration
         >>> from datasets import load_dataset
 
         >>> processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
