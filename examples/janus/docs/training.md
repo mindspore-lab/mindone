@@ -1,4 +1,4 @@
-# JanusPro Training
+# Janus-Pro Training
 
 ## Requirements
 
@@ -46,11 +46,35 @@ The default training stage is stage 3, that is, all modules are trainable except
 For more detailed arguments, please run `python train.py -h`.
 
 
-- Multi-task Fune-tuning
+- Multi-task Supervised Fune-tuning (Mixed-SFT)
 
-Comming soon
+```shell
+bash scripts/run_sft_mixed.sh
+```
 
+We also implemented a stage-3 SFT for medical data aiming for building a radiology expert model. The datasets can be retrieved from huggingface with from the following repos.
 
+| | #Data Samples | HuggingFace Source |
+| --- | --- | --- |
+| VQA | 100 | robojja/medical-vqa |
+| pure-text | 20 | qiaojin/PubmeQA |
+| T2I | 80 | mdwiratathya/ROCO-radiology |
+
+#### Graph Mode Training
+
+> [!NOTE]
+> We achieve higher training throughput by enabling graph mode compute. However, to do that we need to predefine a compute graph for the vlm for each of the task out of three in total, as for each task, the vlm takes different types of input arg pairs.
+>
+> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_graph()` into `construct()`.
+```diff
+# @ L424
+-- def construct(
+++ # def construct(
+
+# @ L482
+-- def construct_graph(
+++ def construct(
+```
 
 ## Performance
 
@@ -64,3 +88,10 @@ Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 pyn
 | Janus-Pro-7B | T2I | 1 | 384x384 | 1024   | 1 | 0.49 |
 | Janus-Pro-7B | VQA | 1 | 384x384 | 1024   | 1 |  0.66 |
 | Janus-Pro-7B | Text | 1 | n.a. | 512   | 1 | 0.53 |
+
+For mixed-SFT:
+
+| model | task | ms_mode | # card(s) | image size | max_length | batch size | step time (s/step)|
+|:-:|:--:| :-:|:-:|:-:|:-:|:-:|:-:|
+| Janus-Pro-1B | mixed | pynative | 1 | 384x384 | 1024   | 6 | 3.05 |
+| Janus-Pro-1B | mixed | graph | 1 | 384x384 | 1024   | 6 | 2.36 |
