@@ -27,24 +27,30 @@ Depending on the use case, one should choose a technique accordingly. In many ca
 Unless otherwise mentioned, these are techniques that work with existing models and don't require their own weights.
 
 1. [InstructPix2Pix](#instructpix2pix)
-2. [Depth2Image](#depth2image)
-3. [DreamBooth](#dreambooth)
-4. [Textual Inversion](#textual-inversion)
-5. [ControlNet](#controlnet)
-6. [DiffEdit](#diffedit)
-7. [T2I-Adapter](#t2i-adapter)
+2. [Semantic Guidance](#semantic-guidance--sega-)
+3. [Self-attention Guidance](#self-attention-guidance--sag-)
+4. [Depth2Image](#depth2image)
+5. [MultiDiffusion Panorama](#multidiffusion-panorama)
+6. [DreamBooth](#dreambooth)
+7. [Textual Inversion](#textual-inversion)
+8. [ControlNet](#controlnet)
+9. [DiffEdit](#diffedit)
+10. [T2I-Adapter](#t2i-adapter)
 
 For convenience, we provide a table to denote which methods are inference-only and which require fine-tuning/training.
 
-|                     **Method**                     | **Inference only** | **Requires training /<br> fine-tuning** |                                          **Comments**                                           |
-|:--------------------------------------------------:| :----------------: | :-------------------------------------: | :---------------------------------------------------------------------------------------------: |
-|        [InstructPix2Pix](#instructpix2pix)         |         ✅         |                   ❌                    | Can additionally be<br>fine-tuned for better <br>performance on specific <br>edit instructions. |
-|            [Depth2Image](#depth2image)             |         ✅         |                   ❌                    |                                                                                                 |
-|             [DreamBooth](#dreambooth)              |         ❌         |                   ✅                    |                                                                                                 |
-|      [Textual Inversion](#textual-inversion)       |         ❌         |                   ✅                    |                                                                                                 |
-|             [ControlNet](#controlnet)              |         ✅         |                   ❌                    |             A ControlNet can be <br>trained/fine-tuned on<br>a custom conditioning.             |
-|               [DiffEdit](#diffedit)                |         ✅         |                   ❌                    |                                                                                                 |
-|            [T2I-Adapter](#t2i-adapter)             |         ✅         |                   ❌                    |                                                                                                 |
+|                        **Method**                         | **Inference only** | **Requires training /<br> fine-tuning** |                                          **Comments**                                           |
+|:---------------------------------------------------------:|:------------------:|:---------------------------------------:|:-----------------------------------------------------------------------------------------------:|
+|            [InstructPix2Pix](#instructpix2pix)            |         ✅          |                    ❌                    | Can additionally be<br>fine-tuned for better <br>performance on specific <br>edit instructions. |
+|      [Semantic Guidance](#semantic-guidance--sega-)       |         ✅          |                    ❌                    |                                                                                                 |
+| [Self-attention Guidance](#self-attention-guidance--sag-) |         ✅          |                    ❌                    |                                                                                                 |
+|                [Depth2Image](#depth2image)                |         ✅          |                    ❌                    |                                                                                                 |
+|    [MultiDiffusion Panorama](#multidiffusion-panorama)    |         ✅          |                    ❌                    |                                                                                                 |
+|                 [DreamBooth](#dreambooth)                 |         ❌          |                    ✅                    |                                                                                                 |
+|          [Textual Inversion](#textual-inversion)          |         ❌          |                    ✅                    |                                                                                                 |
+|                 [ControlNet](#controlnet)                 |         ✅          |                    ❌                    |             A ControlNet can be <br>trained/fine-tuned on<br>a custom conditioning.             |
+|                   [DiffEdit](#diffedit)                   |         ✅          |                    ❌                    |                                                                                                 |
+|                [T2I-Adapter](#t2i-adapter)                |         ✅          |                    ❌                    |                                                                                                 |
 
 ## InstructPix2Pix
 
@@ -53,6 +59,24 @@ For convenience, we provide a table to denote which methods are inference-only a
 [InstructPix2Pix](../api/pipelines/pix2pix.md) is fine-tuned from Stable Diffusion to support editing input images. It takes as inputs an image and a prompt describing an edit, and it outputs the edited image.
 InstructPix2Pix has been explicitly trained to work well with [InstructGPT](https://openai.com/blog/instruction-following/)-like prompts.
 
+## Semantic Guidance (SEGA)
+
+[Paper](https://arxiv.org/abs/2301.12247)
+
+[SEGA](../api/pipelines/semantic_stable_diffusion.md) allows applying or removing one or more concepts from an image. The strength of the concept can also be controlled. I.e. the smile concept can be used to incrementally increase or decrease the smile of a portrait.
+
+Similar to how classifier free guidance provides guidance via empty prompt inputs, SEGA provides guidance on conceptual prompts. Multiple of these conceptual prompts can be applied simultaneously. Each conceptual prompt can either add or remove their concept depending on if the guidance is applied positively or negatively.
+
+Unlike Pix2Pix Zero or Attend and Excite, SEGA directly interacts with the diffusion process instead of performing any explicit gradient-based optimization.
+
+## Self-attention Guidance (SAG)
+
+[Paper](https://arxiv.org/abs/2210.00939)
+
+[Self-attention Guidance](../api/pipelines/self_attention_guidance.md) improves the general quality of images.
+
+SAG provides guidance from predictions not conditioned on high-frequency details to fully conditioned images. The high frequency details are extracted out of the UNet self-attention maps.
+
 ## Depth2Image
 
 [Project](https://huggingface.co/stabilityai/stable-diffusion-2-depth)
@@ -60,6 +84,13 @@ InstructPix2Pix has been explicitly trained to work well with [InstructGPT](http
 [Depth2Image](../api/pipelines/stable_diffusion/depth2img.md) is fine-tuned from Stable Diffusion to better preserve semantics for text guided image variation.
 
 It conditions on a monocular depth estimate of the original image.
+
+## MultiDiffusion Panorama
+
+[Paper](https://arxiv.org/abs/2302.08113)
+
+[MultiDiffusion Panorama](../api/pipelines/panorama.md) defines a new generation process over a pre-trained diffusion model. This process binds together multiple diffusion generation methods that can be readily applied to generate high quality and diverse images. Results adhere to user-provided controls, such as desired aspect ratio (e.g., panorama), and spatial guiding signals, ranging from tight segmentation masks to bounding boxes.
+MultiDiffusion Panorama allows to generate high-quality images at arbitrary aspect ratios (e.g., panoramas).
 
 ## DreamBooth
 
