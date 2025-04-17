@@ -12,7 +12,7 @@ from mindone.visualize.videos import save_videos
 from ..utils.cond_data import get_references
 
 
-def process_and_save(x: Tensor, ids: list[int], sub_ids: list[int], save_dir: str, fps: int = 24):
+def process_and_save(x: Tensor, ids: list[int], sub_ids: list[int], save_dir: str, fps: int = 24) -> list[str]:
     """
     x: B C T H W
     """
