@@ -422,7 +422,7 @@ def parse_args(input_args=None):
     )
     parser.add_argument(
         "dataset_iterator_no_copy",
-        default=True,
+        default=False,
         type=str2bool,
         help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor without copy."
     )
