@@ -60,6 +60,21 @@ We also implemented a stage-3 SFT for medical data aiming for building a radiolo
 | pure-text | 20 | qiaojin/PubmeQA |
 | T2I | 80 | mdwiratathya/ROCO-radiology |
 
+#### Graph Mode Training
+
+> [!NOTE]
+> We achieve higher training throughput by enabling graph mode compute. However, to do that we need to predefine a compute graph for the vlm for each of the task out of three in total, as for each task, the vlm takes different types of input arg pairs.
+>
+> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_graph()` into `construct()`.
+```diff
+# @ L424
+-- def construct(
+++ # def construct(
+
+# @ L482
+-- def construct_graph(
+++ def construct(
+```
 
 ## Performance
 

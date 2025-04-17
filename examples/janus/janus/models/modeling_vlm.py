@@ -421,7 +421,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         return loss
 
-    def construct_pynative(
+    def construct(
         self,
         task_type: Tensor = None,
         input_ids: Tensor = None,
@@ -475,11 +475,11 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
             losses.append(loss)
 
-        loss = mint.stack(losses)
+        loss = mint.mean(mint.stack(losses))
 
         return loss
 
-    def construct(
+    def construct_graph(
         self,
         task_type: Tensor = None,
         input_ids: Tensor = None,
