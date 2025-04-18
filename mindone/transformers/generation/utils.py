@@ -889,8 +889,9 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-
-                if not self._supports_default_dynamic_cache():  # use tuple cache
+                if (
+                    not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
+                ):  # use tuple cache
                     cur_lens = attention_mask.sum(-1)
                     for batch_idx in range(attention_mask.shape[0]):
                         cur_len = int(cur_lens[batch_idx])
@@ -1695,30 +1696,31 @@ class GenerationMixin:
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
-        # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        if not self._supports_default_dynamic_cache():  # if tuple cache
-            (
-                padded_input_ids,
-                padded_inputs_embeds,
-                padded_labels,
-                padded_position_ids,
-                padded_attention_mask,
-            ) = self._padding_inputs(
-                generation_config,
-                input_ids,
-                model_kwargs.get("inputs_embeds", None),
-                model_kwargs.get("labels", None),
-                model_kwargs.get("position_ids", None),
-                model_kwargs.get("attention_mask", None),
-            )
-            input_ids = padded_input_ids
-            model_kwargs["attention_mask"] = padded_attention_mask
-            if model_kwargs.get("inputs_embeds", None) is not None:
-                model_kwargs["inputs_embeds"] = padded_inputs_embeds
-            if model_kwargs.get("labels", None) is not None:
-                model_kwargs["labels"] = padded_labels
-            if model_kwargs.get("position_ids", None) is not None:
-                model_kwargs["position_ids"] = padded_position_ids
+        if self.config._attn_implementation != "paged_attention":
+            # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
+            if not self._supports_default_dynamic_cache():  # if tuple cache
+                (
+                    padded_input_ids,
+                    padded_inputs_embeds,
+                    padded_labels,
+                    padded_position_ids,
+                    padded_attention_mask,
+                ) = self._padding_inputs(
+                    generation_config,
+                    input_ids,
+                    model_kwargs.get("inputs_embeds", None),
+                    model_kwargs.get("labels", None),
+                    model_kwargs.get("position_ids", None),
+                    model_kwargs.get("attention_mask", None),
+                )
+                input_ids = padded_input_ids
+                model_kwargs["attention_mask"] = padded_attention_mask
+                if model_kwargs.get("inputs_embeds", None) is not None:
+                    model_kwargs["inputs_embeds"] = padded_inputs_embeds
+                if model_kwargs.get("labels", None) is not None:
+                    model_kwargs["labels"] = padded_labels
+                if model_kwargs.get("position_ids", None) is not None:
+                    model_kwargs["position_ids"] = padded_position_ids
 
         # keep track of which sequences are already finished
         batch_size = input_ids.shape[0]
@@ -1728,6 +1730,7 @@ class GenerationMixin:
 
         multinomial = get_multinomial_op()
         step = 0
+        model_kwargs["step"] = step
         s_time = time.time()
         graph_compiled_time_buffer = []
 
@@ -1757,6 +1760,7 @@ class GenerationMixin:
                 )
             s_time = time.time()
             step += 1
+            model_kwargs["step"] = step
 
             if not isinstance(outputs, CausalLMOutputWithPast):
                 outputs = CausalLMOutputWithPast(
