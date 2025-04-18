@@ -23,14 +23,7 @@ import mindspore as ms
 
 from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
 
-from ..pipeline_test_utils import (
-    THRESHOLD_FP16,
-    THRESHOLD_FP32,
-    THRESHOLD_PIXEL,
-    PipelineTesterMixin,
-    get_module,
-    get_pipeline_components,
-)
+from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin, get_module
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
@@ -43,7 +36,6 @@ test_cases = [
 @slow
 @ddt
 class StableDiffusionXLPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
-
     def get_inputs(self):
         inputs = {
             "prompt": "A painting of a squirrel eating a burger",
@@ -60,9 +52,10 @@ class StableDiffusionXLPipelineIntegrationTests(PipelineTesterMixin, unittest.Te
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion_k_diffusion.StableDiffusionXLKDiffusionPipeline")
-        sd_pipe = pipe_cls.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms_dtype)
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.stable_diffusion_k_diffusion.StableDiffusionXLKDiffusionPipeline"
+        )
+        sd_pipe = pipe_cls.from_pretrained("stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms_dtype)
 
         sd_pipe.set_scheduler("sample_lms")
         sd_pipe.set_progress_bar_config(disable=None)

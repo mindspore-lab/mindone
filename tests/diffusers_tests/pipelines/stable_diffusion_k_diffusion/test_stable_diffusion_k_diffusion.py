@@ -23,13 +23,7 @@ import mindspore as ms
 
 from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
 
-from ..pipeline_test_utils import (
-    THRESHOLD_FP16,
-    THRESHOLD_FP32,
-    THRESHOLD_PIXEL,
-    PipelineTesterMixin,
-    get_module,
-)
+from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin, get_module
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
@@ -37,6 +31,7 @@ test_cases = [
     {"mode": ms.GRAPH_MODE, "dtype": "float32"},
     {"mode": ms.GRAPH_MODE, "dtype": "float16"},
 ]
+
 
 @slow
 @ddt
@@ -55,7 +50,9 @@ class StableDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.Test
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipe_cls = get_module("mindone.diffusers.pipelines.stable_diffusion_k_diffusion.StableDiffusionKDiffusionPipeline")
+        pipe_cls = get_module(
+            "mindone.diffusers.pipelines.stable_diffusion_k_diffusion.StableDiffusionKDiffusionPipeline"
+        )
         sd_pipe = pipe_cls.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5", mindspore_dtype=ms_dtype)
 
         sd_pipe.set_scheduler("sample_lms")
