@@ -81,7 +81,7 @@ class DiscreteEpsDDPMDenoiser(DiscreteSchedule):
         eps = self.get_eps(noised_input * c_in, self.sigma_to_t(sigma), **kwargs)
         return (eps - noise).pow(2).flatten(start_dim=1).mean(1)
 
-    def forward(self, input, sigma, **kwargs):
+    def construct(self, input, sigma, **kwargs):
         c_out, c_in = [append_dims(x, input.ndim) for x in self.get_scalings(sigma)]
         eps = self.get_eps(input * c_in, self.sigma_to_t(sigma), **kwargs)
         return input + eps * c_out
@@ -121,7 +121,7 @@ class DiscreteVDDPMDenoiser(DiscreteSchedule):
         target = (input - c_skip * noised_input) / c_out
         return (model_output - target).pow(2).flatten(start_dim=1).mean(1)
 
-    def forward(self, input, sigma, **kwargs):
+    def construct(self, input, sigma, **kwargs):
         c_skip, c_out, c_in = [append_dims(x, input.ndim) for x in self.get_scalings(sigma)]
         return self.get_v(input * c_in, self.sigma_to_t(sigma), **kwargs) * c_out + input * c_skip
 

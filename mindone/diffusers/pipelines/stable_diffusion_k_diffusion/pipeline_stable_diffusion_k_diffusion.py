@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import inspect
 from typing import Callable, List, Optional, Union
 
@@ -23,16 +22,17 @@ import mindspore as ms
 from mindspore import mint, ops
 
 from mindone.transformers import CLIPTextModel
-from _k_diffusion.external import CompVisDenoiser, CompVisVDenoiser
-from _k_diffusion.sampling import BrownianTreeNoiseSampler, get_sigmas_karras
+
 from ...image_processor import VaeImageProcessor
 from ...loaders import StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers, LMSDiscreteScheduler
 from ...utils import deprecate, logging, scale_lora_layers, unscale_lora_layers
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion import StableDiffusionPipelineOutput, StableDiffusionSafetyChecker
+from ._k_diffusion.external import CompVisDenoiser, CompVisVDenoiser
+from ._k_diffusion.sampling import BrownianTreeNoiseSampler, get_sigmas_karras
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -48,7 +48,7 @@ class ModelWrapper:
             args = args[:2]
         if kwargs.get("cond", None) is not None:
             encoder_hidden_states = kwargs.pop("cond")
-        return self.model(*args, encoder_hidden_states=encoder_hidden_states, **kwargs).sample
+        return self.model(*args, encoder_hidden_states=encoder_hidden_states, **kwargs)[0]
 
 
 class StableDiffusionKDiffusionPipeline(
@@ -139,8 +139,8 @@ class StableDiffusionKDiffusionPipeline(
             self.k_diffusion_model = CompVisDenoiser(model)
 
     def set_scheduler(self, scheduler_type: str):
-        library = importlib.import_module("k_diffusion")
-        sampling = getattr(library, "sampling")
+        from ._k_diffusion import sampling
+
         try:
             self.sampler = getattr(sampling, scheduler_type)
         except Exception:
@@ -163,7 +163,7 @@ class StableDiffusionKDiffusionPipeline(
         lora_scale: Optional[float] = None,
         **kwargs,
     ):
-        deprecation_message = "`_encode_prompt()` is deprecated and it will be removed in a future version. Use `encode_prompt()` instead. Also, be aware that the output format changed from a concatenated tensor to a tuple."
+        deprecation_message = "`_encode_prompt()` is deprecated and it will be removed in a future version. Use `encode_prompt()` instead. Also, be aware that the output format changed from a concatenated tensor to a tuple."  # noqa: E501
         deprecate("_encode_prompt()", "1.0.0", deprecation_message, standard_warn=False)
 
         prompt_embeds_tuple = self.encode_prompt(
@@ -620,8 +620,8 @@ class StableDiffusionKDiffusionPipeline(
         def model_fn(x, t):
             latent_model_input = mint.cat([x] * 2)
             t = mint.cat([t] * 2)
-
-            noise_pred = self.k_diffusion_model(latent_model_input, t, cond=prompt_embeds)
+            # in fp16 mode dtype might be cast after fisrt step sampling and raise error, so we keep the latent type here
+            noise_pred = self.k_diffusion_model(latent_model_input.to(t.dtype), t, cond=prompt_embeds)
 
             noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
             noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
@@ -638,7 +638,11 @@ class StableDiffusionKDiffusionPipeline(
         if "generator" in inspect.signature(self.sampler).parameters:
             sampler_kwargs["generator"] = generator
 
-        latents = self.sampler(model_fn, latents, sigmas, **sampler_kwargs)
+        # the graph mode might not support the `**kwargs` in contruction.
+        # while the sampling method in k diffusion has lots of those args passing.
+        # we just follows the code ans keep pynative mode here
+        with pynative_context():
+            latents = self.sampler(model_fn, latents, sigmas, **sampler_kwargs)
 
         if not output_type == "latent":
             latents = (latents / self.vae.config.scaling_factor).to(self.vae.dtype)

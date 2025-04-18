@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import importlib
 import inspect
 from typing import List, Optional, Tuple, Union
 
@@ -23,8 +22,7 @@ import mindspore as ms
 from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
-from _k_diffusion.external import CompVisDenoiser, CompVisVDenoiser
-from _k_diffusion.sampling import BrownianTreeNoiseSampler, get_sigmas_karras
+
 from ...image_processor import VaeImageProcessor
 from ...loaders import (
     FromSingleFileMixin,
@@ -35,9 +33,11 @@ from ...loaders import (
 from ...models import AutoencoderKL, UNet2DConditionModel
 from ...schedulers import KarrasDiffusionSchedulers, LMSDiscreteScheduler
 from ...utils import logging, scale_lora_layers, unscale_lora_layers
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
+from ._k_diffusion.external import CompVisDenoiser, CompVisVDenoiser
+from ._k_diffusion.sampling import BrownianTreeNoiseSampler, get_sigmas_karras
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -70,7 +70,7 @@ class ModelWrapper:
             args = args[:2]
         if kwargs.get("cond", None) is not None:
             encoder_hidden_states = kwargs.pop("cond")
-        return self.model(*args, encoder_hidden_states=encoder_hidden_states, **kwargs).sample
+        return self.model(*args, encoder_hidden_states=encoder_hidden_states, **kwargs)[0]
 
 
 class StableDiffusionXLKDiffusionPipeline(
@@ -173,8 +173,8 @@ class StableDiffusionXLKDiffusionPipeline(
 
     # Copied from diffusers.pipelines.stable_diffusion_k_diffusion.pipeline_stable_diffusion_k_diffusion.StableDiffusionKDiffusionPipeline.set_scheduler
     def set_scheduler(self, scheduler_type: str):
-        library = importlib.import_module("k_diffusion")
-        sampling = getattr(library, "sampling")
+        from ._k_diffusion import sampling
+
         try:
             self.sampler = getattr(sampling, scheduler_type)
         except Exception:
@@ -474,7 +474,7 @@ class StableDiffusionXLKDiffusionPipeline(
 
         if negative_prompt_embeds is not None and negative_pooled_prompt_embeds is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."
+                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."  # noqa: E501
             )
 
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
@@ -509,7 +509,7 @@ class StableDiffusionXLKDiffusionPipeline(
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
-                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
+                f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa: E501
             )
 
         add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
@@ -797,7 +797,9 @@ class StableDiffusionXLKDiffusionPipeline(
             t = mint.cat([t] * 2)
 
             noise_pred = self.k_diffusion_model(
-                latent_model_input,
+                latent_model_input.to(
+                    t.dtype
+                ),  # in fp16 mode dtype might be cast after fisrt step sampling and raise error
                 t,
                 cond=prompt_embeds,
                 timestep_cond=timestep_cond,
@@ -819,7 +821,11 @@ class StableDiffusionXLKDiffusionPipeline(
         if "generator" in inspect.signature(self.sampler).parameters:
             sampler_kwargs["generator"] = generator
 
-        latents = self.sampler(model_fn, latents, sigmas, **sampler_kwargs)
+        # the graph mode might not support the `**kwargs` in contruction.
+        # while the sampling method in k diffusion has lots of those args passing.
+        # we just follows the code ans keep pynative mode here
+        with pynative_context():
+            latents = self.sampler(model_fn, latents, sigmas, **sampler_kwargs)
 
         if not output_type == "latent":
             # make sure the VAE is in float32 mode, as it overflows in float16
