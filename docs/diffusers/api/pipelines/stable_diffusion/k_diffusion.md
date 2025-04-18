@@ -24,4 +24,4 @@ Note that most the samplers from k-diffusion are implemented in Diffusers and we
 
 ## StableDiffusionXLKDiffusionPipeline
 
-::: mindone.diffusers.pipelines.pipeline_stable_diffusion_xl_k_diffusion.StableDiffusionXLKDiffusionPipeline
+::: mindone.diffusers.pipelines.stable_diffusion_k_diffusion.StableDiffusionXLKDiffusionPipeline
