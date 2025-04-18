@@ -30,6 +30,7 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
+from mindone.transformers.mindspore_adapter import str_to_dtype
 from mindone.transformers.mindspore_adapter.block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.freqs import FreqsMgr
 from mindone.transformers.mindspore_adapter.infer_attention import InferAttention
@@ -368,6 +369,7 @@ class Qwen2PageAttention(Qwen2Attention):
 
     def __init__(self, config: Qwen2Config, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
+        compute_dtype = str_to_dtype(config.mindspore_dtype)
 
         self.infer_attention = InferAttention(
             config.num_attention_heads,
@@ -384,7 +386,7 @@ class Qwen2PageAttention(Qwen2Attention):
             is_dynamic=True,
             use_flash_attention=True,
             rotary_cos_format=2,
-            compute_dtype=config.mindspore_dtype,
+            compute_dtype=compute_dtype,
         )
 
         self.is_first_iteration = True
@@ -450,7 +452,8 @@ class Qwen2DecoderLayer(nn.Cell):
         self.input_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.post_attention_layernorm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        self.is_first_iteration = True
+        if config._attn_implementation == "paged_attention":
+            self.is_first_iteration = True
 
     def construct(
         self,
@@ -670,7 +673,8 @@ class Qwen2Model(Qwen2PreTrainedModel):
         self._attn_implementation = config._attn_implementation
         self.norm = Qwen2RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
 
-        self.is_first_iteration = True
+        if self.config._attn_implementation == "paged_attention":
+            self.is_first_iteration = True
 
         self.gradient_checkpointing = False
         # Initialize weights and apply final processing
@@ -844,11 +848,13 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         self.post_init()
 
         if self.config._attn_implementation == "paged_attention":
+            compute_dtype = str_to_dtype(config.mindspore_dtype)
+
             self.freqs_mgr = FreqsMgr(
                 head_dim=config.hidden_size // config.num_attention_heads,
                 seq_length=config.max_position_embeddings,
                 max_position_embedding=config.max_position_embeddings,
-                rotary_dtype=config.mindspore_dtype,
+                rotary_dtype=compute_dtype,
                 theta=config.rope_theta,
                 is_dynamic=True,
             )
@@ -856,7 +862,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             self.casual_mask = LowerTriangularMaskWithDynamic(
                 seq_length=config.max_position_embeddings,
                 batch_size=1,
-                compute_type=config.mindspore_dtype,
+                compute_type=compute_dtype,
                 is_dynamic=True,
                 pad_token_id=config.pad_token_id,
                 use_flash_attention=True,

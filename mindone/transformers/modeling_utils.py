@@ -2048,7 +2048,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # we also may have config.torch_dtype available, but we won't rely on it till v5
 
             if mindspore_dtype is not None:
-                config.mindspore_dtype = mindspore_dtype
+                config.mindspore_dtype = dtype_to_str(mindspore_dtype)
                 if isinstance(mindspore_dtype, str):
                     if mindspore_dtype == "auto":
                         if hasattr(config, "torch_dtype") and config.torch_dtype is not None:
