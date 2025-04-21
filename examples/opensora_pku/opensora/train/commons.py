@@ -137,7 +137,7 @@ def parse_train_args(parser):
     parser.add_argument("--max_rowsize", default=32, type=int, help="max rowsize for data loading")
     parser.add_argument(
         "dataset_iterator_no_copy",
-        default=False,
+        default=True,
         type=str2bool,
         help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor without copy."
     )
