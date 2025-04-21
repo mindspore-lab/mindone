@@ -15,33 +15,20 @@
 import inspect
 from typing import Any, Callable, Dict, List, Optional, Union
 
+import librosa
 import numpy as np
+from transformers import RobertaTokenizer, RobertaTokenizerFast, T5Tokenizer, T5TokenizerFast, VitsTokenizer
+
 import mindspore
 from mindspore import mint
-from transformers import (
-    RobertaTokenizer,
-    RobertaTokenizerFast,
-    T5Tokenizer,
-    T5TokenizerFast,
-    VitsTokenizer,
-)
-from ....transformers import (
-    ClapFeatureExtractor,
-    ClapModel,
-    GPT2Model,
-    SpeechT5HifiGan,
-    T5EncoderModel,
-    VitsModel,
-)
 
+from ....transformers import ClapFeatureExtractor, ClapModel, GPT2Model, SpeechT5HifiGan, T5EncoderModel, VitsModel
 from ...models import AutoencoderKL
 from ...schedulers import KarrasDiffusionSchedulers
 from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline
 from .modeling_audioldm2 import AudioLDM2ProjectionModel, AudioLDM2UNet2DConditionModel
-
-import librosa
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -53,7 +40,7 @@ EXAMPLE_DOC_STRING = """
         >>> from diffusers import AudioLDM2Pipeline
 
         >>> repo_id = "cvssp/audioldm2"
-        >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=mindspore.float16)
+        >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, mindspore_dtype=mindspore.float32)
 
 
         >>> # define the prompts
@@ -61,7 +48,7 @@ EXAMPLE_DOC_STRING = """
         >>> negative_prompt = "Low quality."
 
         >>> # set the seed for generator
-        >>> generator = np.random.Generator(np.random.PCG64(seed=0)).manual_seed(0)
+        >>> generator = np.random.Generator(np.random.PCG64(seed=0))
 
         >>> # run the generation
         >>> audio = pipe(
@@ -69,9 +56,8 @@ EXAMPLE_DOC_STRING = """
         ...     negative_prompt=negative_prompt,
         ...     num_inference_steps=200,
         ...     audio_length_in_s=10.0,
-        ...     num_waveforms_per_prompt=3,
         ...     generator=generator,
-        ... ).audios
+        ... )[0]
 
         >>> # save the best audio sample (index 0) as a .wav file
         >>> scipy.io.wavfile.write("techno.wav", rate=16000, data=audio[0])
@@ -83,7 +69,7 @@ EXAMPLE_DOC_STRING = """
         >>> from diffusers import AudioLDM2Pipeline
 
         >>> repo_id = "anhnct/audioldm2_gigaspeech"
-        >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=mindspore.float16)
+        >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, mindspore_dtype=mindspore.float32)
 
 
         >>> # define the prompts
@@ -91,7 +77,7 @@ EXAMPLE_DOC_STRING = """
         >>> transcript = "wish you have a good day"
 
         >>> # set the seed for generator
-        >>> generator = np.random.Generator(np.random.PCG64(seed=0)).manual_seed(0)
+        >>> generator = np.random.Generator(np.random.PCG64(seed=0))
 
         >>> # run the generation
         >>> audio = pipe(
@@ -102,7 +88,7 @@ EXAMPLE_DOC_STRING = """
         ...     num_waveforms_per_prompt=2,
         ...     generator=generator,
         ...     max_new_tokens=512,          #Must set max_new_tokens equa to 512 for TTS
-        ... ).audios
+        ... )[0]
 
         >>> # save the best audio sample (index 0) as a .wav file
         >>> scipy.io.wavfile.write("tts.wav", rate=16000, data=audio[0])
@@ -227,17 +213,17 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         method is called, and the model remains in GPU until the next model runs. Memory savings are lower than with
         `enable_sequential_cpu_offload`, but performance is much better due to the iterative execution of the `unet`.
         """
-        model_sequence = [
-            self.text_encoder.text_model,
-            self.text_encoder.text_projection,
-            self.text_encoder_2,
-            self.projection_model,
-            self.language_model,
-            self.unet,
-            self.vae,
-            self.vocoder,
-            self.text_encoder,
-        ]
+        # model_sequence = [
+        #     self.text_encoder.text_model,
+        #     self.text_encoder.text_projection,
+        #     self.text_encoder_2,
+        #     self.projection_model,
+        #     self.language_model,
+        #     self.unet,
+        #     self.vae,
+        #     self.vocoder,
+        #     self.text_encoder,
+        # ]
 
         hook = None
 
@@ -424,8 +410,8 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                         f"only handle sequences up to {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                text_input_ids = text_input_ids.to(device)
-                attention_mask = attention_mask.to(device)
+                text_input_ids = text_input_ids
+                attention_mask = attention_mask
 
                 if text_encoder.config.model_type == "clap":
                     prompt_embeds = text_encoder.get_text_features(
@@ -483,16 +469,16 @@ class AudioLDM2Pipeline(DiffusionPipeline):
 
         bs_embed, seq_len, hidden_size = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat(1, num_waveforms_per_prompt, 1)
+        prompt_embeds = prompt_embeds.tile((1, num_waveforms_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_waveforms_per_prompt, seq_len, hidden_size)
 
         # duplicate attention mask for each generation per prompt
-        attention_mask = attention_mask.repeat(1, num_waveforms_per_prompt)
+        attention_mask = attention_mask.tile((1, num_waveforms_per_prompt))
         attention_mask = attention_mask.view(bs_embed * num_waveforms_per_prompt, seq_len)
 
         bs_embed, seq_len, hidden_size = generated_prompt_embeds.shape
         # duplicate generated embeddings for each generation per prompt, using mps friendly method
-        generated_prompt_embeds = generated_prompt_embeds.repeat(1, num_waveforms_per_prompt, 1)
+        generated_prompt_embeds = generated_prompt_embeds.tile((1, num_waveforms_per_prompt, 1))
         generated_prompt_embeds = generated_prompt_embeds.view(
             bs_embed * num_waveforms_per_prompt, seq_len, hidden_size
         )
@@ -532,8 +518,8 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                     return_tensors="np",
                 )
 
-                uncond_input_ids = uncond_input.input_ids.to(device)
-                negative_attention_mask = uncond_input.attention_mask.to(device)
+                uncond_input_ids = mindspore.tensor(uncond_input.input_ids)
+                negative_attention_mask = mindspore.tensor(uncond_input.attention_mask)
 
                 if text_encoder.config.model_type == "clap":
                     negative_prompt_embeds = text_encoder.get_text_features(
@@ -592,16 +578,16 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             )
 
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
-            negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_waveforms_per_prompt, 1)
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_waveforms_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_waveforms_per_prompt, seq_len, -1)
 
             # duplicate unconditional attention mask for each generation per prompt
-            negative_attention_mask = negative_attention_mask.repeat(1, num_waveforms_per_prompt)
+            negative_attention_mask = negative_attention_mask.tile((1, num_waveforms_per_prompt))
             negative_attention_mask = negative_attention_mask.view(batch_size * num_waveforms_per_prompt, seq_len)
 
             # duplicate unconditional generated embeddings for each generation per prompt
             seq_len = negative_generated_prompt_embeds.shape[1]
-            negative_generated_prompt_embeds = negative_generated_prompt_embeds.repeat(1, num_waveforms_per_prompt, 1)
+            negative_generated_prompt_embeds = negative_generated_prompt_embeds.tile((1, num_waveforms_per_prompt, 1))
             negative_generated_prompt_embeds = negative_generated_prompt_embeds.view(
                 batch_size * num_waveforms_per_prompt, seq_len, -1
             )
@@ -622,24 +608,26 @@ class AudioLDM2Pipeline(DiffusionPipeline):
 
         waveform = self.vocoder(mel_spectrogram)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        waveform = waveform.cpu().float()
+        waveform = waveform.float()
         return waveform
 
     def score_waveforms(self, text, audio, num_waveforms_per_prompt, device, dtype):
         inputs = self.tokenizer(text, return_tensors="np", padding=True)
+        inputs["inputs_ids"] = mindspore.tensor(inputs["inputs_ids"])
+        inputs["attention_mask"] = mindspore.tensor(inputs["attention_mask"])
         resampled_audio = librosa.resample(
             audio.numpy(), orig_sr=self.vocoder.config.sampling_rate, target_sr=self.feature_extractor.sampling_rate
         )
-        inputs["input_features"] = self.feature_extractor(
-            list(resampled_audio), return_tensors="np", sampling_rate=self.feature_extractor.sampling_rate
-        ).input_features.type(dtype)
-        inputs = inputs.to(device)
-
+        inputs["input_features"] = mindspore.tensor(
+            self.feature_extractor(
+                list(resampled_audio), return_tensors="np", sampling_rate=self.feature_extractor.sampling_rate
+            ).input_features
+        )
         # compute the audio-text similarity score using the CLAP model
         logits_per_text = self.text_encoder(**inputs).logits_per_text
         # sort by the highest matching generations per prompt
         indices = mint.argsort(logits_per_text, dim=1, descending=True)[:, :num_waveforms_per_prompt]
-        audio = mint.index_select(audio, 0, indices.reshape(-1).cpu())
+        audio = mint.index_select(audio, 0, indices.reshape(-1))
         return audio
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -737,9 +725,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         if transcription is None:
             if self.text_encoder_2.config.model_type == "vits":
                 raise ValueError("Cannot forward without transcription. Please make sure to" " have transcription")
-        elif transcription is not None and (
-            not isinstance(transcription, str) and not isinstance(transcription, list)
-        ):
+        elif transcription is not None and (not isinstance(transcription, str) and not isinstance(transcription, list)):
             raise ValueError(f"`transcription` has to be of type `str` or `list` but is {type(transcription)}")
 
         if generated_prompt_embeds is not None and negative_generated_prompt_embeds is not None:
@@ -758,7 +744,8 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                     f"`attention_mask: {negative_attention_mask.shape} != `prompt_embeds` {negative_prompt_embeds.shape}"
                 )
 
-    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents with width->self.vocoder.config.model_in_dim
+    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents \
+    # with width->self.vocoder.config.model_in_dim
     def prepare_latents(self, batch_size, num_channels_latents, height, dtype, device, generator, latents=None):
         shape = (
             batch_size,
@@ -775,7 +762,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         if latents is None:
             latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
         else:
-            latents = latents.to(device)
+            latents = latents
 
         # scale the initial noise by the standard deviation required by the scheduler
         latents = latents * self.scheduler.init_noise_sigma
@@ -994,7 +981,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs).prev_sample
+                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs)[0]
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
@@ -1003,12 +990,10 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                         step_idx = i // getattr(self.scheduler, "order", 1)
                         callback(step_idx, t, latents)
 
-        self.maybe_free_model_hooks()
-
         # 8. Post-processing
         if not output_type == "latent":
             latents = 1 / self.vae.config.scaling_factor * latents
-            mel_spectrogram = self.vae.decode(latents).sample
+            mel_spectrogram = self.vae.decode(latents)[0]
         else:
             return AudioPipelineOutput(audios=latents)
 

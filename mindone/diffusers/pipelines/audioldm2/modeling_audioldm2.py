@@ -16,8 +16,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore
-from mindspore import nn, mint, Parameter
-from ...models.embeddings import E
+from mindspore import Parameter, mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import UNet2DConditionLoadersMixin
@@ -29,17 +28,13 @@ from ...models.attention_processor import (
     AttnAddedKVProcessor,
     AttnProcessor,
 )
-from ...models.embeddings import (
-    TimestepEmbedding,
-    Timesteps,
-)
+from ...models.embeddings import TimestepEmbedding, Timesteps
 from ...models.modeling_utils import ModelMixin
 from ...models.resnet import Downsample2D, ResnetBlock2D, Upsample2D
 from ...models.transformers.transformer_2d import Transformer2DModel
 from ...models.unets.unet_2d_blocks import DownBlock2D, UpBlock2D
 from ...models.unets.unet_2d_condition import UNet2DConditionOutput
 from ...utils import BaseOutput, logging
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -53,8 +48,8 @@ def add_special_tokens(hidden_states, attention_mask, sos_token, eos_token):
         attention_mask = mint.concat([new_attn_mask_step, attention_mask, new_attn_mask_step], dim=-1)
 
     # Add the SOS / EOS tokens at the start / end of the sequence respectively
-    sos_token = sos_token.expand(batch_size, 1, -1)
-    eos_token = eos_token.expand(batch_size, 1, -1)
+    sos_token = sos_token.broadcast_to(batch_size, 1, -1)
+    eos_token = eos_token.broadcast_to(batch_size, 1, -1)
     hidden_states = mint.concat([sos_token, hidden_states, eos_token], dim=1)
     return hidden_states, attention_mask
 
@@ -119,9 +114,7 @@ class AudioLDM2ProjectionModel(ModelMixin, ConfigMixin):
 
         # learable positional embedding for vits encoder
         if self.use_learned_position_embedding is not None:
-            self.learnable_positional_embedding = Parameter(
-                mint.zeros((1, text_encoder_1_dim, max_seq_length))
-            )
+            self.learnable_positional_embedding = Parameter(mint.zeros((1, text_encoder_1_dim, max_seq_length)))
 
     def construct(
         self,
@@ -287,13 +280,14 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
 
         if num_attention_heads is not None:
             raise ValueError(
-                "At the moment it is not possible to define the number of attention heads via `num_attention_heads` because of a naming issue as described in https://github.com/huggingface/diffusers/issues/2011#issuecomment-1547958131. Passing `num_attention_heads` will only be supported in diffusers v0.19."
+                "At the moment it is not possible to define the number of attention heads via `num_attention_heads` because of a naming issue \
+                as described in https://github.com/huggingface/diffusers/issues/2011#issuecomment-1547958131. \
+                Passing `num_attention_heads` will only be supported in diffusers v0.19."
             )
 
         # If `num_attention_heads` is not defined (which is the case for most models)
         # it will default to `attention_head_dim`. This looks weird upon first reading it and it is.
         # The reason for this behavior is to correct for incorrectly named variables that were introduced
-        # when this library was created. The incorrect naming was only discovered much later in https://github.com/huggingface/diffusers/issues/2011#issuecomment-1547958131
         # Changing `attention_head_dim` to `num_attention_heads` for 40,000+ configurations is too backwards breaking
         # which is why we correct for the naming here.
         num_attention_heads = num_attention_heads or attention_head_dim
@@ -301,37 +295,44 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
         # Check inputs
         if len(down_block_types) != len(up_block_types):
             raise ValueError(
-                f"Must provide the same number of `down_block_types` as `up_block_types`. `down_block_types`: {down_block_types}. `up_block_types`: {up_block_types}."
+                f"Must provide the same number of `down_block_types` as `up_block_types`. `down_block_types`: \
+                    {down_block_types}. `up_block_types`: {up_block_types}."
             )
 
         if len(block_out_channels) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `block_out_channels` as `down_block_types`. `block_out_channels`: {block_out_channels}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `block_out_channels` as `down_block_types`. `block_out_channels`:\
+                      {block_out_channels}. `down_block_types`: {down_block_types}."
             )
 
         if not isinstance(only_cross_attention, bool) and len(only_cross_attention) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `only_cross_attention` as `down_block_types`. `only_cross_attention`: {only_cross_attention}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `only_cross_attention` as `down_block_types`. `only_cross_attention`: \
+                    {only_cross_attention}. `down_block_types`: {down_block_types}."
             )
 
         if not isinstance(num_attention_heads, int) and len(num_attention_heads) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `num_attention_heads` as `down_block_types`. `num_attention_heads`: {num_attention_heads}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `num_attention_heads` as `down_block_types`. `num_attention_heads`: \
+                    {num_attention_heads}. `down_block_types`: {down_block_types}."
             )
 
         if not isinstance(attention_head_dim, int) and len(attention_head_dim) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `attention_head_dim` as `down_block_types`. `attention_head_dim`: {attention_head_dim}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `attention_head_dim` as `down_block_types`. `attention_head_dim`: \
+                    {attention_head_dim}. `down_block_types`: {down_block_types}."
             )
 
         if isinstance(cross_attention_dim, list) and len(cross_attention_dim) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `cross_attention_dim` as `down_block_types`. `cross_attention_dim`: {cross_attention_dim}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `cross_attention_dim` as `down_block_types`. `cross_attention_dim`: \
+                    {cross_attention_dim}. `down_block_types`: {down_block_types}."
             )
 
         if not isinstance(layers_per_block, int) and len(layers_per_block) != len(down_block_types):
             raise ValueError(
-                f"Must provide the same number of `layers_per_block` as `down_block_types`. `layers_per_block`: {layers_per_block}. `down_block_types`: {down_block_types}."
+                f"Must provide the same number of `layers_per_block` as `down_block_types`. `layers_per_block`: \
+                    {layers_per_block}. `down_block_types`: {down_block_types}."
             )
 
         # input
@@ -520,7 +521,7 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
                 num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
             )
 
-            self.conv_act = get_activation(act_fn)
+            self.conv_act = get_activation(act_fn)()
 
         else:
             self.conv_norm_out = None
@@ -776,7 +777,7 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
             timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = timesteps.expand(sample.shape[0])
+        timesteps = timesteps.broadcast_to(sample.shape[0])
 
         t_emb = self.time_proj(timesteps)
 
