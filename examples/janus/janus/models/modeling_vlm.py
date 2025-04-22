@@ -327,7 +327,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         # Workaround: _tensor_setitem_by_int_tensor_with_tensor()
         # image_seq_mask = image_seq_mask.nonzero().squeeze()
         # above tensor.squeeze() does not work under pynatvie dunno why...
-        _image_seq_mask = image_seq_mask.nonzero().reshape(-1)  # workaround for both pynative & graph: force flatten 
+        _image_seq_mask = image_seq_mask.nonzero().reshape(-1)  # workaround for both pynative & graph: force flatten
         inputs_embeds[_image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
