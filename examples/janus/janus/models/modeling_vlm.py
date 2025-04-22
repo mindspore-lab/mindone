@@ -323,11 +323,15 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor(). Workaround: _tensor_setitem_by_int_tensor_with_tensor()
-        image_seq_mask = image_seq_mask.nonzero().squeeze()
-        inputs_embeds[image_seq_mask] = image_embeds
+        # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor(). 
+        # Workaround: _tensor_setitem_by_int_tensor_with_tensor()
+        # image_seq_mask = image_seq_mask.nonzero().squeeze()
+        # above tensor.squeeze() does not work under pynatvie dunno why...
+        _image_seq_mask = image_seq_mask.nonzero().reshape(-1)  # workaround for both pynative & graph: force flatten 
+        inputs_embeds[_image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
+        image_seq_mask = image_seq_mask.reshape(B, S)
 
         # 3. LlamaModel forward
         outputs = self.language_model.model(
@@ -404,7 +408,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # FIXME same ms2.5.0 graph mode constraint as above
+        # FIXME same workaround as above, for the ms2.5.0 graph mode constraint
         image_seq_mask = image_seq_mask.nonzero().squeeze()
         inputs_embeds[image_seq_mask] = image_embeds
 
