@@ -121,7 +121,7 @@ On NPU server:
 ```shell
 pip install -e .[gradio]
 
-python demo/app_Janus-Pro.py
+python demo/app_januspro.py
 ```
 
 On local terminal, run `ssh -L 37906:localhost:37906 user_name@server_ip`, then open `localhost:37906` on the web.
