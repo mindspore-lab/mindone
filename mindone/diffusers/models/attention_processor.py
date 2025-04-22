@@ -15,7 +15,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import deprecate, is_mindspore_version, logging

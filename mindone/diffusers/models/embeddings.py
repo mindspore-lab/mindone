@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 from ..utils import deprecate
 from .activations import FP32SiLU, get_activation
@@ -1170,14 +1170,14 @@ def apply_rotary_emb(
         # Support concatenated `freqs_cis` since MindSpore recompute doesn't support calculate tensors' gradient from tuple.
         if ops.is_tensor(freqs_cis):
             cos, sin = freqs_cis.chunk(2)  # [1, S, D]
-            #cos = cos[None]
-            #sin = sin[None]
+            # cos = cos[None]
+            # sin = sin[None]
             cos = cos.expand_dims(axis=0)
             sin = sin.expand_dims(axis=0)
         else:
             cos, sin = freqs_cis  # [S, D]
-            #cos = cos[None, None]
-            #sin = sin[None, None]
+            # cos = cos[None, None]
+            # sin = sin[None, None]
             cos = cos.expand_dims(axis=0).expand_dims(axis=0)
             sin = sin.expand_dims(axis=0).expand_dims(axis=0)
 
