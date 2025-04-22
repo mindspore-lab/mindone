@@ -49,7 +49,9 @@ dataset:
   empty_text_emb:
     t5: EMPTY_TEXT_EMB
     clip: EMPTY_TEXT_EMB
-  text_drop_prob: 0.31622777
+  text_drop_prob:
+    t5: 0.31622777
+    clip: 0.31622777
   vae_scale_factor: 0.476986
   vae_shift_factor: 0
   apply_transforms_dataset: True

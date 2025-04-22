@@ -45,7 +45,7 @@ class VideoDatasetRefactored(BaseDataset):
         video_folder: str,
         text_emb_folder: Union[str, dict[str, str]],
         empty_text_emb: Optional[Union[str, dict[str, str]]] = None,
-        text_drop_prob: float = 0.2,
+        text_drop_prob: Union[float, dict[str, float]] = 0.2,
         vae_latent_folder: Optional[str] = None,
         vae_downsample_rate: float = 8.0,
         vae_scale_factor: float = 0.18215,
@@ -215,14 +215,16 @@ class VideoDatasetRefactored(BaseDataset):
         num_frames = self._frames
 
         if self._text_emb_folder:
-            if self._empty_text_emb and random.random() <= self._text_drop_prob:
-                data["text_emb"] = self._empty_text_emb
-
-            if isinstance(data["text_emb"], str):
+            if isinstance(data["text_emb"], str):  # V1.x text embedding
+                if self._empty_text_emb and random.random() <= self._text_drop_prob:
+                    data["text_emb"] = self._empty_text_emb
                 with np.load(data["text_emb"]) as td:
                     data.update({"caption": td["text_emb"], "mask": td["mask"].astype(np.uint8)})
-            else:
+
+            else:  # V2.x text embedding, multiple encoders are supported
                 for enc_name, path in data["text_emb"].items():
+                    if self._empty_text_emb and random.random() <= self._text_drop_prob[enc_name]:
+                        path = self._empty_text_emb[enc_name]
                     data.update({enc_name + "_caption": np.load(path)})  # No masks in V2.0
 
         if self._vae_latent_folder:
