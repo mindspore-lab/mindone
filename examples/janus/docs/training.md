@@ -21,7 +21,10 @@ huggingface-cli download  jasonhuang23/artwork --repo-type dataset --local-dir d
 huggingface-cli download  rbojja/medical-vqa --repo-type dataset --local-dir datasets/medical-vqa
 ```
 
+Before launching sft training with the scripts under [../scripts/](../scripts/), we need to setup the meta env var `YOUR_DATA_PATH` and `YOUR_DOWNLOADED_JANUS_CKPT_PATH` for each script.
+
 ## Run Training
+After setting up as above, you are good to go.
 
 - Text Generation Task
 
@@ -60,19 +63,19 @@ We also implemented a stage-3 SFT for medical data aiming for building a radiolo
 | pure-text | 20 | qiaojin/PubmeQA |
 | T2I | 80 | mdwiratathya/ROCO-radiology |
 
-#### Graph Mode Training
+#### Graph Mode Mixed-Task Training
 
 > [!NOTE]
 > We achieve higher training throughput by enabling graph mode compute. However, to do that we need to predefine a compute graph for the vlm for each of the task out of three in total, as for each task, the vlm takes different types of input arg pairs.
 >
-> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_graph()` into `construct()`.
+> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_graph_mixed_task()` into `construct()`.
 ```diff
 # @ L424
 -- def construct(
-++ # def construct(
+++ # def construct( # just comment this out
 
 # @ L482
--- def construct_graph(
+-- def construct_graph_mixed_task(
 ++ def construct(
 ```
 

@@ -5,12 +5,17 @@ bs=6
 fe=False
 stage=3
 npp=0.05
+dataset_meta_path=YOUR_DATA_PATH
+pretrained_ckpt_path=YOUR_DOWNLOADED_JANUS_CKPT_PATH
 
 python train.py \
     --ms_mode 0 \
-    --model_path ckpts/Janus-Pro-1B \
+    --model_path ${pretrained_ckpt_path} \
     --load_weight True \
     --use_value_and_grad False \
+    --vqa_data_dir ${dataset_meta_path}/medical-vqa/medical-vqa \
+    --text_qa_data_dir ${dataset_meta_path}/PubMedQA/pqa_labeled \
+    --t2i_parquet_dir ${dataset_meta_path}/ROCO-radiology/testdata \
     --training_stage $stage \
     --task "mixed" \
     --learning_rate $lr \

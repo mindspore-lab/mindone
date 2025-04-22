@@ -223,7 +223,7 @@ def main(args):
             dataloader = create_unified_dataloader_weightrandsamp(
                 vl_chat_processor,
                 t2i_parquet_dir=args.t2i_parquet_dir,
-                text_data_dir=args.text_data,
+                text_data_dir=args.text_qa_data_dir,
                 vqa_data_dir=args.vqa_data_dir,
                 max_token_length=args.max_length,
                 image_size=args.image_size,

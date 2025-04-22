@@ -435,7 +435,52 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         Added for training, and only used in training!
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
-            task_type: shape (bs,), 0 - vqa, 1 - pure text, 2 - t2i
+            task_type: shape (bs,), 0 - pure text, 1 - vqa, 2 - t2i
+        """
+
+        if task_type[0] == 0:
+            # text
+            loss = self.language_model(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+            )[0]
+        elif task_type[0] == 1:
+            # mm understand
+            loss = self.und_with_loss(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                image_seq_mask=image_seq_mask,
+                pixel_values=pixel_values,
+            )
+        elif task_type[0] == 2:
+            # t2i
+            loss = self.gen_with_loss(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                image_seq_mask=image_seq_mask,
+                pixel_values=pixel_values,
+                image_tokens=image_tokens,
+                # labels,
+            )
+        else:
+            raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
+
+        return loss
+
+    def construct_pynative_mixed_task(
+        self,
+        task_type: Tensor = None,
+        input_ids: Tensor = None,
+        labels: Optional[Tensor] = None,
+        attention_mask: Optional[Tensor] = None,
+        image_seq_mask: Optional[Tensor] = None,
+        pixel_values: Optional[Tensor] = None,
+        image_tokens: Optional[Tensor] = None,
+    ):
+        r"""
+        Added for training, and only used in mixed-task sft pynative training!
         """
         losses = []
         for ti, task in enumerate(task_type):
@@ -479,7 +524,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         return loss
 
-    def construct_graph(
+    def construct_graph_mixed_task(
         self,
         task_type: Tensor = None,
         input_ids: Tensor = None,
@@ -489,10 +534,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         pixel_values: Optional[Tensor] = None,
     ):
         r"""
-        For training in graph mode.
-        Args:
-            input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
-            task_type: shape (bs,), 0 - vqa, 1 - pure text, 2 - t2i
+        Added for training, and only used in mixed-task sft graph mode training.
         """
         is_vqa_index = (task_type == 0).nonzero().squeeze(-1)
         loss_vqa = self.und_with_loss(
