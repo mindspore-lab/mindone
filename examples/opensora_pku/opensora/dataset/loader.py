@@ -31,7 +31,7 @@ def create_dataloader(
 ):
     datalen = len(dataset)
     # do_copy=False enables the dataset iterator to not do copy when creating a tensor which takes less time.
-    # Currently the default value of do_copy is True, 
+    # Currently the default value of do_copy is True,
     # it is expected that the default value of do_copy will be changed to False in MindSpore 2.7.0.
     if dataset_iterator_no_copy:
         ms.dataset.config.set_iterator_mode(do_copy=False)
