@@ -6,12 +6,12 @@ import os
 import pickle
 import random
 import time
-import av
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from os.path import join as opj
 from pathlib import Path
 
+import av
 import cv2
 import decord
 import numpy as np
