@@ -16,7 +16,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops, mint
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
@@ -196,7 +196,7 @@ class FluxTransformerBlock(nn.Cell):
 
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
         # norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
-        norm_encoder_hidden_states *= (1 + c_scale_mlp.expand_dims(axis=1))
+        norm_encoder_hidden_states *= 1 + c_scale_mlp.expand_dims(axis=1)
         norm_encoder_hidden_states += c_shift_mlp.expand_dims(axis=1)
 
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
