@@ -176,6 +176,7 @@ _import_structure = {
         "StableDiffusion3Img2ImgPipeline",
         "StableDiffusion3InpaintPipeline",
     ],
+    "stable_diffusion_attend_and_excite": ["StableDiffusionAttendAndExcitePipeline"],
     "stable_diffusion_safe": ["StableDiffusionPipelineSafe"],
     "stable_diffusion_sag": ["StableDiffusionSAGPipeline"],
     "stable_diffusion_gligen": [
@@ -375,6 +376,7 @@ if TYPE_CHECKING:
         StableDiffusion3InpaintPipeline,
         StableDiffusion3Pipeline,
     )
+    from .stable_diffusion_attend_and_excite import StableDiffusionAttendAndExcitePipeline
     from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
     from .stable_diffusion_k_diffusion import StableDiffusionKDiffusionPipeline, StableDiffusionXLKDiffusionPipeline
