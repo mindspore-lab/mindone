@@ -214,7 +214,7 @@ def parse_args(input_args=None):
             "optimization level, which is continuously being improved. O2: Enables extreme performance optimization, "
             "using a sinking execution method."
         ),
-    )    
+    )
     parser.add_argument(
         "--instance_prompt",
         type=str,
@@ -923,7 +923,7 @@ def encode_prompt(
 def main(args):
     args = parse_args()
     ms.set_context(
-        mode=ms.GRAPH_MODE, 
+        mode=ms.GRAPH_MODE,
         jit_syntax_level=ms.STRICT,
         jit_config={"jit_level": args.jit_level},
     )
