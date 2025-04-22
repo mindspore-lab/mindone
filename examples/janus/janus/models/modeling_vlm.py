@@ -323,7 +323,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask = image_seq_mask.reshape(-1)  # (B, S) -> (B * S)
         image_embeds = image_embeds.reshape(-1, D)  # (B, T, D) -> (B * T, D)
 
-        # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor(). 
+        # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor().
         # Workaround: _tensor_setitem_by_int_tensor_with_tensor()
         # image_seq_mask = image_seq_mask.nonzero().squeeze()
         # above tensor.squeeze() does not work under pynatvie dunno why...
@@ -436,7 +436,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_tokens: Optional[Tensor] = None,
     ):
         r"""
-        Added for training, and only used in training!
+        Added for training, used in single task pynative training!
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
             task_type: shape (bs,), 0 - pure text, 1 - vqa, 2 - t2i
@@ -472,6 +472,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
             raise ValueError(f"task type should be one of [0, 1, 2], but get {task_type}")
 
         return loss
+
+    def construct_graph_single_task(self):
+        pass
 
     def construct_pynative_mixed_task(
         self,
