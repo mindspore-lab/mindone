@@ -39,7 +39,6 @@ ae:
 
 dataset:
   v2_pipeline: True
-  target_size: [ 256, 256 ]
   sample_n_frames: 5
   csv_path: CSV_PATH
   video_folder: VIDEO_FOLDER
@@ -57,12 +56,24 @@ dataset:
   apply_transforms_dataset: True
   output_columns: [ "video", "video_ids", "t5_caption", "txt_ids", "clip_caption", "shift_alpha" ]
 
+bucket_config:
+  init_args:
+    bucket_config:
+      256px:
+        1: [ 1.0, 50 ]
+      768px:
+        1: [ 0.5, 11 ]
+      1024px:
+        1: [ 0.5, 7 ]
+
 dataloader:
-  batch_size: 1
   shuffle: True
   num_workers_dataset: 4
 
 train:
+  pipeline:
+    is_causal_vae: True
+
   sequence_parallel:
     shards: 1   # 1 == no SP
 
@@ -100,4 +111,4 @@ train:
     record_lr: False
 
 save:
-  output_path: ../../../output/stage1  # the path is relative to this config
+  output_path: ../../../output/image  # the path is relative to this config

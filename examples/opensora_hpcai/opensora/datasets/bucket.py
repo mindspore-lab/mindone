@@ -49,7 +49,7 @@ class Bucket:
         self.ar_criteria = ar_criteria
         self.num_bucket = num_bucket
 
-    def get_bucket_id(self, T, H, W, frame_interval=1):
+    def get_bucket_id(self, T, H, W, frame_interval=1, **kwargs):
         resolution = H * W
         approx = 0.8
 
@@ -111,11 +111,9 @@ class Bucket:
         return self.num_bucket
 
 
-def bucket_split_function(buckets: Bucket):
-    hashed_buckets = {}
+def bucket_split_function(buckets: Bucket, v2: bool = False):
+    hashed_buckets, batch_sizes, cnt = {}, [], 0
 
-    batch_sizes = []
-    cnt = 1
     for name, lengths in buckets.ar_criteria.items():
         for length, ars in lengths.items():
             if buckets.bucket_bs[name][length] is not None and buckets.bucket_bs[name][length] > 0:
@@ -124,8 +122,10 @@ def bucket_split_function(buckets: Bucket):
                     batch_sizes.append(buckets.bucket_bs[name][length])
                     cnt += 1
 
-    def _bucket_split_function(video: np.ndarray) -> int:
-        # video: F C H W
-        return hashed_buckets[video.shape[0]][video.shape[2]][video.shape[3]]
+    dim = 1 if v2 else 0
 
-    return _bucket_split_function, list(range(1, cnt - 1)), batch_sizes
+    def _bucket_split_function(video: np.ndarray) -> int:
+        # video: v1.x: F C H W, v2: C F H W
+        return hashed_buckets[video.shape[dim]][video.shape[2]][video.shape[3]]
+
+    return _bucket_split_function, list(range(1, cnt)), batch_sizes

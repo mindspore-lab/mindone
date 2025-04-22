@@ -104,6 +104,7 @@ class Bucket:
         path: Optional[str] = None,
         seed: Optional[int] = None,
         fps_max: int = 16,
+        **kwargs,
     ) -> Optional[tuple[str, int, int]]:
         approx = 0.8
         _, sampling_interval = map_target_fps(fps, fps_max)

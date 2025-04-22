@@ -3,6 +3,8 @@ import logging
 import os
 from typing import Literal
 
+from tqdm import tqdm
+
 import mindspore as ms
 from mindspore import nn, ops
 from mindspore.communication import get_group_size, get_rank
@@ -645,7 +647,7 @@ def convert_checkpoints(src_checkpoint: str, src_param_split_info_json: str, gro
     new_params_list = []
     ckpts = []
     jsons = []
-    for i in range(group_size):
+    for i in tqdm(range(group_size), desc="Loading checkpoints"):
         ckpts.append(ms.load_checkpoint(src_checkpoint.format(i)))
         jsons.append(read_json(src_param_split_info_json.format(i)))
     for param_name in ckpts[0].keys():
@@ -671,4 +673,5 @@ def convert_checkpoints(src_checkpoint: str, src_param_split_info_json: str, gro
 
         new_params_list.append({"name": param_name, "data": param_value})
 
+    _logger.info("Saving merged checkpoints to ", src_checkpoint.format(f"all_{group_size}"))
     ms.save_checkpoint(new_params_list, src_checkpoint.format(f"all_{group_size}"))

@@ -43,22 +43,24 @@ def initialize_dataset(
     rank_id: int = 0,
 ) -> Tuple[Union[mds.BatchDataset, mds.BucketBatchByLengthDataset], int]:
     if validation:
-        all_buckets, individual_buckets = None, [None]
-        if bucket_config is not None:
-            all_buckets = Bucket(bucket_config)
-            # Build a new bucket for each resolution and number of frames for the validation stage
-            individual_buckets = [
-                Bucket({res: {num_frames: [1.0, bucket_config[res][num_frames][1]]}})
-                for res in bucket_config.keys()
-                for num_frames in bucket_config[res].keys()
-            ]
+        pass
+        # all_buckets, individual_buckets = None, [None]
+        # if bucket_config is not None:
+        #     all_buckets = Bucket(bucket_config)
+        #     # Build a new bucket for each resolution and number of frames for the validation stage
+        #     individual_buckets = [
+        #         Bucket({res: {num_frames: [1.0, bucket_config[res][num_frames][1]]}})
+        #         for res in bucket_config.keys()
+        #         for num_frames in bucket_config[res].keys()
+        #     ]
     else:
-        all_buckets = Bucket(bucket_config) if bucket_config is not None else None
+        all_buckets = Bucket(**bucket_config.init_args) if bucket_config is not None else None
         individual_buckets = [all_buckets]
 
     datasets = [
         VideoDatasetRefactored(
             **dataset_args,
+            latent_compress_func=vae.get_latent_size if vae is not None else None,
             buckets=buckets,
             patch_size=(1, model.patch_size, model.patch_size),
         )
@@ -82,7 +84,7 @@ def initialize_dataset(
     dataloader = mds.ConcatDataset(dataloaders) if len(dataloaders) > 1 else dataloaders[0]
 
     if all_buckets is not None:
-        hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets)
+        hash_func, bucket_boundaries, bucket_batch_sizes = bucket_split_function(all_buckets, v2=True)
         dataloader = dataloader.bucket_batch_by_length(
             ["video"],
             bucket_boundaries,
@@ -90,6 +92,7 @@ def initialize_dataset(
             element_length_function=hash_func,
             drop_remainder=False,
         )
+        dataloader.dataset_size = 1  # prevent MS from iterating over the dataset once at the beginning
     return dataloader, num_src_samples
 
 
@@ -121,6 +124,8 @@ def main(args):
     if not args.dataset.vae_latent_folder:
         logger.info("Initializing VAE...")
         vae = CausalVAE3D_HUNYUAN(**args.ae).set_train(False)  # TODO: add DC-AE support
+        for param in vae.get_parameters():  # turn grads off
+            param.requires_grad = False
     else:
         logger.info("VAE latent folder provided. Skipping VAE initialization.")
         vae = None
@@ -130,7 +135,14 @@ def main(args):
     model_name = "OpenSora 2.0"
     network = Flux(**args.model)
     # 3. build training network
-    latent_diffusion_with_loss = DiffusionWithLoss(network, vae=vae)
+    condition_config = initializer.train.pipeline.pop("condition_config")  # do it properly
+    latent_diffusion_with_loss = DiffusionWithLoss(
+        network,
+        vae,
+        patch_size=(1, network.patch_size, network.patch_size),
+        condition_config=condition_config,
+        **initializer.train.pipeline,
+    )
 
     # 4. build train & val datasets
     if args.train.sequence_parallel.shards > 1:
@@ -164,7 +176,10 @@ def main(args):
     if mode == GRAPH_MODE:
         if args.train.sequence_parallel.shards <= 1:
             bs = Symbol(unique=True)
-            video = tensor(shape=[bs, None, 64], dtype=mstype.float32)
+            if args.dataset.vae_latent_folder is not None:
+                video = tensor(shape=[bs, None, 64], dtype=mstype.float32)
+            else:
+                video = tensor(shape=[bs, 3, None, None, None], dtype=mstype.float32)
             img_ids = tensor(shape=[bs, None, 3], dtype=mstype.int32)
             text_embed = tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
             txt_ids = tensor(shape=[bs, 512, 3], dtype=mstype.int32)
@@ -264,7 +279,7 @@ if __name__ == "__main__":
     parser.add_class_arguments(
         VideoDatasetRefactored,
         "dataset",
-        skip={"buckets", "frames_mask_generator", "t_compress_func", "patch_size"},
+        skip={"buckets", "frames_mask_generator", "latent_compress_func", "patch_size"},
         instantiate=False,
     )
     parser.add_subclass_arguments(Bucket, "bucket_config", required=False, instantiate=False)
@@ -274,6 +289,9 @@ if __name__ == "__main__":
         skip={"dataset", "transforms", "batch_transforms", "device_num", "rank_id"},
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
+    parser.add_class_arguments(
+        DiffusionWithLoss, "train.pipeline", skip={"network", "vae", "patch_size"}, instantiate=False
+    )
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
     parser.add_function_arguments(create_optimizer, "train.optimizer", skip={"params", "lr"})
     parser.add_subclass_arguments(

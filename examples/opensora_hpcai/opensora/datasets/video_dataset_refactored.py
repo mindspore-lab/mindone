@@ -53,7 +53,7 @@ class VideoDatasetRefactored(BaseDataset):
         sample_n_frames: int = 16,
         sample_stride: int = 1,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
-        t_compress_func: Optional[Callable[[int], int]] = None,
+        latent_compress_func: Optional[Union[Callable[[int], int], Callable[[int, int, int], int]]] = None,
         pre_patchify: bool = False,
         patch_size: tuple[int, int, int] = (1, 2, 2),
         embed_dim: int = 1152,
@@ -84,7 +84,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._stride = sample_stride
         self._min_length = (self._frames - 1) * self._stride + 1
         self._text_emb_folder = text_emb_folder
-        self._empty_text_emb = empty_text_emb if text_drop_prob > 0 else None
+        self._empty_text_emb = empty_text_emb
         if self._empty_text_emb:
             if isinstance(self._empty_text_emb, str):
                 assert os.path.exists(self._empty_text_emb), f"Empty text embedding not found: {self._empty_text_emb}"
@@ -97,7 +97,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._vae_scale_factor = vae_scale_factor
         self._vae_shift_factor = vae_shift_factor
         self._fmask_gen = frames_mask_generator
-        self._t_compress_func = t_compress_func or (lambda x: x)
+        self._latent_compress_func = latent_compress_func or (lambda x: x)
         self._pre_patchify = pre_patchify
         self._buckets = buckets
         self._v2_pipeline = v2_pipeline
@@ -105,7 +105,8 @@ class VideoDatasetRefactored(BaseDataset):
         self.output_columns = output_columns
         if self._buckets:
             assert vae_latent_folder is None, "`vae_latent_folder` is not supported with bucketing"
-            self.output_columns += ["size"]  # pass bucket id information to transformations
+            if not apply_transforms_dataset:
+                self.output_columns += ["size"]  # pass bucket id information to transformations
 
         self._patch_size = patch_size
         assert self._patch_size[0] == 1
@@ -273,7 +274,7 @@ class VideoDatasetRefactored(BaseDataset):
                     cap.release()
 
                     bucket_id = self._buckets.get_bucket_id(
-                        T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride
+                        T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride, fps=reader.get_avg_fps()
                     )
                     if bucket_id is None:
                         raise ValueError(
@@ -300,7 +301,11 @@ class VideoDatasetRefactored(BaseDataset):
                     min_length = self._min_length
                     if self._buckets:
                         bucket_id = self._buckets.get_bucket_id(
-                            T=len(reader), H=reader.shape[1], W=reader.shape[0], frame_interval=self._stride
+                            T=len(reader),
+                            H=reader.shape[1],
+                            W=reader.shape[0],
+                            frame_interval=self._stride,
+                            fps=reader.fps,
                         )
                         if bucket_id is None:
                             raise ValueError(
@@ -323,7 +328,7 @@ class VideoDatasetRefactored(BaseDataset):
 
         if self._fmask_gen is not None:
             # return frames mask with respect to the VAE's latent temporal compression
-            data["frames_mask"] = self._fmask_gen(self._t_compress_func(num_frames))
+            data["frames_mask"] = self._fmask_gen(self._latent_compress_func(num_frames))
 
         data["video"] = video
 
@@ -404,14 +409,17 @@ class VideoDatasetRefactored(BaseDataset):
             img_ids: used for positional embedding in T,H,W dimensions later
             text_ids: for positional embedding, but set to 0 for now since our text encoder already encodes positional information
         """
-        t, h, w = img.shape[-3:]
+        t, h, w = img.shape[-3:] if self._vae_latent_folder is not None else self._latent_compress_func(img.shape[-3:])
 
         # follow SD3 time shift, shift_alpha = 1 for 256px and shift_alpha = 3 for 1024 px
         shift_alpha = get_res_lin_function()((h * w) // 4)
         # add temporal influence
         shift_alpha *= sqrt(t)  # for image, T=1 so no effect
 
-        img = rearrange(img, "c t (h ph) (w pw) -> (t h w) (c ph pw)", ph=self._patch_size[1], pw=self._patch_size[2])
+        if self._vae_latent_folder is not None:
+            img = rearrange(  # patchify inputs
+                img, "c t (h ph) (w pw) -> (t h w) (c ph pw)", ph=self._patch_size[1], pw=self._patch_size[2]
+            )
         img_ids = np.zeros((t, h // self._patch_size[1], w // self._patch_size[2], 3), dtype=np.int32)
         img_ids[..., 0] = img_ids[..., 0] + np.arange(t)[:, None, None]
         img_ids[..., 1] = img_ids[..., 1] + np.arange(h // self._patch_size[1])[None, :, None]
@@ -434,7 +442,8 @@ class VideoDatasetRefactored(BaseDataset):
                 {
                     "operations": [
                         ResizeCrop(target_size, interpolation=cv2.INTER_AREA),
-                        lambda x: np.transpose(x, (0, 3, 1, 2)),  # ms.HWC2CHW() doesn't support 4D data
+                        # v1.x: T, C, H, W; v2.x: C, T, H, W
+                        lambda x: np.transpose(x, (3, 0, 1, 2)) if self._v2_pipeline else np.transpose(x, (0, 3, 1, 2)),
                         lambda x: x.astype(np.float32) / 127.5 - 1,
                     ],
                     "input_columns": ["video", "size"] if self._buckets else ["video"],

@@ -1,12 +1,14 @@
 import logging
+from dataclasses import asdict
+from typing import Optional, Union
 
-import mindspore as ms
-from mindspore import Tensor, _no_grad
+from mindspore import PYNATIVE_MODE, Tensor, _no_grad
 from mindspore import dtype as mstype
-from mindspore import jit_class, mint, nn, ops, tensor
+from mindspore import get_context, jit_class, mint, nn, ops, tensor
 from mindspore.communication import get_rank
 
 from ..acceleration import get_sequence_parallel_group
+from ..utils.training import Condition, prepare_visual_condition_causal, prepare_visual_condition_uncausal
 from .utils_v2 import time_shift
 
 __all__ = ["DiffusionWithLoss"]
@@ -22,7 +24,7 @@ class no_grad(_no_grad):
 
     def __init__(self):
         super().__init__()
-        self._pynative = ms.get_context("mode") == ms.PYNATIVE_MODE
+        self._pynative = get_context("mode") == PYNATIVE_MODE
 
     def __enter__(self):
         if self._pynative:
@@ -37,34 +39,28 @@ class DiffusionWithLoss(nn.Cell):
     """A training pipeline for a diffusion model
 
     Args:
-        model (nn.Cell): A noise prediction model to denoise the encoded image latents.
+        network (nn.Cell): A noise prediction model to denoise the encoded image latents.
         vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
-        diffusion: (object): A class for Gaussian Diffusion.
-        scale_factor (float): scale_factor for vae.
-        condition (str): The type of conditions of model in [None, 'text', 'class'].
-            If it is None, model is a un-conditional video generator.
-            If it is 'text', model accepts text embeddings (B, T, N) as conditions, and generates videos.
-            If it is 'class', model accepts class labels (B, ) as conditions, and generates videos.
-        text_encoder (nn.Cell): A text encoding model which accepts token ids and returns text embeddings in shape (T, D).
-            T is the number of tokens, and D is the embedding dimension.
-        cond_stage_trainable (bool): whether to train the text encoder.
-        train_with_embed (bool): whether to train with embeddings (no need vae and text encoder to extract latent features and text embeddings)
     """
 
     def __init__(
         self,
         network: nn.Cell,
-        vae: nn.Cell = None,
-        scale_factor: float = 0.18215,
+        vae: Optional[nn.Cell] = None,
+        is_causal_vae: bool = True,
+        patch_size: tuple[int, int, int] = (1, 2, 2),
         guidance: float = 4.0,
         sigma_min: float = 1e-5,
+        condition_config: Optional[Condition] = None,
     ):
         super().__init__()
         self.network = network
         self.vae = vae
-        self.scale_factor = scale_factor
+        self._prep_vc = prepare_visual_condition_causal if is_causal_vae else prepare_visual_condition_uncausal
+        self._patch_size = patch_size
         self._sigma_min = sigma_min
         self._guidance = tensor(guidance, dtype=self.network.dtype)
+        self._condition_config = asdict(condition_config) if condition_config is not None else None
         self.loss = mint.nn.MSELoss()
 
         self.broadcast = None
@@ -83,29 +79,48 @@ class DiffusionWithLoss(nn.Cell):
             return x
         return self.broadcast((x,))[0]
 
-    def get_latents(self, x):
+    def _pack(self, x: Tensor) -> Tensor:
+        # b c t (h ph) (w pw) -> b (t h w) (c ph pw)
+        b, c, t, h, w = x.shape
+        ph, pw = self._patch_size[1], self._patch_size[2]
+        x = mint.reshape(x, (b, c, t, h // ph, ph, w // pw, pw))
+        x = mint.permute(x, (0, 2, 3, 5, 1, 4, 6))
+        return mint.reshape(x, (b, -1, c * ph * pw))
+
+    def get_latents(self, x) -> tuple[Tensor, Union[Tensor, None]]:
         """
         x: (b c t h w)
         """
-        z = ops.stop_gradient(self.vae.encode(x))
-        return z
+        x = x.to(self.vae.dtype)
+        z = self.vae.encode(x)
+        cond = None
+        if self._condition_config is not None:
+            cond = self._prep_vc(x, out_shape=z.shape, condition_config=self._condition_config.copy(), ae=self.vae)
+            cond = self._pack(cond)
+        return self._pack(z), cond
 
     def construct(
         self, x: Tensor, img_ids: Tensor, text_embed: Tensor, txt_ids: Tensor, y_vec: Tensor, shift_alpha: Tensor
     ) -> Tensor:
+        cond = None
         if self.vae is not None:
-            with no_grad():
-                x = self.get_latents(x)
+            with no_grad():  # Pynative
+                x, cond = ops.stop_gradient(self.get_latents(x))  # Graph
 
-        loss = self.compute_loss(x, img_ids, text_embed, txt_ids, y_vec, shift_alpha)
+        loss = self.compute_loss(x, img_ids, text_embed, txt_ids, y_vec, shift_alpha, cond)
 
         return loss
 
     def compute_loss(
-        self, x: Tensor, img_ids: Tensor, text_embed: Tensor, txt_ids: Tensor, y_vec: Tensor, shift_alpha: Tensor
+        self,
+        x: Tensor,
+        img_ids: Tensor,
+        text_embed: Tensor,
+        txt_ids: Tensor,
+        y_vec: Tensor,
+        shift_alpha: Tensor,
+        cond: Optional[Tensor] = None,
     ) -> Tensor:
-        # TODO: prepare_visual_condition
-
         t = mint.sigmoid(ops.randn(x.shape[0]))
         t = time_shift(shift_alpha, t)
         t = self._broadcast(t)
@@ -115,6 +130,8 @@ class DiffusionWithLoss(nn.Cell):
         t_rev = 1 - t
         x_t = t_rev[:, None, None] * x + (1 - (1 - self._sigma_min) * t_rev[:, None, None]) * noise
 
+        if self._condition_config is not None:  # for faster graph building
+            cond = cond.to(self.network.dtype)
         model_pred = self.network(
             x_t.to(self.network.dtype),
             img_ids=img_ids.to(self.network.dtype),
@@ -122,6 +139,7 @@ class DiffusionWithLoss(nn.Cell):
             txt_ids=txt_ids.to(self.network.dtype),
             timesteps=t.to(self.network.dtype),
             y_vec=y_vec.to(self.network.dtype),
+            cond=cond,
             guidance=mint.tile(self._guidance, (x_t.shape[0],)),
         )
         v_t = (1 - self._sigma_min) * noise - x

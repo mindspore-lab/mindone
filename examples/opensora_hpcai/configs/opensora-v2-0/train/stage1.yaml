@@ -39,7 +39,6 @@ ae:
 
 dataset:
   v2_pipeline: True
-  target_size: [ 256, 256 ]
   sample_n_frames: 5
   csv_path: CSV_PATH
   video_folder: VIDEO_FOLDER
@@ -57,12 +56,56 @@ dataset:
   apply_transforms_dataset: True
   output_columns: [ "video", "video_ids", "t5_caption", "txt_ids", "clip_caption", "shift_alpha" ]
 
+bucket_config:
+  init_args:
+    bucket_config:
+      256px:
+        1: [ 1.0, 45 ]
+        5: [ 1.0, 12 ]
+        9: [ 1.0, 12 ]
+        13: [ 1.0, 12 ]
+        17: [ 1.0, 12 ]
+        21: [ 1.0, 12 ]
+        25: [ 1.0, 12 ]
+        29: [ 1.0, 12 ]
+        33: [ 1.0, 12 ]
+        37: [ 1.0, 6 ]
+        41: [ 1.0, 6 ]
+        45: [ 1.0, 6 ]
+        49: [ 1.0, 6 ]
+        53: [ 1.0, 6 ]
+        57: [ 1.0, 6 ]
+        61: [ 1.0, 6 ]
+        65: [ 1.0, 6 ]
+        69: [ 1.0, 4 ]
+        73: [ 1.0, 4 ]
+        77: [ 1.0, 4 ]
+        81: [ 1.0, 4 ]
+        85: [ 1.0, 4 ]
+        89: [ 1.0, 4 ]
+        93: [ 1.0, 4 ]
+        97: [ 1.0, 4 ]
+        101: [ 1.0, 3 ]
+        105: [ 1.0, 3 ]
+        109: [ 1.0, 3 ]
+        113: [ 1.0, 3 ]
+        117: [ 1.0, 3 ]
+        121: [ 1.0, 3 ]
+        125: [ 1.0, 3 ]
+        129: [ 1.0, 3 ]
+      768px:
+        1: [ 0.5, 13 ]
+      1024px:
+        1: [ 0.5, 7 ]
+
 dataloader:
-  batch_size: 1
   shuffle: True
   num_workers_dataset: 4
 
 train:
+  pipeline:
+    is_causal_vae: True
+
   sequence_parallel:
     shards: 1   # 1 == no SP
 
