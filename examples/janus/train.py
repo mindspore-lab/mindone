@@ -234,7 +234,6 @@ def main(args):
                 image_size=args.image_size,
                 null_prompt_prob=args.null_prompt_prob,
                 batch_size=args.batch_size,
-                shuffle=args.shuffle,
                 num_samples=100,
             )
         else:

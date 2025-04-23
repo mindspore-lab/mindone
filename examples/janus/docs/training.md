@@ -63,16 +63,29 @@ We also implemented **a stage-3 SFT for medical data aiming for building a radio
 | pure-text | 20 | qiaojin/PubmeQA |
 | T2I | 80 | mdwiratathya/ROCO-radiology |
 
-#### Graph Mode Mixed-Task Training
+#### Graph Mode SFT Training
 
 > [!NOTE]
 > We achieve higher training throughput by enabling graph mode compute. However, to do that we need to predefine a compute graph for the vlm for each of the task out of three in total, as for each task, the vlm takes different types of input arg pairs.
 >
-> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_graph_mixed_task()` into `construct()`.
+> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_*()` into `construct()` as follows.
+
+**Single task for pure text**
 ```diff
 # @ L428
 -- def construct(
-++ # def construct( # just comment this out
+++ # def construct( # just comment the whole function out
+
+# @ L476
+-- def construct_graph_single_task(
+++ def construct(
+```
+
+**Mixed task**
+```diff
+# @ L428
+-- def construct(
+++ # def construct( # just comment the whole function out
 
 # @ L567
 -- def construct_graph_mixed_task(

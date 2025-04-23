@@ -7,9 +7,10 @@ stage=3
 npp=0.05
 dataset_meta_path=YOUR_DATA_PATH
 pretrained_ckpt_path=YOUR_DOWNLOADED_JANUS_CKPT_PATH
+ms_mode=0
 
 python train.py \
-    --ms_mode 0 \
+    --ms_mode $ms_mode \
     --model_path ${pretrained_ckpt_path} \
     --load_weight True \
     --use_value_and_grad False \
@@ -28,6 +29,5 @@ python train.py \
     --warmup_steps 50 \
     --ckpt_save_steps 1000 \
     --ckpt_max_keep 1 \
-    --shuffle False \
-    --output_path outputs/stage${stage}_mixed_lr${lr}_wd${wd}_bs${bs}_npp${npp} \
+    --output_path outputs/stage${stage}_mixed_lr${lr}_wd${wd}_bs${bs}_npp${npp}_mode${ms_mode} \
     --mixed_task_rand_samp \
