@@ -212,9 +212,10 @@ def main(args):
         )
     elif task == "t2i":
         dataloader = create_dataloader_t2i(
+            vl_chat_processor=vl_chat_processor,
             csv_path=args.t2i_csv_path,
             data_dir=args.t2i_data_dir,
-            vl_chat_processor=vl_chat_processor,
+            parquet_dir=args.t2i_parquet_dir,
             max_token_length=args.max_length,
             image_size=args.image_size,
             null_prompt_prob=args.null_prompt_prob,
@@ -494,31 +495,31 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--t2i_csv_path",
-        default="",
+        default=None,
         type=str,
         help="path to csv annotation, contain `image_path` and `text_en` column for image path and caption respectively",
     )
     parser.add_argument(
         "--t2i_data_dir",
-        default="datasets/",
+        default=None,
         type=str,
         help="dataset directory contatining the images specified by `image_path` in csv_path",
     )
     parser.add_argument(
         "--t2i_parquet_dir",
-        default="datasets/",
+        default=None,
         type=str,
         help="dataset directory contatining the images specified by `image_path` in csv_path",
     )
     parser.add_argument(
         "--text_qa_data_dir",
-        default="datasets/",
+        default=None,
         type=str,
         help="dataset directory for text qa",
     )
     parser.add_argument(
         "--vqa_data_dir",
-        default="datasets/",
+        default=None,
         type=str,
         help="dataset directory for text qa",
     )

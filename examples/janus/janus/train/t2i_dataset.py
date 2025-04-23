@@ -178,9 +178,10 @@ def _filter_extreme_ratio(dataset: List[Dict[str, Any]], ratio: float = 4.5) -> 
 
 
 def create_dataloader_t2i(
-    csv_path: str,
-    data_dir: str,
     vl_chat_processor: VLChatProcessor,
+    csv_path: str = None,
+    data_dir: str = None,
+    parquet_dir: str = None,
     max_token_length: int = 1024,
     image_size: int = 384,
     null_prompt_prob: float = 0.0,
@@ -194,6 +195,7 @@ def create_dataloader_t2i(
     dataset = TextImageDataset(
         csv_path=csv_path,
         data_dir=data_dir,
+        parquet_dir=parquet_dir,
         vl_chat_processor=vl_chat_processor,
         max_token_length=max_token_length,
         image_size=image_size,
