@@ -93,8 +93,12 @@ class RoPE3D(nn.Cell):
 
     def apply_rope1d(self, tokens, pos1d, cos, sin):
         assert pos1d.ndim == 2
-        cos = cos[pos1d.to(ms.int32)][:, :, None, :]
-        sin = sin[pos1d.to(ms.int32)][:, :, None, :]
+        # cos = cos[pos1d]
+        # sin = sin[pos1d]
+        cos = ops.gather(cos, pos1d, 0)
+        sin = ops.gather(sin, pos1d, 0)
+        cos = cos[:, :, None, :]
+        sin = sin[:, :, None, :]
 
         return (tokens * cos) + (self.rotate_half(tokens) * sin)
 
