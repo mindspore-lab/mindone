@@ -16,7 +16,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
@@ -179,7 +179,8 @@ class FluxTransformerBlock(nn.Cell):
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
-        norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+        # norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+        norm_hidden_states = norm_hidden_states * (1 + scale_mlp.expand_dims(axis=1)) + shift_mlp.expand_dims(axis=1)
 
         ff_output = self.ff(norm_hidden_states)
         ff_output = gate_mlp.unsqueeze(1) * ff_output
@@ -194,7 +195,9 @@ class FluxTransformerBlock(nn.Cell):
         encoder_hidden_states = encoder_hidden_states + context_attn_output
 
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
-        norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
+        # norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
+        norm_encoder_hidden_states *= 1 + c_scale_mlp.expand_dims(axis=1)
+        norm_encoder_hidden_states += c_shift_mlp.expand_dims(axis=1)
 
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
@@ -527,7 +530,12 @@ class FluxTransformer2DModel(
                     + controlnet_single_block_samples[index_block // interval_control]
                 )
 
-        hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
+        # hidden_states = hidden_states[:, encoder_hidden_states.shape[1] :, ...]
+        hidden_states = mint.split(
+            hidden_states,
+            [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]],
+            dim=1,
+        )[1]
 
         hidden_states = self.norm_out(hidden_states, temb)
         output = self.proj_out(hidden_states)
