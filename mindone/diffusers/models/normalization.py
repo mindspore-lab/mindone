@@ -656,19 +656,16 @@ class RMSNorm(nn.Cell):
                 self.bias = ms.Parameter(ops.zeros(dim), name="bias")
 
     def construct(self, hidden_states):
-        input_dtype = hidden_states.dtype
-        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
-
         if self.weight is not None:
             # convert into half-precision if necessary
             if self.weight.dtype in [ms.float16, ms.bfloat16]:
                 hidden_states = hidden_states.to(self.weight.dtype)
-            hidden_states = hidden_states * self.weight
-            if self.bias is not None:
-                hidden_states = hidden_states + self.bias
+            weight = self.weight
         else:
-            hidden_states = hidden_states.to(input_dtype)
+            weight = ops.ones(hidden_states.shape[-1], dtype=hidden_states.dtype)
+        hidden_states = ops.rms_norm(hidden_states, weight, epsilon=self.eps)[0]
+        if self.bias is not None:
+            hidden_states = hidden_states + self.bias
 
         return hidden_states
 
