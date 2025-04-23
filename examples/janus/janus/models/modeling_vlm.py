@@ -484,7 +484,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_tokens: Optional[Tensor] = None,
     ):
         """Implemented for single task graph mode sft."""
-        
+
         # text
         loss = self.language_model(
             input_ids=input_ids,

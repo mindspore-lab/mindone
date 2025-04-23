@@ -161,6 +161,7 @@ def main(args):
 
     # when mixed-data sft under graph mode, set dynamic-shape
     if args.task == "mixed" and args.ms_mode == 0:
+        print("setup dynamic shape")
         input_ids = ms.Tensor(shape=[None, args.max_length], dtype=ms.int32)
         inputs_embeds = ms.Tensor(
             shape=[None, args.max_length, config.language_config.hidden_size],
@@ -170,6 +171,8 @@ def main(args):
         vl_gpt.language_model.model.set_inputs(
             input_ids=input_ids, inputs_embeds=inputs_embeds, attention_mask=attention_mask
         )
+    else:
+        print("did not setup dynamic shape")
 
     # debug to check gradient influence: set token embedding table for text and image to be non-trainable
     freeze_embed_tables = args.freeze_embedding
