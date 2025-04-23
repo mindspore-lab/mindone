@@ -1,6 +1,6 @@
 # import bisect
 
-import numpy as np
+# import numpy as np
 from janus.train.t2i_dataset import TextImageDataset
 from janus.train.text_dataset import TextDataset
 from janus.train.vqa_dataset import VqaDataset
