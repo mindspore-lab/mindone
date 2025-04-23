@@ -79,7 +79,7 @@ class RoPE3D(nn.Cell):
         # self.cache = {}
 
     def get_cos_sin(self, seq_len, interpolation_scale=1):
-        t = ops.arange(seq_len, dtype=self.inv_freq.dtype) / interpolation_scale
+        t = mint.arange(seq_len, dtype=self.inv_freq.dtype) / interpolation_scale
         freqs = ops.outer(t, self.inv_freq).to(self.inv_freq.dtype)
         freqs = mint.cat((freqs, freqs), dim=-1)
         cos = freqs.cos()  # (Seq, Dim)
