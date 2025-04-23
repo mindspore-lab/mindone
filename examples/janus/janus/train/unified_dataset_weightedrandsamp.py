@@ -1,6 +1,6 @@
 # import bisect
 
-# import numpy as np
+import numpy as np
 from janus.train.t2i_dataset import TextImageDataset
 from janus.train.text_dataset import TextDataset
 from janus.train.vqa_dataset import VqaDataset
@@ -23,9 +23,10 @@ class UnifiedDataset:
             s += leng
         return r
 
-    def __init__(self, datasets, max_token_length=1024):
+    def __init__(self, datasets, default_image_shape=(1, 3, 384, 384), max_token_length=1024):
         self.max_token_length = max_token_length
         self.datasets = datasets
+        self.default_image_shape = default_image_shape
         self.num_dataset = len(datasets)
         self.cumulative_sizes = self.cumsum(self.datasets)
 
@@ -42,6 +43,12 @@ class UnifiedDataset:
         sample_idx = idx // 3
 
         ret = self.datasets[dataset_idx][sample_idx]
+
+        # add image and image_seq_mask item to pure text for batching in graph mode
+        if dataset_idx == 0:
+            image = np.zeros(self.default_image_shape, np.float32)
+            image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
+            ret += (image_seq_mask, image)
 
         return ret
 

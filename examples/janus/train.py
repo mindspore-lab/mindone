@@ -159,16 +159,17 @@ def main(args):
     # VQ encoder doesn't need grad
     vl_gpt.gen_vision_model.set_grad(requires_grad=False)
 
-    # mixed-data sft under graph mode, set dynamic-shape
-    input_ids = ms.Tensor(shape=[None, args.max_length], dtype=ms.int32)
-    input_embeds = ms.Tensor(
-        shape=[None, args.max_length, config.language_config.hidden_size],
-        dtype=ms.bfloat16,
-    )
-    attention_mask = ms.Tensor(shape=[None, args.max_length], dtype=ms.bool_)
-    vl_gpt.language_model.model.set_inputs(
-        input_ids=input_ids, input_embeds=input_embeds, attention_mask=attention_mask
-    )
+    # when mixed-data sft under graph mode, set dynamic-shape
+    if args.task == "mixed" and args.ms_mode == 0:
+        input_ids = ms.Tensor(shape=[None, args.max_length], dtype=ms.int32)
+        inputs_embeds = ms.Tensor(
+            shape=[None, args.max_length, config.language_config.hidden_size],
+            dtype=ms.bfloat16,
+        )
+        attention_mask = ms.Tensor(shape=[None, args.max_length], dtype=ms.bool_)
+        vl_gpt.language_model.model.set_inputs(
+            input_ids=input_ids, inputs_embeds=inputs_embeds, attention_mask=attention_mask
+        )
 
     # debug to check gradient influence: set token embedding table for text and image to be non-trainable
     freeze_embed_tables = args.freeze_embedding
