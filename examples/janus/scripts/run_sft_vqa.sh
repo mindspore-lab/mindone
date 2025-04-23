@@ -9,7 +9,7 @@ pretrained_ckpt_path=YOUR_DOWNLOADED_JANUS_CKPT_PATH
 
 python train.py \
     --model_path ${pretrained_ckpt_path} \
-    --load_weight=True \
+    --load_weight True \
     --task 'vqa' \
     --dataset_name 'medical-vqa' \
     --vqa_data_dir ${dataset_meta_path}/medical-vqa/medical-vqa \

@@ -55,7 +55,7 @@ For more detailed arguments, please run `python train.py -h`.
 bash scripts/run_sft_mixed.sh
 ```
 
-We also implemented a stage-3 SFT for medical data aiming for building a radiology expert model. The datasets can be retrieved from huggingface with from the following repos.
+We also implemented **a stage-3 SFT for medical data aiming for building a radiology expert model**. The datasets can be retrieved from huggingface with from the following repos.
 
 | | #Data Samples | HuggingFace Source |
 | --- | --- | --- |
@@ -70,11 +70,11 @@ We also implemented a stage-3 SFT for medical data aiming for building a radiolo
 >
 > To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_graph_mixed_task()` into `construct()`.
 ```diff
-# @ L424
+# @ L428
 -- def construct(
 ++ # def construct( # just comment this out
 
-# @ L482
+# @ L567
 -- def construct_graph_mixed_task(
 ++ def construct(
 ```

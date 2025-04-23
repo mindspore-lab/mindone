@@ -48,7 +48,7 @@ class TextDataset:
         input_ids, labels, attention_mask = self.prepare_sft_inputs_and_label(question, answer)
         task_type = np.array(1, dtype=np.int32)
 
-        # add image and image_seq_mask item to pure text for batching
+        # add dummy image and image_seq_mask item to pure text for batching
         image = np.zeros(self.default_image_shape, np.float32)
         image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
 

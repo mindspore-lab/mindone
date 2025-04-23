@@ -39,16 +39,17 @@ class UnifiedDataset:
         #     sample_idx = idx - self.cumulative_sizes[dataset_idx - 1]
 
         # fix 1:1:1 data src
-        dataset_idx = idx % 3
-        sample_idx = idx // 3
+        dataset_idx = int(idx % 3)
+        sample_idx = int(idx // 3)
 
         ret = self.datasets[dataset_idx][sample_idx]
 
-        # add image and image_seq_mask item to pure text for batching in graph mode
-        if dataset_idx == 0:
-            image = np.zeros(self.default_image_shape, np.float32)
-            image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
-            ret += (image_seq_mask, image)
+        # # add image and image_seq_mask item to pure text for batching in graph mode
+        # can rm, this done in text dataset
+        # if dataset_idx == 0:
+        #     image = np.zeros(self.default_image_shape, np.float32)
+        #     image_seq_mask = np.zeros((self.max_token_length), dtype=np.bool_)
+        #     ret += (image_seq_mask, image)
 
         return ret
 
@@ -58,8 +59,8 @@ class UnifiedDataset:
 
 def create_unified_dataloader_weightrandsamp(
     vl_chat_processor,
-    t2i_csv_path="./datasets/jade/csvfile/image_text_en.csv",
-    t2i_data_dir="./datasets",
+    # t2i_csv_path="./datasets/jade/csvfile/image_text_en.csv",
+    # t2i_data_dir="./datasets",
     t2i_parquet_dir="./datasets",
     text_dataset_name="pubmedqa",
     text_data_dir="./datasets/PubMedQA",

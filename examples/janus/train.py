@@ -231,7 +231,7 @@ def main(args):
                 null_prompt_prob=args.null_prompt_prob,
                 batch_size=args.batch_size,
                 shuffle=args.shuffle,
-                num_samples=args.num_samples,
+                num_samples=100,
             )
         else:
             dataloader = create_dataloader_unified(
