@@ -297,7 +297,7 @@ class FluxControlInpaintPipeline(
         _, seq_len, _ = prompt_embeds.shape
 
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         return prompt_embeds
@@ -341,7 +341,7 @@ class FluxControlInpaintPipeline(
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, -1)
 
         return prompt_embeds
@@ -510,8 +510,8 @@ class FluxControlInpaintPipeline(
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
-        latent_image_ids = mint.reshape(
-            latent_image_ids, (latent_image_id_height * latent_image_id_width, latent_image_id_channels)
+        latent_image_ids = latent_image_ids.reshape(
+            latent_image_id_height * latent_image_id_width, latent_image_id_channels
         )
 
         return latent_image_ids.to(dtype=dtype)
@@ -520,8 +520,8 @@ class FluxControlInpaintPipeline(
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._pack_latents
     def _pack_latents(latents, batch_size, num_channels_latents, height, width):
         latents = latents.view(batch_size, num_channels_latents, height // 2, 2, width // 2, 2)
-        latents = mint.permute(latents, (0, 2, 4, 1, 3, 5))
-        latents = mint.reshape(latents, (batch_size, (height // 2) * (width // 2), num_channels_latents * 4))
+        latents = latents.permute(0, 2, 4, 1, 3, 5)
+        latents = latents.reshape(batch_size, (height // 2) * (width // 2), num_channels_latents * 4)
 
         return latents
 
@@ -536,9 +536,9 @@ class FluxControlInpaintPipeline(
         width = 2 * (int(width) // (vae_scale_factor * 2))
 
         latents = latents.view(batch_size, height // 2, width // 2, channels // 4, 2, 2)
-        latents = mint.permute(latents, (0, 3, 1, 4, 2, 5))
+        latents = latents.permute(0, 3, 1, 4, 2, 5)
 
-        latents = mint.reshape(latents, (batch_size, channels // (2 * 2), height, width))
+        latents = latents.reshape(batch_size, channels // (2 * 2), height, width)
 
         return latents
 
@@ -698,7 +698,7 @@ class FluxControlInpaintPipeline(
                     f" a total batch size of {batch_size}, but {mask_image.shape[0]} mask_image were passed. Make sure the number"
                     " of masks that you pass is divisible by the total requested batch size."
                 )
-            mask_image = mint.tile(mask_image, (batch_size // mask_image.shape[0], 1, 1, 1))
+            mask_image = mask_image.tile((batch_size // mask_image.shape[0], 1, 1, 1))
         if masked_image_latents.shape[0] < batch_size:
             if not batch_size % masked_image_latents.shape[0] == 0:
                 raise ValueError(
@@ -706,9 +706,7 @@ class FluxControlInpaintPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = mint.tile(
-                masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
-            )
+            masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
         # aligning device to prevent device errors when concating it with the latent model input
         masked_image_latents = masked_image_latents.to(dtype=dtype)
@@ -720,7 +718,7 @@ class FluxControlInpaintPipeline(
             width,
         )
         mask_image = self._pack_latents(
-            mint.tile(mask_image, (1, num_channels_latents, 1, 1)),
+            mask_image.tile((1, num_channels_latents, 1, 1)),
             batch_size,
             num_channels_latents,
             height,
@@ -960,7 +958,7 @@ class FluxControlInpaintPipeline(
                 f"After adjusting the num_inference_steps by strength parameter: {strength}, the number of pipeline"
                 f"steps is {num_inference_steps} which is < 1 and not appropriate for this pipeline."
             )
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
 
         # 5. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels // 8

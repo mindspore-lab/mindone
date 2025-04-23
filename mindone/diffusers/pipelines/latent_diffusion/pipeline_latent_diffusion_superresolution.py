@@ -177,7 +177,7 @@ class LDMSuperResolutionPipeline(DiffusionPipeline):
         image = self.vqvae.decode(latents)[0]
         image = mint.clamp(image, -1.0, 1.0)
         image = image / 2 + 0.5
-        image = mint.permute(image, (0, 2, 3, 1)).asnumpy()
+        image = image.permute(0, 2, 3, 1).asnumpy()
 
         if output_type == "pil":
             image = self.numpy_to_pil(image)

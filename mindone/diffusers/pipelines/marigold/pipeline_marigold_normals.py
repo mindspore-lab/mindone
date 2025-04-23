@@ -452,9 +452,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
 
         del image
 
-        batch_empty_text_embedding = mint.tile(
-            self.empty_text_embedding.to(dtype=dtype), (batch_size, 1, 1)
-        )  # [B,1024,2]
+        batch_empty_text_embedding = self.empty_text_embedding.to(dtype=dtype).tile((batch_size, 1, 1))  # [B,1024,2]
 
         # 5. Process the denoising loop. All `N * E` latents are processed sequentially in batches of size `batch_size`.
         # The unet model takes concatenated latent spaces of the input image and the predicted modality as an input, and
@@ -519,7 +517,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         # uncertainty maps.
         uncertainty = None
         if ensemble_size > 1:
-            prediction = mint.reshape(prediction, (num_images, ensemble_size, *prediction.shape[1:]))  # [N,E,3,PH,PW]
+            prediction = prediction.reshape(num_images, ensemble_size, *prediction.shape[1:])  # [N,E,3,PH,PW]
             prediction = [
                 self.ensemble_normals(prediction[i], output_uncertainty, **(ensembling_kwargs or {}))
                 for i in range(num_images)
@@ -623,7 +621,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
             raise ValueError(f"Expecting 4D tensor of shape [B,3,H,W]; got {normals.shape}.")
 
         norm = mint.norm(normals, dim=1, keepdim=True)
-        normals /= mint.clamp(norm, min=eps)
+        normals /= norm.clamp(min=eps)
 
         return normals
 
@@ -653,22 +651,22 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         if reduction not in ("closest", "mean"):
             raise ValueError(f"Unrecognized reduction method: {reduction}.")
 
-        mean_normals = mint.mean(normals, dim=0, keepdim=True)  # [1,3,H,W]
+        mean_normals = normals.mean(axis=0, keep_dims=True)  # [1,3,H,W]
         mean_normals = MarigoldNormalsPipeline.normalize_normals(mean_normals)  # [1,3,H,W]
 
-        sim_cos = mint.sum((mean_normals * normals), dim=1, keepdim=True)  # [E,1,H,W]
-        sim_cos = mint.clamp(sim_cos, -1.0, 1.0)  # required to avoid NaN in uncertainty with fp16
+        sim_cos = (mean_normals * normals).sum(axis=1, keepdims=True)  # [E,1,H,W]
+        sim_cos = sim_cos.clamp(-1.0, 1.0)  # required to avoid NaN in uncertainty with fp16
 
         uncertainty = None
         if output_uncertainty:
-            uncertainty = mint.arccos(sim_cos)  # [E,1,H,W]
-            uncertainty = mint.mean(uncertainty, dim=0, keepdim=True) / ms.numpy.pi  # [1,1,H,W]
+            uncertainty = sim_cos.arccos()  # [E,1,H,W]
+            uncertainty = uncertainty.mean(axis=0, keep_dims=True) / ms.numpy.pi  # [1,1,H,W]
 
         if reduction == "mean":
             return mean_normals, uncertainty  # [1,3,H,W], [1,1,H,W]
 
-        closest_indices = mint.argmax(sim_cos, dim=0, keepdim=True)  # [1,1,H,W]
-        closest_indices = mint.tile(closest_indices, (1, 3, 1, 1))  # [1,3,H,W]
-        closest_normals = mint.gather(normals, 0, closest_indices)  # [1,3,H,W]
+        closest_indices = sim_cos.argmax(axis=0, keepdims=True)  # [1,1,H,W]
+        closest_indices = closest_indices.tile((1, 3, 1, 1))  # [1,3,H,W]
+        closest_normals = ops.gather_elements(normals, 0, closest_indices)  # [1,3,H,W]
 
         return closest_normals, uncertainty  # [1,3,H,W], [1,1,H,W]

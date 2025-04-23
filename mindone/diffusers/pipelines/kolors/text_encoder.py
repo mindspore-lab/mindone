@@ -153,8 +153,8 @@ class CoreAttention(nn.Cell):
         # Raw attention scores. [b * np, sq, sk]
         matmul_result = mint.baddbmm(
             matmul_input_buffer,
-            mint.transpose(query_layer, 0, 1),  # [b * np, sq, hn]
-            mint.transpose(mint.transpose(key_layer, 0, 1), 1, 2),  # [b * np, hn, sk]
+            query_layer.swapaxes(0, 1),  # [b * np, sq, hn]
+            key_layer.swapaxes(0, 1).swapaxes(1, 2),  # [b * np, hn, sk]
             beta=0.0,
             alpha=(1.0 / self.norm_factor),
         )
@@ -204,7 +204,7 @@ class CoreAttention(nn.Cell):
         # change view [b, np, sq, hn]
         context_layer = context_layer.view(output_size)
         # [b, np, sq, hn] --> [sq, b, np, hn]
-        context_layer = mint.permute(context_layer, (2, 0, 1, 3))
+        context_layer = context_layer.permute(2, 0, 1, 3)
         # [sq, b, np, hn] --> [sq, b, hp]
         new_context_layer_shape = context_layer.shape[:-2] + (self.hidden_size_per_partition,)
         context_layer = context_layer.view(new_context_layer_shape)
@@ -246,7 +246,7 @@ def apply_rotary_pos_emb(x: ms.Tensor, rope_cache: ms.Tensor) -> ms.Tensor:
     x, x_pass = x[..., :rot_dim], x[..., rot_dim:]
     # truncate to support variable sizes
     rope_cache = rope_cache[:sq]
-    xshaped = mint.reshape(x, (sq, -1, np, rot_dim // 2, 2))
+    xshaped = x.reshape(sq, -1, np, rot_dim // 2, 2)
     rope_cache = rope_cache.view(sq, -1, 1, xshaped.shape[3], 2)
     x_out2 = mint.stack(
         [
@@ -255,7 +255,7 @@ def apply_rotary_pos_emb(x: ms.Tensor, rope_cache: ms.Tensor) -> ms.Tensor:
         ],
         -1,
     )
-    x_out2 = mint.flatten(x_out2, start_dim=3)
+    x_out2 = x_out2.flatten(start_dim=3)
     return mint.cat((x_out2, x_pass), dim=-1)
 
 
@@ -321,14 +321,13 @@ class SelfAttention(nn.Cell):
         mixed_x_layer = self.query_key_value(hidden_states)
 
         if self.multi_query_attention:
-            (query_layer, key_layer, value_layer) = mint.split(
-                mixed_x_layer,
+            (query_layer, key_layer, value_layer) = mixed_x_layer.split(
                 [
                     self.num_attention_heads_per_partition * self.hidden_size_per_attention_head,
                     self.num_multi_query_groups_per_partition * self.hidden_size_per_attention_head,
                     self.num_multi_query_groups_per_partition * self.hidden_size_per_attention_head,
                 ],
-                dim=-1,
+                axis=-1,
             )
             query_layer = query_layer.view(
                 query_layer.shape[:-1] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
@@ -366,17 +365,16 @@ class SelfAttention(nn.Cell):
             kv_cache = None
 
         if self.multi_query_attention:
-            key_layer = mint.unsqueeze(key_layer, -2)
+            key_layer = key_layer.unsqueeze(-2)
             key_layer = key_layer.broadcast_to(
                 (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1)
             )
             key_layer = key_layer.view(
                 key_layer.shape[:2] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
             )
-            value_layer = mint.unsqueeze(value_layer, -2)
-            value_layer = mint.broadcast_to(
-                value_layer,
-                (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1),
+            value_layer = value_layer.unsqueeze(-2)
+            value_layer = value_layer.broadcast_to(
+                (-1, -1, -1, self.num_attention_heads_per_partition // self.num_multi_query_groups_per_partition, -1)
             )
             value_layer = value_layer.view(
                 value_layer.shape[:2] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)
@@ -612,11 +610,11 @@ class ChatGLMPreTrainedModel(MSPreTrainedModel):
                 (mint.ones((batch_size, seq_length, past_length)), full_attention_mask), dim=-1
             )
         if padding_mask is not None:
-            full_attention_mask = full_attention_mask * mint.unsqueeze(padding_mask, 1)
+            full_attention_mask = full_attention_mask * padding_mask.unsqueeze(1)
         if not past_length and padding_mask is not None:
-            full_attention_mask -= mint.unsqueeze(padding_mask, -1) - 1
+            full_attention_mask -= padding_mask.unsqueeze(-1) - 1
         full_attention_mask = (full_attention_mask < 0.5).bool()
-        full_attention_mask = mint.unsqueeze(full_attention_mask, 1)
+        full_attention_mask = full_attention_mask.unsqueeze(1)
         return full_attention_mask
 
     def get_position_ids(self, input_ids):
@@ -652,7 +650,7 @@ class Embedding(nn.Cell):
         words_embeddings = self.word_embeddings(input_ids)
         embeddings = words_embeddings
         # Data format change to avoid explicit tranposes : [b s h] --> [s b h].
-        embeddings = mint.swapaxes(embeddings, 0, 1)
+        embeddings = embeddings.swapaxes(0, 1)
         # If the input flag for fp32 residual connection is set, convert for float.
         if self.fp32_residual_connection:
             embeddings = embeddings.float()
@@ -772,14 +770,14 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
         return self.embedding.word_embeddings
 
     def get_prompt(self, batch_size, dtype=ms.float16):
-        prefix_tokens = mint.broadcast_to(mint.unsqueeze(self.prefix_tokens, 0), (batch_size, -1))
+        prefix_tokens = self.prefix_tokens.unsqueeze(0).broadcast_to((batch_size, -1))
         past_key_values = self.prefix_encoder(prefix_tokens).type(dtype)
         past_key_values = past_key_values.view(
             batch_size, self.pre_seq_len, self.num_layers * 2, self.multi_query_group_num, self.kv_channels
         )
         # seq_len, b, nh, hidden_size
         past_key_values = self.dropout(past_key_values)
-        past_key_values = mint.permute(past_key_values, ([2, 1, 0, 3, 4])).split(2)
+        past_key_values = past_key_values.permute([2, 1, 0, 3, 4]).split(2)
         return past_key_values
 
     def construct(
@@ -822,7 +820,7 @@ class ChatGLMModel(ChatGLMPreTrainedModel):
             rotary_pos_emb = rotary_pos_emb[position_ids]
         else:
             rotary_pos_emb = rotary_pos_emb[None, :seq_length]
-        rotary_pos_emb = mint.swapaxes(rotary_pos_emb, 0, 1)
+        rotary_pos_emb = rotary_pos_emb.swapaxes(0, 1)
 
         # Run encoder.
         hidden_states, presents, all_hidden_states, all_self_attentions = self.encoder(

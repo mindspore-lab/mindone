@@ -213,17 +213,17 @@ class DiTPipeline(DiffusionPipeline):
             latent_model_input = self.scheduler.step(model_output, t, latent_model_input)[0]
 
         if guidance_scale > 1:
-            latents, _ = mint.chunk(latent_model_input, 2, dim=0)
+            latents, _ = latent_model_input.chunk(2, axis=0)
         else:
             latents = latent_model_input
 
         latents = 1 / self.vae.config.scaling_factor * latents
         samples = self.vae.decode(latents)[0]
 
-        samples = mint.clamp((samples / 2 + 0.5), 0, 1)
+        samples = (samples / 2 + 0.5).clamp(0, 1)
 
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        samples = mint.permute(samples, (0, 2, 3, 1)).float().asnumpy()
+        samples = samples.permute(0, 2, 3, 1).float().asnumpy()
 
         if output_type == "pil":
             samples = self.numpy_to_pil(samples)

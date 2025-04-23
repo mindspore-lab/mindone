@@ -116,14 +116,14 @@ class PAGMixin:
         """
         pag_scale = self._get_pag_scale(t)
         if do_classifier_free_guidance:
-            noise_pred_uncond, noise_pred_text, noise_pred_perturb = mint.chunk(noise_pred, 3)
+            noise_pred_uncond, noise_pred_text, noise_pred_perturb = noise_pred.chunk(3)
             noise_pred = (
                 noise_pred_uncond
                 + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 + pag_scale * (noise_pred_text - noise_pred_perturb)
             )
         else:
-            noise_pred_text, noise_pred_perturb = mint.chunk(noise_pred, 2)
+            noise_pred_text, noise_pred_perturb = noise_pred.chunk(2)
             noise_pred = noise_pred_text + pag_scale * (noise_pred_text - noise_pred_perturb)
         if return_pred_text:
             return noise_pred, noise_pred_text

@@ -157,9 +157,9 @@ class KandinskyPipeline(DiffusionPipeline):
             input_ids=ms.tensor(text_input_ids), attention_mask=text_mask
         )
 
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
-        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
-        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -200,17 +200,15 @@ class KandinskyPipeline(DiffusionPipeline):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len)
 
             seq_len = uncond_text_encoder_hidden_states.shape[1]
-            uncond_text_encoder_hidden_states = mint.tile(
-                uncond_text_encoder_hidden_states, (1, num_images_per_prompt, 1)
-            )
+            uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.tile((1, num_images_per_prompt, 1))
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
+            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
 
             # done duplicates
 
@@ -315,8 +313,8 @@ class KandinskyPipeline(DiffusionPipeline):
             negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if do_classifier_free_guidance:
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
-            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=prompt_embeds.dtype)
 
@@ -350,9 +348,9 @@ class KandinskyPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred, variance_pred = mint.split(noise_pred, latents.shape[1], dim=1)
-                noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                _, variance_pred_text = mint.chunk(variance_pred, 2)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
@@ -360,7 +358,7 @@ class KandinskyPipeline(DiffusionPipeline):
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = mint.split(noise_pred, latents.shape[1], dim=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(
@@ -382,8 +380,8 @@ class KandinskyPipeline(DiffusionPipeline):
 
         if output_type in ["np", "pil"]:
             image = image * 0.5 + 0.5
-            image = mint.clamp(image, 0, 1)
-            image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+            image = image.clamp(0, 1)
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
         if output_type == "pil":
             image = self.numpy_to_pil(image)

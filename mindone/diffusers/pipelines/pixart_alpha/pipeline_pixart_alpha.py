@@ -363,9 +363,9 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
-        prompt_attention_mask = mint.tile(prompt_attention_mask, (1, num_images_per_prompt))
+        prompt_attention_mask = prompt_attention_mask.tile((1, num_images_per_prompt))
         prompt_attention_mask = prompt_attention_mask.view(bs_embed * num_images_per_prompt, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -395,10 +395,10 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
-            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (1, num_images_per_prompt))
+            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((1, num_images_per_prompt))
             negative_prompt_attention_mask = negative_prompt_attention_mask.view(bs_embed * num_images_per_prompt, -1)
         else:
             negative_prompt_embeds = None
@@ -849,8 +849,8 @@ class PixArtAlphaPipeline(DiffusionPipeline):
         # 6.1 Prepare micro-conditions.
         added_cond_kwargs = {"resolution": None, "aspect_ratio": None}
         if self.transformer.config.sample_size == 128:
-            resolution = mint.tile(ms.tensor([height, width]), (batch_size * num_images_per_prompt, 1))
-            aspect_ratio = mint.tile(ms.tensor([float(height / width)]), (batch_size * num_images_per_prompt, 1))
+            resolution = ms.tensor([height, width]).tile((batch_size * num_images_per_prompt, 1))
+            aspect_ratio = ms.tensor([float(height / width)]).tile((batch_size * num_images_per_prompt, 1))
             resolution = resolution.to(dtype=prompt_embeds.dtype)
             aspect_ratio = aspect_ratio.to(dtype=prompt_embeds.dtype)
 
@@ -897,12 +897,12 @@ class PixArtAlphaPipeline(DiffusionPipeline):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
-                    noise_pred = mint.chunk(noise_pred, 2, dim=1)[0]
+                    noise_pred = noise_pred.chunk(2, axis=1)[0]
                 else:
                     noise_pred = noise_pred
 

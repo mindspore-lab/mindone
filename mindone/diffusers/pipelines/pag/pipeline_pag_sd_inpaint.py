@@ -97,8 +97,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Returns:
         noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
     """
-    std_text = mint.std(noise_pred_text, dim=tuple(range(1, noise_pred_text.ndim)), keepdim=True)
-    std_cfg = mint.std(noise_cfg, dim=tuple(range(1, noise_cfg.ndim)), keepdim=True)
+    std_text = noise_pred_text.std(axis=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(axis=tuple(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -419,7 +419,7 @@ class StableDiffusionPAGInpaintPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -473,7 +473,7 @@ class StableDiffusionPAGInpaintPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -494,17 +494,14 @@ class StableDiffusionPAGInpaintPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
-                -2
-            ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
-            )
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0)
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -539,7 +536,7 @@ class StableDiffusionPAGInpaintPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
@@ -727,7 +724,7 @@ class StableDiffusionPAGInpaintPipeline(
                 image_latents = image
             else:
                 image_latents = self._encode_vae_image(image=image, generator=generator)
-            image_latents = mint.tile(image_latents, (batch_size // image_latents.shape[0], 1, 1, 1))
+            image_latents = image_latents.tile((batch_size // image_latents.shape[0], 1, 1, 1))
 
         if latents is None:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -792,7 +789,7 @@ class StableDiffusionPAGInpaintPipeline(
                     f" a total batch size of {batch_size}, but {mask.shape[0]} masks were passed. Make sure the number"
                     " of masks that you pass is divisible by the total requested batch size."
                 )
-            mask = mint.tile(mask, (batch_size // mask.shape[0], 1, 1, 1))
+            mask = mask.tile((batch_size // mask.shape[0], 1, 1, 1))
         if masked_image_latents.shape[0] < batch_size:
             if not batch_size % masked_image_latents.shape[0] == 0:
                 raise ValueError(
@@ -800,9 +797,7 @@ class StableDiffusionPAGInpaintPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = mint.tile(
-                masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
-            )
+            masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
         mask = mint.cat([mask] * 2) if do_classifier_free_guidance else mask
         masked_image_latents = (
@@ -1076,7 +1071,7 @@ class StableDiffusionPAGInpaintPipeline(
                 f"steps is {num_inference_steps} which is < 1 and not appropriate for this pipeline."
             )
 
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
         is_strength_max = strength == 1.0
 
@@ -1141,8 +1136,8 @@ class StableDiffusionPAGInpaintPipeline(
         )
         if self.do_perturbed_attention_guidance:
             if self.do_classifier_free_guidance:
-                mask, _ = mint.chunk(mask, 2)
-                masked_image_latents, _ = mint.chunk(masked_image_latents, 2)
+                mask, _ = mask.chunk(2)
+                masked_image_latents, _ = masked_image_latents.chunk(2)
             mask = self._prepare_perturbed_attention_guidance(mask, mask, self.do_classifier_free_guidance)
             masked_image_latents = self._prepare_perturbed_attention_guidance(
                 masked_image_latents, masked_image_latents, self.do_classifier_free_guidance
@@ -1190,7 +1185,7 @@ class StableDiffusionPAGInpaintPipeline(
             for i, image_embeds in enumerate(ip_adapter_image_embeds):
                 negative_image_embeds = None
                 if self.do_classifier_free_guidance:
-                    negative_image_embeds, image_embeds = mint.chunk(image_embeds, 2)
+                    negative_image_embeds, image_embeds = image_embeds.chunk(2)
                 if self.do_perturbed_attention_guidance:
                     image_embeds = self._prepare_perturbed_attention_guidance(
                         image_embeds, negative_image_embeds, self.do_classifier_free_guidance
@@ -1210,7 +1205,7 @@ class StableDiffusionPAGInpaintPipeline(
         # 9.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = mint.tile(ms.Tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt))
+            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
@@ -1255,7 +1250,7 @@ class StableDiffusionPAGInpaintPipeline(
                     )
 
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and self.guidance_rescale > 0.0:
@@ -1268,9 +1263,9 @@ class StableDiffusionPAGInpaintPipeline(
                 if num_channels_unet == 4:
                     init_latents_proper = image_latents
                     if self.do_perturbed_attention_guidance:
-                        init_mask, *_ = mask.chunk(3) if self.do_classifier_free_guidance else mint.chunk(mask, 2)
+                        init_mask, *_ = mask.chunk(3) if self.do_classifier_free_guidance else mask.chunk(2)
                     else:
-                        init_mask, *_ = mint.chunk(mask, 2) if self.do_classifier_free_guidance else mask
+                        init_mask, *_ = mask.chunk(2) if self.do_classifier_free_guidance else mask
 
                     if i < len(timesteps) - 1:
                         noise_timestep = timesteps[i + 1]

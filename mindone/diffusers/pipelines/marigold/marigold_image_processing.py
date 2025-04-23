@@ -52,7 +52,7 @@ class MarigoldImageProcessor(ConfigMixin):
         """
         Convert a PyTorch tensor to a NumPy image.
         """
-        images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
+        images = images.permute(0, 2, 3, 1).float().numpy()
         return images
 
     @staticmethod
@@ -174,7 +174,7 @@ class MarigoldImageProcessor(ConfigMixin):
             raise ValueError(f"Input type unsupported: {type(image)}.")
 
         if image.shape[1] == 1:
-            image = mint.tile(image, (1, 3, 1, 1))  # [N,1,H,W] -> [N,3,H,W]
+            image = image.tile((1, 3, 1, 1))  # [N,1,H,W] -> [N,3,H,W]
         if image.shape[1] != 3:
             raise ValueError(f"Input image is not 1- or 3-channel: {image.shape}.")
 
@@ -191,7 +191,7 @@ class MarigoldImageProcessor(ConfigMixin):
             raise ValueError(f"Invalid input type={type(image)}.")
         if not ops.is_floating_point(image):
             raise ValueError(f"Invalid input dtype={image.dtype}.")
-        if mint.min(image).item() < 0.0 or mint.max(image).item() > 1.0:
+        if image.min().item() < 0.0 or image.max().item() > 1.0:
             raise ValueError("Input image data is partially outside of the [0,1] range.")
 
     def preprocess(
@@ -331,11 +331,11 @@ class MarigoldImageProcessor(ConfigMixin):
             cmap = ms.Tensor(cmap, dtype=ms.float32)  # [K,3]
             K = cmap.shape[0]
 
-            pos = mint.clamp(image, min=0, max=1) * (K - 1)
+            pos = image.clamp(min=0, max=1) * (K - 1)
             left = pos.long()
-            right = mint.clamp((left + 1), max=K - 1)
+            right = (left + 1).clamp(max=K - 1)
 
-            d = mint.unsqueeze((pos - left.float()), -1)
+            d = (pos - left.float()).unsqueeze(-1)
             left_colors = cmap[left]
             right_colors = cmap[right]
 
@@ -504,7 +504,7 @@ class MarigoldImageProcessor(ConfigMixin):
             )
 
         def visualize_normals_one(img, idx=None):
-            img = mint.permute(img, (1, 2, 0))
+            img = img.permute(1, 2, 0)
             if flip_vec is not None:
                 img *= flip_vec
             img = (img + 1.0) * 0.5
@@ -550,9 +550,9 @@ class MarigoldImageProcessor(ConfigMixin):
 
         def visualize_uncertainty_one(img, idx=None):
             prefix = "Uncertainty" + (f"[{idx}]" if idx else "")
-            if mint.min(img) < 0:
+            if img.min() < 0:
                 raise ValueError(f"{prefix}: unexected data range, min={img.min()}.")
-            img = mint.squeeze(img, 0).numpy()
+            img = img.squeeze(0).numpy()
             saturation_value = np.percentile(img, saturation_percentile)
             img = np.clip(img * 255 / saturation_value, 0, 255)
             img = img.astype(np.uint8)

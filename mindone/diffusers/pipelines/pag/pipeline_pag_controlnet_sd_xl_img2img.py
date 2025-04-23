@@ -458,7 +458,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -470,14 +470,14 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             else:
                 negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.unet.dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = mint.tile(pooled_prompt_embeds, (1, num_images_per_prompt)).view(
+        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
             bs_embed * num_images_per_prompt, -1
         )
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = mint.tile(negative_pooled_prompt_embeds, (1, num_images_per_prompt)).view(
+            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
                 bs_embed * num_images_per_prompt, -1
             )
 
@@ -549,7 +549,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
@@ -1355,7 +1355,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
         # 5. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         self._num_timesteps = len(timesteps)
 
         # 6. Prepare latent variables
@@ -1412,13 +1412,13 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             dtype=prompt_embeds.dtype,
             text_encoder_projection_dim=text_encoder_projection_dim,
         )
-        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
-        add_neg_time_ids = mint.tile(add_neg_time_ids, (batch_size * num_images_per_prompt, 1))
+        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
+        add_neg_time_ids = add_neg_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
         control_images = control_image if isinstance(control_image, list) else [control_image]
         for i, single_image in enumerate(control_images):
             if self.do_classifier_free_guidance:
-                single_image = mint.chunk(single_image, 2)[0]
+                single_image = single_image.chunk(2)[0]
 
             if self.do_perturbed_attention_guidance:
                 single_image = self._prepare_perturbed_attention_guidance(
@@ -1434,7 +1434,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
             for i, image_embeds in enumerate(ip_adapter_image_embeds):
                 negative_image_embeds = None
                 if self.do_classifier_free_guidance:
-                    negative_image_embeds, image_embeds = mint.chunk(image_embeds, 2)
+                    negative_image_embeds, image_embeds = image_embeds.chunk(2)
 
                 if self.do_perturbed_attention_guidance:
                     image_embeds = self._prepare_perturbed_attention_guidance(
@@ -1522,7 +1522,7 @@ class StableDiffusionXLControlNetPAGImg2ImgPipeline(
                         noise_pred, self.do_classifier_free_guidance, self.guidance_scale, t
                     )
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

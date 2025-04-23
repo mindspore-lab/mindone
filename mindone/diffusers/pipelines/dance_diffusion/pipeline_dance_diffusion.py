@@ -145,7 +145,7 @@ class DanceDiffusionPipeline(DiffusionPipeline):
             # 2. compute previous audio sample: x_t -> t_t-1
             audio = self.scheduler.step(model_output, t, audio)[0]
 
-        audio = mint.clamp(audio, -1, 1).float().numpy()
+        audio = audio.clamp(-1, 1).float().numpy()
 
         audio = audio[:, :, :original_sample_size]
 

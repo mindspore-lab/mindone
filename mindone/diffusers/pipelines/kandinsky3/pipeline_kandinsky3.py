@@ -71,7 +71,7 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
     def process_embeds(self, embeddings, attention_mask, cut_context):
         if cut_context:
             embeddings[attention_mask == 0] = mint.zeros_like(embeddings[attention_mask == 0])
-            max_seq_length = mint.max(mint.sum(attention_mask, dim=-1)) + 1
+            max_seq_length = attention_mask.sum(axis=-1).max() + 1
             embeddings = embeddings[:, :max_seq_length]
             attention_mask = attention_mask[:, :max_seq_length]
         return embeddings, attention_mask
@@ -146,7 +146,7 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
             )
             prompt_embeds = prompt_embeds[0]
             prompt_embeds, attention_mask = self.process_embeds(prompt_embeds, attention_mask, _cut_context)
-            prompt_embeds = prompt_embeds * mint.unsqueeze(attention_mask, 2)
+            prompt_embeds = prompt_embeds * attention_mask.unsqueeze(2)
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
@@ -157,9 +157,9 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
-        attention_mask = mint.tile(attention_mask, (num_images_per_prompt, 1))
+        attention_mask = attention_mask.tile((num_images_per_prompt, 1))
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
             uncond_tokens: List[str]
@@ -195,7 +195,7 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
                 negative_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[:, : prompt_embeds.shape[1]]
                 negative_attention_mask = negative_attention_mask[:, : prompt_embeds.shape[1]]
-                negative_prompt_embeds = negative_prompt_embeds * mint.unsqueeze(negative_attention_mask, 2)
+                negative_prompt_embeds = negative_prompt_embeds * negative_attention_mask.unsqueeze(2)
 
             else:
                 negative_prompt_embeds = mint.zeros_like(prompt_embeds)
@@ -207,9 +207,9 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
             if negative_prompt_embeds.shape != prompt_embeds.shape:
-                negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+                negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
                 negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
-                negative_attention_mask = mint.tile(negative_attention_mask, (num_images_per_prompt, 1))
+                negative_attention_mask = negative_attention_mask.tile((num_images_per_prompt, 1))
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
@@ -501,7 +501,7 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
                 )[0]
 
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
 
                     noise_pred = (guidance_scale + 1.0) * noise_pred_text - guidance_scale * noise_pred_uncond
                     # noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
@@ -543,8 +543,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
 
                 if output_type in ["np", "pil"]:
                     image = image * 0.5 + 0.5
-                    image = mint.clamp(image, 0, 1)
-                    image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+                    image = image.clamp(0, 1)
+                    image = image.permute(0, 2, 3, 1).float().numpy()
 
                 if output_type == "pil":
                     image = self.numpy_to_pil(image)

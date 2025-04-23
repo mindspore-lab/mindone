@@ -258,7 +258,7 @@ class AnimateDiffPAGPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -312,7 +312,7 @@ class AnimateDiffPAGPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -379,7 +379,7 @@ class AnimateDiffPAGPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
@@ -399,9 +399,7 @@ class AnimateDiffPAGPipeline(
         latents = 1 / self.vae.config.scaling_factor * latents
 
         batch_size, channels, num_frames, height, width = latents.shape
-        latents = mint.reshape(
-            mint.permute(latents, (0, 2, 1, 3, 4)), (batch_size * num_frames, channels, height, width)
-        )
+        latents = latents.permute(0, 2, 1, 3, 4).reshape(batch_size * num_frames, channels, height, width)
 
         video = []
         for i in range(0, latents.shape[0], decode_chunk_size):
@@ -410,9 +408,7 @@ class AnimateDiffPAGPipeline(
             video.append(batch_latents)
 
         video = mint.cat(video)
-        video = mint.permute(
-            mint.reshape(video[None, :], ((batch_size, num_frames, -1) + video.shape[2:])), (0, 2, 1, 3, 4)
-        )
+        video = video[None, :].reshape((batch_size, num_frames, -1) + video.shape[2:]).permute(0, 2, 1, 3, 4)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         video = video.float()
         return video
@@ -733,7 +729,7 @@ class AnimateDiffPAGPipeline(
             for i, image_embeds in enumerate(ip_adapter_image_embeds):
                 negative_image_embeds = None
                 if self.do_classifier_free_guidance:
-                    negative_image_embeds, image_embeds = mint.chunk(image_embeds, 2)
+                    negative_image_embeds, image_embeds = image_embeds.chunk(2)
                 if self.do_perturbed_attention_guidance:
                     image_embeds = self._prepare_perturbed_attention_guidance(
                         image_embeds, negative_image_embeds, self.do_classifier_free_guidance
@@ -805,7 +801,7 @@ class AnimateDiffPAGPipeline(
                         noise_pred, self.do_classifier_free_guidance, self.guidance_scale, t
                     )
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

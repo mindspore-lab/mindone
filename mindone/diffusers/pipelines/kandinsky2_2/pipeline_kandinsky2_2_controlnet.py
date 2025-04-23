@@ -233,9 +233,9 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
         batch_size = image_embeds.shape[0] * num_images_per_prompt
 
         if do_classifier_free_guidance:
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
-            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
-            hint = mint.repeat_interleave(hint, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            hint = hint.repeat_interleave(num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
             hint = mint.cat([hint, hint], dim=0).to(dtype=self.unet.dtype)
@@ -270,9 +270,9 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred, variance_pred = mint.split(noise_pred, latents.shape[1], dim=1)
-                noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                _, variance_pred_text = mint.chunk(variance_pred, 2)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
@@ -280,7 +280,7 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = mint.split(noise_pred, latents.shape[1], dim=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(
@@ -301,8 +301,8 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
 
         if output_type in ["np", "pil"]:
             image = image * 0.5 + 0.5
-            image = mint.clamp(image, 0, 1)
-            image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+            image = image.clamp(0, 1)
+            image = image.permute(0, 2, 3, 1).float().numpy()
 
         if output_type == "pil":
             image = self.numpy_to_pil(image)

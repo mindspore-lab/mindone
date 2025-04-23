@@ -116,8 +116,8 @@ class DDPMPipeline(DiffusionPipeline):
             # 2. compute previous image: x_t -> x_t-1
             image = self.scheduler.step(model_output, t, image, generator=generator)[0]
 
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
-        image = mint.permute(image, (0, 2, 3, 1)).numpy()
+        image = (image / 2 + 0.5).clamp(0, 1)
+        image = image.permute(0, 2, 3, 1).numpy()
         if output_type == "pil":
             image = self.numpy_to_pil(image)
 

@@ -24,5 +24,5 @@ class MultilingualCLIP(MSPreTrainedModel):
 
     def construct(self, input_ids, attention_mask):
         embs = self.transformer(input_ids=input_ids, attention_mask=attention_mask)[0]
-        embs2 = mint.sum((embs * mint.unsqueeze(attention_mask, 2)), dim=1) / mint.sum(attention_mask, dim=1)[:, None]
+        embs2 = (embs * attention_mask.unsqueeze(2)).sum(axis=1) / attention_mask.sum(axis=1)[:, None]
         return self.LinearTransformation(embs2), embs

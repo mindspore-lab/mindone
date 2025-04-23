@@ -381,7 +381,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -425,7 +425,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
@@ -594,7 +594,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         image = image.to(dtype=self.unet.dtype)
 
-        image = mint.repeat_interleave(image, num_images_per_prompt, dim=0)
+        image = image.repeat_interleave(num_images_per_prompt, dim=0)
 
         return image
 
@@ -809,14 +809,14 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                    noise_pred_uncond, _ = mint.split(noise_pred_uncond, model_input.shape[1] // 2, dim=1)
-                    noise_pred_text, predicted_variance = mint.split(noise_pred_text, model_input.shape[1] // 2, dim=1)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, axis=1)
+                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, axis=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                     noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = mint.split(noise_pred, intermediate_images.shape[1], dim=1)
+                    noise_pred, _ = noise_pred.split(intermediate_images.shape[1], axis=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 # TODO: method of scheduler should not change the dtype of input.
@@ -841,8 +841,8 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         if output_type == "pil":
             # 9. Post-processing
-            image = mint.clamp((image / 2 + 0.5), 0, 1)
-            image = mint.permute(image, (0, 2, 3, 1)).float()
+            image = (image / 2 + 0.5).clamp(0, 1)
+            image = image.permute(0, 2, 3, 1).float()
 
             # 10. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
@@ -858,8 +858,8 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             watermark_detected = None
         else:
             # 9. Post-processing
-            image = mint.clamp((image / 2 + 0.5), 0, 1)
-            image = mint.permute(image, (0, 2, 3, 1)).float()
+            image = (image / 2 + 0.5).clamp(0, 1)
+            image = image.permute(0, 2, 3, 1).float()
 
             # 10. Run safety checker
             image, nsfw_detected, watermark_detected = self.run_safety_checker(image, prompt_embeds.dtype)
