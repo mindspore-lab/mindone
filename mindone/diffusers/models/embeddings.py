@@ -1237,7 +1237,7 @@ class FluxPosEmbed(nn.Cell):
         cos_out = []
         sin_out = []
         pos = ids.float()
-        freqs_dtype = ms.float64
+        freqs_dtype = ms.float32
         for i in range(n_axes):
             cos, sin = get_1d_rotary_pos_embed(
                 self.axes_dim[i],
