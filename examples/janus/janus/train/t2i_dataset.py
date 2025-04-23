@@ -19,16 +19,16 @@ logger = logging.getLogger(__name__)
 class TextImageDataset:
     def __init__(
         self,
-        csv_path: str,
-        data_dir: str,
-        parquet_dir: str,
         vl_chat_processor: VLChatProcessor,
+        csv_path: str = None,
+        data_dir: str = None,
+        parquet_dir: str = None,
         max_token_length: int = 1024,
         image_size: int = 384,
         null_prompt_prob: float = 0.0,
         num_samples: int = -1,
     ) -> None:
-        if parquet_dir is None:
+        if parquet_dir is None:  # when not defined, by default take chineseart dataset csv
             self.parquet = False
             logger.info(f"loading annotations from `{csv_path}`.")
             with open(csv_path, "r") as csvfile:
