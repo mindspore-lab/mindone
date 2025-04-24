@@ -1,9 +1,7 @@
 import numpy as np
 
 import mindspore
-from mindspore import Parameter, Tensor, context, nn
-from mindspore.common.initializer import Zero
-from mindspore.ops import functional as F
+from mindspore import Tensor, context, nn
 from mindspore.ops import operations as P
 
 
@@ -69,44 +67,18 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
                 self.lower_triangle_mask = Tensor(
                     np.tril(np.ones(shape=(seq_length, seq_length), dtype=np.int8)), dtype=compute_type
                 )
-        self.shape = P.Shape()
-        self.cast = P.Cast()
-        self.reshape = P.Reshape()
         self.not_equal = P.NotEqual()
         self.less_equal = P.LessEqual()
         self.bmm = P.BatchMatMul()
         self.expand_dim = P.ExpandDims()
         self.slice = P.StridedSlice()
-        self.mul = P.Mul()
         self.sub = P.Sub()
-        self.mul_post = P.Mul()
         self.expand_dim_post = P.ExpandDims()
         # seq pp
 
         self.gather = P.Gather()
         self.seq_split_num = seq_split_num
         self.seq_pipe = seq_split_num > 1
-        if self.seq_pipe:
-            self.mask_cache = Parameter(
-                Tensor(shape=(batch_size, seq_length), dtype=mindspore.float32, init=Zero()),
-                name="mask_cache",
-                requires_grad=False,
-                parallel_optimizer=False,
-            )
-            mask_mask = np.zeros((batch_size, seq_length), dtype=np.int32)
-            self.seq_seg_len = seq_length // self.seq_split_num
-            for s in range(self.seq_split_num):
-                mask_mask[:, s * self.seq_seg_len : (s + 1) * self.seq_seg_len] = s
-            self.mask_mask = Tensor(mask_mask)
-            self.add_mask = P.Add()
-            self.tile_mask = P.Tile()
-            self.assign_mask = P.Assign()
-            self.mul_mask = P.Mul()
-            self.equal_mask = P.Equal()
-            np_range = np.arange(seq_length // self.seq_split_num)
-            self.seq_seg_range = Tensor(np_range, dtype=mindspore.int32)
-            self.seq_seg_len = Tensor(seq_length // self.seq_split_num, dtype=mindspore.int32)
-            self.add_seq = P.Add()
 
     def construct(self, tokens=None, masks=None, seq_chunk=None):
         """Forward process of the CausalMask"""
@@ -114,17 +86,17 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
             attention_mask = self.lower_triangle_mask
             return attention_mask
         if tokens is not None:
-            bs = self.shape(tokens)[0]
-            seq_len = self.shape(tokens)[1]
-            input_mask = self.cast(self.not_equal(tokens, self.pad_token_id), self.dtype)
+            bs = tokens.shape[0]
+            seq_len = tokens.shape[1]
+            input_mask = self.not_equal(tokens, self.pad_token_id).to(self.dtype)
         else:
-            bs = self.shape(masks)[0]
-            seq_len = self.shape(masks)[1]
-            input_mask = self.cast(masks, self.dtype)
+            bs = masks.shape[0]
+            seq_len = masks.shape[1]
+            input_mask = masks.to(self.dtype)
         shape_right = (bs, 1, seq_len)
 
         # Mask the padded inputs
-        mask_right = self.reshape(input_mask, shape_right)
+        mask_right = input_mask.reshape(shape_right)
         attention_mask = mask_right
 
         lower_triangle_mask = self.lower_triangle_mask
@@ -132,29 +104,14 @@ class LowerTriangularMaskWithDynamic(nn.Cell):
             lower_triangle_mask = self.slice(self.lower_triangle_mask, (0, 0), (seq_len, seq_len), (1, 1))
         lower_triangle = self.expand_dim(lower_triangle_mask, 0)
 
-        if self.seq_pipe:
-            seq_seg_range = self.add_seq(self.seq_seg_range, self.seq_seg_len * seq_chunk)
-            attention_mask_chunk = self.gather(lower_triangle, seq_seg_range, 1)
-            mask_mask = self.cast(self.equal_mask(self.mask_mask, seq_chunk), self.dtype)
-            input_mask = self.tile_mask(input_mask, (1, self.seq_split_num))
-            input_mask = self.mul_mask(input_mask, mask_mask)
-            input_mask_update = self.add_mask(input_mask, self.mask_cache)
-            mask_update = self.assign_mask(self.mask_cache, input_mask_update)
-            mask_reshape = self.reshape(input_mask_update, (bs, 1, seq_len * self.seq_split_num))
-            mask_reshape = F.depend(mask_reshape, mask_update)
-            attention_mask = self.mul(mask_reshape, attention_mask_chunk)
-            attention_mask = self.sub(self.one, attention_mask)
-            attention_mask = self.expand_dim_post(attention_mask, 1)
-            attention_mask = self.cast(attention_mask, mindspore.uint8)
-            return attention_mask
         # the returned shape is [bs, 1, seq_length, seq_length]
-        attention_mask = self.mul(attention_mask, lower_triangle)
+        attention_mask = attention_mask * lower_triangle
         attention_mask = self.sub(self.one, attention_mask)
         attention_mask = self.expand_dim_post(attention_mask, 1)
         if self.use_flash_attention:
-            attention_mask = self.cast(attention_mask, mindspore.uint8)
+            attention_mask = attention_mask.to(mindspore.uint8)
         else:
-            attention_mask = self.mul_post(attention_mask, self.multiply_data)
+            attention_mask = attention_mask * self.multiply_data
         return attention_mask
 
     def prefill(self):

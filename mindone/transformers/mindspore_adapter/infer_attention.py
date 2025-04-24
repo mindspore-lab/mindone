@@ -5,7 +5,6 @@ import mindspore.common.dtype as mstype
 from mindspore import ops
 from mindspore.common.tensor import Tensor
 from mindspore.nn.cell import Cell
-from mindspore.ops import operations as P
 
 from .flash_attention import FlashAttention
 from .paged_attention_mgr import PagedAttentionMgr
@@ -173,22 +172,8 @@ class InferAttention(Cell):
         self.compute_dtype = compute_dtype
         self.is_first_iteration = True
         self.chunk_prefill = chunk_prefill
-        self.transpose = P.Transpose()
-        self.reshape = P.Reshape()
-        self.merger_head_transpose = P.Transpose()
-        self.batch_matmul = P.BatchMatMul()
-        self.batch_matmul_q_k = P.BatchMatMul(transpose_b=True)
-        self.mul = P.Mul()
-        self.add = P.Add()
-        self.shape = P.Shape()
-        self.tile_kv = P.Tile()
-        self.softmax = P.Softmax()
-        self.cast = P.Cast()
         self.inv_norm_factor = Tensor(1.0 / math.sqrt(self.head_dim), dtype=compute_dtype)
-        self.not_equal = P.NotEqual()
         self.n_rep = self.n_head // self.n_kv_head
-        if self.use_alibi_mask:
-            self.add_alibi = P.Add()
         self.use_attention_mask = True
         self.is_dynamic = is_dynamic
 
@@ -225,64 +210,6 @@ class InferAttention(Cell):
         if use_rope_rotary_emb:
             self.rotary_embedding = InferRotaryEmbedding(self.rotary_cos_format)
 
-    def _core_attention(self, query, key, value, attn_mask, alibi_mask=None):
-        """
-        Get the weighted score along the seq_length
-
-        Inputs:
-            query: the query matrix
-            key: the key matrix
-            value: the value matrix
-            attn_mask: the attention mask adder matrix with shape (batch_size,
-            1, seq_length, seq_length)
-            alibi_mask: the alibi matrix
-        Outputs:
-            weighted_values: Tensor, the weighted sum scores
-        """
-        # q, k: [bs, n_head, seq/1, head_dim], [bs, n_head, seq, head_dim]
-        score = self.batch_matmul_q_k(query, key)
-        # score: [bs, n_head, seq/1, seq]
-        score = self.mul(score, self.inv_norm_factor)
-        if alibi_mask is not None:
-            score = self.add_alibi(score, alibi_mask)
-        score = self.add(attn_mask, score)
-
-        attention_probs = self.softmax(self.cast(score, mstype.float32))
-        # score, v: [bs, n_head, seq/1, seq], [bs, n_head, seq, head_dim]
-        weighted_values = self.batch_matmul(self.cast(attention_probs, self.compute_dtype), value)
-        # [bs, n_head, seq/1, head_dim]
-        weighted_values = self._merge_heads(weighted_values)
-        # [bs, seq/1, hidden_dim] or [bs * seq/1, hidden_dim]
-        return weighted_values
-
-    def _repeat_kv(self, x, rep):
-        if rep == 1:
-            return x
-        bs, n_kv_head, seqlen, head_dim = self.shape(x)
-        x = self.reshape(x, (bs, n_kv_head, 1, seqlen * head_dim))
-        x = self.tile_kv(x, (1, 1, rep, 1))
-        x = self.reshape(x, (bs, n_kv_head * rep, seqlen, head_dim))
-        return x
-
-    def _merge_heads(self, x):
-        """
-        convert a 4d input to a 2d or 3d output
-
-        Inputs:
-            x: input tensor
-
-        Output:
-            x_merge: the 2d output
-        """
-        # [bs, n_head, seq/1, head_dim]
-        x = self.merger_head_transpose(x, (0, 2, 1, 3))  # dp,mp,1,1 -> dp,1,mp,1
-        # [bs, seq/1, n_head, head_dim]
-        bs, seq_len, n_head, head_dim = self.shape(x)
-        # [bs, seq/1, hidden_dim]
-        new_shape = (bs, seq_len, n_head * head_dim)
-        x_merge = self.reshape(x, new_shape)
-        return x_merge
-
     def _apply_rotary_pos_emb(self, query, key, freqs_cis, batch_valid_length):
         """
         apply rotary pos embedding
@@ -298,36 +225,6 @@ class InferAttention(Cell):
         """
         return self.rotary_embedding(query, key, freqs_cis, batch_valid_length)  # dp, mp, 1, 1
 
-    def _cat_prefix(self, key, value, prefix_keys_values):
-        """
-        concat prefix_keys_values to key and value
-        prefix_keys_values: shape(2, bs, pre_len, num_heads * kv_channels)
-        """
-        if prefix_keys_values is not None:
-            past_key = prefix_keys_values[0]
-            past_value = prefix_keys_values[1]
-            past_key = self.cast(past_key, key.dtype)
-            past_value = self.cast(past_value, value.dtype)
-            key = ops.concat((past_key, key), 1)
-            value = ops.concat((past_value, value), 1)
-        return key, value
-
-    def _core_attention_th(self, query, key, value, attn_mask, alibi_mask):
-        raise ValueError("Prefill attention input layout:{} is not supported.".format(self.input_layout))
-
-    def _core_attention_bsh(self, query, key, value, attn_mask, alibi_mask):
-        """flash attention with bsh format"""
-        # [B, S, H]
-        bs, _, _ = query.shape
-        key_seq_len = key.shape[1]
-        value_seq_len = value.shape[1]
-        query = self.transpose(self.reshape(query, (bs, -1, self.n_head, self.head_dim)), (0, 2, 1, 3))
-        key = self.transpose(self.reshape(key, (bs, key_seq_len, self.n_kv_head, self.head_dim)), (0, 2, 1, 3))
-        value = self.transpose(self.reshape(value, (bs, value_seq_len, self.n_kv_head, self.head_dim)), (0, 2, 1, 3))
-        key = self._repeat_kv(key, self.n_rep)
-        value = self._repeat_kv(value, self.n_rep)
-        return self._core_attention(query, key, value, attn_mask, alibi_mask)
-
     def _prefill_attention(self, query, key, value, attn_mask, alibi_mask, actual_seq_qlen=None, actual_seq_kvlen=None):
         """
         prefill attention
@@ -337,23 +234,21 @@ class InferAttention(Cell):
                 # [1, actual_seq_len, H]
                 bs, seq_len, _ = query.shape
                 # [1, actual_seq_len, H] -> [actual_seq_len, H]
-                query = self.reshape(query, (-1, self.n_head * self.head_dim))
-                key = self.reshape(key, (-1, self.n_kv_head * self.head_dim))
-                value = self.reshape(value, (-1, self.n_kv_head * self.head_dim))
+                query = query.reshape((-1, self.n_head * self.head_dim))
+                key = key.reshape((-1, self.n_kv_head * self.head_dim))
+                value = value.reshape((-1, self.n_kv_head * self.head_dim))
                 # [actual_seq_len, H]
                 output = self.flash_attention(
                     query, key, value, attn_mask, alibi_mask, None, None, actual_seq_qlen, actual_seq_kvlen
                 )
                 # [actual_seq_len, H] -> [1, actual_seq_len, H]
-                output = self.reshape(output, (bs, seq_len, self.n_head * self.head_dim))
+                output = output.reshape((bs, seq_len, self.n_head * self.head_dim))
                 return output
-            return self._core_attention_th(query, key, value, attn_mask, alibi_mask)
 
         if self.input_layout == "BSH":
             if self.use_flash_attention:
                 # query shape:(B, S, H), key shape:(B, S, H), value shape:(B, S, H)
                 return self.flash_attention(query, key, value, attn_mask, alibi_mask)
-            return self._core_attention_bsh(query, key, value, attn_mask, alibi_mask)
 
         raise ValueError("FlashAttention input layout:{} is not supported.".format(self.input_layout))
 

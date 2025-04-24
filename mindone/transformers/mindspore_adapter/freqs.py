@@ -4,7 +4,7 @@ from enum import Enum
 import numpy as np
 
 import mindspore
-from mindspore import Tensor, context, nn
+from mindspore import Tensor, context, nn, ops
 from mindspore.ops import operations as P
 
 
@@ -274,13 +274,7 @@ class FreqsMgr(nn.Cell):
         self.freqs_sin = Tensor(freqs_sin, dtype=rotary_dtype)
         self.swap_mask = Tensor(swap_mask, dtype=rotary_dtype)
 
-        self.reshape = P.Reshape()
-        self.shape = P.Shape()
         self.slice = P.StridedSlice()
-        self.outer_mul = P.Mul()
-        self.concat = P.Concat(axis=-1)
-        self.sin = P.Sin()
-        self.cos = P.Cos()
         self.gather = P.Gather()
         self.tile = P.Tile()
         self.seq_pipe = (
@@ -307,13 +301,13 @@ class FreqsMgr(nn.Cell):
                 freqs_cos = self.slice(self.freqs_cos, (0, 0), (seq_length, self.head_dim), (1, 1))
                 freqs_sin = self.slice(self.freqs_sin, (0, 0), (seq_length, self.head_dim), (1, 1))
         else:
-            bs, seq = self.shape(position_ids)
-            freqs = self.outer_mul(self.reshape(position_ids, (bs, 1, seq, 1)), self.freqs)
-            emb = self.concat((freqs, freqs))
-            freqs_cos = self.cos(emb)
-            freqs_sin = self.sin(emb)
-        freqs_cos = self.reshape(freqs_cos, (-1, 1, seq_length, self.head_dim))
-        freqs_sin = self.reshape(freqs_sin, (-1, 1, seq_length, self.head_dim))
+            bs, seq = position_ids.shape
+            freqs = position_ids.reshape((bs, 1, seq, 1)) * self.freqs
+            emb = ops.concat((freqs, freqs), axis=-1)
+            freqs_cos = ops.cos(emb)
+            freqs_sin = ops.sin(emb)
+        freqs_cos = freqs_cos.reshape((-1, 1, seq_length, self.head_dim))
+        freqs_sin = freqs_sin.reshape((-1, 1, seq_length, self.head_dim))
         return freqs_cos, freqs_sin, self.swap_mask
 
     def prefill(self, bs, seq_length):
