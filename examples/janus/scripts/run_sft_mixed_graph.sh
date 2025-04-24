@@ -1,3 +1,4 @@
+export MS_DEV_JIT_SYNTAX_LEVEL=0
 lr=1e-4
 end_lr=1e-5
 wd=0.1
@@ -29,5 +30,6 @@ python train.py \
     --warmup_steps 50 \
     --ckpt_save_steps 1000 \
     --ckpt_max_keep 1 \
+    --shuffle False \
     --output_path outputs/stage${stage}_mixed_lr${lr}_wd${wd}_bs${bs}_npp${npp}_mode${ms_mode} \
     --mixed_task_rand_samp \

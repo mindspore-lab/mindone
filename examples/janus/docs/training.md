@@ -23,8 +23,8 @@ huggingface-cli download  rbojja/medical-vqa --repo-type dataset --local-dir dat
 
 Before launching sft training with the scripts under [../scripts/](../scripts/), we need to setup the meta env var `YOUR_DATA_PATH` and `YOUR_DOWNLOADED_JANUS_CKPT_PATH` for each script.
 
-## Run Training
-After setting up as above, you are good to go.
+## Run Training for Single Task
+After setting up paths as above, you are good to go.
 
 - Text Generation Task
 
@@ -35,7 +35,18 @@ bash scripts/run_sft_text.sh
 - Text-to-Image Generation Task (T2I)
 
 ```shell
-bash scripts/run_sft_t2i.sh
+bash scripts/run_sft_t2i.sh  # if no manual patching, by default it should be changed into pynative
+```
+
+Patching `janus/models/modeling_vlm.py`: **Single task for pure text**
+```diff
+# @ L428
+-- def construct(
+++ # def construct( # just comment the whole function out
+
+# @ L476
+-- def construct_graph_single_task(
+++ def construct(
 ```
 
 - Multimodal Understanding Task (VQA)
@@ -48,11 +59,10 @@ The default training stage is stage 3, that is, all modules are trainable except
 
 For more detailed arguments, please run `python train.py -h`.
 
-
-- Multi-task Supervised Fune-tuning (Mixed-SFT)
+### Multi-task Supervised Fune-tuning (Mixed-SFT)
 
 ```shell
-bash scripts/run_sft_mixed.sh
+bash scripts/run_sft_mixed_graph.sh
 ```
 
 We also implemented **a stage-3 SFT for medical data aiming for building a radiology expert model**. The datasets can be retrieved from huggingface with from the following repos.
@@ -63,32 +73,30 @@ We also implemented **a stage-3 SFT for medical data aiming for building a radio
 | pure-text | 20 | qiaojin/PubmeQA |
 | T2I | 80 | mdwiratathya/ROCO-radiology |
 
-#### Graph Mode SFT Training
+#### Graph Mode SFT Training for Mixed Tasks
 
 > [!NOTE]
 > We achieve higher training throughput by enabling graph mode compute. However, to do that we need to predefine a compute graph for the vlm for each of the task out of three in total, as for each task, the vlm takes different types of input arg pairs.
 >
-> To do so, simply go into `janus/models/modeling_vlm.py`, and patch `construct_*()` into `construct()` as follows.
-
-**Single task for pure text**
+> To run `scripts/run_sft_mixed_graph.sh`, simply go into `janus/models/modeling_vlm.py`, and patch `construct_*()` into `construct()` as follows.
 ```diff
 # @ L428
 -- def construct(
 ++ # def construct( # just comment the whole function out
 
-# @ L476
--- def construct_graph_single_task(
+# @ L570
+-- def construct_graph_mixed_task(
 ++ def construct(
 ```
 
-**Mixed task**
+#### Pynative Mode SFT Training for Mixed Tasks
 ```diff
 # @ L428
 -- def construct(
 ++ # def construct( # just comment the whole function out
 
-# @ L567
--- def construct_graph_mixed_task(
+# @ L516
+-- def construct_pynative_mixed_task(
 ++ def construct(
 ```
 

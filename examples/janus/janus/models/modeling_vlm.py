@@ -325,9 +325,9 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
 
         # FIXME ms2.5.0 graph mode does not support _tensor_setitem_by_bool_tensor_with_tensor().
         # Workaround: _tensor_setitem_by_int_tensor_with_tensor()
-        # image_seq_mask = image_seq_mask.nonzero().squeeze()
+        _image_seq_mask = image_seq_mask.nonzero().squeeze()
         # above tensor.squeeze() does not work under pynatvie dunno why...
-        _image_seq_mask = image_seq_mask.nonzero().reshape(-1)  # workaround for both pynative & graph: force flatten
+        # _image_seq_mask = image_seq_mask.nonzero().reshape(-1)  # workaround for both pynative & graph: force flatten
         inputs_embeds[_image_seq_mask] = image_embeds
 
         inputs_embeds = inputs_embeds.reshape(B, S, D)
@@ -436,7 +436,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_tokens: Optional[Tensor] = None,
     ):
         r"""
-        Implemented for single task pynative training.
+        Implemented for single task pynative training. Support branch control for a SINGLE task in task_type.
         Args:
             input_ids: input sequence of tokens, shape (bs seq_len). see transformers docstring for details
             task_type: shape (bs,), 0 - pure text, 1 - vqa, 2 - t2i
@@ -483,7 +483,10 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         pixel_values: Optional[Tensor] = None,
         image_tokens: Optional[Tensor] = None,
     ):
-        """Implemented for single task graph mode sft."""
+        """
+        Implemented for single task graph mode sft.
+        As task_type tensor cannot be used for branch control, thus this method implements per task forward.
+        """
 
         # text
         loss = self.language_model(
@@ -520,7 +523,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         pixel_values: Optional[Tensor] = None,
         image_tokens: Optional[Tensor] = None,
     ):
-        """Implemented for mixed-task pynative mode sft."""
+        """Implemented for mixed-task pynative mode sft. Support branch control for mixed task. Go with this if you need MULTIPLE task sft."""
 
         losses = []
         for ti, task in enumerate(task_type):
@@ -573,7 +576,7 @@ class MultiModalityCausalLM(MultiModalityPreTrainedModel):
         image_seq_mask: Optional[Tensor] = None,
         pixel_values: Optional[Tensor] = None,
     ):
-        """Implemented for mixed-task pynative mode sft."""
+        """Implemented for mixed-task pynative mode sft. Support branch control for mixed task under graph mode."""
 
         is_vqa_index = (task_type == 0).nonzero().squeeze(-1)
         loss_vqa = self.und_with_loss(

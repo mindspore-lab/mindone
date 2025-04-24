@@ -227,6 +227,8 @@ def main(args):
         if args.mixed_task_rand_samp:
             dataloader = create_unified_dataloader_weightrandsamp(
                 vl_chat_processor,
+                t2i_csv_path=args.t2i_csv_path,
+                t2i_data_path=args.t2i_data_path,
                 t2i_parquet_dir=args.t2i_parquet_dir,
                 text_data_dir=args.text_qa_data_dir,
                 vqa_data_dir=args.vqa_data_dir,
@@ -235,6 +237,7 @@ def main(args):
                 null_prompt_prob=args.null_prompt_prob,
                 batch_size=args.batch_size,
                 num_samples=100,
+                shuffle=args.shuffle,
             )
         else:
             dataloader = create_dataloader_unified(

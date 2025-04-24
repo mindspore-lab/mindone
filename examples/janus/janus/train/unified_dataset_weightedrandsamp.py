@@ -59,13 +59,13 @@ class UnifiedDataset:
 
 def create_unified_dataloader_weightrandsamp(
     vl_chat_processor,
-    # t2i_csv_path="./datasets/jade/csvfile/image_text_en.csv",
-    # t2i_data_dir="./datasets",
-    t2i_parquet_dir="./datasets",
+    t2i_csv_path=None,
+    t2i_data_dir=None,
+    t2i_parquet_dir=None,
     text_dataset_name="pubmedqa",
-    text_data_dir="./datasets/PubMedQA",
+    text_data_dir=None,
     vqa_dataset_name="medical-vqa",
-    vqa_data_dir="./datasets/medical-vqa",
+    vqa_data_dir=None,
     max_token_length=1024,
     image_size=384,
     null_prompt_prob=0.0,
@@ -75,28 +75,29 @@ def create_unified_dataloader_weightrandsamp(
     rank_size=1,
     num_samples=100,
     sample_ratios=(5, 1, 4),
+    shuffle=False,
 ):
     dataset_t2i = TextImageDataset(
-        # csv_path=t2i_csv_path,
-        # data_dir=t2i_data_dir,
-        parquet_dir=t2i_parquet_dir,
         vl_chat_processor=vl_chat_processor,
+        csv_path=t2i_csv_path,
+        data_dir=t2i_data_dir,
+        parquet_dir=t2i_parquet_dir,
         max_token_length=max_token_length,
         image_size=image_size,
         null_prompt_prob=null_prompt_prob,
         num_samples=num_samples,
     )
     dataset_text = TextDataset(
+        vl_chat_processor=vl_chat_processor,
         dataset_name=text_dataset_name,
         data_dir=text_data_dir,
-        vl_chat_processor=vl_chat_processor,
         max_token_length=max_token_length,
         num_samples=num_samples,
     )
     dataset_vqa = VqaDataset(
+        vl_chat_processor=vl_chat_processor,
         dataset_name=vqa_dataset_name,
         data_dir=vqa_data_dir,
-        vl_chat_processor=vl_chat_processor,
         max_token_length=max_token_length,
         num_samples=num_samples,
     )
@@ -127,6 +128,7 @@ def create_unified_dataloader_weightrandsamp(
             "image_seq_mask",
             "image",
         ],
+        shuffle=shuffle,
         num_parallel_workers=num_parallel_workers,
         python_multiprocessing=True,
     )

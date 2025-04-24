@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 class TextDataset:
     def __init__(
         self,
+        vl_chat_processor: VLChatProcessor = None,
         dataset_name=None,
         data_dir=None,
-        vl_chat_processor: VLChatProcessor = None,
         max_token_length: int = 1024,
         num_samples: int = -1,
         default_image_shape=(1, 3, 384, 384),
