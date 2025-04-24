@@ -279,8 +279,7 @@ class InferAttention(Cell):
         if self.use_rope_rotary_emb:
             query, key = self._apply_rotary_pos_emb(query, key, freqs_cis, batch_valid_length)
 
-        key_out = self.paged_attention_mgr(key, value, slot_mapping, batch_valid_length)
-        query = ops.depend(query, key_out)
+        self.paged_attention_mgr(key, value, slot_mapping, batch_valid_length)
 
         if self.is_first_iteration:
             return self._prefill_attention(

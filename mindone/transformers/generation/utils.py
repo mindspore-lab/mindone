@@ -1730,12 +1730,12 @@ class GenerationMixin:
 
         multinomial = get_multinomial_op()
         step = 0
-        model_kwargs["step"] = step
         s_time = time.time()
         graph_compiled_time_buffer = []
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
+            model_kwargs["step"] = step
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
             # forward pass to get next token
@@ -1760,7 +1760,6 @@ class GenerationMixin:
                 )
             s_time = time.time()
             step += 1
-            model_kwargs["step"] = step
 
             if not isinstance(outputs, CausalLMOutputWithPast):
                 outputs = CausalLMOutputWithPast(
