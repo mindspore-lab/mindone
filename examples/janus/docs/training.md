@@ -26,16 +26,16 @@ Before launching sft training with the scripts under [../scripts/](../scripts/),
 ## Run Training for Single Task
 After setting up paths as above, you are good to go.
 
+- Multimodal Understanding Task (VQA)
+
+```shell
+bash scripts/run_sft_vqa.sh
+```
+
 - Text Generation Task
 
 ```shell
-bash scripts/run_sft_text.sh
-```
-
-- Text-to-Image Generation Task (T2I)
-
-```shell
-bash scripts/run_sft_t2i.sh  # if no manual patching, by default it should be changed into pynative
+bash scripts/run_sft_text.sh  # if no manual patching, by default it should be changed into pynative
 ```
 
 Patching `janus/models/modeling_vlm.py`: **Single task for pure text**
@@ -49,10 +49,10 @@ Patching `janus/models/modeling_vlm.py`: **Single task for pure text**
 ++ def construct(
 ```
 
-- Multimodal Understanding Task (VQA)
+- Text-to-Image Generation Task (T2I)
 
 ```shell
-bash scripts/run_sft_vqa.sh
+bash scripts/run_sft_t2i.sh
 ```
 
 The default training stage is stage 3, that is, all modules are trainable except for VQ16 for image token decoding. To switch to other stage, you can modify the `--stage` argument in the training script.
