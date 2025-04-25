@@ -1696,31 +1696,32 @@ class GenerationMixin:
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
-        if self.config._attn_implementation != "paged_attention":
-            # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-            if not self._supports_default_dynamic_cache():  # if tuple cache
-                (
-                    padded_input_ids,
-                    padded_inputs_embeds,
-                    padded_labels,
-                    padded_position_ids,
-                    padded_attention_mask,
-                ) = self._padding_inputs(
-                    generation_config,
-                    input_ids,
-                    model_kwargs.get("inputs_embeds", None),
-                    model_kwargs.get("labels", None),
-                    model_kwargs.get("position_ids", None),
-                    model_kwargs.get("attention_mask", None),
-                )
-                input_ids = padded_input_ids
-                model_kwargs["attention_mask"] = padded_attention_mask
-                if model_kwargs.get("inputs_embeds", None) is not None:
-                    model_kwargs["inputs_embeds"] = padded_inputs_embeds
-                if model_kwargs.get("labels", None) is not None:
-                    model_kwargs["labels"] = padded_labels
-                if model_kwargs.get("position_ids", None) is not None:
-                    model_kwargs["position_ids"] = padded_position_ids
+        # Padding inputs to avoid dynamic shape /adapt to paged attention
+        if (
+            not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
+        ):  # if tuple cache
+            (
+                padded_input_ids,
+                padded_inputs_embeds,
+                padded_labels,
+                padded_position_ids,
+                padded_attention_mask,
+            ) = self._padding_inputs(
+                generation_config,
+                input_ids,
+                model_kwargs.get("inputs_embeds", None),
+                model_kwargs.get("labels", None),
+                model_kwargs.get("position_ids", None),
+                model_kwargs.get("attention_mask", None),
+            )
+            input_ids = padded_input_ids
+            model_kwargs["attention_mask"] = padded_attention_mask
+            if model_kwargs.get("inputs_embeds", None) is not None:
+                model_kwargs["inputs_embeds"] = padded_inputs_embeds
+            if model_kwargs.get("labels", None) is not None:
+                model_kwargs["labels"] = padded_labels
+            if model_kwargs.get("position_ids", None) is not None:
+                model_kwargs["position_ids"] = padded_position_ids
 
         # keep track of which sequences are already finished
         batch_size = input_ids.shape[0]
@@ -1735,7 +1736,8 @@ class GenerationMixin:
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
-            model_kwargs["step"] = step
+            if self.config._attn_implementation == "paged_attention":
+                model_kwargs["step"] = step
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
             # forward pass to get next token

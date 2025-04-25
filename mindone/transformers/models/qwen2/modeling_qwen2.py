@@ -31,10 +31,10 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.mindspore_adapter import str_to_dtype
-from mindone.transformers.mindspore_adapter.block_tables import BlockTables
-from mindone.transformers.mindspore_adapter.freqs import FreqsMgr
-from mindone.transformers.mindspore_adapter.infer_attention import InferAttention
-from mindone.transformers.mindspore_adapter.mask import LowerTriangularMaskWithDynamic
+from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
+from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
+from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
+from mindone.transformers.mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
 from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_outputs import (
     BaseModelOutputWithPast,
@@ -1170,6 +1170,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
                     "batch_valid_length": self.batch_valid_length,
                 }
             )
+            model_inputs.pop("step", None)
 
         return model_inputs
 

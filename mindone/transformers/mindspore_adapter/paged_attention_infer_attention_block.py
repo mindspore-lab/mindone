@@ -6,7 +6,7 @@ from mindspore import ops
 from mindspore.common.tensor import Tensor
 from mindspore.nn.cell import Cell
 
-from .flash_attention import FlashAttention
+from .paged_attention_fa_block import FlashAttention
 from .paged_attention_mgr import PagedAttentionMgr
 
 
