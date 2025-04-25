@@ -183,12 +183,12 @@ class StableCascadePriorPipeline(DiffusionPipeline):
             )
             prompt_embeds = text_encoder_output[2][-1]
             if prompt_embeds_pooled is None:
-                prompt_embeds_pooled = mint.unsqueeze(text_encoder_output[0], 1)
+                prompt_embeds_pooled = text_encoder_output[0].unsqueeze(1)
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
         prompt_embeds_pooled = prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
-        prompt_embeds_pooled = mint.repeat_interleave(prompt_embeds_pooled, num_images_per_prompt, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds_pooled = prompt_embeds_pooled.repeat_interleave(num_images_per_prompt, dim=0)
 
         if negative_prompt_embeds is None and do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -224,18 +224,18 @@ class StableCascadePriorPipeline(DiffusionPipeline):
             )
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[2][-1]
-            negative_prompt_embeds_pooled = mint.unsqueeze(negative_prompt_embeds_text_encoder_output[0], 1)
+            negative_prompt_embeds_pooled = negative_prompt_embeds_text_encoder_output[0].unsqueeze(1)
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = negative_prompt_embeds.shape[1]
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             seq_len = negative_prompt_embeds_pooled.shape[1]
             negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds_pooled = mint.tile(negative_prompt_embeds_pooled, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -248,11 +248,11 @@ class StableCascadePriorPipeline(DiffusionPipeline):
         for image in images:
             image = self.feature_extractor(image, return_tensors="np").pixel_values
             image = ms.tensor(image, dtype=dtype)
-            image_embed = mint.unsqueeze(self.image_encoder(image)[0], 1)
+            image_embed = self.image_encoder(image)[0].unsqueeze(1)
             image_embeds.append(image_embed)
         image_embeds = mint.cat(image_embeds, dim=1)
 
-        image_embeds = mint.tile(image_embeds, (batch_size * num_images_per_prompt, 1, 1))
+        image_embeds = image_embeds.tile((batch_size * num_images_per_prompt, 1, 1))
         negative_image_embeds = mint.zeros_like(image_embeds)
 
         return image_embeds, negative_image_embeds
@@ -354,7 +354,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
         clamp_range = [0, 1]
         min_var = mint.cos(s / (1 + s) * pi * 0.5) ** 2
         var = alphas_cumprod[t]
-        var = mint.clamp(var, *clamp_range)
+        var = var.clamp(*clamp_range)
         ratio = (((var * min_var) ** 0.5).acos() / (pi * 0.5)) * (1 + s) - s
         return ratio
 
@@ -501,7 +501,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
                 num_images_per_prompt=num_images_per_prompt,
             )
         elif image_embeds is not None:
-            image_embeds_pooled = mint.tile(image_embeds, (batch_size * num_images_per_prompt, 1, 1))
+            image_embeds_pooled = image_embeds.tile((batch_size * num_images_per_prompt, 1, 1))
             uncond_image_embeds_pooled = mint.zeros_like(image_embeds_pooled)
         else:
             image_embeds_pooled = mint.zeros(
@@ -574,9 +574,7 @@ class StableCascadePriorPipeline(DiffusionPipeline):
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
-                predicted_image_embedding_text, predicted_image_embedding_uncond = mint.chunk(
-                    predicted_image_embedding, 2
-                )
+                predicted_image_embedding_text, predicted_image_embedding_uncond = predicted_image_embedding.chunk(2)
                 predicted_image_embedding = mint.lerp(
                     predicted_image_embedding_uncond,
                     predicted_image_embedding_text,

@@ -308,12 +308,12 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
         self.timesteps = ms.Tensor.from_numpy(timesteps)
 
     def get_variables(self, alpha_prod_t, alpha_prod_t_prev, alpha_prod_t_back=None):
-        lamb = mint.log(((alpha_prod_t / (1 - alpha_prod_t)) ** 0.5))
-        lamb_next = mint.log((alpha_prod_t_prev / (1 - alpha_prod_t_prev)) ** 0.5)
+        lamb = ((alpha_prod_t / (1 - alpha_prod_t)) ** 0.5).log()
+        lamb_next = ((alpha_prod_t_prev / (1 - alpha_prod_t_prev)) ** 0.5).log()
         h = lamb_next - lamb
 
         if alpha_prod_t_back is not None:
-            lamb_previous = mint.log((alpha_prod_t_back / (1 - alpha_prod_t_back)) ** 0.5)
+            lamb_previous = ((alpha_prod_t_back / (1 - alpha_prod_t_back)) ** 0.5).log()
             h_last = lamb - lamb_previous
             r = h_last / h
             return h, r, lamb, lamb_next
@@ -321,8 +321,8 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
             return h, None, lamb, lamb_next
 
     def get_mult(self, h, r, alpha_prod_t, alpha_prod_t_prev, alpha_prod_t_back):
-        mult1 = ((1 - alpha_prod_t_prev) / (1 - alpha_prod_t)) ** 0.5 * mint.exp(-h)
-        mult2 = mint.expm1(-2 * h) * alpha_prod_t_prev**0.5
+        mult1 = ((1 - alpha_prod_t_prev) / (1 - alpha_prod_t)) ** 0.5 * (-h).exp()
+        mult2 = (-2 * h).expm1() * alpha_prod_t_prev**0.5
 
         if alpha_prod_t_back is not None:
             mult3 = 1 + 1 / (2 * r)
@@ -422,7 +422,7 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
 
         h, r, lamb, lamb_next = self.get_variables(alpha_prod_t, alpha_prod_t_prev, alpha_prod_t_back)
         mult = list(self.get_mult(h, r, alpha_prod_t, alpha_prod_t_prev, alpha_prod_t_back))
-        mult_noise = (1 - alpha_prod_t_prev) ** 0.5 * (1 - mint.exp(-2 * h)) ** 0.5
+        mult_noise = (1 - alpha_prod_t_prev) ** 0.5 * (1 - (-2 * h).exp()) ** 0.5
 
         noise = randn_tensor(sample.shape, generator=generator, dtype=sample.dtype)
         prev_sample = mult[0] * sample - mult[1] * pred_original_sample + mult_noise * noise
@@ -454,14 +454,14 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
-            sqrt_alpha_prod = mint.unsqueeze(sqrt_alpha_prod, -1)
+            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
-            sqrt_one_minus_alpha_prod = mint.unsqueeze(sqrt_one_minus_alpha_prod, -1)
+            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
 
         noisy_samples = sqrt_alpha_prod * original_samples + sqrt_one_minus_alpha_prod * noise
         return noisy_samples
@@ -472,14 +472,14 @@ class CogVideoXDPMScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         while len(sqrt_alpha_prod.shape) < len(sample.shape):
-            sqrt_alpha_prod = mint.unsqueeze(sqrt_alpha_prod, -1)
+            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
-            sqrt_one_minus_alpha_prod = mint.unsqueeze(sqrt_one_minus_alpha_prod, -1)
+            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
 
         velocity = sqrt_alpha_prod * noise - sqrt_one_minus_alpha_prod * sample
         return velocity

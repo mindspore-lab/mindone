@@ -366,8 +366,8 @@ class DDIMInverseScheduler(SchedulerMixin, ConfigMixin):
 
         # 4. Clip or threshold "predicted x_0"
         if self.config.clip_sample:
-            pred_original_sample = mint.clamp(
-                pred_original_sample, -self.config.clip_sample_range, self.config.clip_sample_range
+            pred_original_sample = pred_original_sample.clamp(
+                -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 5. compute "direction pointing to x_t" of formula (12) from https://arxiv.org/pdf/2010.02502.pdf

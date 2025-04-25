@@ -307,7 +307,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -361,7 +361,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -714,9 +714,9 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
         masks[:n_objs] = 1
 
         repeat_batch = batch_size * num_images_per_prompt
-        boxes = mint.broadcast_to(mint.unsqueeze(boxes, 0), (repeat_batch, -1, -1)).copy()
-        text_embeddings = mint.broadcast_to(mint.unsqueeze(text_embeddings, 0), (repeat_batch, -1, -1)).copy()
-        masks = mint.broadcast_to(mint.unsqueeze(masks, 0), (repeat_batch, -1)).copy()
+        boxes = boxes.unsqueeze(0).broadcast_to((repeat_batch, -1, -1)).copy()
+        text_embeddings = text_embeddings.unsqueeze(0).broadcast_to((repeat_batch, -1, -1)).copy()
+        masks = masks.unsqueeze(0).broadcast_to((repeat_batch, -1)).copy()
         if do_classifier_free_guidance:
             repeat_batch = repeat_batch * 2
             boxes = mint.cat([boxes] * 2)
@@ -814,7 +814,7 @@ class StableDiffusionGLIGENPipeline(DiffusionPipeline, StableDiffusionMixin):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

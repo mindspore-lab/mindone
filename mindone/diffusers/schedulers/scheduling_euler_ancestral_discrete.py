@@ -223,9 +223,9 @@ class EulerAncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
     def init_noise_sigma(self):
         # standard deviation of the initial noise distribution
         if self.config.timestep_spacing in ["linspace", "trailing"]:
-            return mint.max(self.sigmas)
+            return self.sigmas.max()
 
-        return (mint.max(self.sigmas) ** 2 + 1) ** 0.5
+        return (self.sigmas.max() ** 2 + 1) ** 0.5
 
     @property
     def step_index(self):
@@ -322,7 +322,7 @@ class EulerAncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if mint.sum(schedule_timesteps == timestep) > 1:
+        if (schedule_timesteps == timestep).sum() > 1:
             pos = 1
         else:
             pos = 0
@@ -465,7 +465,7 @@ class EulerAncestralDiscreteScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = mint.flatten(sigmas[step_indices])
+        sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
         sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))

@@ -288,7 +288,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if mint.sum(schedule_timesteps == timestep) > 1:
+        if (schedule_timesteps == timestep).sum() > 1:
             pos = 1
         else:
             pos = 0
@@ -375,7 +375,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         # 1. Denoise model output using boundary conditions
         denoised = c_out.to(model_output.dtype) * model_output + c_skip.to(sample.dtype) * sample
         if self.config.clip_denoised:
-            denoised = mint.clamp(denoised, -1, 1)
+            denoised = denoised.clamp(-1, 1)
 
         # 2. Sample z ~ N(0, s_noise^2 * I)
         # Noise is not used for onestep sampling.
@@ -385,7 +385,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
             noise = mint.zeros_like(model_output)
         z = noise * self.config.s_noise
 
-        sigma_hat = mint.clamp(sigma_next, min=sigma_min, max=sigma_max)
+        sigma_hat = sigma_next.clamp(min=sigma_min, max=sigma_max)
 
         # 3. Return noisy sample
         # tau = sigma_hat, eps = sigma_min
@@ -421,7 +421,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = mint.flatten(sigmas[step_indices])
+        sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
         sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))

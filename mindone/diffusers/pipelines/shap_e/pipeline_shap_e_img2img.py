@@ -136,7 +136,7 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
 
         if not isinstance(image, ms.Tensor):
             image = self.image_processor(image, return_tensors="np").pixel_values[0]
-            image = mint.unsqueeze(ms.Tensor.from_numpy(image), 0)
+            image = ms.tensor(image).unsqueeze(0)
 
         image = image.to(dtype=self.image_encoder.dtype)
 
@@ -239,7 +239,7 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
             )
 
         # YiYi notes: for testing only to match ldm, we can directly create a latents with desired shape: batch_size, num_embeddings, embedding_dim
-        latents = mint.reshape(latents, (latents.shape[0], num_embeddings, embedding_dim))
+        latents = latents.reshape(latents.shape[0], num_embeddings, embedding_dim)
 
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
@@ -257,12 +257,12 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
             )[0]
 
             # remove the variance
-            noise_pred, _ = mint.split(
-                noise_pred, scaled_model_input.shape[2], dim=2
+            noise_pred, _ = noise_pred.split(
+                scaled_model_input.shape[2], axis=2
             )  # batch_size, num_embeddings, embedding_dim
 
             if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred = mint.chunk(noise_pred, 2)
+                noise_pred_uncond, noise_pred = noise_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred - noise_pred_uncond)
 
             # TODO: method of scheduler should not change the dtype of input.

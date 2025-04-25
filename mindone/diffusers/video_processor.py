@@ -84,7 +84,7 @@ class VideoProcessor(VaeImageProcessor):
         video = mint.stack([self.preprocess(img, height=height, width=width) for img in video], dim=0)
 
         # move the number of channels before the number of frames.
-        video = mint.permute(video, (0, 2, 1, 3, 4))
+        video = video.permute(0, 2, 1, 3, 4)
 
         return video
 
@@ -101,7 +101,7 @@ class VideoProcessor(VaeImageProcessor):
         batch_size = video.shape[0]
         outputs = []
         for batch_idx in range(batch_size):
-            batch_vid = mint.permute(video[batch_idx], (1, 0, 2, 3))
+            batch_vid = video[batch_idx].permute(1, 0, 2, 3)
             batch_output = self.postprocess(batch_vid, output_type)
             outputs.append(batch_output)
 

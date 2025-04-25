@@ -28,7 +28,7 @@ class StableDiffusionXLWatermarker:
         if images.shape[-1] < 256:
             return images
 
-        images = mint.permute((255 * (images / 2 + 0.5)), (0, 2, 3, 1)).float().numpy()
+        images = (255 * (images / 2 + 0.5)).permute(0, 2, 3, 1).float().numpy()
 
         # Convert RGB to BGR, which is the channel order expected by the watermark encoder.
         images = images[:, :, :, ::-1]
@@ -38,7 +38,7 @@ class StableDiffusionXLWatermarker:
 
         images = np.array(images)
 
-        images = mint.permute(ms.Tensor.from_numpy(images), (0, 3, 1, 2))
+        images = ms.Tensor.from_numpy(images).permute(0, 3, 1, 2)
 
         images = mint.clamp(2 * (images / 255 - 0.5), min=-1.0, max=1.0)
         return images

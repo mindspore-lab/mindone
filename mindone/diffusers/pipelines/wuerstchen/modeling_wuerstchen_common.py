@@ -11,9 +11,9 @@ class WuerstchenLayerNorm(LayerNorm):
         super().__init__(*args, **kwargs)
 
     def construct(self, x):
-        x = mint.permute(x, (0, 2, 3, 1))
+        x = x.permute((0, 2, 3, 1))
         x = super().construct(x)
-        return mint.permute(x, (0, 3, 1, 2))
+        return x.permute((0, 3, 1, 2))
 
 
 class TimestepBlock(nn.Cell):
@@ -23,7 +23,7 @@ class TimestepBlock(nn.Cell):
         self.mapper = mint.nn.Linear(c_timestep, c * 2)
 
     def construct(self, x, t):
-        a, b = mint.chunk(self.mapper(t)[:, :, None, None], 2, 1)
+        a, b = self.mapper(t)[:, :, None, None].chunk(2, axis=1)
         return x * (1 + a) + b
 
 
@@ -45,8 +45,8 @@ class ResBlock(nn.Cell):
         x_res = x
         if x_skip is not None:
             x = mint.cat([x, x_skip], dim=1)
-        x = mint.permute(self.norm(self.depthwise(x)), (0, 2, 3, 1))
-        x = mint.permute(self.channelwise(x), (0, 3, 1, 2))
+        x = self.norm(self.depthwise(x)).permute((0, 2, 3, 1))
+        x = self.channelwise(x).permute((0, 3, 1, 2))
         return x + x_res
 
 
@@ -59,7 +59,7 @@ class GlobalResponseNorm(nn.Cell):
 
     def construct(self, x):
         agg_norm = mint.norm(x, p=2, dim=(1, 2), keepdim=True)
-        stand_div_norm = agg_norm / (mint.mean(agg_norm, dim=-1, keepdim=True) + 1e-6)
+        stand_div_norm = agg_norm / (agg_norm.mean(axis=-1, keep_dims=True) + 1e-6)
         return self.gamma * (x * stand_div_norm) + self.beta + x
 
 
@@ -77,6 +77,6 @@ class AttnBlock(nn.Cell):
         norm_x = self.norm(x)
         if self.self_attn:
             batch_size, channel, _, _ = x.shape
-            kv = mint.cat([mint.transpose(norm_x.view(batch_size, channel, -1), 1, 2), kv], dim=1)
+            kv = mint.cat([norm_x.view(batch_size, channel, -1).transpose(0, 2, 1), kv], dim=1)
         x = x + self.attention(norm_x, encoder_hidden_states=kv)
         return x
