@@ -892,15 +892,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
     def get_decoder(self):
         return self.model
 
-    def add_flags_custom(self, is_first_iteration):
-        """Add customized attributes for specific cells in the model."""
-        self.add_flags(is_first_iteration=is_first_iteration)
-        self.model.add_flags(is_first_iteration=is_first_iteration)
-        for layer in self.model.layers:
-            layer.add_flags(is_first_iteration=is_first_iteration)
-            layer.self_attn.infer_attention.add_flags(is_first_iteration=is_first_iteration)
-            layer.self_attn.infer_attention.paged_attention_mgr.add_flags(is_first_iteration=is_first_iteration)
-
     def enable_dynamic_shape(self):
         input_ids = Tensor(shape=[None, None], dtype=ms.int32)
         position_ids = Tensor(shape=[None, None], dtype=ms.int32)
@@ -1145,7 +1136,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
                 self.batch_valid_length = ms.tensor(seq_len).to(ms.int32).reshape(bs)
 
                 self.phase = "prefill"
-                self.add_flags_custom(True)
+                self._add_flags_custom(True)
             else:
                 model_inputs.update({"input_ids": input_ids[:, -1].reshape(bs, 1)})
 
@@ -1160,7 +1151,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
 
                 if step == 1:
                     self.phase = "increment"
-                    self.add_flags_custom(False)
+                    self._add_flags_custom(False)
             slot_mapping = ms.tensor(slot_mapping)
             block_tables = ms.tensor(block_tables)
             model_inputs.update(

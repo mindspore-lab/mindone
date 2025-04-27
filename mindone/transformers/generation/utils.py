@@ -158,6 +158,15 @@ class GenerationMixin:
             "A model class needs to define a `prepare_inputs_for_generation` method in order to use `.generate()`."
         )
 
+    def _add_flags_custom(self, is_first_iteration):
+        """Add customized attributes for specific cells in the model."""
+        self.add_flags(is_first_iteration=is_first_iteration)
+        self.model.add_flags(is_first_iteration=is_first_iteration)
+        for layer in self.model.layers:
+            layer.add_flags(is_first_iteration=is_first_iteration)
+            layer.self_attn.infer_attention.add_flags(is_first_iteration=is_first_iteration)
+            layer.self_attn.infer_attention.paged_attention_mgr.add_flags(is_first_iteration=is_first_iteration)
+
     def _prepare_generation_config(
         self, generation_config: Optional[GenerationConfig], **kwargs: Dict
     ) -> Tuple[GenerationConfig, Dict]:
