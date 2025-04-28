@@ -30,7 +30,7 @@ class GeneratorWithLoss(nn.Cell):
         self.first_prog = True
 
     def construct(self, inp_B3HW, label_B, prog_si, prog_wp_it):
-        self.prog_it.add_(1)
+        self.prog_it = self.prog_it.add(1)
         prog_wp = mint.maximum(mint.minimum(self.prog_it / prog_wp_it, 1), 0.01)
         if self.first_prog:
             prog_wp = 1  # no prog warmup at first prog stage, as it's already solved in wp
