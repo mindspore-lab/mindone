@@ -48,8 +48,8 @@ def add_special_tokens(hidden_states, attention_mask, sos_token, eos_token):
         attention_mask = mint.concat([new_attn_mask_step, attention_mask, new_attn_mask_step], dim=-1)
 
     # Add the SOS / EOS tokens at the start / end of the sequence respectively
-    sos_token = sos_token.broadcast_to(batch_size, 1, -1)
-    eos_token = eos_token.broadcast_to(batch_size, 1, -1)
+    sos_token = sos_token.broadcast_to((batch_size, 1, -1))
+    eos_token = eos_token.broadcast_to((batch_size, 1, -1))
     hidden_states = mint.concat([sos_token, hidden_states, eos_token], dim=1)
     return hidden_states, attention_mask
 
@@ -338,7 +338,11 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
         # input
         conv_in_padding = (conv_in_kernel - 1) // 2
         self.conv_in = nn.Conv2d(
-            in_channels, block_out_channels[0], kernel_size=conv_in_kernel, padding=conv_in_padding
+            in_channels,
+            block_out_channels[0],
+            kernel_size=conv_in_kernel,
+            padding=conv_in_padding,
+            pad_mode="pad",
         )
 
         # time
@@ -392,8 +396,8 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
         else:
             self.time_embed_act = get_activation(time_embedding_act_fn)
 
-        self.down_blocks = nn.CellList([])
-        self.up_blocks = nn.CellList([])
+        down_blocks = []
+        up_blocks = []
 
         if isinstance(only_cross_attention, bool):
             only_cross_attention = [only_cross_attention] * len(down_block_types)
@@ -444,7 +448,8 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
                 upcast_attention=upcast_attention,
                 resnet_time_scale_shift=resnet_time_scale_shift,
             )
-            self.down_blocks.append(down_block)
+            down_blocks.append(down_block)
+        self.down_blocks = nn.CellList(down_blocks)
 
         # mid
         if mid_block_type == "UNetMidBlock2DCrossAttn":
@@ -512,8 +517,9 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
                 upcast_attention=upcast_attention,
                 resnet_time_scale_shift=resnet_time_scale_shift,
             )
-            self.up_blocks.append(up_block)
+            up_blocks.append(up_block)
             prev_output_channel = output_channel
+        self.up_blocks = nn.CellList(up_blocks)
 
         # out
         if norm_num_groups is not None:
@@ -529,7 +535,12 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
 
         conv_out_padding = (conv_out_kernel - 1) // 2
         self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, kernel_size=conv_out_kernel, padding=conv_out_padding
+            block_out_channels[0],
+            out_channels,
+            kernel_size=conv_out_kernel,
+            padding=conv_out_padding,
+            pad_mode="pad",
+            has_bias=True,
         )
 
     @property
@@ -728,15 +739,12 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
         # The overall upsampling factor is equal to 2 ** (# num of upsampling layers).
         # However, the upsampling interpolation output size can be forced to fit any upsampling size
         # on the fly if necessary.
-        default_overall_up_factor = 2**self.num_upsamplers
+        # default_overall_up_factor = 2**self.num_upsamplers
 
         # upsample size should be forwarded when sample is not a multiple of `default_overall_up_factor`
-        forward_upsample_size = False
         upsample_size = None
-
-        if any(s % default_overall_up_factor != 0 for s in sample.shape[-2:]):
-            logger.info("Forward upsample size to force interpolation output size.")
-            forward_upsample_size = True
+        logger.info("Forward upsample size to force interpolation output size.")
+        forward_upsample_size = True
 
         # ensure attention_mask is a bias, and give it a singleton query_tokens dimension
         # expects mask of shape:
@@ -777,7 +785,7 @@ class AudioLDM2UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoad
             timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = timesteps.broadcast_to(sample.shape[0])
+        timesteps = timesteps.broadcast_to((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 

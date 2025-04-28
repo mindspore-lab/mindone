@@ -37,7 +37,7 @@ EXAMPLE_DOC_STRING = """
         ```py
         >>> import scipy
         >>> import mindspore
-        >>> from diffusers import AudioLDM2Pipeline
+        >>> from mindone.diffusers import AudioLDM2Pipeline
 
         >>> repo_id = "cvssp/audioldm2"
         >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, mindspore_dtype=mindspore.float32)
@@ -66,7 +66,7 @@ EXAMPLE_DOC_STRING = """
         #Using AudioLDM2 for Text To Speech
         >>> import scipy
         >>> import mindspore
-        >>> from diffusers import AudioLDM2Pipeline
+        >>> from mindone.diffusers import AudioLDM2Pipeline
 
         >>> repo_id = "anhnct/audioldm2_gigaspeech"
         >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, mindspore_dtype=mindspore.float32)
@@ -110,7 +110,7 @@ def prepare_inputs_for_generation(
         "inputs_embeds": inputs_embeds,
         "attention_mask": attention_mask,
         "past_key_values": past_key_values,
-        "use_cache": kwargs.get("use_cache"),
+        "use_cache": False,
     }
 
 
@@ -119,7 +119,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
     Pipeline for text-to-audio generation using AudioLDM2.
 
     This model inherits from [`DiffusionPipeline`]. Check the superclass documentation for the generic methods
-    implemented for all pipelines (downloading, saving, running on a particular device, etc.).
+    implemented for all pipelines (downloading, saving etc.).
 
     Args:
         vae ([`AutoencoderKL`]):
@@ -190,7 +190,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         )
         self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
 
-    # Copied from diffusers.pipelines.pipeline_utils.StableDiffusionMixin.enable_vae_slicing
+    # Copied from mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin.enable_vae_slicing
     def enable_vae_slicing(self):
         r"""
         Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
@@ -198,7 +198,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         """
         self.vae.enable_slicing()
 
-    # Copied from diffusers.pipelines.pipeline_utils.StableDiffusionMixin.disable_vae_slicing
+    # Copied from mindone.diffusers.pipelines.pipeline_utils.StableDiffusionMixin.disable_vae_slicing
     def disable_vae_slicing(self):
         r"""
         Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
@@ -213,18 +213,6 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         method is called, and the model remains in GPU until the next model runs. Memory savings are lower than with
         `enable_sequential_cpu_offload`, but performance is much better due to the iterative execution of the `unet`.
         """
-        # model_sequence = [
-        #     self.text_encoder.text_model,
-        #     self.text_encoder.text_projection,
-        #     self.text_encoder_2,
-        #     self.projection_model,
-        #     self.language_model,
-        #     self.unet,
-        #     self.vae,
-        #     self.vocoder,
-        #     self.text_encoder,
-        # ]
-
         hook = None
 
         # We'll offload the last model manually.
@@ -268,14 +256,15 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             inputs_embeds = mint.cat([inputs_embeds, next_hidden_states[:, -1:, :]], dim=1)
 
             # Update generated hidden states, model inputs, and length for next step
-            model_kwargs = self.language_model._update_model_kwargs_for_generation(output, model_kwargs)
+            model_kwargs = self.language_model._update_model_kwargs_for_generation(
+                output, model_kwargs, dynamic_shape=True
+            )
 
         return inputs_embeds[:, -max_new_tokens:, :]
 
     def encode_prompt(
         self,
         prompt,
-        device,
         num_waveforms_per_prompt,
         do_classifier_free_guidance,
         transcription=None,
@@ -339,7 +328,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
 
         ```python
         >>> import scipy
-        >>> from diffusers import AudioLDM2Pipeline
+        >>> from mindone.diffusers import AudioLDM2Pipeline
 
         >>> repo_id = "cvssp/audioldm2"
         >>> pipe = AudioLDM2Pipeline.from_pretrained(repo_id, torch_dtype=mindspore.float16)
@@ -348,7 +337,6 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         >>> # Get text embedding vectors
         >>> prompt_embeds, attention_mask, generated_prompt_embeds = pipe.encode_prompt(
         ...     prompt="Techno music with a strong, upbeat tempo and high melodic riffs",
-        ...     device="cuda",
         ...     do_classifier_free_guidance=True,
         ... )
 
@@ -397,9 +385,9 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                     truncation=True,
                     return_tensors="np",
                 )
-                text_input_ids = text_inputs.input_ids
-                attention_mask = text_inputs.attention_mask
-                untruncated_ids = tokenizer(prompt, padding="longest", return_tensors="np").input_ids
+                text_input_ids = mindspore.tensor(text_inputs.input_ids)
+                attention_mask = mindspore.tensor(text_inputs.attention_mask)
+                untruncated_ids = mindspore.tensor(tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
 
                 if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not mint.equal(
                     text_input_ids, untruncated_ids
@@ -459,13 +447,11 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 max_new_tokens=max_new_tokens,
             )
 
-        prompt_embeds = prompt_embeds.to(dtype=self.text_encoder_2.dtype, device=device)
+        prompt_embeds = prompt_embeds.to(dtype=self.text_encoder_2.dtype)
         attention_mask = (
-            attention_mask.to(device=device)
-            if attention_mask is not None
-            else mint.ones(prompt_embeds.shape[:2], dtype=mindspore.int64, device=device)
+            attention_mask if attention_mask is not None else mint.ones(prompt_embeds.shape[:2], dtype=mindspore.int64)
         )
-        generated_prompt_embeds = generated_prompt_embeds.to(dtype=self.language_model.dtype, device=device)
+        generated_prompt_embeds = generated_prompt_embeds.to(dtype=self.language_model.dtype)
 
         bs_embed, seq_len, hidden_size = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -535,9 +521,9 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                         batch_size,
                         tokenizer.model_max_length,
                         text_encoder.config.hidden_size,
-                    ).to(dtype=self.text_encoder_2.dtype, device=device)
+                    ).to(dtype=self.text_encoder_2.dtype)
                     negative_attention_mask = mint.zeros(batch_size, tokenizer.model_max_length).to(
-                        dtype=self.text_encoder_2.dtype, device=device
+                        dtype=self.text_encoder_2.dtype
                     )
                 else:
                     negative_prompt_embeds = text_encoder(
@@ -567,15 +553,13 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         if do_classifier_free_guidance:
             seq_len = negative_prompt_embeds.shape[1]
 
-            negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder_2.dtype, device=device)
+            negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder_2.dtype)
             negative_attention_mask = (
-                negative_attention_mask.to(device=device)
+                negative_attention_mask
                 if negative_attention_mask is not None
-                else mint.ones(negative_prompt_embeds.shape[:2], dtype=mindspore.int64, device=device)
+                else mint.ones(negative_prompt_embeds.shape[:2], dtype=mindspore.int64)
             )
-            negative_generated_prompt_embeds = negative_generated_prompt_embeds.to(
-                dtype=self.language_model.dtype, device=device
-            )
+            negative_generated_prompt_embeds = negative_generated_prompt_embeds.to(dtype=self.language_model.dtype)
 
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             negative_prompt_embeds = negative_prompt_embeds.tile((1, num_waveforms_per_prompt, 1))
@@ -601,7 +585,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
 
         return prompt_embeds, attention_mask, generated_prompt_embeds
 
-    # Copied from diffusers.pipelines.audioldm.pipeline_audioldm.AudioLDMPipeline.mel_spectrogram_to_waveform
+    # Copied from mindone.diffusers.pipelines.audioldm.pipeline_audioldm.AudioLDMPipeline.mel_spectrogram_to_waveform
     def mel_spectrogram_to_waveform(self, mel_spectrogram):
         if mel_spectrogram.dim() == 4:
             mel_spectrogram = mel_spectrogram.squeeze(1)
@@ -611,9 +595,9 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         waveform = waveform.float()
         return waveform
 
-    def score_waveforms(self, text, audio, num_waveforms_per_prompt, device, dtype):
+    def score_waveforms(self, text, audio, num_waveforms_per_prompt, dtype):
         inputs = self.tokenizer(text, return_tensors="np", padding=True)
-        inputs["inputs_ids"] = mindspore.tensor(inputs["inputs_ids"])
+        inputs["input_ids"] = mindspore.tensor(inputs["input_ids"])
         inputs["attention_mask"] = mindspore.tensor(inputs["attention_mask"])
         resampled_audio = librosa.resample(
             audio.numpy(), orig_sr=self.vocoder.config.sampling_rate, target_sr=self.feature_extractor.sampling_rate
@@ -630,7 +614,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         audio = mint.index_select(audio, 0, indices.reshape(-1))
         return audio
 
-    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
+    # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
     def prepare_extra_step_kwargs(self, generator, eta):
         # prepare extra kwargs for the scheduler step, since not all schedulers have the same signature
         # eta (η) is only used with the DDIMScheduler, it will be ignored for other schedulers.
@@ -744,9 +728,9 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                     f"`attention_mask: {negative_attention_mask.shape} != `prompt_embeds` {negative_prompt_embeds.shape}"
                 )
 
-    # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents \
+    # Copied from mindone.diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents \
     # with width->self.vocoder.config.model_in_dim
-    def prepare_latents(self, batch_size, num_channels_latents, height, dtype, device, generator, latents=None):
+    def prepare_latents(self, batch_size, num_channels_latents, height, dtype, generator, latents=None):
         shape = (
             batch_size,
             num_channels_latents,
@@ -760,7 +744,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             )
 
         if latents is None:
-            latents = randn_tensor(shape, generator=generator, device=device, dtype=dtype)
+            latents = randn_tensor(shape, generator=generator, dtype=dtype)
         else:
             latents = latents
 
@@ -787,7 +771,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         attention_mask: Optional[mindspore.tensor] = None,
         negative_attention_mask: Optional[mindspore.tensor] = None,
         max_new_tokens: Optional[int] = None,
-        return_dict: bool = True,
+        return_dict: bool = False,
         callback: Optional[Callable[[int, int, mindspore.tensor], None]] = None,
         callback_steps: Optional[int] = 1,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
@@ -915,7 +899,6 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         else:
             batch_size = prompt_embeds.shape[0]
 
-        device = self._execution_device
         # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
         # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
@@ -924,7 +907,6 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         # 3. Encode input prompt
         prompt_embeds, attention_mask, generated_prompt_embeds = self.encode_prompt(
             prompt,
-            device,
             num_waveforms_per_prompt,
             do_classifier_free_guidance,
             transcription,
@@ -939,7 +921,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
         )
 
         # 4. Prepare timesteps
-        self.scheduler.set_timesteps(num_inference_steps, device=device)
+        self.scheduler.set_timesteps(num_inference_steps)
         timesteps = self.scheduler.timesteps
 
         # 5. Prepare latent variables
@@ -949,7 +931,6 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             num_channels_latents,
             height,
             prompt_embeds.dtype,
-            device,
             generator,
             latents,
         )
@@ -1007,7 +988,6 @@ class AudioLDM2Pipeline(DiffusionPipeline):
                 text=prompt,
                 audio=audio,
                 num_waveforms_per_prompt=num_waveforms_per_prompt,
-                device=device,
                 dtype=prompt_embeds.dtype,
             )
 
