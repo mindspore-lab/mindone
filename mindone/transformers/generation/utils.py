@@ -658,7 +658,7 @@ class GenerationMixin:
                 encoder = getattr(base_model, "encoder", None)
 
             if encoder is not None:
-                encoder_model_args = set(inspect.signature(encoder.forward).parameters)
+                encoder_model_args = set(inspect.signature(encoder.construct).parameters)
                 model_args |= encoder_model_args
 
             # allow decoder kwargs
@@ -667,7 +667,7 @@ class GenerationMixin:
                 decoder = getattr(base_model, "decoder", None)
 
             if decoder is not None:
-                decoder_model_args = set(inspect.signature(decoder.forward).parameters)
+                decoder_model_args = set(inspect.signature(decoder.construct).parameters)
                 model_args |= {f"decoder_{x}" for x in decoder_model_args}
 
             # allow assistant_encoder_outputs to be passed if we're doing assisted generating
@@ -1591,7 +1591,10 @@ class GenerationMixin:
             )
 
             # 14. unlike the original transformers, need delete the length of the input
-            result = result[:, inputs_tensor.shape[1] :]
+            if result.shape[-1] < inputs_tensor.shape[1]:
+                result = result
+            else:
+                result = result[:, inputs_tensor.shape[1] :]
 
         elif generation_mode in (GenerationMode.BEAM_SAMPLE, GenerationMode.BEAM_SEARCH):
             raise NotImplementedError
@@ -1745,8 +1748,13 @@ class GenerationMixin:
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
+
+            if input_ids.dtype == ms.int64:
+                input_ids = input_ids.to(ms.int32)
+
             if self.config._attn_implementation == "paged_attention":
                 model_kwargs["step"] = step
+
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
             # forward pass to get next token
