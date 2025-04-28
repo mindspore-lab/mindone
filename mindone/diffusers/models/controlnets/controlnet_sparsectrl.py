@@ -605,7 +605,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # 1. time
         timesteps = timestep
@@ -630,32 +630,32 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         t_emb = t_emb.to(dtype=sample.dtype)
 
         emb = self.time_embedding(t_emb, timestep_cond)
-        emb = mint.repeat_interleave(emb, sample_num_frames, dim=0)
+        emb = emb.repeat_interleave(sample_num_frames, dim=0)
 
         # 2. pre-process
         batch_size, channels, num_frames, height, width = sample.shape
 
-        sample = mint.reshape(mint.permute(sample, (0, 2, 1, 3, 4)), (batch_size * num_frames, channels, height, width))
+        sample = sample.permute(0, 2, 1, 3, 4).reshape(batch_size * num_frames, channels, height, width)
         sample = self.conv_in(sample)
 
         batch_frames, channels, height, width = sample.shape
-        sample = mint.reshape(sample[:, None], (sample_batch_size, sample_num_frames, channels, height, width))
+        sample = sample[:, None].reshape(sample_batch_size, sample_num_frames, channels, height, width)
 
         if self.concat_conditioning_mask:
             controlnet_cond = mint.cat([controlnet_cond, conditioning_mask], dim=1)
 
         batch_size, channels, num_frames, height, width = controlnet_cond.shape
-        controlnet_cond = mint.reshape(
-            mint.permute(controlnet_cond, (0, 2, 1, 3, 4)), (batch_size * num_frames, channels, height, width)
+        controlnet_cond = controlnet_cond.permute(0, 2, 1, 3, 4).reshape(
+            batch_size * num_frames, channels, height, width
         )
         controlnet_cond = self.controlnet_cond_embedding(controlnet_cond)
         batch_frames, channels, height, width = controlnet_cond.shape
-        controlnet_cond = mint.reshape(controlnet_cond[:, None], (batch_size, num_frames, channels, height, width))
+        controlnet_cond = controlnet_cond[:, None].reshape(batch_size, num_frames, channels, height, width)
 
         sample = sample + controlnet_cond
 
         batch_size, num_frames, channels, height, width = sample.shape
-        sample = mint.reshape(sample, (sample_batch_size * sample_num_frames, channels, height, width))
+        sample = sample.reshape(sample_batch_size * sample_num_frames, channels, height, width)
 
         # 3. down
         down_block_res_samples = (sample,)

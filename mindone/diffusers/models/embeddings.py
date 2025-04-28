@@ -60,7 +60,8 @@ def get_timestep_embedding(
     exponent = exponent / (half_dim - downscale_freq_shift)
 
     emb = mint.exp(exponent)
-    emb = timesteps[:, None].float() * emb[None, :]
+    # emb = timesteps[:, None].float() * emb[None, :]
+    emb = timesteps.expand_dims(axis=1).float() * emb.expand_dims(axis=0)
 
     # scale embeddings
     emb = scale * emb
@@ -70,7 +71,9 @@ def get_timestep_embedding(
 
     # flip sine and cosine embeddings
     if flip_sin_to_cos:
-        emb = mint.cat([emb[:, half_dim:], emb[:, :half_dim]], dim=-1)
+        # emb = mint.cat([emb[:, half_dim:], emb[:, :half_dim]], dim=-1)
+        split_emb = mint.split(emb, [half_dim, emb.shape[1] - half_dim], dim=1)
+        emb = mint.cat([split_emb[1], split_emb[0]], dim=-1)
 
     # zero pad
     if embedding_dim % 2 == 1:
@@ -129,7 +132,7 @@ def get_3d_sincos_pos_embed(
     grid = mint.meshgrid(grid_w, grid_h, indexing="xy")  # here w goes first
     grid = mint.stack(grid, dim=0)
 
-    grid = mint.reshape(grid, ([2, 1, spatial_size[1], spatial_size[0]]))
+    grid = grid.reshape([2, 1, spatial_size[1], spatial_size[0]])
     pos_embed_spatial = get_2d_sincos_pos_embed_from_grid(embed_dim_spatial, grid, output_type="ms")
 
     # 2. Temporal
@@ -139,22 +142,20 @@ def get_3d_sincos_pos_embed(
     # 3. Concat
     pos_embed_spatial = pos_embed_spatial[None, :, :]
     if pos_embed_spatial.dtype == ms.float64:
-        pos_embed_spatial = mint.repeat_interleave(pos_embed_spatial.to(ms.float32), temporal_size, dim=0).to(
-            ms.float64
+        pos_embed_spatial = (
+            pos_embed_spatial.to(ms.float32).repeat_interleave(temporal_size, dim=0).to(ms.float64)
         )  # [T, H*W, D // 4 * 3]
     else:
-        pos_embed_spatial = mint.repeat_interleave(pos_embed_spatial, temporal_size, dim=0)  # [T, H*W, D // 4 * 3]
+        pos_embed_spatial = pos_embed_spatial.repeat_interleave(temporal_size, dim=0)  # [T, H*W, D // 4 * 3]
 
     pos_embed_temporal = pos_embed_temporal[:, None, :]
     if pos_embed_spatial.dtype == ms.float64:
-        pos_embed_temporal = mint.repeat_interleave(
-            pos_embed_temporal.to(ms.float32), spatial_size[0] * spatial_size[1], dim=1
-        ).to(
-            ms.float64
+        pos_embed_temporal = (
+            pos_embed_temporal.to(ms.float32).repeat_interleave(spatial_size[0] * spatial_size[1], dim=1).to(ms.float64)
         )  # [T, H*W, D // 4]
     else:
-        pos_embed_temporal = mint.repeat_interleave(
-            pos_embed_temporal, spatial_size[0] * spatial_size[1], dim=1
+        pos_embed_temporal = pos_embed_temporal.repeat_interleave(
+            spatial_size[0] * spatial_size[1], dim=1
         )  # [T, H*W, D // 4]
 
     pos_embed = mint.concat([pos_embed_temporal, pos_embed_spatial], dim=-1)  # [T, H*W, D]
@@ -279,7 +280,7 @@ def get_2d_sincos_pos_embed(
     grid = mint.meshgrid(grid_w, grid_h, indexing="xy")  # here w goes first
     grid = mint.stack(grid, dim=0)
 
-    grid = mint.reshape(grid, ([2, 1, grid_size[1], grid_size[0]]))
+    grid = grid.reshape([2, 1, grid_size[1], grid_size[0]])
     pos_embed = get_2d_sincos_pos_embed_from_grid(embed_dim, grid, output_type=output_type)
     if cls_token and extra_tokens > 0:
         pos_embed = mint.concat([mint.zeros([extra_tokens, embed_dim]), pos_embed], dim=0)
@@ -524,9 +525,9 @@ class PatchEmbed(nn.Cell):
             )
             persistent = True if pos_embed_max_size else False
             if persistent:
-                self.pos_embed = ms.Parameter(mint.unsqueeze(pos_embed.float(), 0), name="pos_embed")
+                self.pos_embed = ms.Parameter(pos_embed.float().unsqueeze(0), name="pos_embed")
             else:
-                self.pos_embed = mint.unsqueeze(pos_embed.float(), 0)
+                self.pos_embed = pos_embed.float().unsqueeze(0)
         else:
             raise ValueError(f"Unsupported pos_embed_type: {pos_embed_type}")
 
@@ -546,9 +547,9 @@ class PatchEmbed(nn.Cell):
 
         top = (self.pos_embed_max_size - height) // 2
         left = (self.pos_embed_max_size - width) // 2
-        spatial_pos_embed = mint.reshape(self.pos_embed, (1, self.pos_embed_max_size, self.pos_embed_max_size, -1))
+        spatial_pos_embed = self.pos_embed.reshape(1, self.pos_embed_max_size, self.pos_embed_max_size, -1)
         spatial_pos_embed = spatial_pos_embed[:, top : top + height, left : left + width, :]
-        spatial_pos_embed = mint.reshape(spatial_pos_embed, (1, -1, spatial_pos_embed.shape[-1]))
+        spatial_pos_embed = spatial_pos_embed.reshape(1, -1, spatial_pos_embed.shape[-1])
         return spatial_pos_embed
 
     def construct(self, latent):
@@ -558,7 +559,7 @@ class PatchEmbed(nn.Cell):
             height, width = latent.shape[-2] // self.patch_size, latent.shape[-1] // self.patch_size
         latent = self.proj(latent)
         if self.flatten:
-            latent = mint.swapaxes(mint.flatten(latent, start_dim=2), 1, 2)  # BCHW -> BNC
+            latent = latent.flatten(start_dim=2).swapaxes(1, 2)  # BCHW -> BNC
         if self.layer_norm:
             latent = self.norm(latent)
         if self.pos_embed is None:
@@ -575,7 +576,7 @@ class PatchEmbed(nn.Cell):
                     interpolation_scale=self.interpolation_scale,
                     output_type="ms",
                 )
-                pos_embed = mint.unsqueeze(pos_embed.float(), 0)
+                pos_embed = pos_embed.float().unsqueeze(0)
             else:
                 pos_embed = self.pos_embed
 
@@ -612,12 +613,12 @@ class LuminaPatchEmbed(nn.Cell):
         batch_size, channel, height, width = x.shape
         height_tokens, width_tokens = height // patch_height, width // patch_width
 
-        x = mint.permute(
-            x.view(batch_size, channel, height_tokens, patch_height, width_tokens, patch_width), (0, 2, 4, 1, 3, 5)
+        x = x.view(batch_size, channel, height_tokens, patch_height, width_tokens, patch_width).permute(
+            0, 2, 4, 1, 3, 5
         )
-        x = mint.flatten(x, start_dim=3)
+        x = x.flatten(start_dim=3)
         x = self.proj(x)
-        x = mint.flatten(x, start_dim=1, end_dim=2)
+        x = x.flatten(start_dim=1, end_dim=2)
 
         mask = mint.ones((x.shape[0], x.shape[1]), dtype=ms.int32)
 
@@ -625,7 +626,7 @@ class LuminaPatchEmbed(nn.Cell):
             x,
             mask,
             [(height, width)] * batch_size,
-            mint.unsqueeze(mint.flatten(freqs_cis[:height_tokens, :width_tokens], start_dim=0, end_dim=1), 0),
+            freqs_cis[:height_tokens, :width_tokens].flatten(start_dim=0, end_dim=1).unsqueeze(0),
         )
 
 
@@ -699,7 +700,7 @@ class CogVideoXPatchEmbed(nn.Cell):
             self.temporal_interpolation_scale,
             output_type="ms",
         )
-        pos_embedding = mint.flatten(pos_embedding, start_dim=0, end_dim=1)
+        pos_embedding = pos_embedding.flatten(start_dim=0, end_dim=1)
         joint_pos_embedding = mint.zeros(size=(1, self.max_text_seq_length + num_patches, self.embed_dim))
         joint_pos_embedding[:, self.max_text_seq_length :] += pos_embedding
 
@@ -718,27 +719,27 @@ class CogVideoXPatchEmbed(nn.Cell):
         batch_size, num_frames, channels, height, width = image_embeds.shape
 
         if self.patch_size_t is None:
-            image_embeds = mint.reshape(image_embeds, (-1, channels, height, width))
+            image_embeds = image_embeds.reshape(-1, channels, height, width)
             image_embeds = self.proj(image_embeds)
             image_embeds = image_embeds.view(batch_size, num_frames, *image_embeds.shape[1:])
-            image_embeds = mint.swapaxes(
-                mint.flatten(image_embeds, start_dim=3), 2, 3
+            image_embeds = image_embeds.flatten(start_dim=3).swapaxes(
+                2, 3
             )  # [batch, num_frames, height x width, channels]
-            image_embeds = mint.flatten(
-                image_embeds, start_dim=1, end_dim=2
+            image_embeds = image_embeds.flatten(
+                start_dim=1, end_dim=2
             )  # [batch, num_frames x height x width, channels]
         else:
             p = self.patch_size
             p_t = self.patch_size_t
 
-            image_embeds = mint.permute(image_embeds, (0, 1, 3, 4, 2))
-            image_embeds = mint.reshape(
-                image_embeds, (batch_size, num_frames // p_t, p_t, height // p, p, width // p, p, channels)
+            image_embeds = image_embeds.permute(0, 1, 3, 4, 2)
+            image_embeds = image_embeds.reshape(
+                batch_size, num_frames // p_t, p_t, height // p, p, width // p, p, channels
             )
-            image_embeds = mint.flatten(
-                mint.flatten(mint.permute(image_embeds, (0, 1, 3, 5, 7, 2, 4, 6)), start_dim=4, end_dim=7),
-                start_dim=1,
-                end_dim=3,
+            image_embeds = (
+                image_embeds.permute(0, 1, 3, 5, 7, 2, 4, 6)
+                .flatten(start_dim=4, end_dim=7)
+                .flatten(start_dim=1, end_dim=3)
             )
             image_embeds = self.proj(image_embeds)
 
@@ -794,7 +795,7 @@ class CogView3PlusPatchEmbed(nn.Cell):
         pos_embed = get_2d_sincos_pos_embed(
             hidden_size, pos_embed_max_size, base_size=pos_embed_max_size, output_type="ms"
         )
-        pos_embed = mint.reshape(pos_embed, (pos_embed_max_size, pos_embed_max_size, hidden_size))
+        pos_embed = pos_embed.reshape(pos_embed_max_size, pos_embed_max_size, hidden_size)
         self.pos_embed = pos_embed.float()
 
     def construct(self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor) -> ms.Tensor:
@@ -806,7 +807,7 @@ class CogView3PlusPatchEmbed(nn.Cell):
         height = height // self.patch_size
         width = width // self.patch_size
         hidden_states = hidden_states.view(batch_size, channel, height, self.patch_size, width, self.patch_size)
-        hidden_states = mint.permute(hidden_states, (0, 2, 4, 1, 3, 5)).contiguous()
+        hidden_states = hidden_states.permute(0, 2, 4, 1, 3, 5).contiguous()
         hidden_states = hidden_states.view(batch_size, height * width, channel * self.patch_size * self.patch_size)
 
         # Project the patches
@@ -817,7 +818,7 @@ class CogView3PlusPatchEmbed(nn.Cell):
         # Calculate text_length
         text_length = encoder_hidden_states.shape[1]
 
-        image_pos_embed = mint.reshape(self.pos_embed[:height, :width], (height * width, -1))
+        image_pos_embed = self.pos_embed[:height, :width].reshape(height * width, -1)
         text_pos_embed = mint.zeros((text_length, self.hidden_size), dtype=image_pos_embed.dtype)
         pos_embed = mint.cat([text_pos_embed, image_pos_embed], dim=0)[None, ...]
 
@@ -886,14 +887,14 @@ def get_3d_rotary_pos_embed(
 
     # BroadCast and concatenate temporal and spaial frequencie (height and width) into a 3d tensor
     def combine_time_height_width(freqs_t, freqs_h, freqs_w):
-        freqs_t = mint.broadcast_to(
-            freqs_t[:, None, None, :], (-1, grid_size_h, grid_size_w, -1)
+        freqs_t = freqs_t[:, None, None, :].broadcast_to(
+            (-1, grid_size_h, grid_size_w, -1)
         )  # temporal_size, grid_size_h, grid_size_w, dim_t
-        freqs_h = mint.broadcast_to(
-            freqs_h[None, :, None, :], (temporal_size, -1, grid_size_w, -1)
+        freqs_h = freqs_h[None, :, None, :].broadcast_to(
+            (temporal_size, -1, grid_size_w, -1)
         )  # temporal_size, grid_size_h, grid_size_2, dim_h
-        freqs_w = mint.broadcast_to(
-            freqs_w[None, None, :, :], (temporal_size, grid_size_h, -1, -1)
+        freqs_w = freqs_w[None, None, :, :].broadcast_to(
+            (temporal_size, grid_size_h, -1, -1)
         )  # temporal_size, grid_size_h, grid_size_2, dim_w
 
         freqs = mint.cat(
@@ -991,7 +992,7 @@ def get_2d_rotary_pos_embed(embed_dim, crops_coords, grid_size, use_real=True, o
     grid = mint.meshgrid(grid_w, grid_h, indexing="xy")
     grid = mint.stack(grid, dim=0)  # [2, W, H]
 
-    grid = mint.reshape(grid, ([2, 1, *grid.shape[1:]]))
+    grid = grid.reshape([2, 1, *grid.shape[1:]])
     pos_embed = get_2d_rotary_pos_embed_from_grid(embed_dim, grid, use_real=use_real)
     return pos_embed
 
@@ -1043,10 +1044,10 @@ def get_2d_rotary_pos_embed_from_grid(embed_dim, grid, use_real=False):
 
     # use half of dimensions to encode grid_h
     emb_h = get_1d_rotary_pos_embed(
-        embed_dim // 2, mint.reshape(grid[0], (-1,)), use_real=use_real
+        embed_dim // 2, grid[0].reshape(-1), use_real=use_real
     )  # (H*W, D/2) if use_real else (H*W, D/4)
     emb_w = get_1d_rotary_pos_embed(
-        embed_dim // 2, mint.reshape(grid[1], (-1,)), use_real=use_real
+        embed_dim // 2, grid[1].reshape(-1), use_real=use_real
     )  # (H*W, D/2) if use_real else (H*W, D/4)
 
     if use_real:
@@ -1084,10 +1085,10 @@ def get_2d_rotary_pos_embed_lumina(embed_dim, len_h, len_w, linear_factor=1.0, n
     emb_w = get_1d_rotary_pos_embed(
         embed_dim // 2, len_w, linear_factor=linear_factor, ntk_factor=ntk_factor
     )  # (W, D/4)
-    emb_h = mint.tile(emb_h.view(len_h, 1, embed_dim // 4, 1), (1, len_w, 1, 1))  # (H, W, D/4, 1)
-    emb_w = mint.tile(emb_w.view(1, len_w, embed_dim // 4, 1), (len_h, 1, 1, 1))  # (H, W, D/4, 1)
+    emb_h = emb_h.view(len_h, 1, embed_dim // 4, 1).tile((1, len_w, 1, 1))  # (H, W, D/4, 1)
+    emb_w = emb_w.view(1, len_w, embed_dim // 4, 1).tile((len_h, 1, 1, 1))  # (H, W, D/4, 1)
 
-    emb = mint.flatten(mint.cat([emb_h, emb_w], dim=-1), start_dim=2)  # (H, W, D/2)
+    emb = mint.cat([emb_h, emb_w], dim=-1).flatten(start_dim=2)  # (H, W, D/2)
     return emb
 
 
@@ -1141,11 +1142,11 @@ def get_1d_rotary_pos_embed(
         # flux, hunyuan-dit, cogvideox
         # ms.float64 is not support in mint.repeat_interleave
         if freqs_dtype == ms.float64:
-            freqs_cos = mint.repeat_interleave(mint.cos(freqs).to(ms.float32), 2, dim=1).to(freqs_dtype)  # [S, D]
-            freqs_sin = mint.repeat_interleave(mint.sin(freqs).to(ms.float32), 2, dim=1).to(freqs_dtype)  # [S, D]
+            freqs_cos = freqs.cos().to(ms.float32).repeat_interleave(2, dim=1).to(freqs_dtype)  # [S, D]
+            freqs_sin = freqs.sin().to(ms.float32).repeat_interleave(2, dim=1).to(freqs_dtype)  # [S, D]
         else:
-            freqs_cos = mint.repeat_interleave(mint.cos(freqs), 2, dim=1)  # [S, D]
-            freqs_sin = mint.repeat_interleave(mint.sin(freqs), 2, dim=1)  # [S, D]
+            freqs_cos = freqs.cos().repeat_interleave(2, dim=1)  # [S, D]
+            freqs_sin = freqs.sin().repeat_interleave(2, dim=1)  # [S, D]
         return freqs_cos, freqs_sin
     elif use_real:
         # stable audio, allegro
@@ -1182,21 +1183,25 @@ def apply_rotary_emb(
         # Support concatenated `freqs_cis` since MindSpore recompute doesn't support calculate tensors' gradient from tuple.
         # todo: unavailable mint interface
         if ops.is_tensor(freqs_cis):
-            cos, sin = mint.chunk(freqs_cis, 2)  # [1, S, D]
-            cos = cos[None]
-            sin = sin[None]
+            cos, sin = freqs_cis.chunk(2)  # [1, S, D]
+            # cos = cos[None]
+            # sin = sin[None]
+            cos = cos.expand_dims(axis=0)
+            sin = sin.expand_dims(axis=0)
         else:
             cos, sin = freqs_cis  # [S, D]
-            cos = cos[None, None]
-            sin = sin[None, None]
+            # cos = cos[None, None]
+            # sin = sin[None, None]
+            cos = cos.expand_dims(axis=0).expand_dims(axis=0)
+            sin = sin.expand_dims(axis=0).expand_dims(axis=0)
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
-            x_real, x_imag = mint.unbind(mint.reshape(x, (*x.shape[:-1], -1, 2)), -1)  # [B, S, H, D//2]
-            x_rotated = mint.flatten(mint.stack([-x_imag, x_real], dim=-1), start_dim=3)
+            x_real, x_imag = x.reshape(*x.shape[:-1], -1, 2).unbind(-1)  # [B, S, H, D//2]
+            x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=3)
         elif use_real_unbind_dim == -2:
             # Used for Stable Audio, OmniGen and CogView4
-            x_real, x_imag = mint.unbind(mint.reshape(x, (*x.shape[:-1], 2, -1)), -2)  # [B, S, H, D//2]
+            x_real, x_imag = x.reshape(*x.shape[:-1], 2, -1).unbind(-2)  # [B, S, H, D//2]
             x_rotated = mint.cat([-x_imag, x_real], dim=-1)
         else:
             raise ValueError(f"`use_real_unbind_dim={use_real_unbind_dim}` but should be -1 or -2.")
@@ -1206,10 +1211,10 @@ def apply_rotary_emb(
         return out
     else:
         # used for lumina
-        x_rotated = view_as_complex(mint.reshape(x.float(), (*x.shape[:-1], -1, 2)))
-        freqs_cis = mint.unsqueeze(freqs_cis, 2)
+        x_rotated = view_as_complex(x.float().reshape((*x.shape[:-1], -1, 2)))
+        freqs_cis = freqs_cis.unsqueeze(2)
         # todo: unavailable mint interface
-        x_out = mint.flatten(ops.view_as_real(x_rotated * freqs_cis), start_dim=3)
+        x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
 
         return x_out.type_as(x)
 
@@ -1227,7 +1232,7 @@ def apply_rotary_emb_allegro(x: ms.Tensor, freqs_cis, positions):
         return (tokens.float() * cos + tokens_rotated.float() * sin).to(tokens.dtype)
 
     (t_cos, t_sin), (h_cos, h_sin), (w_cos, w_sin) = freqs_cis
-    t, h, w = mint.chunk(x, 3, dim=-1)
+    t, h, w = x.chunk(3, dim=-1)
     t = apply_1d_rope(t, positions[0], t_cos, t_sin)
     h = apply_1d_rope(h, positions[1], h_cos, h_sin)
     w = apply_1d_rope(w, positions[2], w_cos, w_sin)
@@ -1247,11 +1252,11 @@ class FluxPosEmbed(nn.Cell):
         cos_out = []
         sin_out = []
         pos = ids.float()
-        freqs_dtype = ms.float64
+        freqs_dtype = ms.float32
         for i in range(n_axes):
             cos, sin = get_1d_rotary_pos_embed(
                 self.axes_dim[i],
-                pos[:, i],
+                mint.split(pos, 1, dim=1)[i].squeeze(axis=1),
                 theta=self.theta,
                 repeat_interleave_real=True,
                 use_real=True,
@@ -1438,12 +1443,12 @@ class ImagePositionalEmbeddings(nn.Cell):
         height_emb = self.height_emb(mint.arange(self.height).view(1, self.height))
 
         # 1 x H x D -> 1 x H x 1 x D
-        height_emb = mint.unsqueeze(height_emb, 2)
+        height_emb = height_emb.unsqueeze(2)
 
         width_emb = self.width_emb(mint.arange(self.width).view(1, self.width))
 
         # 1 x W x D -> 1 x 1 x W x D
-        width_emb = mint.unsqueeze(width_emb, 1)
+        width_emb = width_emb.unsqueeze(1)
 
         pos_emb = height_emb + width_emb
 
@@ -1510,7 +1515,7 @@ class TextImageProjection(nn.Cell):
 
         # image
         image_text_embeds = self.image_embeds(image_embeds)
-        image_text_embeds = mint.reshape(image_text_embeds, (batch_size, self.num_image_text_embeds, -1))
+        image_text_embeds = image_text_embeds.reshape(batch_size, self.num_image_text_embeds, -1)
 
         # text
         text_embeds = self.text_proj(text_embeds)
@@ -1537,7 +1542,7 @@ class ImageProjection(nn.Cell):
 
         # image
         image_embeds = self.image_embeds(image_embeds.to(self.image_embeds.weight.dtype))
-        image_embeds = mint.reshape(image_embeds, (batch_size, self.num_image_text_embeds, -1))
+        image_embeds = image_embeds.reshape(batch_size, self.num_image_text_embeds, -1)
         image_embeds = self.norm(image_embeds)
         return image_embeds
 
@@ -1568,7 +1573,7 @@ class IPAdapterFaceIDImageProjection(nn.Cell):
 
     def construct(self, image_embeds: ms.Tensor):
         x = self.ff(image_embeds)
-        x = mint.reshape(x, (-1, self.num_tokens, self.cross_attention_dim))
+        x = x.reshape(-1, self.num_tokens, self.cross_attention_dim)
         return self.norm(x)
 
 
@@ -1654,9 +1659,9 @@ class CogView3CombinedTimestepSizeEmbeddings(nn.Cell):
     ) -> ms.Tensor:
         timesteps_proj = self.time_proj(timestep)
 
-        original_size_proj = self.condition_proj(mint.flatten(original_size)).view(original_size.shape[0], -1)
-        crop_coords_proj = self.condition_proj(mint.flatten(crop_coords)).view(crop_coords.shape[0], -1)
-        target_size_proj = self.condition_proj(mint.flatten(target_size)).view(target_size.shape[0], -1)
+        original_size_proj = self.condition_proj(original_size.flatten()).view(original_size.shape[0], -1)
+        crop_coords_proj = self.condition_proj(crop_coords.flatten()).view(crop_coords.shape[0], -1)
+        target_size_proj = self.condition_proj(target_size.flatten()).view(target_size.shape[0], -1)
 
         # (B, 3 * condition_dim)
         condition_proj = mint.cat([original_size_proj, crop_coords_proj, target_size_proj], dim=1)
@@ -1683,7 +1688,7 @@ class HunyuanDiTAttentionPool(nn.Cell):
         self.num_heads = num_heads
 
     def construct(self, x: ms.Tensor):
-        x = mint.permute(x, (1, 0, 2))  # NLC -> LNC
+        x = x.permute(1, 0, 2)  # NLC -> LNC
         x = mint.cat([mint.mean(x, dim=0, keepdim=True), x], dim=0)  # (L+1)NC
         x = x + self.positional_embedding[:, None, :].to(x.dtype)  # (L+1)NC
         # todo: unavailable mint interface
@@ -1708,7 +1713,7 @@ class HunyuanDiTAttentionPool(nn.Cell):
             training=self.training,
             dtype=x.dtype,  # mindspore must specify argument dtype, otherwise fp32 will be used
         )
-        return mint.squeeze(x, 0)
+        return x.squeeze(0)
 
 
 class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
@@ -1799,8 +1804,8 @@ class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
         time_embed = self.timestep_embedder(time_freq.to(dtype=self.timestep_embedder.linear_1.weight.dtype))
 
         # caption condition embedding:
-        caption_mask_float = mint.unsqueeze(caption_mask.float(), -1)
-        caption_feats_pool = mint.sum((caption_feat * caption_mask_float), dim=1) / mint.sum(caption_mask_float, dim=1)
+        caption_mask_float = caption_mask.float().unsqueeze(-1)
+        caption_feats_pool = (caption_feat * caption_mask_float).sum(dim=1) / caption_mask_float.sum(dim=1)
         caption_feats_pool = caption_feats_pool.to(caption_feat.dtype)
         caption_embed = self.caption_embedder(caption_feats_pool)
 
@@ -1953,14 +1958,14 @@ class AttentionPooling(nn.Cell):
             # (bs, length, width) --> (bs, length, n_heads, dim_per_head)
             x = x.view(bs, -1, self.num_heads, self.dim_per_head)
             # (bs, length, n_heads, dim_per_head) --> (bs, n_heads, length, dim_per_head)
-            x = mint.swapaxes(x, 1, 2)
+            x = x.swapaxes(1, 2)
             # (bs, n_heads, length, dim_per_head) --> (bs*n_heads, length, dim_per_head)
-            x = mint.reshape(x, (bs * self.num_heads, -1, self.dim_per_head))
+            x = x.reshape(bs * self.num_heads, -1, self.dim_per_head)
             # (bs*n_heads, length, dim_per_head) --> (bs*n_heads, dim_per_head, length)
-            x = mint.swapaxes(x, 1, 2)
+            x = x.swapaxes(1, 2)
             return x
 
-        class_token = mint.mean(x, dim=1, keepdim=True) + self.positional_embedding.to(x.dtype)
+        class_token = x.mean(dim=1, keepdim=True) + self.positional_embedding.to(x.dtype)
         x = mint.cat([class_token, x], dim=1)  # (bs, length+1, width)
 
         # (bs*n_heads, class_token_length, dim_per_head)
@@ -1971,14 +1976,14 @@ class AttentionPooling(nn.Cell):
 
         # (bs*n_heads, class_token_length, length+class_token_length):
         scale = float(1 / math.sqrt(math.sqrt(self.dim_per_head)))
-        weight = mint.bmm(mint.swapaxes(q, -1, -2) * scale, k * scale)  # More stable with f16 than dividing afterwards
+        weight = mint.bmm(q.swapaxes(-1, -2) * scale, k * scale)  # More stable with f16 than dividing afterwards
         weight = mint.nn.functional.softmax(weight.float(), dim=-1).type(weight.dtype)
 
         # (bs*n_heads, dim_per_head, class_token_length)
-        a = mint.bmm(v, mint.swapaxes(weight, -1, -2))
+        a = mint.bmm(v, weight.swapaxes(-1, -2))
 
         # (bs, length+1, width)
-        a = mint.swapaxes(mint.reshape(a, (bs, -1, 1)), 1, 2)
+        a = a.reshape(bs, -1, 1).swapaxes(1, 2)
 
         return a[:, 0, :]  # cls_token
 
@@ -2016,8 +2021,8 @@ class MochiAttentionPool(nn.Cell):
         assert x.shape[1] == mask.shape[1]  # Expected mask to have same length as tokens.
         assert x.shape[0] == mask.shape[0]  # Expected mask to have same batch size as tokens.
         mask = mask[:, :, None].to(dtype=x.dtype)
-        mask = mask / mint.clamp(mint.sum(mask, dim=1, keepdim=True), min=1)
-        pooled = mint.sum((x * mask), dim=1, keepdim=keepdim)
+        mask = mask / mask.sum(dim=1, keepdim=True).clamp(min=1)
+        pooled = (x * mask).sum(dim=1, keepdim=keepdim)
         return pooled
 
     def construct(self, x: ms.Tensor, mask: ms.Tensor) -> ms.Tensor:
@@ -2051,10 +2056,10 @@ class MochiAttentionPool(nn.Cell):
         # Extract heads.
         head_dim = D // self.num_attention_heads
         kv = unflatten(kv, 2, (2, self.num_attention_heads, head_dim))  # (B, 1+L, 2, H, head_dim)
-        kv = mint.transpose(kv, 1, 3)  # (B, H, 2, 1+L, head_dim)
-        k, v = mint.unbind(kv, 2)  # (B, H, 1+L, head_dim)
+        kv = kv.transpose(1, 3)  # (B, H, 2, 1+L, head_dim)
+        k, v = kv.unbind(2)  # (B, H, 1+L, head_dim)
         q = unflatten(q, 1, (self.num_attention_heads, head_dim))  # (B, H, head_dim)
-        q = mint.unsqueeze(q, 2)  # (B, H, 1, head_dim)
+        q = q.unsqueeze(2)  # (B, H, 1, head_dim)
 
         # Compute attention.
         if attn_mask is not None:
@@ -2076,7 +2081,7 @@ class MochiAttentionPool(nn.Cell):
             x = x.to(q.dtype)
 
         # Concatenate heads and run output.
-        x = mint.flatten(mint.squeeze(x, 2), start_dim=1, end_dim=2)  # (B, D = H * head_dim)
+        x = x.squeeze(2).flatten(start_dim=1, end_dim=2)  # (B, D = H * head_dim)
         x = self.to_out(x)
         return x
 
@@ -2094,10 +2099,10 @@ def get_fourier_embeds_from_boundingbox(embed_dim, box):
 
     emb = 100 ** (mint.arange(embed_dim).to(dtype=box.dtype) / embed_dim)
     emb = emb[None, None, None].to(dtype=box.dtype)
-    emb = emb * mint.unsqueeze(box, -1)
+    emb = emb * box.unsqueeze(-1)
 
     emb = mint.stack((emb.sin(), emb.cos()), dim=-1)
-    emb = mint.reshape(mint.permute(emb, (0, 1, 3, 4, 2)), (batch_size, num_boxes, embed_dim * 2 * 4))
+    emb = emb.permute(0, 1, 3, 4, 2).reshape(batch_size, num_boxes, embed_dim * 2 * 4)
 
     return emb
 
@@ -2154,7 +2159,7 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
         phrases_embeddings=None,
         image_embeddings=None,
     ):
-        masks = mint.unsqueeze(masks, -1)
+        masks = masks.unsqueeze(-1)
 
         # embedding position (it may includes padding as placeholder)
         xyxy_embedding = get_fourier_embeds_from_boundingbox(self.fourier_embedder_dim, boxes)  # B*N*4 -> B*N*C
@@ -2177,8 +2182,8 @@ class GLIGENTextBoundingboxProjection(nn.Cell):
 
         # positionet with text and image information
         else:
-            phrases_masks = mint.unsqueeze(phrases_masks, -1)
-            image_masks = mint.unsqueeze(image_masks, -1)
+            phrases_masks = phrases_masks.unsqueeze(-1)
+            image_masks = image_masks.unsqueeze(-1)
 
             # learnable null embedding
             text_null = self.null_text_feature.view(1, 1, -1)
@@ -2221,10 +2226,10 @@ class PixArtAlphaCombinedTimestepSizeEmbeddings(nn.Cell):
         timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
 
         if self.use_additional_conditions:
-            resolution_emb = self.additional_condition_proj(mint.flatten(resolution)).to(hidden_dtype)
-            resolution_emb = mint.reshape(self.resolution_embedder(resolution_emb), (batch_size, -1))
-            aspect_ratio_emb = self.additional_condition_proj(mint.flatten(aspect_ratio)).to(hidden_dtype)
-            aspect_ratio_emb = mint.reshape(self.aspect_ratio_embedder(aspect_ratio_emb), (batch_size, -1))
+            resolution_emb = self.additional_condition_proj(resolution.flatten()).to(hidden_dtype)
+            resolution_emb = self.resolution_embedder(resolution_emb).reshape(batch_size, -1)
+            aspect_ratio_emb = self.additional_condition_proj(aspect_ratio.flatten()).to(hidden_dtype)
+            aspect_ratio_emb = self.aspect_ratio_embedder(aspect_ratio_emb).reshape(batch_size, -1)
             conditioning = timesteps_emb + mint.cat([resolution_emb, aspect_ratio_emb], dim=1)
         else:
             conditioning = timesteps_emb
@@ -2343,7 +2348,7 @@ class IPAdapterPlusImageProjection(nn.Cell):
         Returns:
             ms.Tensor: Output Tensor.
         """
-        latents = mint.tile(self.latents, (x.shape[0], 1, 1))
+        latents = self.latents.tile((x.shape[0], 1, 1))
 
         x = self.proj_in(x)
 
@@ -2418,12 +2423,12 @@ class IPAdapterFaceIDPlusImageProjection(nn.Cell):
         """
         id_embeds = id_embeds.to(self.clip_embeds.dtype)
         id_embeds = self.proj(id_embeds)
-        id_embeds = mint.reshape(id_embeds, (-1, self.num_tokens, self.embed_dim))
+        id_embeds = id_embeds.reshape(-1, self.num_tokens, self.embed_dim)
         id_embeds = self.norm(id_embeds)
         latents = id_embeds
 
         clip_embeds = self.proj_in(self.clip_embeds)
-        x = mint.reshape(clip_embeds, (-1, clip_embeds.shape[2], clip_embeds.shape[3]))
+        x = clip_embeds.reshape(-1, clip_embeds.shape[2], clip_embeds.shape[3])
 
         for block in self.layers:
             residual = latents
@@ -2501,7 +2506,7 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
 
         # Shift and scale for AdaLayerNorm
         emb = self.adaln_proj(self.adaln_silu(timestep_emb))
-        shift_msa, scale_msa, shift_mlp, scale_mlp = mint.chunk(emb, 4, dim=1)
+        shift_msa, scale_msa, shift_mlp, scale_mlp = emb.chunk(4, dim=1)
 
         # Fused Attention
         residual = latents
@@ -2512,20 +2517,20 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
 
         query = self.attn.to_q(latents)
         kv_input = mint.cat((x, latents), dim=-2)
-        key, value = mint.chunk(self.attn.to_kv(kv_input), 2, dim=-1)
+        key, value = self.attn.to_kv(kv_input).chunk(2, dim=-1)
 
         inner_dim = key.shape[-1]
         head_dim = inner_dim // self.attn.heads
 
-        query = mint.transpose(query.view(batch_size, -1, self.attn.heads, head_dim), 1, 2)
-        key = mint.transpose(key.view(batch_size, -1, self.attn.heads, head_dim), 1, 2)
-        value = mint.transpose(value.view(batch_size, -1, self.attn.heads, head_dim), 1, 2)
+        query = query.view(batch_size, -1, self.attn.heads, head_dim).transpose(1, 2)
+        key = key.view(batch_size, -1, self.attn.heads, head_dim).transpose(1, 2)
+        value = value.view(batch_size, -1, self.attn.heads, head_dim).transpose(1, 2)
 
-        weight = mint.transpose(mint.matmul(query * self.attn.scale, key * self.attn.scale), -2, -1)
+        weight = mint.matmul(query * self.attn.scale, key * self.attn.scale).transpose(-2, -1)
         weight = mint.softmax(weight.float(), dim=-1).to(weight.dtype)
         latents = mint.matmul(weight, value)
 
-        latents = mint.reshape(mint.transpose(latents, 1, 2), (batch_size, -1, self.attn.heads * head_dim))
+        latents = latents.transpose(1, 2).reshape(batch_size, -1, self.attn.heads * head_dim)
         latents = self.attn.to_out[0](latents)
         latents = self.attn.to_out[1](latents)
         latents = latents + residual
@@ -2606,7 +2611,7 @@ class IPAdapterTimeImageProjection(nn.Cell):
         timestep_emb = self.time_proj(timestep).to(dtype=x.dtype)
         timestep_emb = self.time_embedding(timestep_emb)
 
-        latents = mint.tile(self.latents, (x.shape[0], 1, 1))
+        latents = self.latents.tile((x.shape[0], 1, 1))
 
         x = self.proj_in(x)
         x = x + timestep_emb[:, None]
@@ -2633,7 +2638,7 @@ class MultiIPAdapterImageProjection(nn.Cell):
         # each tensor can hae shape [batch_size, num_images, embed_dim] or [batch_size, num_images, sequence_length,
         # embed_dim]
         if not isinstance(image_embeds, list):
-            image_embeds = [mint.unsqueeze(image_embeds, 1)]
+            image_embeds = [image_embeds.unsqueeze(1)]
 
         assert len(image_embeds) == len(self.image_projection_layers), (
             f"image_embeds must have the same length as "
@@ -2644,9 +2649,9 @@ class MultiIPAdapterImageProjection(nn.Cell):
 
         for image_embed, image_projection_layer in zip(image_embeds, self.image_projection_layers):
             batch_size, num_images = image_embed.shape[0], image_embed.shape[1]
-            image_embed = mint.reshape(image_embed, ((batch_size * num_images,) + image_embed.shape[2:]))
+            image_embed = image_embed.reshape((batch_size * num_images,) + image_embed.shape[2:])
             image_embed = image_projection_layer(image_embed)
-            image_embed = mint.reshape(image_embed, ((batch_size, num_images) + image_embed.shape[1:]))
+            image_embed = image_embed.reshape((batch_size, num_images) + image_embed.shape[1:])
 
             projected_image_embeds.append(image_embed)
 

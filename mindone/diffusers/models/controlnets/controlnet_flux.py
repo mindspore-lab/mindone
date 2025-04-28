@@ -294,11 +294,11 @@ class FluxControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             batch_size, channels, height_pw, width_pw = controlnet_cond.shape
             height = height_pw // self.patch_size
             width = width_pw // self.patch_size
-            controlnet_cond = mint.reshape(
-                controlnet_cond, (batch_size, channels, height, self.patch_size, width, self.patch_size)
+            controlnet_cond = controlnet_cond.reshape(
+                batch_size, channels, height, self.patch_size, width, self.patch_size
             )
-            controlnet_cond = mint.permute(controlnet_cond, (0, 2, 4, 1, 3, 5))
-            controlnet_cond = mint.reshape(controlnet_cond, (batch_size, height * width, -1))
+            controlnet_cond = controlnet_cond.permute(0, 2, 4, 1, 3, 5)
+            controlnet_cond = controlnet_cond.reshape(batch_size, height * width, -1)
         # add
         hidden_states = hidden_states + self.controlnet_x_embedder(controlnet_cond)
 

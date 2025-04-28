@@ -63,16 +63,14 @@ def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
     for name, cell in m.cells_and_names():
         if isinstance(cell, (nn.Conv1d, nn.Conv1dTranspose)):
-            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
-                mint.unsqueeze(x, dim=-2), name=x.name
-            )
+            mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(x.unsqueeze(dim=-2), name=x.name)
             if "weight_norm_cell" in name:
                 ori_name = name.replace(".weight_norm_cell", "")
                 mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
-                    mint.unsqueeze(x, dim=-2), name=x.name
+                    x.unsqueeze(dim=-2), name=x.name
                 )
                 mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
-                    mint.unsqueeze(x, dim=-2), name=x.name
+                    x.unsqueeze(dim=-2), name=x.name
                 )
                 mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):

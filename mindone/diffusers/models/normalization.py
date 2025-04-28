@@ -73,11 +73,11 @@ class AdaLayerNorm(nn.Cell):
         if self.chunk_dim == 1:
             # This is a bit weird why we have the order of "shift, scale" here and "scale, shift" in the
             # other if-branch. This branch is specific to CogVideoX for now.
-            shift, scale = mint.chunk(temb, 2, dim=1)
+            shift, scale = temb.chunk(2, dim=1)
             shift = shift[:, None, :]
             scale = scale[:, None, :]
         else:
-            scale, shift = mint.chunk(temb, 2, dim=0)
+            scale, shift = temb.chunk(2, dim=0)
 
         x = self.norm(x) * (1 + scale) + shift
         return x
@@ -108,8 +108,8 @@ class SD35AdaLayerNormZeroX(nn.Cell):
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ...]:
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = mint.chunk(
-            emb, 9, dim=1
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = emb.chunk(
+            9, dim=1
         )
         norm_hidden_states = self.norm(hidden_states)
         hidden_states = norm_hidden_states * (1 + scale_msa[:, None]) + shift_msa[:, None]
@@ -155,8 +155,9 @@ class AdaLayerNormZero(nn.Cell):
         if self.emb is not None:
             emb = self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(emb, 6, dim=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, dim=1)
+        # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
 
 
@@ -187,8 +188,9 @@ class AdaLayerNormZeroSingle(nn.Cell):
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa = mint.chunk(emb, 3, dim=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        shift_msa, scale_msa, gate_msa = emb.chunk(3, dim=1)
+        # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa
 
 
@@ -217,7 +219,7 @@ class LuminaRMSNormZero(nn.Cell):
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         # emb = self.emb(timestep, encoder_hidden_states, encoder_mask)
         emb = self.linear(self.silu(emb))
-        scale_msa, gate_msa, scale_mlp, gate_mlp = mint.chunk(emb, 4, dim=1)
+        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
         x = self.norm(x) * (1 + scale_msa[:, None])
 
         return x, gate_msa, scale_mlp, gate_mlp
@@ -288,7 +290,7 @@ class AdaGroupNorm(nn.Cell):
             emb = self.act(emb)
         emb = self.linear(emb)
         emb = emb[:, :, None, None]
-        scale, shift = mint.chunk(emb, 2, dim=1)
+        scale, shift = emb.chunk(2, dim=1)
 
         x = group_norm(x, self.num_groups, None, None, self.eps)
         x = x * (1 + scale) + shift
@@ -324,7 +326,8 @@ class AdaLayerNormContinuous(nn.Cell):
         # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
         emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
         scale, shift = mint.chunk(emb, 2, dim=1)
-        x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        # x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        x = self.norm(x) * (1 + scale).expand_dims(axis=1) + shift.expand_dims(axis=1)
         return x
 
 
@@ -414,7 +417,7 @@ class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
             c_shift_mlp,
             c_scale_mlp,
             c_gate_mlp,
-        ) = mint.chunk(emb, 12, dim=1)
+        ) = emb.chunk(12, dim=1)
         normed_x = self.norm_x(x)
         normed_context = self.norm_c(context)
         x = normed_x * (1 + scale_msa[:, None]) + shift_msa[:, None]
@@ -440,7 +443,7 @@ class CogVideoXLayerNormZero(nn.Cell):
     def construct(
         self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor
     ) -> Tuple[ms.Tensor, ms.Tensor]:
-        shift, scale, gate, enc_shift, enc_scale, enc_gate = mint.chunk(self.linear(self.silu(temb)), 6, dim=1)
+        shift, scale, gate, enc_shift, enc_scale, enc_gate = self.linear(self.silu(temb)).chunk(6, dim=1)
         hidden_states = self.norm(hidden_states) * (1 + scale)[:, None, :] + shift[:, None, :]
         encoder_hidden_states = self.norm(encoder_hidden_states) * (1 + enc_scale)[:, None, :] + enc_shift[:, None, :]
         return hidden_states, encoder_hidden_states, gate[:, None, :], enc_gate[:, None, :]
@@ -658,7 +661,7 @@ class RMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        variance = mint.mean(mint.pow(hidden_states.to(ms.float32), 2), -1, keepdim=True)
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
 
         if self.weight is not None:
@@ -694,7 +697,7 @@ class MochiRMSNorm(nn.Cell):
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        variance = mint.mean(mint.pow(hidden_states.to(ms.float32), 2), -1, keepdim=True)
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
 
         if self.weight is not None:
@@ -713,7 +716,7 @@ class GlobalResponseNorm(nn.Cell):
 
     def construct(self, x):
         gx = mint.norm(x, p=2, dim=(1, 2), keepdim=True)
-        nx = gx / (mint.mean(gx, dim=-1, keepdim=True) + 1e-6)
+        nx = gx / (gx.mean(dim=-1, keepdim=True) + 1e-6)
         out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
         return out
 

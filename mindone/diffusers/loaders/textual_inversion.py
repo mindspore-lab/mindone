@@ -521,7 +521,7 @@ class TextualInversionLoaderMixin:
         to_append = []
         for i in range(last_special_token_id + 1, temp_text_embedding_weights.shape[0]):
             if i not in token_ids:
-                to_append.append(mint.unsqueeze(temp_text_embedding_weights[i], 0))
+                to_append.append(temp_text_embedding_weights[i].unsqueeze(0))
         if len(to_append) > 0:
             to_append = mint.concat(to_append, dim=0)
             text_embedding_weights = mint.concat((text_embedding_weights, to_append), dim=0)

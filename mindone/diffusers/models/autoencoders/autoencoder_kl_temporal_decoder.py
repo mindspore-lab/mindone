@@ -110,12 +110,10 @@ class TemporalDecoder(nn.Cell):
 
         batch_frames, channels, height, width = sample.shape
         batch_size = batch_frames // num_frames
-        sample = mint.permute(
-            mint.reshape(sample[None, :], (batch_size, num_frames, channels, height, width)), (0, 2, 1, 3, 4)
-        )
+        sample = sample[None, :].reshape(batch_size, num_frames, channels, height, width).permute(0, 2, 1, 3, 4)
         sample = self.time_conv_out(sample)
 
-        sample = mint.reshape(mint.permute(sample, (0, 2, 1, 3, 4)), (batch_frames, channels, height, width))
+        sample = sample.permute(0, 2, 1, 3, 4).reshape(batch_frames, channels, height, width)
 
         return sample
 

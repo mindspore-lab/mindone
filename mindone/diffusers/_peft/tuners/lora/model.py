@@ -519,9 +519,9 @@ class LoraModel(BaseTuner):
         if conv2d:
             conv2d_1x1 = target.weight.shape[2:4] == (1, 1)
             if not conv2d_1x1:
-                delta_weight = mint.flatten(delta_weight, start_dim=1)
+                delta_weight = delta_weight.flatten(start_dim=1)
             else:
-                delta_weight = mint.squeeze(delta_weight, dim=None)
+                delta_weight = delta_weight.squeeze()
         if hasattr(target, "fan_in_fan_out") and target.fan_in_fan_out:
             delta_weight = delta_weight.T
 
@@ -535,15 +535,15 @@ class LoraModel(BaseTuner):
         U = U @ ops.diag(S)
         Vh = Vh[:new_rank, :]
         if clamp is not None:
-            dist = mint.cat([mint.flatten(U), mint.flatten(Vh)])
+            dist = mint.cat([U.flatten(), Vh.flatten()])
             # todo: unavailable mint interface torch.quantile
             hi_val = ops.quantile(dist, clamp)
             low_val = -hi_val
-            U = mint.clamp(U, low_val, hi_val)
-            Vh = mint.clamp(Vh, low_val, hi_val)
+            U = U.clamp(low_val, hi_val)
+            Vh = Vh.clamp(low_val, hi_val)
         if conv2d:
-            U = mint.reshape(U, target_lora_B.data.shape)
-            Vh = mint.reshape(Vh, target_lora_A.data.shape)
+            U = U.reshape(target_lora_B.data.shape)
+            Vh = Vh.reshape(target_lora_A.data.shape)
         return Vh, U
 
     def delete_adapter(self, adapter_name: str) -> None:

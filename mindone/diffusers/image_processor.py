@@ -193,7 +193,7 @@ class VaeImageProcessor(ConfigMixin):
             `np.ndarray`:
                 A NumPy array representation of the images.
         """
-        images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
+        images = images.permute(0, 2, 3, 1).float().numpy()
         return images
 
     @staticmethod
@@ -222,7 +222,7 @@ class VaeImageProcessor(ConfigMixin):
             `np.ndarray` or `ms.Tensor`:
                 The denormalized image array.
         """
-        return mint.clamp((images * 0.5 + 0.5), 0, 1)
+        return (images * 0.5 + 0.5).clamp(0, 1)
 
     @staticmethod
     def convert_to_rgb(image: PIL.Image.Image) -> PIL.Image.Image:
@@ -630,7 +630,7 @@ class VaeImageProcessor(ConfigMixin):
                 #    2. channnel x height x width: we should insert batch dimension at position 0,
                 #       however, since both channel and batch dimension has same size 1, it is same to insert at position 1
                 #    for simplicity, we insert a dimension of size 1 at position 1 for both cases
-                image = mint.unsqueeze(image, 1)
+                image = image.unsqueeze(1)
             else:
                 # if it is a numpy array, it could have 2 possible shapes:
                 #   1. batch x height x width: insert channel dimension on last position
@@ -688,7 +688,7 @@ class VaeImageProcessor(ConfigMixin):
             image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
             if self.config.do_convert_grayscale and image.ndim == 3:
-                image = mint.unsqueeze(image, 1)
+                image = image.unsqueeze(1)
 
             channel = image.shape[1]
             # don't need any preprocess if the image is latents
@@ -701,7 +701,7 @@ class VaeImageProcessor(ConfigMixin):
 
         # expected range [0,1], normalize to [-1,1]
         do_normalize = self.config.do_normalize
-        if do_normalize and mint.min(image) < 0:
+        if do_normalize and image.min() < 0:
             warnings.warn(
                 "Passing `image` as MindSpore tensor with value range in [-1,1] is deprecated. The expected value range for image tensor is [0,1] "
                 f"when passing as mindspore tensor or numpy Array. You passed `image` with value range [{image.min()},{image.max()}]",
@@ -883,13 +883,13 @@ class IPAdapterMaskProcessor(VaeImageProcessor):
         mask_h = int(mask_h) + int((num_queries % int(mask_h)) != 0)
         mask_w = num_queries // mask_h
 
-        mask_downsample = mint.squeeze(
-            mint.nn.functional.interpolate(mint.unsqueeze(mask, 0), size=(mask_h, mask_w), mode="bicubic"), 0
-        )
+        mask_downsample = mint.nn.functional.interpolate(
+            mask.unsqueeze(0), size=(mask_h, mask_w), mode="bicubic"
+        ).squeeze(0)
 
         # Repeat batch_size times
         if mask_downsample.shape[0] < batch_size:
-            mask_downsample = mint.tile(mask_downsample, (batch_size, 1, 1))
+            mask_downsample = mask_downsample.tile((batch_size, 1, 1))
 
         mask_downsample = mask_downsample.view(mask_downsample.shape[0], -1)
 
@@ -905,8 +905,8 @@ class IPAdapterMaskProcessor(VaeImageProcessor):
             mask_downsample = mask_downsample[:, :num_queries]
 
         # Repeat last dimension to match SDPA output shape
-        mask_downsample = mint.tile(
-            mask_downsample.view(mask_downsample.shape[0], mask_downsample.shape[1], 1), (1, 1, value_embed_dim)
+        mask_downsample = mask_downsample.view(mask_downsample.shape[0], mask_downsample.shape[1], 1).tile(
+            (1, 1, value_embed_dim)
         )
 
         return mask_downsample

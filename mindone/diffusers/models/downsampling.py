@@ -141,7 +141,7 @@ class Downsample2D(nn.Cell):
         assert hidden_states.shape[1] == self.channels
 
         if self.norm is not None:
-            hidden_states = mint.permute(self.norm(mint.permute(hidden_states, (0, 2, 3, 1))), (0, 3, 1, 2))
+            hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
         if self.use_conv and self.padding == 0:
             pad = (0, 1, 0, 1)
@@ -252,7 +252,7 @@ class FirDownsample2D(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         if self.use_conv:
             downsample_input = self._downsample_2d(hidden_states, weight=self.Conv2d_0.weight, kernel=self.fir_kernel)
-            hidden_states = downsample_input + mint.reshape(self.Conv2d_0.bias, (1, -1, 1, 1))
+            hidden_states = downsample_input + self.Conv2d_0.bias.reshape(1, -1, 1, 1)
         else:
             hidden_states = self._downsample_2d(hidden_states, kernel=self.fir_kernel, factor=2)
 
@@ -286,7 +286,7 @@ class KDownsample2D(nn.Cell):
             dtype=inputs.dtype,
         )
         indices = mint.arange(inputs.shape[1])
-        kernel = mint.broadcast_to(self.kernel.to(weight.dtype)[None, :], (inputs.shape[1], -1, -1))
+        kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))
         weight[indices, indices] = kernel
         return mint.nn.functional.conv2d(inputs, weight, stride=2)
 
@@ -330,36 +330,34 @@ class CogVideoXDownsample3D(nn.Cell):
             batch_size, channels, frames, height, width = x.shape
 
             # (batch_size, channels, frames, height, width) -> (batch_size, height, width, channels, frames) -> (batch_size * height * width, channels, frames)
-            x = mint.reshape(mint.permute(x, (0, 3, 4, 1, 2)), (batch_size * height * width, channels, frames))
+            x = x.permute(0, 3, 4, 1, 2).reshape(batch_size * height * width, channels, frames)
 
             if x.shape[-1] % 2 == 1:
                 x_first, x_rest = x[..., 0], x[..., 1:]
                 if x_rest.shape[-1] > 0:
                     # (batch_size * height * width, channels, frames - 1) -> (batch_size * height * width, channels, (frames - 1) // 2)
                     # x_rest = ops.avg_pool1d(x_rest, kernel_size=2, stride=2) does NOT support BFloat16, so we will switch to the following equivalent method:
-                    x_rest = mint.mean(
-                        mint.reshape(x_rest, (batch_size * height * width, channels, -1, 2)), dim=-1, keepdim=False
-                    )
+                    x_rest = x_rest.reshape(batch_size * height * width, channels, -1, 2).mean(dim=-1, keepdim=False)
 
                 x = mint.cat([x_first[..., None], x_rest], dim=-1)
                 # (batch_size * height * width, channels, (frames // 2) + 1) -> (batch_size, height, width, channels, (frames // 2) + 1) -> (batch_size, channels, (frames // 2) + 1, height, width)  # noqa: E501
-                x = mint.permute(mint.reshape(x, (batch_size, height, width, channels, x.shape[-1])), (0, 3, 4, 1, 2))
+                x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
             else:
                 # (batch_size * height * width, channels, frames) -> (batch_size * height * width, channels, frames // 2)
                 # x = ops.avg_pool1d(x, kernel_size=2, stride=2) does NOT support BFloat16, so we will switch to the following equivalent method:
-                x = mint.mean(mint.reshape(x, (batch_size * height * width, channels, -1, 2)), dim=-1, keepdim=False)
+                x = x.reshape(batch_size * height * width, channels, -1, 2).mean(dim=-1, keepdim=False)
                 # (batch_size * height * width, channels, frames // 2) -> (batch_size, height, width, channels, frames // 2) -> (batch_size, channels, frames // 2, height, width)  # noqa: E501
-                x = mint.permute(mint.reshape(x, (batch_size, height, width, channels, x.shape[-1])), (0, 3, 4, 1, 2))
+                x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
 
         # Pad the tensor
         paddings = (0, 1, 0, 1)  # `pad` -> `paddings` as pad is used for op
         x = pad(x, paddings, mode="constant", value=0)
         batch_size, channels, frames, height, width = x.shape
         # (batch_size, channels, frames, height, width) -> (batch_size, frames, channels, height, width) -> (batch_size * frames, channels, height, width)
-        x = mint.reshape(mint.permute(x, (0, 2, 1, 3, 4)), (batch_size * frames, channels, height, width))
+        x = x.permute(0, 2, 1, 3, 4).reshape(batch_size * frames, channels, height, width)
         x = self.conv(x)
         # (batch_size * frames, channels, height, width) -> (batch_size, frames, channels, height, width) -> (batch_size, channels, frames, height, width)
-        x = mint.permute(mint.reshape(x, (batch_size, frames, x.shape[1], x.shape[2], x.shape[3])), (0, 2, 1, 3, 4))
+        x = x.reshape(batch_size, frames, x.shape[1], x.shape[2], x.shape[3]).permute(0, 2, 1, 3, 4)
         return x
 
 
