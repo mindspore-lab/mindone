@@ -700,13 +700,13 @@ class IFPipeline(DiffusionPipeline, LoraLoaderMixin):
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], axis=1)
-                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], axis=1)
+                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1], dim=1)
+                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1], dim=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                     noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = noise_pred.split(model_input.shape[1], axis=1)
+                    noise_pred, _ = noise_pred.split(model_input.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 # TODO: method of scheduler should not change the dtype of input.

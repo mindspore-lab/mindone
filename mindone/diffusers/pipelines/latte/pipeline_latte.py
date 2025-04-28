@@ -793,7 +793,7 @@ class LattePipeline(DiffusionPipeline):
                     hasattr(self.scheduler.config, "variance_type")
                     and self.scheduler.config.variance_type in ["learned", "learned_range"]
                 ):
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
+                    noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # compute previous video: x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]

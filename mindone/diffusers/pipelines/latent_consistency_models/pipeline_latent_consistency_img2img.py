@@ -442,7 +442,7 @@ class LatentConsistencyModelImg2ImgPipeline(
                 single_image_embeds, single_negative_image_embeds = self.encode_image(
                     single_ip_adapter_image, 1, output_hidden_state
                 )
-                single_image_embeds = ops.stack([single_image_embeds] * num_images_per_prompt, axis=0)
+                single_image_embeds = mint.stack([single_image_embeds] * num_images_per_prompt, dim=0)
                 single_negative_image_embeds = mint.stack([single_negative_image_embeds] * num_images_per_prompt, dim=0)
 
                 if do_classifier_free_guidance:

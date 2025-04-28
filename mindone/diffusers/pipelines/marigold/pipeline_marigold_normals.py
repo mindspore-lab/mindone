@@ -651,21 +651,21 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         if reduction not in ("closest", "mean"):
             raise ValueError(f"Unrecognized reduction method: {reduction}.")
 
-        mean_normals = normals.mean(axis=0, keep_dims=True)  # [1,3,H,W]
+        mean_normals = normals.mean(dim=0, keep_dims=True)  # [1,3,H,W]
         mean_normals = MarigoldNormalsPipeline.normalize_normals(mean_normals)  # [1,3,H,W]
 
-        sim_cos = (mean_normals * normals).sum(axis=1, keepdims=True)  # [E,1,H,W]
+        sim_cos = (mean_normals * normals).sum(dim=1, keepdims=True)  # [E,1,H,W]
         sim_cos = sim_cos.clamp(-1.0, 1.0)  # required to avoid NaN in uncertainty with fp16
 
         uncertainty = None
         if output_uncertainty:
             uncertainty = sim_cos.arccos()  # [E,1,H,W]
-            uncertainty = uncertainty.mean(axis=0, keep_dims=True) / ms.numpy.pi  # [1,1,H,W]
+            uncertainty = uncertainty.mean(dim=0, keep_dims=True) / ms.numpy.pi  # [1,1,H,W]
 
         if reduction == "mean":
             return mean_normals, uncertainty  # [1,3,H,W], [1,1,H,W]
 
-        closest_indices = sim_cos.argmax(axis=0, keepdims=True)  # [1,1,H,W]
+        closest_indices = sim_cos.argmax(dim=0, keepdims=True)  # [1,1,H,W]
         closest_indices = closest_indices.tile((1, 3, 1, 1))  # [1,3,H,W]
         closest_normals = ops.gather_elements(normals, 0, closest_indices)  # [1,3,H,W]
 

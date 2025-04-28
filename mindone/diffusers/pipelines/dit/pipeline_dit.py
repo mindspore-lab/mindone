@@ -213,7 +213,7 @@ class DiTPipeline(DiffusionPipeline):
             latent_model_input = self.scheduler.step(model_output, t, latent_model_input)[0]
 
         if guidance_scale > 1:
-            latents, _ = latent_model_input.chunk(2, axis=0)
+            latents, _ = latent_model_input.chunk(2, dim=0)
         else:
             latents = latent_model_input
 

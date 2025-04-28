@@ -127,8 +127,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Returns:
         noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
     """
-    std_text = noise_pred_text.std(axis=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
-    std_cfg = noise_cfg.std(axis=tuple(range(1, noise_cfg.ndim)), keepdims=True)
+    std_text = noise_pred_text.std(dim=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(dim=tuple(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -838,7 +838,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
                     return_dict=False,
                 )[0]
 
-                noise_pred, _ = noise_pred.chunk(2, axis=1)
+                noise_pred, _ = noise_pred.chunk(2, dim=1)
 
                 # perform guidance
                 if self.do_classifier_free_guidance:

@@ -92,7 +92,7 @@ class Kandinsky3Img2ImgPipeline(DiffusionPipeline, LoraLoaderMixin):
         # return embeddings, attention_mask
         if cut_context:
             embeddings[attention_mask == 0] = mint.zeros_like(embeddings[attention_mask == 0])
-            max_seq_length = attention_mask.sum(axis=-1).max() + 1
+            max_seq_length = attention_mask.sum(dim=-1).max() + 1
             embeddings = embeddings[:, :max_seq_length]
             attention_mask = attention_mask[:, :max_seq_length]
         return embeddings, attention_mask

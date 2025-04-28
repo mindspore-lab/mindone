@@ -812,7 +812,7 @@ class PixArtSigmaPipeline(DiffusionPipeline):
 
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
+                    noise_pred = noise_pred.chunk(2, dim=1)[0]
                 else:
                     noise_pred = noise_pred
 

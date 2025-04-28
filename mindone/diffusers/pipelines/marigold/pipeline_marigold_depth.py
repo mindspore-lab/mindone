@@ -632,7 +632,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
         prediction = self.vae.decode(pred_latent / self.vae.config.scaling_factor, return_dict=False)[0]  # [B,3,H,W]
 
-        prediction = prediction.mean(axis=1, keep_dims=True)  # [B,1,H,W]
+        prediction = prediction.mean(dim=1, keep_dims=True)  # [B,1,H,W]
         prediction = mint.clip(prediction, -1.0, 1.0)  # [B,1,H,W]
         prediction = (prediction + 1.0) / 2.0
 
@@ -692,8 +692,8 @@ class MarigoldDepthPipeline(DiffusionPipeline):
             raise ValueError("Pure shift-invariant ensembling is not supported.")
 
         def init_param(depth: ms.Tensor):
-            init_min = depth.reshape(ensemble_size, -1).min(axis=1)
-            init_max = depth.reshape(ensemble_size, -1).max(axis=1)
+            init_min = depth.reshape(ensemble_size, -1).min(dim=1)
+            init_max = depth.reshape(ensemble_size, -1).max(dim=1)
 
             if scale_invariant and shift_invariant:
                 init_s = 1.0 / (init_max - init_min).clamp(min=1e-6)

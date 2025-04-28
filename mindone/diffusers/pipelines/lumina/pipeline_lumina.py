@@ -814,7 +814,7 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
                     cross_attention_kwargs=cross_attention_kwargs,
                     return_dict=False,
                 )[0]
-                noise_pred = noise_pred.chunk(2, axis=1)[0]
+                noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # perform guidance scale
                 # NOTE: For exact reproducibility reasons, we apply classifier-free guidance on only
@@ -832,7 +832,7 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
                     noise_pred_eps = mint.cat([noise_pred_half, noise_pred_half], dim=0)
 
                     noise_pred = mint.cat([noise_pred_eps, noise_pred_rest], dim=1)
-                    noise_pred, _ = noise_pred.chunk(2, axis=0)
+                    noise_pred, _ = noise_pred.chunk(2, dim=0)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 noise_pred = -noise_pred
