@@ -39,8 +39,8 @@ class StableTextToVideoZeroPipelineIntegrationTests(PipelineTesterMixin, unittes
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",
-            f"text_to_video_zero_{dtype}.npy",
-            subfolder="test_text_to_video_synthesis",
+            f"t2v_synth_zero_{dtype}.npy",
+            subfolder="text_to_video_synthesis",
         )
 
         assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
