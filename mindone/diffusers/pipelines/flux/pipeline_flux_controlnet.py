@@ -444,8 +444,10 @@ class FluxControlNetPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSingleF
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._prepare_latent_image_ids
     def _prepare_latent_image_ids(batch_size, height, width, dtype):
         latent_image_ids = ops.zeros((height, width, 3))
-        latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height)[:, None]
-        latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width)[None, :]
+        # latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height)[:, None]
+        latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height).expand_dims(axis=1)
+        # latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width)[None, :]
+        latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width).expand_dims(axis=0)
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 

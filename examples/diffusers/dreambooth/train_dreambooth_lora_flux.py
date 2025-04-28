@@ -202,6 +202,20 @@ def parse_args(input_args=None):
         help="A folder containing the training data of class images.",
     )
     parser.add_argument(
+        "--jit_level",
+        type=str,
+        default="O1",
+        choices=["O0", "O1", "O2"],
+        help=(
+            "Used to control the compilation optimization level, supports [O0, O1, O2]. The framework automatically "
+            "selects the execution method. O0: All optimizations except those necessary for functionality are "
+            "disabled, using an operator-by-operator execution method. O1: Enables common optimizations and automatic "
+            "operator fusion optimizations, using an operator-by-operator execution method. This is an experimental "
+            "optimization level, which is continuously being improved. O2: Enables extreme performance optimization, "
+            "using a sinking execution method."
+        ),
+    )
+    parser.add_argument(
         "--instance_prompt",
         type=str,
         default=None,
@@ -908,7 +922,11 @@ def encode_prompt(
 
 def main(args):
     args = parse_args()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)
+    ms.set_context(
+        mode=ms.GRAPH_MODE,
+        jit_syntax_level=ms.STRICT,
+        jit_config={"jit_level": args.jit_level},
+    )
     init_distributed_device(args)
 
     logging_dir = Path(args.output_dir, args.logging_dir)

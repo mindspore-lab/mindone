@@ -45,11 +45,64 @@ frames = pipe(prompt, num_inference_steps=28, guidance_scale=3.5)[0][0]
 export_to_video(frames, "mochi.mp4", fps=30)
 ```
 
+## Using a lower precision variant to save memory
 
+The following example will use the `bfloat16` variant of the model and requires 22GB VRAM to run. There is a slight drop in the quality of the generated video as a result.
 
+```python
+import mindspore as ms
+from mindone.diffusers import MochiPipeline
+from mindone.diffusers.utils import export_to_video
+
+pipe = MochiPipeline.from_pretrained("genmo/mochi-1-preview", variant="bf16", mindspore_dtype=ms.bfloat16)
+
+# Enable memory savings
+pipe.enable_vae_tiling()
+
+prompt = "Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k."
+frames = pipe(prompt, num_frames=85)[0][0]
+
+export_to_video(frames, "mochi.mp4", fps=30)
+```
+
+## Using single file loading with the Mochi Transformer
+
+You can use `from_single_file` to load the Mochi transformer in its original format.
+
+!!! tip
+    Diffusers currently doesn't support using the FP8 scaled versions of the Mochi single file checkpoints.
+
+```python
+import mindspore as ms
+from mindone.diffusers import MochiPipeline, MochiTransformer3DModel
+from mindone.diffusers.utils import export_to_video
+
+model_id = "genmo/mochi-1-preview"
+
+ckpt_path = "https://huggingface.co/Comfy-Org/mochi_preview_repackaged/blob/main/split_files/diffusion_models/mochi_preview_bf16.safetensors"
+
+transformer = MochiTransformer3DModel.from_pretrained(ckpt_path, mindspore_dtype=ms.bfloat16)
+
+pipe = MochiPipeline.from_pretrained(model_id,  transformer=transformer)
+pipe.enable_vae_tiling()
+
+frames = pipe(
+    prompt="Close-up of a chameleon's eye, with its scaly skin changing color. Ultra high resolution 4k.",
+    negative_prompt="",
+    height=480,
+    width=848,
+    num_frames=85,
+    num_inference_steps=50,
+    guidance_scale=4.5,
+    num_videos_per_prompt=1,
+    generator=torch.Generator(device="cuda").manual_seed(0),
+    max_sequence_length=256,
+    output_type="pil",
+)[0][0]
+
+export_to_video(frames, "output.mp4", fps=30)
+```
 
 ::: mindone.diffusers.MochiPipeline
-
-
 
 ::: mindone.diffusers.pipelines.mochi.pipeline_output.MochiPipelineOutput

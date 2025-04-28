@@ -17,7 +17,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ..utils import deprecate
 from .activations import FP32SiLU, get_activation
@@ -59,7 +59,8 @@ def get_timestep_embedding(
     exponent = exponent / (half_dim - downscale_freq_shift)
 
     emb = ops.exp(exponent)
-    emb = timesteps[:, None].float() * emb[None, :]
+    # emb = timesteps[:, None].float() * emb[None, :]
+    emb = timesteps.expand_dims(axis=1).float() * emb.expand_dims(axis=0)
 
     # scale embeddings
     emb = scale * emb
@@ -69,7 +70,9 @@ def get_timestep_embedding(
 
     # flip sine and cosine embeddings
     if flip_sin_to_cos:
-        emb = ops.cat([emb[:, half_dim:], emb[:, :half_dim]], axis=-1)
+        # emb = ops.cat([emb[:, half_dim:], emb[:, :half_dim]], axis=-1)
+        split_emb = mint.split(emb, [half_dim, emb.shape[1] - half_dim], dim=1)
+        emb = ops.cat([split_emb[1], split_emb[0]], axis=-1)
 
     # zero pad
     if embedding_dim % 2 == 1:
@@ -1167,12 +1170,16 @@ def apply_rotary_emb(
         # Support concatenated `freqs_cis` since MindSpore recompute doesn't support calculate tensors' gradient from tuple.
         if ops.is_tensor(freqs_cis):
             cos, sin = freqs_cis.chunk(2)  # [1, S, D]
-            cos = cos[None]
-            sin = sin[None]
+            # cos = cos[None]
+            # sin = sin[None]
+            cos = cos.expand_dims(axis=0)
+            sin = sin.expand_dims(axis=0)
         else:
             cos, sin = freqs_cis  # [S, D]
-            cos = cos[None, None]
-            sin = sin[None, None]
+            # cos = cos[None, None]
+            # sin = sin[None, None]
+            cos = cos.expand_dims(axis=0).expand_dims(axis=0)
+            sin = sin.expand_dims(axis=0).expand_dims(axis=0)
 
         if use_real_unbind_dim == -1:
             # Used for flux, cogvideox, hunyuan-dit
@@ -1230,11 +1237,11 @@ class FluxPosEmbed(nn.Cell):
         cos_out = []
         sin_out = []
         pos = ids.float()
-        freqs_dtype = ms.float64
+        freqs_dtype = ms.float32
         for i in range(n_axes):
             cos, sin = get_1d_rotary_pos_embed(
                 self.axes_dim[i],
-                pos[:, i],
+                mint.split(pos, 1, dim=1)[i].squeeze(axis=1),
                 theta=self.theta,
                 repeat_interleave_real=True,
                 use_real=True,

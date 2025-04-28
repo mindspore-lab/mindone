@@ -20,7 +20,13 @@ from mindspore import nn, ops
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
 from ..attention import BasicTransformerBlock, SkipFFTransformerBlock
-from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
+from ..attention_processor import (
+    ADDED_KV_ATTENTION_PROCESSORS,
+    CROSS_ATTENTION_PROCESSORS,
+    AttentionProcessor,
+    AttnAddedKVProcessor,
+    AttnProcessor,
+)
 from ..embeddings import TimestepEmbedding, get_timestep_embedding
 from ..modeling_utils import ModelMixin
 from ..normalization import GlobalResponseNorm, RMSNorm
@@ -257,7 +263,9 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         """
         Disables custom attention processors and sets the default attention implementation.
         """
-        if all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+        if all(proc.__class__ in ADDED_KV_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
+            processor = AttnAddedKVProcessor()
+        elif all(proc.__class__ in CROSS_ATTENTION_PROCESSORS for proc in self.attn_processors.values()):
             processor = AttnProcessor()
         else:
             raise ValueError(
@@ -397,7 +405,7 @@ class ConvNextBlock(nn.Cell):
         )
         self.norm = RMSNorm(channels, layer_norm_eps, ln_elementwise_affine)
         self.channelwise_linear_1 = nn.Dense(channels, int(channels * res_ffn_factor), has_bias=use_bias)
-        self.channelwise_act = nn.GELU()
+        self.channelwise_act = nn.GELU(approximate=False)
         self.channelwise_norm = GlobalResponseNorm(int(channels * res_ffn_factor))
         self.channelwise_linear_2 = nn.Dense(int(channels * res_ffn_factor), channels, has_bias=use_bias)
         self.channelwise_dropout = nn.Dropout(p=hidden_dropout)

@@ -15,7 +15,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import deprecate, is_mindspore_version, logging
@@ -746,6 +746,8 @@ class Attention(nn.Cell):
             attn_mask = ops.logical_not(attn_mask) * dtype_to_min(query.dtype)
 
         has_extra_dims = query.ndim > 3
+        # adapt to graph mode
+        origin_query_shape = None
         if has_extra_dims:
             origin_query_shape = query.shape
             query = query.reshape(-1, query.shape[-2], query.shape[-1])
@@ -2168,9 +2170,16 @@ class FluxAttnProcessor2_0:
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
+            """
             encoder_hidden_states, hidden_states = (
                 hidden_states[:, : encoder_hidden_states.shape[1]],
                 hidden_states[:, encoder_hidden_states.shape[1] :],
+            )
+            """
+            encoder_hidden_states, hidden_states = mint.split(
+                hidden_states,
+                [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]],
+                dim=1,
             )
 
             # linear proj
