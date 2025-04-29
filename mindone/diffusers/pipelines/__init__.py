@@ -213,6 +213,7 @@ _import_structure = {
         "WuerstchenDecoderPipeline",
         "WuerstchenPriorPipeline",
     ],
+    "wan": ["WanPipeline", "WanImageToVideoPipeline", "WanVideoToVideoPipeline"],
     "pipeline_utils": [
         "AudioPipelineOutput",
         "DiffusionPipeline",
@@ -391,6 +392,7 @@ if TYPE_CHECKING:
     )
     from .unclip import UnCLIPImageVariationPipeline, UnCLIPPipeline
     from .unidiffuser import ImageTextPipelineOutput, UniDiffuserModel, UniDiffuserPipeline, UniDiffuserTextDecoder
+    from .wan import WanImageToVideoPipeline, WanPipeline, WanVideoToVideoPipeline
     from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline, WuerstchenPriorPipeline
 else:
     import sys
