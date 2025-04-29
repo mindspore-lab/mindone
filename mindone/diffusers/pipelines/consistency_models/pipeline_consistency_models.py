@@ -107,12 +107,12 @@ class ConsistencyModelPipeline(DiffusionPipeline):
             )
 
         # Equivalent to diffusers.VaeImageProcessor.denormalize
-        sample = mint.clamp((sample / 2 + 0.5), 0, 1)
+        sample = (sample / 2 + 0.5).clamp(0, 1)
         if output_type == "ms":
             return sample
 
         # Equivalent to diffusers.VaeImageProcessor.ms_to_numpy
-        sample = mint.permute(sample, (0, 2, 3, 1)).numpy()
+        sample = sample.permute((0, 2, 3, 1)).numpy()
         if output_type == "np":
             return sample
 

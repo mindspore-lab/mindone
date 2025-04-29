@@ -239,7 +239,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         _, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         return prompt_embeds
@@ -351,7 +351,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
         if mask is not None:
             masks = []
             for i in range(mask.shape[0]):
-                current_mask = mint.unsqueeze(mask[i], 0)
+                current_mask = mask[i].unsqueeze(0)
                 current_mask = self.vae.encode(current_mask)[0]
                 current_mask = self.vae.diag_gauss_dist.mode(current_mask)
                 masks.append(current_mask)
@@ -361,7 +361,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
         if masked_image is not None:
             mask_pixel_values = []
             for i in range(masked_image.shape[0]):
-                mask_pixel_value = mint.unsqueeze(masked_image[i], 0)
+                mask_pixel_value = masked_image[i].unsqueeze(0)
                 mask_pixel_value = self.vae.encode(mask_pixel_value)[0]
                 mask_pixel_value = self.vae.diag_gauss_dist.mode(mask_pixel_value)
                 mask_pixel_values.append(mask_pixel_value)
@@ -374,7 +374,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
 
     # Copied from diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline.decode_latents
     def decode_latents(self, latents: ms.Tensor) -> ms.Tensor:
-        latents = mint.permute(latents, (0, 2, 1, 3, 4))  # [batch_size, num_channels, num_frames, height, width]
+        latents = latents.permute(0, 2, 1, 3, 4)  # [batch_size, num_channels, num_frames, height, width]
         latents = 1 / self.vae_scaling_factor_image * latents
         # vae decode only support pynative
         with pynative_context():
@@ -722,7 +722,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
             control_video = control_video.to(dtype=prompt_embeds.dtype)
 
         _, control_video_latents = self.prepare_control_latents(None, control_video)
-        control_video_latents = mint.permute(control_video_latents, (0, 2, 1, 3, 4))
+        control_video_latents = control_video_latents.permute(0, 2, 1, 3, 4)
 
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
@@ -772,7 +772,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                         (1 - math.cos(math.pi * ((num_inference_steps - t.item()) / num_inference_steps) ** 5.0)) / 2
                     )
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

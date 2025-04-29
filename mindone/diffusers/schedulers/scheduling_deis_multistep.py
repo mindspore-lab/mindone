@@ -335,7 +335,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = s.unsqueeze(1) # (batch_size, 1) because clamp will broadcast along dim=0
+        s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
         sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)

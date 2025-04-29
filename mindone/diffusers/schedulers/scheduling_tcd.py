@@ -349,13 +349,13 @@ class TCDScheduler(SchedulerMixin, ConfigMixin):
         # Flatten sample for doing quantile calculation along each image
         sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
 
-        abs_sample = sample.abs() # "a certain percentile absolute pixel value"
+        abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
         s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = s.unsqueeze(1) # (batch_size, 1) because clamp will broadcast along dim=0
+        s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
         sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)
