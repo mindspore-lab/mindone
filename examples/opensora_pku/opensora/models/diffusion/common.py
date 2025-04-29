@@ -79,7 +79,7 @@ class RoPE3D(nn.Cell):
         # self.cache = {}
 
     def get_cos_sin(self, seq_len, interpolation_scale=1):
-        t = ops.arange(seq_len, dtype=self.inv_freq.dtype) / interpolation_scale
+        t = mint.arange(seq_len, dtype=self.inv_freq.dtype) / interpolation_scale
         freqs = ops.outer(t, self.inv_freq).to(self.inv_freq.dtype)
         freqs = mint.cat((freqs, freqs), dim=-1)
         cos = freqs.cos()  # (Seq, Dim)
@@ -93,8 +93,12 @@ class RoPE3D(nn.Cell):
 
     def apply_rope1d(self, tokens, pos1d, cos, sin):
         assert pos1d.ndim == 2
-        cos = cos[pos1d.to(ms.int32)][:, :, None, :]
-        sin = sin[pos1d.to(ms.int32)][:, :, None, :]
+        # cos = cos[pos1d]
+        # sin = sin[pos1d]
+        cos = ops.gather(cos, pos1d, 0)
+        sin = ops.gather(sin, pos1d, 0)
+        cos = cos[:, :, None, :]
+        sin = sin[:, :, None, :]
 
         return (tokens * cos) + (self.rotate_half(tokens) * sin)
 

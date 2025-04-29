@@ -140,6 +140,12 @@ def parse_train_args(parser):
     )
     parser.add_argument("--dataloader_num_workers", default=12, type=int, help="num workers for dataloder")
     parser.add_argument("--max_rowsize", default=32, type=int, help="max rowsize for data loading")
+    parser.add_argument(
+        "--dataset_iterator_no_copy",
+        default=True,
+        type=str2bool,
+        help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor without copy.",
+    )
 
     #################################################################################
     #                         Mixed Precision: Loss scaler etc.                     #

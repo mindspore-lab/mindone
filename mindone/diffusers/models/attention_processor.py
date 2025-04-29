@@ -15,7 +15,7 @@ import math
 from typing import Callable, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ..image_processor import IPAdapterMaskProcessor
 from ..utils import deprecate, is_mindspore_version, logging
@@ -2170,9 +2170,16 @@ class FluxAttnProcessor2_0:
         hidden_states = hidden_states.to(query.dtype)
 
         if encoder_hidden_states is not None:
+            """
             encoder_hidden_states, hidden_states = (
                 hidden_states[:, : encoder_hidden_states.shape[1]],
                 hidden_states[:, encoder_hidden_states.shape[1] :],
+            )
+            """
+            encoder_hidden_states, hidden_states = mint.split(
+                hidden_states,
+                [encoder_hidden_states.shape[1], hidden_states.shape[1] - encoder_hidden_states.shape[1]],
+                dim=1,
             )
 
             # linear proj

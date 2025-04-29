@@ -1,4 +1,4 @@
-transformers==4.42.4
+transformers==4.51.0
 sentencepiece
 addict
 

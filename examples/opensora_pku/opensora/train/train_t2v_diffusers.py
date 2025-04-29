@@ -323,6 +323,7 @@ def main(args):
         collate_fn=collate_fn,
         sampler=sampler,
         column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
+        dataset_iterator_no_copy=args.dataset_iterator_no_copy,
     )
     dataloader_size = dataloader.get_dataset_size()
     assert (
@@ -357,6 +358,7 @@ def main(args):
             collate_fn=collate_fn,
             sampler=sampler,
             column_names=["pixel_values", "attention_mask", "text_embed", "encoder_attention_mask"],
+            dataset_iterator_no_copy=args.dataset_iterator_no_copy,
         )
         val_dataloader_size = val_dataloader.get_dataset_size()
         assert (
@@ -720,10 +722,11 @@ def parse_t2v_train_args(parser):
     parser.add_argument("--force_resolution", action="store_true")
     parser.add_argument("--trained_data_global_step", type=int, default=None)
     parser.add_argument(
-        "--use_decord",
-        type=str2bool,
-        default=True,
-        help="whether to use decord to load videos. If not, use opencv to load videos.",
+        "--video_reader",
+        type=str,
+        default="decord",
+        choices=["decord", "opencv", "pyav"],
+        help="what method to use to load videos. Default is decord.",
     )
 
     # text encoder & vae & diffusion model

@@ -11,6 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from os.path import join as opj
 from pathlib import Path
 
+import av
 import cv2
 import decord
 import numpy as np
@@ -171,7 +172,7 @@ class T2V_dataset:
         self.min_hxw = args.min_hxw
         self.sp_size = args.sp_size
         assert self.speed_factor >= 1
-        self.video_reader = "decord" if args.use_decord else "opencv"
+        self.video_reader = args.video_reader
         self.ae_stride_t = args.ae_stride_t
         self.total_batch_size = args.total_batch_size
         self.seed = args.seed
@@ -514,6 +515,8 @@ class T2V_dataset:
             video = self.decord_read(video_data)
         elif self.video_reader == "opencv":
             video = self.opencv_read(video_data)
+        elif self.video_reader == "pyav":
+            video = self.pyav_read(video_data)
         else:
             NotImplementedError(f"Found {self.video_reader}, but support decord or opencv")
 
@@ -722,6 +725,38 @@ class T2V_dataset:
         video_data = np.stack(video_data)  # (T, H, W, C)
         if s_y is not None:
             video_data = video_data[:, s_y:e_y, s_x:e_x, :]
+        return video_data
+
+    def pyav_read(self, video_data):
+        path = video_data["path"]
+        predefine_frame_indice = video_data["sample_frame_index"]
+        start_frame_idx = video_data["start_frame_idx"]
+        clip_total_frames = video_data["num_frames"]
+        fps = video_data["fps"]
+        s_x, e_x, s_y, e_y = video_data.get("crop", [None, None, None, None])
+
+        predefine_num_frames = len(predefine_frame_indice)
+        frame_indices = self.get_actual_frame(
+            fps, start_frame_idx, clip_total_frames, path, predefine_num_frames, predefine_frame_indice
+        )
+
+        video_data = []
+        with av.open(path) as container:
+            stream = container.streams.video[0]
+            stream.thread_type = "AUTO"
+            current_idx = 0
+
+            for frame in container.decode(stream):
+                if current_idx > frame_indices[-1]:
+                    break
+                if current_idx in frame_indices:
+                    img = frame.to_ndarray(format="rgb24")
+                    if s_y is not None:
+                        img = img[s_y:e_y, s_x:e_x]
+                    video_data.append(img)
+                current_idx += 1
+
+        video_data = np.stack(video_data)
         return video_data
 
     def get_actual_frame(

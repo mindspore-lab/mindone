@@ -35,6 +35,7 @@ class VAR(nn.Cell):
         cond_drop_rate=0.1,
         attn_l2_norm=False,
         patch_nums=(1, 2, 3, 4, 5, 6, 8, 10, 13, 16),  # 10 steps by default
+        use_recompute=False,
     ):
         super().__init__()
         # 0. hyperparameters
@@ -43,7 +44,7 @@ class VAR(nn.Cell):
         self.depth, self.C, self.D, self.num_heads = depth, embed_dim, embed_dim, num_heads
 
         self.cond_drop_rate = cond_drop_rate
-        self.prog_si = -1  # progressive training
+        self.prog_si = ms.Tensor(-1)  # progressive training
 
         self.patch_nums: Tuple[int] = patch_nums
         self.L = sum(pn**2 for pn in self.patch_nums)
@@ -138,8 +139,19 @@ class VAR(nn.Cell):
         self.head = mint.nn.Linear(self.C, self.V)
         self.init_weight()
 
+        if use_recompute:
+            for block in self.blocks:
+                self.recompute(block)
+
     def register_buffer(self, name, attr):
         setattr(self, name, Parameter(default_input=attr, requires_grad=False))
+
+    def recompute(self, b):
+        if not b._has_config_recompute:
+            b.recompute()
+        if isinstance(b, nn.CellList):
+            self.recompute(b[-1])
+            b.add_flags(output_no_recompute=True)
 
     def init_weight(self):
         weight = initializer(TruncatedNormal(sigma=self.init_std, mean=0.0), self.class_emb.weight.shape)
@@ -297,15 +309,8 @@ class VAR(nn.Cell):
             ed,
         )
 
-        attn_bias = self.attn_bias_for_masking[:, :, :ed, :ed]
+        attn_bias = self.attn_bias_for_masking[:, :, :ed, :ed].bool()
         cond_BD_or_gss = self.shared_ada_lin(cond_BD)
-
-        # hack: get the dtype if mixed precision is used
-        temp = x_BLC.new_ones((8, 8))
-        main_type = mint.matmul(temp, temp).dtype
-
-        x_BLC = x_BLC.to(dtype=main_type)
-        cond_BD_or_gss = cond_BD_or_gss.to(dtype=main_type)
 
         for i, b in enumerate(self.blocks):
             x_BLC = b(x=x_BLC, cond_BD=cond_BD_or_gss, attn_bias=attn_bias)
@@ -434,13 +439,15 @@ class Embed2(nn.Cell):
     def construct(
         self, cond_BD, B, first_l, pos_start, prog_si, word_embed, x_BLCv_wo_first_l, lvl_embed, lvl_1L, pos_1LC, ed
     ):
-        sos = cond_BD.unsqueeze(1).expand((B, first_l, -1)) + pos_start.expand((B, first_l, -1))
+        sos = ops.broadcast_to(mint.unsqueeze(cond_BD, dim=1), (B, first_l, -1)) + ops.broadcast_to(
+            pos_start, (B, first_l, -1)
+        )
 
         if prog_si == 0:
             x_BLC = sos
         else:
-            x_BLC = mint.cat((sos, word_embed(x_BLCv_wo_first_l.float())), dim=1)
-        x_BLC += lvl_embed(lvl_1L[:, :ed].expand((B, -1))) + pos_1LC[:, :ed]  # lvl: BLC;  pos: 1LC
+            x_BLC = mint.cat((sos, word_embed(x_BLCv_wo_first_l.float()).float()), dim=1)
+        x_BLC += lvl_embed(ops.broadcast_to(lvl_1L[:, :ed], (B, -1))) + pos_1LC[:, :ed]  # lvl: BLC;  pos: 1LC
         return x_BLC
 
 

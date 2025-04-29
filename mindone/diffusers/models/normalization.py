@@ -156,7 +156,8 @@ class AdaLayerNormZero(nn.Cell):
             emb = self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)
         emb = self.linear(self.silu(emb))
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, axis=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
 
 
@@ -188,7 +189,8 @@ class AdaLayerNormZeroSingle(nn.Cell):
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         emb = self.linear(self.silu(emb))
         shift_msa, scale_msa, gate_msa = emb.chunk(3, axis=1)
-        x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa
 
 
@@ -324,7 +326,8 @@ class AdaLayerNormContinuous(nn.Cell):
         # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
         emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
         scale, shift = ops.chunk(emb, 2, axis=1)
-        x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        # x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
+        x = self.norm(x) * (1 + scale).expand_dims(axis=1) + shift.expand_dims(axis=1)
         return x
 
 

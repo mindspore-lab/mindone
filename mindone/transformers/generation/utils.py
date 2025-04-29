@@ -158,6 +158,15 @@ class GenerationMixin:
             "A model class needs to define a `prepare_inputs_for_generation` method in order to use `.generate()`."
         )
 
+    def _add_flags_custom(self, is_first_iteration):
+        """Add customized attributes for specific cells in the model."""
+        self.add_flags(is_first_iteration=is_first_iteration)
+        self.model.add_flags(is_first_iteration=is_first_iteration)
+        for layer in self.model.layers:
+            layer.add_flags(is_first_iteration=is_first_iteration)
+            layer.self_attn.infer_attention.add_flags(is_first_iteration=is_first_iteration)
+            layer.self_attn.infer_attention.paged_attention_mgr.add_flags(is_first_iteration=is_first_iteration)
+
     def _prepare_generation_config(
         self, generation_config: Optional[GenerationConfig], **kwargs: Dict
     ) -> Tuple[GenerationConfig, Dict]:
@@ -649,7 +658,7 @@ class GenerationMixin:
                 encoder = getattr(base_model, "encoder", None)
 
             if encoder is not None:
-                encoder_model_args = set(inspect.signature(encoder.forward).parameters)
+                encoder_model_args = set(inspect.signature(encoder.construct).parameters)
                 model_args |= encoder_model_args
 
             # allow decoder kwargs
@@ -658,7 +667,7 @@ class GenerationMixin:
                 decoder = getattr(base_model, "decoder", None)
 
             if decoder is not None:
-                decoder_model_args = set(inspect.signature(decoder.forward).parameters)
+                decoder_model_args = set(inspect.signature(decoder.construct).parameters)
                 model_args |= {f"decoder_{x}" for x in decoder_model_args}
 
             # allow assistant_encoder_outputs to be passed if we're doing assisted generating
@@ -889,8 +898,9 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-
-                if not self._supports_default_dynamic_cache():  # use tuple cache
+                if (
+                    not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
+                ):  # use tuple cache
                     cur_lens = attention_mask.sum(-1)
                     for batch_idx in range(attention_mask.shape[0]):
                         cur_len = int(cur_lens[batch_idx])
@@ -1581,7 +1591,10 @@ class GenerationMixin:
             )
 
             # 14. unlike the original transformers, need delete the length of the input
-            result = result[:, inputs_tensor.shape[1] :]
+            if result.shape[-1] < inputs_tensor.shape[1]:
+                result = result
+            else:
+                result = result[:, inputs_tensor.shape[1] :]
 
         elif generation_mode in (GenerationMode.BEAM_SAMPLE, GenerationMode.BEAM_SEARCH):
             raise NotImplementedError
@@ -1695,8 +1708,10 @@ class GenerationMixin:
                 model_kwargs["encoder_outputs"].get("hidden_states") if output_hidden_states else None
             )
 
-        # Padding inputs to avoid dynamic shape on MindSpore 2.3.1
-        if not self._supports_default_dynamic_cache():  # if tuple cache
+        # Padding inputs to avoid dynamic shape /adapt to paged attention
+        if (
+            not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
+        ):  # if tuple cache
             (
                 padded_input_ids,
                 padded_inputs_embeds,
@@ -1733,6 +1748,13 @@ class GenerationMixin:
 
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):
             # prepare model inputs
+
+            if input_ids.dtype == ms.int64:
+                input_ids = input_ids.to(ms.int32)
+
+            if self.config._attn_implementation == "paged_attention":
+                model_kwargs["step"] = step
+
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
 
             # forward pass to get next token

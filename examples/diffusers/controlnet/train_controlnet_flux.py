@@ -49,6 +49,7 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.transformers import CLIPTextModel, T5EncoderModel
+from mindone.utils.config import str2bool
 
 logger = logging.getLogger(__name__)
 
@@ -418,6 +419,12 @@ def parse_args(input_args=None):
             " behaviors, so disable this argument if it causes any problems. More info:"
             " https://pytorch.org/docs/stable/generated/torch.optim.Optimizer.zero_grad.html"
         ),
+    )
+    parser.add_argument(
+        "--dataset_iterator_no_copy",
+        default=True,
+        type=str2bool,
+        help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor without copy.",
     )
     parser.add_argument(
         "--dataset_name",
@@ -1165,7 +1172,13 @@ def main():
         # Only show the progress bar once on each machine.
         disable=not is_master(args),
     )
-    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
+    # do_copy=False enables the dataset iterator to not do copy when creating a tensor which takes less time.
+    # Currently the default value of do_copy is True,
+    # it is expected that the default value of do_copy will be changed to False in MindSpore 2.7.0.
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(
+        num_epochs=args.num_train_epochs - first_epoch,
+        do_copy=not args.dataset_iterator_no_copy,
+    )
 
     for epoch in range(first_epoch, args.num_train_epochs):
         flux_controlnet.set_train(True)

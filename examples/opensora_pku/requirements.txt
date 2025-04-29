@@ -20,3 +20,4 @@ transformers
 tokenizers
 pillow
 decord
+av

@@ -1,6 +1,6 @@
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Parameter, mint, nn
+from mindspore import Parameter, mint, nn, ops
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from .helpers import DropPath
@@ -91,8 +91,8 @@ class SelfAttention(nn.Cell):
             else:
                 k = self.cached_k = mint.cat((self.cached_k, k), dim=dim_cat)
                 v = self.cached_v = mint.cat((self.cached_v, v), dim=dim_cat)
-        attention_mask = None if attn_bias is None else attn_bias.bool().expand((B, self.num_heads, -1, -1))
-        # dropout_p = self.attn_drop if self.training else 0.0
+        attention_mask = None if attn_bias is None else ops.broadcast_to(attn_bias, (B, self.num_heads, -1, -1))
+
         q = q.swapaxes(1, 2)
         k = k.swapaxes(1, 2)
         v = v.swapaxes(1, 2)
