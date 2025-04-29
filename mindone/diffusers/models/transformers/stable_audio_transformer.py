@@ -394,12 +394,12 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
         global_hidden_states = self.global_proj(global_hidden_states)
         time_hidden_states = self.timestep_proj(self.time_proj(timestep.to(self.dtype)))
 
-        global_hidden_states = global_hidden_states + mint.unsqueeze(time_hidden_states, 1)
+        global_hidden_states = global_hidden_states + time_hidden_states.unsqueeze(1)
 
         hidden_states = self.preprocess_conv(hidden_states) + hidden_states
         # (batch_size, dim, sequence_length) -> (batch_size, sequence_length, dim)
 
-        hidden_states = mint.transpose(hidden_states, 1, 2)
+        hidden_states = hidden_states.transpose(0, 2, 1)
         hidden_states = self.proj_in(hidden_states)
 
         # prepend global states to hidden states
@@ -422,7 +422,7 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
 
         # (batch_size, sequence_length, dim) -> (batch_size, dim, sequence_length)
         # remove prepend length that has been added by global hidden states
-        hidden_states = mint.transpose(hidden_states, 1, 2)[:, :, 1:]
+        hidden_states = hidden_states.transpose(0, 2, 1)[:, :, 1:]
         hidden_states = self.postprocess_conv(hidden_states) + hidden_states
 
         if not return_dict:

@@ -165,7 +165,7 @@ class ContextCLIPTextTransformer(nn.Cell):
         # take features from the eot embedding (eot_token is the highest number in each sequence)
         pooled_output = last_hidden_state[
             mint.arange(last_hidden_state.shape[0]),
-            mint.argmax(input_ids, dim=-1),
+            input_ids.argmax(dim=-1),
         ]
 
         if not return_dict:
@@ -184,7 +184,7 @@ class ContextCLIPTextTransformer(nn.Cell):
         mask = mint.zeros((bsz, seq_len, seq_len), dtype=dtype)
         mask = mask.fill(dtype_to_min(dtype))
         mask = mask.triu(1)  # zero out the lower diagonal
-        mask = mint.unsqueeze(mask, 1)  # expand mask
+        mask = mask.unsqueeze(1)  # expand mask
         return mask
 
 

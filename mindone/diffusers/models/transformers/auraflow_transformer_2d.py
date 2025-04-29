@@ -74,7 +74,7 @@ class AuraFlowPatchEmbed(nn.Cell):
         startw = w_max // 2 - w_p // 2
         endw = startw + w_p
         original_pe_indexes = original_pe_indexes[starth:endh, startw:endw]
-        return mint.flatten(original_pe_indexes)
+        return original_pe_indexes.flatten()
 
     def construct(self, latent):
         batch_size, num_channels, height, width = latent.shape
@@ -86,9 +86,7 @@ class AuraFlowPatchEmbed(nn.Cell):
             width // self.patch_size,
             self.patch_size,
         )
-        latent = mint.flatten(
-            mint.flatten(mint.permute(latent, (0, 2, 4, 1, 3, 5)), start_dim=-3), start_dim=1, end_dim=2
-        )
+        latent = latent.permute(0, 2, 4, 1, 3, 5).flatten(start_dim=-3).flatten(start_dim=1, end_dim=2)
         latent = self.proj(latent)
         pe_index = self.pe_selection_index_based_on_dim(height, width)
         return latent + self.pos_embed[:, pe_index]
@@ -163,10 +161,10 @@ class AuraFlowSingleTransformerBlock(nn.Cell):
         attn_output = self.attn(hidden_states=norm_hidden_states)
 
         # Process attention outputs for the `hidden_states`.
-        hidden_states = self.norm2(residual + mint.unsqueeze(gate_msa, 1) * attn_output)
+        hidden_states = self.norm2(residual + gate_msa.unsqueeze(1) * attn_output)
         hidden_states = hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
         ff_output = self.ff(hidden_states)
-        hidden_states = mint.unsqueeze(gate_mlp, 1) * ff_output
+        hidden_states = gate_mlp.unsqueeze(1) * ff_output
         hidden_states = residual + hidden_states
 
         return hidden_states
@@ -230,17 +228,15 @@ class AuraFlowJointTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        hidden_states = self.norm2(residual + mint.unsqueeze(gate_msa, 1) * attn_output)
+        hidden_states = self.norm2(residual + gate_msa.unsqueeze(1) * attn_output)
         hidden_states = hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
-        hidden_states = mint.unsqueeze(gate_mlp, 1) * self.ff(hidden_states)
+        hidden_states = gate_mlp.unsqueeze(1) * self.ff(hidden_states)
         hidden_states = residual + hidden_states
 
         # Process attention outputs for the `encoder_hidden_states`.
-        encoder_hidden_states = self.norm2_context(
-            residual_context + mint.unsqueeze(c_gate_msa, 1) * context_attn_output
-        )
+        encoder_hidden_states = self.norm2_context(residual_context + c_gate_msa.unsqueeze(1) * context_attn_output)
         encoder_hidden_states = encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
-        encoder_hidden_states = mint.unsqueeze(c_gate_mlp, 1) * self.ff_context(encoder_hidden_states)
+        encoder_hidden_states = c_gate_mlp.unsqueeze(1) * self.ff_context(encoder_hidden_states)
         encoder_hidden_states = residual_context + encoder_hidden_states
 
         return encoder_hidden_states, hidden_states
@@ -458,7 +454,7 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         temb = self.time_step_proj(temb)
         encoder_hidden_states = self.context_embedder(encoder_hidden_states)
         encoder_hidden_states = mint.cat(
-            [mint.tile(self.register_tokens, (encoder_hidden_states.shape[0], 1, 1)), encoder_hidden_states], dim=1
+            [self.register_tokens.tile((encoder_hidden_states.shape[0], 1, 1)), encoder_hidden_states], dim=1
         )
 
         # MMDiT blocks.
@@ -486,14 +482,12 @@ class AuraFlowTransformer2DModel(ModelMixin, ConfigMixin):
         height = height // patch_size
         width = width // patch_size
 
-        hidden_states = mint.reshape(
-            hidden_states, (hidden_states.shape[0], height, width, patch_size, patch_size, out_channels)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[0], height, width, patch_size, patch_size, out_channels
         )
         # hidden_states = torch.einsum("nhwpqc->nchpwq", hidden_states)
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(
-            hidden_states, (hidden_states.shape[0], out_channels, height * patch_size, width * patch_size)
-        )
+        output = hidden_states.reshape(hidden_states.shape[0], out_channels, height * patch_size, width * patch_size)
 
         if not return_dict:
             return (output,)

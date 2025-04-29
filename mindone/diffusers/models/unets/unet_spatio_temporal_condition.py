@@ -403,7 +403,6 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # 1. time
         timesteps = timestep
-        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
@@ -416,7 +415,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         batch_size, num_frames = sample.shape[:2]
-        timesteps = mint.broadcast_to(timesteps, (batch_size,))
+        timesteps = timesteps.broadcast_to((batch_size,))
 
         t_emb = self.time_proj(timesteps)
 
@@ -427,20 +426,20 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
 
         emb = self.time_embedding(t_emb)
 
-        time_embeds = self.add_time_proj(mint.flatten(added_time_ids))
-        time_embeds = mint.reshape(time_embeds, (batch_size, -1))
+        time_embeds = self.add_time_proj(added_time_ids.flatten())
+        time_embeds = time_embeds.reshape((batch_size, -1))
         time_embeds = time_embeds.to(emb.dtype)
         aug_emb = self.add_embedding(time_embeds)
         emb = emb + aug_emb
 
         # Flatten the batch and frames dimensions
         # sample: [batch, frames, channels, height, width] -> [batch * frames, channels, height, width]
-        sample = mint.flatten(sample, start_dim=0, end_dim=1)
+        sample = sample.flatten(start_dim=0, end_dim=1)
         # Repeat the embeddings num_video_frames times
         # emb: [batch, channels] -> [batch * frames, channels]
-        emb = mint.repeat_interleave(emb, num_frames, dim=0)
+        emb = emb.repeat_interleave(num_frames, dim=0)
         # encoder_hidden_states: [batch, 1, channels] -> [batch * frames, 1, channels]
-        encoder_hidden_states = mint.repeat_interleave(encoder_hidden_states, num_frames, dim=0)
+        encoder_hidden_states = encoder_hidden_states.repeat_interleave(num_frames, dim=0)
 
         # 2. pre-process
         sample = self.conv_in(sample)
@@ -509,7 +508,7 @@ class UNetSpatioTemporalConditionModel(ModelMixin, ConfigMixin, UNet2DConditionL
         sample = self.conv_out(sample)
 
         # 7. Reshape back to original shape
-        sample = mint.reshape(sample, (batch_size, num_frames, *sample.shape[1:]))
+        sample = sample.reshape(batch_size, num_frames, *sample.shape[1:])
 
         if not return_dict:
             return (sample,)

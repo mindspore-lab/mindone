@@ -475,7 +475,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # 1. time
         timesteps = timestep
@@ -492,7 +492,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         num_frames = sample.shape[2]
-        timesteps = mint.broadcast_to(timesteps, (sample.shape[0],))
+        timesteps = timesteps.broadcast_to((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
@@ -502,13 +502,12 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
         t_emb = t_emb.to(dtype=self.dtype)
 
         emb = self.time_embedding(t_emb, timestep_cond)
-        emb = mint.repeat_interleave(emb, repeats=num_frames, dim=0)
-        encoder_hidden_states = mint.repeat_interleave(encoder_hidden_states, repeats=num_frames, dim=0)
+        emb = emb.repeat_interleave(repeats=num_frames, dim=0)
+        encoder_hidden_states = encoder_hidden_states.repeat_interleave(repeats=num_frames, dim=0)
 
         # 2. pre-process
-        sample = mint.reshape(
-            mint.permute(sample, (0, 2, 1, 3, 4)), ((sample.shape[0] * num_frames, -1) + sample.shape[3:])
-        )
+        sample = sample.permute(0, 2, 1, 3, 4).reshape((sample.shape[0] * num_frames, -1) + sample.shape[3:])
+
         sample = self.conv_in(sample)
 
         sample = self.transformer_in(
@@ -600,7 +599,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
         sample = self.conv_out(sample)
 
         # reshape to (batch, channel, framerate, width, height)
-        sample = mint.permute(mint.reshape(sample[None, :], ((-1, num_frames) + sample.shape[1:])), (0, 2, 1, 3, 4))
+        sample = sample[None, :].reshape((-1, num_frames) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
 
         if not return_dict:
             return (sample,)

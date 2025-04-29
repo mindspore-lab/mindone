@@ -320,12 +320,12 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
+            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
         # 1. Input
         batch_size = hidden_states.shape[0]
@@ -356,22 +356,21 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
             )
 
         # 3. Output
-        shift, scale = mint.chunk((self.scale_shift_table[None] + embedded_timestep[:, None]), 2, dim=1)
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
         # Modulation
         hidden_states = hidden_states * (1 + scale) + shift
         hidden_states = self.proj_out(hidden_states)
         if hidden_states.shape[1] == 1:
-            hidden_states = mint.squeeze(hidden_states, 1)
+            hidden_states = hidden_states.squeeze(1)
 
         # unpatchify
-        hidden_states = mint.reshape(
-            hidden_states, (-1, height, width, self.config["patch_size"], self.config["patch_size"], self.out_channels)
+        hidden_states = hidden_states.reshape(
+            -1, height, width, self.config["patch_size"], self.config["patch_size"], self.out_channels
         )
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(
-            hidden_states,
-            (-1, self.out_channels, height * self.config["patch_size"], width * self.config["patch_size"]),
+        output = hidden_states.reshape(
+            -1, self.out_channels, height * self.config["patch_size"], width * self.config["patch_size"]
         )
 
         if not return_dict:

@@ -148,7 +148,7 @@ class Upsample2D(nn.Cell):
         assert hidden_states.shape[1] == self.channels
 
         if self.norm is not None:
-            hidden_states = mint.permute(self.norm(mint.permute(hidden_states, (0, 2, 3, 1))), (0, 3, 1, 2))
+            hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
         if self.use_conv_transpose:
             return self.conv(hidden_states)
@@ -288,7 +288,7 @@ class FirUpsample2D(nn.Cell):
 
             # Transpose weights.
             weight = mint.reshape(weight, (num_groups, -1, inC, convH, convW))
-            weight = mint.permute(mint.flip(weight, dims=[3, 4]), (0, 2, 1, 3, 4))
+            weight = mint.flip(weight, dims=[3, 4]).permute(0, 2, 1, 3, 4)
             weight = mint.reshape(weight, (num_groups * inC, -1, convH, convW))
 
             inverse_conv = conv_transpose2d(
@@ -318,7 +318,7 @@ class FirUpsample2D(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         if self.use_conv:
             height = self._upsample_2d(hidden_states, self.Conv2d_0.weight, kernel=self.fir_kernel)
-            height = height + mint.reshape(self.Conv2d_0.bias, (1, -1, 1, 1))
+            height = height + self.Conv2d_0.bias.reshape(1, -1, 1, 1)
         else:
             height = self._upsample_2d(hidden_states, kernel=self.fir_kernel, factor=2)
 
@@ -409,20 +409,20 @@ class CogVideoXUpsample3D(nn.Cell):
                 inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
             else:
                 if inputs.shape[2] == 1:
-                    inputs = mint.squeeze(inputs, 2)
+                    inputs = inputs.squeeze(2)
                 inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
                 inputs = inputs[:, :, None, :, :]
         else:
             # only interpolate 2D
             b, c, t, h, w = inputs.shape
-            inputs = mint.reshape(mint.permute(inputs, (0, 2, 1, 3, 4)), (b * t, c, h, w))
+            inputs = inputs.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
             inputs = upsample_nearest3d_free_interpolate(inputs, scale_factor=2.0)
-            inputs = mint.permute(mint.reshape(inputs, (b, t, c, *inputs.shape[2:])), (0, 2, 1, 3, 4))
+            inputs = inputs.reshape(b, t, c, *inputs.shape[2:]).permute(0, 2, 1, 3, 4)
 
         b, c, t, h, w = inputs.shape
-        inputs = mint.reshape(mint.permute(inputs, (0, 2, 1, 3, 4)), (b * t, c, h, w))
+        inputs = inputs.permute(0, 2, 1, 3, 4).reshape(b * t, c, h, w)
         inputs = self.conv(inputs)
-        inputs = mint.permute(mint.reshape(inputs, (b, t, *inputs.shape[1:])), (0, 2, 1, 3, 4))
+        inputs = inputs.reshape(b, t, *inputs.shape[1:]).permute(0, 2, 1, 3, 4)
 
         return inputs
 
@@ -440,7 +440,7 @@ def upfirdn2d_native(
     pad_x1 = pad_y1 = pad[1]
 
     _, channel, in_h, in_w = tensor.shape
-    tensor = mint.reshape(tensor, (-1, in_h, in_w, 1))
+    tensor = tensor.reshape(-1, in_h, in_w, 1)
 
     _, in_h, in_w, minor = tensor.shape
     kernel_h, kernel_w = kernel.shape
@@ -457,20 +457,17 @@ def upfirdn2d_native(
         :,
     ]
 
-    out = mint.permute(out, (0, 3, 1, 2))
-    out = mint.reshape(out, [-1, 1, in_h * up_y + pad_y0 + pad_y1, in_w * up_x + pad_x0 + pad_x1])
+    out = out.permute(0, 3, 1, 2)
+    out = out.reshape([-1, 1, in_h * up_y + pad_y0 + pad_y1, in_w * up_x + pad_x0 + pad_x1])
     w = mint.flip(kernel, [0, 1]).view(1, 1, kernel_h, kernel_w)
     out = mint.conv2d(out, w.to(out.dtype))
-    out = mint.reshape(
-        out,
-        (
-            -1,
-            minor,
-            in_h * up_y + pad_y0 + pad_y1 - kernel_h + 1,
-            in_w * up_x + pad_x0 + pad_x1 - kernel_w + 1,
-        ),
+    out = out.reshape(
+        -1,
+        minor,
+        in_h * up_y + pad_y0 + pad_y1 - kernel_h + 1,
+        in_w * up_x + pad_x0 + pad_x1 - kernel_w + 1,
     )
-    out = mint.permute(out, (0, 2, 3, 1))
+    out = out.permute(0, 2, 3, 1)
     out = out[:, ::down_y, ::down_x, :]
 
     out_h = (in_h * up_y + pad_y0 + pad_y1 - kernel_h) // down_y + 1

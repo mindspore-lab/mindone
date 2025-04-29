@@ -120,7 +120,7 @@ class Blip2VisionEmbeddings(nn.Cell):
         batch_size = pixel_values.shape[0]
         target_dtype = self.patch_embedding.weight.dtype
         patch_embeds = self.patch_embedding(pixel_values.to(dtype=target_dtype))  # shape = [*, width, grid, grid]
-        patch_embeds = mint.transpose(mint.flatten(patch_embeds, start_dim=2), 1, 2)
+        patch_embeds = patch_embeds.flatten(start_dim=2).transpose(0, 2, 1)
 
         class_embeds = self.class_embedding.broadcast_to((batch_size, 1, -1)).to(target_dtype)
         embeddings = mint.cat([class_embeds, patch_embeds], dim=1)

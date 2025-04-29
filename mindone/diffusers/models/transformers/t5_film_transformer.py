@@ -90,8 +90,8 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
         self.spec_out = mint.nn.Linear(d_model, input_dims, bias=False)
 
     def encoder_decoder_mask(self, query_input: ms.Tensor, key_input: ms.Tensor) -> ms.Tensor:
-        mask = mint.mul(mint.unsqueeze(query_input, -1), mint.unsqueeze(key_input, -2))
-        return mint.unsqueeze(mask, -3)
+        mask = mint.mul(query_input.unsqueeze(-1), key_input.unsqueeze(-2))
+        return mask.unsqueeze(-3)
 
     def construct(self, encodings_and_masks, decoder_input_tokens, decoder_noise_time):
         batch, _, _ = decoder_input_tokens.shape
@@ -300,7 +300,7 @@ class T5LayerCrossAttention(nn.Cell):
         attention_output = self.attention(
             normed_hidden_states,
             encoder_hidden_states=key_value_states,
-            attention_mask=mint.squeeze(attention_mask, 1),
+            attention_mask=attention_mask.squeeze(1),
         )
         layer_output = hidden_states + self.dropout(attention_output)
         return layer_output
@@ -394,7 +394,7 @@ class T5LayerNorm(nn.Cell):
         # w/o mean and there is no bias. Additionally we want to make sure that the accumulation for
         # half-precision inputs is done in fp32
 
-        variance = mint.mean(mint.pow(hidden_states.to(ms.float32), 2), -1, keepdim=True)
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
 
         # convert into half-precision if necessary

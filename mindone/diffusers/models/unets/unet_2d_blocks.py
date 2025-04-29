@@ -3398,10 +3398,10 @@ class KAttentionBlock(nn.Cell):
         )
 
     def _to_3d(self, hidden_states: ms.Tensor, height: int, weight: int) -> ms.Tensor:
-        return mint.reshape(mint.permute(hidden_states, (0, 2, 3, 1)), (hidden_states.shape[0], height * weight, -1))
+        return hidden_states.permute(0, 2, 3, 1).reshape(hidden_states.shape[0], height * weight, -1)
 
     def _to_4d(self, hidden_states: ms.Tensor, height: int, weight: int) -> ms.Tensor:
-        return mint.reshape(mint.permute(hidden_states, (0, 2, 1)), (hidden_states.shape[0], -1, height, weight))
+        return hidden_states.permute(0, 2, 1).reshape(hidden_states.shape[0], -1, height, weight)
 
     def construct(
         self,

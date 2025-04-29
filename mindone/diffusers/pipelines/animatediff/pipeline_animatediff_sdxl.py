@@ -104,16 +104,19 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Flawed](https://arxiv.org/pdf/2305.08891.pdf).
 
     Args:
-        noise_cfg (`torch.Tensor`):
+        noise_cfg (`ms.Tensor`):
             The predicted noise tensor for the guided diffusion process.
-        noise_pred_text (`torch.Tensor`):
+        noise_pred_text (`ms.Tensor`):
             The predicted noise tensor for the text-guided diffusion process.
         guidance_rescale (`float`, *optional*, defaults to 0.0):
             A rescale factor applied to the noise predictions.
 
     Returns:
-        noise_cfg (`torch.Tensor`): The rescaled noise prediction tensor.
+        noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
     """
+    std_text = noise_pred_text.std(dim=tuple(range(1, noise_pred_text.ndim)), keepdim=True)
+    std_cfg = noise_cfg.std(dim=tuple(range(1, noise_cfg.ndim)), keepdim=True)
+
     std_text = mint.std(noise_pred_text, dim=tuple(range(1, noise_pred_text.ndim)), keepdim=True)
     std_cfg = mint.std(noise_cfg, dim=tuple(range(1, noise_cfg.ndim)), keepdim=True)
     # rescale the results from guidance (fixes overexposure)
@@ -483,7 +486,7 @@ class AnimateDiffSDXLPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -495,14 +498,14 @@ class AnimateDiffSDXLPipeline(
             else:
                 negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.unet.dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_videos_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_videos_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = mint.tile(pooled_prompt_embeds, (1, num_videos_per_prompt)).view(
+        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_videos_per_prompt)).view(
             bs_embed * num_videos_per_prompt, -1
         )
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = mint.tile(negative_pooled_prompt_embeds, (1, num_videos_per_prompt)).view(
+            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.tile((1, num_videos_per_prompt)).view(
                 bs_embed * num_videos_per_prompt, -1
             )
 
@@ -529,17 +532,17 @@ class AnimateDiffSDXLPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -577,20 +580,17 @@ class AnimateDiffSDXLPipeline(
             image_embeds = []
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
-                    single_negative_image_embeds = mint.tile(
-                        single_negative_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))),
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
                     single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
                 image_embeds.append(single_image_embeds)
 
@@ -601,14 +601,11 @@ class AnimateDiffSDXLPipeline(
         latents = 1 / self.vae.config.scaling_factor * latents
 
         batch_size, channels, num_frames, height, width = latents.shape
-        latents = mint.reshape(
-            mint.permute(latents, (0, 2, 1, 3, 4)), (batch_size * num_frames, channels, height, width)
-        )
+        latents = latents.permute(0, 2, 1, 3, 4).reshape(batch_size * num_frames, channels, height, width)
 
         image = self.vae.decode(latents)[0]
-        video = mint.permute(
-            mint.reshape(image[None, :], (batch_size, num_frames, -1) + image.shape[2:]), (0, 2, 1, 3, 4)
-        )
+        video = image[None, :].reshape((batch_size, num_frames, -1) + image.shape[2:]).permute(0, 2, 1, 3, 4)
+
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         video = video.float()
         return video
@@ -1110,9 +1107,9 @@ class AnimateDiffSDXLPipeline(
             add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
             add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, repeats=num_frames, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
-        add_time_ids = mint.tile(add_time_ids, (batch_size * num_videos_per_prompt, 1))
+        add_time_ids = add_time_ids.tile((batch_size * num_videos_per_prompt, 1))
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -1141,7 +1138,7 @@ class AnimateDiffSDXLPipeline(
         # 8. Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = mint.tile(ms.Tensor(self.guidance_scale - 1), (batch_size * num_videos_per_prompt))
+            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_videos_per_prompt))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
@@ -1176,7 +1173,7 @@ class AnimateDiffSDXLPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and self.guidance_rescale > 0.0:

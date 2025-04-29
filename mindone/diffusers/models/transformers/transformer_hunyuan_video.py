@@ -93,9 +93,9 @@ class HunyuanVideoAttnProcessor2_0:
             encoder_key = attn.add_k_proj(encoder_hidden_states)
             encoder_value = attn.add_v_proj(encoder_hidden_states)
 
-            encoder_query = mint.transpose(unflatten(encoder_query, 2, (attn.heads, -1)), 1, 2)
-            encoder_key = mint.transpose(unflatten(encoder_key, 2, (attn.heads, -1)), 1, 2)
-            encoder_value = mint.transpose(unflatten(encoder_value, 2, (attn.heads, -1)), 1, 2)
+            encoder_query = unflatten(encoder_query, 2, (attn.heads, -1)).transpose(1, 2)
+            encoder_key = unflatten(encoder_key, 2, (attn.heads, -1)).transpose(1, 2)
+            encoder_value = unflatten(encoder_value, 2, (attn.heads, -1)).transpose(1, 2)
 
             if attn.norm_added_q is not None:
                 encoder_query = attn.norm_added_q(encoder_query)
@@ -110,7 +110,7 @@ class HunyuanVideoAttnProcessor2_0:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = mint.flatten(mint.transpose(hidden_states, 1, 2), start_dim=2, end_dim=3)
+        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
         hidden_states = hidden_states.to(query.dtype)
 
         # 6. Output projection
@@ -144,7 +144,7 @@ class HunyuanVideoPatchEmbed(nn.Cell):
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.proj(hidden_states)
-        hidden_states = mint.transpose(mint.flatten(hidden_states, start_dim=2), 1, 2)  # BCFHW -> BNC
+        hidden_states = hidden_states.flatten(start_dim=2).transpose(1, 2)  # BCFHW -> BNC
         return hidden_states
 
 
@@ -158,8 +158,8 @@ class HunyuanVideoAdaNorm(nn.Cell):
 
     def construct(self, temb: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         temb = self.linear(self.nonlinearity(temb))
-        gate_msa, gate_mlp = mint.chunk(temb, 2, dim=1)
-        gate_msa, gate_mlp = mint.unsqueeze(gate_msa, 1), mint.unsqueeze(gate_mlp, 1)
+        gate_msa, gate_mlp = temb.chunk(2, dim=1)
+        gate_msa, gate_mlp = gate_msa.unsqueeze(1), gate_mlp.unsqueeze(1)
         return gate_msa, gate_mlp
 
 
@@ -249,8 +249,8 @@ class HunyuanVideoIndividualTokenRefiner(nn.Cell):
             batch_size = attention_mask.shape[0]
             seq_len = attention_mask.shape[1]
             attention_mask = attention_mask.bool()
-            self_attn_mask_1 = mint.tile(attention_mask.view(batch_size, 1, 1, seq_len), (1, 1, seq_len, 1))
-            self_attn_mask_2 = mint.transpose(self_attn_mask_1, 2, 3)
+            self_attn_mask_1 = attention_mask.view(batch_size, 1, 1, seq_len).tile((1, 1, seq_len, 1))
+            self_attn_mask_2 = self_attn_mask_1.transpose(2, 3)
             self_attn_mask = mint.logical_and(self_attn_mask_1, self_attn_mask_2).bool()
             self_attn_mask[:, :, :, 0] = True
 
@@ -295,11 +295,11 @@ class HunyuanVideoTokenRefiner(nn.Cell):
         attention_mask: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         if attention_mask is None:
-            pooled_projections = mint.mean(hidden_states, dim=1)
+            pooled_projections = hidden_states.mean(dim=1)
         else:
             original_dtype = hidden_states.dtype
-            mask_float = mint.unsqueeze(attention_mask.float(), -1)
-            pooled_projections = mint.sum(hidden_states * mask_float, dim=1) / mint.sum(mask_float, dim=1)
+            mask_float = attention_mask.float().unsqueeze(-1)
+            pooled_projections = (hidden_states * mask_float).sum(dim=1) / mask_float.sum(dim=1)
             pooled_projections = pooled_projections.to(original_dtype)
 
         temb = self.time_text_embed(timestep, pooled_projections)
@@ -334,7 +334,7 @@ class HunyuanVideoRotaryPosEmbed(nn.Cell):
 
         freqs = []
         for i in range(3):
-            freq = get_1d_rotary_pos_embed(self.rope_dim[i], mint.reshape(grid[i], (-1,)), self.theta, use_real=True)
+            freq = get_1d_rotary_pos_embed(self.rope_dim[i], grid[i].reshape(-1), self.theta, use_real=True)
             freqs.append(freq)
 
         freqs_cos = mint.cat([f[0] for f in freqs], dim=1)  # (W * H * T, D / 2)
@@ -406,7 +406,7 @@ class HunyuanVideoSingleTransformerBlock(nn.Cell):
 
         # 3. Modulation and residual connection
         hidden_states = mint.cat([attn_output, mlp_hidden_states], dim=2)
-        hidden_states = mint.unsqueeze(gate, 1) * self.proj_out(hidden_states)
+        hidden_states = gate.unsqueeze(1) * self.proj_out(hidden_states)
         hidden_states = hidden_states + residual
 
         hidden_states, encoder_hidden_states = (
@@ -474,8 +474,8 @@ class HunyuanVideoTransformerBlock(nn.Cell):
         )
 
         # 3. Modulation and residual connection
-        hidden_states = hidden_states + attn_output * mint.unsqueeze(gate_msa, 1)
-        encoder_hidden_states = encoder_hidden_states + context_attn_output * mint.unsqueeze(c_gate_msa, 1)
+        hidden_states = hidden_states + attn_output * gate_msa.unsqueeze(1)
+        encoder_hidden_states = encoder_hidden_states + context_attn_output * c_gate_msa.unsqueeze(1)
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
@@ -487,8 +487,8 @@ class HunyuanVideoTransformerBlock(nn.Cell):
         ff_output = self.ff(norm_hidden_states)
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
 
-        hidden_states = hidden_states + mint.unsqueeze(gate_mlp, 1) * ff_output
-        encoder_hidden_states = encoder_hidden_states + mint.unsqueeze(c_gate_mlp, 1) * context_ff_output
+        hidden_states = hidden_states + gate_mlp.unsqueeze(1) * ff_output
+        encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
 
         return hidden_states, encoder_hidden_states
 
@@ -708,12 +708,12 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         sequence_length = latent_sequence_length + condition_sequence_length
         attention_mask = mint.zeros((batch_size, sequence_length), dtype=ms.bool_)  # [B, N]
 
-        effective_condition_sequence_length = mint.sum(encoder_attention_mask, dim=1, dtype=ms.int64)  # [B,]
+        effective_condition_sequence_length = encoder_attention_mask.sum(dim=1, dtype=ms.int64)  # [B,]
         effective_sequence_length = latent_sequence_length + effective_condition_sequence_length
 
         for i in range(batch_size):
             attention_mask[i, : effective_sequence_length[i]] = True
-        attention_mask = mint.unsqueeze(mint.unsqueeze(attention_mask, 1), 1)
+        attention_mask = attention_mask.unsqueeze(1).unsqueeze(1)
 
         # 4. Transformer blocks
         for block in self.transformer_blocks:
@@ -730,14 +730,14 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         hidden_states = self.norm_out(hidden_states, temb)
         hidden_states = self.proj_out(hidden_states)
 
-        hidden_states = mint.reshape(
-            hidden_states, (batch_size, post_patch_num_frames, post_patch_height, post_patch_width, -1, p_t, p, p)
+        hidden_states = hidden_states.reshape(
+            batch_size, post_patch_num_frames, post_patch_height, post_patch_width, -1, p_t, p, p
         )
-        hidden_states = mint.permute(hidden_states, (0, 4, 1, 5, 2, 6, 3, 7))
-        hidden_states = mint.flatten(
-            mint.flatten(mint.flatten(hidden_states, start_dim=6, end_dim=7), start_dim=4, end_dim=5),
-            start_dim=2,
-            end_dim=3,
+        hidden_states = hidden_states.permute(0, 4, 1, 5, 2, 6, 3, 7)
+        hidden_states = (
+            hidden_states.flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
         )
 
         if not return_dict:

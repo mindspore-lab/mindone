@@ -69,14 +69,14 @@ class LTXVideoAttentionProcessor2_0:
             query = apply_rotary_emb(query, image_rotary_emb)
             key = apply_rotary_emb(key, image_rotary_emb)
 
-        query = mint.transpose(unflatten(query, 2, (attn.heads, -1)), 1, 2)
-        key = mint.transpose(unflatten(key, 2, (attn.heads, -1)), 1, 2)
-        value = mint.transpose(unflatten(value, 2, (attn.heads, -1)), 1, 2)
+        query = unflatten(query, 2, (attn.heads, -1)).transpose(1, 2)
+        key = unflatten(key, 2, (attn.heads, -1)).transpose(1, 2)
+        value = unflatten(value, 2, (attn.heads, -1)).transpose(1, 2)
 
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = mint.flatten(mint.transpose(hidden_states, 1, 2), start_dim=2, end_dim=3)
+        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
         hidden_states = hidden_states.to(query.dtype)
 
         hidden_states = attn.to_out[0](hidden_states)
@@ -121,14 +121,14 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
         grid_f = mint.arange(num_frames, dtype=ms.float32)
         grid = mint.meshgrid(grid_f, grid_h, grid_w, indexing="ij")
         grid = mint.stack(grid, dim=0)
-        grid = mint.tile(mint.unsqueeze(grid, 0), (batch_size, 1, 1, 1, 1))
+        grid = grid.unsqueeze(0).tile((batch_size, 1, 1, 1, 1))
 
         if rope_interpolation_scale is not None:
             grid[:, 0:1] = grid[:, 0:1] * rope_interpolation_scale[0] * self.patch_size_t / self.base_num_frames
             grid[:, 1:2] = grid[:, 1:2] * rope_interpolation_scale[1] * self.patch_size / self.base_height
             grid[:, 2:3] = grid[:, 2:3] * rope_interpolation_scale[2] * self.patch_size / self.base_width
 
-        grid = mint.transpose(mint.flatten(grid, start_dim=2, end_dim=4), 1, 2)
+        grid = grid.flatten(start_dim=2, end_dim=4).transpose(1, 2)
 
         start = 1.0
         end = self.theta
@@ -138,11 +138,11 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
             self.dim // 6,
         ).to(ms.float32)
         freqs = freqs * math.pi / 2.0
-        freqs = freqs * (mint.unsqueeze(grid, -1) * 2 - 1)
-        freqs = mint.flatten(mint.transpose(freqs, -1, -2), start_dim=2)
+        freqs = freqs * (grid.unsqueeze(-1) * 2 - 1)
+        freqs = freqs.swapaxes(-1, -2).flatten(start_dim=2)
 
-        cos_freqs = mint.repeat_interleave(mint.cos(freqs), 2, dim=-1)
-        sin_freqs = mint.repeat_interleave(mint.sin(freqs), 2, dim=-1)
+        cos_freqs = freqs.cos().repeat_interleave(2, dim=-1)
+        sin_freqs = freqs.sin().repeat_interleave(2, dim=-1)
 
         if self.dim % 6 != 0:
             cos_padding = mint.ones_like(cos_freqs[:, :, : self.dim % 6])
@@ -229,9 +229,8 @@ class LTXVideoTransformerBlock(nn.Cell):
         norm_hidden_states = self.norm1(hidden_states)
 
         num_ada_params = self.scale_shift_table.shape[0]
-        ada_values = self.scale_shift_table[None, None] + mint.reshape(
-            temb, (batch_size, temb.shape[1], num_ada_params, -1)
-        )
+        ada_values = self.scale_shift_table[None, None] + temb.reshape(batch_size, temb.shape[1], num_ada_params, -1)
+
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ada_values.unbind(dim=2)
         norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
 
@@ -375,13 +374,13 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
+            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
         batch_size = hidden_states.shape[0]
         hidden_states = self.proj_in(hidden_states)
 
         temb, embedded_timestep = self.time_embed(
-            mint.flatten(timestep),
+            timestep.flatten(),
             batch_size=batch_size,
             hidden_dtype=hidden_states.dtype,
         )
@@ -416,6 +415,6 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
 def apply_rotary_emb(x, freqs):
     cos, sin = freqs
     x_real, x_imag = unflatten(x, 2, (-1, 2)).unbind(-1)  # [B, S, H, D // 2]
-    x_rotated = mint.flatten(mint.stack([-x_imag, x_real], dim=-1), start_dim=2)
+    x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=2)
     out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
     return out

@@ -292,7 +292,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         if timesteps.shape[0] == 1:
-            timesteps = mint.tile(timesteps, (sample.shape[0],))
+            timesteps = timesteps.tile((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
@@ -357,7 +357,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             sample += skip_sample
 
         if self.config["time_embedding_type"] == "fourier":
-            timesteps = mint.reshape(timesteps, (sample.shape[0],) + (1,) * len(sample.shape[1:]))
+            timesteps = timesteps.reshape((sample.shape[0],) + (1,) * len(sample.shape[1:]))
             sample = sample / timesteps
 
         if not return_dict:

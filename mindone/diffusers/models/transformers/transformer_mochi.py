@@ -78,7 +78,7 @@ class MochiLayerNormContinuous(nn.Cell):
 
         # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
         scale = self.linear_1(self.silu(conditioning_embedding).to(x.dtype))
-        x = self.norm(x, (1 + mint.unsqueeze(scale, 1).to(ms.float32)))
+        x = self.norm(x, (1 + scale.unsqueeze(1).to(ms.float32)))
 
         return x.to(input_dtype)
 
@@ -104,7 +104,7 @@ class MochiRMSNormZero(nn.Cell):
         hidden_states_dtype = hidden_states.dtype
 
         emb = self.linear(self.silu(emb))
-        scale_msa, gate_msa, scale_mlp, gate_mlp = mint.chunk(emb, 4, dim=1)
+        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
         hidden_states = self.norm(hidden_states.to(ms.float32)) * (1 + scale_msa[:, None].to(ms.float32))
         hidden_states = hidden_states.to(hidden_states_dtype)
 
@@ -218,21 +218,21 @@ class MochiTransformerBlock(nn.Cell):
             attention_mask=encoder_attention_mask,
         )
 
-        hidden_states = hidden_states + self.norm2(attn_hidden_states, mint.unsqueeze(mint.tanh(gate_msa), 1))
-        norm_hidden_states = self.norm3(hidden_states, (1 + mint.unsqueeze(scale_mlp, 1).to(ms.float32)))
+        hidden_states = hidden_states + self.norm2(attn_hidden_states, mint.tanh(gate_msa).unsqueeze(1))
+        norm_hidden_states = self.norm3(hidden_states, (1 + scale_mlp.unsqueeze(1).to(ms.float32)))
         ff_output = self.ff(norm_hidden_states)
-        hidden_states = hidden_states + self.norm4(ff_output, mint.unsqueeze(mint.tanh(gate_mlp), 1))
+        hidden_states = hidden_states + self.norm4(ff_output, mint.tanh(gate_mlp).unsqueeze(1))
 
         if not self.context_pre_only:
             encoder_hidden_states = encoder_hidden_states + self.norm2_context(
-                context_attn_hidden_states, mint.unsqueeze(mint.tanh(enc_gate_msa), 1)
+                context_attn_hidden_states, mint.tanh(enc_gate_msa).unsqueeze(1)
             )
             norm_encoder_hidden_states = self.norm3_context(
-                encoder_hidden_states, (1 + mint.unsqueeze(enc_scale_mlp, 1).to(ms.float32))
+                encoder_hidden_states, (1 + enc_scale_mlp.unsqueeze(1).to(ms.float32))
             )
             context_ff_output = self.ff_context(norm_encoder_hidden_states)
             encoder_hidden_states = encoder_hidden_states + self.norm4_context(
-                context_ff_output, mint.unsqueeze(mint.tanh(enc_gate_mlp), 1)
+                context_ff_output, mint.tanh(enc_gate_mlp).unsqueeze(1)
             )
 
         return hidden_states, encoder_hidden_states
@@ -444,9 +444,9 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             encoder_attention_mask,
             hidden_dtype=hidden_states.dtype,
         )
-        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         hidden_states = self.patch_embed(hidden_states)
-        hidden_states = mint.flatten(unflatten(hidden_states, 0, (batch_size, -1)), start_dim=1, end_dim=2)
+        hidden_states = unflatten(hidden_states, 0, (batch_size, -1)).flatten(start_dim=1, end_dim=2)
 
         image_rotary_emb = self.rope(
             self.pos_frequencies,
@@ -468,11 +468,9 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
         hidden_states = self.norm_out(hidden_states, temb)
         hidden_states = self.proj_out(hidden_states)
 
-        hidden_states = mint.reshape(
-            hidden_states, (batch_size, num_frames, post_patch_height, post_patch_width, p, p, -1)
-        )
-        hidden_states = mint.permute(hidden_states, (0, 6, 1, 2, 4, 3, 5))
-        output = mint.reshape(hidden_states, (batch_size, -1, num_frames, height, width))
+        hidden_states = hidden_states.reshape(batch_size, num_frames, post_patch_height, post_patch_width, p, p, -1)
+        hidden_states = hidden_states.permute(0, 6, 1, 2, 4, 3, 5)
+        output = hidden_states.reshape(batch_size, -1, num_frames, height, width)
 
         if not return_dict:
             return (output,)

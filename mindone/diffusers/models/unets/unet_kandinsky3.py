@@ -210,9 +210,8 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
     def construct(self, sample, timestep, encoder_hidden_states=None, encoder_attention_mask=None, return_dict=False):
         if encoder_attention_mask is not None:
             encoder_attention_mask = (1 - encoder_attention_mask.to(sample.dtype)) * -10000.0
-            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
+            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
-        # todo: unavailable mint interface
         if not ops.is_tensor(timestep):
             dtype = ms.float32 if isinstance(timestep, float) else ms.int32
             timestep = ms.Tensor([timestep], dtype=dtype)
@@ -220,7 +219,7 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
             timestep = timestep[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timestep = mint.broadcast_to(timestep, (sample.shape[0],))
+        timestep = timestep.broadcast_to((sample.shape[0],))
         time_embed_input = self.time_proj(timestep).to(sample.dtype)
         time_embed = self.time_embedding(time_embed_input)
 
@@ -398,9 +397,9 @@ class Kandinsky3ConditionalGroupNorm(nn.Cell):
         context = self.context_mlp(context)
 
         for _ in range(len(x.shape[2:])):
-            context = mint.unsqueeze(context, -1)
+            context = context.unsqueeze(-1)
 
-        scale, shift = mint.chunk(context, 2, dim=1)
+        scale, shift = context.chunk(2, dim=1)
         x = self.norm(x) * (scale + 1.0) + shift
         return x
 
@@ -493,8 +492,8 @@ class Kandinsky3AttentionPooling(nn.Cell):
     def construct(self, x, context, context_mask=None):
         if context_mask is not None:
             context_mask = context_mask.to(dtype=context.dtype)
-        context = self.attention(mint.mean(context, dim=1, keepdim=True), context, context_mask)
-        return x + mint.squeeze(context, 1)
+        context = self.attention(context.mean(dim=1, keepdim=True), context, context_mask)
+        return x + context.squeeze(1)
 
 
 class Kandinsky3AttentionBlock(nn.Cell):
@@ -520,13 +519,13 @@ class Kandinsky3AttentionBlock(nn.Cell):
     def construct(self, x, time_embed, context=None, context_mask=None, image_mask=None):
         height, width = x.shape[-2:]
         out = self.in_norm(x, time_embed)
-        out = mint.permute(mint.reshape(out, (x.shape[0], -1, height * width)), (0, 2, 1))
+        out = out.reshape(x.shape[0], -1, height * width).permute(0, 2, 1)
         context = context if context is not None else out
         if context_mask is not None:
             context_mask = context_mask.to(dtype=context.dtype)
 
         out = self.attention(out, context, context_mask)
-        out = mint.reshape(mint.unsqueeze(mint.permute(out, (0, 2, 1)), -1), (out.shape[0], -1, height, width))
+        out = out.permute(0, 2, 1).unsqueeze(-1).reshape(out.shape[0], -1, height, width)
         x = x + out
 
         out = self.out_norm(x, time_embed)

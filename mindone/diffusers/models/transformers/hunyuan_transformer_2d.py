@@ -46,7 +46,7 @@ class AdaLayerNormShift(nn.Cell):
 
     def construct(self, x: ms.Tensor, emb: ms.Tensor) -> ms.Tensor:
         shift = self.linear(self.silu(emb.to(ms.float32)).to(emb.dtype))
-        x = self.norm(x) + mint.unsqueeze(shift, dim=1)
+        x = self.norm(x) + shift.unsqueeze(dim=1)
         return x
 
 
@@ -438,7 +438,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
 
         encoder_hidden_states = mint.cat([encoder_hidden_states, encoder_hidden_states_t5], dim=1)
         text_embedding_mask = mint.cat([text_embedding_mask, text_embedding_mask_t5], dim=-1)
-        text_embedding_mask = mint.unsqueeze(text_embedding_mask, 2).bool()
+        text_embedding_mask = text_embedding_mask.unsqueeze(2).bool()
 
         encoder_hidden_states = mint.where(text_embedding_mask, encoder_hidden_states, self.text_embedding_padding)
 
@@ -483,12 +483,12 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         height = height // patch_size
         width = width // patch_size
 
-        hidden_states = mint.reshape(
-            hidden_states, (hidden_states.shape[0], height, width, patch_size, patch_size, self.out_channels)
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[0], height, width, patch_size, patch_size, self.out_channels
         )
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(
-            hidden_states, (hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size)
+        output = hidden_states.reshape(
+            hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
         )
         if not return_dict:
             return (output,)

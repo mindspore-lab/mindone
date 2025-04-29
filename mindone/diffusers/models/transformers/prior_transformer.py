@@ -318,7 +318,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         ]
 
         if self.prd_embedding is not None:
-            prd_embedding = mint.broadcast_to(self.prd_embedding.to(hidden_states.dtype), (batch_size, -1, -1))
+            prd_embedding = self.prd_embedding.to(hidden_states.dtype).broadcast_to((batch_size, -1, -1))
             additional_embeds.append(prd_embedding)
 
         hidden_states = mint.cat(
@@ -346,8 +346,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
             attention_mask = mint.nn.functional.pad(attention_mask, (0, self.additional_embeddings), value=0.0)
             attention_mask = (attention_mask[:, None, :] + self.causal_attention_mask).to(hidden_states.dtype)
-            # todo: bad performance interface repeat_interleave
-            attention_mask = mint.repeat_interleave(attention_mask, self.config["num_attention_heads"], dim=0)
+            attention_mask = attention_mask.repeat_interleave(self.config["num_attention_heads"], dim=0)
 
         if self.norm_in is not None:
             hidden_states = self.norm_in(hidden_states)

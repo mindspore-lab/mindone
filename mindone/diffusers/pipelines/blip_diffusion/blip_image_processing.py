@@ -33,7 +33,6 @@ from transformers.image_utils import (
 from transformers.utils import is_vision_available, logging
 
 import mindspore as ms
-from mindspore import mint
 
 from ...utils import numpy_to_pil
 
@@ -304,12 +303,12 @@ class BlipImageProcessor(BaseImageProcessor):
             )
 
         # Equivalent to diffusers.VaeImageProcessor.denormalize
-        sample = mint.clamp((sample / 2 + 0.5), 0, 1)
+        sample = (sample / 2 + 0.5).clamp(0, 1)
         if output_type == "ms":
             return sample
 
         # Equivalent to diffusers.VaeImageProcessor.ms_to_numpy
-        sample = mint.permute(sample, (0, 2, 3, 1)).asnumpy()
+        sample = sample.permute(0, 2, 3, 1).asnumpy()
         if output_type == "np":
             return sample
         # Output_type must be 'pil'

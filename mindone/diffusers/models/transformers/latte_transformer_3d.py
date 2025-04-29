@@ -157,9 +157,9 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
 
         # define temporal positional embedding
         temp_pos_embed = get_1d_sincos_pos_embed_from_grid(
-            inner_dim, mint.unsqueeze(mint.arange(0, video_length), 1), output_type="ms"
+            inner_dim, mint.arange(0, video_length).unsqueeze(1), output_type="ms"
         )  # 1152 hidden size
-        self.temp_pos_embed = mint.unsqueeze(temp_pos_embed.float(), 0)
+        self.temp_pos_embed = temp_pos_embed.float().unsqueeze(0)
 
         self.gradient_checkpointing = False
 
@@ -208,7 +208,7 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         # Reshape hidden states
         batch_size, channels, num_frame, height, width = hidden_states.shape
         # batch_size channels num_frame height width -> (batch_size * num_frame) channels height width
-        hidden_states = mint.reshape(mint.permute(hidden_states, (0, 2, 1, 3, 4)), (-1, channels, height, width))
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).reshape(-1, channels, height, width)
 
         # Input
         height, width = (
@@ -227,14 +227,13 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         # Prepare text embeddings for spatial block
         # batch_size num_tokens hidden_size -> (batch_size * num_frame) num_tokens hidden_size
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)  # 3 120 1152
-        # todo: back performance mint interface
-        encoder_hidden_states_spatial = mint.repeat_interleave(encoder_hidden_states, num_frame, dim=0).view(
+        encoder_hidden_states_spatial = encoder_hidden_states.repeat_interleave(num_frame, dim=0).view(
             -1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1]
         )
 
         # Prepare timesteps for spatial and temporal block
-        timestep_spatial = mint.repeat_interleave(timestep, num_frame, dim=0).view(-1, timestep.shape[-1])
-        timestep_temp = mint.repeat_interleave(timestep, num_patches, dim=0).view(-1, timestep.shape[-1])
+        timestep_spatial = timestep.repeat_interleave(num_frame, dim=0).view(-1, timestep.shape[-1])
+        timestep_temp = timestep.repeat_interleave(num_patches, dim=0).view(-1, timestep.shape[-1])
 
         # Spatial and temporal transformer blocks
         for i, (spatial_block, temp_block) in enumerate(zip(self.transformer_blocks, self.temporal_transformer_blocks)):
@@ -250,11 +249,10 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
 
             if enable_temporal_attentions:
                 # (batch_size * num_frame) num_tokens hidden_size -> (batch_size * num_tokens) num_frame hidden_size
-                hidden_states = mint.permute(
-                    mint.reshape(hidden_states, (batch_size, -1, hidden_states.shape[-2], hidden_states.shape[-1])),
-                    (0, 2, 1, 3),
-                )
-                hidden_states = mint.reshape(hidden_states, (-1, hidden_states.shape[-2], hidden_states.shape[-1]))
+                hidden_states = hidden_states.reshape(
+                    batch_size, -1, hidden_states.shape[-2], hidden_states.shape[-1]
+                ).permute(0, 2, 1, 3)
+                hidden_states = hidden_states.reshape(-1, hidden_states.shape[-2], hidden_states.shape[-1])
 
                 if i == 0 and num_frame > 1:
                     hidden_states = (hidden_states + self.temp_pos_embed).to(hidden_states.dtype)
@@ -270,16 +268,13 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
                 )
 
                 # (batch_size * num_tokens) num_frame hidden_size -> (batch_size * num_frame) num_tokens hidden_size
-                hidden_states = mint.permute(
-                    mint.reshape(hidden_states, (batch_size, -1, hidden_states.shape[-2], hidden_states.shape[-1])),
-                    (0, 2, 1, 3),
-                )
-                hidden_states = mint.reshape(hidden_states, (-1, hidden_states.shape[-2], hidden_states.shape[-1]))
+                hidden_states = hidden_states.reshape(
+                    batch_size, -1, hidden_states.shape[-2], hidden_states.shape[-1]
+                ).permute(0, 2, 1, 3)
+                hidden_states = hidden_states.reshape(-1, hidden_states.shape[-2], hidden_states.shape[-1])
 
-        embedded_timestep = mint.repeat_interleave(embedded_timestep, num_frame, dim=0).view(
-            -1, embedded_timestep.shape[-1]
-        )
-        shift, scale = mint.chunk((self.scale_shift_table[None] + embedded_timestep[:, None]), 2, dim=1)
+        embedded_timestep = embedded_timestep.repeat_interleave(num_frame, dim=0).view(-1, embedded_timestep.shape[-1])
+        shift, scale = self.scale_shift_table[None] + embedded_timestep[:, None].chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
         # Modulation
         hidden_states = hidden_states * (1 + scale) + shift
@@ -288,14 +283,11 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         # unpatchify
         if self.adaln_single is None:
             height = width = int(hidden_states.shape[1] ** 0.5)
-        hidden_states = mint.reshape(
-            hidden_states, (-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-        )
-        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(hidden_states, (-1, self.out_channels, height * self.patch_size, width * self.patch_size))
-        output = mint.permute(
-            mint.reshape(output, (batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1])),
-            (0, 2, 1, 3, 4),
+        hidden_states = hidden_states.reshape((-1, height, width, self.patch_size, self.patch_size, self.out_channels))
+        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+        output = hidden_states.reshape((-1, self.out_channels, height * self.patch_size, width * self.patch_size))
+        output = output.reshape(batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1]).permute(
+            0, 2, 1, 3, 4
         )
 
         if not return_dict:

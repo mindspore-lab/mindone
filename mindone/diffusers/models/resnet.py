@@ -514,8 +514,8 @@ class TemporalConvLayer(nn.Cell):
             m.bias.set_data(init.initializer("zeros", m.bias.shape, m.bias.dtype))
 
     def construct(self, hidden_states: ms.Tensor, num_frames: int = 1) -> ms.Tensor:
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states[None, :], (-1, num_frames) + hidden_states.shape[1:]), (0, 2, 1, 3, 4)
+        hidden_states = (
+            hidden_states[None, :].reshape((-1, num_frames) + hidden_states.shape[1:]).permute(0, 2, 1, 3, 4)
         )
 
         identity = hidden_states
@@ -691,15 +691,15 @@ class SpatioTemporalResBlock(nn.Cell):
         batch_frames, channels, height, width = hidden_states.shape
         batch_size = batch_frames // num_frames
 
-        hidden_states_mix = mint.permute(
-            mint.reshape(hidden_states[None, :], (batch_size, num_frames, channels, height, width)), (0, 2, 1, 3, 4)
+        hidden_states_mix = (
+            hidden_states[None, :].reshape(batch_size, num_frames, channels, height, width).permute(0, 2, 1, 3, 4)
         )
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states[None, :], (batch_size, num_frames, channels, height, width)), (0, 2, 1, 3, 4)
+        hidden_states = (
+            hidden_states[None, :].reshape(batch_size, num_frames, channels, height, width).permute(0, 2, 1, 3, 4)
         )
 
         if temb is not None:
-            temb = mint.reshape(temb, (batch_size, num_frames, -1))
+            temb = temb.reshape(batch_size, num_frames, -1)
 
         hidden_states = self.temporal_res_block(hidden_states, temb)
         hidden_states = self.time_mixer(
@@ -708,9 +708,7 @@ class SpatioTemporalResBlock(nn.Cell):
             image_only_indicator=image_only_indicator,
         )
 
-        hidden_states = mint.reshape(
-            mint.permute(hidden_states, (0, 2, 1, 3, 4)), (batch_frames, channels, height, width)
-        )
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).reshape(batch_frames, channels, height, width)
         return hidden_states
 
 
@@ -770,7 +768,7 @@ class AlphaBlender(nn.Cell):
                 alpha = alpha[:, None, :, None, None]
             # (batch*frames, height*width, channels)
             elif ndims == 3:
-                alpha = mint.reshape(alpha, (-1,))[:, None, None]
+                alpha = alpha.reshape(-1)[:, None, None]
             else:
                 raise ValueError(f"Unexpected ndims {ndims}. Dimensions should be 3 or 5")
 
