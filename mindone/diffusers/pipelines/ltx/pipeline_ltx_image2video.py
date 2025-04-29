@@ -252,11 +252,11 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         _, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         prompt_attention_mask = prompt_attention_mask.view(batch_size, -1)
-        prompt_attention_mask = mint.tile(prompt_attention_mask, (num_videos_per_prompt, 1))
+        prompt_attention_mask = prompt_attention_mask.tile((num_videos_per_prompt, 1))
 
         return prompt_embeds, prompt_attention_mask
 
@@ -402,23 +402,18 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         post_patch_num_frames = num_frames // patch_size_t
         post_patch_height = height // patch_size
         post_patch_width = width // patch_size
-        latents = mint.reshape(
-            latents,
-            (
-                batch_size,
-                -1,
-                post_patch_num_frames,
-                patch_size_t,
-                post_patch_height,
-                patch_size,
-                post_patch_width,
-                patch_size,
-            ),
+        latents = latents.reshape(
+            batch_size,
+            -1,
+            post_patch_num_frames,
+            patch_size_t,
+            post_patch_height,
+            patch_size,
+            post_patch_width,
+            patch_size,
         )
-        latents = mint.flatten(
-            mint.flatten(mint.permute(latents, (0, 2, 4, 6, 1, 3, 5, 7)), start_dim=4, end_dim=7),
-            start_dim=1,
-            end_dim=3,
+        latents = (
+            latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(start_dim=1,end_dim=3)
         )
         return latents
 
@@ -431,17 +426,12 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         # are unpacked and reshaped into a video tensor of shape [B, C, F, H, W]. This is the inverse operation of
         # what happens in the `_pack_latents` method.
         batch_size = latents.shape[0]
-        latents = mint.reshape(
-            latents, (batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size)
-        )
-        latents = mint.flatten(
-            mint.flatten(
-                mint.flatten(mint.permute(latents, (0, 4, 1, 5, 2, 6, 3, 7)), start_dim=6, end_dim=7),
-                start_dim=4,
-                end_dim=5,
-            ),
-            start_dim=2,
-            end_dim=3,
+        latents = latents.reshape(batch_size, num_frames, height, width, -1, patch_size_t, patch_size,patch_size)
+        latents = (
+            latents.permute(0, 4, 1, 5, 2, 6, 3, 7)
+            .flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
         )
         return latents
 
@@ -502,32 +492,26 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 )
 
             init_latents = [
-                retrieve_latents(
-                    self.vae, self.vae.encode(mint.unsqueeze(mint.unsqueeze(image[i], 0), 2))[0], generator[i]
-                )
+                retrieve_latents(self.vae, self.vae.encode(image[i].unsqueeze(0).unsqueeze(2))[0], generator[i])
                 for i in range(batch_size)
             ]
         else:
             init_latents = [
-                retrieve_latents(self.vae, self.vae.encode(mint.unsqueeze(mint.unsqueeze(img, 0), 2))[0], generator)
+                retrieve_latents(self.vae, self.vae.encode(img.unsqueeze(0).unsqueeze(2))[0], generator)
                 for img in image
             ]
 
         init_latents = mint.cat(init_latents, dim=0).to(dtype)
         init_latents = self._normalize_latents(init_latents, self.vae.latents_mean, self.vae.latents_std)
-        init_latents = mint.tile(init_latents, (1, 1, num_frames, 1, 1))
+        init_latents = init_latents.tile((1, 1, num_frames, 1, 1))
         conditioning_mask = mint.zeros(mask_shape, dtype=dtype)
         conditioning_mask[:, :, 0] = 1.0
 
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
         latents = init_latents * conditioning_mask + noise * (1 - conditioning_mask)
 
-        conditioning_mask = mint.squeeze(
-            self._pack_latents(
-                conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
-            ),
-            -1,
-        )
+        conditioning_mask = self._pack_latents(
+            conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size).squeeze(-1)
         latents = self._pack_latents(latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size)
 
         return latents, conditioning_mask
@@ -771,7 +755,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))
-                timestep = mint.unsqueeze(timestep, -1) * (1 - conditioning_mask)
+                timestep = timestep.unsqueeze(-1) * (1 - conditioning_mask)
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
@@ -788,9 +772,9 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
                 noise_pred = noise_pred.float()
 
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    timestep, _ = mint.chunk(timestep, 2)
+                    timestep, _ = timestep.chunk(2)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 noise_pred = self._unpack_latents(

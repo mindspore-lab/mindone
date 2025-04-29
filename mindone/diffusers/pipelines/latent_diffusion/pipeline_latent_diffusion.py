@@ -234,7 +234,7 @@ class LDMTextToImagePipeline(DiffusionPipeline):
             noise_pred = self.unet(latents_input, t, encoder_hidden_states=context)[0]
             # perform guidance
             if guidance_scale != 1.0:
-                noise_pred_uncond, noise_prediction_text = mint.chunk(noise_pred, 2)
+                noise_pred_uncond, noise_prediction_text = noise_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_prediction_text - noise_pred_uncond)
 
             # compute the previous noisy sample x_t -> x_t-1
@@ -244,8 +244,8 @@ class LDMTextToImagePipeline(DiffusionPipeline):
         latents = 1 / self.vqvae.config.scaling_factor * latents
         image = self.vqvae.decode(latents)[0]
 
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
-        image = mint.permute(image, (0, 2, 3, 1)).asnumpy()
+        image = (image / 2 + 0.5).clamp(0, 1)
+        image = image.permute(0, 2, 3, 1).asnumpy()
         if output_type == "pil":
             image = self.numpy_to_pil(image)
 
@@ -367,7 +367,7 @@ class LDMBertAttention(nn.Cell):
         self.out_proj = nn.Dense(self.inner_dim, embed_dim)
 
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
-        return mint.swapaxes(tensor.view(bsz, seq_len, self.num_heads, self.head_dim), 1, 2)
+        return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).swapaxes(1, 2)
 
     def construct(
         self,
@@ -472,11 +472,11 @@ class LDMBertAttention(nn.Cell):
             )
 
         attn_output = attn_output.view(bsz, self.num_heads, tgt_len, self.head_dim)
-        attn_output = mint.swapaxes(attn_output, 1, 2)
+        attn_output = attn_output.swapaxes(1, 2)
 
         # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
         # partitioned across GPUs when using tensor-parallelism.
-        attn_output = mint.reshape(attn_output, (bsz, tgt_len, self.inner_dim))
+        attn_output = attn_output.reshape(bsz, tgt_len, self.inner_dim)
 
         attn_output = self.out_proj(attn_output)
 

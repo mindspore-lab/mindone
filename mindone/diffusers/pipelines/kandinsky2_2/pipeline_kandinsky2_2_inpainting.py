@@ -157,32 +157,32 @@ def prepare_mask_and_masked_image(image, mask, height, width):
         # Batch single image
         if image.ndim == 3:
             assert image.shape[0] == 3, "Image outside a batch should be of shape (3, H, W)"
-            image = mint.unsqueeze(image, 0)
+            image = image.unsqueeze(0)
 
         # Batch and add channel dim for single mask
         if mask.ndim == 2:
-            mask = mint.unsqueeze(mint.unsqueeze(mask, 0), 0)
+            mask = mask.unsqueeze(0).unsqueeze(0)
 
         # Batch single mask or add channel dim
         if mask.ndim == 3:
             # Single batched mask, no channel dim or single mask not batched but channel dim
             if mask.shape[0] == 1:
-                mask = mint.unsqueeze(mask, 0)
+                mask = mask.unsqueeze(0)
 
             # Batched masks no channel dim
             else:
-                mask = mint.unsqueeze(mask, 1)
+                mask = mask.unsqueeze(1)
 
         assert image.ndim == 4 and mask.ndim == 4, "Image and Mask must have 4 dimensions"
         assert image.shape[-2:] == mask.shape[-2:], "Image and Mask must have the same spatial dimensions"
         assert image.shape[0] == mask.shape[0], "Image and Mask must have the same batch size"
 
         # Check image is in [-1, 1]
-        if mint.min(image) < -1 or mint.max(image) > 1:
+        if image.min() < -1 or image.max() > 1:
             raise ValueError("Image should be in [-1, 1] range")
 
         # Check mask is in [0, 1]
-        if mint.min(mask) < 0 or mint.max(mask) > 1:
+        if mask.min() < 0 or mask.max() > 1:
             raise ValueError("Mask should be in [0, 1] range")
 
         # Binarize mask
@@ -411,8 +411,8 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
             negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if self.do_classifier_free_guidance:
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
-            negative_image_embeds = mint.repeat_interleave(negative_image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+            negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
             image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
 
@@ -436,11 +436,11 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
         mask_image = prepare_mask(mask_image)
         masked_image = image * mask_image
 
-        mask_image = mint.repeat_interleave(mask_image, num_images_per_prompt, dim=0)
-        masked_image = mint.repeat_interleave(masked_image, num_images_per_prompt, dim=0)
+        mask_image = mask_image.repeat_interleave(num_images_per_prompt, dim=0)
+        masked_image = masked_image.repeat_interleave(num_images_per_prompt, dim=0)
         if self.do_classifier_free_guidance:
-            mask_image = mint.tile(mask_image, (2, 1, 1, 1))
-            masked_image = mint.tile(masked_image, (2, 1, 1, 1))
+            mask_image = mask_image.tile((2, 1, 1, 1))
+            masked_image = masked_image.tile((2, 1, 1, 1))
 
         num_channels_latents = self.movq.config.latent_channels
 
@@ -472,9 +472,9 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
             )[0]
 
             if self.do_classifier_free_guidance:
-                noise_pred, variance_pred = mint.split(noise_pred, latents.shape[1], dim=1)
-                noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                _, variance_pred_text = mint.chunk(variance_pred, 2)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
                 noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
@@ -482,7 +482,7 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = mint.split(noise_pred, latents.shape[1], dim=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(
@@ -531,8 +531,8 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
 
             if output_type in ["np", "pil"]:
                 image = image * 0.5 + 0.5
-                image = mint.clamp(image, 0, 1)
-                image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+                image = image.clamp(0, 1)
+                image = image.permute(0, 2, 3, 1).float().numpy()
 
             if output_type == "pil":
                 image = self.numpy_to_pil(image)

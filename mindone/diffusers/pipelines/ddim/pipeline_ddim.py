@@ -143,8 +143,8 @@ class DDIMPipeline(DiffusionPipeline):
                 model_output, t, image, eta=eta, use_clipped_model_output=use_clipped_model_output, generator=generator
             )[0]
 
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
-        image = mint.permute(image, (0, 2, 3, 1)).numpy()
+        image = (image / 2 + 0.5).clamp(0, 1)
+        image = image.permute(0, 2, 3, 1).numpy()
         if output_type == "pil":
             image = self.numpy_to_pil(image)
 

@@ -141,13 +141,13 @@ class KandinskyPriorPipeline(DiffusionPipeline):
     """
 
     def __init__(
-        self,
-        prior: PriorTransformer,
-        image_encoder: CLIPVisionModelWithProjection,
-        text_encoder: CLIPTextModelWithProjection,
-        tokenizer: CLIPTokenizer,
-        scheduler: UnCLIPScheduler,
-        image_processor: CLIPImageProcessor,
+            self,
+            prior: PriorTransformer,
+            image_encoder: CLIPVisionModelWithProjection,
+            text_encoder: CLIPTextModelWithProjection,
+            tokenizer: CLIPTokenizer,
+            scheduler: UnCLIPScheduler,
+            image_processor: CLIPImageProcessor,
     ):
         super().__init__()
 
@@ -161,16 +161,16 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         )
 
     def interpolate(
-        self,
-        images_and_prompts: List[Union[str, PIL.Image.Image, ms.Tensor]],
-        weights: List[float],
-        num_images_per_prompt: int = 1,
-        num_inference_steps: int = 25,
-        generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
-        latents: Optional[ms.Tensor] = None,
-        negative_prior_prompt: Optional[str] = None,
-        negative_prompt: str = "",
-        guidance_scale: float = 4.0,
+            self,
+            images_and_prompts: List[Union[str, PIL.Image.Image, ms.Tensor]],
+            weights: List[float],
+            num_images_per_prompt: int = 1,
+            num_inference_steps: int = 25,
+            generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
+            latents: Optional[ms.Tensor] = None,
+            negative_prior_prompt: Optional[str] = None,
+            negative_prompt: str = "",
+            guidance_scale: float = 4.0,
     ):
         """
         Function invoked when using the prior pipeline for interpolation.
@@ -232,9 +232,11 @@ class KandinskyPriorPipeline(DiffusionPipeline):
 
             elif isinstance(cond, (PIL.Image.Image, ms.Tensor)):
                 if isinstance(cond, PIL.Image.Image):
-                    cond = mint.unsqueeze(
-                        ms.tensor(self.image_processor(cond, return_tensors="np").pixel_values[0]), 0
-                    ).to(dtype=self.image_encoder.dtype)
+                    cond = (
+                        ms.tensor(
+                            self.image_processor(cond, return_tensors="np")
+                            .pixel_values[0]).unsqueeze(0).to(dtype=self.image_encoder.dtype)
+                    )
 
                 image_emb = self.image_encoder(cond)[0]
 
@@ -276,7 +278,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             dtype=self.image_encoder.dtype
         )
         zero_image_emb = self.image_encoder(zero_img)[0]
-        zero_image_emb = mint.tile(zero_image_emb, (batch_size, 1))
+        zero_image_emb = zero_image_emb.tile((batch_size, 1))
         return zero_image_emb
 
     def _encode_prompt(
@@ -301,9 +303,9 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
-            text_input_ids, untruncated_ids
+                text_input_ids, untruncated_ids
         ):
-            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
+            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1: -1])
             logger.warning(
                 "The following part of your input was truncated because CLIP can only handle sequences up to"
                 f" {self.tokenizer.model_max_length} tokens: {removed_text}"
@@ -315,9 +317,9 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         prompt_embeds = text_encoder_output[0]
         text_encoder_hidden_states = text_encoder_output[1]
 
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
-        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
-        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -355,17 +357,15 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len)
 
             seq_len = uncond_text_encoder_hidden_states.shape[1]
-            uncond_text_encoder_hidden_states = mint.tile(
-                uncond_text_encoder_hidden_states, (1, num_images_per_prompt, 1)
-            )
+            uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.tile((1, num_images_per_prompt, 1))
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
+            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
 
             # done duplicates
 
@@ -481,9 +481,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                predicted_image_embedding_uncond, predicted_image_embedding_text = mint.chunk(
-                    predicted_image_embedding, 2
-                )
+                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
                 predicted_image_embedding = predicted_image_embedding_uncond + guidance_scale * (
                     predicted_image_embedding_text - predicted_image_embedding_uncond
                 )
@@ -509,7 +507,7 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         if negative_prompt is None:
             zero_embeds = self.get_zero_embed(latents.shape[0])
         else:
-            image_embeddings, zero_embeds = mint.chunk(image_embeddings, 2)
+            image_embeddings, zero_embeds = image_embeddings.chunk(2)
 
         if output_type not in ["ms", "np"]:
             raise ValueError(f"Only the output types `ms` and `np` are supported not output_type={output_type}")

@@ -234,9 +234,9 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
 
         _, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
-        prompt_attention_mask = mint.tile(prompt_attention_mask, (num_images_per_prompt, 1))
+        prompt_attention_mask = prompt_attention_mask.tile((num_images_per_prompt, 1))
         prompt_attention_mask = prompt_attention_mask.view(batch_size * num_images_per_prompt, -1)
 
         return prompt_embeds, prompt_attention_mask
@@ -335,9 +335,9 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=negative_dtype)
             # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
-            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (num_images_per_prompt, 1))
+            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((num_images_per_prompt, 1))
             negative_prompt_attention_mask = negative_prompt_attention_mask.view(batch_size * num_images_per_prompt, -1)
 
         return prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask
@@ -814,7 +814,7 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
                     cross_attention_kwargs=cross_attention_kwargs,
                     return_dict=False,
                 )[0]
-                noise_pred = mint.chunk(noise_pred, 2, dim=1)[0]
+                noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # perform guidance scale
                 # NOTE: For exact reproducibility reasons, we apply classifier-free guidance on only
@@ -832,7 +832,7 @@ class LuminaText2ImgPipeline(DiffusionPipeline):
                     noise_pred_eps = mint.cat([noise_pred_half, noise_pred_half], dim=0)
 
                     noise_pred = mint.cat([noise_pred_eps, noise_pred_rest], dim=1)
-                    noise_pred, _ = mint.chunk(noise_pred, 2, dim=0)
+                    noise_pred, _ = noise_pred.chunk(2, dim=0)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 noise_pred = -noise_pred

@@ -83,8 +83,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Returns:
         noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
     """
-    std_text = mint.std(noise_pred_text, dim=tuple(range(1, noise_pred_text.ndim)), keepdim=True)
-    std_cfg = mint.std(noise_cfg, dim=tuple(range(1, noise_cfg.ndim)), keepdim=True)
+    std_text = noise_pred_text.std(dim=tuple(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(dim=tuple(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -472,7 +472,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -484,14 +484,14 @@ class StableDiffusionXLPAGImg2ImgPipeline(
             else:
                 negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.unet.dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = mint.tile(pooled_prompt_embeds, (1, num_images_per_prompt)).view(
+        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
             bs_embed * num_images_per_prompt, -1
         )
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = mint.tile(negative_pooled_prompt_embeds, (1, num_images_per_prompt)).view(
+            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
                 bs_embed * num_images_per_prompt, -1
             )
 
@@ -639,7 +639,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
                 )
             )
 
-            num_inference_steps = mint.sum(self.scheduler.timesteps < discrete_timestep_cutoff).item()
+            num_inference_steps = (self.scheduler.timesteps < discrete_timestep_cutoff).sum().item()
             if self.scheduler.order == 2 and num_inference_steps % 2 == 0:
                 # if the scheduler is a 2nd order scheduler we might have to do +1
                 # because `num_inference_steps` might be even given that every timestep
@@ -787,7 +787,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
@@ -1224,7 +1224,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
             strength,
             denoising_start=self.denoising_start if denoising_value_valid(self.denoising_start) else None,
         )
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
 
         add_noise = True if self.denoising_start is None else False
 
@@ -1273,8 +1273,8 @@ class StableDiffusionXLPAGImg2ImgPipeline(
             dtype=prompt_embeds.dtype,
             text_encoder_projection_dim=text_encoder_projection_dim,
         )
-        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
-        add_neg_time_ids = mint.tile(add_neg_time_ids, (batch_size * num_images_per_prompt, 1))
+        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
+        add_neg_time_ids = add_neg_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
         if self.do_perturbed_attention_guidance:
             prompt_embeds = self._prepare_perturbed_attention_guidance(
@@ -1301,7 +1301,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
             for i, image_embeds in enumerate(ip_adapter_image_embeds):
                 negative_image_embeds = None
                 if self.do_classifier_free_guidance:
-                    negative_image_embeds, image_embeds = mint.chunk(image_embeds, 2)
+                    negative_image_embeds, image_embeds = image_embeds.chunk(2)
 
                 if self.do_perturbed_attention_guidance:
                     image_embeds = self._prepare_perturbed_attention_guidance(
@@ -1339,7 +1339,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
         # 9.2 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = mint.tile(ms.Tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt,))
+            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(dtype=latents.dtype)
@@ -1382,7 +1382,7 @@ class StableDiffusionXLPAGImg2ImgPipeline(
                         noise_pred, self.do_classifier_free_guidance, self.guidance_scale, t, True
                     )
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and self.guidance_rescale > 0.0:

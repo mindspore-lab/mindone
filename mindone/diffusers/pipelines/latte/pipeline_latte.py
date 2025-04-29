@@ -178,7 +178,7 @@ class LattePipeline(DiffusionPipeline):
     # Adapted from https://github.com/PixArt-alpha/PixArt-alpha/blob/master/diffusion/model/utils.py
     def mask_text_embeddings(self, emb, mask):
         if emb.shape[0] == 1:
-            keep_index = mint.sum(mask).item()
+            keep_index = mask.sum().item()
             return emb[:, :, :keep_index, :], keep_index  # 1, 120, 4096 -> 1 7 4096
         else:
             masked_feature = emb * mask[:, None, :, None]  # 1 120 4096
@@ -273,10 +273,10 @@ class LattePipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
         prompt_embeds_attention_mask = prompt_embeds_attention_mask.view(bs_embed, -1)
-        prompt_embeds_attention_mask = mint.tile(prompt_embeds_attention_mask, (num_images_per_prompt, 1))
+        prompt_embeds_attention_mask = prompt_embeds_attention_mask.tile((num_images_per_prompt, 1))
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -306,7 +306,7 @@ class LattePipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
@@ -317,9 +317,9 @@ class LattePipeline(DiffusionPipeline):
 
         # Perform additional masking.
         if mask_feature and not embeds_initially_provided:
-            prompt_embeds = mint.unsqueeze(prompt_embeds, 1)
+            prompt_embeds = prompt_embeds.unsqueeze(1)
             masked_prompt_embeds, keep_indices = self.mask_text_embeddings(prompt_embeds, prompt_embeds_attention_mask)
-            masked_prompt_embeds = mint.squeeze(masked_prompt_embeds, 1)
+            masked_prompt_embeds = masked_prompt_embeds.squeeze(1)
             masked_negative_prompt_embeds = (
                 negative_prompt_embeds[:, :keep_indices, :] if negative_prompt_embeds is not None else None
             )
@@ -785,7 +785,7 @@ class LattePipeline(DiffusionPipeline):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # use learned sigma?
@@ -793,7 +793,7 @@ class LattePipeline(DiffusionPipeline):
                     hasattr(self.scheduler.config, "variance_type")
                     and self.scheduler.config.variance_type in ["learned", "learned_range"]
                 ):
-                    noise_pred = mint.chunk(noise_pred, 2, dim=1)[0]
+                    noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # compute previous video: x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
@@ -826,7 +826,7 @@ class LattePipeline(DiffusionPipeline):
     # Similar to diffusers.pipelines.stable_video_diffusion.pipeline_stable_video_diffusion.decode_latents
     def decode_latents(self, latents: ms.Tensor, video_length: int, decode_chunk_size: int = 14):
         # [batch, channels, frames, height, width] -> [batch*frames, channels, height, width]
-        latents = mint.flatten(mint.permute(latents, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        latents = latents.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
 
         latents = 1 / self.vae.config.scaling_factor * latents
 
@@ -847,7 +847,7 @@ class LattePipeline(DiffusionPipeline):
         frames = mint.cat(frames, dim=0)
 
         # [batch*frames, channels, height, width] -> [batch, channels, frames, height, width]
-        frames = mint.permute(mint.reshape(frames, ((-1, video_length) + frames.shape[1:])), (0, 2, 1, 3, 4))
+        frames = frames.reshape((-1, video_length) + frames.shape[1:]).permute(0, 2, 1, 3, 4)
 
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloa16
         frames = frames.float()

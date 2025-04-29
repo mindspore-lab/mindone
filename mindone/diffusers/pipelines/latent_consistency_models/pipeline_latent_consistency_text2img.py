@@ -315,7 +315,7 @@ class LatentConsistencyModelPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -369,7 +369,7 @@ class LatentConsistencyModelPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -390,17 +390,15 @@ class LatentConsistencyModelPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
-                -2
-            ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
+            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -439,20 +437,17 @@ class LatentConsistencyModelPipeline(
             image_embeds = []
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
-                    single_negative_image_embeds = mint.tile(
-                        single_negative_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))),
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
                     single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
                 image_embeds.append(single_image_embeds)
 
@@ -808,7 +803,7 @@ class LatentConsistencyModelPipeline(
         # NOTE: We use the Imagen CFG formulation that StableDiffusionPipeline uses rather than the original LCM paper
         # CFG formulation, so we need to subtract 1 from the input guidance_scale.
         # LCM CFG formulation:  cfg_noise = noise_cond + cfg_scale * (noise_cond - noise_uncond), (cfg_scale > 0.0 using CFG)
-        w = mint.tile(ms.tensor(self.guidance_scale - 1), (bs,))
+        w = ms.tensor(self.guidance_scale - 1).tile((bs,))
         w_embedding = self.get_guidance_scale_embedding(w, embedding_dim=self.unet.config.time_cond_proj_dim).to(
             dtype=latents.dtype
         )

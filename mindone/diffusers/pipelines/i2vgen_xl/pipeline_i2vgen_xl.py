@@ -237,7 +237,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -304,7 +304,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_videos_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_videos_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         return prompt_embeds, negative_prompt_embeds
@@ -328,11 +328,11 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
         image = image.to(dtype=dtype)
         image_embeddings = self.image_encoder(image)[0]
-        image_embeddings = mint.unsqueeze(image_embeddings, 1)
+        image_embeddings = image_embeddings.unsqueeze(1)
 
         # duplicate image embeddings for each generation per prompt, using mps friendly method
         bs_embed, seq_len, _ = image_embeddings.shape
-        image_embeddings = mint.tile(image_embeddings, (1, num_videos_per_prompt, 1))
+        image_embeddings = image_embeddings.tile((1, num_videos_per_prompt, 1))
         image_embeddings = image_embeddings.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         if self.do_classifier_free_guidance:
@@ -345,9 +345,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         latents = 1 / self.vae.config.scaling_factor * latents
 
         batch_size, channels, num_frames, height, width = latents.shape
-        latents = mint.reshape(
-            mint.permute(latents, (0, 2, 1, 3, 4)), (batch_size * num_frames, channels, height, width)
-        )
+        latents = latents.permute(0, 2, 1, 3, 4).reshape(batch_size * num_frames, channels, height, width)
 
         if decode_chunk_size is not None:
             frames = []
@@ -359,7 +357,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
             image = self.vae.decode(latents)[0]
 
         decode_shape = (batch_size, num_frames, -1) + image.shape[2:]
-        video = mint.permute(mint.reshape(image[None, :], decode_shape), (0, 2, 1, 3, 4))
+        video = image[None, :].reshape(decode_shape).permute(0, 2, 1, 3, 4)
 
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         video = video.float()
@@ -439,7 +437,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         image_latents = image_latents * self.vae.config.scaling_factor
 
         # Add frames dimension to image latents
-        image_latents = mint.unsqueeze(image_latents, 2)
+        image_latents = image_latents.unsqueeze(2)
 
         # Append a position mask for each subsequent frame
         # after the intial image latent frame
@@ -452,7 +450,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
             image_latents = mint.cat([image_latents, frame_position_mask], dim=2)
 
         # duplicate image_latents for each generation per prompt, using mps friendly method
-        image_latents = mint.tile(image_latents, (num_videos_per_prompt, 1, 1, 1, 1))
+        image_latents = image_latents.tile((num_videos_per_prompt, 1, 1, 1, 1))
 
         if self.do_classifier_free_guidance:
             image_latents = mint.cat([image_latents] * 2)
@@ -639,7 +637,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
             fps_tensor = ms.Tensor([target_fps, target_fps])
         else:
             fps_tensor = ms.Tensor([target_fps])
-        fps_tensor = mint.ravel(mint.tile(fps_tensor, (batch_size * num_videos_per_prompt, 1)))
+        fps_tensor = fps_tensor.tile((batch_size * num_videos_per_prompt, 1)).ravel()
 
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
@@ -687,17 +685,13 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # reshape latents
                 batch_size, channel, frames, width, height = latents.shape
-                latents = mint.reshape(
-                    mint.permute(latents, (0, 2, 1, 3, 4)), (batch_size * frames, channel, width, height)
-                )
-                noise_pred = mint.reshape(
-                    mint.permute(noise_pred, (0, 2, 1, 3, 4)), (batch_size * frames, channel, width, height)
-                )
+                latents = latents.permute(0, 2, 1, 3, 4).reshape(batch_size * frames, channel, width, height)
+                noise_pred = noise_pred.permute(0, 2, 1, 3, 4).reshape(batch_size * frames, channel, width, height)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 # TODO: method of scheduler should not change the dtype of input.
@@ -707,9 +701,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
                 latents = latents.to(tmp_dtype)
 
                 # reshape latents back
-                latents = mint.permute(
-                    mint.reshape(latents[None, :], (batch_size, frames, channel, width, height)), (0, 2, 1, 3, 4)
-                )
+                latents = latents[None, :].reshape(batch_size, frames, channel, width, height).permute(0, 2, 1, 3, 4)
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
@@ -737,7 +729,7 @@ def _convert_ms_to_pil(image: Union[ms.Tensor, List[ms.Tensor]]):
 
     if isinstance(image, ms.Tensor):
         if image.ndim == 3:
-            image = mint.unsqueeze(image, 0)
+            image = image.unsqueeze(0)
 
         image_numpy = VaeImageProcessor.ms_to_numpy(image)
         image_pil = VaeImageProcessor.numpy_to_pil(image_numpy)

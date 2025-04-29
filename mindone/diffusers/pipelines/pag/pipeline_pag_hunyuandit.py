@@ -135,8 +135,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Returns:
         noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
     """
-    std_text = mint.std(noise_pred_text, dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
-    std_cfg = mint.std(noise_cfg, dim=list(range(1, noise_cfg.ndim)), keepdim=True)
+    std_text = noise_pred_text.std(dim=list(range(1, noise_pred_text.ndim)), keepdims=True)
+    std_cfg = noise_cfg.std(dim=list(range(1, noise_cfg.ndim)), keepdims=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -353,13 +353,13 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
                 attention_mask=prompt_attention_mask,
             )
             prompt_embeds = prompt_embeds[0]
-            prompt_attention_mask = mint.tile(prompt_attention_mask, (num_images_per_prompt, 1))
+            prompt_attention_mask = prompt_attention_mask.tile((num_images_per_prompt, 1))
 
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -398,7 +398,7 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
                 attention_mask=negative_prompt_attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
-            negative_prompt_attention_mask = mint.tile(negative_prompt_attention_mask, (num_images_per_prompt, 1))
+            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((num_images_per_prompt, 1))
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -406,7 +406,7 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         return prompt_embeds, negative_prompt_embeds, prompt_attention_mask, negative_prompt_attention_mask
@@ -833,8 +833,8 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
             add_time_ids = mint.cat([add_time_ids] * 2, dim=0)
             style = mint.cat([style] * 2, dim=0)
 
-        add_time_ids = mint.tile(add_time_ids.to(dtype=prompt_embeds.dtype), (batch_size * num_images_per_prompt, 1))
-        style = mint.tile(style, (batch_size * num_images_per_prompt,))
+        add_time_ids = add_time_ids.to(dtype=prompt_embeds.dtype).tile((batch_size * num_images_per_prompt, 1))
+        style = style.tile((batch_size * num_images_per_prompt,))
 
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -873,7 +873,7 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
                     return_dict=False,
                 )[0]
 
-                noise_pred, _ = mint.chunk(noise_pred, 2, dim=1)
+                noise_pred, _ = noise_pred.chunk(2, dim=1)
 
                 # perform guidance
                 if self.do_perturbed_attention_guidance:
@@ -881,7 +881,7 @@ class HunyuanDiTPAGPipeline(DiffusionPipeline, PAGMixin):
                         noise_pred, self.do_classifier_free_guidance, self.guidance_scale, t, True
                     )
                 elif self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and guidance_rescale > 0.0:

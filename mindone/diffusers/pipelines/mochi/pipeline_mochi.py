@@ -245,11 +245,11 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         _, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         prompt_attention_mask = prompt_attention_mask.view(batch_size, -1)
-        prompt_attention_mask = mint.tile(prompt_attention_mask, (num_videos_per_prompt, 1))
+        prompt_attention_mask = prompt_attention_mask.tile((num_videos_per_prompt, 1))
 
         return prompt_embeds, prompt_attention_mask
 
@@ -669,7 +669,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 noise_pred = noise_pred.to(dtype=ms.float32)
 
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
