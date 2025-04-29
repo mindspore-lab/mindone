@@ -519,7 +519,7 @@ class UniPC:
         else:
             timesteps_outer = self.get_time_steps(skip_type, t_T, t_0, steps)[
                 ops.CumSum()(
-                    ms.tensor(
+                    ms.Tensor(
                         [
                             0,
                         ]
