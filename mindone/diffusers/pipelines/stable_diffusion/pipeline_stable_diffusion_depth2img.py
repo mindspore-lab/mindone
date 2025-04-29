@@ -292,7 +292,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -346,7 +346,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -379,9 +379,9 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
+        image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+        image = image.permute(0, 2, 3, 1).float().numpy()
         return image
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -547,7 +547,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
             depth_map = depth_map.to(dtype=dtype)
 
         depth_map = mint.nn.functional.interpolate(
-            mint.unsqueeze(depth_map, 1),
+            depth_map.unsqueeze(1),
             size=(height // self.vae_scale_factor, width // self.vae_scale_factor),
             mode="bicubic",
             align_corners=False,
@@ -562,7 +562,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         # duplicate mask and masked_image_latents for each generation per prompt, using mps friendly method
         if depth_map.shape[0] < batch_size:
             repeat_by = batch_size // depth_map.shape[0]
-            depth_map = mint.tile(depth_map, (repeat_by, 1, 1, 1))
+            depth_map = depth_map.tile((repeat_by, 1, 1, 1))
 
         depth_map = mint.cat([depth_map] * 2) if do_classifier_free_guidance else depth_map
         return depth_map
@@ -778,7 +778,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
         # 6. Set timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
 
         # 7. Prepare latent variables
         latents = self.prepare_latents(
@@ -809,7 +809,7 @@ class StableDiffusionDepth2ImgPipeline(DiffusionPipeline, TextualInversionLoader
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

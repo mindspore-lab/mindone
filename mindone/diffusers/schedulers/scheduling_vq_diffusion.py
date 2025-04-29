@@ -55,8 +55,8 @@ def index_to_log_onehot(x: ms.Tensor, num_classes: int) -> ms.Tensor:
             Log onehot vectors
     """
     x_onehot = mint.nn.functional.one_hot(x, num_classes)
-    x_onehot = mint.permute(x_onehot, (0, 2, 1))
-    log_x = mint.log(mint.clamp(x_onehot.float(), min=1e-30))
+    x_onehot = x_onehot.permute(0, 2, 1)
+    log_x = mint.log(x_onehot.float().clamp(min=1e-30))
     return log_x
 
 
@@ -226,7 +226,7 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
 
         log_p_x_t_min_1 = gumbel_noised(log_p_x_t_min_1, generator)
 
-        x_t_min_1 = log_p_x_t_min_1.argmax(axis=1)
+        x_t_min_1 = log_p_x_t_min_1.argmax(dim=1)
 
         if not return_dict:
             return (x_t_min_1,)
@@ -424,7 +424,7 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
             #
             # `P(x_t=mask|x_{t-1=mask}) = 1` and 1 will be the value of the last row of the onehot vector
             # if x_t is masked
-            log_onehot_x_t_transitioning_from_masked = mint.unsqueeze(log_onehot_x_t[:, -1, :], 1)
+            log_onehot_x_t_transitioning_from_masked = log_onehot_x_t[:, -1, :].unsqueeze(1)
 
         # `index_to_log_onehot` will add onehot vectors for masked pixels,
         # so the default one hot matrix has one too many rows. See the doc string
@@ -446,7 +446,7 @@ class VQDiffusionScheduler(SchedulerMixin, ConfigMixin):
 
         # The whole column of each masked pixel is `c`
         mask_class_mask = x_t == self.mask_class
-        mask_class_mask = mint.unsqueeze(mask_class_mask, 1).broadcast_to((-1, self.num_embed - 1, -1))
+        mask_class_mask = mask_class_mask.unsqueeze(1).broadcast_to((-1, self.num_embed - 1, -1))
         log_Q_t[mask_class_mask] = c
 
         if not cumulative:

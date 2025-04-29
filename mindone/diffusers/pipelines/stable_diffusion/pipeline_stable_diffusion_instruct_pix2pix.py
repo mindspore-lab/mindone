@@ -419,7 +419,7 @@ class StableDiffusionInstructPix2PixPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_text, noise_pred_image, noise_pred_uncond = mint.chunk(noise_pred, 3)
+                    noise_pred_text, noise_pred_image, noise_pred_uncond = noise_pred.chunk(3)
                     noise_pred = (
                         noise_pred_uncond
                         + self.guidance_scale * (noise_pred_text - noise_pred_image)
@@ -545,7 +545,7 @@ class StableDiffusionInstructPix2PixPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -599,7 +599,7 @@ class StableDiffusionInstructPix2PixPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             # For classifier free guidance, we need to do two forward passes.
@@ -622,17 +622,17 @@ class StableDiffusionInstructPix2PixPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[-1][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[-1][
                 -2
             ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -676,22 +676,19 @@ class StableDiffusionInstructPix2PixPipeline(
                         single_image_embeds,
                         single_negative_image_embeds,
                         single_negative_image_embeds,
-                    ) = mint.chunk(single_image_embeds, 3)
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    ) = single_image_embeds.chunk(3)
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
-                    single_negative_image_embeds = mint.tile(
-                        single_negative_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))),
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
                     single_image_embeds = mint.cat(
                         [single_image_embeds, single_negative_image_embeds, single_negative_image_embeds]
                     )
                 else:
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
                 image_embeds.append(single_image_embeds)
 
@@ -738,9 +735,9 @@ class StableDiffusionInstructPix2PixPipeline(
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
+        image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+        image = image.permute(0, 2, 3, 1).float().numpy()
         return image
 
     def check_inputs(

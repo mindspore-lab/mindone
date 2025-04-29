@@ -236,7 +236,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             # FP16 smallest positive subnormal works well here
             self.alphas_cumprod[-1] = 2**-24
 
-        sigmas = mint.flip((((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5), (0,))
+        sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).flip((0,))
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=float)[::-1].copy()
         timesteps = ms.tensor(timesteps).to(dtype=ms.float32)
 
@@ -245,7 +245,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if timestep_type == "continuous" and prediction_type == "v_prediction":
-            self.timesteps = ms.tensor([0.25 * mint.log(sigma).item() for sigma in sigmas])
+            self.timesteps = ms.tensor([0.25 * sigma.log().item() for sigma in sigmas])
         else:
             self.timesteps = timesteps
 
@@ -262,7 +262,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
     @property
     def init_noise_sigma(self):
         # standard deviation of the initial noise distribution
-        max_sigma = max(self.sigmas) if isinstance(self.sigmas, list) else mint.max(self.sigmas)
+        max_sigma = max(self.sigmas) if isinstance(self.sigmas, list) else self.sigmas.max()
         if self.config.timestep_spacing in ["linspace", "trailing"]:
             return max_sigma
 
@@ -441,7 +441,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         # TODO: Support the full EDM scalings for all prediction types and timestep types
         if self.config.timestep_type == "continuous" and self.config.prediction_type == "v_prediction":
-            self.timesteps = ms.tensor([0.25 * mint.log(sigma).item() for sigma in sigmas[:-1]])
+            self.timesteps = ms.tensor([0.25 * sigma.log().item() for sigma in sigmas[:-1]])
         else:
             self.timesteps = ms.tensor(timesteps.astype(np.float32))
 
@@ -555,7 +555,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if mint.sum(schedule_timesteps == timestep) > 1:
+        if (schedule_timesteps == timestep).sum() > 1:
             pos = 1
         else:
             pos = 0
@@ -705,7 +705,7 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = mint.flatten(sigmas[step_indices])
+        sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
         sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
@@ -728,14 +728,14 @@ class EulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
         step_indices = [self.index_for_timestep(t, schedule_timesteps) for t in timesteps]
         alphas_cumprod = self.alphas_cumprod.to(sample.dtype)
         sqrt_alpha_prod = alphas_cumprod[step_indices] ** 0.5
-        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         while len(sqrt_alpha_prod.shape) < len(sample.shape):
-            sqrt_alpha_prod = mint.unsqueeze(sqrt_alpha_prod, -1)
+            sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[step_indices]) ** 0.5
-        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
-            sqrt_one_minus_alpha_prod = mint.unsqueeze(sqrt_one_minus_alpha_prod, -1)
+            sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
 
         velocity = sqrt_alpha_prod * noise - sqrt_one_minus_alpha_prod * sample
         return velocity

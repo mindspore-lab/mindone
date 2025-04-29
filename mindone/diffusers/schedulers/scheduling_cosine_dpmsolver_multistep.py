@@ -554,9 +554,9 @@ class CosineDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = mint.flatten(sigmas[step_indices])
+        sigma = sigmas[step_indices].flatten()
         while len(sigma.shape) < len(original_samples.shape):
-            sigma = mint.unsqueeze(sigma, -1)
+            sigma = sigma.unsqueeze(-1)
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

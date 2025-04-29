@@ -146,7 +146,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
 
         text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
         text_encoder_hidden_states = text_encoder_output[0]
-        text_encoder_hidden_states = mint.repeat_interleave(text_encoder_hidden_states, num_images_per_prompt, dim=0)
+        text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
 
         uncond_text_encoder_hidden_states = None
         if do_classifier_free_guidance:
@@ -184,9 +184,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
 
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = uncond_text_encoder_hidden_states.shape[1]
-            uncond_text_encoder_hidden_states = mint.tile(
-                uncond_text_encoder_hidden_states, (1, num_images_per_prompt, 1)
-            )
+            uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.tile((1, num_images_per_prompt, 1))
             uncond_text_encoder_hidden_states = uncond_text_encoder_hidden_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -387,7 +385,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
-                predicted_latents_text, predicted_latents_uncond = mint.chunk(predicted_latents, 2)
+                predicted_latents_text, predicted_latents_uncond = predicted_latents.chunk(2)
                 predicted_latents = mint.lerp(
                     predicted_latents_uncond,
                     predicted_latents_text,
@@ -426,11 +424,11 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
         if not output_type == "latent":
             # 10. Scale and decode the image latents with vq-vae
             latents = (self.vqgan.config.scale_factor * latents).to(latents.dtype)
-            images = mint.clamp(self.vqgan.decode(latents)[0], 0, 1)
+            images = self.vqgan.decode(latents)[0].clamp(0, 1)
             if output_type == "np":
-                images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
+                images = images.permute((0, 2, 3, 1)).float().numpy()
             elif output_type == "pil":
-                images = mint.permute(images, (0, 2, 3, 1)).float().numpy()
+                images = images.permute((0, 2, 3, 1)).float().numpy()
                 images = self.numpy_to_pil(images)
         else:
             images = latents

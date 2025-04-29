@@ -1133,7 +1133,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
@@ -1142,7 +1142,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 if num_channels_transformer == 16:
                     init_latents_proper = image_latents
                     if self.do_classifier_free_guidance:
-                        init_mask, _ = mint.chunk(mask, 2)
+                        init_mask, _ = mask.chunk(2)
                     else:
                         init_mask = mask
 

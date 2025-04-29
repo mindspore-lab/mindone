@@ -160,9 +160,9 @@ class UnCLIPPipeline(DiffusionPipeline):
             prompt_embeds, text_enc_hid_states = text_model_output[0], text_model_output[1]
             text_mask = text_attention_mask
 
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
-        text_enc_hid_states = mint.repeat_interleave(text_enc_hid_states, num_images_per_prompt, dim=0)
-        text_mask = mint.repeat_interleave(text_mask, num_images_per_prompt, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        text_enc_hid_states = text_enc_hid_states.repeat_interleave(num_images_per_prompt, dim=0)
+        text_mask = text_mask.repeat_interleave(num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
             uncond_tokens = [""] * batch_size
@@ -185,15 +185,15 @@ class UnCLIPPipeline(DiffusionPipeline):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len)
 
             seq_len = uncond_text_enc_hid_states.shape[1]
-            uncond_text_enc_hid_states = mint.tile(uncond_text_enc_hid_states, (1, num_images_per_prompt, 1))
+            uncond_text_enc_hid_states = uncond_text_enc_hid_states.tile((1, num_images_per_prompt, 1))
             uncond_text_enc_hid_states = uncond_text_enc_hid_states.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
-            uncond_text_mask = mint.repeat_interleave(uncond_text_mask, num_images_per_prompt, dim=0)
+            uncond_text_mask = uncond_text_mask.repeat_interleave(num_images_per_prompt, dim=0)
 
             # done duplicates
 
@@ -321,9 +321,7 @@ class UnCLIPPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                predicted_image_embedding_uncond, predicted_image_embedding_text = mint.chunk(
-                    predicted_image_embedding, 2
-                )
+                predicted_image_embedding_uncond, predicted_image_embedding_text = predicted_image_embedding.chunk(2)
                 predicted_image_embedding = predicted_image_embedding_uncond + prior_guidance_scale * (
                     predicted_image_embedding_text - predicted_image_embedding_uncond
                 )
@@ -386,9 +384,9 @@ class UnCLIPPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
-                noise_pred_uncond, _ = mint.split(noise_pred_uncond, latent_model_input.shape[1], dim=1)
-                noise_pred_text, predicted_variance = mint.split(noise_pred_text, latent_model_input.shape[1], dim=1)
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
+                noise_pred_uncond, _ = noise_pred_uncond.split(latent_model_input.shape[1], dim=1)
+                noise_pred_text, predicted_variance = noise_pred_text.split(latent_model_input.shape[1], dim=1)
                 noise_pred = noise_pred_uncond + decoder_guidance_scale * (noise_pred_text - noise_pred_uncond)
                 noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
@@ -402,7 +400,7 @@ class UnCLIPPipeline(DiffusionPipeline):
                 noise_pred, t, decoder_latents, prev_timestep=prev_timestep, generator=generator
             )[0]
 
-        decoder_latents = mint.clamp(decoder_latents, -1, 1)
+        decoder_latents = decoder_latents.clamp(-1, 1)
 
         image_small = decoder_latents
 
@@ -464,8 +462,8 @@ class UnCLIPPipeline(DiffusionPipeline):
 
         # post processing
         image = image * 0.5 + 0.5
-        image = mint.clamp(image, 0, 1)
-        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+        image = image.clamp(0, 1)
+        image = image.permute(0, 2, 3, 1).float().numpy()
 
         if output_type == "pil":
             image = self.numpy_to_pil(image)

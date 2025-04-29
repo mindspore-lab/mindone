@@ -250,7 +250,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if mint.sum(schedule_timesteps == timestep) > 1:
+        if (schedule_timesteps == timestep).sum() > 1:
             pos = 1
         else:
             pos = 0
@@ -387,7 +387,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
             # add noise is called before first denoising step to create initial latent(img2img)
             step_indices = [self.begin_index] * timesteps.shape[0]
 
-        sigma = mint.flatten(sigmas[step_indices])
+        sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
         sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))

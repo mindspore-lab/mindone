@@ -393,18 +393,18 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
             sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
-        sample = mint.reshape(sample, (batch_size, channels * np.prod(remaining_dims).item()))
+        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
 
-        abs_sample = mint.abs(sample)  # "a certain percentile absolute pixel value"
+        abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
         s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = mint.unsqueeze(s, 1)  # (batch_size, 1) because clamp will broadcast along dim=0
+        s = s.unsqueeze(1) # (batch_size, 1) because clamp will broadcast along dim=0
         sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
-        sample = mint.reshape(sample, (batch_size, channels, *remaining_dims))
+        sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
 
         return sample
@@ -474,8 +474,8 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         if self.config.thresholding:
             pred_original_sample = self._threshold_sample(pred_original_sample)
         elif self.config.clip_sample:
-            pred_original_sample = mint.clamp(
-                pred_original_sample, -self.config.clip_sample_range, self.config.clip_sample_range
+            pred_original_sample = pred_original_sample.clamp(
+                -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
@@ -584,8 +584,8 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         if self.config.thresholding:
             pred_original_sample = self._threshold_sample(pred_original_sample)
         elif self.config.clip_sample:
-            pred_original_sample = mint.clamp(
-                pred_original_sample, -self.config.clip_sample_range, self.config.clip_sample_range
+            pred_original_sample = pred_original_sample.clamp(
+                -self.config.clip_sample_range, self.config.clip_sample_range
             )
 
         # 4. Compute coefficients for pred_original_sample x_0 and current sample x_t
@@ -615,13 +615,13 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
         sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         sqrt_one_minus_alpha_prod = mint.reshape(
@@ -638,13 +638,13 @@ class DDPMParallelScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=sample.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(sample.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
         sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(sample.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         sqrt_one_minus_alpha_prod = mint.reshape(

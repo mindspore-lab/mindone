@@ -250,7 +250,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
         x = self.embedding(x)
         level_outputs = self._down_encode(x, r_embed, effnet, clip)
         x = self._up_decode(level_outputs, r_embed, effnet, clip)
-        a, b = mint.chunk(self.clf(x), 2, 1)
+        a, b = self.clf(x).chunk(2, dim=1)
         b = sigmoid(b) * (1 - eps * 2) + eps
         if return_noise:
             return (x_in - a) / b
@@ -276,7 +276,7 @@ class ResBlockStageB(nn.Cell):
         x = self.norm(self.depthwise(x))
         if x_skip is not None:
             x = mint.cat([x, x_skip], dim=1)
-        x = mint.permute(self.channelwise(mint.permute(x, (0, 2, 3, 1))), (0, 3, 1, 2))
+        x = self.channelwise(x.permute((0, 2, 3, 1))).permute((0, 3, 1, 2))
         return x + x_res
 
 

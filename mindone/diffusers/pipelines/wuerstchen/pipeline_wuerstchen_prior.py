@@ -174,7 +174,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
             prompt_embeds = text_encoder_output[0]
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
         if negative_prompt_embeds is None and do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -213,7 +213,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = negative_prompt_embeds.shape[1]
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
             # done duplicates
 
@@ -464,9 +464,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
-                predicted_image_embedding_text, predicted_image_embedding_uncond = mint.chunk(
-                    predicted_image_embedding, 2
-                )
+                predicted_image_embedding_text, predicted_image_embedding_uncond = predicted_image_embedding.chunk(2)
                 predicted_image_embedding = mint.lerp(
                     predicted_image_embedding_uncond,
                     predicted_image_embedding_text,

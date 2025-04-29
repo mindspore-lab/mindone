@@ -143,11 +143,11 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
 
         image = image.to(dtype=dtype)
         image_embeddings = self.image_encoder(image)[0]
-        image_embeddings = mint.unsqueeze(image_embeddings, 1)
+        image_embeddings = image_embeddings.unsqueeze(1)
 
         # duplicate image embeddings for each generation per prompt, using mps friendly method
         bs_embed, seq_len, _ = image_embeddings.shape
-        image_embeddings = mint.tile(image_embeddings, (1, num_images_per_prompt, 1))
+        image_embeddings = image_embeddings.tile((1, num_images_per_prompt, 1))
         image_embeddings = image_embeddings.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -183,9 +183,9 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
+        image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+        image = image.permute(0, 2, 3, 1).float().numpy()
         return image
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -388,7 +388,7 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

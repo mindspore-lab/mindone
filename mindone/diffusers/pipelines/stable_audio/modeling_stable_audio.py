@@ -98,7 +98,7 @@ class StableAudioNumberConditioner(nn.Cell):
         self,
         floats: ms.Tensor,
     ):
-        floats = mint.clamp(floats, self.min_value, self.max_value)
+        floats = floats.clamp(self.min_value, self.max_value)
 
         normalized_floats = (floats - self.min_value) / (self.max_value - self.min_value)
 

@@ -124,7 +124,7 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
         elif self.scaler < 1:
             t = t**self.scaler
         alpha_cumprod = mint.cos((t + self.s) / (1 + self.s) * math.pi * 0.5) ** 2 / self._init_alpha_cumprod
-        return mint.clamp(alpha_cumprod, 0.0001, 0.9999)
+        return alpha_cumprod.clamp(0.0001, 0.9999)
 
     def scale_model_input(self, sample: ms.Tensor, timestep: Optional[int] = None) -> ms.Tensor:
         """
@@ -221,6 +221,6 @@ class DDPMWuerstchenScheduler(SchedulerMixin, ConfigMixin):
         return self.config.num_train_timesteps
 
     def previous_timestep(self, timestep):
-        index = mint.argmin(mint.abs((self.timesteps - timestep[0]))).item()
+        index = (self.timesteps - timestep[0]).abs().argmin().item()
         prev_t = self.timesteps[index + 1][None].broadcast_to((timestep.shape[0],))
         return prev_t

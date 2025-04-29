@@ -63,7 +63,7 @@ class StableDiffusionSafetyChecker(MSPreTrainedModel):
         # special_scores = special_scores.round(decimals=3)
         special_care = mint.any(special_scores > 0, dim=1)
         special_adjustment = special_care * 0.01
-        special_adjustment = mint.tile(mint.unsqueeze(special_adjustment, 1), (1, cos_dist.shape[1]))
+        special_adjustment = special_adjustment.unsqueeze(1).tile((1, cos_dist.shape[1]))
 
         concept_scores = (cos_dist - self.concept_embeds_weights) + special_adjustment
         # concept_scores = concept_scores.round(decimals=3)

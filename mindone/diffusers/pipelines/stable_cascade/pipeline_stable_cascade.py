@@ -167,12 +167,12 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             )
             prompt_embeds = text_encoder_output[2][-1]
             if prompt_embeds_pooled is None:
-                prompt_embeds_pooled = mint.unsqueeze(text_encoder_output[0], 1)
+                prompt_embeds_pooled = text_encoder_output[0].unsqueeze(1)
 
         prompt_embeds = prompt_embeds.to(dtype=self.text_encoder.dtype)
         prompt_embeds_pooled = prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
-        prompt_embeds = mint.repeat_interleave(prompt_embeds, num_images_per_prompt, dim=0)
-        prompt_embeds_pooled = mint.repeat_interleave(prompt_embeds_pooled, num_images_per_prompt, dim=0)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
+        prompt_embeds_pooled = prompt_embeds_pooled.repeat_interleave(num_images_per_prompt, dim=0)
 
         if negative_prompt_embeds is None and do_classifier_free_guidance:
             uncond_tokens: List[str]
@@ -208,18 +208,18 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             )
 
             negative_prompt_embeds = negative_prompt_embeds_text_encoder_output[2][-1]
-            negative_prompt_embeds_pooled = mint.unsqueeze(negative_prompt_embeds_text_encoder_output[0], 1)
+            negative_prompt_embeds_pooled = negative_prompt_embeds_text_encoder_output[0].unsqueeze(1)
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
             seq_len = negative_prompt_embeds.shape[1]
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
             seq_len = negative_prompt_embeds_pooled.shape[1]
             negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.to(dtype=self.text_encoder.dtype)
-            negative_prompt_embeds_pooled = mint.tile(negative_prompt_embeds_pooled, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds_pooled = negative_prompt_embeds_pooled.view(
                 batch_size * num_images_per_prompt, seq_len, -1
             )
@@ -286,8 +286,8 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
         clamp_range = [0, 1]
         min_var = mint.cos(s / (1 + s) * math.pi * 0.5) ** 2
         var = alphas_cumprod[t]
-        var = mint.clamp(var, *clamp_range)
-        ratio = (mint.acos(((var * min_var) ** 0.5)) / (math.pi * 0.5)) * (1 + s) - s
+        var = var.clamp(*clamp_range)
+        ratio = (((var * min_var) ** 0.5).acos() / (math.pi * 0.5)) * (1 + s) - s
         return ratio
 
     def __call__(
@@ -475,7 +475,7 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
-                predicted_latents_text, predicted_latents_uncond = mint.chunk(predicted_latents, 2)
+                predicted_latents_text, predicted_latents_uncond = predicted_latents.chunk(2)
                 predicted_latents = mint.lerp(
                     predicted_latents_uncond,
                     predicted_latents_text,
@@ -511,11 +511,11 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             # 10. Scale and decode the image latents with vq-vae
             # TODO: check self.vqgan.decode(latents).sample.clamp(0, 1)
             latents = self.vqgan.config.scale_factor * latents
-            images = mint.clamp(self.vqgan.decode(latents)[0], 0, 1)
+            images = self.vqgan.decode(latents)[0].clamp(0, 1)
             if output_type == "np":
-                images = mint.permute(images, (0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
+                images = images.permute((0, 2, 3, 1)).float().asnumpy() # float() as bfloat16-> numpy doesnt work
             elif output_type == "pil":
-                images = mint.permute(images, (0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
+                images = images.permute((0, 2, 3, 1)).float().asnumpy() # float() as bfloat16-> numpy doesnt work
                 images = self.numpy_to_pil(images)
         else:
             images = latents

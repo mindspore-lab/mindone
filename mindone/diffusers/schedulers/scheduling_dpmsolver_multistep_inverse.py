@@ -351,18 +351,18 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             sample = sample.float()  # upcast for quantile calculation, and clamp not implemented for cpu half
 
         # Flatten sample for doing quantile calculation along each image
-        sample = mint.reshape(sample, (batch_size, channels * np.prod(remaining_dims).item()))
+        sample = sample.reshape(batch_size, channels * np.prod(remaining_dims).item())
 
-        abs_sample = mint.abs(sample)  # "a certain percentile absolute pixel value"
+        abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
         s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
-        s = mint.unsqueeze(s, 1)  # (batch_size, 1) because clamp will broadcast along dim=0
+        s = s.unsqueeze(1) # (batch_size, 1) because clamp will broadcast along dim=0
         sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
-        sample = mint.reshape(sample, (batch_size, channels, *remaining_dims))
+        sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
 
         return sample
@@ -880,7 +880,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         return x_t
 
     def _init_step_index(self, timestep):
-        index_candidates_num = mint.sum(self.timesteps == timestep)
+        index_candidates_num = (self.timesteps == timestep).sum()
 
         if index_candidates_num == 0:
             step_index = len(self.timesteps) - 1
@@ -1006,7 +1006,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
 
         step_indices = []
         for timestep in timesteps:
-            index_candidates_num = mint.sum(schedule_timesteps == timestep)
+            index_candidates_num = (schedule_timesteps == timestep).sum()
             if index_candidates_num == 0:
                 step_index = len(schedule_timesteps) - 1
             else:
@@ -1017,7 +1017,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
                 step_index = int((schedule_timesteps == timestep).nonzero()[pos])
             step_indices.append(step_index)
 
-        sigma = mint.flatten(sigmas[step_indices])
+        sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
         sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))

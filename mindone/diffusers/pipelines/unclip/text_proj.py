@@ -59,7 +59,7 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
         if do_classifier_free_guidance:
             # Add the classifier free guidance embeddings to the image embeddings
             image_embeddings_batch_size = image_embeddings.shape[0]
-            classifier_free_guidance_embeddings = mint.unsqueeze(self.learned_classifier_free_guidance_embeddings, 0)
+            classifier_free_guidance_embeddings = self.learned_classifier_free_guidance_embeddings.unsqueeze(0)
             classifier_free_guidance_embeddings = classifier_free_guidance_embeddings.broadcast_to(
                 (image_embeddings_batch_size, -1)
             )
@@ -79,10 +79,8 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
         # ... and by projecting CLIP embeddings into four
         # extra tokens of context that are concatenated to the sequence of outputs from the GLIDE text encoder"
         clip_extra_context_tokens = self.clip_extra_context_tokens_proj(image_embeddings)
-        clip_extra_context_tokens = mint.reshape(
-            clip_extra_context_tokens, (batch_size, -1, self.clip_extra_context_tokens)
-        )
-        clip_extra_context_tokens = mint.permute(clip_extra_context_tokens, (0, 2, 1))
+        clip_extra_context_tokens = clip_extra_context_tokens.reshape(batch_size, -1, self.clip_extra_context_tokens)
+        clip_extra_context_tokens = clip_extra_context_tokens.permute(0, 2, 1)
 
         text_encoder_hidden_states = self.encoder_hidden_states_proj(text_encoder_hidden_states)
         text_encoder_hidden_states = self.text_encoder_hidden_states_norm(text_encoder_hidden_states)

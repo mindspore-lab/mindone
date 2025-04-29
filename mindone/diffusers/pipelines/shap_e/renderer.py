@@ -41,12 +41,12 @@ def _searchsorted(sorted_sequence, values, *, out_int32=False, right=False):
         and sorted_sequence.shape[0] == values.shape[0]
     ), "Tensor sorted_sequence and values should have the same number of dimensions (ndim) and batch size."
 
-    values = mint.unsqueeze(values, -1)
-    sorted_sequence = mint.unsqueeze(sorted_sequence, -2)
+    values = values.unsqueeze(-1)
+    sorted_sequence = sorted_sequence.unsqueeze(-2)
     if not right:
-        positions = mint.sum((values > sorted_sequence), dim=-1)
+        positions = (values > sorted_sequence).sum(dim=-1)
     else:
-        positions = mint.sum((values >= sorted_sequence), dim=-1)
+        positions = (values >= sorted_sequence).sum(dim=-1)
 
     if out_int32:
         positions = positions.to(ms.int32)
@@ -77,7 +77,7 @@ def sample_pmf(pmf: ms.Tensor, n_samples: int) -> ms.Tensor:
     # thus we use an equivalent implementation here.
     inds = _searchsorted(cdf, mint.rand(cdf.shape[0], n_samples), out_int32=True)
 
-    return mint.clamp(inds.view(*shape, n_samples, 1), 0, support_size - 1)
+    return inds.view(*shape, n_samples, 1).clamp(0, support_size - 1)
 
 
 def posenc_nerf(x: ms.Tensor, min_deg: int = 0, max_deg: int = 15) -> ms.Tensor:
@@ -91,7 +91,7 @@ def posenc_nerf(x: ms.Tensor, min_deg: int = 0, max_deg: int = 15) -> ms.Tensor:
 
     scales = 2.0 ** mint.arange(min_deg, max_deg, dtype=x.dtype)
     *shape, dim = x.shape
-    xb = mint.reshape(mint.reshape(x, (-1, 1, dim)) * scales.view(1, -1, 1), (*shape, -1))
+    xb = (x.reshape(-1, 1, dim) * scales.view(1, -1, 1)).reshape(*shape, -1)
     assert xb.shape[-1] == dim * (max_deg - min_deg)
     emb = mint.cat([xb, xb + math.pi / 2.0], dim=-1).sin()
     return mint.cat([x, emb], dim=-1)
@@ -368,8 +368,8 @@ class BoundingBoxVolume(nn.Cell):
         #
         # 1 and 4 are clearly handled from t0 < t1 below.
         # Making t0 at least min_dist (>= 0) takes care of 2 and 3.
-        t0 = mint.clamp(mint.max(mint.min(ts, dim=-2), dim=-1, keepdim=True), self.min_dist)
-        t1 = mint.min(mint.max(ts, dim=-2), dim=-1, keepdim=True)
+        t0 = ts.min(dim=-2).max(dim=-1, keepdim=True).clamp(self.min_dist)
+        t1 = ts.max(axis=-2).min(dim=-1, keepdim=True)
         assert t0.shape == t1.shape == (batch_size, *shape, 1)
         if t0_lower is not None:
             assert t0.shape == t0_lower.shape
@@ -417,12 +417,12 @@ class StratifiedRaySampler(nn.Cell):
         if self.depth_mode == "linear":
             ts = t0 * (1.0 - ts) + t1 * ts
         elif self.depth_mode == "geometric":
-            ts = (mint.log(mint.clamp(t0, epsilon)) * (1.0 - ts) + mint.log(mint.clamp(t1, epsilon)) * ts).exp()
+            ts = (t0.clamp(epsilon).log() * (1.0 - ts) + t1.clamp(epsilon).log() * ts).exp()
         elif self.depth_mode == "harmonic":
             # The original NeRF recommends this interpolation scheme for
             # spherical scenes, but there could be some weird edge cases when
             # the observer crosses from the inner to outer volume.
-            ts = 1.0 / (1.0 / mint.clamp(t0, epsilon) * (1.0 - ts) + 1.0 / mint.clamp(t1, epsilon) * ts)
+            ts = 1.0 / (1.0 / t0.clamp(epsilon) * (1.0 - ts) + 1.0 / t1.clamp(epsilon) * ts)
 
         mids = 0.5 * (ts[..., 1:] + ts[..., :-1])
         upper = mint.cat([mids, t1], dim=-1)
@@ -430,7 +430,7 @@ class StratifiedRaySampler(nn.Cell):
         t_rand = mint.rand_like(ts)
 
         ts = lower + (upper - lower) * t_rand
-        return mint.unsqueeze(ts, -1)
+        return ts.unsqueeze(-1)
 
 
 class ImportanceRaySampler(nn.Cell):
@@ -482,7 +482,7 @@ class ImportanceRaySampler(nn.Cell):
             maxes = mint.maximum(padded[..., :-1, :], padded[..., 1:, :])
             weights = 0.5 * (maxes[..., :-1, :] + maxes[..., 1:, :])
         weights = weights + self.alpha
-        pmf = weights / mint.sum(weights, dim=-2, keepdim=True)
+        pmf = weights / weights.sum(dim=-2, keepdim=True)
         inds = sample_pmf(pmf, n_samples)
         assert inds.shape == (batch_size, *shape, n_samples, 1)
         assert (inds >= 0).all() and (inds < n_coarse_samples).all()
@@ -567,9 +567,9 @@ class MeshDecoder(nn.Cell):
         # done later based on the used edge midpoints).
         edge_midpoints = mint.cat(
             [
-                mint.reshape(((corner_coords[:-1] + corner_coords[1:]) / 2), (-1, 3)),
-                mint.reshape(((corner_coords[:, :-1] + corner_coords[:, 1:]) / 2), (-1, 3)),
-                mint.reshape(((corner_coords[:, :, :-1] + corner_coords[:, :, 1:]) / 2), (-1, 3)),
+                ((corner_coords[:-1] + corner_coords[1:]) / 2).reshape(-1, 3),
+                ((corner_coords[:, :-1] + corner_coords[:, 1:]) / 2).reshape(-1, 3),
+                ((corner_coords[:, :, :-1] + corner_coords[:, :, 1:]) / 2).reshape(-1, 3),
             ],
             dim=0,
         )
@@ -579,23 +579,21 @@ class MeshDecoder(nn.Cell):
         cube_indices[:, :, :, 0] += mint.arange(grid_size[0] - 1)[:, None, None]
         cube_indices[:, :, :, 1] += mint.arange(grid_size[1] - 1)[None, :, None]
         cube_indices[:, :, :, 2] += mint.arange(grid_size[2] - 1)[None, None, :]
-        flat_cube_indices = mint.reshape(cube_indices, (-1, 3))
+        flat_cube_indices = cube_indices.reshape(-1, 3)
 
         # Create a flat array mapping each cube to 12 global edge indices.
         edge_indices = _create_flat_edge_indices(flat_cube_indices, grid_size)
 
         # Apply the LUT to figure out the triangles.
-        flat_bitmasks = mint.reshape(
-            bitmasks, (-1,)
-        ).long()  # must cast to long for indexing to believe this not a mask
+        flat_bitmasks = bitmasks.reshape(-1).long()  # must cast to long for indexing to believe this not a mask
         local_tris = cases[flat_bitmasks]
         local_masks = masks.long()[flat_bitmasks].bool()  # bool tensor couldn't sliced like this
         # Compute the global edge indices for the triangles.
-        global_tris = mint.reshape(
-            mint.gather(edge_indices, 1, mint.reshape(local_tris, (local_tris.shape[0], -1))), local_tris.shape
+        global_tris = mint.gather(edge_indices, 1, local_tris.reshape(local_tris.shape[0], -1)).reshape(
+            local_tris.shape
         )
         # Select the used triangles for each cube.
-        selected_tris = mint.reshape(global_tris, (-1, 3))[mint.reshape(local_masks, (-1,))]
+        selected_tris = global_tris.reshape(-1, 3)[local_masks.reshape(-1)]
 
         # Now we have a bunch of indices into the full list of possible vertices,
         # but we want to reduce this list to only the used vertices.
@@ -605,7 +603,7 @@ class MeshDecoder(nn.Cell):
         old_index_to_new_index[used_vertex_indices] = mint.arange(len(used_vertex_indices), dtype=ms.int64)
 
         # Rewrite the triangles to use the new indices
-        faces = mint.reshape(mint.gather(old_index_to_new_index, 0, selected_tris.view(-1)), selected_tris.shape)
+        faces = mint.gather(old_index_to_new_index, 0, selected_tris.view(-1)).reshape(selected_tris.shape)
 
         # Compute the actual interpolated coordinates corresponding to edge midpoints.
         v1 = mint.floor(used_edge_midpoints).to(ms.int64)
@@ -749,7 +747,7 @@ class ChannelsProj(nn.Cell):
         w_vcd = self.proj.weight.view(self.vectors, self.channels, self.d_latent)
         b_vc = self.proj.bias.view(1, self.vectors, self.channels)
         # h = torch.einsum("bvd,vcd->bvc", x_bvd, w_vcd)
-        h = mint.sum(mint.mul(x_bvd[..., None], mint.swapaxes(w_vcd[None, ...], -1, -2)), dim=-2)
+        h = mint.mul(x_bvd[..., None], w_vcd[None, ...].swapaxes(-1, -2)).sum(axis=-2)
         h = self.norm(h)
 
         h = h + b_vc
@@ -802,7 +800,7 @@ class ShapEParamsProjModel(ModelMixin, ConfigMixin):
             vectors, _ = shape
             end = start + vectors
             x_bvd = x[:, start:end]
-            out[k] = mint.reshape(self.projections[_sanitize_name(k)](x_bvd), (len(x), *shape))
+            out[k] = self.projections[_sanitize_name(k)](x_bvd).reshape(len(x), *shape)
             start = end
         return out
 
@@ -897,7 +895,7 @@ class ShapERenderer(ModelMixin, ConfigMixin):
 
         # 2. Get the points along the ray and query the model
         directions = mint.broadcast_to(mint.unsqueeze(direction, -2), (batch_size, *ts_shape, 3))
-        positions = mint.unsqueeze(origin, -2) + ts * directions
+        positions = origin.unsqueeze(-2) + ts * directions
 
         directions = directions.to(self.mlp.dtype)
         positions = positions.to(self.mlp.dtype)
@@ -943,7 +941,7 @@ class ShapERenderer(ModelMixin, ConfigMixin):
             # e.g. 'mlp.mlp.0.weight' --> 'mlp.0.weight'
             name = name[4:]
             if f"nerstf.{name}" in projected_params.keys():
-                param.set_data(mint.squeeze(projected_params[f"nerstf.{name}"], 0))
+                param.set_data(projected_params[f"nerstf.{name}"].squeeze(0))
 
         # create cameras object
         camera = create_pan_cameras(size)
@@ -965,7 +963,7 @@ class ShapERenderer(ModelMixin, ConfigMixin):
             images.append(channels)
 
         images = mint.cat(images, dim=1)
-        images = mint.squeeze(images.view(*camera.shape, camera.height, camera.width, -1), 0)
+        images = images.view(*camera.shape, camera.height, camera.width, -1).squeeze(0)
 
         return images
 
@@ -985,13 +983,13 @@ class ShapERenderer(ModelMixin, ConfigMixin):
             # e.g. 'mlp.mlp.0.weight' --> 'mlp.0.weight'
             name = name[4:]
             if f"nerstf.{name}" in projected_params.keys():
-                param.set_data(mint.squeeze(projected_params[f"nerstf.{name}"], 0))
+                param.set_data(projected_params[f"nerstf.{name}"].squeeze(0))
 
         # 3. decoding with STF rendering
         # 3.1 query the SDF values at vertices along a regular 128**3 grid
 
         query_points = volume_query_points(self.volume, grid_size)
-        query_positions = mint.tile(query_points[None], (1, 1, 1)).to(dtype=self.mlp.dtype)
+        query_positions = query_points[None].tile((1, 1, 1)).to(dtype=self.mlp.dtype)
 
         fields = []
 
@@ -1009,7 +1007,7 @@ class ShapERenderer(ModelMixin, ConfigMixin):
             len(fields.shape) == 3 and fields.shape[-1] == 1
         ), f"expected [meta_batch x inner_batch] SDF results, but got {fields.shape}"
 
-        fields = mint.reshape(fields, (1, *([grid_size] * 3)))
+        fields = fields.reshape(1, *([grid_size] * 3))
 
         # create grid 128 x 128 x 128
         # - force a negative border around the SDFs to close off all the models.

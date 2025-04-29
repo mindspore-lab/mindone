@@ -114,7 +114,7 @@ class IPNDMScheduler(SchedulerMixin, ConfigMixin):
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
 
-        if mint.sum(schedule_timesteps == timestep) > 1:
+        if (schedule_timesteps == timestep).sum() > 1:
             pos = 1
         else:
             pos = 0

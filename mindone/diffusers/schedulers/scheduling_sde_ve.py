@@ -205,7 +205,7 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
 
         # equation 6 in the paper: the model_output modeled by the network is grad_x log pt(x)
         # also equation 47 shows the analog from SDE models to ancestral sampling methods
-        diffusion = mint.flatten(diffusion)
+        diffusion = diffusion.flatten()
         # while len(diffusion.shape) < len(sample.shape):
         #     diffusion = diffusion.unsqueeze(-1)
         diffusion = mint.reshape(diffusion, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
@@ -259,14 +259,14 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
         noise = randn_tensor(sample.shape, generator=generator, dtype=ms.float32)
 
         # compute step size from the model_output, the noise, and the snr
-        grad_norm = mint.norm(mint.reshape(model_output, (model_output.shape[0], -1)), dim=-1).mean()
-        noise_norm = mint.norm(mint.reshape(noise, (noise.shape[0], -1)), dim=-1).mean()
+        grad_norm = mint.norm(model_output.reshape(model_output.shape[0], -1), dim=-1).mean()
+        noise_norm = mint.norm(noise.reshape(noise.shape[0], -1), dim=-1).mean()
         step_size = (self.config.snr * noise_norm / grad_norm) ** 2 * 2
         step_size = step_size * mint.ones(sample.shape[0])
         # self.repeat_scalar(step_size, sample.shape[0])
 
         # compute corrected sample: model_output term and noise term
-        step_size = mint.flatten(step_size)
+        step_size = step_size.flatten()
         # while len(step_size.shape) < len(sample.shape):
         #     step_size = step_size.unsqueeze(-1)
         step_size = mint.reshape(step_size, (sample.shape[0],) + (1,) * (len(sample.shape) - 1))

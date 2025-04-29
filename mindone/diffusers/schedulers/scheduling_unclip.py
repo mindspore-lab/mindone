@@ -207,8 +207,8 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
             variance = mint.exp(0.5 * variance)
         elif variance_type == "learned_range":
             # NOTE difference with DDPM scheduler
-            min_log = mint.log(variance)
-            max_log = mint.log(beta)
+            min_log = variance.log()
+            max_log = beta.log()
 
             frac = (predicted_variance + 1) / 2
             variance = frac * max_log + (1 - frac) * min_log
@@ -313,7 +313,7 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
             if self.variance_type == "fixed_small_log":
                 variance = variance
             elif self.variance_type == "learned_range":
-                variance = mint.exp(0.5 * variance)
+                variance = (0.5 * variance).exp()
             else:
                 raise ValueError(
                     f"variance_type given as {self.variance_type} must be one of `fixed_small_log` or `learned_range`"
@@ -346,13 +346,13 @@ class UnCLIPScheduler(SchedulerMixin, ConfigMixin):
         alphas_cumprod = self.alphas_cumprod.to(dtype=original_samples.dtype)
 
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
-        sqrt_alpha_prod = mint.flatten(sqrt_alpha_prod)
+        sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         # while len(sqrt_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_alpha_prod = sqrt_alpha_prod.unsqueeze(-1)
         sqrt_alpha_prod = mint.reshape(sqrt_alpha_prod, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         sqrt_one_minus_alpha_prod = (1 - alphas_cumprod[timesteps]) ** 0.5
-        sqrt_one_minus_alpha_prod = mint.flatten(sqrt_one_minus_alpha_prod)
+        sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.flatten()
         # while len(sqrt_one_minus_alpha_prod.shape) < len(original_samples.shape):
         #     sqrt_one_minus_alpha_prod = sqrt_one_minus_alpha_prod.unsqueeze(-1)
         sqrt_one_minus_alpha_prod = mint.reshape(

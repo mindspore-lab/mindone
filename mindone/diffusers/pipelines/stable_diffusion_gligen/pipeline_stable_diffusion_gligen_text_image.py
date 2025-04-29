@@ -334,7 +334,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -388,7 +388,7 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -592,9 +592,9 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
 
             outputs = self.image_encoder(**inputs)
             feature = outputs[0]
-            feature = mint.squeeze(self.image_project(feature), 0)
+            feature = self.image_project(feature).squeeze(0)
             feature = (feature / feature.norm()) * normalize_constant
-            feature = mint.unsqueeze(feature, 0)
+            feature = feature.unsqueeze(0)
         else:
             if input is None:
                 return None
@@ -649,13 +649,13 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                 image_masks[idx] = 1
 
         input_phrases_mask = self.complete_mask(input_phrases_mask, max_objs)
-        phrases_masks = mint.tile(mint.unsqueeze(phrases_masks, 0), (repeat_batch, 1)) * input_phrases_mask
+        phrases_masks = phrases_masks.unsqueeze(0).tile((repeat_batch, 1)) * input_phrases_mask
         input_images_mask = self.complete_mask(input_images_mask, max_objs)
-        image_masks = mint.tile(mint.unsqueeze(image_masks, 0), (repeat_batch, 1)) * input_images_mask
-        boxes = mint.tile(mint.unsqueeze(boxes, 0), (repeat_batch, 1, 1))
-        masks = mint.tile(mint.unsqueeze(masks, 0), (repeat_batch, 1))
-        phrases_embeddings = mint.tile(mint.unsqueeze(phrases_embeddings, 0), (repeat_batch, 1, 1))
-        image_embeddings = mint.tile(mint.unsqueeze(image_embeddings, 0), (repeat_batch, 1, 1))
+        image_masks = image_masks.unsqueeze(0).tile((repeat_batch, 1)) * input_images_mask
+        boxes = boxes.unsqueeze(0).tile((repeat_batch, 1, 1))
+        masks = masks.unsqueeze(0).tile((repeat_batch, 1))
+        phrases_embeddings = phrases_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1))
+        image_embeddings = image_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1))
 
         out = {
             "boxes": boxes,
@@ -681,12 +681,12 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
         image_embeddings = mint.zeros((max_objs, hidden_size), dtype=self.text_encoder.dtype)
 
         out = {
-            "boxes": mint.tile(mint.unsqueeze(boxes, 0), (repeat_batch, 1, 1)),
-            "masks": mint.tile(mint.unsqueeze(masks, 0), (repeat_batch, 1)),
-            "phrases_masks": mint.tile(mint.unsqueeze(phrases_masks, 0), (repeat_batch, 1)),
-            "image_masks": mint.tile(mint.unsqueeze(image_masks, 0), (repeat_batch, 1)),
-            "phrases_embeddings": mint.tile(mint.unsqueeze(phrases_embeddings, 0), (repeat_batch, 1, 1)),
-            "image_embeddings": mint.tile(mint.unsqueeze(image_embeddings, 0), (repeat_batch, 1, 1)),
+            "boxes": boxes.unsqueeze(0).tile((repeat_batch, 1, 1)),
+            "masks": masks.unsqueeze(0).tile((repeat_batch, 1)),
+            "phrases_masks": phrases_masks.unsqueeze(0).tile((repeat_batch, 1)),
+            "image_masks": image_masks.unsqueeze(0).tile((repeat_batch, 1)),
+            "phrases_embeddings": phrases_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1)),
+            "image_embeddings": image_embeddings.unsqueeze(0).tile((repeat_batch, 1, 1)),
         }
 
         return out
@@ -997,8 +997,8 @@ class StableDiffusionGLIGENTextImagePipeline(DiffusionPipeline, StableDiffusionM
                 # perform guidance
                 if do_classifier_free_guidance:
                     # Using noise_pred_text from noise residual with grounded information and noise_pred_uncond from noise residual without grounded information
-                    _, noise_pred_text = mint.chunk(noise_pred_with_grounding, 2)
-                    noise_pred_uncond, _ = mint.chunk(noise_pred_without_grounding, 2)
+                    _, noise_pred_text = noise_pred_with_grounding.chunk(2)
+                    noise_pred_uncond, _ = noise_pred_without_grounding.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
                 else:
                     noise_pred = noise_pred_with_grounding
