@@ -592,7 +592,7 @@ class StableDiffusionKDiffusionPipeline(
             prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare timesteps
-        self.scheduler.set_timesteps(num_inference_steps, device=prompt_embeds.device)
+        self.scheduler.set_timesteps(num_inference_steps)
 
         # 5. Prepare sigmas
         if use_karras_sigmas:
