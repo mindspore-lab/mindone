@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Dict, Literal, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import load_param_into_net, mint, nn
+from mindspore import Tensor, load_param_into_net, mint, nn, ops
 
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 
@@ -20,7 +20,7 @@ from mindone.diffusers.models.attention_processor import (
 from mindone.diffusers.models.modeling_utils import ModelMixin
 
 from ...utils.model_utils import load_state_dict
-from .vae import DecoderCausal3D, DecoderOutput, DiagonalGaussianDistribution, EncoderCausal3D
+from .vae import DecoderCausal3D, EncoderCausal3D
 
 _logger = logging.getLogger(__name__)
 
@@ -114,6 +114,8 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         self.tile_latent_min_size = int(sample_size / (2 ** (len(config.block_out_channels) - 1)))
         self.tile_overlap_factor = config.tile_overlap_factor
 
+        self.stdnormal = ops.StandardNormal()
+
     def enable_temporal_tiling(self, use_tiling: bool = True):
         self.use_temporal_tiling = use_tiling
 
@@ -172,12 +174,12 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor(return_deprecated_lora=True)
 
-            for sub_name, child in module.named_children():
+            for sub_name, child in module.cells_and_names():
                 fn_recursive_add_processors(f"{name}.{sub_name}", child, processors)
 
             return processors
 
-        for name, module in self.named_children():
+        for name, module in self.cells_and_names():
             fn_recursive_add_processors(name, module, processors)
 
         return processors
@@ -213,10 +215,10 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 else:
                     module.set_processor(processor.pop(f"{name}.processor"), _remove_lora=_remove_lora)
 
-            for sub_name, child in module.named_children():
+            for sub_name, child in module.cells_and_names():
                 fn_recursive_attn_processor(f"{name}.{sub_name}", child, processor)
 
-        for name, module in self.named_children():
+        for name, module in self.cells_and_names():
             fn_recursive_attn_processor(name, module, processor)
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.set_default_attn_processor
@@ -235,19 +237,40 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         self.set_attn_processor(processor, _remove_lora=True)
 
-    # @apply_forward_hook  # TODO: cpu offload
-    def encode(
-        self,
-        x: ms.tensor,
-        sample_posterior: bool = True,
-        return_posterior: bool = False,
-        generator: Optional[ms.Generator] = None,
-    ) -> Union[ms.tensor, Tuple[DiagonalGaussianDistribution]]:
+    def sample(self, mean, logvar):
+        # sample z from latent distribution
+        logvar = mint.clamp(logvar, -30.0, 20.0)
+        std = mint.exp(0.5 * logvar)
+        z = mean + std * self.stdnormal(mean.shape)
+
+        return z
+
+    def _encode(self, x: Tensor) -> tuple[Tensor, Tensor]:
+        assert len(x.shape) == 5, "The input tensor should have 5 dimensions."
+
+        if self.use_temporal_tiling and x.shape[2] > self.tile_sample_min_tsize:
+            return self.temporal_tiled_encode(x)
+
+        if self.use_spatial_tiling and (
+            x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size
+        ):
+            return self.spatial_tiled_encode(x)
+
+        if self.use_slicing and x.shape[0] > 1:
+            encoded_slices = [self.encoder(x_slice) for x_slice in mint.split(x, 1)]
+            h = mint.cat(encoded_slices)
+        else:
+            h = self.encoder(x)
+        moments = self.quant_conv(h)
+        posterior_mean, posterior_logvar = mint.chunk(moments, 2, dim=1)
+        return posterior_mean, posterior_logvar
+
+    def encode(self, x: Tensor, sample_posterior: bool = True) -> Tensor:
         """
         Encode a batch of images/videos into latents.
 
         Args:
-            x (`ms.tensor`): Input batch of images/videos.
+            x (`Tensor`): Input batch of images/videos.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
 
@@ -255,61 +278,37 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 The latent representations of the encoded images/videos. If `return_dict` is True, a
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
-        assert len(x.shape) == 5, "The input tensor should have 5 dimensions."
-
-        if self.use_temporal_tiling and x.shape[2] > self.tile_sample_min_tsize:
-            posterior = self.temporal_tiled_encode(x)
-        elif self.use_spatial_tiling and (
-            x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size
-        ):
-            posterior = self.spatial_tiled_encode(x)
-        else:
-            if self.use_slicing and x.shape[0] > 1:
-                encoded_slices = [self.encoder(x_slice) for x_slice in x.split(1)]
-                h = mint.cat(encoded_slices)
-            else:
-                h = self.encoder(x)
-            moments = self.quant_conv(h)
-            posterior = DiagonalGaussianDistribution(moments)
-
+        posterior_mean, posterior_logvar = self._encode(x)
         if sample_posterior:
-            z = posterior.sample(generator=generator)
+            z = self.sample(posterior_mean, posterior_logvar)
         else:
-            z = posterior.mode()
+            z = posterior_mean
 
         z = self.scale_factor * (z - self.shift_factor)  # shift & scale
+        return z
 
-        if return_posterior:
-            return z, posterior
-        else:
-            return z
-
-    def _decode(self, z: ms.tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.tensor]:
+    def _decode(self, z: Tensor) -> Tensor:
         assert len(z.shape) == 5, "The input tensor should have 5 dimensions."
 
         if self.use_temporal_tiling and z.shape[2] > self.tile_latent_min_tsize:
-            return self.temporal_tiled_decode(z, return_dict=return_dict)
+            return self.temporal_tiled_decode(z)
 
         if self.use_spatial_tiling and (
             z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size
         ):
-            return self.spatial_tiled_decode(z, return_dict=return_dict)
+            return self.spatial_tiled_decode(z)
 
         z = self.post_quant_conv(z)
         dec = self.decoder(z)
 
-        if not return_dict:
-            return (dec,)
+        return dec
 
-        return DecoderOutput(sample=dec)
-
-    # @apply_forward_hook
-    def decode(self, z: ms.tensor) -> ms.tensor:
+    def decode(self, z: Tensor) -> Tensor:
         """
         Decode a batch of images/videos.
 
         Args:
-            z (`ms.tensor`): Input batch of latent vectors.
+            z (`Tensor`): Input batch of latent vectors.
 
         Returns:
             [`~models.vae.DecoderOutput`] or `tuple`:
@@ -320,13 +319,13 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         z = z / self.scale_factor + self.shift_factor  # scale & shift
 
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
+            decoded_slices = [self._decode(z_slice) for z_slice in mint.split(z, 1)]
             decoded = mint.cat(decoded_slices)
         else:
-            decoded = self._decode(z).sample
+            decoded = self._decode(z)
         return decoded
 
-    def blend_v(self, a: ms.tensor, b: ms.tensor, blend_extent: int) -> ms.tensor:
+    def blend_v(self, a: Tensor, b: Tensor, blend_extent: int) -> Tensor:
         blend_extent = min(a.shape[-2], b.shape[-2], blend_extent)
         for y in range(blend_extent):
             b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (
@@ -334,7 +333,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             )
         return b
 
-    def blend_h(self, a: ms.tensor, b: ms.tensor, blend_extent: int) -> ms.tensor:
+    def blend_h(self, a: Tensor, b: Tensor, blend_extent: int) -> Tensor:
         blend_extent = min(a.shape[-1], b.shape[-1], blend_extent)
         for x in range(blend_extent):
             b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (
@@ -342,7 +341,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             )
         return b
 
-    def blend_t(self, a: ms.tensor, b: ms.tensor, blend_extent: int) -> ms.tensor:
+    def blend_t(self, a: Tensor, b: Tensor, blend_extent: int) -> Tensor:
         blend_extent = min(a.shape[-3], b.shape[-3], blend_extent)
         for x in range(blend_extent):
             b[:, :, x, :, :] = a[:, :, -blend_extent + x, :, :] * (1 - x / blend_extent) + b[:, :, x, :, :] * (
@@ -350,7 +349,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             )
         return b
 
-    def spatial_tiled_encode(self, x: ms.tensor, return_moments: bool = False) -> DiagonalGaussianDistribution:
+    def spatial_tiled_encode(self, x: Tensor, return_moments: bool = False) -> Union[Tensor, tuple[Tensor, Tensor]]:
         r"""Encode a batch of images/videos using a tiled encoder.
 
         When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several
@@ -360,7 +359,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         output, but they should be much less noticeable.
 
         Args:
-            x (`ms.tensor`): Input batch of images/videos.
+            x (`Tensor`): Input batch of images/videos.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`~models.autoencoder_kl.AutoencoderKLOutput`] instead of a plain tuple.
 
@@ -399,15 +398,16 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         moments = mint.cat(result_rows, dim=-2)
         if return_moments:
             return moments
-        posterior = DiagonalGaussianDistribution(moments)
-        return posterior
+        posterior_mean, posterior_logvar = mint.chunk(moments, 2, dim=1)
 
-    def spatial_tiled_decode(self, z: ms.tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.tensor]:
+        return posterior_mean, posterior_logvar
+
+    def spatial_tiled_decode(self, z: Tensor) -> Tensor:
         r"""
         Decode a batch of images/videos using a tiled decoder.
 
         Args:
-            z (`ms.tensor`): Input batch of latent vectors.
+            z (`Tensor`): Input batch of latent vectors.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`~models.vae.DecoderOutput`] instead of a plain tuple.
 
@@ -445,12 +445,9 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             result_rows.append(mint.cat(result_row, dim=-1))
 
         dec = mint.cat(result_rows, dim=-2)
-        if not return_dict:
-            return (dec,)
+        return dec
 
-        return DecoderOutput(sample=dec)
-
-    def temporal_tiled_encode(self, x: ms.tensor) -> DiagonalGaussianDistribution:
+    def temporal_tiled_encode(self, x: Tensor) -> tuple[Tensor, Tensor]:
         B, C, T, H, W = x.shape
         overlap_size = int(self.tile_sample_min_tsize * (1 - self.tile_overlap_factor))
         blend_extent = int(self.tile_latent_min_tsize * self.tile_overlap_factor)
@@ -478,10 +475,10 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             else:
                 result_row.append(tile[:, :, : t_limit + 1, :, :])
         moments = mint.cat(result_row, dim=2)
-        posterior = DiagonalGaussianDistribution(moments)
-        return posterior
+        posterior_mean, posterior_logvar = mint.chunk(moments, 2, dim=1)
+        return posterior_mean, posterior_logvar
 
-    def temporal_tiled_decode(self, z: ms.tensor, return_dict: bool = True) -> Union[DecoderOutput, ms.tensor]:
+    def temporal_tiled_decode(self, z: Tensor) -> Tensor:
         # Split z into overlapping tiles and decode them separately.
 
         B, C, T, H, W = z.shape
@@ -495,7 +492,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             if self.use_spatial_tiling and (
                 tile.shape[-1] > self.tile_latent_min_size or tile.shape[-2] > self.tile_latent_min_size
             ):
-                decoded = self.spatial_tiled_decode(tile, return_dict=True).sample
+                decoded = self.spatial_tiled_decode(tile)
             else:
                 tile = self.post_quant_conv(tile)
                 decoded = self.decoder(tile)
@@ -511,30 +508,27 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
                 result_row.append(tile[:, :, : t_limit + 1, :, :])
 
         dec = mint.cat(result_row, dim=2)
-        if not return_dict:
-            return (dec,)
+        return dec
 
-        return DecoderOutput(sample=dec)
-
-    def construct(
-        self,
-        sample: ms.tensor,
-        sample_posterior: bool = True,
-        generator: Optional[ms.Generator] = None,
-    ) -> Tuple[ms.tensor, DiagonalGaussianDistribution, ms.tensor]:
+    def construct(self, sample: Tensor, sample_posterior: bool = True) -> Tuple[Tensor, Tensor, Tensor]:
         r"""
         Args:
-            sample (`ms.tensor`): Input sample.
+            sample (`Tensor`): Input sample.
             sample_posterior (`bool`, *optional*, defaults to `False`):
                 Whether to sample from the posterior.
             return_dict (`bool`, *optional*, defaults to `True`):
                 Whether or not to return a [`DecoderOutput`] instead of a plain tuple.
         """
         x = sample
-        z, posterior = self.encode(x, return_posterior=True, sample_posterior=sample_posterior, generator=generator)
+        posterior_mean, posterior_logvar = self._encode(x)
+        if sample_posterior:
+            z = self.sample(posterior_mean, posterior_logvar)
+        else:
+            z = posterior_mean
+
         dec = self.decode(z)
 
-        return (dec, posterior, z)
+        return dec, posterior_mean, posterior_logvar
 
     # Copied from diffusers.models.unet_2d_condition.UNet2DConditionModel.fuse_qkv_projections
     def fuse_qkv_projections(self):
@@ -556,7 +550,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
         self.original_attn_processors = self.attn_processors
 
-        for module in self.modules():
+        for module in self.cells():
             if isinstance(module, Attention):
                 module.fuse_projections(fuse=True)
 
@@ -588,9 +582,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 
 
 def CausalVAE3D_HUNYUAN(
-    from_pretrained: str = None,
-    dtype: Literal["fp32", "fp16", "bf16"] = "fp32",
-    **kwargs,
+    from_pretrained: str = None, dtype: Literal["fp32", "fp16", "bf16"] = "fp32", **kwargs
 ) -> AutoencoderKLCausal3D:
     dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[dtype]
     config = AutoEncoder3DConfig(from_pretrained=from_pretrained, **kwargs)

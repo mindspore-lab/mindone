@@ -1,40 +1,30 @@
 from typing import Optional, Tuple, Union
 
-import numpy as np
-from opensora.models.vae.utils import ChannelChunkConv3d, get_activation, get_conv3d_n_chunks
+from opensora.models.vae.utils import get_activation
 
-import mindspore as ms
+import mindspore.mint.nn.functional as F
+from mindspore import Tensor
+from mindspore import dtype as mstype
 from mindspore import mint, nn
 
 from mindone.diffusers.models.attention_processor import Attention
 from mindone.diffusers.utils import logging
 
-logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
-
-INTERPOLATE_NUMEL_LIMIT = 2**31 - 1
+logger = logging.get_logger(__name__)
 
 
-def chunk_nearest_interpolate(
-    x: ms.tensor,
-    scale_factor,
-):
-    limit = INTERPOLATE_NUMEL_LIMIT // np.prod(scale_factor)
-    n_chunks = get_conv3d_n_chunks(x.numel(), x.shape[1], limit)
-    x_chunks = x.chunk(n_chunks, dim=1)
-    x_chunks = [
-        mint.nn.functional.interpolate(x_chunk, scale_factor=scale_factor, mode="nearest") for x_chunk in x_chunks
-    ]
-    return mint.cat(x_chunks, dim=1)
-
-
-def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None):
+def prepare_causal_attention_mask(n_frame: int, n_hw: int, dtype, batch_size: int = None, return_fa_mask: bool = False):
     seq_len = n_frame * n_hw
     mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
-    for i in range(seq_len):
-        i_frame = i // n_hw
-        mask[i, : (i_frame + 1) * n_hw] = 0
+    row_indices = mint.arange(seq_len)
+    col_indices = (row_indices // n_hw + 1) * n_hw
+
+    bool_mask = mint.arange(seq_len).unsqueeze(0) < col_indices.unsqueeze(1)
+    mask = mint.where(bool_mask, mint.zeros_like(mask), mask)
     if batch_size is not None:
-        mask = mask.unsqueeze(0).expand((batch_size, -1, -1))
+        mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
+    if return_fa_mask:
+        mask = (mask == 0).to(mstype.bool_)  # bool
     return mask
 
 
@@ -120,8 +110,7 @@ class CausalConv3d(nn.Cell):
             0,
         )  # W, H, T
         self.time_causal_padding = padding
-
-        self.conv = ChannelChunkConv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
+        self.conv = mint.nn.Conv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
         assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
         self.pad = MSReplicationPad5D(self.time_causal_padding)
 
@@ -149,16 +138,9 @@ class UpsampleCausal3D(nn.Cell):
         self.upsample_factor = tuple(float(uf) for uf in upsample_factor)  # upsample_factor must be float in MindSpore
         self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, bias=bias)
 
-    def construct(
-        self,
-        input_tensor: ms.tensor,
-    ) -> ms.tensor:
-        assert input_tensor.shape[1] == self.channels
+    def construct(self, hidden_states: Tensor) -> Tensor:
+        assert hidden_states.shape[1] == self.channels
 
-        #######################
-        # handle hidden states
-        #######################
-        hidden_states = input_tensor
         # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
         # dtype = hidden_states.dtype
         # if dtype == ms.bfloat16:
@@ -170,13 +152,13 @@ class UpsampleCausal3D(nn.Cell):
 
         # interpolate H & W only for the first frame; interpolate T & H & W for the rest
         T = hidden_states.shape[2]
-        first_h, other_h = hidden_states.split((1, T - 1), dim=2)
+        first_h, other_h = mint.split(hidden_states, (1, T - 1), dim=2)
         # process non-1st frames
         if T > 1:
-            other_h = chunk_nearest_interpolate(other_h, scale_factor=self.upsample_factor)
-        # proess 1st fram
+            other_h = F.interpolate(other_h, scale_factor=self.upsample_factor, mode="nearest")
+        # process 1st frame
         first_h = first_h.squeeze(2)
-        first_h = chunk_nearest_interpolate(first_h, scale_factor=self.upsample_factor[1:])
+        first_h = F.interpolate(first_h, scale_factor=self.upsample_factor[1:], mode="nearest")
         first_h = first_h.unsqueeze(2)
         # concat together
         if T > 1:
@@ -198,21 +180,15 @@ class DownsampleCausal3D(nn.Cell):
     A 3D downsampling layer with an optional convolution.
     """
 
-    def __init__(
-        self,
-        channels: int,
-        kernel_size=3,
-        bias=True,
-        stride=2,
-    ):
+    def __init__(self, channels: int, kernel_size=3, bias=True, stride=2):
         super().__init__()
         self.channels = channels
         self.out_channels = channels
         self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, bias=bias)
 
-    def construct(self, input_tensor: ms.tensor) -> ms.tensor:
-        assert input_tensor.shape[1] == self.channels
-        hidden_states = self.conv(input_tensor)
+    def construct(self, hidden_states: Tensor) -> Tensor:
+        assert hidden_states.shape[1] == self.channels
+        hidden_states = self.conv(hidden_states)
 
         return hidden_states
 
@@ -266,17 +242,10 @@ class ResnetBlockCausal3D(nn.Cell):
         self.conv_shortcut = None
         if self.use_in_shortcut:
             self.conv_shortcut = CausalConv3d(
-                in_channels,
-                conv_3d_out_channels,
-                kernel_size=1,
-                stride=1,
-                bias=conv_shortcut_bias,
+                in_channels, conv_3d_out_channels, kernel_size=1, stride=1, bias=conv_shortcut_bias
             )
 
-    def construct(
-        self,
-        input_tensor: ms.tensor,
-    ) -> ms.tensor:
+    def construct(self, input_tensor: Tensor) -> Tensor:
         hidden_states = input_tensor
 
         hidden_states = self.norm1(hidden_states)
@@ -378,7 +347,7 @@ class UNetMidBlockCausal3D(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
-    def construct(self, hidden_states: ms.tensor, attention_mask: Optional[ms.tensor]) -> ms.tensor:
+    def construct(self, hidden_states: Tensor, attention_mask: Optional[Tensor]) -> Tensor:
         hidden_states = self.resnets[0](hidden_states)
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
@@ -431,25 +400,16 @@ class DownEncoderBlockCausal3D(nn.Cell):
         self.resnets = nn.CellList(resnets)
 
         if add_downsample:
-            self.downsamplers = nn.CellList(
-                [
-                    DownsampleCausal3D(
-                        out_channels,
-                        stride=downsample_stride,
-                    )
-                ]
-            )
+            self.downsamplers = nn.CellList([DownsampleCausal3D(out_channels, stride=downsample_stride)])
         else:
             self.downsamplers = None
 
-    def construct(self, hidden_states: ms.tensor) -> ms.tensor:
+    def construct(self, hidden_states: Tensor) -> Tensor:
         for resnet in self.resnets:
-            # hidden_states = auto_grad_checkpoint(resnet, hidden_states)  # TODO: check
             hidden_states = resnet(hidden_states)
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                # hidden_states = auto_grad_checkpoint(downsampler, hidden_states)
                 hidden_states = downsampler(hidden_states)
 
         return hidden_states
@@ -494,27 +454,19 @@ class UpDecoderBlockCausal3D(nn.Cell):
 
         if add_upsample:
             self.upsamplers = nn.CellList(
-                [
-                    UpsampleCausal3D(
-                        out_channels,
-                        out_channels=out_channels,
-                        upsample_factor=upsample_scale_factor,
-                    )
-                ]
+                [UpsampleCausal3D(out_channels, out_channels=out_channels, upsample_factor=upsample_scale_factor)]
             )
         else:
             self.upsamplers = None
 
         self.resolution_idx = resolution_idx
 
-    def construct(self, hidden_states: ms.tensor) -> ms.tensor:
+    def construct(self, hidden_states: Tensor) -> Tensor:
         for resnet in self.resnets:
-            # hidden_states = auto_grad_checkpoint(resnet, hidden_states)
             hidden_states = resnet(hidden_states)
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
-                # hidden_states = auto_grad_checkpoint(upsampler, hidden_states)
                 hidden_states = upsampler(hidden_states)
 
         return hidden_states

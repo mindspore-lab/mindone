@@ -1,13 +1,8 @@
-from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Tuple
 
 import numpy as np
 
-import mindspore as ms
-from mindspore import mint, nn
-
-from mindone.diffusers.utils import BaseOutput
-from mindone.diffusers.utils.mindspore_utils import randn_tensor
+from mindspore import Tensor, mint, nn
 
 from .unet_causal_3d_blocks import (
     CausalConv3d,
@@ -16,19 +11,6 @@ from .unet_causal_3d_blocks import (
     UpDecoderBlockCausal3D,
     prepare_causal_attention_mask,
 )
-
-
-@dataclass
-class DecoderOutput(BaseOutput):
-    r"""
-    Output of decoding method.
-
-    Args:
-        sample (`ms.tensor` of shape `(batch_size, num_channels, height, width)`):
-            The decoded output sample from the last layer of the model.
-    """
-
-    sample: ms.tensor
 
 
 class EncoderCausal3D(nn.Cell):
@@ -114,12 +96,12 @@ class EncoderCausal3D(nn.Cell):
         conv_out_channels = 2 * out_channels if double_z else out_channels
         self.conv_out = CausalConv3d(block_out_channels[-1], conv_out_channels, kernel_size=3)
 
-    def prepare_attention_mask(self, hidden_states: ms.tensor) -> ms.tensor:
+    def prepare_attention_mask(self, hidden_states: Tensor) -> Tensor:
         B, C, T, H, W = hidden_states.shape
-        attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
+        attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B, return_fa_mask=True)
         return attention_mask
 
-    def construct(self, sample: ms.tensor) -> ms.tensor:
+    def construct(self, sample: Tensor) -> Tensor:
         r"""The forward method of the `EncoderCausal3D` class."""
         assert len(sample.shape) == 5, "The input tensor should have 5 dimensions"
 
@@ -134,7 +116,6 @@ class EncoderCausal3D(nn.Cell):
             attention_mask = self.prepare_attention_mask(sample)
         else:
             attention_mask = None
-        # sample = auto_grad_checkpoint(self.mid_block, sample, attention_mask)  # TODO: check
         sample = self.mid_block(sample, attention_mask)
 
         # post-process
@@ -225,20 +206,12 @@ class DecoderCausal3D(nn.Cell):
         self.conv_act = mint.nn.SiLU()
         self.conv_out = CausalConv3d(block_out_channels[0], out_channels, kernel_size=3)
 
-    def post_process(self, sample: ms.tensor) -> ms.tensor:
-        sample = self.conv_norm_out(sample)
-        sample = self.conv_act(sample)
-        return sample
-
-    def prepare_attention_mask(self, hidden_states: ms.tensor) -> ms.tensor:
+    def prepare_attention_mask(self, hidden_states: Tensor) -> Tensor:
         B, C, T, H, W = hidden_states.shape
-        attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B)
+        attention_mask = prepare_causal_attention_mask(T, H * W, hidden_states.dtype, batch_size=B, return_fa_mask=True)
         return attention_mask
 
-    def construct(
-        self,
-        sample: ms.tensor,
-    ) -> ms.tensor:
+    def construct(self, sample: Tensor) -> Tensor:
         r"""The forward method of the `DecoderCausal3D` class."""
         assert len(sample.shape) == 5, "The input tensor should have 5 dimensions."
 
@@ -252,7 +225,6 @@ class DecoderCausal3D(nn.Cell):
         else:
             attention_mask = None
 
-        # sample = auto_grad_checkpoint(self.mid_block, sample, attention_mask)
         sample = self.mid_block(sample, attention_mask)
         # sample = sample.to(upscale_dtype)
 
@@ -261,72 +233,8 @@ class DecoderCausal3D(nn.Cell):
             sample = up_block(sample)
 
         # post-process
-        # if getattr(self, "grad_checkpointing", False):
-        #     sample = checkpoint(self.post_process, sample, use_reentrant=True)
-        # else:
-        #     sample = self.post_process(sample)
-        sample = self.post_process(sample)  # TODO: check
-
+        sample = self.conv_norm_out(sample)
+        sample = self.conv_act(sample)
         sample = self.conv_out(sample)
 
         return sample
-
-
-class DiagonalGaussianDistribution(object):
-    def __init__(self, parameters: ms.tensor, deterministic: bool = False):
-        if parameters.ndim == 3:
-            dim = 2  # (B, L, C)
-        elif parameters.ndim == 5 or parameters.ndim == 4:
-            dim = 1  # (B, C, T, H ,W) / (B, C, H, W)
-        else:
-            raise NotImplementedError
-        self.parameters = parameters
-        self.mean, self.logvar = mint.chunk(parameters, 2, dim=dim)
-        self.logvar = mint.clamp(self.logvar, -30.0, 20.0)
-        self.deterministic = deterministic
-        self.std = mint.exp(0.5 * self.logvar)
-        self.var = mint.exp(self.logvar)
-        if self.deterministic:
-            self.var = self.std = mint.zeros_like(self.mean, dtype=self.parameters.dtype)
-
-    def sample(self, generator: Optional[ms.Generator] = None) -> ms.tensor:
-        # make sure the sample has the same dtype as the parameters
-        sample = randn_tensor(
-            self.mean.shape,
-            generator=generator,
-            dtype=self.parameters.dtype,
-        )
-        x = self.mean + self.std * sample
-        return x
-
-    def kl(self, other: "DiagonalGaussianDistribution" = None) -> ms.tensor:
-        if self.deterministic:
-            return ms.tensor([0.0])
-        else:
-            reduce_dim = list(range(1, self.mean.ndim))
-            if other is None:
-                return 0.5 * mint.sum(
-                    mint.pow(self.mean, 2) + self.var - 1.0 - self.logvar,
-                    dim=reduce_dim,
-                )
-            else:
-                return 0.5 * mint.sum(
-                    mint.pow(self.mean - other.mean, 2) / other.var
-                    + self.var / other.var
-                    - 1.0
-                    - self.logvar
-                    + other.logvar,
-                    dim=reduce_dim,
-                )
-
-    def nll(self, sample: ms.tensor, dims: Tuple[int, ...] = [1, 2, 3]) -> ms.tensor:
-        if self.deterministic:
-            return ms.tensor([0.0])
-        logtwopi = np.log(2.0 * np.pi)
-        return 0.5 * mint.sum(
-            logtwopi + self.logvar + mint.pow(sample - self.mean, 2) / self.var,
-            dim=dims,
-        )
-
-    def mode(self) -> ms.tensor:
-        return self.mean
