@@ -41,7 +41,7 @@ def _chunked_feed_forward(ff: nn.Cell, hidden_states: ms.Tensor, chunk_dim: int,
 
     num_chunks = hidden_states.shape[chunk_dim] // chunk_size
     ff_output = mint.cat(
-        [ff(hid_slice) for hid_slice in mint.chunk(hidden_states, num_chunks, dim=chunk_dim)],
+        [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, dim=chunk_dim)],
         dim=chunk_dim,
     )
     return ff_output
@@ -82,8 +82,8 @@ class GatedSelfAttentionDense(nn.Cell):
         n_visual = x.shape[1]
         objs = self.linear(objs)
 
-        x = x + mint.tanh(self.alpha_attn) * self.attn(self.norm1(mint.cat([x, objs], dim=1)))[:, :n_visual, :]
-        x = x + mint.tanh(self.alpha_dense) * self.ff(self.norm2(x))
+        x = x + self.alpha_attn.tanh() * self.attn(self.norm1(mint.cat([x, objs], dim=1)))[:, :n_visual, :]
+        x = x + self.alpha_dense.tanh() * self.ff(self.norm2(x))
 
         return x
 
@@ -215,12 +215,12 @@ class JointTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
+        attn_output = gate_msa.unsqueeze(1) * attn_output
         hidden_states = hidden_states + attn_output
 
         if self.use_dual_attention:
             attn_output2 = self.attn2(hidden_states=norm_hidden_states2, **joint_attention_kwargs)
-            attn_output2 = mint.unsqueeze(gate_msa2, 1) * attn_output2
+            attn_output2 = gate_msa2.unsqueeze(1) * attn_output2
             hidden_states = hidden_states + attn_output2
 
         norm_hidden_states = self.norm2(hidden_states)
@@ -230,7 +230,7 @@ class JointTransformerBlock(nn.Cell):
             ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
         else:
             ff_output = self.ff(norm_hidden_states)
-        ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
+        ff_output = gate_mlp.unsqueeze(1) * ff_output
 
         hidden_states = hidden_states + ff_output
 
@@ -238,7 +238,7 @@ class JointTransformerBlock(nn.Cell):
         if self.context_pre_only:
             encoder_hidden_states = None
         else:
-            context_attn_output = mint.unsqueeze(c_gate_msa, 1) * context_attn_output
+            context_attn_output = c_gate_msa.unsqueeze(1) * context_attn_output
             encoder_hidden_states = encoder_hidden_states + context_attn_output
 
             norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
@@ -250,7 +250,7 @@ class JointTransformerBlock(nn.Cell):
                 )
             else:
                 context_ff_output = self.ff_context(norm_encoder_hidden_states)
-            encoder_hidden_states = encoder_hidden_states + mint.unsqueeze(c_gate_mlp, 1) * context_ff_output
+            encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
 
         return encoder_hidden_states, hidden_states
 
@@ -491,9 +491,9 @@ class BasicTransformerBlock(nn.Cell):
         elif self.norm_type == "ada_norm_continuous":
             norm_hidden_states = self.norm1(hidden_states, added_cond_kwargs["pooled_text_emb"])
         elif self.norm_type == "ada_norm_single":
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
-                (self.scale_shift_table[None] + mint.reshape(timestep, (batch_size, 6, -1))), 6, dim=1
-            )
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
+            ).chunk(6, dim=1)
             norm_hidden_states = self.norm1(hidden_states)
             norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
         else:
@@ -524,13 +524,13 @@ class BasicTransformerBlock(nn.Cell):
         )
 
         if self.norm_type == "ada_norm_zero":
-            attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
+            attn_output = gate_msa.unsqueeze(1) * attn_output
         elif self.norm_type == "ada_norm_single":
             attn_output = gate_msa * attn_output
 
         hidden_states = attn_output + hidden_states
         if hidden_states.ndim == 4 and hidden_states.shape[1] == 1:
-            hidden_states = mint.squeeze(hidden_states, 1)
+            hidden_states = hidden_states.squeeze(1)
 
         # 1.2 GLIGEN Control
         if gligen_kwargs is not None:
@@ -583,13 +583,13 @@ class BasicTransformerBlock(nn.Cell):
             ff_output = self.ff(norm_hidden_states)
 
         if self.norm_type == "ada_norm_zero":
-            ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
+            ff_output = gate_mlp.unsqueeze(1) * ff_output
         elif self.norm_type == "ada_norm_single":
             ff_output = gate_mlp * ff_output
 
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4 and hidden_states.shape[1] == 1:
-            hidden_states = mint.squeeze(hidden_states, 1)
+            hidden_states = hidden_states.squeeze(1)
 
         return hidden_states
 
@@ -728,9 +728,9 @@ class TemporalBasicTransformerBlock(nn.Cell):
         batch_frames, seq_length, channels = hidden_states.shape
         batch_size = batch_frames // num_frames
 
-        hidden_states = mint.reshape(hidden_states[None, :], (batch_size, num_frames, seq_length, channels))
-        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3))
-        hidden_states = mint.reshape(hidden_states, (batch_size * seq_length, num_frames, channels))
+        hidden_states = hidden_states[None, :].reshape(batch_size, num_frames, seq_length, channels)
+        hidden_states = hidden_states.permute(0, 2, 1, 3)
+        hidden_states = hidden_states.reshape(batch_size * seq_length, num_frames, channels)
 
         residual = hidden_states
         hidden_states = self.norm_in(hidden_states)
@@ -766,9 +766,9 @@ class TemporalBasicTransformerBlock(nn.Cell):
         else:
             hidden_states = ff_output
 
-        hidden_states = mint.reshape(hidden_states[None, :], (batch_size, seq_length, num_frames, channels))
-        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3))
-        hidden_states = mint.reshape(hidden_states, (batch_size * num_frames, seq_length, channels))
+        hidden_states = hidden_states[None, :].reshape(batch_size, seq_length, num_frames, channels)
+        hidden_states = hidden_states.permute(0, 2, 1, 3)
+        hidden_states = hidden_states.reshape(batch_size * num_frames, seq_length, channels)
 
         return hidden_states
 
@@ -1107,7 +1107,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
         num_frames = hidden_states.shape[1]
         frame_indices = self._get_frame_indices(num_frames)
         frame_weights = self._get_frame_weights(self.context_length, self.weighting_scheme)
-        frame_weights = mint.unsqueeze(mint.unsqueeze(ms.Tensor(frame_weights, dtype=dtype), 0), -1)
+        frame_weights = ms.tensor(frame_weights, dtype=dtype).unsqueeze(0).unsqueeze(-1)
         is_last_frame_batch_complete = frame_indices[-1][1] == num_frames
 
         # Handle out-of-bounds case if num_frames isn't perfectly divisible by context_length
@@ -1149,7 +1149,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
 
             hidden_states_chunk = attn_output + hidden_states_chunk
             if hidden_states_chunk.ndim == 4:
-                hidden_states_chunk = mint.squeeze(hidden_states_chunk, 1)
+                hidden_states_chunk = hidden_states_chunk.squeeze(1)
 
             # 2. Cross-Attention
             if self.attn2 is not None:
@@ -1190,8 +1190,8 @@ class FreeNoiseTransformerBlock(nn.Cell):
             [
                 mint.where(num_times_split > 0, accumulated_split / num_times_split, accumulated_split)
                 for accumulated_split, num_times_split in zip(
-                    mint.split(accumulated_values, self.context_length, dim=1),
-                    mint.split(num_times_accumulated, self.context_length, dim=1),
+                    accumulated_values.split(self.context_length, dim=1),
+                    num_times_accumulated.split(self.context_length, dim=1),
                 )
             ],
             dim=1,
@@ -1207,7 +1207,7 @@ class FreeNoiseTransformerBlock(nn.Cell):
 
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4:
-            hidden_states = mint.squeeze(hidden_states, 1)
+            hidden_states = hidden_states.squeeze(1)
 
         return hidden_states
 

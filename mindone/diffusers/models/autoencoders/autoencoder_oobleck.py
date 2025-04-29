@@ -46,9 +46,9 @@ class Snake1d(nn.Cell):
         alpha = self.alpha if not self.logscale else mint.exp(self.alpha)
         beta = self.beta if not self.logscale else mint.exp(self.beta)
 
-        hidden_states = mint.reshape(hidden_states, (shape[0], shape[1], -1))
+        hidden_states = hidden_states.reshape(shape[0], shape[1], -1)
         hidden_states = hidden_states + (beta + 1e-9).reciprocal() * mint.sin(alpha * hidden_states).pow(2)
-        hidden_states = mint.reshape(hidden_states, shape)
+        hidden_states = hidden_states.reshape(shape)
         return hidden_states
 
 
@@ -163,7 +163,7 @@ class OobleckDecoderBlock(nn.Cell):
 class OobleckDiagonalGaussianDistribution(object):
     def __init__(self, parameters: ms.Tensor, deterministic: bool = False):
         self.parameters = parameters
-        self.mean, self.scale = mint.chunk(parameters, 2, dim=1)
+        self.mean, self.scale = parameters.chunk(2, dim=1)
         self.std = mint.nn.functional.softplus(self.scale) + 1e-4
         self.var = self.std * self.std
         self.logvar = mint.log(self.var)
@@ -184,7 +184,7 @@ class OobleckDiagonalGaussianDistribution(object):
             return ms.Tensor([0.0])
         else:
             if other is None:
-                return mint.mean(mint.sum(self.mean * self.mean + self.var - self.logvar - 1.0, 1))
+                return (self.mean * self.mean + self.var - self.logvar - 1.0).sum(1).mean()
             else:
                 normalized_diff = mint.pow(self.mean - other.mean, 2) / other.var
                 var_ratio = self.var / other.var
@@ -192,7 +192,7 @@ class OobleckDiagonalGaussianDistribution(object):
 
                 kl = normalized_diff + var_ratio + logvar_diff - 1
 
-                kl = mint.mean(mint.sum(kl, 1))
+                kl = kl.sum(1).mean()
                 return kl
 
     def mode(self) -> ms.Tensor:
@@ -417,7 +417,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self.encoder(x_slice) for x_slice in mint.split(x, 1)]
+            encoded_slices = [self.encoder(x_slice) for x_slice in x.split(1)]
             h = mint.cat(encoded_slices)
         else:
             h = self.encoder(x)
@@ -453,7 +453,7 @@ class AutoencoderOobleck(ModelMixin, ConfigMixin):
 
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice).sample for z_slice in mint.split(z, 1)]
+            decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z).sample

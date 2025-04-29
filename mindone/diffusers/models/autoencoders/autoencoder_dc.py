@@ -151,8 +151,8 @@ class DCDownBlock2d(nn.Cell):
             # todo: unavailable mint interface
             y = ops.pixel_unshuffle(hidden_states, self.factor)
             # y = y.unflatten(1, (-1, self.group_size))
-            y = mint.reshape(y, (y.shape[0], -1, self.group_size, *y.shape[2:]))
-            y = mint.mean(y, dim=2)
+            y = y.reshape(y.shape[0], -1, self.group_size, *y.shape[2:])
+            y = y.mean(dim=2)
             hidden_states = x + y
         else:
             hidden_states = x
@@ -194,7 +194,7 @@ class DCUpBlock2d(nn.Cell):
             x = ops.pixel_shuffle(x, self.factor)
 
         if self.shortcut:
-            y = mint.repeat_interleave(hidden_states, self.repeats, dim=1)
+            y = hidden_states.repeat_interleave(self.repeats, dim=1)
             # todo: unavailable mint interface
             y = ops.pixel_shuffle(y, self.factor)
             hidden_states = x + y
@@ -283,11 +283,10 @@ class Encoder(nn.Cell):
 
         if self.out_shortcut:
             # x = hidden_states.unflatten(1, (-1, self.out_shortcut_average_group_size))
-            x = mint.reshape(
-                hidden_states,
-                (hidden_states.shape[0], -1, self.out_shortcut_average_group_size, *hidden_states.shape[2:]),
+            x = hidden_states.reshape(
+                hidden_states.shape[0], -1, self.out_shortcut_average_group_size, *hidden_states.shape[2:]
             )
-            x = mint.mean(x, dim=2)
+            x = x.mean(dim=2)
             hidden_states = self.conv_out(hidden_states) + x
         else:
             hidden_states = self.conv_out(hidden_states)
@@ -372,7 +371,7 @@ class Decoder(nn.Cell):
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         if self.in_shortcut:
-            x = mint.repeat_interleave(hidden_states, self.in_shortcut_repeats, dim=1)
+            x = hidden_states.repeat_interleave(self.in_shortcut_repeats, dim=1)
             hidden_states = self.conv_in(hidden_states) + x
         else:
             hidden_states = self.conv_in(hidden_states)
@@ -573,7 +572,7 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 [`~models.vae.EncoderOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self._encode(x_slice) for x_slice in mint.split(x, 1)]
+            encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
             encoded = mint.cat(encoded_slices)
         else:
             encoded = self._encode(x)
@@ -607,7 +606,7 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 returned.
         """
         if self.use_slicing and z.size(0) > 1:
-            decoded_slices = [self._decode(z_slice)[0] for z_slice in mint.split(z, 1)]
+            decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)

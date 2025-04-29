@@ -596,30 +596,30 @@ class VectorQuantizer(nn.Cell):
     def remap_to_used(self, inds: ms.Tensor) -> ms.Tensor:
         ishape = inds.shape
         assert len(ishape) > 1
-        inds = mint.reshape(inds, (ishape[0], -1))
+        inds = inds.reshape(ishape[0], -1)
         used = self.used.to(inds.dtype)
         match = (inds[:, :, None] == used[None, None, ...]).long()
-        new = mint.argmax(match, -1)
-        unknown = mint.sum(match, 2) < 1
+        new = match.argmax(-1)
+        unknown = match.sum(2) < 1
         if self.unknown_index == "random":
             new[unknown] = mint.randint(0, self.re_embed, size=new[unknown].shape)
         else:
             new[unknown] = self.unknown_index
-        return mint.reshape(new, (ishape,))
+        return new.reshape(ishape)
 
     def unmap_to_all(self, inds: ms.Tensor) -> ms.Tensor:
         ishape = inds.shape
         assert len(ishape) > 1
-        inds = mint.reshape(inds, (ishape[0], -1))
+        inds = inds.reshape(ishape[0], -1)
         used = self.used.to(inds.dtype)
         if self.re_embed > self.used.shape[0]:  # extra token
             inds[inds >= self.used.shape[0]] = 0  # simply set to zero
         back = mint.gather(used[None, :][inds.shape[0] * [0], :], 1, inds)
-        return mint.reshape(back, (ishape,))
+        return back.reshape(ishape)
 
     def construct(self, z: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, Tuple]:
         # reshape z -> (batch, height, width, channel) and flatten
-        z = mint.permute(z, (0, 2, 3, 1))
+        z = z.permute(0, 2, 3, 1)
         z_flattened = z.view(-1, self.vq_embed_dim)
 
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
@@ -645,24 +645,24 @@ class VectorQuantizer(nn.Cell):
         z_q = z + ops.stop_gradient(z_q - z)
 
         # reshape back to match original input shape
-        z_q = mint.permute(z_q, (0, 3, 1, 2))
+        z_q = z_q.permute(0, 3, 1, 2)
 
         if self.remap is not None:
-            min_encoding_indices = mint.reshape(min_encoding_indices, (z.shape[0], -1))  # add batch axis
+            min_encoding_indices = min_encoding_indices.reshape(z.shape[0], -1)  # add batch axis
             min_encoding_indices = self.remap_to_used(min_encoding_indices)
-            min_encoding_indices = mint.reshape(min_encoding_indices, (-1, 1))  # flatten
+            min_encoding_indices = min_encoding_indices.reshape(-1, 1)  # flatten
 
         if self.sane_index_shape:
-            min_encoding_indices = mint.reshape(min_encoding_indices, (z_q.shape[0], z_q.shape[2], z_q.shape[3]))
+            min_encoding_indices = min_encoding_indices.reshape(z_q.shape[0], z_q.shape[2], z_q.shape[3])
 
         return z_q, loss, (perplexity, min_encodings, min_encoding_indices)
 
     def get_codebook_entry(self, indices: ms.Tensor, shape: Tuple[int, ...]) -> ms.Tensor:
         # shape specifying (batch, height, width, channel)
         if self.remap is not None:
-            indices = mint.reshape(indices, (shape[0], -1))  # add batch axis
+            indices = indices.reshape(shape[0], -1)  # add batch axis
             indices = self.unmap_to_all(indices)
-            indices = mint.reshape(indices, (-1,))  # flatten again
+            indices = indices.reshape(-1)  # flatten again
 
         # get quantized latent vectors
         z_q = self.embedding(indices)
@@ -670,7 +670,7 @@ class VectorQuantizer(nn.Cell):
         if shape is not None:
             z_q = z_q.view(shape)
             # reshape back to match original input shape
-            z_q = mint.permute(z_q, (0, 3, 1, 2))
+            z_q = z_q.permute(0, 3, 1, 2)
 
         return z_q
 
@@ -796,7 +796,7 @@ class EncoderTiny(nn.Cell):
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""The forward method of the `EncoderTiny` class."""
         # scale image from [-1, 1] to [0, 1] to match TAESD convention
-        x = self.layers(mint.div(mint.add(x, 1), 2))
+        x = self.layers(x.add(1).div(2))
 
         return x
 
@@ -869,4 +869,4 @@ class DecoderTiny(nn.Cell):
         x = self.layers(x)
 
         # scale image from [0, 1] to [-1, 1] to match diffusers convention
-        return mint.sub(mint.mul(x, 2), 1)
+        return x.mul(2).sub(1)

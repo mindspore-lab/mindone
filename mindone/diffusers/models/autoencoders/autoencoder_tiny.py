@@ -162,11 +162,11 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
 
     def scale_latents(self, x: ms.Tensor) -> ms.Tensor:
         """raw latents -> [0, 1]"""
-        return mint.clamp(mint.add(mint.div(x, 2 * self.latent_magnitude), self.latent_shift), 0, 1)
+        return x.div(2 * self.latent_magnitude).add(self.latent_shift).clamp(0, 1)
 
     def unscale_latents(self, x: ms.Tensor) -> ms.Tensor:
         """[0, 1] -> raw latents"""
-        return mint.mul(mint.sub(x, self.latent_shift), 2 * self.latent_magnitude)
+        return x.sub(self.latent_shift).mul(2 * self.latent_magnitude)
 
     def enable_slicing(self) -> None:
         r"""
@@ -226,7 +226,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
         blend_masks = mint.stack(
             mint.meshgrid([mint.arange(tile_size / sf) / (blend_size / sf - 1)] * 2, indexing="ij")
         )
-        blend_masks = mint.clamp(blend_masks, 0, 1)
+        blend_masks = blend_masks.clamp(0, 1)
 
         # output array
         out = mint.zeros((x.shape[0], 4, x.shape[-2] // sf, x.shape[-1] // sf))
@@ -274,7 +274,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
         blend_masks = mint.stack(
             mint.meshgrid([mint.arange(tile_size * sf) / (blend_size * sf - 1)] * 2, indexing="ij")
         )
-        blend_masks = mint.clamp(blend_masks, 0, 1)
+        blend_masks = blend_masks.clamp(0, 1)
 
         # output array
         out = mint.zeros((x.shape[0], 3, x.shape[-2] * sf, x.shape[-1] * sf))
@@ -295,8 +295,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
     def encode(self, x: ms.Tensor, return_dict: bool = False) -> Union[AutoencoderTinyOutput, Tuple[ms.Tensor]]:
         if self.use_slicing and x.shape[0] > 1:
             output = [
-                self._tiled_encode(x_slice) if self.use_tiling else self.encoder(x_slice)
-                for x_slice in mint.split(x, 1)
+                self._tiled_encode(x_slice) if self.use_tiling else self.encoder(x_slice) for x_slice in x.split(1)
             ]
             output = mint.cat(output)
         else:
@@ -311,9 +310,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
         self, x: ms.Tensor, generator: Optional[np.random.Generator] = None, return_dict: bool = False
     ) -> Union[DecoderOutput, Tuple[ms.Tensor]]:
         if self.use_slicing and x.shape[0] > 1:
-            output = [
-                self._tiled_decode(x_slice) if self.use_tiling else self.decoder(x) for x_slice in mint.split(x, 1)
-            ]
+            output = [self._tiled_decode(x_slice) if self.use_tiling else self.decoder(x) for x_slice in x.split(1)]
             output = mint.cat(output)
         else:
             output = self._tiled_decode(x) if self.use_tiling else self.decoder(x)
@@ -339,7 +336,7 @@ class AutoencoderTiny(ModelMixin, ConfigMixin):
 
         # scale latents to be in [0, 1], then quantize latents to a byte tensor,
         # as if we were storing the latents in an RGBA uint8 image.
-        scaled_enc = mint.round(mint.mul(self.scale_latents(enc), 255)).to(ms.uint8)
+        scaled_enc = mint.round(self.scale_latents(enc).mul(255)).to(ms.uint8)
 
         # unquantize latents back into [0, 1], then unscale latents back to their original range,
         # as if we were loading the latents from an RGBA uint8 image.

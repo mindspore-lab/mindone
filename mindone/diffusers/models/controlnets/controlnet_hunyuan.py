@@ -276,7 +276,7 @@ class HunyuanDiT2DControlNetModel(ModelMixin, ConfigMixin):
 
         encoder_hidden_states = mint.cat([encoder_hidden_states, encoder_hidden_states_t5], dim=1)
         text_embedding_mask = mint.cat([text_embedding_mask, text_embedding_mask_t5], dim=-1)
-        text_embedding_mask = mint.unsqueeze(text_embedding_mask, 2).bool()
+        text_embedding_mask = text_embedding_mask.unsqueeze(2).bool()
 
         encoder_hidden_states = mint.where(text_embedding_mask, encoder_hidden_states, self.text_embedding_padding)
 

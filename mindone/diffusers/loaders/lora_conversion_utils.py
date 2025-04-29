@@ -687,7 +687,7 @@ def _convert_bfl_flux_control_lora_to_diffusers(original_state_dict):
     mlp_ratio = 4.0
 
     def swap_scale_shift(weight):
-        shift, scale = mint.chunk(weight, 2, dim=0)
+        shift, scale = weight.chunk(2, dim=0)
         new_weight = mint.cat([scale, shift], dim=0)
         return new_weight
 
@@ -1053,7 +1053,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
 
     def remap_norm_scale_shift_(key, state_dict):
         weight = state_dict.pop(key)
-        shift, scale = mint.chunk(weight, 2, dim=0)
+        shift, scale = weight.chunk(2, dim=0)
         new_weight = mint.cat([scale, shift], dim=0)
         state_dict[key.replace("final_layer.adaLN_modulation.1", "norm_out.linear")] = new_weight
 
@@ -1070,7 +1070,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
 
         if "self_attn_qkv" in key:
             weight = state_dict.pop(key)
-            to_q, to_k, to_v = mint.chunk(weight, 3, dim=0)
+            to_q, to_k, to_v = weight.chunk(3, dim=0)
             state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_q"))] = to_q
             state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_k"))] = to_k
             state_dict[rename_key(key.replace("self_attn_qkv", "attn.to_v"))] = to_v
@@ -1084,7 +1084,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             state_dict[key.replace("img_attn_qkv", "attn.to_k")] = weight
             state_dict[key.replace("img_attn_qkv", "attn.to_v")] = weight
         else:
-            to_q, to_k, to_v = mint.chunk(weight, 3, dim=0)
+            to_q, to_k, to_v = weight.chunk(3, dim=0)
             state_dict[key.replace("img_attn_qkv", "attn.to_q")] = to_q
             state_dict[key.replace("img_attn_qkv", "attn.to_k")] = to_k
             state_dict[key.replace("img_attn_qkv", "attn.to_v")] = to_v
@@ -1096,7 +1096,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             state_dict[key.replace("txt_attn_qkv", "attn.add_k_proj")] = weight
             state_dict[key.replace("txt_attn_qkv", "attn.add_v_proj")] = weight
         else:
-            to_q, to_k, to_v = mint.chunk(weight, 3, dim=0)
+            to_q, to_k, to_v = weight.chunk(3, dim=0)
             state_dict[key.replace("txt_attn_qkv", "attn.add_q_proj")] = to_q
             state_dict[key.replace("txt_attn_qkv", "attn.add_k_proj")] = to_k
             state_dict[key.replace("txt_attn_qkv", "attn.add_v_proj")] = to_v

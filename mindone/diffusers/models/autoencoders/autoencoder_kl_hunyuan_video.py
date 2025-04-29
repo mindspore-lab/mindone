@@ -45,11 +45,11 @@ def prepare_causal_attention_mask(
     frame_indices = indices // height_width
     cutoff = (frame_indices + 1) * height_width
     j = mint.arange(seq_len).reshape(1, -1)
-    valid_mask = j < mint.reshape(cutoff, (-1, 1))
+    valid_mask = j < cutoff.reshape(-1, 1)
     mask = mint.where(valid_mask, mint.zeros_like(mask), mask)
 
     if batch_size is not None:
-        mask = mint.broadcast_to(mint.unsqueeze(mask, 0), (batch_size, -1, -1))
+        mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
     return mask
 
 
@@ -106,13 +106,10 @@ class HunyuanVideoUpsampleCausal3D(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         num_frames = hidden_states.shape[2]
 
-        first_frame, other_frames = mint.split(hidden_states, (1, num_frames - 1), dim=2)
-        first_frame = mint.unsqueeze(
-            mint.nn.functional.interpolate(
-                mint.squeeze(first_frame, 2), scale_factor=self.upsample_factor[1:], mode="nearest"
-            ),
-            2,
-        )
+        first_frame, other_frames = hidden_states.split((1, num_frames - 1), dim=2)
+        first_frame = mint.nn.functional.interpolate(
+            first_frame.squeeze(2), scale_factor=self.upsample_factor[1:], mode="nearest", recompute_scale_factor=True
+        ).unsqueeze(2)
 
         if num_frames > 1:
             # See: https://github.com/pytorch/pytorch/issues/81665
@@ -268,12 +265,12 @@ class HunyuanVideoMidBlock3D(nn.Cell):
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
                 batch_size, num_channels, num_frames, height, width = hidden_states.shape
-                hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 3, 4, 1)), start_dim=1, end_dim=3)
+                hidden_states = hidden_states.permute(0, 2, 3, 4, 1).flatten(start_dim=1, end_dim=3)
                 attention_mask = prepare_causal_attention_mask(
                     num_frames, height * width, hidden_states.dtype, batch_size=batch_size
                 )
                 hidden_states = attn(hidden_states, attention_mask=attention_mask)
-                hidden_states = mint.permute(unflatten(hidden_states, 1, (num_frames, height, width)), (0, 4, 1, 2, 3))
+                hidden_states = unflatten(hidden_states, 1, (num_frames, height, width)).permute(0, 4, 1, 2, 3)
 
             hidden_states = resnet(hidden_states)
 
@@ -797,7 +794,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self._encode(x_slice) for x_slice in mint.split(x, 1)]
+            encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
             h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
@@ -844,7 +841,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
                 returned.
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice).sample for z_slice in mint.split(z, 1)]
+            decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)[0]

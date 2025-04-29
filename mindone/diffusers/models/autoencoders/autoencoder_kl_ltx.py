@@ -70,11 +70,11 @@ class LTXVideoCausalConv3d(nn.Cell):
         time_kernel_size = self.kernel_size[0]
 
         if self.is_causal:
-            pad_left = mint.tile(hidden_states[:, :, :1, :, :], (1, 1, time_kernel_size - 1, 1, 1))
+            pad_left = hidden_states[:, :, :1, :, :].tile((1, 1, time_kernel_size - 1, 1, 1))
             hidden_states = mint.cat([pad_left, hidden_states], dim=2)
         else:
-            pad_left = mint.tile(hidden_states[:, :, :1, :, :], (1, 1, (time_kernel_size - 1) // 2, 1, 1))
-            pad_right = mint.tile(hidden_states[:, :, -1:, :, :], (1, 1, (time_kernel_size - 1) // 2, 1, 1))
+            pad_left = hidden_states[:, :, :1, :, :].tile((1, 1, (time_kernel_size - 1) // 2, 1, 1))
+            pad_right = hidden_states[:, :, -1:, :, :].tile((1, 1, (time_kernel_size - 1) // 2, 1, 1))
             hidden_states = mint.cat([pad_left, hidden_states, pad_right], dim=2)
 
         hidden_states = self.conv(hidden_states)
@@ -224,35 +224,28 @@ class LTXVideoUpsampler3d(nn.Cell):
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
 
         if self.residual:
-            residual = mint.reshape(
-                hidden_states,
-                (batch_size, -1, self.stride[0], self.stride[1], self.stride[2], num_frames, height, width),
+            residual = hidden_states.reshape(
+                batch_size, -1, self.stride[0], self.stride[1], self.stride[2], num_frames, height, width
             )
-            residual = mint.flatten(
-                mint.flatten(
-                    mint.flatten(mint.permute(residual, (0, 1, 5, 2, 6, 3, 7, 4)), start_dim=6, end_dim=7),
-                    start_dim=4,
-                    end_dim=5,
-                ),
-                start_dim=2,
-                end_dim=3,
+            residual = (
+                residual.permute(0, 1, 5, 2, 6, 3, 7, 4)
+                .flatten(start_dim=6, end_dim=7)
+                .flatten(start_dim=4, end_dim=5)
+                .flatten(start_dim=2, end_dim=3)
             )
             repeats = (self.stride[0] * self.stride[1] * self.stride[2]) // self.upscale_factor
-            residual = mint.tile(residual, (1, repeats, 1, 1, 1))
+            residual = residual.tile((1, repeats, 1, 1, 1))
             residual = residual[:, :, self.stride[0] - 1 :]
 
         hidden_states = self.conv(hidden_states)
-        hidden_states = mint.reshape(
-            hidden_states, (batch_size, -1, self.stride[0], self.stride[1], self.stride[2], num_frames, height, width)
+        hidden_states = hidden_states.reshape(
+            batch_size, -1, self.stride[0], self.stride[1], self.stride[2], num_frames, height, width
         )
-        hidden_states = mint.flatten(
-            mint.flatten(
-                mint.flatten(mint.permute(hidden_states, (0, 1, 5, 2, 6, 3, 7, 4)), start_dim=6, end_dim=7),
-                start_dim=4,
-                end_dim=5,
-            ),
-            start_dim=2,
-            end_dim=3,
+        hidden_states = (
+            hidden_states.permute(0, 1, 5, 2, 6, 3, 7, 4)
+            .flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
         )
         hidden_states = hidden_states[:, :, self.stride[0] - 1 :]
 
@@ -432,7 +425,7 @@ class LTXVideoMidBlock3d(nn.Cell):
 
         if self.time_embedder is not None:
             temb = self.time_embedder(
-                timestep=mint.flatten(temb),
+                timestep=temb.flatten(),
                 resolution=None,
                 aspect_ratio=None,
                 batch_size=hidden_states.shape[0],
@@ -551,7 +544,7 @@ class LTXVideoUpBlock3d(nn.Cell):
 
         if self.time_embedder is not None:
             temb = self.time_embedder(
-                timestep=mint.flatten(temb),
+                timestep=temb.flatten(),
                 resolution=None,
                 aspect_ratio=None,
                 batch_size=hidden_states.shape[0],
@@ -669,12 +662,11 @@ class LTXVideoEncoder3d(nn.Cell):
         post_patch_height = height // p
         post_patch_width = width // p
 
-        hidden_states = mint.reshape(
-            hidden_states,
-            (batch_size, num_channels, post_patch_num_frames, p_t, post_patch_height, p, post_patch_width, p),
+        hidden_states = hidden_states.reshape(
+            batch_size, num_channels, post_patch_num_frames, p_t, post_patch_height, p, post_patch_width, p
         )
         # Thanks for driving me insane with the weird patching order :(
-        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 1, 3, 7, 5, 2, 4, 6)), start_dim=1, end_dim=4)
+        hidden_states = hidden_states.permute(0, 1, 3, 7, 5, 2, 4, 6).flatten(start_dim=1, end_dim=4)
         hidden_states = self.conv_in(hidden_states)
 
         for down_block in self.down_blocks:
@@ -687,7 +679,7 @@ class LTXVideoEncoder3d(nn.Cell):
         hidden_states = self.conv_out(hidden_states)
 
         last_channel = hidden_states[:, -1:]
-        last_channel = mint.tile(last_channel, (1, hidden_states.shape[1] - 2, 1, 1, 1))
+        last_channel = last_channel.tile((1, hidden_states.shape[1] - 2, 1, 1, 1))
         hidden_states = mint.cat([hidden_states, last_channel], dim=1)
 
         return hidden_states
@@ -816,7 +808,7 @@ class LTXVideoDecoder3d(nn.Cell):
 
         if self.time_embedder is not None:
             temb = self.time_embedder(
-                timestep=mint.flatten(temb),
+                timestep=temb.flatten(),
                 resolution=None,
                 aspect_ratio=None,
                 batch_size=hidden_states.shape[0],
@@ -834,15 +826,12 @@ class LTXVideoDecoder3d(nn.Cell):
         p_t = self.patch_size_t
 
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
-        hidden_states = mint.reshape(hidden_states, (batch_size, -1, p_t, p, p, num_frames, height, width))
-        hidden_states = mint.flatten(
-            mint.flatten(
-                mint.flatten(mint.permute(hidden_states, (0, 1, 5, 2, 6, 4, 7, 3)), start_dim=6, end_dim=7),
-                start_dim=4,
-                end_dim=5,
-            ),
-            start_dim=2,
-            end_dim=3,
+        hidden_states = hidden_states.reshape(batch_size, -1, p_t, p, p, num_frames, height, width)
+        hidden_states = (
+            hidden_states.permute(0, 1, 5, 2, 6, 4, 7, 3)
+            .flatten(start_dim=6, end_dim=7)
+            .flatten(start_dim=4, end_dim=5)
+            .flatten(start_dim=2, end_dim=3)
         )
 
         return hidden_states
@@ -1067,7 +1056,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self._encode(x_slice) for x_slice in mint.split(x, 1)]
+            encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
             h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
@@ -1122,11 +1111,9 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and z.shape[0] > 1:
             if temb is not None:
-                decoded_slices = [
-                    self._decode(z_slice, t_slice)[0] for z_slice, t_slice in (mint.split(z, 1), mint.split(temb, 1))
-                ]
+                decoded_slices = [self._decode(z_slice, t_slice)[0] for z_slice, t_slice in (z.split(1), temb.split(1))]
             else:
-                decoded_slices = [self._decode(z_slice)[0] for z_slice in mint.split(z, 1)]
+                decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z, temb)[0]

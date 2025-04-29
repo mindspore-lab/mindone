@@ -220,7 +220,7 @@ class Linear(nn.Cell, LoraLayer):
                     orig_weights = base_layer.weight.clone()
                     orig_weights += self.get_delta_weight(active_adapter)
 
-                    if not mint.all(mint.isfinite(orig_weights)):
+                    if not mint.isfinite(orig_weights).all():
                         raise ValueError(
                             f"NaNs detected in the merged weights. The adapter {active_adapter} seems to be broken"
                         )
@@ -415,25 +415,16 @@ class Conv2d(nn.Cell, LoraLayer):
         # https://github.com/bmaltais/kohya_ss/blob/feb6728762a8f463d15ba936d189d4c3abfaa1ab/networks/lora.py#L117
         if self.get_base_layer().weight.shape[2:4] == (1, 1):
             # conv2d 1x1
-            output_tensor = (
-                mint.unsqueeze(
-                    mint.unsqueeze(
-                        (mint.squeeze(mint.squeeze(weight_B, 3), 2) @ mint.squeeze(mint.squeeze(weight_A, 3), 2)), 2
-                    ),
-                    3,
-                )
-                * self.scaling[adapter]
-            )
+            output_tensor = (weight_B.squeeze(3).squeeze(2) @ weight_A.squeeze(3).squeeze(2)).unsqueeze(2).unsqueeze(
+                3
+            ) * self.scaling[adapter]
         else:
             # conv2d 3x3
             output_tensor = (
-                mint.permute(
-                    mint.nn.functional.conv2d(
-                        mint.permute(weight_A, (1, 0, 2, 3)),
-                        weight_B,
-                    ),
-                    (1, 0, 2, 3),
-                )
+                mint.nn.functional.conv2d(
+                    weight_A.permute(1, 0, 2, 3),
+                    weight_B,
+                ).permute(1, 0, 2, 3)
                 * self.scaling[adapter]
             )
         return output_tensor

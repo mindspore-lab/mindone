@@ -1021,7 +1021,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # 1. time
         timesteps = timestep
@@ -1037,7 +1037,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
             timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = mint.broadcast_to(timesteps, (sample.shape[0],))
+        timesteps = timesteps.broadcast_to((sample.shape[0],))
 
         t_emb = self.base_time_proj(timesteps)
 
@@ -1072,8 +1072,8 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
                     f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"  # noqa: E501
                 )
             time_ids = added_cond_kwargs.get("time_ids")
-            time_embeds = self.base_add_time_proj(mint.flatten(time_ids)).to(text_embeds.dtype)
-            time_embeds = mint.reshape(time_embeds, (text_embeds.shape[0], -1))
+            time_embeds = self.base_add_time_proj(time_ids.flatten()).to(text_embeds.dtype)
+            time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
             add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
             add_embeds = add_embeds.to(temb.dtype)
             aug_emb = self.base_add_embedding(add_embeds)

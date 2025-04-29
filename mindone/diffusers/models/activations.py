@@ -111,7 +111,7 @@ class GEGLU(nn.Cell):
         return mint.nn.functional.gelu(gate).to(gate.dtype)
 
     def construct(self, hidden_states):
-        hidden_states, gate = mint.chunk(self.proj(hidden_states), 2, dim=-1)
+        hidden_states, gate = self.proj(hidden_states).chunk(2, dim=-1)
         return hidden_states * self.gelu(gate)
 
 
@@ -134,7 +134,7 @@ class SwiGLU(nn.Cell):
 
     def construct(self, hidden_states):
         hidden_states = self.proj(hidden_states)
-        hidden_states, gate = mint.chunk(hidden_states, 2, dim=-1)
+        hidden_states, gate = hidden_states.chunk(2, dim=-1)
         return hidden_states * self.activation(gate)
 
 

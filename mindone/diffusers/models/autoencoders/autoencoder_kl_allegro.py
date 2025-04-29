@@ -100,15 +100,14 @@ class AllegroTemporalConvLayer(nn.Cell):
         return hidden_states
 
     def construct(self, hidden_states: ms.Tensor, batch_size: int) -> ms.Tensor:
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states, (hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:])),
-            (0, 2, 1, 3, 4),
-        )
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
 
         if self.down_sample:
             identity = hidden_states[:, :, ::2]
         elif self.up_sample:
-            identity = mint.repeat_interleave(hidden_states, 2, dim=2)
+            identity = hidden_states.repeat_interleave(2, dim=2)
         else:
             identity = hidden_states
 
@@ -119,13 +118,10 @@ class AllegroTemporalConvLayer(nn.Cell):
             hidden_states = self.conv1(hidden_states)
 
         if self.up_sample:
-            hidden_states = mint.flatten(
-                mint.permute(
-                    mint.reshape(hidden_states, (hidden_states.shape[:1] + (2, -1) + hidden_states.shape[2:])),
-                    (0, 2, 3, 1, 4, 5),
-                ),
-                start_dim=2,
-                end_dim=3,
+            hidden_states = (
+                hidden_states.reshape(hidden_states.shape[:1] + (2, -1) + hidden_states.shape[2:])
+                .permute(0, 2, 3, 1, 4, 5)
+                .flatten(start_dim=2, end_dim=3)
             )
 
         hidden_states = self._pad_temporal_dim(hidden_states)
@@ -138,7 +134,7 @@ class AllegroTemporalConvLayer(nn.Cell):
         hidden_states = self.conv4(hidden_states)
 
         hidden_states = identity + hidden_states
-        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
 
         return hidden_states
 
@@ -213,7 +209,7 @@ class AllegroDownBlock3D(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         batch_size = hidden_states.shape[0]
 
-        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
 
         for resnet, temp_conv in zip(self.resnets, self.temp_convs):
             hidden_states = resnet(hidden_states, temb=None)
@@ -226,10 +222,9 @@ class AllegroDownBlock3D(nn.Cell):
             for downsampler in self.downsamplers:
                 hidden_states = downsampler(hidden_states)
 
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states, (hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:])),
-            (0, 2, 1, 3, 4),
-        )
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
         return hidden_states
 
 
@@ -298,7 +293,7 @@ class AllegroUpBlock3D(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         batch_size = hidden_states.shape[0]
 
-        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
 
         for resnet, temp_conv in zip(self.resnets, self.temp_convs):
             hidden_states = resnet(hidden_states, temb=None)
@@ -311,10 +306,9 @@ class AllegroUpBlock3D(nn.Cell):
             for upsampler in self.upsamplers:
                 hidden_states = upsampler(hidden_states)
 
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states, (hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:])),
-            (0, 2, 1, 3, 4),
-        )
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
         return hidden_states
 
 
@@ -415,7 +409,7 @@ class AllegroMidBlock3DConv(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         batch_size = hidden_states.shape[0]
 
-        hidden_states = mint.flatten(mint.permute(hidden_states, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         hidden_states = self.resnets[0](hidden_states, temb=None)
 
         hidden_states = self.temp_convs[0](hidden_states, batch_size=batch_size)
@@ -425,10 +419,9 @@ class AllegroMidBlock3DConv(nn.Cell):
             hidden_states = resnet(hidden_states, temb=None)
             hidden_states = temp_conv(hidden_states, batch_size=batch_size)
 
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states, (hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:])),
-            (0, 2, 1, 3, 4),
-        )
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[:0] + (batch_size, -1) + hidden_states.shape[1:]
+        ).permute(0, 2, 1, 3, 4)
         return hidden_states
 
 
@@ -523,12 +516,10 @@ class AllegroEncoder3D(nn.Cell):
     def construct(self, sample: ms.Tensor) -> ms.Tensor:
         batch_size = sample.shape[0]
 
-        sample = mint.flatten(mint.permute(sample, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        sample = sample.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         sample = self.conv_in(sample)
 
-        sample = mint.permute(
-            mint.reshape(sample, (sample.shape[:0] + (batch_size, -1) + sample.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        sample = sample.reshape(sample.shape[:0] + (batch_size, -1) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
         residual = sample
         sample = self.temp_conv_in(sample)
         sample = sample + residual
@@ -541,23 +532,19 @@ class AllegroEncoder3D(nn.Cell):
         sample = self.mid_block(sample)
 
         # Post process
-        sample = mint.flatten(mint.permute(sample, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        sample = sample.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         sample = self.conv_norm_out(sample)
         sample = self.conv_act(sample)
 
-        sample = mint.permute(
-            mint.reshape(sample, (sample.shape[:0] + (batch_size, -1) + sample.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        sample = sample.reshape(sample.shape[:0] + (batch_size, -1) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
         residual = sample
         sample = self.temp_conv_out(sample)
         sample = sample + residual
 
-        sample = mint.flatten(mint.permute(sample, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        sample = sample.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         sample = self.conv_out(sample)
 
-        sample = mint.permute(
-            mint.reshape(sample, (sample.shape[:0] + (batch_size, -1) + sample.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        sample = sample.reshape(sample.shape[:0] + (batch_size, -1) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
         return sample
 
 
@@ -656,12 +643,10 @@ class AllegroDecoder3D(nn.Cell):
     def construct(self, sample: ms.Tensor) -> ms.Tensor:
         batch_size = sample.shape[0]
 
-        sample = mint.flatten(mint.permute(sample, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        sample = sample.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         sample = self.conv_in(sample)
 
-        sample = mint.permute(
-            mint.reshape(sample, (sample.shape[:0] + (batch_size, -1) + sample.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        sample = sample.reshape(sample.shape[:0] + (batch_size, -1) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
         residual = sample
         sample = self.temp_conv_in(sample)
         sample = sample + residual
@@ -678,23 +663,19 @@ class AllegroDecoder3D(nn.Cell):
             sample = up_block(sample)
 
         # Post process
-        sample = mint.flatten(mint.permute(sample, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        sample = sample.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         sample = self.conv_norm_out(sample)
         sample = self.conv_act(sample)
 
-        sample = mint.permute(
-            mint.reshape(sample, (sample.shape[:0] + (batch_size, -1) + sample.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        sample = sample.reshape(sample.shape[:0] + (batch_size, -1) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
         residual = sample
         sample = self.temp_conv_out(sample)
         sample = sample + residual
 
-        sample = mint.flatten(mint.permute(sample, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        sample = sample.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         sample = self.conv_out(sample)
 
-        sample = mint.permute(
-            mint.reshape(sample, (sample.shape[:0] + (batch_size, -1) + sample.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        sample = sample.reshape(sample.shape[:0] + (batch_size, -1) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
         return sample
 
 
@@ -879,7 +860,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                 [`~models.autoencoder_kl.AutoencoderKLOutput`] is returned, otherwise a plain `tuple` is returned.
         """
         if self.use_slicing and x.shape[0] > 1:
-            encoded_slices = [self._encode(x_slice) for x_slice in mint.split(x, 1)]
+            encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
             h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
@@ -915,7 +896,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                 returned.
         """
         if self.use_slicing and z.shape[0] > 1:
-            decoded_slices = [self._decode(z_slice) for z_slice in mint.split(z, 1)]
+            decoded_slices = [self._decode(z_slice) for z_slice in z.split(1)]
             decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)
@@ -1003,15 +984,13 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                         (i, output_num_frames, output_overlap[0]),
                         (j, output_height, output_overlap[1]),
                         (k, output_width, output_overlap[2]),
-                        mint.unsqueeze(output_latent[i * output_height * output_width + j * output_width + k], 0),
+                        output_latent[i * output_height * output_width + j * output_width + k].unsqueeze(0),
                     )
                     latent[:, :, n_start:n_end, h_start:h_end, w_start:w_end] += latent_mean
 
-        latent = mint.flatten(mint.permute(latent, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        latent = latent.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         latent = self.quant_conv(latent)
-        latent = mint.permute(
-            mint.reshape(latent, (latent.shape[:0] + (batch_size, -1) + latent.shape[1:])), (0, 2, 1, 3, 4)
-        )
+        latent = latent.reshape(latent.shape[:0] + (batch_size, -1) + latent.shape[1:]).permute(0, 2, 1, 3, 4)
         return latent
 
     def tiled_decode(self, z: ms.Tensor) -> ms.Tensor:
@@ -1025,9 +1004,9 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
         batch_size, num_channels, num_frames, height, width = z.shape
 
         # post quant conv (a mapping)
-        z = mint.flatten(mint.permute(z, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
+        z = z.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         z = self.post_quant_conv(z)
-        z = mint.permute(mint.reshape(z, (z.shape[:0] + (batch_size, -1) + z.shape[1:])), (0, 2, 1, 3, 4))
+        z = z.reshape(z.shape[:0] + (batch_size, -1) + z.shape[1:]).permute(0, 2, 1, 3, 4)
 
         output_num_frames = math.floor((num_frames - latent_kernel[0]) / latent_stride[0]) + 1
         output_height = math.floor((height - latent_kernel[1]) / latent_stride[1]) + 1
@@ -1057,7 +1036,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
 
                     current_latent = z[:, :, n_start:n_end, h_start:h_end, w_start:w_end]
                     # In MS, if x.shape == y.shape, x[0] = y will result in an error, so we add `squeeze`.
-                    vae_batch_input[count % local_batch_size] = mint.squeeze(current_latent, ())
+                    vae_batch_input[count % local_batch_size] = current_latent.squeeze()
 
                     if (
                         count % local_batch_size == local_batch_size - 1
@@ -1101,11 +1080,11 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
                         (i, output_num_frames, video_overlap[0]),
                         (j, output_height, video_overlap[1]),
                         (k, output_width, video_overlap[2]),
-                        mint.unsqueeze(decoded_videos[i * output_height * output_width + j * output_width + k], 0),
+                        decoded_videos[i * output_height * output_width + j * output_width + k].unsqueeze(0),
                     )
                     video[:, :, n_start:n_end, h_start:h_end, w_start:w_end] += out_video_blend
 
-        video = mint.permute(video, (0, 2, 1, 3, 4)).contiguous()
+        video = video.permute(0, 2, 1, 3, 4).contiguous()
         return video
 
     def construct(
@@ -1146,21 +1125,21 @@ def _prepare_for_blend(n_param, h_param, w_param, x):
     w, w_max, overlap_w = w_param
     if overlap_n > 0:
         if n > 0:  # the head overlap part decays from 0 to 1
-            x[:, :, 0:overlap_n, :, :] = x[:, :, 0:overlap_n, :, :] * mint.reshape(
-                mint.arange(0, overlap_n).float() / overlap_n, (overlap_n, 1, 1)
-            )
+            x[:, :, 0:overlap_n, :, :] = x[:, :, 0:overlap_n, :, :] * (
+                mint.arange(0, overlap_n).float() / overlap_n
+            ).reshape(overlap_n, 1, 1)
         if n < n_max - 1:  # the tail overlap part decays from 1 to 0
-            x[:, :, -overlap_n:, :, :] = x[:, :, -overlap_n:, :, :] * mint.reshape(
-                1 - mint.arange(0, overlap_n).float() / overlap_n, (overlap_n, 1, 1)
-            )
+            x[:, :, -overlap_n:, :, :] = x[:, :, -overlap_n:, :, :] * (
+                1 - mint.arange(0, overlap_n).float() / overlap_n
+            ).reshape(overlap_n, 1, 1)
     if h > 0:
-        x[:, :, :, 0:overlap_h, :] = x[:, :, :, 0:overlap_h, :] * mint.reshape(
-            mint.arange(0, overlap_h).float() / overlap_h, (overlap_h, 1)
-        )
+        x[:, :, :, 0:overlap_h, :] = x[:, :, :, 0:overlap_h, :] * (
+            mint.arange(0, overlap_h).float() / overlap_h
+        ).reshape(overlap_h, 1)
     if h < h_max - 1:
-        x[:, :, :, -overlap_h:, :] = x[:, :, :, -overlap_h:, :] * mint.reshape(
-            1 - mint.arange(0, overlap_h).float() / overlap_h, (overlap_h, 1)
-        )
+        x[:, :, :, -overlap_h:, :] = x[:, :, :, -overlap_h:, :] * (
+            1 - mint.arange(0, overlap_h).float() / overlap_h
+        ).reshape(overlap_h, 1)
     if w > 0:
         x[:, :, :, :, 0:overlap_w] = x[:, :, :, :, 0:overlap_w] * (mint.arange(0, overlap_w).float() / overlap_w)
     if w < w_max - 1:

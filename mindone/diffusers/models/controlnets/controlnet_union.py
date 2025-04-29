@@ -608,7 +608,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # 1. time
         timesteps = timestep
@@ -662,15 +662,15 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                         f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"  # noqa: E501
                     )
                 time_ids = added_cond_kwargs.get("time_ids")
-                time_embeds = self.add_time_proj(mint.flatten(time_ids))
-                time_embeds = mint.reshape(time_embeds, (text_embeds.shape[0], -1))
+                time_embeds = self.add_time_proj(time_ids.flatten())
+                time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
                 add_embeds = mint.concat([text_embeds, time_embeds.to(text_embeds.dtype)], dim=-1)
                 add_embeds = add_embeds.to(emb.dtype)
                 aug_emb = self.add_embedding(add_embeds)
 
-        control_embeds = self.control_type_proj(mint.flatten(control_type))
-        control_embeds = mint.reshape(control_embeds, (t_emb.shape[0], -1))
+        control_embeds = self.control_type_proj(control_type.flatten())
+        control_embeds = control_embeds.reshape((t_emb.shape[0], -1))
         control_embeds = control_embeds.to(emb.dtype)
         control_emb = self.control_add_embedding(control_embeds)
         emb = emb + control_emb
@@ -686,12 +686,12 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             condition = self.controlnet_cond_embedding(cond)
             feat_seq = mint.mean(condition, dim=(2, 3))
             feat_seq = feat_seq + self.task_embedding[control_idx]
-            inputs.append(mint.unsqueeze(feat_seq, 1))
+            inputs.append(feat_seq.unsqueeze(1))
             condition_list.append(condition)
 
         condition = sample
         feat_seq = mint.mean(condition, dim=(2, 3))
-        inputs.append(mint.unsqueeze(feat_seq, 1))
+        inputs.append(feat_seq.unsqueeze(1))
         condition_list.append(condition)
 
         x = mint.cat(inputs, dim=1)
@@ -701,7 +701,7 @@ class ControlNetUnionModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         controlnet_cond_fuser = sample * 0.0
         for idx, condition in enumerate(condition_list[:-1]):
             alpha = self.spatial_ch_projs(x[:, idx])
-            alpha = mint.unsqueeze(mint.unsqueeze(alpha, -1), -1)
+            alpha = alpha.unsqueeze(-1).unsqueeze(-1)
             controlnet_cond_fuser += condition + alpha
 
         sample = sample + controlnet_cond_fuser

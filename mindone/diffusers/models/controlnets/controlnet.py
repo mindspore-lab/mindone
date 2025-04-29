@@ -664,7 +664,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # 1. time
         timesteps = timestep
@@ -682,7 +682,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         if timesteps.shape[0] == 1:
-            timesteps = mint.tile(timesteps, (sample.shape[0],))
+            timesteps = timesteps.tile((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
@@ -725,11 +725,11 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                         f"which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"
                     )
                 time_ids = added_cond_kwargs.get("time_ids")
-                time_embeds = self.add_time_proj(mint.flatten(time_ids))
+                time_embeds = self.add_time_proj(time_ids.flatten())
                 # `Timesteps` does not contain any weights and will always return f32 tensors
                 # there might be better ways to encapsulate this.
                 time_embeds = time_embeds.to(emb.dtype)
-                time_embeds = mint.reshape(time_embeds, (text_embeds.shape[0], -1))
+                time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
                 add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
                 add_embeds = add_embeds.to(emb.dtype)

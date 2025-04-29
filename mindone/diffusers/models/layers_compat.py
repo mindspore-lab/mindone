@@ -85,8 +85,8 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
 
     # InferShape manually
     # Format adapted from https://pytorch.org/docs/stable/generated/torch.nn.functional.conv_transpose1d.html
-    input = mint.unsqueeze(input, 2)
-    weight = mint.unsqueeze(weight, 2)
+    input = input.unsqueeze(2)
+    weight = weight.unsqueeze(2)
     batch_size, in_channels, iH, iW = input.shape
     _, out_channels_divide_groups, kH, kW = weight.shape
 
@@ -104,13 +104,11 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
         dilation=dilation,
         group=groups,
     )
-    outputs = mint.squeeze(
-        op_conv_transpose2d(input, weight.to(input.dtype), (batch_size, out_channels, outH, outW)), 2
-    )
+    outputs = op_conv_transpose2d(input, weight.to(input.dtype), (batch_size, out_channels, outH, outW)).squeeze(2)
 
     if bias is not None:
         assert isinstance(bias, ms.Tensor) and bias.ndim == 1
-        bias = mint.reshape(bias, (1, -1, 1))
+        bias = bias.reshape(1, -1, 1)
         outputs += bias
 
     return outputs
@@ -346,12 +344,12 @@ def upsample_nearest3d_free_interpolate(
 
     B, C, T, H, W = input.shape
     # interpolate H, W
-    x = interpolate(mint.reshape(input, (-1, T, H, W)), size[1:])
+    x = interpolate(input.reshape(-1, T, H, W), size[1:])
     # interpolate T
-    x = mint.reshape(mint.permute(x, (0, 2, 3, 1)), (B * C, -1, T))
+    x = x.permute(0, 2, 3, 1).reshape(B * C, -1, T)
     x = interpolate(x, size[0])
     # reshape to (b, c, t', h', w')
-    x = mint.permute(mint.reshape(x, (B, C, size[-2], size[-1], size[0])), (0, 1, 4, 2, 3))
+    x = x.reshape(B, C, size[-2], size[-1], size[0]).permute(0, 1, 4, 2, 3)
     return x
 
 
@@ -505,9 +503,9 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
         [1.6116-0.5772j   -1.4606-0.9120j   0.0786-1.7497j   -0.6561-1.6623j]
     """
     assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
-    real_part, imag_part = mint.chunk(input, 2, dim=-1)
+    real_part, imag_part = input.chunk(2, dim=-1)
     # todo: unavailable mint interface ops.Complex
-    output = mint.squeeze(ops.Complex()(real_part, imag_part), dim=-1)
+    output = ops.Complex()(real_part, imag_part).squeeze(dim=-1)
     return output
 
 
@@ -556,7 +554,7 @@ def _unflatten(input, dim, sizes):
 
     new_shape = shape[:dim] + sizes + shape[dim + 1 :]
 
-    return mint.reshape(input, new_shape)
+    return input.reshape(new_shape)
 
 
 unflatten = _unflatten
