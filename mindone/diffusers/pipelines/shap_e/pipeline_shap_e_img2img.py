@@ -258,7 +258,7 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
 
             # remove the variance
             noise_pred, _ = noise_pred.split(
-                scaled_model_input.shape[2], axis=2
+                scaled_model_input.shape[2], dim=2
             )  # batch_size, num_embeddings, embedding_dim
 
             if do_classifier_free_guidance:

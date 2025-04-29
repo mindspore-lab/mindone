@@ -172,5 +172,5 @@ class WuerstchenPrior(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
                 x = block(x, r_embed)
             else:
                 x = block(x)
-        a, b = self.out(x).chunk(2, axis=1)
+        a, b = self.out(x).chunk(2, dim=1)
         return (x_in - a) / ((1 - b).abs() + 1e-5)

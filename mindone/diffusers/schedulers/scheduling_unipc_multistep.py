@@ -757,14 +757,14 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.predict_x0:
             x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0
             if D1s is not None:
-                pred_res = (rhos_p[:, None] * D1s).sum(axis=1)
+                pred_res = (rhos_p[:, None] * D1s).sum(dim=1)
             else:
                 pred_res = 0
             x_t = x_t_ - alpha_t * B_h * pred_res
         else:
             x_t_ = alpha_t / alpha_s0 * x - sigma_t * h_phi_1 * m0
             if D1s is not None:
-                pred_res = (rhos_p[:, None] * D1s).sum(axis=1)
+                pred_res = (rhos_p[:, None] * D1s).sum(dim=1)
             else:
                 pred_res = 0
             x_t = x_t_ - sigma_t * B_h * pred_res
@@ -892,7 +892,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.predict_x0:
             x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0
             if D1s is not None:
-                corr_res = (rhos_c[:-1][:, None] * D1s).sum(axis=1)
+                corr_res = (rhos_c[:-1][:, None] * D1s).sum(dim=1)
             else:
                 corr_res = 0
             D1_t = model_t - m0

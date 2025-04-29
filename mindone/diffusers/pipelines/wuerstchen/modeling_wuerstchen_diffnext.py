@@ -250,7 +250,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
         x = self.embedding(x)
         level_outputs = self._down_encode(x, r_embed, effnet, clip)
         x = self._up_decode(level_outputs, r_embed, effnet, clip)
-        a, b = self.clf(x).chunk(2, axis=1)
+        a, b = self.clf(x).chunk(2, dim=1)
         b = sigmoid(b) * (1 - eps * 2) + eps
         if return_noise:
             return (x_in - a) / b

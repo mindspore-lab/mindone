@@ -686,7 +686,7 @@ def _gaussian(window_size: int, sigma):
 
     gauss = mint.exp(-x.pow(2.0) / (2 * sigma.pow(2.0)))
 
-    return gauss / gauss.sum(-1, keepdims=True)
+    return gauss / gauss.sum(-1, keepdim=True)
 
 
 def _gaussian_blur2d(input, kernel_size, sigma):

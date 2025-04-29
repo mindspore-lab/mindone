@@ -44,9 +44,9 @@ def _searchsorted(sorted_sequence, values, *, out_int32=False, right=False):
     values = values.unsqueeze(-1)
     sorted_sequence = sorted_sequence.unsqueeze(-2)
     if not right:
-        positions = (values > sorted_sequence).sum(axis=-1)
+        positions = (values > sorted_sequence).sum(dim=-1)
     else:
-        positions = (values >= sorted_sequence).sum(axis=-1)
+        positions = (values >= sorted_sequence).sum(dim=-1)
 
     if out_int32:
         positions = positions.to(ms.int32)
@@ -368,8 +368,8 @@ class BoundingBoxVolume(nn.Cell):
         #
         # 1 and 4 are clearly handled from t0 < t1 below.
         # Making t0 at least min_dist (>= 0) takes care of 2 and 3.
-        t0 = ts.min(axis=-2).max(axis=-1, keepdims=True).clamp(self.min_dist)
-        t1 = ts.max(axis=-2).min(axis=-1, keepdims=True)
+        t0 = ts.min(dim=-2).max(dim=-1, keepdim=True).clamp(self.min_dist)
+        t1 = ts.max(axis=-2).min(dim=-1, keepdim=True)
         assert t0.shape == t1.shape == (batch_size, *shape, 1)
         if t0_lower is not None:
             assert t0.shape == t0_lower.shape
@@ -482,7 +482,7 @@ class ImportanceRaySampler(nn.Cell):
             maxes = mint.maximum(padded[..., :-1, :], padded[..., 1:, :])
             weights = 0.5 * (maxes[..., :-1, :] + maxes[..., 1:, :])
         weights = weights + self.alpha
-        pmf = weights / weights.sum(axis=-2, keepdims=True)
+        pmf = weights / weights.sum(dim=-2, keepdim=True)
         inds = sample_pmf(pmf, n_samples)
         assert inds.shape == (batch_size, *shape, n_samples, 1)
         assert (inds >= 0).all() and (inds < n_coarse_samples).all()

@@ -23,7 +23,7 @@ class TimestepBlock(nn.Cell):
         self.mapper = mint.nn.Linear(c_timestep, c * 2)
 
     def construct(self, x, t):
-        a, b = self.mapper(t)[:, :, None, None].chunk(2, axis=1)
+        a, b = self.mapper(t)[:, :, None, None].chunk(2, dim=1)
         return x * (1 + a) + b
 
 
@@ -59,7 +59,7 @@ class GlobalResponseNorm(nn.Cell):
 
     def construct(self, x):
         agg_norm = mint.norm(x, p=2, dim=(1, 2), keepdim=True)
-        stand_div_norm = agg_norm / (agg_norm.mean(axis=-1, keep_dims=True) + 1e-6)
+        stand_div_norm = agg_norm / (agg_norm.mean(dim=-1, keepdim=True) + 1e-6)
         return self.gamma * (x * stand_div_norm) + self.beta + x
 
 
