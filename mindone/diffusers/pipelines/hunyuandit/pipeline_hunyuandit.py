@@ -802,7 +802,7 @@ class HunyuanDiTPipeline(DiffusionPipeline):
             style = mint.cat([style] * 2, dim=0)
 
         add_time_ids = add_time_ids.to(dtype=prompt_embeds.dtype).tile((batch_size * num_images_per_prompt, 1))
-        -        style = style.tile((batch_size * num_images_per_prompt,))
+        style = style.tile((batch_size * num_images_per_prompt,))
 
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order

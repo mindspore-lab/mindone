@@ -380,7 +380,7 @@ class StableDiffusionControlNetPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -434,7 +434,7 @@ class StableDiffusionControlNetPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -455,17 +455,17 @@ class StableDiffusionControlNetPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -503,20 +503,17 @@ class StableDiffusionControlNetPipeline(
             image_embeds = []
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
-                    single_negative_image_embeds = mint.tile(
-                        single_negative_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))),
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
                     single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
                 image_embeds.append(single_image_embeds)
 
@@ -554,9 +551,9 @@ class StableDiffusionControlNetPipeline(
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
+        image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+        image = image.permute(0, 2, 3, 1).float().numpy()
         return image
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -778,7 +775,7 @@ class StableDiffusionControlNetPipeline(
             # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
 
-        image = mint.repeat_interleave(image, repeat_by, dim=0)
+        image = image.repeat_interleave(repeat_by, dim=0)
 
         image = image.to(dtype)
 
@@ -1171,7 +1168,7 @@ class StableDiffusionControlNetPipeline(
         # 6.5 Optionally get Guidance Scale Embedding
         timestep_cond = None
         if self.unet.config.time_cond_proj_dim is not None:
-            guidance_scale_tensor = mint.tile(ms.Tensor(self.guidance_scale - 1), (batch_size * num_images_per_prompt,))
+            guidance_scale_tensor = ms.Tensor(self.guidance_scale - 1).tile((batch_size * num_images_per_prompt,))
             timestep_cond = self.get_guidance_scale_embedding(
                 guidance_scale_tensor, embedding_dim=self.unet.config.time_cond_proj_dim
             ).to(latents.dtype)
@@ -1213,7 +1210,7 @@ class StableDiffusionControlNetPipeline(
                     # Infer ControlNet only for the conditional batch.
                     control_model_input = latents
                     control_model_input = self.scheduler.scale_model_input(control_model_input, t)
-                    controlnet_prompt_embeds = mint.chunk(prompt_embeds, 2)[1]
+                    controlnet_prompt_embeds = prompt_embeds.chunk(2)[1]
                 else:
                     control_model_input = latent_model_input
                     controlnet_prompt_embeds = prompt_embeds
@@ -1258,7 +1255,7 @@ class StableDiffusionControlNetPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

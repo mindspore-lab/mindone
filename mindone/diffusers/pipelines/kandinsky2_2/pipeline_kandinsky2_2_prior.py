@@ -201,9 +201,9 @@ class KandinskyV22PriorPipeline(DiffusionPipeline):
                 if isinstance(cond, PIL.Image.Image):
                     cond = (
                         ms.tensor(self.image_processor(cond, return_tensors="np").pixel_values[0])
-                            .unsqueeze(0)
-                            .to(dtype=self.image_encoder.dtype)
-                        )
+                        .unsqueeze(0)
+                        .to(dtype=self.image_encoder.dtype)
+                    )
 
                 image_emb = self.image_encoder(cond)[0].tile((num_images_per_prompt, 1)).unsqueeze(0)
 

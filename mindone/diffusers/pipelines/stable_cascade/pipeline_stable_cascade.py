@@ -513,9 +513,9 @@ class StableCascadeDecoderPipeline(DiffusionPipeline):
             latents = self.vqgan.config.scale_factor * latents
             images = self.vqgan.decode(latents)[0].clamp(0, 1)
             if output_type == "np":
-                images = images.permute((0, 2, 3, 1)).float().asnumpy() # float() as bfloat16-> numpy doesnt work
+                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
             elif output_type == "pil":
-                images = images.permute((0, 2, 3, 1)).float().asnumpy() # float() as bfloat16-> numpy doesnt work
+                images = images.permute((0, 2, 3, 1)).float().asnumpy()  # float() as bfloat16-> numpy doesnt work
                 images = self.numpy_to_pil(images)
         else:
             images = latents

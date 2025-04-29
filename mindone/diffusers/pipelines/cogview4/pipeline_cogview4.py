@@ -259,7 +259,7 @@ class CogView4Pipeline(DiffusionPipeline):
             prompt_embeds = self._get_glm_embeds(prompt, max_sequence_length, dtype)
 
         seq_len = prompt_embeds.shape[1]
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance and negative_prompt_embeds is None:
@@ -281,7 +281,7 @@ class CogView4Pipeline(DiffusionPipeline):
             negative_prompt_embeds = self._get_glm_embeds(negative_prompt, max_sequence_length, dtype)
 
             seq_len = negative_prompt_embeds.shape[1]
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         return prompt_embeds, negative_prompt_embeds
@@ -547,9 +547,9 @@ class CogView4Pipeline(DiffusionPipeline):
         target_size = ms.tensor([target_size], dtype=prompt_embeds.dtype)
         crops_coords_top_left = ms.tensor([crops_coords_top_left], dtype=prompt_embeds.dtype)
 
-        original_size = mint.tile(original_size, (batch_size * num_images_per_prompt, 1))
-        target_size = mint.tile(target_size, (batch_size * num_images_per_prompt, 1))
-        crops_coords_top_left = mint.tile(crops_coords_top_left, (batch_size * num_images_per_prompt, 1))
+        original_size = original_size.tile((batch_size * num_images_per_prompt, 1))
+        target_size = target_size.tile((batch_size * num_images_per_prompt, 1))
+        crops_coords_top_left = crops_coords_top_left.tile((batch_size * num_images_per_prompt, 1))
 
         # Prepare timesteps
         image_seq_len = ((height // self.vae_scale_factor) * (width // self.vae_scale_factor)) // (

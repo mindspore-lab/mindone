@@ -161,32 +161,32 @@ def prepare_mask_and_masked_image(image, mask, height, width, return_image=False
         # Batch single image
         if image.ndim == 3:
             assert image.shape[0] == 3, "Image outside a batch should be of shape (3, H, W)"
-            image = mint.unsqueeze(image, 0)
+            image = image.unsqueeze(0)
 
         # Batch and add channel dim for single mask
         if mask.ndim == 2:
-            mask = mint.unsqueeze(mint.unsqueeze(mask, 0), 0)
+            mask = mask.unsqueeze(0).unsqueeze(0)
 
         # Batch single mask or add channel dim
         if mask.ndim == 3:
             # Single batched mask, no channel dim or single mask not batched but channel dim
             if mask.shape[0] == 1:
-                mask = mint.unsqueeze(mask, 0)
+                mask = mask.unsqueeze(0)
 
             # Batched masks no channel dim
             else:
-                mask = mint.unsqueeze(mask, 1)
+                mask = mask.unsqueeze(1)
 
         assert image.ndim == 4 and mask.ndim == 4, "Image and Mask must have 4 dimensions"
         assert image.shape[-2:] == mask.shape[-2:], "Image and Mask must have the same spatial dimensions"
         assert image.shape[0] == mask.shape[0], "Image and Mask must have the same batch size"
 
         # Check image is in [-1, 1]
-        if mint.min(image) < -1 or mint.max(image) > 1:
+        if image.min() < -1 or image.max() > 1:
             raise ValueError("Image should be in [-1, 1] range")
 
         # Check mask is in [0, 1]
-        if mint.min(mask) < 0 or mint.max(mask) > 1:
+        if mask.min() < 0 or mask.max() > 1:
             raise ValueError("Mask should be in [0, 1] range")
 
         # Binarize mask
@@ -494,7 +494,7 @@ class StableDiffusionControlNetInpaintPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         # get unconditional embeddings for classifier free guidance
@@ -548,7 +548,7 @@ class StableDiffusionControlNetInpaintPipeline(
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=prompt_embeds_dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
         if self.text_encoder is not None:
@@ -569,17 +569,17 @@ class StableDiffusionControlNetInpaintPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -617,20 +617,17 @@ class StableDiffusionControlNetInpaintPipeline(
             image_embeds = []
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
-                    single_negative_image_embeds = mint.tile(
-                        single_negative_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:]))),
+                    single_negative_image_embeds = single_negative_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
                     single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
-                    single_image_embeds = mint.tile(
-                        single_image_embeds,
-                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:]))),
+                    single_image_embeds = single_image_embeds.tile(
+                        (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
                 image_embeds.append(single_image_embeds)
 
@@ -666,9 +663,9 @@ class StableDiffusionControlNetInpaintPipeline(
 
         latents = 1 / self.vae.config.scaling_factor * latents
         image = self.vae.decode(latents, return_dict=False)[0]
-        image = mint.clamp((image / 2 + 0.5), 0, 1)
+        image = (image / 2 + 0.5).clamp(0, 1)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
-        image = mint.permute(image, (0, 2, 3, 1)).float().numpy()
+        image = image.permute(0, 2, 3, 1).float().numpy()
         return image
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
@@ -922,7 +919,7 @@ class StableDiffusionControlNetInpaintPipeline(
             # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
 
-        image = mint.repeat_interleave(image, repeat_by, dim=0)
+        image = image.repeat_interleave(repeat_by, dim=0)
 
         image = image.to(dtype=dtype)
 
@@ -972,7 +969,7 @@ class StableDiffusionControlNetInpaintPipeline(
                 image_latents = image
             else:
                 image_latents = self._encode_vae_image(image=image, generator=generator)
-            image_latents = mint.tile(image_latents, (batch_size // image_latents.shape[0], 1, 1, 1))
+            image_latents = image_latents.tile((batch_size // image_latents.shape[0], 1, 1, 1))
 
         if latents is None:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -1021,7 +1018,7 @@ class StableDiffusionControlNetInpaintPipeline(
                     f" a total batch size of {batch_size}, but {mask.shape[0]} masks were passed. Make sure the number"
                     " of masks that you pass is divisible by the total requested batch size."
                 )
-            mask = mint.tile(mask, (batch_size // mask.shape[0], 1, 1, 1))
+            mask = mask.tile((batch_size // mask.shape[0], 1, 1, 1))
         if masked_image_latents.shape[0] < batch_size:
             if not batch_size % masked_image_latents.shape[0] == 0:
                 raise ValueError(
@@ -1029,9 +1026,7 @@ class StableDiffusionControlNetInpaintPipeline(
                     f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                     " Make sure the number of images that you pass is divisible by the total requested batch size."
                 )
-            masked_image_latents = mint.tile(
-                masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
-            )
+            masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
         mask = mint.cat([mask] * 2) if do_classifier_free_guidance else mask
         masked_image_latents = (
@@ -1403,7 +1398,7 @@ class StableDiffusionControlNetInpaintPipeline(
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps=num_inference_steps, strength=strength)
         # at which timestep to set the initial noise (n.b. 50% if strength is 0.5)
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
         # create a boolean to check if the strength is set to 1. if so then initialise the latents with pure noise
         is_strength_max = strength == 1.0
         self._num_timesteps = len(timesteps)
@@ -1487,7 +1482,7 @@ class StableDiffusionControlNetInpaintPipeline(
                     # Infer ControlNet only for the conditional batch.
                     control_model_input = latents
                     control_model_input = self.scheduler.scale_model_input(control_model_input, t)
-                    controlnet_prompt_embeds = mint.chunk(prompt_embeds, 2)[1]
+                    controlnet_prompt_embeds = prompt_embeds.chunk(2)[1]
                 else:
                     control_model_input = latent_model_input
                     controlnet_prompt_embeds = prompt_embeds
@@ -1534,7 +1529,7 @@ class StableDiffusionControlNetInpaintPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
@@ -1547,7 +1542,7 @@ class StableDiffusionControlNetInpaintPipeline(
                 if num_channels_unet == 4:
                     init_latents_proper = image_latents
                     if self.do_classifier_free_guidance:
-                        init_mask, _ = mint.chunk(mask, 2)
+                        init_mask, _ = mask.chunk(2)
                     else:
                         init_mask = mask
 

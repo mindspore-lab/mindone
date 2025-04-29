@@ -120,8 +120,8 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
     Returns:
         noise_cfg (`ms.Tensor`): The rescaled noise prediction tensor.
     """
-    std_text = mint.std(noise_pred_text, dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
-    std_cfg = mint.std(noise_cfg, dim=list(range(1, noise_cfg.ndim)), keepdim=True)
+    std_text = noise_pred_text.std(dim=list(range(1, noise_pred_text.ndim)), keepdim=True)
+    std_cfg = noise_cfg.std(dim=list(range(1, noise_cfg.ndim)), keepdim=True)
     # rescale the results from guidance (fixes overexposure)
     noise_pred_rescaled = noise_cfg * (std_text / std_cfg)
     # mix with the original results from guidance by factor guidance_rescale to avoid "plain looking" images
@@ -434,7 +434,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_images_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_images_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
@@ -446,14 +446,14 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             else:
                 negative_prompt_embeds = negative_prompt_embeds.to(dtype=self.unet.dtype)
 
-            negative_prompt_embeds = mint.tile(negative_prompt_embeds, (1, num_images_per_prompt, 1))
+            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        pooled_prompt_embeds = mint.tile(pooled_prompt_embeds, (1, num_images_per_prompt)).view(
+        pooled_prompt_embeds = pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
             bs_embed * num_images_per_prompt, -1
         )
         if do_classifier_free_guidance:
-            negative_pooled_prompt_embeds = mint.tile(negative_pooled_prompt_embeds, (1, num_images_per_prompt)).view(
+            negative_pooled_prompt_embeds = negative_pooled_prompt_embeds.tile((1, num_images_per_prompt)).view(
                 bs_embed * num_images_per_prompt, -1
             )
 
@@ -480,17 +480,17 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
         image = image.to(dtype=dtype)
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
-            image_enc_hidden_states = mint.repeat_interleave(image_enc_hidden_states, num_images_per_prompt, dim=0)
+            image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
                 -2
             ]
-            uncond_image_enc_hidden_states = mint.repeat_interleave(
-                uncond_image_enc_hidden_states, num_images_per_prompt, dim=0
+            uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
+                num_images_per_prompt, dim=0
             )
             return image_enc_hidden_states, uncond_image_enc_hidden_states
         else:
             image_embeds = self.image_encoder(image)[0]
-            image_embeds = mint.repeat_interleave(image_embeds, num_images_per_prompt, dim=0)
+            image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
@@ -525,7 +525,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
@@ -783,7 +783,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
 
-        image = mint.repeat_interleave(image, repeat_by, dim=0)
+        image = image.repeat_interleave(repeat_by, dim=0)
 
         image = image.to(dtype=dtype)
 
@@ -834,7 +834,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 image_latents = image
             else:
                 image_latents = self._encode_vae_image(image=image, generator=generator)
-            image_latents = mint.tile(image_latents, (batch_size // image_latents.shape[0], 1, 1, 1))
+            image_latents = image_latents.tile((batch_size // image_latents.shape[0], 1, 1, 1))
 
         if latents is None and add_noise:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -903,7 +903,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                     f" a total batch size of {batch_size}, but {mask.shape[0]} masks were passed. Make sure the number"
                     " of masks that you pass is divisible by the total requested batch size."
                 )
-            mask = mint.tile(mask, (batch_size // mask.shape[0], 1, 1, 1))
+            mask = mask.tile((batch_size // mask.shape[0], 1, 1, 1))
 
         mask = mint.cat([mask] * 2) if do_classifier_free_guidance else mask
 
@@ -918,9 +918,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                         f" to a total batch size of {batch_size}, but {masked_image_latents.shape[0]} images were passed."
                         " Make sure the number of images that you pass is divisible by the total requested batch size."
                     )
-                masked_image_latents = mint.tile(
-                    masked_image_latents, (batch_size // masked_image_latents.shape[0], 1, 1, 1)
-                )
+                masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
             masked_image_latents = (
                 mint.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
@@ -953,7 +951,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 )
             )
 
-            num_inference_steps = mint.sum(self.scheduler.timesteps < discrete_timestep_cutoff).item()
+            num_inference_steps = (self.scheduler.timesteps < discrete_timestep_cutoff).sum().item()
             if self.scheduler.order == 2 and num_inference_steps % 2 == 0:
                 # if the scheduler is a 2nd order scheduler we might have to do +1
                 # because `num_inference_steps` might be even given that every timestep
@@ -1517,12 +1515,12 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             dtype=prompt_embeds.dtype,
             text_encoder_projection_dim=text_encoder_projection_dim,
         )
-        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
+        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
         if self.do_classifier_free_guidance:
             prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
             add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
-            add_neg_time_ids = mint.tile(add_neg_time_ids, (batch_size * num_images_per_prompt, 1))
+            add_neg_time_ids = add_neg_time_ids.tile((batch_size * num_images_per_prompt, 1))
             add_time_ids = mint.cat([add_neg_time_ids, add_time_ids], dim=0)
 
         # 11. Denoising loop
@@ -1549,9 +1547,8 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             num_inference_steps = len(list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps)))
             timesteps = timesteps[:num_inference_steps]
 
-        control_type = mint.tile(
-            mint.reshape(control_type, (1, -1)).to(dtype=prompt_embeds.dtype),
-            (batch_size * num_images_per_prompt * 2, 1),
+        control_type = (
+            control_type.reshape(1, -1).to(dtype=prompt_embeds.dtype).tile((batch_size * num_images_per_prompt * 2, 1))
         )
 
         # `nn.MultiheadAttention` has an additional member variable `dtype` compared to torch. In graph mode, `dtype`
@@ -1580,10 +1577,10 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                     # Infer ControlNet only for the conditional batch.
                     control_model_input = latents
                     control_model_input = self.scheduler.scale_model_input(control_model_input, t)
-                    controlnet_prompt_embeds = mint.chunk(prompt_embeds, 2)[1]
+                    controlnet_prompt_embeds = prompt_embeds.chunk(2)[1]
                     controlnet_added_cond_kwargs = {
-                        "text_embeds": mint.chunk(add_text_embeds, 2)[1],
-                        "time_ids": mint.chunk(add_time_ids, 2)[1],
+                        "text_embeds": add_text_embeds.chunk(2)[1],
+                        "time_ids": add_time_ids.chunk(2)[1],
                     }
                 else:
                     control_model_input = latent_model_input
@@ -1639,7 +1636,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 if self.do_classifier_free_guidance and guidance_rescale > 0.0:
@@ -1651,7 +1648,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
 
                 init_latents_proper = image_latents
                 if self.do_classifier_free_guidance:
-                    init_mask, _ = mint.chunk(mask, 2)
+                    init_mask, _ = mask.chunk(2)
                 else:
                     init_mask = mask
 

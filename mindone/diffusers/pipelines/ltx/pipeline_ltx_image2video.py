@@ -413,7 +413,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
             patch_size,
         )
         latents = (
-            latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(start_dim=1,end_dim=3)
+            latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(start_dim=1, end_dim=3)
         )
         return latents
 
@@ -426,7 +426,7 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         # are unpacked and reshaped into a video tensor of shape [B, C, F, H, W]. This is the inverse operation of
         # what happens in the `_pack_latents` method.
         batch_size = latents.shape[0]
-        latents = latents.reshape(batch_size, num_frames, height, width, -1, patch_size_t, patch_size,patch_size)
+        latents = latents.reshape(batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size)
         latents = (
             latents.permute(0, 4, 1, 5, 2, 6, 3, 7)
             .flatten(start_dim=6, end_dim=7)
@@ -511,7 +511,8 @@ class LTXImageToVideoPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLo
         latents = init_latents * conditioning_mask + noise * (1 - conditioning_mask)
 
         conditioning_mask = self._pack_latents(
-            conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size).squeeze(-1)
+            conditioning_mask, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size
+        ).squeeze(-1)
         latents = self._pack_latents(latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size)
 
         return latents, conditioning_mask

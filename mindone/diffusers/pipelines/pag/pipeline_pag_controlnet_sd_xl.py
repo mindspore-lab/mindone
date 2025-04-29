@@ -1377,11 +1377,7 @@ class StableDiffusionXLControlNetPAGPipeline(
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
 
         # 8.1 Apply denoising_end
-        if (
-                self.denoising_end is not None
-                and isinstance(self.denoising_end, float)
-                and 0 < self.denoising_end < 1
-        ):
+        if self.denoising_end is not None and isinstance(self.denoising_end, float) and 0 < self.denoising_end < 1:
             discrete_timestep_cutoff = int(
                 round(
                     self.scheduler.config.num_train_timesteps

@@ -250,7 +250,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         _, seq_len, _ = prompt_embeds.shape
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_videos_per_prompt, 1))
+        prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt, 1))
         prompt_embeds = prompt_embeds.view(batch_size * num_videos_per_prompt, seq_len, -1)
 
         return prompt_embeds
@@ -362,16 +362,15 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
             with pynative_context():
                 if isinstance(generator, list):
                     init_latents = [
-                        retrieve_latents(self.vae, self.vae.encode(mint.unsqueeze(video[i], 0))[0], generator[i])
+                        retrieve_latents(self.vae, self.vae.encode(video[i].unsqueeze(0))[0], generator[i])
                         for i in range(batch_size)
                     ]
                 else:
                     init_latents = [
-                        retrieve_latents(self.vae, self.vae.encode(mint.unsqueeze(vid, 0))[0], generator)
-                        for vid in video
+                        retrieve_latents(self.vae, self.vae.encode(vid.unsqueeze(0))[0], generator) for vid in video
                     ]
 
-            init_latents = mint.permute(mint.cat(init_latents, dim=0).to(dtype), (0, 2, 1, 3, 4))  # [B, F, C, H, W]
+            init_latents = mint.cat(init_latents, dim=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
             init_latents = self.vae.config.scaling_factor * init_latents
 
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -383,7 +382,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
 
     # Copied from diffusers.pipelines.cogvideo.pipeline_cogvideox.CogVideoXPipeline.decode_latents
     def decode_latents(self, latents: ms.Tensor) -> ms.Tensor:
-        latents = mint.permute(latents, (0, 2, 1, 3, 4))  # [batch_size, num_channels, num_frames, height, width]
+        latents = latents.permute(0, 2, 1, 3, 4)  # [batch_size, num_channels, num_frames, height, width]
         latents = 1 / self.vae.config.scaling_factor * latents
         # vae decode only support pynative
         with pynative_context():
@@ -700,7 +699,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, timesteps, strength)
-        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_videos_per_prompt,))
+        latent_timestep = timesteps[:1].tile((batch_size * num_videos_per_prompt,))
         self._num_timesteps = len(timesteps)
 
         # 5. Prepare latents
@@ -773,7 +772,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
                         (1 - math.cos(math.pi * ((num_inference_steps - t.item()) / num_inference_steps) ** 5.0)) / 2
                     )
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

@@ -141,13 +141,13 @@ class KandinskyPriorPipeline(DiffusionPipeline):
     """
 
     def __init__(
-            self,
-            prior: PriorTransformer,
-            image_encoder: CLIPVisionModelWithProjection,
-            text_encoder: CLIPTextModelWithProjection,
-            tokenizer: CLIPTokenizer,
-            scheduler: UnCLIPScheduler,
-            image_processor: CLIPImageProcessor,
+        self,
+        prior: PriorTransformer,
+        image_encoder: CLIPVisionModelWithProjection,
+        text_encoder: CLIPTextModelWithProjection,
+        tokenizer: CLIPTokenizer,
+        scheduler: UnCLIPScheduler,
+        image_processor: CLIPImageProcessor,
     ):
         super().__init__()
 
@@ -161,16 +161,16 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         )
 
     def interpolate(
-            self,
-            images_and_prompts: List[Union[str, PIL.Image.Image, ms.Tensor]],
-            weights: List[float],
-            num_images_per_prompt: int = 1,
-            num_inference_steps: int = 25,
-            generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
-            latents: Optional[ms.Tensor] = None,
-            negative_prior_prompt: Optional[str] = None,
-            negative_prompt: str = "",
-            guidance_scale: float = 4.0,
+        self,
+        images_and_prompts: List[Union[str, PIL.Image.Image, ms.Tensor]],
+        weights: List[float],
+        num_images_per_prompt: int = 1,
+        num_inference_steps: int = 25,
+        generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
+        latents: Optional[ms.Tensor] = None,
+        negative_prior_prompt: Optional[str] = None,
+        negative_prompt: str = "",
+        guidance_scale: float = 4.0,
     ):
         """
         Function invoked when using the prior pipeline for interpolation.
@@ -233,9 +233,9 @@ class KandinskyPriorPipeline(DiffusionPipeline):
             elif isinstance(cond, (PIL.Image.Image, ms.Tensor)):
                 if isinstance(cond, PIL.Image.Image):
                     cond = (
-                        ms.tensor(
-                            self.image_processor(cond, return_tensors="np")
-                            .pixel_values[0]).unsqueeze(0).to(dtype=self.image_encoder.dtype)
+                        ms.tensor(self.image_processor(cond, return_tensors="np").pixel_values[0])
+                        .unsqueeze(0)
+                        .to(dtype=self.image_encoder.dtype)
                     )
 
                 image_emb = self.image_encoder(cond)[0]
@@ -303,9 +303,9 @@ class KandinskyPriorPipeline(DiffusionPipeline):
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
         if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not np.array_equal(
-                text_input_ids, untruncated_ids
+            text_input_ids, untruncated_ids
         ):
-            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1: -1])
+            removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
             logger.warning(
                 "The following part of your input was truncated because CLIP can only handle sequences up to"
                 f" {self.tokenizer.model_max_length} tokens: {removed_text}"

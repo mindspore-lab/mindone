@@ -224,7 +224,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
             # image batch size is the same as prompt batch size
             repeat_by = num_images_per_prompt
 
-        image = mint.repeat_interleave(image, repeat_by, dim=0)
+        image = image.repeat_interleave(repeat_by, dim=0)
 
         image = image.to(dtype=dtype)
 
@@ -390,7 +390,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
 
             # perform guidance
             if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
             latents_dtype = latents.dtype
