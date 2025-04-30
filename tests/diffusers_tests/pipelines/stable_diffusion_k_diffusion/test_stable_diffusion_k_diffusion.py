@@ -38,7 +38,7 @@ test_cases = [
 class StableDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
     def get_inputs(self):
         inputs = {
-            "prompt": "a photograph of an astronaut riding a horse",
+            "prompt": "a photo of an astronaut riding a horse on mars",
             "num_inference_steps": 20,
             "guidance_scale": 9.0,
         }
