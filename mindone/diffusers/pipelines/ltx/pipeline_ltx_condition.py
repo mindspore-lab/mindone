@@ -13,17 +13,18 @@
 # limitations under the License.
 
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Union
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import T5TokenizerFast
+import PIL.Image
+from transformers import T5EncoderModel, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
-
-from mindone.transformers import T5EncoderModel
+from mindspore import mint
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
+from ...image_processor import PipelineImageInput
 from ...loaders import FromSingleFileMixin, LTXVideoLoraLoaderMixin
 from ...models.autoencoders import AutoencoderKLLTXVideo
 from ...models.transformers import LTXVideoTransformer3DModel
@@ -34,31 +35,100 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import LTXPipelineOutput
 
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
         >>> import mindspore as ms
-        >>> from mindone.diffusers import LTXPipeline
-        >>> from mindone.diffusers.utils import export_to_video
+        >>> from mindone.diffusers.pipelines.ltx.pipeline_ltx_condition import LTXConditionPipeline, LTXVideoCondition
+        >>> from mindone.diffusers.utils import export_to_video, load_video, load_image
+        >>> import numpy as np
 
-        >>> pipe = LTXPipeline.from_pretrained("Lightricks/LTX-Video", mindspore_dtype=ms.bfloat16)
+        >>> pipe = LTXConditionPipeline.from_pretrained("Lightricks/LTX-Video-0.9.5", mindspore_dtype=ms.bfloat16)
 
-        >>> prompt = "A woman with long brown hair and light skin smiles at another woman with long blonde hair. The woman with brown hair wears a black jacket and has a small, barely noticeable mole on her right cheek. The camera angle is a close-up, focused on the woman with brown hair's face. The lighting is warm and natural, likely from the setting sun, casting a soft glow on the scene. The scene appears to be real-life footage" # noqa: E501
+        >>> # Load input image and video
+        >>> video = load_video(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input-vid.mp4"
+        ... )
+        >>> image = load_image(
+        ...     "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/cosmos/cosmos-video2world-input.jpg"
+        ... )
+
+        >>> # Create conditioning objects
+        >>> condition1 = LTXVideoCondition(
+        ...     image=image,
+        ...     frame_index=0,
+        ... )
+        >>> condition2 = LTXVideoCondition(
+        ...     video=video,
+        ...     frame_index=80,
+        ... )
+
+        >>> prompt = "The video depicts a long, straight highway stretching into the distance, flanked by metal guardrails. The road is divided into multiple lanes, with a few vehicles visible in the far distance. The surrounding landscape features dry, grassy fields on one side and rolling hills on the other. The sky is mostly clear with a few scattered clouds, suggesting a bright, sunny day. And then the camera switch to a winding mountain road covered in snow, with a single vehicle traveling along it. The road is flanked by steep, rocky cliffs and sparse vegetation. The landscape is characterized by rugged terrain and a river visible in the distance. The scene captures the solitude and beauty of a winter drive through a mountainous region." # noqa
         >>> negative_prompt = "worst quality, inconsistent motion, blurry, jittery, distorted"
 
+        >>> # Generate video
+        >>> generator = np.random.Generator(np.random.PCG64(0))
+        >>> # Text-only conditioning is also supported without the need to pass `conditions`
         >>> video = pipe(
+        ...     conditions=[condition1, condition2],
         ...     prompt=prompt,
         ...     negative_prompt=negative_prompt,
-        ...     width=704,
-        ...     height=480,
+        ...     width=768,
+        ...     height=512,
         ...     num_frames=161,
-        ...     num_inference_steps=50,
+        ...     num_inference_steps=40,
+        ...     generator=generator,
         ... )[0][0]
+
         >>> export_to_video(video, "output.mp4", fps=24)
         ```
 """
+
+
+@dataclass
+class LTXVideoCondition:
+    """
+    Defines a single frame-conditioning item for LTX Video - a single frame or a sequence of frames.
+
+    Attributes:
+        image (`PIL.Image.Image`):
+            The image to condition the video on.
+        video (`List[PIL.Image.Image]`):
+            The video to condition the video on.
+        frame_index (`int`):
+            The frame index at which the image or video will conditionally effect the video generation.
+        strength (`float`, defaults to `1.0`):
+            The strength of the conditioning effect. A value of `1.0` means the conditioning effect is fully applied.
+    """
+
+    image: Optional[PIL.Image.Image] = None
+    video: Optional[List[PIL.Image.Image]] = None
+    frame_index: int = 0
+    strength: float = 1.0
+
+
+# from LTX-Video/ltx_video/schedulers/rf.py
+def linear_quadratic_schedule(num_steps, threshold_noise=0.025, linear_steps=None):
+    if linear_steps is None:
+        linear_steps = num_steps // 2
+    if num_steps < 2:
+        return ms.tensor([1.0])
+    linear_sigma_schedule = [i * threshold_noise / linear_steps for i in range(linear_steps)]
+    threshold_noise_step_diff = linear_steps - threshold_noise * num_steps
+    quadratic_steps = num_steps - linear_steps
+    quadratic_coef = threshold_noise_step_diff / (linear_steps * quadratic_steps**2)
+    linear_coef = threshold_noise / linear_steps - 2 * threshold_noise_step_diff / (quadratic_steps**2)
+    const = quadratic_coef * (linear_steps**2)
+    quadratic_sigma_schedule = [
+        quadratic_coef * (i**2) + linear_coef * i + const for i in range(linear_steps, num_steps)
+    ]
+    sigma_schedule = linear_sigma_schedule + quadratic_sigma_schedule + [1.0]
+    sigma_schedule = [1.0 - x for x in sigma_schedule]
+    return ms.tensor(sigma_schedule[:-1])
 
 
 # Copied from diffusers.pipelines.flux.pipeline_flux.calculate_shift
@@ -67,7 +137,7 @@ def calculate_shift(
     base_seq_len: int = 256,
     max_seq_len: int = 4096,
     base_shift: float = 0.5,
-    max_shift: float = 1.16,
+    max_shift: float = 1.15,
 ):
     m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
     b = base_shift - m * base_seq_len
@@ -101,8 +171,8 @@ def retrieve_timesteps(
             `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
-        the second element is the number of inference steps.
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        second element is the number of inference steps.
     """
     if timesteps is not None and sigmas is not None:
         raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
@@ -132,9 +202,24 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixin):
+# Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion_img2img.retrieve_latents
+def retrieve_latents(
+    vae, encoder_output: ms.Tensor, generator: Optional[np.random.Generator] = None, sample_mode: str = "sample"
+):
+    if sample_mode == "sample":
+        return vae.diag_gauss_dist.sample(encoder_output, generator=generator)
+    elif sample_mode == "argmax":
+        return vae.diag_gauss_dist.mode(encoder_output)
+    # This branch is not needed because the encoder_output type is ms.Tensor as per AutoencoderKLOutput change
+    # elif hasattr(encoder_output, "latents"):
+    #     return encoder_output.latents
+    else:
+        return encoder_output
+
+
+class LTXConditionPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixin):
     r"""
-    Pipeline for text-to-video generation.
+    Pipeline for text/image/video-to-video generation.
 
     Reference: https://github.com/Lightricks/LTX-Video
 
@@ -178,23 +263,33 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             scheduler=scheduler,
         )
 
-        self.vae_spatial_compression_ratio = self.vae.spatial_compression_ratio if hasattr(self, "vae") else 32
-        self.vae_temporal_compression_ratio = self.vae.temporal_compression_ratio if hasattr(self, "vae") else 8
-        self.transformer_spatial_patch_size = self.transformer.config.patch_size if hasattr(self, "transformer") else 1
+        self.vae_spatial_compression_ratio = (
+            self.vae.spatial_compression_ratio if getattr(self, "vae", None) is not None else 32
+        )
+        self.vae_temporal_compression_ratio = (
+            self.vae.temporal_compression_ratio if getattr(self, "vae", None) is not None else 8
+        )
+        self.transformer_spatial_patch_size = (
+            self.transformer.config.patch_size if getattr(self, "transformer", None) is not None else 1
+        )
         self.transformer_temporal_patch_size = (
-            self.transformer.config.patch_size_t if hasattr(self, "transformer") else 1
+            self.transformer.config.patch_size_t if getattr(self, "transformer") is not None else 1
         )
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_spatial_compression_ratio)
         self.tokenizer_max_length = (
-            self.tokenizer.model_max_length if hasattr(self, "tokenizer") and self.tokenizer is not None else 128
+            self.tokenizer.model_max_length if getattr(self, "tokenizer", None) is not None else 128
         )
+
+        self.default_height = 512
+        self.default_width = 704
+        self.default_frames = 121
 
     def _get_t5_prompt_embeds(
         self,
         prompt: Union[str, List[str]] = None,
         num_videos_per_prompt: int = 1,
-        max_sequence_length: int = 128,
+        max_sequence_length: int = 256,
         dtype: Optional[ms.Type] = None,
     ):
         dtype = dtype or self.text_encoder.dtype
@@ -211,7 +306,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
         prompt_attention_mask = prompt_attention_mask.bool()
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
@@ -225,7 +320,8 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids))[0]
+        text_input_ids = ms.tensor(text_input_ids)
+        prompt_embeds = self.text_encoder(text_input_ids, attention_mask=prompt_attention_mask)[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -238,7 +334,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
 
         return prompt_embeds, prompt_attention_mask
 
-    # Copied from diffusers.pipelines.mochi.pipeline_mochi.MochiPipeline.encode_prompt with 256->128
+    # Copied from diffusers.pipelines.mochi.pipeline_mochi.MochiPipeline.encode_prompt
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
@@ -249,7 +345,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         prompt_attention_mask: Optional[ms.Tensor] = None,
         negative_prompt_attention_mask: Optional[ms.Tensor] = None,
-        max_sequence_length: int = 128,
+        max_sequence_length: int = 256,
         dtype: Optional[ms.Type] = None,
     ):
         r"""
@@ -265,16 +361,16 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             do_classifier_free_guidance (`bool`, *optional*, defaults to `True`):
                 Whether to use classifier free guidance or not.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
-                Number of videos that should be generated per prompt. torch device to place the resulting embeddings on
-            prompt_embeds (`torch.Tensor`, *optional*):
+                Number of videos that should be generated per prompt.
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`torch.Tensor`, *optional*):
+            negative_prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated negative text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt
                 weighting. If not provided, negative_prompt_embeds will be generated from `negative_prompt` input
                 argument.
-            dtype: (`torch.dtype`, *optional*):
-                torch dtype
+            dtype: (`ms.Type`, *optional*):
+                mindspore dtype
         """
         prompt = [prompt] if isinstance(prompt, str) else prompt
         if prompt is not None:
@@ -318,6 +414,11 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
     def check_inputs(
         self,
         prompt,
+        conditions,
+        image,
+        video,
+        frame_index,
+        strength,
         height,
         width,
         callback_on_step_end_tensor_inputs=None,
@@ -333,7 +434,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -368,7 +469,59 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                     f" {negative_prompt_attention_mask.shape}."
                 )
 
+        if conditions is not None and (image is not None or video is not None):
+            raise ValueError("If `conditions` is provided, `image` and `video` must not be provided.")
+
+        if conditions is None:
+            if isinstance(image, list) and isinstance(frame_index, list) and len(image) != len(frame_index):
+                raise ValueError(
+                    "If `conditions` is not provided, `image` and `frame_index` must be of the same length."
+                )
+            elif isinstance(image, list) and isinstance(strength, list) and len(image) != len(strength):
+                raise ValueError("If `conditions` is not provided, `image` and `strength` must be of the same length.")
+            elif isinstance(video, list) and isinstance(frame_index, list) and len(video) != len(frame_index):
+                raise ValueError(
+                    "If `conditions` is not provided, `video` and `frame_index` must be of the same length."
+                )
+            elif isinstance(video, list) and isinstance(strength, list) and len(video) != len(strength):
+                raise ValueError("If `conditions` is not provided, `video` and `strength` must be of the same length.")
+
     @staticmethod
+    def _prepare_video_ids(
+        batch_size: int,
+        num_frames: int,
+        height: int,
+        width: int,
+        patch_size: int = 1,
+        patch_size_t: int = 1,
+    ) -> ms.Tensor:
+        latent_sample_coords = mint.meshgrid(
+            mint.arange(0, num_frames, patch_size_t),
+            mint.arange(0, height, patch_size),
+            mint.arange(0, width, patch_size),
+            indexing="ij",
+        )
+        latent_sample_coords = mint.stack(latent_sample_coords, dim=0)
+        latent_coords = latent_sample_coords.unsqueeze(0).tile((batch_size, 1, 1, 1, 1))
+        latent_coords = latent_coords.reshape(batch_size, -1, num_frames * height * width)
+
+        return latent_coords
+
+    @staticmethod
+    def _scale_video_ids(
+        video_ids: ms.Tensor,
+        scale_factor: int = 32,
+        scale_factor_t: int = 8,
+        frame_index: int = 0,
+    ) -> ms.Tensor:
+        scaled_latent_coords = video_ids * ms.tensor([scale_factor_t, scale_factor, scale_factor])[None, :, None]
+        scaled_latent_coords[:, 0] = (scaled_latent_coords[:, 0] + 1 - scale_factor_t).clamp(min=0)
+        scaled_latent_coords[:, 0] += frame_index
+
+        return scaled_latent_coords
+
+    @staticmethod
+    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._pack_latents
     def _pack_latents(latents: ms.Tensor, patch_size: int = 1, patch_size_t: int = 1) -> ms.Tensor:
         # Unpacked latents of shape are [B, C, F, H, W] are patched into tokens of shape [B, C, F // p_t, p_t, H // p, p, W // p, p].
         # The patch dimensions are then permuted and collapsed into the channel dimension of shape:
@@ -388,12 +541,11 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             post_patch_width,
             patch_size,
         )
-        latents = (
-            latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(start_dim=4, end_dim=7).flatten(start_dim=1, end_dim=3)
-        )
+        latents = latents.permute(0, 2, 4, 6, 1, 3, 5, 7).flatten(4, 7).flatten(1, 3)
         return latents
 
     @staticmethod
+    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._unpack_latents
     def _unpack_latents(
         latents: ms.Tensor, num_frames: int, height: int, width: int, patch_size: int = 1, patch_size_t: int = 1
     ) -> ms.Tensor:
@@ -402,15 +554,11 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         # what happens in the `_pack_latents` method.
         batch_size = latents.shape[0]
         latents = latents.reshape(batch_size, num_frames, height, width, -1, patch_size_t, patch_size, patch_size)
-        latents = (
-            latents.permute(0, 4, 1, 5, 2, 6, 3, 7)
-            .flatten(start_dim=6, end_dim=7)
-            .flatten(start_dim=4, end_dim=5)
-            .flatten(start_dim=2, end_dim=3)
-        )
+        latents = latents.permute(0, 4, 1, 5, 2, 6, 3, 7).flatten(6, 7).flatten(4, 5).flatten(2, 3)
         return latents
 
     @staticmethod
+    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._normalize_latents
     def _normalize_latents(
         latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
     ) -> ms.Tensor:
@@ -421,6 +569,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         return latents
 
     @staticmethod
+    # Copied from diffusers.pipelines.ltx.pipeline_ltx.LTXPipeline._denormalize_latents
     def _denormalize_latents(
         latents: ms.Tensor, latents_mean: ms.Tensor, latents_std: ms.Tensor, scaling_factor: float = 1.0
     ) -> ms.Tensor:
@@ -430,35 +579,164 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         latents = latents * latents_std / scaling_factor + latents_mean
         return latents
 
+    def trim_conditioning_sequence(self, start_frame: int, sequence_num_frames: int, target_num_frames: int):
+        """
+        Trim a conditioning sequence to the allowed number of frames.
+
+        Args:
+            start_frame (int): The target frame number of the first frame in the sequence.
+            sequence_num_frames (int): The number of frames in the sequence.
+            target_num_frames (int): The target number of frames in the generated video.
+        Returns:
+            int: updated sequence length
+        """
+        scale_factor = self.vae_temporal_compression_ratio
+        num_frames = min(sequence_num_frames, target_num_frames - start_frame)
+        # Trim down to a multiple of temporal_scale_factor frames plus 1
+        num_frames = (num_frames - 1) // scale_factor * scale_factor + 1
+        return num_frames
+
+    @staticmethod
+    def add_noise_to_image_conditioning_latents(
+        t: float,
+        init_latents: ms.Tensor,
+        latents: ms.Tensor,
+        noise_scale: float,
+        conditioning_mask: ms.Tensor,
+        generator,
+        eps=1e-6,
+    ):
+        """
+        Add timestep-dependent noise to the hard-conditioning latents. This helps with motion continuity, especially
+        when conditioned on a single frame.
+        """
+        noise = randn_tensor(
+            latents.shape,
+            generator=generator,
+            dtype=latents.dtype,
+        )
+        # Add noise only to hard-conditioning latents (conditioning_mask = 1.0)
+        need_to_noise = (conditioning_mask > 1.0 - eps).unsqueeze(-1)
+        noised_latents = init_latents + noise_scale * noise * (t**2)
+        latents = mint.where(need_to_noise, noised_latents, latents)
+        return latents
+
     def prepare_latents(
         self,
+        conditions: Optional[List[ms.Tensor]] = None,
+        condition_strength: Optional[List[float]] = None,
+        condition_frame_index: Optional[List[int]] = None,
         batch_size: int = 1,
         num_channels_latents: int = 128,
         height: int = 512,
         width: int = 704,
         num_frames: int = 161,
-        dtype: Optional[ms.Type] = None,
+        num_prefix_latent_frames: int = 2,
         generator: Optional[np.random.Generator] = None,
-        latents: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
-        if latents is not None:
-            return latents.to(dtype=dtype)
+        dtype: Optional[ms.Type] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, int]:
+        num_latent_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
+        latent_height = height // self.vae_spatial_compression_ratio
+        latent_width = width // self.vae_spatial_compression_ratio
 
-        height = height // self.vae_spatial_compression_ratio
-        width = width // self.vae_spatial_compression_ratio
-        num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
-
-        shape = (batch_size, num_channels_latents, num_frames, height, width)
-
-        if isinstance(generator, list) and len(generator) != batch_size:
-            raise ValueError(
-                f"You have passed a list of generators of length {len(generator)}, but requested an effective batch"
-                f" size of {batch_size}. Make sure the batch size matches the length of the generators."
-            )
-
+        shape = (batch_size, num_channels_latents, num_latent_frames, latent_height, latent_width)
         latents = randn_tensor(shape, generator=generator, dtype=dtype)
+
+        if len(conditions) > 0:
+            condition_latent_frames_mask = mint.zeros((batch_size, num_latent_frames), dtype=ms.float32)
+
+            extra_conditioning_latents = []
+            extra_conditioning_video_ids = []
+            extra_conditioning_mask = []
+            extra_conditioning_num_latents = 0
+            for data, strength, frame_index in zip(conditions, condition_strength, condition_frame_index):
+                condition_latents = retrieve_latents(self.vae, self.vae.encode(data)[0], generator=generator)
+                condition_latents = self._normalize_latents(
+                    condition_latents, self.vae.latents_mean, self.vae.latents_std
+                ).to(dtype=dtype)
+
+                num_data_frames = data.shape[2]
+                num_cond_frames = condition_latents.shape[2]
+
+                if frame_index == 0:
+                    latents[:, :, :num_cond_frames] = mint.lerp(
+                        latents[:, :, :num_cond_frames], condition_latents, strength
+                    )
+                    condition_latent_frames_mask[:, :num_cond_frames] = strength
+
+                else:
+                    if num_data_frames > 1:
+                        if num_cond_frames < num_prefix_latent_frames:
+                            raise ValueError(
+                                f"Number of latent frames must be at least {num_prefix_latent_frames} but got {num_data_frames}."
+                            )
+
+                        if num_cond_frames > num_prefix_latent_frames:
+                            start_frame = frame_index // self.vae_temporal_compression_ratio + num_prefix_latent_frames
+                            end_frame = start_frame + num_cond_frames - num_prefix_latent_frames
+                            latents[:, :, start_frame:end_frame] = mint.lerp(
+                                latents[:, :, start_frame:end_frame],
+                                condition_latents[:, :, num_prefix_latent_frames:],
+                                strength,
+                            )
+                            condition_latent_frames_mask[:, start_frame:end_frame] = strength
+                            condition_latents = condition_latents[:, :, :num_prefix_latent_frames]
+
+                    noise = randn_tensor(condition_latents.shape, generator=generator, dtype=dtype)
+                    condition_latents = mint.lerp(noise, condition_latents, strength)
+
+                    condition_video_ids = self._prepare_video_ids(
+                        batch_size,
+                        condition_latents.shape[2],
+                        latent_height,
+                        latent_width,
+                        patch_size=self.transformer_spatial_patch_size,
+                        patch_size_t=self.transformer_temporal_patch_size,
+                    )
+                    condition_video_ids = self._scale_video_ids(
+                        condition_video_ids,
+                        scale_factor=self.vae_spatial_compression_ratio,
+                        scale_factor_t=self.vae_temporal_compression_ratio,
+                        frame_index=frame_index,
+                    )
+                    condition_latents = self._pack_latents(
+                        condition_latents,
+                        self.transformer_spatial_patch_size,
+                        self.transformer_temporal_patch_size,
+                    )
+                    condition_conditioning_mask = mint.full(condition_latents.shape[:2], strength, dtype=dtype)
+
+                    extra_conditioning_latents.append(condition_latents)
+                    extra_conditioning_video_ids.append(condition_video_ids)
+                    extra_conditioning_mask.append(condition_conditioning_mask)
+                    extra_conditioning_num_latents += condition_latents.shape[1]
+
+        video_ids = self._prepare_video_ids(
+            batch_size,
+            num_latent_frames,
+            latent_height,
+            latent_width,
+            patch_size_t=self.transformer_temporal_patch_size,
+            patch_size=self.transformer_spatial_patch_size,
+        )
+        if len(conditions) > 0:
+            conditioning_mask = condition_latent_frames_mask.gather(1, video_ids[:, 0])
+        else:
+            conditioning_mask, extra_conditioning_num_latents = None, 0
+        video_ids = self._scale_video_ids(
+            video_ids,
+            scale_factor=self.vae_spatial_compression_ratio,
+            scale_factor_t=self.vae_temporal_compression_ratio,
+            frame_index=0,
+        )
         latents = self._pack_latents(latents, self.transformer_spatial_patch_size, self.transformer_temporal_patch_size)
-        return latents
+
+        if len(conditions) > 0 and len(extra_conditioning_latents) > 0:
+            latents = mint.cat([*extra_conditioning_latents, latents], dim=1)
+            video_ids = mint.cat([*extra_conditioning_video_ids, video_ids], dim=2)
+            conditioning_mask = mint.cat([*extra_conditioning_mask, conditioning_mask], dim=1)
+
+        return latents, conditioning_mask, video_ids, extra_conditioning_num_latents
 
     @property
     def guidance_scale(self):
@@ -473,6 +751,10 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         return self._num_timesteps
 
     @property
+    def current_timestep(self):
+        return self._current_timestep
+
+    @property
     def attention_kwargs(self):
         return self._attention_kwargs
 
@@ -482,6 +764,11 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
 
     def __call__(
         self,
+        conditions: Union[LTXVideoCondition, List[LTXVideoCondition]] = None,
+        image: Union[PipelineImageInput, List[PipelineImageInput]] = None,
+        video: List[PipelineImageInput] = None,
+        frame_index: Union[int, List[int]] = 0,
+        strength: Union[float, List[float]] = 1.0,
         prompt: Union[str, List[str]] = None,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         height: int = 512,
@@ -491,6 +778,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         num_inference_steps: int = 50,
         timesteps: List[int] = None,
         guidance_scale: float = 3,
+        image_cond_noise_scale: float = 0.15,
         num_videos_per_prompt: Optional[int] = 1,
         generator: Optional[Union[np.random.Generator, List[np.random.Generator]]] = None,
         latents: Optional[ms.Tensor] = None,
@@ -505,12 +793,25 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
-        max_sequence_length: int = 128,
+        max_sequence_length: int = 256,
     ):
         r"""
         Function invoked when calling the pipeline for generation.
 
         Args:
+            conditions (`List[LTXVideoCondition], *optional*`):
+                The list of frame-conditioning items for the video generation.If not provided, conditions will be
+                created using `image`, `video`, `frame_index` and `strength`.
+            image (`PipelineImageInput` or `List[PipelineImageInput]`, *optional*):
+                The image or images to condition the video generation. If not provided, one has to pass `video` or
+                `conditions`.
+            video (`List[PipelineImageInput]`, *optional*):
+                The video to condition the video generation. If not provided, one has to pass `image` or `conditions`.
+            frame_index (`int` or `List[int]`, *optional*):
+                The frame index or frame indices at which the image or video will conditionally effect the video
+                generation. If not provided, one has to pass `conditions`.
+            strength (`float` or `List[float]`, *optional*):
+                The strength or strengths of the conditioning effect. If not provided, one has to pass `conditions`.
             prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
                 instead.
@@ -535,17 +836,17 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 usually at the expense of lower image quality.
             num_videos_per_prompt (`int`, *optional*, defaults to 1):
                 The number of videos to generate per prompt.
-            generator (`torch.Generator` or `List[torch.Generator]`, *optional*):
-                One or a list of [torch generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+            generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
+                One or a list of [np.random.Generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
-            latents (`torch.Tensor`, *optional*):
+            latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
                 generation. Can be used to tweak the same generation with different prompts. If not provided, a latents
                 tensor will ge generated by sampling using the supplied random `generator`.
-            prompt_embeds (`torch.Tensor`, *optional*):
+            prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            prompt_attention_mask (`torch.Tensor`, *optional*):
+            prompt_attention_mask (`ms.Tensor`, *optional*):
                 Pre-generated attention mask for text embeddings.
             negative_prompt_embeds (`torch.FloatTensor`, *optional*):
                 Pre-generated negative text embeddings. For PixArt-Sigma this negative prompt should be "". If not
@@ -587,10 +888,17 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
 
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
+        if latents is not None:
+            raise ValueError("Passing latents is not yet supported.")
 
         # 1. Check inputs. Raise error if not correct
         self.check_inputs(
             prompt=prompt,
+            conditions=conditions,
+            image=image,
+            video=video,
+            frame_index=frame_index,
+            strength=strength,
             height=height,
             width=width,
             callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
@@ -603,6 +911,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
         self._guidance_scale = guidance_scale
         self._attention_kwargs = attention_kwargs
         self._interrupt = False
+        self._current_timestep = None
 
         # 2. Define call parameters
         if prompt is not None and isinstance(prompt, str):
@@ -611,6 +920,31 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             batch_size = len(prompt)
         else:
             batch_size = prompt_embeds.shape[0]
+
+        if conditions is not None:
+            if not isinstance(conditions, list):
+                conditions = [conditions]
+
+            strength = [condition.strength for condition in conditions]
+            frame_index = [condition.frame_index for condition in conditions]
+            image = [condition.image for condition in conditions]
+            video = [condition.video for condition in conditions]
+        elif image is not None or video is not None:
+            if not isinstance(image, list):
+                image = [image]
+                num_conditions = 1
+            elif isinstance(image, list):
+                num_conditions = len(image)
+            if not isinstance(video, list):
+                video = [video]
+                num_conditions = 1
+            elif isinstance(video, list):
+                num_conditions = len(video)
+
+            if not isinstance(frame_index, list):
+                frame_index = [frame_index] * num_conditions
+            if not isinstance(strength, list):
+                strength = [strength] * num_conditions
 
         # 3. Prepare text embeddings
         (
@@ -630,84 +964,133 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             max_sequence_length=max_sequence_length,
         )
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
+
+        vae_dtype = self.vae.dtype
+
+        conditioning_tensors = []
+        is_conditioning_image_or_video = image is not None or video is not None
+        if is_conditioning_image_or_video:
+            for condition_image, condition_video, condition_frame_index, condition_strength in zip(
+                image, video, frame_index, strength
+            ):
+                if condition_image is not None:
+                    condition_tensor = (
+                        self.video_processor.preprocess(condition_image, height, width).unsqueeze(2).to(dtype=vae_dtype)
+                    )
+                elif condition_video is not None:
+                    condition_tensor = self.video_processor.preprocess_video(condition_video, height, width)
+                    num_frames_input = condition_tensor.shape[2]
+                    num_frames_output = self.trim_conditioning_sequence(
+                        condition_frame_index, num_frames_input, num_frames
+                    )
+                    condition_tensor = condition_tensor[:, :, :num_frames_output]
+                    condition_tensor = condition_tensor.to(dtype=vae_dtype)
+                else:
+                    raise ValueError("Either `image` or `video` must be provided for conditioning.")
+
+                if condition_tensor.shape[2] % self.vae_temporal_compression_ratio != 1:
+                    raise ValueError(
+                        f"Number of frames in the video must be of the form (k * {self.vae_temporal_compression_ratio} + 1) "
+                        f"but got {condition_tensor.shape[2]} frames."
+                    )
+                conditioning_tensors.append(condition_tensor)
 
         # 4. Prepare latent variables
         num_channels_latents = self.transformer.config.in_channels
-        latents = self.prepare_latents(
-            batch_size * num_videos_per_prompt,
-            num_channels_latents,
-            height,
-            width,
-            num_frames,
-            ms.float32,
-            generator,
-            latents,
+        latents, conditioning_mask, video_coords, extra_conditioning_num_latents = self.prepare_latents(
+            conditioning_tensors,
+            strength,
+            frame_index,
+            batch_size=batch_size * num_videos_per_prompt,
+            num_channels_latents=num_channels_latents,
+            height=height,
+            width=width,
+            num_frames=num_frames,
+            generator=generator,
+            dtype=ms.float32,
         )
+
+        video_coords = video_coords.float()
+        video_coords[:, 0] = video_coords[:, 0] * (1.0 / frame_rate)
+
+        init_latents = latents.clone() if is_conditioning_image_or_video else None
+
+        if self.do_classifier_free_guidance:
+            video_coords = mint.cat([video_coords, video_coords], dim=0)
 
         # 5. Prepare timesteps
         latent_num_frames = (num_frames - 1) // self.vae_temporal_compression_ratio + 1
         latent_height = height // self.vae_spatial_compression_ratio
         latent_width = width // self.vae_spatial_compression_ratio
-        video_sequence_length = latent_num_frames * latent_height * latent_width
-        sigmas = np.linspace(1.0, 1 / num_inference_steps, num_inference_steps)
-        mu = calculate_shift(
-            video_sequence_length,
-            self.scheduler.config.base_image_seq_len,
-            self.scheduler.config.max_image_seq_len,
-            self.scheduler.config.base_shift,
-            self.scheduler.config.max_shift,
-        )
+        sigmas = linear_quadratic_schedule(num_inference_steps)
+        timesteps = sigmas * 1000
         timesteps, num_inference_steps = retrieve_timesteps(
             self.scheduler,
             num_inference_steps,
-            timesteps,
-            sigmas=sigmas,
-            mu=mu,
+            timesteps=timesteps,
         )
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
-        # 6. Prepare micro-conditions
-        rope_interpolation_scale = (
-            self.vae_temporal_compression_ratio / frame_rate,
-            self.vae_spatial_compression_ratio,
-            self.vae_spatial_compression_ratio,
-        )
-
-        # 7. Denoising loop
+        # 6. Denoising loop
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                self._current_timestep = t
+
+                if image_cond_noise_scale > 0 and init_latents is not None:
+                    # Add timestep-dependent noise to the hard-conditioning latents
+                    # This helps with motion continuity, especially when conditioned on a single frame
+                    latents = self.add_noise_to_image_conditioning_latents(
+                        t / 1000.0,
+                        init_latents,
+                        latents,
+                        image_cond_noise_scale,
+                        conditioning_mask,
+                        generator,
+                    )
+
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                if is_conditioning_image_or_video:
+                    conditioning_mask_model_input = (
+                        mint.cat([conditioning_mask, conditioning_mask])
+                        if self.do_classifier_free_guidance
+                        else conditioning_mask
+                    )
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],))
+                timestep = t.expand((latent_model_input.shape[0],)).unsqueeze(-1).float()
+                if is_conditioning_image_or_video:
+                    timestep = mint.min(timestep, (1 - conditioning_mask_model_input) * 1000.0)
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,
                     encoder_hidden_states=prompt_embeds,
                     timestep=timestep,
                     encoder_attention_mask=prompt_attention_mask,
-                    num_frames=latent_num_frames,
-                    height=latent_height,
-                    width=latent_width,
-                    rope_interpolation_scale=rope_interpolation_scale,
+                    video_coords=video_coords,
                     attention_kwargs=attention_kwargs,
                     return_dict=False,
                 )[0]
-                noise_pred = noise_pred.float()
 
                 if self.do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
+                    timestep, _ = timestep.chunk(2)
 
-                # compute the previous noisy sample x_t -> x_t-1
-                latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
+                denoised_latents = self.scheduler.step(
+                    -noise_pred, t, latents, per_token_timesteps=timestep, return_dict=False
+                )[0]
+                if is_conditioning_image_or_video:
+                    tokens_to_denoise_mask = (t / 1000 - 1e-6 < (1.0 - conditioning_mask)).unsqueeze(-1)
+                    latents = mint.where(tokens_to_denoise_mask, denoised_latents, latents)
+                else:
+                    latents = denoised_latents
 
                 if callback_on_step_end is not None:
                     callback_kwargs = {}
@@ -722,17 +1105,21 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
+        if is_conditioning_image_or_video:
+            latents = latents[:, extra_conditioning_num_latents:]
+
+        latents = self._unpack_latents(
+            latents,
+            latent_num_frames,
+            latent_height,
+            latent_width,
+            self.transformer_spatial_patch_size,
+            self.transformer_temporal_patch_size,
+        )
+
         if output_type == "latent":
             video = latents
         else:
-            latents = self._unpack_latents(
-                latents,
-                latent_num_frames,
-                latent_height,
-                latent_width,
-                self.transformer_spatial_patch_size,
-                self.transformer_temporal_patch_size,
-            )
             latents = self._denormalize_latents(
                 latents, self.vae.latents_mean, self.vae.latents_std, self.vae.config.scaling_factor
             )
@@ -749,8 +1136,8 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 elif not isinstance(decode_noise_scale, list):
                     decode_noise_scale = [decode_noise_scale] * batch_size
 
-                timestep = ms.Tensor(decode_timestep, dtype=latents.dtype)
-                decode_noise_scale = ms.Tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
+                timestep = ms.tensor(decode_timestep, dtype=latents.dtype)
+                decode_noise_scale = ms.tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
                 latents = (1 - decode_noise_scale) * latents + decode_noise_scale * noise
 
             video = self.vae.decode(latents, timestep, return_dict=False)[0]
