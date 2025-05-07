@@ -13,16 +13,15 @@ _import_structure = {
     "pipeline_stable_diffusion_image_variation": ["StableDiffusionImageVariationPipeline"],
     "pipeline_stable_diffusion_latent_upscale": ["StableDiffusionLatentUpscalePipeline"],
     "pipeline_stable_diffusion_upscale": ["StableDiffusionUpscalePipeline"],
+    "pipeline_stable_unclip": ["StableUnCLIPPipeline"],
+    "pipeline_stable_unclip_img2img": ["StableUnCLIPImg2ImgPipeline"],
     "safety_checker": ["StableDiffusionSafetyChecker"],
+    "stable_unclip_image_normalizer": ["StableUnCLIPImageNormalizer"],
 }
 
 if TYPE_CHECKING:
     from .clip_image_project_model import CLIPImageProjection
-    from .pipeline_stable_diffusion import (
-        StableDiffusionPipeline,
-        StableDiffusionPipelineOutput,
-        StableDiffusionSafetyChecker,
-    )
+    from .pipeline_stable_diffusion import StableDiffusionPipeline, StableDiffusionPipelineOutput
     from .pipeline_stable_diffusion_depth2img import StableDiffusionDepth2ImgPipeline
     from .pipeline_stable_diffusion_image_variation import StableDiffusionImageVariationPipeline
     from .pipeline_stable_diffusion_img2img import StableDiffusionImg2ImgPipeline
@@ -30,6 +29,10 @@ if TYPE_CHECKING:
     from .pipeline_stable_diffusion_instruct_pix2pix import StableDiffusionInstructPix2PixPipeline
     from .pipeline_stable_diffusion_latent_upscale import StableDiffusionLatentUpscalePipeline
     from .pipeline_stable_diffusion_upscale import StableDiffusionUpscalePipeline
+    from .pipeline_stable_unclip import StableUnCLIPPipeline
+    from .pipeline_stable_unclip_img2img import StableUnCLIPImg2ImgPipeline
+    from .safety_checker import StableDiffusionSafetyChecker
+    from .stable_unclip_image_normalizer import StableUnCLIPImageNormalizer
 else:
     import sys
 

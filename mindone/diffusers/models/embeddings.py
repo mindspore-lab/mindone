@@ -71,7 +71,7 @@ def get_timestep_embedding(
 
     # flip sine and cosine embeddings
     if flip_sin_to_cos:
-        # emb = mint.cat([emb[:, half_dim:], emb[:, :half_dim]], dim=-1)
+        # emb = ops.cat([emb[:, half_dim:], emb[:, :half_dim]], axis=-1)
         split_emb = mint.split(emb, [half_dim, emb.shape[1] - half_dim], dim=1)
         emb = mint.cat([split_emb[1], split_emb[0]], dim=-1)
 

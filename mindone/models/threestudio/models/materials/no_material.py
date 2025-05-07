@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
-import threestudio
-from threestudio.models.materials.base import BaseMaterial
-from threestudio.models.networks import get_mlp
-from threestudio.utils.ops import get_activation
-
 from mindspore import Tensor
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.models.materials.base import BaseMaterial
+from mindone.models.threestudio.models.networks import get_mlp
+from mindone.models.threestudio.utils.ops import get_activation
 
 
 @threestudio.register("no-material")

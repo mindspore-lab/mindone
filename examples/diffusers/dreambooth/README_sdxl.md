@@ -156,17 +156,9 @@ You can explore the results from a couple of our internal experiments by checkin
 * [Keramer face](https://huggingface.co/datasets/diffusers/keramer-face-example)
 
 
-## Conducting EDM-style training
+## EDM-style training
 
-It's now possible to perform EDM-style training as proposed in [Elucidating the Design Space of Diffusion-Based Generative Models](https://arxiv.org/abs/2206.00364).
-
-For the SDXL model, simple set:
-
-```diff
-+  --do_edm_style_training \
-```
-
-Other SDXL-like models that use the EDM formulation, such as [playgroundai/playground-v2.5-1024px-aesthetic](https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic), can also be DreamBooth'd with the script. Below is an example command:
+SDXL-like models that use the [EDM formulation](https://arxiv.org/abs/2206.00364), such as [playgroundai/playground-v2.5-1024px-aesthetic](https://huggingface.co/playgroundai/playground-v2.5-1024px-aesthetic), can also be DreamBooth'd with the script. Below is an example command:
 
 ```bash
 python train_dreambooth_lora_sdxl.py \

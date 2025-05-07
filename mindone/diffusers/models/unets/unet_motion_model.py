@@ -1572,7 +1572,10 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         if has_motion_adapter and motion_adapter.config["conv_in_channels"]:
             model.conv_in = motion_adapter.conv_in
             updated_conv_in_weight = mint.cat([unet.conv_in.weight, motion_adapter.conv_in.weight[:, 4:, :, :]], dim=1)
-            ms.load_param_into_net(model.conv_in, {"weight": updated_conv_in_weight, "bias": unet.conv_in.bias})
+            ms.load_param_into_net(
+                model.conv_in,
+                {"conv_in.weight": ms.Parameter(updated_conv_in_weight), "conv_in.bias": unet.conv_in.bias},
+            )
         else:
             ms.load_param_into_net(model.conv_in, unet.conv_in.parameters_dict())
 

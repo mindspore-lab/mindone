@@ -129,7 +129,12 @@ if __name__ == "__main__":
                 if bf16 or fp16, amp_level==O2, part of layers will compute in bf16 or fp16 such as matmul, dense, conv.",
     )
     parser.add_argument("--device", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument(
+        "--max_device_memory",
+        type=str,
+        default=None,
+        help="e.g. `30GB` for Ascend 910, `59GB` for Ascend Atlas 800T A2 machines",
+    )
     parser.add_argument("--use_parallel", action="store_true", help="use parallel")
     parser.add_argument(
         "--parallel_mode", default="data", type=str, choices=["data", "optim"], help="parallel mode: data, optim"

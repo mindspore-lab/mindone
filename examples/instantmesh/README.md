@@ -77,7 +77,8 @@ pip install -r requirements.txt
 
 | mindspore |	ascend driver | firmware	| cann toolkit/kernel |
 | :---:     | :---:    | :---:      | :---: |
-| 2.3.1	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
+| 2.5.0     | 24.1.RC2 |7.3.0.1.231	| 8.0.RC3.beta1 |
+| 2.4.0	    | 24.1.RC2 |7.3.0.1.231	| 8.0.RC2.beta1 |
 
 ## Pretrained Models
 ### ViT Pretrained Checkpoint
@@ -132,14 +133,22 @@ Following the paper, during training, 3 images are processed with the ViT Image 
 
 
 ## Performance
-Experiments are tested on Ascend 910* with mindspore 2.4.0 pynative mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore pynative mode.
 
 Notice that there is no diffusion model in InstantMesh, therefore the reported training `step/s` here is for each batch iteration.
 
 ### Training
-| model name   | stage | precision| batch size |cards | image size | recompute | steps/s | frames/s |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.17 | 0.85 |
+#### ms 2.5.0
+
+| model name   | stage | precision| batch size |cards | image size | recompute | steps/s | frames/s | step time (s) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.12 | 0.60 | 8.43 |
+
+#### ms 2.4.0
+
+| model name   | stage | precision| batch size |cards | image size | recompute | steps/s | frames/s | step time (s) |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+|InstantMesh |1 |fp32 | 1 | 1 | 192X192 | ON | 0.17 | 0.85 | 5.88 |
 
 ### Inference
 

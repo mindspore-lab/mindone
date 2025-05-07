@@ -27,12 +27,12 @@
   <!-- 🤗 Online Demo (<a href="https://huggingface.co/spaces/deepseek-ai/Janus-Pro-7B"><b>Janus-Pro-7B</b></a>, <a href="https://huggingface.co/spaces/deepseek-ai/Janus-1.3B"><b>Janus</b></a>, <a href="https://huggingface.co/spaces/deepseek-ai/JanusFlow-1.3B"><b>JanusFlow</b></a>) -->
 </p>
 
-We provide an efficient MindSpore implementation of [JanusPro](https://github.com/deepseek-ai/Janus). This repository is built on the models and code released by DeepSeek. We are grateful for their exceptional work and generous contribution to open source.
+We provide an efficient MindSpore implementation of [Janus-Pro](https://github.com/deepseek-ai/Janus). This repository is built on the models and code released by DeepSeek. We are grateful for their exceptional work and generous contribution to open source.
 
 
 ## News
 
-**2025.03.12**: We have reproduced the multi-modal training pipelines referring to the JanusPro [paper](https://github.com/deepseek-ai/Janus), see [docs/training.md](docs/training.md).
+**2025.03.12**: We have reproduced the multi-modal training pipelines referring to the Janus-Pro [paper](https://github.com/deepseek-ai/Janus), see [docs/training.md](docs/training.md).
 
 **2025.02.10**: MindSpore implementation of Janus-Pro is released, supporting both multimodal understanding and visual generation on Ascend NPU.
 
@@ -51,7 +51,7 @@ Generation with Data and Model Scaling</b></a>
 
 ## 2. Model Download
 
-JanusPro is available to the public to support a broader and more diverse range of research within both academic and commercial communities.
+Janus-Pro is available to the public to support a broader and more diverse range of research within both academic and commercial communities.
 Please note that the use of this model is subject to the terms outlined in [License section](#5-license). Commercial usage is
 permitted under these terms.
 
@@ -138,7 +138,7 @@ Please refer to [training.md](docs/training.md)
 
 ### Multimodal Understanding
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **graph** mode:
 
 | model | # card(s) | image size | attn. type | throughput (token/s)|
 |:-:|:-:|:-:|:-:|:-:|
@@ -146,7 +146,7 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
 | Janus-Pro-7B | 1 | 384x384 | Eager | 12.2|
 
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
 
 | model | # card(s) | image size | attn. type | throughput (token/s)|
 |:-:|:-:|:-:|:-:|:-:|
@@ -155,14 +155,14 @@ Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
 
 ### Visual Generation
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **graph** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **graph** mode:
 
 | model | # card(s) | batch Size | image size | attn. type | throughput (token/s)| s/img |
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | Janus-Pro-1B | 1 | 1 | 384x384 | Eager | 16.2 | ~ 40 |
 | Janus-Pro-7B | 1 | 1 | 384x384 | Eager | 11.9 | ~ 52 |
 
-Experiments are tested on ascend 910* with mindspore 2.5.0 **pynative** mode:
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.5.0 **pynative** mode:
 
 | model | # card(s) | batch size| image size | attn. type | throughput (token/s)| s/img |
 |:-:|:-:|:-:|:-:|:-:|:-:|:-:|

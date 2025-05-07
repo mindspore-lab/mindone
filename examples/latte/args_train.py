@@ -28,7 +28,12 @@ def parse_train_args(parser):
     )
     # ms
     parser.add_argument("--device_target", type=str, default="Ascend", help="Ascend or GPU")
-    parser.add_argument("--max_device_memory", type=str, default=None, help="e.g. `30GB` for 910a, `59GB` for 910b")
+    parser.add_argument(
+        "--max_device_memory",
+        type=str,
+        default=None,
+        help="e.g. `30GB` for Ascend 910, `59GB` for Ascend Atlas 800T A2 machines",
+    )
     parser.add_argument("--mode", default=0, type=int, help="Specify the mode: 0 for graph mode, 1 for pynative mode")
     parser.add_argument("--use_parallel", default=False, type=str2bool, help="use parallel")
 

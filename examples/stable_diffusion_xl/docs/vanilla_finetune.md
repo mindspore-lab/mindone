@@ -76,7 +76,7 @@ msrun --worker_num=8 \
 
 ## Performance
 
-Experiments are tested on ascend 910* with mindspore 2.3.1 graph mode.
+Experiments are tested on Ascend Atlas 800T A2 machines with mindspore 2.3.1 graph mode.
 
 | model name | cards |  batch size  |resolution| precision |  flash attn  | sink |jit level| graph compile | s/step |  img/s  |
 | :--------: | :---: |:-----------: | :------:|  :--: | :------: | :--: | :--: | :-------: | :---: | :---: |

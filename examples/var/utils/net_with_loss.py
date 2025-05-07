@@ -2,6 +2,7 @@ from typing import Tuple
 
 from models import VAR, VQVAE
 
+import mindspore as ms
 from mindspore import mint, nn, ops
 
 from mindone.diffusers.training_utils import pynative_no_grad as no_grad
@@ -24,19 +25,13 @@ class GeneratorWithLoss(nn.Cell):
             self.begin_ends.append((cur, cur + pn * pn))
             cur += pn * pn
 
-        self.prog_it = 0
-        self.last_prog_si = -1
+        self.prog_it = ms.Tensor(0)
+        self.last_prog_si = ms.Tensor(-1)
         self.first_prog = True
 
     def construct(self, inp_B3HW, label_B, prog_si, prog_wp_it):
-        self.var.prog_si = self.vae_local.quantize.prog_si = prog_si
-        if self.last_prog_si != prog_si:
-            if self.last_prog_si != -1:
-                self.first_prog = False
-            self.last_prog_si = prog_si
-            self.prog_it = 0
-        self.prog_it += 1
-        prog_wp = max(min(self.prog_it / prog_wp_it, 1), 0.01)
+        self.prog_it = self.prog_it.add(1)
+        prog_wp = mint.maximum(mint.minimum(self.prog_it / prog_wp_it, 1), 0.01)
         if self.first_prog:
             prog_wp = 1  # no prog warmup at first prog stage, as it's already solved in wp
         if prog_si == len(self.patch_nums) - 1:
@@ -59,5 +54,4 @@ class GeneratorWithLoss(nn.Cell):
         else:  # not in progressive training
             lw = self.loss_weight
         loss = loss.mul(lw).sum(dim=-1).mean()
-        self.var.prog_si = self.vae_local.quantize.prog_si = -1
         return loss

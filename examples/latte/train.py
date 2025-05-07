@@ -245,7 +245,7 @@ def main(args):
             log_interval=args.log_interval,
             start_epoch=start_epoch,
             model_name="Latte",
-            record_lr=False,  # TODO: check LR retrival for new MS on 910b
+            record_lr=False,  # TODO: check LR retrival for new MS on Ascend Atlas 800T A2 machines
         )
         callback.append(save_cb)
         if args.profile:

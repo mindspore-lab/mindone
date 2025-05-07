@@ -204,12 +204,16 @@
         title: LuminaNextDiT2DModel
       - local: api/models/ltx_video_transformer3d
         title: LTXVideoTransformer3DModel
+      - local: api/models/mochi_transformer3d
+        title: MochiTransformer3DModel
       - local: api/models/pixart_transformer2d
         title: PixArtTransformer2DModel
       - local: api/models/prior_transformer
         title: PriorTransformer
       - local: api/models/sd3_transformer2d
         title: SD3Transformer2DModel
+      - local: api/models/sana_transformer2d
+        title: SanaTransformer2DModel
       - local: api/models/stable_audio_transformer
         title: StableAudioDiTModel
       - local: api/models/transformer2d
@@ -244,6 +248,8 @@
         title: AutoencoderKLHunyuanVideo
       - local: api/models/autoencoderkl_ltx_video
         title: AutoencoderKLLTXVideo
+      - local: api/models/autoencoderkl_mochi
+        title: AutoencoderKLMochi
       - local: api/models/asymmetricautoencoderkl
         title: AsymmetricAutoencoderKL
       - local: api/models/consistency_decoder_vae
@@ -343,15 +349,25 @@
     - local: api/pipelines/marigold
       title: Marigold
     - local: api/pipelines/mochi
-      title: Mochi 1 Preview
+      title: Mochi
     - local: api/pipelines/musicldm
       title: MusicLDM
     - local: api/pipelines/pag
       title: PAG
+    - local: api/pipelines/paint_by_example
+      title: Paint by Example
+    - local: api/pipelines/pia
+      title: Personalized Image Animator (PIA)
     - local: api/pipelines/pixart
       title: PixArt-α
     - local: api/pipelines/pixart_sigma
       title: PixArt-Σ
+    - local: api/pipelines/sana
+      title: Sana
+    - local: api/pipelines/self_attention_guidance
+      title: Self-Attention Guidance
+    - local: api/pipelines/semantic_stable_diffusion
+      title: Semantic Guidance
     - local: api/pipelines/shap_e
       title: Shap-E
     - local: api/pipelines/stable_cascade
@@ -383,11 +399,19 @@
         title: Latent upscaler
       - local: api/pipelines/stable_diffusion/upscale
         title: Super-resolution
+      - local: api/pipelines/stable_diffusion/ldm3d_diffusion
+        title: LDM3D Text-to-(RGB, Depth), Text-to-(RGB-pano, Depth-pano), LDM3D Upscaler
       - local: api/pipelines/stable_diffusion/adapter
         title: T2I-Adapter
       - local: api/pipelines/stable_diffusion/gligen
         title: GLIGEN (Grounded Language-to-Image Generation)
       title: Stable Diffusion
+    - local: api/pipelines/stable_unclip
+      title: Stable unCLIP
+    - local: api/pipelines/text_to_video
+      title: Text-to-video
+    - local: api/pipelines/text_to_video_zero
+      title: Text2Video-Zero
     - local: api/pipelines/unclip
       title: unCLIP
     - local: api/pipelines/wuerstchen

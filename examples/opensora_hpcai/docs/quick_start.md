@@ -10,7 +10,7 @@ A mindspore implementation of [OpenSora](https://github.com/hpcaitech/Open-Sora)
     - [x] Mixed precision optimization (BF16) on Ascend
     - [x] Flash attention optimization on Ascend
 - [x] Image/Video-to-Video generation pipeline (to be refactored)
-    - [x] Video generation in FP32 precision on Ascend 910*.
+    - [x] Video generation in FP32 precision on Ascend Atlas 800T A2 machines.
     - [x] Mixed precision optimization (FP16 and BF16) on Ascend.
 - [ ] Training
     - [x] Text embedding-cached STDiT training on GPUs and Ascends

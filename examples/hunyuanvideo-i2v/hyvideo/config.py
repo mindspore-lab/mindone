@@ -625,7 +625,12 @@ def add_inference_args(parser: argparse.ArgumentParser):
     group.add_argument(
         "--jit-syntax-level", default="lax", choices=["strict", "lax"], help="Set jit syntax level: strict or lax"
     )
-    group.add_argument("--max-device-memory", type=str, default="59GB", help="e.g. `30GB` for 910a, `59GB` for 910b")
+    group.add_argument(
+        "--max-device-memory",
+        type=str,
+        default="59GB",
+        help="e.g. `30GB` for 910, `59GB` for Ascend Atlas 800T A2 machines",
+    )
     return parser
 
 

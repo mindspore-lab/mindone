@@ -2,7 +2,7 @@
 
 在 Ascend 硬件下对 Cog 系列视频模型进行微调以实现自定义视频生成 ⚡️📼
 
-> 我们的开发和验证基于Ascend 910*硬件，相关环境如下：
+> 我们的开发和验证基于Ascend Atlas 800T A2硬件，相关环境如下：
 > | mindspore  | ascend driver  |  firmware   | cann toolkit/kernel |
 > |:----------:|:--------------:|:-----------:|:------------------:|
 > |    2.5     |    24.1.RC2    | 7.5.0.1.129 |      8.0.0.beta1       |
@@ -60,16 +60,16 @@ huggingface-cli download   --repo-type dataset Wild-Heart/Disney-VideoGeneration
 
 ```
 # 对 CogVideoX 模型进行文本到视频的 LoRA 微调
-./train_text_to_video_lora.sh
+./scripts/train_text_to_video_lora.sh
 
 # 对 CogVideoX 模型进行文本到视频的完整微调
-./train_text_to_video_sft.sh
+./scripts/train_text_to_video_sft.sh
 
 # 对 CogVideoX 模型进行图像到视频的 LoRA 微调
-./train_image_to_video_lora.sh
+./scripts/train_image_to_video_lora.sh
 
 # 对 CogVideoX 模型进行图像到视频的完整微调
-./train_image_to_video_sft.sh
+./scripts/train_image_to_video_sft.sh
 ```
 
 假设您的 LoRA 已保存到本地，并且路径为 `/path/to/my-awesome-lora`，现在我们可以使用微调模型进行推理：
@@ -379,7 +379,7 @@ NODE_RANK="0"
 | CogvideoX 1.5 T2V 20B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  20.1  |   35.7 GB    |
 | CogvideoX 1.5 T2V 30B |   8   | 2  | 4  | zero3 |    ON     | 1x77x768x1360 |   bf16    |    O1     |  26.5  |   47.3 GB    |
 
-以上数据在Disney数据集，910*上获得。
+以上数据在Disney数据集，Ascend Atlas 800T A2训练服务器上获得。
 
 ### 推理
 
@@ -387,7 +387,7 @@ NODE_RANK="0"
 |:-----------------:|:-----:|:--:|:--:|:-----:|:-------------:|:---------:|:---------:|:------:|:----------:|
 | CogvideoX 1.5 T2V 5B  |   8   | 1  | 8  | zero3 | 1x77x768x1360 |   bf16    |    O1     |  3.21  |   ~ 5min   |
 
-以上数据在910*上获得。
+以上数据在Ascend Atlas 800T A2训练服务器上获得。
 
 ## 与原仓的差异&功能限制
 

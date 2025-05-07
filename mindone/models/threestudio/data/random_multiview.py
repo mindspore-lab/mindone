@@ -3,12 +3,16 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
-import threestudio
 from omegaconf import DictConfig
-from threestudio import register
-from threestudio.data.uncond import RandomCameraDataModuleConfig, RandomCameraDataset, RandomCameraIterableDataset
-from threestudio.utils.config import parse_structured
-from threestudio.utils.ops import get_mvp_matrix, get_projection_matrix, get_rays, l2norm_np
+
+import mindone.models.threestudio as threestudio
+from mindone.models.threestudio.data.uncond import (
+    RandomCameraDataModuleConfig,
+    RandomCameraDataset,
+    RandomCameraIterableDataset,
+)
+from mindone.models.threestudio.utils.config import parse_structured
+from mindone.models.threestudio.utils.ops import get_mvp_matrix, get_projection_matrix, get_rays, l2norm_np
 
 
 @dataclass
@@ -258,7 +262,7 @@ class BatchSampler:
         raise ValueError("NOT supported. " "This has some randomness across epochs")
 
 
-@register("random-multiview-camera-datamodule")
+@threestudio.register("random-multiview-camera-datamodule")
 class RandomMultiviewCameraDataModule:
     cfg: RandomMultiviewCameraDataModuleConfig
 

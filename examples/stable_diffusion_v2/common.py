@@ -65,7 +65,7 @@ def init_env(
         ms.set_context(
             mode=mode,
             device_target=device_target,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend Atlas 800T A2 machines
             max_device_memory=max_device_memory,
         )
         init()
@@ -93,7 +93,7 @@ def init_env(
             mode=mode,
             device_target=device_target,
             device_id=device_id,
-            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend 910*
+            ascend_config={"precision_mode": "allow_fp32_to_fp16"},  # Only effective on Ascend Atlas 800T A2 machines
             pynative_synchronize=debug,
             max_device_memory=max_device_memory,
         )

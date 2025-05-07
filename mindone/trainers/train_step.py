@@ -186,6 +186,6 @@ class TrainOneStepWrapper(nn.TrainOneStepWithLossScaleCell):
             if self.ema is not None:
                 self.ema.ema_update()
         # else:
-        #    print("WARNING: Gradient overflow! update skipped.") # TODO: recover it after 910B in-graph print issue fixed
+        #    print("WARNING: Gradient overflow! update skipped.") # TODO: recover it after Ascend Atlas 800T A2 machines in-graph print issue fixed
 
         return loss, cond, scaling_sens
