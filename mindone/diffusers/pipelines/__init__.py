@@ -120,10 +120,12 @@ _import_structure = {
     "lumina": ["LuminaText2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
+        "MarigoldIntrinsicsPipeline",
         "MarigoldNormalsPipeline",
     ],
     "mochi": ["MochiPipeline"],
     "musicldm": ["MusicLDMPipeline"],
+    "omnigen": ["OmniGenPipeline"],
     "pag": [
         "StableDiffusionControlNetPAGInpaintPipeline",
         "AnimateDiffPAGPipeline",
@@ -321,9 +323,10 @@ if TYPE_CHECKING:
     )
     from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
-    from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
+    from .marigold import MarigoldDepthPipeline, MarigoldIntrinsicsPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
     from .musicldm import MusicLDMPipeline
+    from .omnigen import OmniGenPipeline
     from .pag import (
         AnimateDiffPAGPipeline,
         HunyuanDiTPAGPipeline,
