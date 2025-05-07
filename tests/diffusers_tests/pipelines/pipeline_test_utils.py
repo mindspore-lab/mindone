@@ -79,7 +79,7 @@ def randn_tensor(
         dtype = torch.float32
     elif dtype == ms.bfloat16:
         dtype = torch.bfloat16
-    else:
+    elif dtype == ms.float16:
         dtype = torch.float16
 
     layout = layout or torch.strided
