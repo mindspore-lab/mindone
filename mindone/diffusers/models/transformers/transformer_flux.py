@@ -86,7 +86,7 @@ class FluxSingleTransformerBlock(nn.Cell):
         )
 
         hidden_states = mint.cat([attn_output, mlp_hidden_states], dim=2)
-        gate = mint.unsqueeze(gate, 1)
+        gate = gate.unsqueeze(1)
         hidden_states = gate * self.proj_out(hidden_states)
         hidden_states = residual + hidden_states
         if hidden_states.dtype == ms.float16:
@@ -175,14 +175,14 @@ class FluxTransformerBlock(nn.Cell):
             attn_output, context_attn_output, ip_attn_output = None, None, None
 
         # Process attention outputs for the `hidden_states`.
-        attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
+        attn_output = gate_msa.unsqueeze(1) * attn_output
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
 
         ff_output = self.ff(norm_hidden_states)
-        ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
+        ff_output = gate_mlp.unsqueeze(1) * ff_output
 
         hidden_states = hidden_states + ff_output
         if len(attention_outputs) == 3:
@@ -190,14 +190,14 @@ class FluxTransformerBlock(nn.Cell):
 
         # Process attention outputs for the `encoder_hidden_states`.
 
-        context_attn_output = mint.unsqueeze(c_gate_msa, 1) * context_attn_output
+        context_attn_output = c_gate_msa.unsqueeze(1) * context_attn_output
         encoder_hidden_states = encoder_hidden_states + context_attn_output
 
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
         norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
 
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
-        encoder_hidden_states = encoder_hidden_states + mint.unsqueeze(c_gate_mlp, 1) * context_ff_output
+        encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
         if encoder_hidden_states.dtype == ms.float16:
             encoder_hidden_states = encoder_hidden_states.clip(-65504, 65504)
 

@@ -172,7 +172,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             seq_len,
         ) = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = mint.tile(prompt_embeds, (1, num_waveforms_per_prompt))
+        prompt_embeds = prompt_embeds.tile((1, num_waveforms_per_prompt))
         prompt_embeds = prompt_embeds.view(bs_embed * num_waveforms_per_prompt, seq_len)
 
         # get unconditional embeddings for classifier free guidance
@@ -241,7 +241,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
 
     def mel_spectrogram_to_waveform(self, mel_spectrogram):
         if mel_spectrogram.dim() == 4:
-            mel_spectrogram = mint.squeeze(mel_spectrogram, 1)
+            mel_spectrogram = mel_spectrogram.squeeze(1)
 
         waveform = self.vocoder(mel_spectrogram)
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
@@ -511,7 +511,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = mint.chunk(noise_pred, 2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

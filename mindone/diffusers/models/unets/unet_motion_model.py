@@ -167,13 +167,11 @@ class AnimateDiffTransformer3D(nn.Cell):
 
         residual = hidden_states
 
-        hidden_states = mint.reshape(hidden_states[None, :], (batch_size, num_frames, channel, height, width))
-        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3, 4))
+        hidden_states = hidden_states[None, :].reshape(batch_size, num_frames, channel, height, width)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4)
 
         hidden_states = self.norm(hidden_states)
-        hidden_states = mint.reshape(
-            mint.permute(hidden_states, (0, 3, 4, 2, 1)), (batch_size * height * width, num_frames, channel)
-        )
+        hidden_states = hidden_states.permute(0, 3, 4, 2, 1).reshape(batch_size * height * width, num_frames, channel)
 
         hidden_states = self.proj_in(hidden_states)
 
@@ -189,11 +187,13 @@ class AnimateDiffTransformer3D(nn.Cell):
 
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states[None, None, :], (batch_size, height, width, num_frames, channel)),
-            (0, 3, 4, 1, 2),
-        ).contiguous()
-        hidden_states = mint.reshape(hidden_states, (batch_frames, channel, height, width))
+        hidden_states = (
+            hidden_states[None, None, :]
+            .reshape(batch_size, height, width, num_frames, channel)
+            .permute(0, 3, 4, 1, 2)
+            .contiguous()
+        )
+        hidden_states = hidden_states.reshape(batch_frames, channel, height, width)
 
         output = hidden_states + residual
         return output
@@ -1876,11 +1876,10 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # 1. time
         timesteps = timestep
-        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
@@ -1893,7 +1892,7 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         num_frames = sample.shape[2]
-        timesteps = mint.broadcast_to(timesteps, (sample.shape[0],))
+        timesteps = timesteps.broadcast_to((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
@@ -1917,15 +1916,15 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
                     f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"  # noqa: E501
                 )
             time_ids = added_cond_kwargs.get("time_ids")
-            time_embeds = self.add_time_proj(mint.flatten(time_ids)).to(text_embeds.dtype)
-            time_embeds = mint.reshape(time_embeds, (text_embeds.shape[0], -1))
+            time_embeds = self.add_time_proj(time_ids.flatten()).to(text_embeds.dtype)
+            time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
             add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
             add_embeds = add_embeds.to(emb.dtype)
             aug_emb = self.add_embedding(add_embeds)
 
         emb = emb if aug_emb is None else emb + aug_emb
-        emb = mint.repeat_interleave(emb, repeats=num_frames, dim=0)
+        emb = emb.repeat_interleave(repeats=num_frames, dim=0)
 
         if self.encoder_hid_proj is not None and self.config["encoder_hid_dim_type"] == "ip_image_proj":
             if "image_embeds" not in added_cond_kwargs:
@@ -1935,15 +1934,12 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
                 )
             image_embeds = added_cond_kwargs.get("image_embeds")
             image_embeds = self.encoder_hid_proj(image_embeds)
-            image_embeds = [
-                mint.repeat_interleave(image_embed, repeats=num_frames, dim=0) for image_embed in image_embeds
-            ]
+            image_embeds = [image_embed.repeat_interleave(repeats=num_frames, dim=0) for image_embed in image_embeds]
+
             encoder_hidden_states = (encoder_hidden_states, image_embeds)
 
         # 2. pre-process
-        sample = mint.reshape(
-            mint.permute(sample, (0, 2, 1, 3, 4)), ((sample.shape[0] * num_frames, -1) + sample.shape[3:])
-        )
+        sample = sample.permute(0, 2, 1, 3, 4).reshape((sample.shape[0] * num_frames, -1) + sample.shape[3:])
         sample = self.conv_in(sample)
 
         # 3. down
@@ -2038,7 +2034,7 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
         sample = self.conv_out(sample)
 
         # reshape to (batch, channel, framerate, width, height)
-        sample = mint.permute(mint.reshape(sample[None, :], ((-1, num_frames) + sample.shape[1:])), (0, 2, 1, 3, 4))
+        sample = sample[None, :].reshape((-1, num_frames) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
 
         if not return_dict:
             return (sample,)

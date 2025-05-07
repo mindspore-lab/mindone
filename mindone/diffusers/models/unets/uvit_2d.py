@@ -147,13 +147,13 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         encoder_hidden_states = self.encoder_proj_layer_norm(encoder_hidden_states)
 
         micro_cond_embeds = get_timestep_embedding(
-            mint.flatten(micro_conds),
+            micro_conds.flatten(),
             self.config["micro_cond_encode_dim"],
             flip_sin_to_cos=True,
             downscale_freq_shift=0,
         )
 
-        micro_cond_embeds = mint.reshape(micro_cond_embeds, (input_ids.shape[0], -1)).to(pooled_text_emb.dtype)
+        micro_cond_embeds = micro_cond_embeds.reshape((input_ids.shape[0], -1)).to(pooled_text_emb.dtype)
 
         pooled_text_emb = mint.cat([pooled_text_emb, micro_cond_embeds], dim=1)
         pooled_text_emb = pooled_text_emb.to(dtype=encoder_hidden_states.dtype)
@@ -185,7 +185,7 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         hidden_states = self.project_from_hidden_norm(hidden_states)
         hidden_states = self.project_from_hidden(hidden_states)
 
-        hidden_states = mint.permute(mint.reshape(hidden_states, (batch_size, height, width, channels)), (0, 3, 1, 2))
+        hidden_states = hidden_states.reshape(batch_size, height, width, channels).permute(0, 3, 1, 2)
 
         hidden_states = self.up_block(
             hidden_states,
@@ -280,7 +280,7 @@ class UVit2DConvEmbed(nn.Cell):
     def construct(self, input_ids):
         embeddings = self.embeddings(input_ids)
         embeddings = self.layer_norm(embeddings)
-        embeddings = mint.permute(embeddings, (0, 3, 1, 2))
+        embeddings = embeddings.permute(0, 3, 1, 2)
         embeddings = self.conv(embeddings)
         return embeddings
 
@@ -372,11 +372,11 @@ class UVitBlock(nn.Cell):
             x = res_block(x, pooled_text_emb)
 
             batch_size, channels, height, width = x.shape
-            x = mint.permute(x.view(batch_size, channels, height * width), (0, 2, 1))
+            x = x.view(batch_size, channels, height * width).permute(0, 2, 1)
             x = attention_block(
                 x, encoder_hidden_states=encoder_hidden_states, cross_attention_kwargs=cross_attention_kwargs
             )
-            x = mint.permute(x, (0, 2, 1)).view(batch_size, channels, height, width)
+            x = x.permute(0, 2, 1).view(batch_size, channels, height, width)
 
         if self.upsample is not None:
             x = self.upsample(x)
@@ -410,7 +410,7 @@ class ConvNextBlock(nn.Cell):
 
         x = self.depthwise(x)
 
-        x = mint.permute(x, (0, 2, 3, 1))
+        x = x.permute(0, 2, 3, 1)
         x = self.norm(x)
 
         x = self.channelwise_linear_1(x)
@@ -419,11 +419,11 @@ class ConvNextBlock(nn.Cell):
         x = self.channelwise_linear_2(x)
         x = self.channelwise_dropout(x)
 
-        x = mint.permute(x, (0, 3, 1, 2))
+        x = x.permute(0, 3, 1, 2)
 
         x = x + x_res
 
-        scale, shift = mint.chunk(self.cond_embeds_mapper(mint.nn.functional.silu(cond_embeds)), 2, 1)
+        scale, shift = self.cond_embeds_mapper(mint.nn.functional.silu(cond_embeds)).chunk(2, dim=1)
         x = x * (1 + scale[:, :, None, None]) + shift[:, :, None, None]
 
         return x
@@ -446,6 +446,6 @@ class ConvMlmLayer(nn.Cell):
 
     def construct(self, hidden_states):
         hidden_states = self.conv1(hidden_states)
-        hidden_states = mint.permute(self.layer_norm(mint.permute(hidden_states, (0, 2, 3, 1))), (0, 3, 1, 2))
+        hidden_states = self.layer_norm(hidden_states.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
         logits = self.conv2(hidden_states)
         return logits

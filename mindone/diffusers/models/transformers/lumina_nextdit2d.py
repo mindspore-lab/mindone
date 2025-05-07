@@ -158,15 +158,15 @@ class LuminaNextDiTBlock(nn.Cell):
         )
         cross_attn_output = cross_attn_output * self.gate.tanh().view(1, 1, -1, 1)
         mixed_attn_output = self_attn_output + cross_attn_output
-        mixed_attn_output = mint.flatten(mixed_attn_output, start_dim=-2)
+        mixed_attn_output = mixed_attn_output.flatten(start_dim=-2)
         # linear proj
         hidden_states = self.attn2.to_out[0](mixed_attn_output)
 
-        hidden_states = residual + mint.tanh(mint.unsqueeze(gate_msa, 1)) * self.norm2(hidden_states)
+        hidden_states = residual + gate_msa.unsqueeze(1).tanh() * self.norm2(hidden_states)
 
-        mlp_output = self.feed_forward(self.ffn_norm1(hidden_states) * (1 + mint.unsqueeze(scale_mlp, 1)))
+        mlp_output = self.feed_forward(self.ffn_norm1(hidden_states) * (1 + scale_mlp.unsqueeze(1)))
 
-        hidden_states = hidden_states + mint.tanh(mint.unsqueeze(gate_mlp, 1)) * self.ffn_norm2(mlp_output)
+        hidden_states = hidden_states + gate_mlp.unsqueeze(1).tanh() * self.ffn_norm2(mlp_output)
 
         return hidden_states
 
@@ -327,11 +327,7 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states[:, :sequence_length].view(
             batch_size, height // height_tokens, width // width_tokens, height_tokens, width_tokens, self.out_channels
         )
-        output = mint.flatten(
-            mint.flatten(mint.permute(hidden_states, (0, 5, 1, 3, 2, 4)), start_dim=4, end_dim=5),
-            start_dim=2,
-            end_dim=3,
-        )
+        output = hidden_states.permute(0, 5, 1, 3, 2, 4).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
 
         if not return_dict:
             return (output,)

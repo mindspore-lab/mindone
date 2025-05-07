@@ -166,13 +166,11 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
 
         residual = hidden_states
 
-        hidden_states = mint.reshape(hidden_states[None, :], (batch_size, num_frames, channel, height, width))
-        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3, 4))
+        hidden_states = hidden_states[None, :].reshape(batch_size, num_frames, channel, height, width)
+        hidden_states = hidden_states.permute(0, 2, 1, 3, 4)
 
         hidden_states = self.norm(hidden_states)
-        hidden_states = mint.reshape(
-            mint.permute(hidden_states, (0, 3, 4, 2, 1)), (batch_size * height * width, num_frames, channel)
-        )
+        hidden_states = hidden_states.permute(0, 3, 4, 2, 1).reshape(batch_size * height * width, num_frames, channel)
 
         hidden_states = self.proj_in(hidden_states)
 
@@ -188,11 +186,10 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
 
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states[None, None, :], (batch_size, height, width, num_frames, channel)),
-            (0, 3, 4, 1, 2),
+        hidden_states = (
+            hidden_states[None, None, :].reshape(batch_size, height, width, num_frames, channel).permute(0, 3, 4, 1, 2)
         )
-        hidden_states = mint.reshape(hidden_states, (batch_frames, channel, height, width))
+        hidden_states = hidden_states.reshape(batch_frames, channel, height, width)
 
         output = hidden_states + residual
 
@@ -325,14 +322,13 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         hidden_states = self.norm(hidden_states)
         inner_dim = hidden_states.shape[1]
-        hidden_states = mint.reshape(
-            mint.permute(hidden_states, (0, 2, 3, 1)), (batch_frames, height * width, inner_dim)
-        )
+        hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch_frames, height * width, inner_dim)
+
         hidden_states = self.proj_in(hidden_states)
 
         num_frames_emb = mint.arange(num_frames)
-        num_frames_emb = mint.tile(num_frames_emb, (batch_size, 1))
-        num_frames_emb = mint.reshape(num_frames_emb, (-1,))
+        num_frames_emb = num_frames_emb.tile((batch_size, 1))
+        num_frames_emb = num_frames_emb.reshape(-1)
         t_emb = self.time_proj(num_frames_emb)
 
         # `Timesteps` does not contain any weights and will always return f32 tensors
@@ -366,9 +362,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
 
         # 3. Output
         hidden_states = self.proj_out(hidden_states)
-        hidden_states = mint.permute(
-            mint.reshape(hidden_states, (batch_frames, height, width, inner_dim)), (0, 3, 1, 2)
-        )
+        hidden_states = hidden_states.reshape(batch_frames, height, width, inner_dim).permute(0, 3, 1, 2)
 
         output = hidden_states + residual
 

@@ -80,12 +80,12 @@ class I2VGenXLTransformerTemporalEncoder(nn.Cell):
         attn_output = self.attn1(norm_hidden_states, encoder_hidden_states=None)
         hidden_states = attn_output + hidden_states
         if hidden_states.ndim == 4:
-            hidden_states = mint.squeeze(hidden_states, 1)
+            hidden_states = hidden_states.squeeze(1)
 
         ff_output = self.ff(hidden_states)
         hidden_states = ff_output + hidden_states
         if hidden_states.ndim == 4:
-            hidden_states = mint.squeeze(hidden_states, 1)
+            hidden_states = hidden_states.squeeze(1)
 
         return hidden_states
 
@@ -493,7 +493,6 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
 
         # 1. time
         timesteps = timestep
-        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass `timesteps` as tensors if you can
             if isinstance(timesteps, float):
@@ -505,7 +504,7 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
             timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = mint.broadcast_to(timesteps, (sample.shape[0],))
+        timesteps = timesteps.broadcast_to((sample.shape[0],))
         t_emb = self.time_proj(timesteps)
 
         # timesteps does not contain any weights and will always return f32 tensors
@@ -516,12 +515,12 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
 
         # 2. FPS
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        fps = mint.broadcast_to(fps, (fps.shape[0],))
+        fps = fps.broadcast_to((fps.shape[0],))
         fps_emb = self.fps_embedding(self.time_proj(fps).to(dtype=self.dtype))
 
         # 3. time + FPS embeddings.
         emb = t_emb + fps_emb
-        emb = mint.repeat_interleave(emb, repeats=num_frames, dim=0)
+        emb = emb.repeat_interleave(repeats=num_frames, dim=0)
 
         # 4. context embeddings.
         # The context embeddings consist of both text embeddings from the input prompt
@@ -533,36 +532,30 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         context_emb = mint.cat([context_emb, encoder_hidden_states], dim=1)
 
         image_latents_for_context_embds = image_latents[:, :, :1, :]
-        image_latents_context_embs = mint.reshape(
-            mint.permute(image_latents_for_context_embds, (0, 2, 1, 3, 4)),
-            (
-                image_latents_for_context_embds.shape[0] * image_latents_for_context_embds.shape[2],
-                image_latents_for_context_embds.shape[1],
-                image_latents_for_context_embds.shape[3],
-                image_latents_for_context_embds.shape[4],
-            ),
+        image_latents_context_embs = image_latents_for_context_embds.permute(0, 2, 1, 3, 4).reshape(
+            image_latents_for_context_embds.shape[0] * image_latents_for_context_embds.shape[2],
+            image_latents_for_context_embds.shape[1],
+            image_latents_for_context_embds.shape[3],
+            image_latents_for_context_embds.shape[4],
         )
         image_latents_context_embs = self.image_latents_context_embedding(image_latents_context_embs)
 
         _batch_size, _channels, _height, _width = image_latents_context_embs.shape
-        image_latents_context_embs = mint.reshape(
-            mint.permute(image_latents_context_embs, (0, 2, 3, 1)), (_batch_size, _height * _width, _channels)
+        image_latents_context_embs = image_latents_context_embs.permute(0, 2, 3, 1).reshape(
+            _batch_size, _height * _width, _channels
         )
         context_emb = mint.cat([context_emb, image_latents_context_embs], dim=1)
 
         image_emb = self.context_embedding(image_embeddings)
         image_emb = image_emb.view(-1, self.config["in_channels"], self.config["cross_attention_dim"])
         context_emb = mint.cat([context_emb, image_emb], dim=1)
-        context_emb = mint.repeat_interleave(context_emb, repeats=num_frames, dim=0)
+        context_emb = context_emb.repeat_interleave(repeats=num_frames, dim=0)
 
-        image_latents = mint.reshape(
-            mint.permute(image_latents, (0, 2, 1, 3, 4)),
-            (
-                image_latents.shape[0] * image_latents.shape[2],
-                image_latents.shape[1],
-                image_latents.shape[3],
-                image_latents.shape[4],
-            ),
+        image_latents = image_latents.permute(0, 2, 1, 3, 4).reshape(
+            image_latents.shape[0] * image_latents.shape[2],
+            image_latents.shape[1],
+            image_latents.shape[3],
+            image_latents.shape[4],
         )
         image_latents = self.image_latents_proj_in(image_latents)
         image_latents = mint.reshape(
@@ -578,9 +571,8 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
 
         # 5. pre-process
         sample = mint.cat([sample, image_latents], dim=1)
-        sample = mint.reshape(
-            mint.permute(sample, (0, 2, 1, 3, 4)), ((sample.shape[0] * num_frames, -1) + sample.shape[3:])
-        )
+        sample = sample.permute(0, 2, 1, 3, 4).reshape((sample.shape[0] * num_frames, -1) + sample.shape[3:])
+
         sample = self.conv_in(sample)
         sample = self.transformer_in(
             sample,
@@ -652,7 +644,7 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         sample = self.conv_out(sample)
 
         # reshape to (batch, channel, framerate, width, height)
-        sample = mint.permute(mint.reshape(sample[None, :], ((-1, num_frames) + sample.shape[1:])), (0, 2, 1, 3, 4))
+        sample = sample[None, :].reshape((-1, num_frames) + sample.shape[1:]).permute(0, 2, 1, 3, 4)
 
         if not return_dict:
             return (sample,)

@@ -36,9 +36,9 @@ class SDCascadeLayerNorm(LayerNorm):
         super().__init__(*args, **kwargs)
 
     def construct(self, x):
-        x = mint.permute(x, (0, 2, 3, 1))
+        x = x.permute(0, 2, 3, 1)
         x = super().construct(x)
-        return mint.permute(x, (0, 3, 1, 2))
+        return x.permute(0, 3, 1, 2)
 
 
 class SDCascadeTimestepBlock(nn.Cell):
@@ -51,10 +51,10 @@ class SDCascadeTimestepBlock(nn.Cell):
             setattr(self, f"mapper_{cname}", mint.nn.Linear(c_timestep, c * 2))
 
     def construct(self, x, t):
-        t = mint.chunk(t, len(self.conds) + 1, 1)
-        a, b = mint.chunk(self.mapper(t[0])[:, :, None, None], 2, 1)
+        t = t.chunk(len(self.conds) + 1, dim=1)
+        a, b = self.mapper(t[0])[:, :, None, None].chunk(2, dim=1)
         for i, c in enumerate(self.conds):
-            ac, bc = mint.chunk(getattr(self, f"mapper_{c}")(t[i + 1])[:, :, None, None], 2, dim=1)
+            ac, bc = getattr(self, f"mapper_{c}")(t[i + 1])[:, :, None, None].chunk(2, dim=1)
             a, b = a + ac, b + bc
         return x * (1 + a) + b
 
@@ -77,7 +77,7 @@ class SDCascadeResBlock(nn.Cell):
         x = self.norm(self.depthwise(x))
         if x_skip is not None:
             x = mint.cat([x, x_skip], dim=1)
-        x = mint.permute(self.channelwise(mint.permute(x, (0, 2, 3, 1))), (0, 3, 1, 2))
+        x = self.channelwise(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
         return x + x_res
 
 
@@ -90,7 +90,7 @@ class GlobalResponseNorm(nn.Cell):
 
     def construct(self, x):
         agg_norm = mint.norm(x, p="fro", dim=(1, 2), keepdim=True).to(x.dtype)
-        stand_div_norm = agg_norm / (mint.mean(agg_norm, dim=-1, keepdim=True) + 1e-6)
+        stand_div_norm = agg_norm / (agg_norm.mean(dim=-1, keepdim=True) + 1e-6)
         return self.gamma * (x * stand_div_norm) + self.beta + x
 
 
@@ -108,7 +108,7 @@ class SDCascadeAttnBlock(nn.Cell):
         norm_x = self.norm(x)
         if self.self_attn:
             batch_size, channel, _, _ = x.shape
-            kv = mint.cat([mint.swapaxes(norm_x.view(batch_size, channel, -1), 1, 2), kv], dim=1)
+            kv = mint.cat([norm_x.view(batch_size, channel, -1).swapaxes(1, 2), kv], dim=1)
         x = x + self.attention(norm_x, encoder_hidden_states=kv)
         return x
 
@@ -479,14 +479,14 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
     def get_clip_embeddings(self, clip_txt_pooled, clip_txt=None, clip_img=None):
         if len(clip_txt_pooled.shape) == 2:
-            clip_txt_pool = mint.unsqueeze(clip_txt_pooled, 1)
+            clip_txt_pool = clip_txt_pooled.unsqueeze(1)
         clip_txt_pool = self.clip_txt_pooled_mapper(clip_txt_pooled).view(
             clip_txt_pooled.shape[0], clip_txt_pooled.shape[1] * self.config["clip_seq"], -1
         )
         if clip_txt is not None and clip_img is not None:
             clip_txt = self.clip_txt_mapper(clip_txt)
             if len(clip_img.shape) == 2:
-                clip_img = mint.unsqueeze(clip_img, 1)
+                clip_img = clip_img.unsqueeze(1)
             clip_img = self.clip_img_mapper(clip_img).view(
                 clip_img.shape[0], clip_img.shape[1] * self.config["clip_seq"], -1
             )

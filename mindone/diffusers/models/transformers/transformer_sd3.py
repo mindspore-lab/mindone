@@ -81,14 +81,14 @@ class SD3SingleTransformerBlock(nn.Cell):
         )
 
         # Process attention outputs for the `hidden_states`.
-        attn_output = mint.unsqueeze(gate_msa, 1) * attn_output
+        attn_output = gate_msa.unsqueeze(1) * attn_output
         hidden_states = hidden_states + attn_output
 
         norm_hidden_states = self.norm2(hidden_states)
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
 
         ff_output = self.ff(norm_hidden_states)
-        ff_output = mint.unsqueeze(gate_mlp, 1) * ff_output
+        ff_output = gate_mlp.unsqueeze(1) * ff_output
 
         hidden_states = hidden_states + ff_output
 
@@ -380,20 +380,17 @@ class SD3Transformer2DModel(
         height = height // patch_size
         width = width // patch_size
 
-        hidden_states = mint.reshape(
-            hidden_states,
-            (
-                hidden_states.shape[0],
-                height,
-                width,
-                patch_size,
-                patch_size,
-                self.out_channels,
-            ),
+        hidden_states = hidden_states.reshape(
+            hidden_states.shape[0],
+            height,
+            width,
+            patch_size,
+            patch_size,
+            self.out_channels,
         )
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(
-            hidden_states, (hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size)
+        output = hidden_states.reshape(
+            hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
         )
 
         if not return_dict:

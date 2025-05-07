@@ -177,14 +177,11 @@ class SanaTransformerBlock(nn.Cell):
         norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
 
         # norm_hidden_states = norm_hidden_states.unflatten(1, (height, width)).permute(0, 3, 1, 2)
-        norm_hidden_states = mint.permute(
-            mint.reshape(
-                norm_hidden_states, (norm_hidden_states.shape[0], height, width, norm_hidden_states.shape[-1])
-            ),
-            (0, 3, 1, 2),
-        )
+        norm_hidden_states = norm_hidden_states.reshape(
+            norm_hidden_states.shape[0], height, width, norm_hidden_states.shape[-1]
+        ).permute(0, 3, 1, 2)
         ff_output = self.ff(norm_hidden_states)
-        ff_output = mint.permute(mint.flatten(ff_output, start_dim=2, end_dim=3), (0, 2, 1))
+        ff_output = ff_output.flatten(start_dim=2, end_dim=3).permute(0, 2, 1)
         hidden_states = hidden_states + gate_mlp * ff_output
 
         return hidden_states
@@ -416,12 +413,12 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
+            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
         # 1. Input
         batch_size, num_channels, height, width = hidden_states.shape
@@ -450,7 +447,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             )
 
         # 3. Normalization
-        shift, scale = mint.chunk(self.scale_shift_table[None] + embedded_timestep[:, None], 2, dim=1)
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
 
         # 4. Modulation
@@ -458,12 +455,11 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         hidden_states = self.proj_out(hidden_states)
 
         # 5. Unpatchify
-        hidden_states = mint.reshape(
-            hidden_states,
-            (batch_size, post_patch_height, post_patch_width, self.config["patch_size"], self.config["patch_size"], -1),
+        hidden_states = hidden_states.reshape(
+            batch_size, post_patch_height, post_patch_width, self.config["patch_size"], self.config["patch_size"], -1
         )
-        hidden_states = mint.permute(hidden_states, (0, 5, 1, 3, 2, 4))
-        output = mint.reshape(hidden_states, (batch_size, -1, post_patch_height * p, post_patch_width * p))
+        hidden_states = hidden_states.permute(0, 5, 1, 3, 2, 4)
+        output = hidden_states.reshape(batch_size, -1, post_patch_height * p, post_patch_width * p)
 
         if not return_dict:
             return (output,)

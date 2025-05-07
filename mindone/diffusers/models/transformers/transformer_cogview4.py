@@ -49,13 +49,11 @@ class CogView4PatchEmbed(nn.Cell):
         post_patch_height = height // self.patch_size
         post_patch_width = width // self.patch_size
 
-        hidden_states = mint.reshape(
-            hidden_states, (batch_size, channel, post_patch_height, self.patch_size, post_patch_width, self.patch_size)
+        hidden_states = hidden_states.reshape(
+            batch_size, channel, post_patch_height, self.patch_size, post_patch_width, self.patch_size
         )
-        hidden_states = mint.flatten(
-            mint.flatten(mint.permute(hidden_states, (0, 2, 4, 1, 3, 5)), start_dim=3, end_dim=5),
-            start_dim=1,
-            end_dim=2,
+        hidden_states = (
+            hidden_states.permute(0, 2, 4, 1, 3, 5).flatten(start_dim=3, end_dim=5).flatten(start_dim=1, end_dim=2)
         )
         hidden_states = self.proj(hidden_states)
         encoder_hidden_states = self.text_proj(encoder_hidden_states)
@@ -91,12 +89,10 @@ class CogView4AdaLayerNormZero(nn.Cell):
             c_scale_mlp,
             gate_mlp,
             c_gate_mlp,
-        ) = mint.chunk(emb, 12, dim=1)
+        ) = emb.chunk(12, dim=1)
 
-        hidden_states = norm_hidden_states * (1 + scale_msa.unsqueeze(1)) + mint.unsqueeze(shift_msa, 1)
-        encoder_hidden_states = norm_encoder_hidden_states * (1 + mint.unsqueeze(c_scale_msa, 1)) + mint.unsqueeze(
-            c_shift_msa, 1
-        )
+        hidden_states = norm_hidden_states * (1 + scale_msa.unsqueeze(1)) + shift_msa.unsqueeze(1)
+        encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_msa.unsqueeze(1)) + c_shift_msa.unsqueeze(1)
 
         return (
             hidden_states,
@@ -162,9 +158,9 @@ class CogView4AttnProcessor:
         key = attn.to_k(hidden_states)
         value = attn.to_v(hidden_states)
 
-        query = mint.transpose(mint.reshape(query, (query.shape[:2] + (attn.heads, -1) + query.shape[3:])), 1, 2)
-        key = mint.transpose(mint.reshape(key, (key.shape[:2] + (attn.heads, -1) + key.shape[3:])), 1, 2)
-        value = mint.transpose(mint.reshape(value, (value.shape[:2] + (attn.heads, -1) + value.shape[3:])), 1, 2)
+        query = query.reshape(query.shape[:2] + (attn.heads, -1) + query.shape[3:]).transpose(1, 2)
+        key = key.reshape(key.shape[:2] + (attn.heads, -1) + key.shape[3:]).transpose(1, 2)
+        value = value.reshape(value.shape[:2] + (attn.heads, -1) + value.shape[3:]).transpose(1, 2)
 
         # 2. QK normalization
         if attn.norm_q is not None:
@@ -189,15 +185,15 @@ class CogView4AttnProcessor:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = mint.flatten(mint.transpose(hidden_states, 1, 2), start_dim=2, end_dim=3)
+        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
         hidden_states = hidden_states.type_as(query)
 
         # 5. Output projection
         hidden_states = attn.to_out[0](hidden_states)
         hidden_states = attn.to_out[1](hidden_states)
 
-        encoder_hidden_states, hidden_states = mint.split(
-            hidden_states, [text_seq_length, hidden_states.shape[1] - text_seq_length], dim=1
+        encoder_hidden_states, hidden_states = hidden_states.split(
+            [text_seq_length, hidden_states.shape[1] - text_seq_length], dim=1
         )
         return hidden_states, encoder_hidden_states
 
@@ -254,21 +250,20 @@ class CogView4TransformerBlock(nn.Cell):
             encoder_hidden_states=norm_encoder_hidden_states,
             image_rotary_emb=image_rotary_emb,
         )
-        hidden_states = hidden_states + attn_hidden_states * mint.unsqueeze(gate_msa, 1)
-        encoder_hidden_states = encoder_hidden_states + attn_encoder_hidden_states * mint.unsqueeze(c_gate_msa, 1)
+        hidden_states = hidden_states + attn_hidden_states * gate_msa.unsqueeze(1)
+        encoder_hidden_states = encoder_hidden_states + attn_encoder_hidden_states * c_gate_msa.unsqueeze(1)
 
         # 3. Feedforward
-        norm_hidden_states = self.norm2(hidden_states) * (1 + mint.unsqueeze(scale_mlp, 1)) + mint.unsqueeze(
-            shift_mlp, 1
-        )
+        norm_hidden_states = self.norm2(hidden_states) * (1 + scale_mlp.unsqueeze(1)) + shift_mlp.unsqueeze(1)
+
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states) * (
-            1 + mint.unsqueeze(c_scale_mlp, 1)
-        ) + mint.unsqueeze(c_shift_mlp, 1)
+            1 + c_scale_mlp.unsqueeze(1)
+        ) + c_shift_mlp.unsqueeze(1)
 
         ff_output = self.ff(norm_hidden_states)
         ff_output_context = self.ff(norm_encoder_hidden_states)
-        hidden_states = hidden_states + ff_output * mint.unsqueeze(gate_mlp, 1)
-        encoder_hidden_states = encoder_hidden_states + ff_output_context * mint.unsqueeze(c_gate_mlp, 1)
+        hidden_states = hidden_states + ff_output * gate_mlp.unsqueeze(1)
+        encoder_hidden_states = encoder_hidden_states + ff_output_context * c_gate_mlp.unsqueeze(1)
 
         return hidden_states, encoder_hidden_states
 
@@ -302,8 +297,8 @@ class CogView4RotaryPosEmbed(nn.Cell):
 
         # Create position matrices for height and width
         # [height, 1, dim//4] and [1, width, dim//4]
-        freqs_h = mint.unsqueeze(freqs_h, 1)
-        freqs_w = mint.unsqueeze(freqs_w, 0)
+        freqs_h = freqs_h.unsqueeze(1)
+        freqs_w = freqs_w.unsqueeze(0)
         # Broadcast freqs_h and freqs_w to [height, width, dim//4]
         freqs_h = freqs_h.broadcast_to((height, width, -1))
         freqs_w = freqs_w.broadcast_to((height, width, -1))
@@ -311,8 +306,8 @@ class CogView4RotaryPosEmbed(nn.Cell):
         # Concatenate along last dimension to get [height, width, dim//2]
         freqs = mint.cat([freqs_h, freqs_w], dim=-1)
         freqs = mint.cat([freqs, freqs], dim=-1)  # [height, width, dim]
-        freqs = mint.reshape(freqs, (height * width, -1))
-        return (mint.cos(freqs), mint.sin(freqs))
+        freqs = freqs.reshape(height * width, -1)
+        return (freqs.cos(), freqs.sin())
 
 
 class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
@@ -438,12 +433,8 @@ class CogView4Transformer2DModel(ModelMixin, ConfigMixin):
         hidden_states = self.proj_out(hidden_states)
 
         # 5. Unpatchify
-        hidden_states = mint.reshape(hidden_states, (batch_size, post_patch_height, post_patch_width, -1, p, p))
-        output = mint.flatten(
-            mint.flatten(mint.permute(hidden_states, (0, 3, 1, 4, 2, 5)), start_dim=4, end_dim=5),
-            start_dim=2,
-            end_dim=3,
-        )
+        hidden_states = hidden_states.reshape(batch_size, post_patch_height, post_patch_width, -1, p, p)
+        output = hidden_states.permute(0, 3, 1, 4, 2, 5).flatten(start_dim=4, end_dim=5).flatten(start_dim=2, end_dim=3)
 
         if not return_dict:
             return (output,)

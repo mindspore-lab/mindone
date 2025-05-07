@@ -513,24 +513,17 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         p_t = self.config["patch_size_t"]
 
         if p_t is None:
-            output = mint.reshape(hidden_states, (batch_size, num_frames, height // p, width // p, -1, p, p))
-            output = mint.flatten(
-                mint.flatten(mint.permute(output, (0, 1, 4, 2, 5, 3, 6)), start_dim=5, end_dim=6),
-                start_dim=3,
-                end_dim=4,
-            )
+            output = hidden_states.reshape(batch_size, num_frames, height // p, width // p, -1, p, p)
+            output = output.permute(0, 1, 4, 2, 5, 3, 6).flatten(start_dim=5, end_dim=6).flatten(start_dim=3, end_dim=4)
         else:
-            output = mint.reshape(
-                hidden_states, (batch_size, (num_frames + p_t - 1) // p_t, height // p, width // p, -1, p_t, p, p)
+            output = hidden_states.reshape(
+                batch_size, (num_frames + p_t - 1) // p_t, height // p, width // p, -1, p_t, p, p
             )
-            output = mint.flatten(
-                mint.flatten(
-                    mint.flatten(mint.permute(output, (0, 1, 5, 4, 2, 6, 3, 7)), start_dim=6, end_dim=7),
-                    start_dim=4,
-                    end_dim=5,
-                ),
-                start_dim=1,
-                end_dim=2,
+            output = (
+                output.permute(0, 1, 5, 4, 2, 6, 3, 7)
+                .flatten(start_dim=6, end_dim=7)
+                .flatten(start_dim=4, end_dim=5)
+                .flatten(start_dim=1, end_dim=2)
             )
 
         if not return_dict:

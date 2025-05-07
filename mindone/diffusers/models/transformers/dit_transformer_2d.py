@@ -195,17 +195,15 @@ class DiTTransformer2DModel(ModelMixin, ConfigMixin):
 
         # 3. Output
         conditioning = self.transformer_blocks[0].norm1.emb(timestep, class_labels, hidden_dtype=hidden_states.dtype)
-        shift, scale = mint.chunk(self.proj_out_1(mint.nn.functional.silu(conditioning)), 2, dim=1)
+        shift, scale = self.proj_out_1(mint.nn.functional.silu(conditioning)).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
         hidden_states = self.proj_out_2(hidden_states)
 
         # unpatchify
         height = width = int(hidden_states.shape[1] ** 0.5)
-        hidden_states = mint.reshape(
-            hidden_states, (-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-        )
+        hidden_states = hidden_states.reshape(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(hidden_states, (-1, self.out_channels, height * self.patch_size, width * self.patch_size))
+        output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
 
         if not return_dict:
             return (output,)

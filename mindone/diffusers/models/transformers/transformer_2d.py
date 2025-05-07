@@ -472,10 +472,10 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         if not self.use_linear_projection:
             hidden_states = self.proj_in(hidden_states)
             inner_dim = hidden_states.shape[1]
-            hidden_states = mint.reshape(mint.permute(hidden_states, (0, 2, 3, 1)), (batch, height * width, inner_dim))
+            hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch, height * width, inner_dim)
         else:
             inner_dim = hidden_states.shape[1]
-            hidden_states = mint.reshape(mint.permute(hidden_states, (0, 2, 3, 1)), (batch, height * width, inner_dim))
+            hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch, height * width, inner_dim)
             hidden_states = self.proj_in(hidden_states)
 
         return hidden_states, inner_dim
@@ -502,15 +502,12 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
 
     def _get_output_for_continuous_inputs(self, hidden_states, residual, batch_size, height, width, inner_dim):
         if not self.use_linear_projection:
-            hidden_states = mint.permute(
-                mint.reshape(hidden_states, (batch_size, height, width, inner_dim)), (0, 3, 1, 2)
-            )
+            hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2)
+
             hidden_states = self.proj_out(hidden_states)
         else:
             hidden_states = self.proj_out(hidden_states)
-            hidden_states = mint.permute(
-                mint.reshape(hidden_states, (batch_size, height, width, inner_dim)), (0, 3, 1, 2)
-            )
+            hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2)
 
         output = hidden_states + residual
         return output
@@ -531,25 +528,23 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             conditioning = self.transformer_blocks[0].norm1.emb(
                 timestep, class_labels, hidden_dtype=hidden_states.dtype
             )
-            shift, scale = mint.chunk(self.proj_out_1(mint.nn.functional.silu(conditioning)), 2, dim=1)
+            shift, scale = self.proj_out_1(mint.nn.functional.silu(conditioning)).chunk(2, dim=1)
             hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
             hidden_states = self.proj_out_2(hidden_states)
         elif self.config.norm_type == "ada_norm_single":
-            shift, scale = mint.chunk((self.scale_shift_table[None] + embedded_timestep[:, None]), 2, dim=1)
+            shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
             hidden_states = self.norm_out(hidden_states)
             # Modulation
             hidden_states = hidden_states * (1 + scale) + shift
             hidden_states = self.proj_out(hidden_states)
             if hidden_states.shape[1] == 1:
-                hidden_states = mint.squeeze(hidden_states, 1)
+                hidden_states = hidden_states.squeeze(1)
 
         # unpatchify
         if self.adaln_single is None:
             height = width = int(hidden_states.shape[1] ** 0.5)
-        hidden_states = mint.reshape(
-            hidden_states, (-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-        )
+        hidden_states = hidden_states.reshape(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
 
         hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
-        output = mint.reshape(hidden_states, (-1, self.out_channels, height * self.patch_size, width * self.patch_size))
+        output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
         return output

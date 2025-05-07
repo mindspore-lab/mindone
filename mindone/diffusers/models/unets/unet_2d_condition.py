@@ -799,7 +799,7 @@ class UNet2DConditionModel(
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
         if timesteps.shape[0] == 1:
-            timesteps = mint.tile(timesteps, (sample.shape[0],))
+            timesteps = timesteps.tile((sample.shape[0],))
 
         t_emb = self.time_proj(timesteps)
 
@@ -853,11 +853,11 @@ class UNet2DConditionModel(
                     f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"  # noqa: E501
                 )
             time_ids = added_cond_kwargs.get("time_ids")
-            time_embeds = self.add_time_proj(mint.flatten(time_ids))
+            time_embeds = self.add_time_proj(time_ids.flatten())
             # `Timesteps` does not contain any weights and will always return f32 tensors
             # there might be better ways to encapsulate this.
             time_embeds = time_embeds.to(emb.dtype)
-            time_embeds = mint.reshape(time_embeds, (text_embeds.shape[0], -1))
+            time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
             add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
             add_embeds = add_embeds.to(emb.dtype)
             aug_emb = self.add_embedding(add_embeds)
@@ -1008,12 +1008,12 @@ class UNet2DConditionModel(
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
-            attention_mask = mint.unsqueeze(attention_mask, 1)
+            attention_mask = attention_mask.unsqueeze(1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None:
             encoder_attention_mask = (1 - encoder_attention_mask.to(sample.dtype)) * -10000.0
-            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
+            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
 
         # 0. center input if necessary
         if self.center_input_sample:

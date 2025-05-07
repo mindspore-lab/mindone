@@ -334,7 +334,7 @@ class SelfAttention1d(nn.Cell):
     def transpose_for_scores(self, projection: ms.Tensor) -> ms.Tensor:
         new_projection_shape = projection.shape[:-1] + (self.num_heads, -1)
         # move heads to 2nd position (B, T, H * D) -> (B, T, H, D) -> (B, H, T, D)
-        new_projection = mint.permute(projection.view(new_projection_shape), (0, 2, 1, 3))
+        new_projection = projection.view(new_projection_shape).permute(0, 2, 1, 3)
         return new_projection
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -342,7 +342,7 @@ class SelfAttention1d(nn.Cell):
         batch, channel_dim, seq = hidden_states.shape
 
         hidden_states = self.group_norm(hidden_states)
-        hidden_states = mint.transpose(hidden_states, 1, 2)
+        hidden_states = hidden_states.transpose(0, 2, 1)
 
         query_proj = self.query(hidden_states)
         key_proj = self.key(hidden_states)
@@ -360,13 +360,13 @@ class SelfAttention1d(nn.Cell):
         # compute attention output
         hidden_states = mint.matmul(attention_probs, value_states)
 
-        hidden_states = mint.permute(hidden_states, (0, 2, 1, 3))
+        hidden_states = hidden_states.permute(0, 2, 1, 3)
         new_hidden_states_shape = hidden_states.shape[:-2] + (self.channels,)
         hidden_states = hidden_states.view(new_hidden_states_shape)
 
         # compute next hidden_states
         hidden_states = self.proj_attn(hidden_states)
-        hidden_states = mint.transpose(hidden_states, 1, 2)
+        hidden_states = hidden_states.transpose(0, 2, 1)
         hidden_states = self.dropout(hidden_states)
 
         output = hidden_states + residual
