@@ -19,7 +19,6 @@ from typing import Callable, Dict, Union
 from huggingface_hub.utils import validate_hf_hub_args
 
 import mindspore as ms
-from mindspore import mint
 
 from mindone.safetensors.mindspore import load_file, save_file
 

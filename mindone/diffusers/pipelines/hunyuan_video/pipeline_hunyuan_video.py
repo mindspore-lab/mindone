@@ -19,7 +19,6 @@ import numpy as np
 from transformers import CLIPTokenizer, LlamaTokenizerFast
 
 import mindspore as ms
-from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, LlamaModel
 

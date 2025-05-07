@@ -15,8 +15,6 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
-from mindspore import mint
-
 from ...schedulers import DDIMScheduler
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
