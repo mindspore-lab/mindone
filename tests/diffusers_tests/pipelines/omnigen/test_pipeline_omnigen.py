@@ -97,12 +97,14 @@ class OmniGenPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
         }
         return inputs
 
+    @data(*test_cases)
+    @unpack
     def test_inference(self, mode, dtype):
         ms.set_context(mode=mode)
 
         pt_components, ms_components = self.get_dummy_components()
-        pt_pipe_cls = get_module("diffusers.pipelines.pipeline_omnigen.OmniGenPipeline")
-        ms_pipe_cls = get_module("mindone.diffusers.pipelines.pipeline_omnigen.OmniGenPipeline")
+        pt_pipe_cls = get_module("diffusers.pipelines.omnigen.pipeline_omnigen.OmniGenPipeline")
+        ms_pipe_cls = get_module("mindone.diffusers.pipelines.omnigen.pipeline_omnigen.OmniGenPipeline")
 
         pt_pipe = pt_pipe_cls(**pt_components)
         ms_pipe = ms_pipe_cls(**ms_components)
@@ -130,13 +132,13 @@ class OmniGenPipelineFastTests(unittest.TestCase, PipelineTesterMixin):
 class OmniGenPipelineSlowTests(unittest.TestCase):
     @data(*test_cases)
     @unpack
-    def test_flux_inference(self, mode, dtype):
+    def test_omnigen_inference(self, mode, dtype):
         if dtype == "float32":
             pytest.skip("Skipping this case since this pipeline has oom issue in float32")
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
-        pipe_cls = get_module("mindone.diffusers.pipelines.pipeline_omnigen.OmniGenPipeline")
+        pipe_cls = get_module("mindone.diffusers.pipelines.omnigen.pipeline_omnigen.OmniGenPipeline")
         pipe = pipe_cls.from_pretrained("shitao/OmniGen-v1-diffusers", mindspore_dtype=ms_dtype)
 
         prompt = "A photo of a cat"

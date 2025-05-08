@@ -187,10 +187,10 @@ class OmniGenCollator:
 
     def create_position(self, attention_mask, num_tokens_for_output_images):
         position_ids = []
-        text_length = attention_mask.size(-1)
+        text_length = attention_mask.shape[-1]
         img_length = max(num_tokens_for_output_images)
         for mask in attention_mask:
-            temp_l = mint.sum(mask)
+            temp_l = mint.sum(mask).item()
             temp_position = [0] * (text_length - temp_l) + list(
                 range(temp_l + img_length + 1)
             )  # we add a time embedding into the sequence, so add one more token
@@ -209,7 +209,7 @@ class OmniGenCollator:
         seq_len = text_length + img_length + 1  # we add a time embedding into the sequence, so add one more token
         inx = 0
         for mask in attention_mask:
-            temp_l = mint.sum(mask)
+            temp_l = mint.sum(mask).item()
             pad_l = text_length - temp_l
 
             temp_mask = mint.tril(mint.ones(size=(temp_l + 1, temp_l + 1)))

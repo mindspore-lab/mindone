@@ -17,16 +17,13 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-# import torch
-# import torch.nn as nn
-# import torch.nn.functional as F
 import mindspore as ms
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
 from ..attention_processor import Attention
-from ..embeddings import TimestepEmbedding, Timesteps, get_2d_sincos_pos_embed
+from ..embeddings import TimestepEmbedding, Timesteps, apply_rotary_emb, get_2d_sincos_pos_embed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNorm, RMSNorm
@@ -57,8 +54,8 @@ class OmniGenFeedForward(nn.Cell):
     def __init__(self, hidden_size: int, intermediate_size: int):
         super().__init__()
 
-        self.gate_up_proj = mint.nn.Linear(hidden_size, 2 * intermediate_size, bias=False)
-        self.down_proj = mint.nn.Linear(intermediate_size, hidden_size, bias=False)
+        self.gate_up_proj = nn.Dense(hidden_size, 2 * intermediate_size, has_bias=False)
+        self.down_proj = nn.Dense(intermediate_size, hidden_size, has_bias=False)
         self.activation_fn = mint.nn.SiLU()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -128,7 +125,7 @@ class OmniGenPatchEmbed(nn.Cell):
             hidden_states = self.input_image_proj(hidden_states)
         else:
             hidden_states = self.output_image_proj(hidden_states)
-        hidden_states = hidden_states.flatten(2).transpose(1, 2)
+        hidden_states = hidden_states.flatten(2).swapaxes(1, 2)
         return hidden_states
 
     def construct(self, hidden_states: ms.Tensor, is_input_image: bool, padding_latent: ms.Tensor = None) -> ms.Tensor:
@@ -178,14 +175,18 @@ class OmniGenSuScaledRotaryEmbedding(nn.Cell):
             ext_factors = ms.Tensor(self.short_factor, dtype=ms.float32)
 
         inv_freq_shape = mint.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim
-        self.inv_freq = 1.0 / (ext_factors * self.base**inv_freq_shape)
 
-        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
+        inv_freq = 1.0 / (ext_factors * self.base**inv_freq_shape)
+        # notes: self.inv_freq is not persistent, but direct assignment might raise TypeError in weight=fp16 case,
+        # meanwhile we can not change the param by set_dtype in `construct` in graph mode.
+        self.inv_freq = inv_freq.to(self.inv_freq.dtype)
+
+        inv_freq_expanded = inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         # Force float32 since bfloat16 loses precision on long contexts
         # See https://github.com/huggingface/transformers/pull/29285
-        freqs = mint.matmul(inv_freq_expanded.float(), position_ids_expanded.float()).transpose(1, 2)
+        freqs = mint.matmul(inv_freq_expanded.float(), position_ids_expanded.float()).swapaxes(1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)[0]
 
         scale = self.max_position_embeddings / self.original_max_position_embeddings
@@ -205,6 +206,9 @@ class OmniGenAttnProcessor2_0:
     Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0). This is
     used in the OmniGen model.
     """
+
+    def __init__(self):
+        self.apply_rotary_emb = apply_rotary_emb
 
     def __call__(
         self,
@@ -228,19 +232,17 @@ class OmniGenAttnProcessor2_0:
         # Get key-value heads
         kv_heads = inner_dim // head_dim
 
-        query = query.view(batch_size, -1, attn.heads, head_dim).transpose(1, 2)
-        key = key.view(batch_size, -1, kv_heads, head_dim).transpose(1, 2)
-        value = value.view(batch_size, -1, kv_heads, head_dim).transpose(1, 2)
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        key = key.view(batch_size, -1, kv_heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, kv_heads, head_dim).swapaxes(1, 2)
 
         # Apply RoPE if needed
         if image_rotary_emb is not None:
-            from ..embeddings import apply_rotary_emb
-
-            query = apply_rotary_emb(query, image_rotary_emb, use_real_unbind_dim=-2)
-            key = apply_rotary_emb(key, image_rotary_emb, use_real_unbind_dim=-2)
+            query = self.apply_rotary_emb(query, image_rotary_emb, use_real_unbind_dim=-2)
+            key = self.apply_rotary_emb(key, image_rotary_emb, use_real_unbind_dim=-2)
 
         hidden_states = attn.scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
-        hidden_states = hidden_states.transpose(1, 2).type_as(query)
+        hidden_states = hidden_states.swapaxes(1, 2).type_as(query)
         hidden_states = hidden_states.reshape(bsz, q_len, attn.out_dim)
         hidden_states = attn.to_out[0](hidden_states)
         return hidden_states
@@ -373,7 +375,7 @@ class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
         self.time_token = TimestepEmbedding(time_step_dim, hidden_size, timestep_activation_fn)
         self.t_embedder = TimestepEmbedding(time_step_dim, hidden_size, timestep_activation_fn)
 
-        self.embed_tokens = nn.Embedding(vocab_size, hidden_size, pad_token_id)
+        self.embed_tokens = mint.nn.Embedding(vocab_size, hidden_size, pad_token_id)
         self.rope = OmniGenSuScaledRotaryEmbedding(
             hidden_size // num_attention_heads,
             max_position_embeddings=max_position_embeddings,
@@ -391,7 +393,8 @@ class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
 
         self.norm = RMSNorm(hidden_size, eps=rms_norm_eps)
         self.norm_out = AdaLayerNorm(hidden_size, norm_elementwise_affine=False, norm_eps=1e-6, chunk_dim=1)
-        self.proj_out = nn.Linear(hidden_size, patch_size * patch_size * self.out_channels, bias=True)
+        self.proj_out = nn.Dense(hidden_size, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.p = self.config.patch_size
 
         self.gradient_checkpointing = False
 
@@ -426,12 +429,12 @@ class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
         return_dict: bool = False,
     ) -> Union[Transformer2DModelOutput, Tuple[ms.Tensor]]:
         batch_size, num_channels, height, width = hidden_states.shape
-        p = self.config.patch_size
+        p = self.p
         post_patch_height, post_patch_width = height // p, width // p
 
         # 1. Patch & Timestep & Conditional Embedding
         hidden_states = self.patch_embedding(hidden_states, is_input_image=False)
-        num_tokens_for_output_image = hidden_states.size(1)
+        num_tokens_for_output_image = hidden_states.shape[1]
 
         timestep_proj = self.time_proj(timestep).type_as(hidden_states)
         time_token = self.time_token(timestep_proj).unsqueeze(1)
@@ -443,7 +446,7 @@ class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
         else:
             hidden_states = mint.cat([time_token, hidden_states], dim=1)
 
-        seq_length = hidden_states.size(1)
+        seq_length = hidden_states.shape[1]
         position_ids = position_ids.view(-1, seq_length).long()
 
         # 2. Attention mask preprocessing
