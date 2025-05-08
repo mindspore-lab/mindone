@@ -900,9 +900,7 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-                if (
-                    not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
-                ):
+                if not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention":
                     if dynamic_shape:
                         model_kwargs["attention_mask"] = ops.cat(
                             [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)],

@@ -133,6 +133,5 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
-from .models.vits import VitsModel, VitsPreTrainedModel
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin
