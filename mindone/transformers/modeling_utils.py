@@ -675,7 +675,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                     ' We recommend to just use `attn_implementation="flash_attention_2"` when loading the model.'
                 )
 
-            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2"]:
+            if config._attn_implementation not in ["eager", "sdpa", "flash_attention_2", "paged_attention"]:
                 message = (
                     f'Specified `attn_implementation="{config._attn_implementation}"` is not supported. '
                     f'The only possible arguments are `attn_implementation="eager"`'
@@ -709,8 +709,6 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
                 config,
                 hard_check_only=False if requested_attn_implementation is None else True,
             )
-        else:
-            config._attn_implementation = "eager"
 
         return config
 
@@ -2050,6 +2048,7 @@ class MSPreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMix
             # we also may have config.torch_dtype available, but we won't rely on it till v5
 
             if mindspore_dtype is not None:
+                config.mindspore_dtype = dtype_to_str(mindspore_dtype)
                 if isinstance(mindspore_dtype, str):
                     if mindspore_dtype == "auto":
                         if hasattr(config, "torch_dtype") and config.torch_dtype is not None:

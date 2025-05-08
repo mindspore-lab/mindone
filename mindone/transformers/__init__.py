@@ -124,5 +124,13 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.whisper import (
+    WhisperForAudioClassification,
+    WhisperForCausalLM,
+    WhisperForConditionalGeneration,
+    WhisperModel,
+    WhisperPreTrainedModel,
+    WhisperProcessor,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .processing_utils import ProcessorMixin
