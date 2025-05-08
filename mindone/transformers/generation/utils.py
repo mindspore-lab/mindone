@@ -457,7 +457,8 @@ class GenerationMixin:
         if not model_kwargs.get("use_cache", True):
             model_kwargs["cache_position"] = None
             return model_kwargs
-
+        if "cache" not in globals():
+            cache = None
         past_length = 0
         if model_kwargs.get("past_key_values") is not None:
             cache = model_kwargs["past_key_values"]
@@ -880,6 +881,7 @@ class GenerationMixin:
         is_encoder_decoder: bool = False,
         standardize_cache_format: bool = False,
         num_new_tokens: int = 1,
+        dynamic_shape: bool = False,
     ) -> Dict[str, Any]:
         # update past_key_values keeping its naming used in model code
         cache_name, cache = self._extract_past_from_model_output(
@@ -898,18 +900,22 @@ class GenerationMixin:
             # update attention mask
             if "attention_mask" in model_kwargs:
                 attention_mask = model_kwargs["attention_mask"]
-                if (
-                    not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
-                ):  # use tuple cache
-                    cur_lens = attention_mask.sum(-1)
-                    for batch_idx in range(attention_mask.shape[0]):
-                        cur_len = int(cur_lens[batch_idx])
-                        if cur_len < attention_mask.shape[-1]:
-                            attention_mask[batch_idx, cur_len] = 1
-                        else:
-                            attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
-                            attention_mask[batch_idx, -1:] = 1
-                    model_kwargs["attention_mask"] = attention_mask
+                if not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention":
+                    if dynamic_shape:
+                        model_kwargs["attention_mask"] = ops.cat(
+                            [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)],
+                            axis=-1,
+                        )
+                    else:
+                        cur_lens = attention_mask.sum(-1)
+                        for batch_idx in range(attention_mask.shape[0]):
+                            cur_len = int(cur_lens[batch_idx])
+                            if cur_len < attention_mask.shape[-1]:
+                                attention_mask[batch_idx, cur_len] = 1
+                            else:
+                                attention_mask[batch_idx, :-1] = attention_mask[batch_idx, 1:]
+                                attention_mask[batch_idx, -1:] = 1
+                        model_kwargs["attention_mask"] = attention_mask
                 else:  # use Cache class
                     model_kwargs["attention_mask"] = ops.cat(
                         [attention_mask, ops.ones((attention_mask.shape[0], 1), dtype=attention_mask.dtype)], axis=-1
