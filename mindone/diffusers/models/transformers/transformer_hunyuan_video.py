@@ -26,15 +26,17 @@ from ..activations import SiLU
 from ..attention import FeedForward
 from ..attention_processor import Attention, AttentionProcessor
 from ..embeddings import (
-    CombinedTimestepGuidanceTextProjEmbeddings,
     CombinedTimestepTextProjEmbeddings,
+    PixArtAlphaTextProjection,
+    TimestepEmbedding,
+    Timesteps,
     apply_rotary_emb,
     get_1d_rotary_pos_embed,
 )
 from ..layers_compat import unflatten
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, LayerNorm
+from ..normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, FP32LayerNorm, LayerNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -163,6 +165,141 @@ class HunyuanVideoAdaNorm(nn.Cell):
         gate_msa, gate_mlp = temb.chunk(2, axis=1)
         gate_msa, gate_mlp = gate_msa.unsqueeze(1), gate_mlp.unsqueeze(1)
         return gate_msa, gate_mlp
+
+
+class HunyuanVideoTokenReplaceAdaLayerNormZero(nn.Cell):
+    def __init__(self, embedding_dim: int, norm_type: str = "layer_norm", bias: bool = True):
+        super().__init__()
+
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=bias)
+
+        if norm_type == "layer_norm":
+            self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+        elif norm_type == "fp32_layer_norm":
+            self.norm = FP32LayerNorm(embedding_dim, elementwise_affine=False, bias=False)
+        else:
+            raise ValueError(
+                f"Unsupported `norm_type` ({norm_type}) provided. Supported ones are: 'layer_norm', 'fp32_layer_norm'."
+            )
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        emb: ms.Tensor,
+        token_replace_emb: ms.Tensor,
+        first_frame_num_tokens: int,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+        emb = self.linear(self.silu(emb))
+        token_replace_emb = self.linear(self.silu(token_replace_emb))
+
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, axis=1)
+        tr_shift_msa, tr_scale_msa, tr_gate_msa, tr_shift_mlp, tr_scale_mlp, tr_gate_mlp = token_replace_emb.chunk(
+            6, axis=1
+        )
+
+        norm_hidden_states = self.norm(hidden_states)
+        hidden_states_zero = (
+            norm_hidden_states[:, :first_frame_num_tokens] * (1 + tr_scale_msa[:, None]) + tr_shift_msa[:, None]
+        )
+        hidden_states_orig = (
+            norm_hidden_states[:, first_frame_num_tokens:] * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        )
+        hidden_states = ops.cat([hidden_states_zero, hidden_states_orig], axis=1)
+
+        return (
+            hidden_states,
+            gate_msa,
+            shift_mlp,
+            scale_mlp,
+            gate_mlp,
+            tr_gate_msa,
+            tr_shift_mlp,
+            tr_scale_mlp,
+            tr_gate_mlp,
+        )
+
+
+class HunyuanVideoTokenReplaceAdaLayerNormZeroSingle(nn.Cell):
+    def __init__(self, embedding_dim: int, norm_type: str = "layer_norm", bias: bool = True):
+        super().__init__()
+
+        self.silu = nn.SiLU()
+        self.linear = nn.Dense(embedding_dim, 3 * embedding_dim, has_bias=bias)
+
+        if norm_type == "layer_norm":
+            self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
+        else:
+            raise ValueError(
+                f"Unsupported `norm_type` ({norm_type}) provided. Supported ones are: 'layer_norm', 'fp32_layer_norm'."
+            )
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        emb: ms.Tensor,
+        token_replace_emb: ms.Tensor,
+        first_frame_num_tokens: int,
+    ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
+        emb = self.linear(self.silu(emb))
+        token_replace_emb = self.linear(self.silu(token_replace_emb))
+
+        shift_msa, scale_msa, gate_msa = emb.chunk(3, axis=1)
+        tr_shift_msa, tr_scale_msa, tr_gate_msa = token_replace_emb.chunk(3, axis=1)
+
+        norm_hidden_states = self.norm(hidden_states)
+        hidden_states_zero = (
+            norm_hidden_states[:, :first_frame_num_tokens] * (1 + tr_scale_msa[:, None]) + tr_shift_msa[:, None]
+        )
+        hidden_states_orig = (
+            norm_hidden_states[:, first_frame_num_tokens:] * (1 + scale_msa[:, None]) + shift_msa[:, None]
+        )
+        hidden_states = ops.cat([hidden_states_zero, hidden_states_orig], axis=1)
+
+        return hidden_states, gate_msa, tr_gate_msa
+
+
+class HunyuanVideoConditionEmbedding(nn.Cell):
+    def __init__(
+        self,
+        embedding_dim: int,
+        pooled_projection_dim: int,
+        guidance_embeds: bool,
+        image_condition_type: Optional[str] = None,
+    ):
+        super().__init__()
+
+        self.image_condition_type = image_condition_type
+
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+        self.text_embedder = PixArtAlphaTextProjection(pooled_projection_dim, embedding_dim, act_fn="silu")
+
+        self.guidance_embedder = None
+        if guidance_embeds:
+            self.guidance_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+    def construct(
+        self, timestep: ms.Tensor, pooled_projection: ms.Tensor, guidance: Optional[ms.Tensor] = None
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=pooled_projection.dtype))  # (N, D)
+        pooled_projections = self.text_embedder(pooled_projection)
+        conditioning = timesteps_emb + pooled_projections
+
+        token_replace_emb = None
+        if self.image_condition_type == "token_replace":
+            token_replace_timestep = ops.zeros_like(timestep)
+            token_replace_proj = self.time_proj(token_replace_timestep)
+            token_replace_emb = self.timestep_embedder(token_replace_proj.to(dtype=pooled_projection.dtype))
+            token_replace_emb = token_replace_emb + pooled_projections
+
+        if self.guidance_embedder is not None:
+            guidance_proj = self.time_proj(guidance)
+            guidance_emb = self.guidance_embedder(guidance_proj.to(dtype=pooled_projection.dtype))
+            conditioning = conditioning + guidance_emb
+
+        return conditioning, token_replace_emb
 
 
 class HunyuanVideoIndividualTokenRefinerBlock(nn.Cell):
@@ -382,6 +519,7 @@ class HunyuanVideoSingleTransformerBlock(nn.Cell):
         temb: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        **kwargs,
     ) -> ms.Tensor:
         text_seq_length = encoder_hidden_states.shape[1]
         hidden_states = ops.cat([hidden_states, encoder_hidden_states], axis=1)
@@ -460,6 +598,7 @@ class HunyuanVideoTransformerBlock(nn.Cell):
         temb: ms.Tensor,
         attention_mask: Optional[ms.Tensor] = None,
         freqs_cis: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        **kwargs,
     ) -> Tuple[ms.Tensor, ms.Tensor]:
         # 1. Input normalization
         norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
@@ -490,6 +629,181 @@ class HunyuanVideoTransformerBlock(nn.Cell):
         context_ff_output = self.ff_context(norm_encoder_hidden_states)
 
         hidden_states = hidden_states + gate_mlp.unsqueeze(1) * ff_output
+        encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
+
+        return hidden_states, encoder_hidden_states
+
+
+class HunyuanVideoTokenReplaceSingleTransformerBlock(nn.Cell):
+    def __init__(
+        self,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        mlp_ratio: float = 4.0,
+        qk_norm: str = "rms_norm",
+    ) -> None:
+        super().__init__()
+
+        hidden_size = num_attention_heads * attention_head_dim
+        mlp_dim = int(hidden_size * mlp_ratio)
+
+        self.attn = Attention(
+            query_dim=hidden_size,
+            cross_attention_dim=None,
+            dim_head=attention_head_dim,
+            heads=num_attention_heads,
+            out_dim=hidden_size,
+            bias=True,
+            processor=HunyuanVideoAttnProcessor2_0(),
+            qk_norm=qk_norm,
+            eps=1e-6,
+            pre_only=True,
+        )
+
+        self.norm = HunyuanVideoTokenReplaceAdaLayerNormZeroSingle(hidden_size, norm_type="layer_norm")
+        self.proj_mlp = nn.Dense(hidden_size, mlp_dim)
+        self.act_mlp = nn.GELU(approximate=True)
+        self.proj_out = nn.Dense(hidden_size + mlp_dim, hidden_size)
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        token_replace_emb: ms.Tensor = None,
+        num_tokens: int = None,
+    ) -> ms.Tensor:
+        text_seq_length = encoder_hidden_states.shape[1]
+        hidden_states = ops.cat([hidden_states, encoder_hidden_states], axis=1)
+
+        residual = hidden_states
+
+        # 1. Input normalization
+        norm_hidden_states, gate, tr_gate = self.norm(hidden_states, temb, token_replace_emb, num_tokens)
+        mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
+
+        norm_hidden_states, norm_encoder_hidden_states = (
+            norm_hidden_states[:, :-text_seq_length, :],
+            norm_hidden_states[:, -text_seq_length:, :],
+        )
+
+        # 2. Attention
+        attn_output, context_attn_output = self.attn(
+            hidden_states=norm_hidden_states,
+            encoder_hidden_states=norm_encoder_hidden_states,
+            attention_mask=attention_mask,
+            image_rotary_emb=image_rotary_emb,
+        )
+        attn_output = ops.cat([attn_output, context_attn_output], axis=1)
+
+        # 3. Modulation and residual connection
+        hidden_states = ops.cat([attn_output, mlp_hidden_states], axis=2)
+
+        proj_output = self.proj_out(hidden_states)
+        hidden_states_zero = proj_output[:, :num_tokens] * tr_gate.unsqueeze(1)
+        hidden_states_orig = proj_output[:, num_tokens:] * gate.unsqueeze(1)
+        hidden_states = ops.cat([hidden_states_zero, hidden_states_orig], axis=1)
+        hidden_states = hidden_states + residual
+
+        hidden_states, encoder_hidden_states = (
+            hidden_states[:, :-text_seq_length, :],
+            hidden_states[:, -text_seq_length:, :],
+        )
+        return hidden_states, encoder_hidden_states
+
+
+class HunyuanVideoTokenReplaceTransformerBlock(nn.Cell):
+    def __init__(
+        self,
+        num_attention_heads: int,
+        attention_head_dim: int,
+        mlp_ratio: float,
+        qk_norm: str = "rms_norm",
+    ) -> None:
+        super().__init__()
+
+        hidden_size = num_attention_heads * attention_head_dim
+
+        self.norm1 = HunyuanVideoTokenReplaceAdaLayerNormZero(hidden_size, norm_type="layer_norm")
+        self.norm1_context = AdaLayerNormZero(hidden_size, norm_type="layer_norm")
+
+        self.attn = Attention(
+            query_dim=hidden_size,
+            cross_attention_dim=None,
+            added_kv_proj_dim=hidden_size,
+            dim_head=attention_head_dim,
+            heads=num_attention_heads,
+            out_dim=hidden_size,
+            context_pre_only=False,
+            bias=True,
+            processor=HunyuanVideoAttnProcessor2_0(),
+            qk_norm=qk_norm,
+            eps=1e-6,
+        )
+
+        self.norm2 = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.ff = FeedForward(hidden_size, mult=mlp_ratio, activation_fn="gelu-approximate")
+
+        self.norm2_context = LayerNorm(hidden_size, elementwise_affine=False, eps=1e-6)
+        self.ff_context = FeedForward(hidden_size, mult=mlp_ratio, activation_fn="gelu-approximate")
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: ms.Tensor,
+        temb: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        token_replace_emb: ms.Tensor = None,
+        num_tokens: int = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
+        # 1. Input normalization
+        (
+            norm_hidden_states,
+            gate_msa,
+            shift_mlp,
+            scale_mlp,
+            gate_mlp,
+            tr_gate_msa,
+            tr_shift_mlp,
+            tr_scale_mlp,
+            tr_gate_mlp,
+        ) = self.norm1(hidden_states, temb, token_replace_emb, num_tokens)
+        norm_encoder_hidden_states, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = self.norm1_context(
+            encoder_hidden_states, emb=temb
+        )
+
+        # 2. Joint attention
+        attn_output, context_attn_output = self.attn(
+            hidden_states=norm_hidden_states,
+            encoder_hidden_states=norm_encoder_hidden_states,
+            attention_mask=attention_mask,
+            image_rotary_emb=freqs_cis,
+        )
+
+        # 3. Modulation and residual connection
+        hidden_states_zero = hidden_states[:, :num_tokens] + attn_output[:, :num_tokens] * tr_gate_msa.unsqueeze(1)
+        hidden_states_orig = hidden_states[:, num_tokens:] + attn_output[:, num_tokens:] * gate_msa.unsqueeze(1)
+        hidden_states = ops.cat([hidden_states_zero, hidden_states_orig], axis=1)
+        encoder_hidden_states = encoder_hidden_states + context_attn_output * c_gate_msa.unsqueeze(1)
+
+        norm_hidden_states = self.norm2(hidden_states)
+        norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states)
+
+        hidden_states_zero = norm_hidden_states[:, :num_tokens] * (1 + tr_scale_mlp[:, None]) + tr_shift_mlp[:, None]
+        hidden_states_orig = norm_hidden_states[:, num_tokens:] * (1 + scale_mlp[:, None]) + shift_mlp[:, None]
+        norm_hidden_states = ops.cat([hidden_states_zero, hidden_states_orig], axis=1)
+        norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
+
+        # 4. Feed-forward
+        ff_output = self.ff(norm_hidden_states)
+        context_ff_output = self.ff_context(norm_encoder_hidden_states)
+
+        hidden_states_zero = hidden_states[:, :num_tokens] + ff_output[:, :num_tokens] * tr_gate_mlp.unsqueeze(1)
+        hidden_states_orig = hidden_states[:, num_tokens:] + ff_output[:, num_tokens:] * gate_mlp.unsqueeze(1)
+        hidden_states = ops.cat([hidden_states_zero, hidden_states_orig], axis=1)
         encoder_hidden_states = encoder_hidden_states + c_gate_mlp.unsqueeze(1) * context_ff_output
 
         return hidden_states, encoder_hidden_states
@@ -532,9 +846,20 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             The value of theta to use in the RoPE layer.
         rope_axes_dim (`Tuple[int]`, defaults to `(16, 56, 56)`):
             The dimensions of the axes to use in the RoPE layer.
+        image_condition_type (`str`, *optional*, defaults to `None`):
+            The type of image conditioning to use. If `None`, no image conditioning is used. If `latent_concat`, the
+            image is concatenated to the latent stream. If `token_replace`, the image is used to replace first-frame
+            tokens in the latent stream and apply conditioning.
     """
 
     _supports_gradient_checkpointing = True
+    _skip_layerwise_casting_patterns = ["x_embedder", "context_embedder", "norm"]
+    _no_split_modules = [
+        "HunyuanVideoTransformerBlock",
+        "HunyuanVideoSingleTransformerBlock",
+        "HunyuanVideoPatchEmbed",
+        "HunyuanVideoTokenRefiner",
+    ]
 
     @register_to_config
     def __init__(
@@ -555,8 +880,15 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         pooled_projection_dim: int = 768,
         rope_theta: float = 256.0,
         rope_axes_dim: Tuple[int] = (16, 56, 56),
+        image_condition_type: Optional[str] = None,
     ) -> None:
         super().__init__()
+
+        supported_image_condition_types = ["latent_concat", "token_replace"]
+        if image_condition_type is not None and image_condition_type not in supported_image_condition_types:
+            raise ValueError(
+                f"Invalid `image_condition_type` ({image_condition_type}). Supported ones are: {supported_image_condition_types}"
+            )
 
         inner_dim = num_attention_heads * attention_head_dim
         out_channels = out_channels or in_channels
@@ -566,30 +898,53 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         self.context_embedder = HunyuanVideoTokenRefiner(
             text_embed_dim, num_attention_heads, attention_head_dim, num_layers=num_refiner_layers
         )
-        self.time_text_embed = CombinedTimestepGuidanceTextProjEmbeddings(inner_dim, pooled_projection_dim)
+
+        self.time_text_embed = HunyuanVideoConditionEmbedding(
+            inner_dim, pooled_projection_dim, guidance_embeds, image_condition_type
+        )
 
         # 2. RoPE
         self.rope = HunyuanVideoRotaryPosEmbed(patch_size, patch_size_t, rope_axes_dim, rope_theta)
 
         # 3. Dual stream transformer blocks
-        self.transformer_blocks = nn.CellList(
-            [
-                HunyuanVideoTransformerBlock(
-                    num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
-                )
-                for _ in range(num_layers)
-            ]
-        )
+        if image_condition_type == "token_replace":
+            self.transformer_blocks = nn.CellList(
+                [
+                    HunyuanVideoTokenReplaceTransformerBlock(
+                        num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
+                    )
+                    for _ in range(num_layers)
+                ]
+            )
+        else:
+            self.transformer_blocks = nn.CellList(
+                [
+                    HunyuanVideoTransformerBlock(
+                        num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
+                    )
+                    for _ in range(num_layers)
+                ]
+            )
 
         # 4. Single stream transformer blocks
-        self.single_transformer_blocks = nn.CellList(
-            [
-                HunyuanVideoSingleTransformerBlock(
-                    num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
-                )
-                for _ in range(num_single_layers)
-            ]
-        )
+        if image_condition_type == "token_replace":
+            self.single_transformer_blocks = nn.CellList(
+                [
+                    HunyuanVideoTokenReplaceSingleTransformerBlock(
+                        num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
+                    )
+                    for _ in range(num_single_layers)
+                ]
+            )
+        else:
+            self.single_transformer_blocks = nn.CellList(
+                [
+                    HunyuanVideoSingleTransformerBlock(
+                        num_attention_heads, attention_head_dim, mlp_ratio=mlp_ratio, qk_norm=qk_norm
+                    )
+                    for _ in range(num_single_layers)
+                ]
+            )
 
         # 5. Output projection
         self.norm_out = AdaLayerNormContinuous(inner_dim, inner_dim, elementwise_affine=False, eps=1e-6)
@@ -695,12 +1050,14 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         post_patch_num_frames = num_frames // p_t
         post_patch_height = height // p
         post_patch_width = width // p
+        first_frame_num_tokens = 1 * post_patch_height * post_patch_width
 
         # 1. RoPE
         image_rotary_emb = self.rope(hidden_states)
 
         # 2. Conditional embeddings
-        temb = self.time_text_embed(timestep, guidance, pooled_projections)
+        temb, token_replace_emb = self.time_text_embed(timestep, pooled_projections, guidance)
+
         hidden_states = self.x_embedder(hidden_states)
         encoder_hidden_states = self.context_embedder(encoder_hidden_states, timestep, encoder_attention_mask)
 
@@ -720,12 +1077,24 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
         # 4. Transformer blocks
         for block in self.transformer_blocks:
             hidden_states, encoder_hidden_states = block(
-                hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                hidden_states,
+                encoder_hidden_states,
+                temb,
+                attention_mask,
+                image_rotary_emb,
+                token_replace_emb=token_replace_emb,  # not use positional argument as nn.Cell doesn't support `*args`
+                num_tokens=first_frame_num_tokens,  # not use positional argument as nn.Cell doesn't support `*args`
             )
 
         for block in self.single_transformer_blocks:
             hidden_states, encoder_hidden_states = block(
-                hidden_states, encoder_hidden_states, temb, attention_mask, image_rotary_emb
+                hidden_states,
+                encoder_hidden_states,
+                temb,
+                attention_mask,
+                image_rotary_emb,
+                token_replace_emb=token_replace_emb,  # not use positional argument as nn.Cell doesn't support `*args`
+                num_tokens=first_frame_num_tokens,  # not use positional argument as nn.Cell doesn't support `*args`
             )
 
         # 5. Output projection
