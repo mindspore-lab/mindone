@@ -158,9 +158,9 @@ class CogView4AttnProcessor:
         key = attn.to_k(hidden_states)
         value = attn.to_v(hidden_states)
 
-        query = query.reshape(query.shape[:2] + (attn.heads, -1) + query.shape[3:]).transpose(1, 2)
-        key = key.reshape(key.shape[:2] + (attn.heads, -1) + key.shape[3:]).transpose(1, 2)
-        value = value.reshape(value.shape[:2] + (attn.heads, -1) + value.shape[3:]).transpose(1, 2)
+        query = query.reshape(query.shape[:2] + (attn.heads, -1) + query.shape[3:]).swapaxes(1, 2)
+        key = key.reshape(key.shape[:2] + (attn.heads, -1) + key.shape[3:]).swapaxes(1, 2)
+        value = value.reshape(value.shape[:2] + (attn.heads, -1) + value.shape[3:]).swapaxes(1, 2)
 
         # 2. QK normalization
         if attn.norm_q is not None:
@@ -185,7 +185,7 @@ class CogView4AttnProcessor:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(start_dim=2, end_dim=3)
         hidden_states = hidden_states.type_as(query)
 
         # 5. Output projection

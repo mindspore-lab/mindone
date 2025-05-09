@@ -93,9 +93,9 @@ class HunyuanVideoAttnProcessor2_0:
             encoder_key = attn.add_k_proj(encoder_hidden_states)
             encoder_value = attn.add_v_proj(encoder_hidden_states)
 
-            encoder_query = unflatten(encoder_query, 2, (attn.heads, -1)).transpose(1, 2)
-            encoder_key = unflatten(encoder_key, 2, (attn.heads, -1)).transpose(1, 2)
-            encoder_value = unflatten(encoder_value, 2, (attn.heads, -1)).transpose(1, 2)
+            encoder_query = unflatten(encoder_query, 2, (attn.heads, -1)).swapaxes(1, 2)
+            encoder_key = unflatten(encoder_key, 2, (attn.heads, -1)).swapaxes(1, 2)
+            encoder_value = unflatten(encoder_value, 2, (attn.heads, -1)).swapaxes(1, 2)
 
             if attn.norm_added_q is not None:
                 encoder_query = attn.norm_added_q(encoder_query)
@@ -110,7 +110,7 @@ class HunyuanVideoAttnProcessor2_0:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(start_dim=2, end_dim=3)
         hidden_states = hidden_states.to(query.dtype)
 
         # 6. Output projection
@@ -144,7 +144,7 @@ class HunyuanVideoPatchEmbed(nn.Cell):
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.proj(hidden_states)
-        hidden_states = hidden_states.flatten(start_dim=2).transpose(1, 2)  # BCFHW -> BNC
+        hidden_states = hidden_states.flatten(start_dim=2).swapaxes(1, 2)  # BCFHW -> BNC
         return hidden_states
 
 
@@ -250,7 +250,7 @@ class HunyuanVideoIndividualTokenRefiner(nn.Cell):
             seq_len = attention_mask.shape[1]
             attention_mask = attention_mask.bool()
             self_attn_mask_1 = attention_mask.view(batch_size, 1, 1, seq_len).tile((1, 1, seq_len, 1))
-            self_attn_mask_2 = self_attn_mask_1.transpose(2, 3)
+            self_attn_mask_2 = self_attn_mask_1.swapaxes(2, 3)
             self_attn_mask = mint.logical_and(self_attn_mask_1, self_attn_mask_2).bool()
             self_attn_mask[:, :, :, 0] = True
 
