@@ -342,7 +342,7 @@ class SelfAttention1d(nn.Cell):
         batch, channel_dim, seq = hidden_states.shape
 
         hidden_states = self.group_norm(hidden_states)
-        hidden_states = hidden_states.transpose(0, 2, 1)
+        hidden_states = hidden_states.swapaxes(0, 2, 1)
 
         query_proj = self.query(hidden_states)
         key_proj = self.key(hidden_states)
@@ -366,7 +366,7 @@ class SelfAttention1d(nn.Cell):
 
         # compute next hidden_states
         hidden_states = self.proj_attn(hidden_states)
-        hidden_states = hidden_states.transpose(0, 2, 1)
+        hidden_states = hidden_states.swapaxes(0, 2, 1)
         hidden_states = self.dropout(hidden_states)
 
         output = hidden_states + residual

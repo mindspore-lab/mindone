@@ -284,7 +284,7 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         if self.adaln_single is None:
             height = width = int(hidden_states.shape[1] ** 0.5)
         hidden_states = hidden_states.reshape((-1, height, width, self.patch_size, self.patch_size, self.out_channels))
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape((-1, self.out_channels, height * self.patch_size, width * self.patch_size))
         output = output.reshape(batch_size, -1, output.shape[-3], output.shape[-2], output.shape[-1]).permute(
             0, 2, 1, 3, 4

@@ -69,14 +69,14 @@ class LTXVideoAttentionProcessor2_0:
             query = apply_rotary_emb(query, image_rotary_emb)
             key = apply_rotary_emb(key, image_rotary_emb)
 
-        query = unflatten(query, 2, (attn.heads, -1)).transpose(1, 2)
-        key = unflatten(key, 2, (attn.heads, -1)).transpose(1, 2)
-        value = unflatten(value, 2, (attn.heads, -1)).transpose(1, 2)
+        query = unflatten(query, 2, (attn.heads, -1)).swapaxes(1, 2)
+        key = unflatten(key, 2, (attn.heads, -1)).swapaxes(1, 2)
+        value = unflatten(value, 2, (attn.heads, -1)).swapaxes(1, 2)
 
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
-        hidden_states = hidden_states.transpose(1, 2).flatten(start_dim=2, end_dim=3)
+        hidden_states = hidden_states.swapaxes(1, 2).flatten(start_dim=2, end_dim=3)
         hidden_states = hidden_states.to(query.dtype)
 
         hidden_states = attn.to_out[0](hidden_states)
@@ -128,7 +128,7 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
             grid[:, 1:2] = grid[:, 1:2] * rope_interpolation_scale[1] * self.patch_size / self.base_height
             grid[:, 2:3] = grid[:, 2:3] * rope_interpolation_scale[2] * self.patch_size / self.base_width
 
-        grid = grid.flatten(start_dim=2, end_dim=4).transpose(1, 2)
+        grid = grid.flatten(start_dim=2, end_dim=4).swapaxes(1, 2)
 
         start = 1.0
         end = self.theta
