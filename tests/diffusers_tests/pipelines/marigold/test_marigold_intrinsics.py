@@ -204,7 +204,7 @@ class MarigoldIntrinsicsPipelineFastTests(PipelineTesterMixin, unittest.TestCase
     @data(*test_cases)
     @unpack
     def test_marigold_depth_dummy_defaults(self, mode, dtype):
-        self._test_marigold_normals(generator_seed=0, mode=mode, dtype=dtype)
+        self._test_marigold_intrinsics(generator_seed=0, mode=mode, dtype=dtype)
 
 
 @slow
@@ -217,7 +217,9 @@ class MarigoldIntrinsicsPipelineIntegrationTests(PipelineTesterMixin, unittest.T
         ms_dtype = getattr(ms, dtype)
 
         pipe_cls = get_module("mindone.diffusers.pipelines.marigold.MarigoldIntrinsicsPipeline")
-        pipe = pipe_cls.from_pretrained("prs-eth/marigold-iid-appearance-v1-1", variant="fp16", mindspore_dtype=ms_dtype)
+        pipe = pipe_cls.from_pretrained(
+            "prs-eth/marigold-iid-appearance-v1-1", variant="fp16", mindspore_dtype=ms_dtype
+        )
 
         image = load_downloaded_image_from_hf_hub(
             "The-truth/mindone-testing-arrays",
