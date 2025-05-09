@@ -16,7 +16,7 @@ from math import gcd
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput, logging
@@ -42,7 +42,7 @@ from ..unets.unet_2d_blocks import (
     Upsample2D,
 )
 from ..unets.unet_2d_condition import UNet2DConditionModel
-from .controlnet import ControlNetConditioningEmbedding
+from .controlnet import ControlNetConditioningEmbedding, zero_module
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -71,7 +71,7 @@ class DownBlockControlNetXSAdapter(nn.Cell):
         base_to_ctrl: nn.CellList,
         ctrl_to_base: nn.CellList,
         attentions: Optional[nn.CellList] = None,
-        downsampler: Optional[nn.Conv2d] = None,
+        downsampler: Optional[mint.nn.Conv2d] = None,
     ):
         super().__init__()
         self.resnets = resnets
@@ -355,7 +355,7 @@ class ControlNetXSAdapter(ModelMixin, ConfigMixin):
         self.up_connections = []
 
         # input
-        self.conv_in = nn.Conv2d(4, block_out_channels[0], kernel_size=3, padding=1, pad_mode="pad", has_bias=True)
+        self.conv_in = mint.nn.Conv2d(4, block_out_channels[0], kernel_size=3, padding=1)
         self.control_to_base_for_conv_in = make_zero_conv(block_out_channels[0], base_block_out_channels[0])
 
         # down
@@ -584,15 +584,13 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         self.in_channels = 4
 
         # # Input
-        self.base_conv_in = nn.Conv2d(4, block_out_channels[0], kernel_size=3, padding=1, pad_mode="pad", has_bias=True)
+        self.base_conv_in = mint.nn.Conv2d(4, block_out_channels[0], kernel_size=3, padding=1)
         self.controlnet_cond_embedding = ControlNetConditioningEmbedding(
             conditioning_embedding_channels=ctrl_block_out_channels[0],
             block_out_channels=ctrl_conditioning_embedding_out_channels,
             conditioning_channels=ctrl_conditioning_channels,
         )
-        self.ctrl_conv_in = nn.Conv2d(
-            4, ctrl_block_out_channels[0], kernel_size=3, padding=1, pad_mode="pad", has_bias=True
-        )
+        self.ctrl_conv_in = mint.nn.Conv2d(4, ctrl_block_out_channels[0], kernel_size=3, padding=1)
         self.control_to_base_for_conv_in = make_zero_conv(ctrl_block_out_channels[0], block_out_channels[0])
 
         # # Time
@@ -719,9 +717,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
 
         self.base_conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups)
         self.base_conv_act = SiLU()
-        self.base_conv_out = nn.Conv2d(
-            block_out_channels[0], 4, kernel_size=3, padding=1, pad_mode="pad", has_bias=True
-        )
+        self.base_conv_out = mint.nn.Conv2d(block_out_channels[0], 4, kernel_size=3, padding=1)
 
     @classmethod
     def from_unet(
@@ -1020,7 +1016,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
 
         # check channel order
         if self.config["ctrl_conditioning_channel_order"] == "bgr":
-            controlnet_cond = ops.flip(controlnet_cond, dims=[1])
+            controlnet_cond = mint.flip(controlnet_cond, dims=[1])
 
         # prepare attention_mask
         if attention_mask is not None:
@@ -1030,6 +1026,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
         # 1. time
         timesteps = timestep
         dtype = None
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             if isinstance(timestep, float):
                 dtype = ms.float64
@@ -1077,7 +1074,7 @@ class UNetControlNetXSModel(ModelMixin, ConfigMixin):
             time_ids = added_cond_kwargs.get("time_ids")
             time_embeds = self.base_add_time_proj(time_ids.flatten()).to(text_embeds.dtype)
             time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
-            add_embeds = ops.concat([text_embeds, time_embeds], axis=-1)
+            add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
             add_embeds = add_embeds.to(temb.dtype)
             aug_emb = self.base_add_embedding(add_embeds)
         else:
@@ -1296,7 +1293,7 @@ class ControlNetXSCrossAttnDownBlock2D(nn.Cell):
             ctrl_downblock.resnets[0].in_channels - base_in_channels
         )  # base channels are concatted to ctrl channels in init
         ctrl_out_channels = ctrl_downblock.resnets[0].out_channels
-        temb_channels = base_downblock.resnets[0].time_emb_proj.in_channels
+        temb_channels = base_downblock.resnets[0].time_emb_proj.in_features
         num_groups = base_downblock.resnets[0].norm1.num_groups
         ctrl_num_groups = ctrl_downblock.resnets[0].norm1.num_groups
         if hasattr(base_downblock, "attentions"):
@@ -1407,7 +1404,7 @@ class ControlNetXSCrossAttnDownBlock2D(nn.Cell):
         ):
             # concat base -> ctrl
             if apply_control:
-                h_ctrl = ops.cat([h_ctrl, b2c(h_base)], axis=1)
+                h_ctrl = mint.cat([h_ctrl, b2c(h_base)], dim=1)
 
             # apply base subblock
             h_base = b_res(h_base, temb)
@@ -1448,7 +1445,7 @@ class ControlNetXSCrossAttnDownBlock2D(nn.Cell):
 
             # concat base -> ctrl
             if apply_control:
-                h_ctrl = ops.cat([h_ctrl, b2c(h_base)], axis=1)
+                h_ctrl = mint.cat([h_ctrl, b2c(h_base)], dim=1)
             # apply base subblock
             h_base = self.base_downsamplers(h_base)
             # apply ctrl subblock
@@ -1534,7 +1531,7 @@ class ControlNetXSCrossAttnMidBlock2D(nn.Cell):
         base_channels = ctrl_to_base.out_channels
         ctrl_channels = ctrl_to_base.in_channels
         transformer_layers_per_block = len(base_midblock.attentions[0].transformer_blocks)
-        temb_channels = base_midblock.resnets[0].time_emb_proj.in_channels
+        temb_channels = base_midblock.resnets[0].time_emb_proj.in_features
         num_groups = base_midblock.resnets[0].norm1.num_groups
         ctrl_num_groups = ctrl_midblock.resnets[0].norm1.num_groups
         base_num_attention_heads = get_first_cross_attention(base_midblock).heads
@@ -1611,7 +1608,7 @@ class ControlNetXSCrossAttnMidBlock2D(nn.Cell):
         }
 
         if apply_control:
-            h_ctrl = ops.cat([h_ctrl, self.base_to_ctrl(h_base)], axis=1)  # concat base -> ctrl
+            h_ctrl = mint.cat([h_ctrl, self.base_to_ctrl(h_base)], dim=1)  # concat base -> ctrl
         h_base = self.base_midblock(h_base, **joint_args)  # apply base mid block
         if apply_control:
             h_ctrl = self.ctrl_midblock(h_ctrl, **joint_args)  # apply ctrl mid block
@@ -1705,7 +1702,7 @@ class ControlNetXSCrossAttnUpBlock2D(nn.Cell):
         in_channels = base_upblock.resnets[-1].in_channels - out_channels
         prev_output_channels = base_upblock.resnets[0].in_channels - out_channels
         ctrl_skip_channelss = [c.in_channels for c in ctrl_to_base_skip_connections]
-        temb_channels = base_upblock.resnets[0].time_emb_proj.in_channels
+        temb_channels = base_upblock.resnets[0].time_emb_proj.in_features
         num_groups = base_upblock.resnets[0].norm1.num_groups
         resolution_idx = base_upblock.resolution_idx
         if hasattr(base_upblock, "attentions"):
@@ -1805,7 +1802,7 @@ class ControlNetXSCrossAttnUpBlock2D(nn.Cell):
             if apply_control:
                 hidden_states += c2b(res_h_ctrl) * conditioning_scale
 
-            hidden_states = ops.cat([hidden_states, res_h_base], axis=1)
+            hidden_states = mint.cat([hidden_states, res_h_base], dim=1)
             hidden_states = resnet(hidden_states, temb)
 
             if attn is not None:
@@ -1825,9 +1822,7 @@ class ControlNetXSCrossAttnUpBlock2D(nn.Cell):
 
 
 def make_zero_conv(in_channels, out_channels=None):
-    return nn.Conv2d(
-        in_channels, out_channels, 1, pad_mode="pad", padding=0, has_bias=True, weight_init="zeros", bias_init="zeros"
-    )
+    return zero_module(mint.nn.Conv2d(in_channels, out_channels, 1, padding=0))
 
 
 def find_largest_factor(number, max_factor):

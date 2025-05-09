@@ -17,7 +17,7 @@ from math import pi
 from typing import Optional
 
 import mindspore as ms
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.modeling_utils import ModelMixin
@@ -33,13 +33,13 @@ class StableAudioPositionalEmbedding(nn.Cell):
         super().__init__()
         assert (dim % 2) == 0
         half_dim = dim // 2
-        self.weights = Parameter(ops.randn(half_dim))
+        self.weights = Parameter(mint.randn(half_dim))
 
     def construct(self, times: ms.Tensor) -> ms.Tensor:
         times = times[..., None]
         freqs = times * self.weights[None] * 2 * pi
-        fouriered = ops.cat((freqs.sin(), freqs.cos()), axis=-1)
-        fouriered = ops.cat((times, fouriered), axis=-1)
+        fouriered = mint.cat((freqs.sin(), freqs.cos()), dim=-1)
+        fouriered = mint.cat((times, fouriered), dim=-1)
         return fouriered
 
 
@@ -86,7 +86,7 @@ class StableAudioNumberConditioner(nn.Cell):
         super().__init__()
         self.time_positional_embedding = nn.SequentialCell(
             StableAudioPositionalEmbedding(internal_dim),
-            nn.Dense(in_channels=internal_dim + 1, out_channels=number_embedding_dim),
+            mint.nn.Linear(in_features=internal_dim + 1, out_features=number_embedding_dim),
         )
 
         self.number_embedding_dim = number_embedding_dim
@@ -130,7 +130,9 @@ class StableAudioProjectionModel(ModelMixin, ConfigMixin):
     def __init__(self, text_encoder_dim, conditioning_dim, min_value, max_value):
         super().__init__()
         self.text_projection = (
-            nn.Identity() if conditioning_dim == text_encoder_dim else nn.Dense(text_encoder_dim, conditioning_dim)
+            mint.nn.Identity()
+            if conditioning_dim == text_encoder_dim
+            else mint.nn.Linear(text_encoder_dim, conditioning_dim)
         )
         self.start_number_conditioner = StableAudioNumberConditioner(conditioning_dim, min_value, max_value)
         self.end_number_conditioner = StableAudioNumberConditioner(conditioning_dim, min_value, max_value)

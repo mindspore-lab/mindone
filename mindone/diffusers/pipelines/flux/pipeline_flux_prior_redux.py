@@ -20,7 +20,7 @@ from PIL import Image
 from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, SiglipVisionModel, T5EncoderModel
 
@@ -349,7 +349,7 @@ class FluxPriorReduxPipeline(DiffusionPipeline):
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
+        text_ids = mint.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -446,19 +446,19 @@ class FluxPriorReduxPipeline(DiffusionPipeline):
                     "Make sure to explicitly load the text encoders to enable prompt input. "
                 )
             # max_sequence_length is 512, t5 encoder hidden size is 4096
-            prompt_embeds = ops.zeros((batch_size, 512, 4096), dtype=image_embeds.dtype)
+            prompt_embeds = mint.zeros((batch_size, 512, 4096), dtype=image_embeds.dtype)
             # pooled_prompt_embeds is 768, clip text encoder hidden size
-            pooled_prompt_embeds = ops.zeros((batch_size, 768), dtype=image_embeds.dtype)
+            pooled_prompt_embeds = mint.zeros((batch_size, 768), dtype=image_embeds.dtype)
 
         # scale & concatenate image and text embeddings
-        prompt_embeds = ops.cat([prompt_embeds, image_embeds], axis=1)
+        prompt_embeds = mint.cat([prompt_embeds, image_embeds], dim=1)
 
         prompt_embeds *= ms.tensor(prompt_embeds_scale, dtype=image_embeds.dtype)[:, None, None]
         pooled_prompt_embeds *= ms.tensor(pooled_prompt_embeds_scale, dtype=image_embeds.dtype)[:, None]
 
         # weighted sum
-        prompt_embeds = ops.sum(prompt_embeds, dim=0, keepdim=True)
-        pooled_prompt_embeds = ops.sum(pooled_prompt_embeds, dim=0, keepdim=True)
+        prompt_embeds = mint.sum(prompt_embeds, dim=0, keepdim=True)
+        pooled_prompt_embeds = mint.sum(pooled_prompt_embeds, dim=0, keepdim=True)
 
         if not return_dict:
             return (prompt_embeds, pooled_prompt_embeds)

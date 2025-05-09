@@ -17,7 +17,7 @@ from huggingface_hub.utils import validate_hf_hub_args
 from transformers import PreTrainedModel, PreTrainedTokenizer
 
 import mindspore
-from mindspore import nn, ops
+from mindspore import mint
 
 from mindone.safetensors.mindspore import load_file
 
@@ -380,7 +380,7 @@ class TextualInversionLoaderMixin:
         tokens, embeddings = self._extend_tokens_and_embeddings(tokens, embeddings, tokenizer)
 
         # 6. Make sure all embeddings have the correct size
-        expected_emb_dim = text_encoder.get_input_embeddings().embedding_table.shape[-1]
+        expected_emb_dim = text_encoder.get_input_embeddings().weight.shape[-1]
         if any(expected_emb_dim != emb.shape[-1] for emb in embeddings):
             raise ValueError(
                 "Loaded embeddings are of incorrect shape. Expected each textual inversion embedding "
@@ -393,7 +393,7 @@ class TextualInversionLoaderMixin:
 
         # 7.3 Increase token embedding matrix
         text_encoder.resize_token_embeddings(len(tokenizer) + len(tokens))
-        input_embeddings = text_encoder.get_input_embeddings().embedding_table
+        input_embeddings = text_encoder.get_input_embeddings().weight
 
         # 7.4 Load token and embedding
         for token, embedding in zip(tokens, embeddings):
@@ -516,15 +516,15 @@ class TextualInversionLoaderMixin:
 
         # Delete from text encoder
         text_embedding_dim = text_encoder.get_input_embeddings().embedding_size
-        temp_text_embedding_weights = text_encoder.get_input_embeddings().embedding_table
+        temp_text_embedding_weights = text_encoder.get_input_embeddings().weight
         text_embedding_weights = temp_text_embedding_weights[: last_special_token_id + 1]
         to_append = []
         for i in range(last_special_token_id + 1, temp_text_embedding_weights.shape[0]):
             if i not in token_ids:
                 to_append.append(temp_text_embedding_weights[i].unsqueeze(0))
         if len(to_append) > 0:
-            to_append = ops.concat(to_append, axis=0)
-            text_embedding_weights = ops.concat((text_embedding_weights, to_append), axis=0)
-        text_embeddings_filtered = nn.Embedding(text_embedding_weights.shape[0], text_embedding_dim)
-        text_embeddings_filtered.embedding_table = text_embedding_weights
+            to_append = mint.concat(to_append, dim=0)
+            text_embedding_weights = mint.concat((text_embedding_weights, to_append), dim=0)
+        text_embeddings_filtered = mint.nn.Embedding(text_embedding_weights.shape[0], text_embedding_dim)
+        text_embeddings_filtered.weight = text_embedding_weights
         text_encoder.set_input_embeddings(text_embeddings_filtered)

@@ -14,7 +14,7 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import LegacyConfigMixin, register_to_config
 from ...utils import deprecate, logging
@@ -176,11 +176,9 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             num_groups=self.config.norm_num_groups, num_channels=self.in_channels, eps=1e-6, affine=True
         )
         if self.use_linear_projection:
-            self.proj_in = nn.Dense(self.in_channels, self.inner_dim)
+            self.proj_in = mint.nn.Linear(self.in_channels, self.inner_dim)
         else:
-            self.proj_in = nn.Conv2d(
-                self.in_channels, self.inner_dim, kernel_size=1, stride=1, pad_mode="pad", padding=0, has_bias=True
-            )
+            self.proj_in = mint.nn.Conv2d(self.in_channels, self.inner_dim, kernel_size=1, stride=1, padding=0)
 
         self.transformer_blocks = nn.CellList(
             [
@@ -206,11 +204,9 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         )
 
         if self.use_linear_projection:
-            self.proj_out = nn.Dense(self.inner_dim, self.out_channels)
+            self.proj_out = mint.nn.Linear(self.inner_dim, self.out_channels)
         else:
-            self.proj_out = nn.Conv2d(
-                self.inner_dim, self.out_channels, kernel_size=1, stride=1, pad_mode="pad", padding=0, has_bias=True
-            )
+            self.proj_out = mint.nn.Conv2d(self.inner_dim, self.out_channels, kernel_size=1, stride=1, padding=0)
 
     def _init_vectorized_inputs(self, norm_type):
         assert self.config.sample_size is not None, "Transformer2DModel over discrete input must provide sample_size"
@@ -250,7 +246,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         )
 
         self.norm_out = LayerNorm(self.inner_dim)
-        self.out = nn.Dense(self.inner_dim, self.config.num_vector_embeds - 1)
+        self.out = mint.nn.Linear(self.inner_dim, self.config.num_vector_embeds - 1)
 
     def _init_patched_inputs(self, norm_type):
         assert self.config.sample_size is not None, "Transformer2DModel over patched input must provide sample_size"
@@ -298,16 +294,16 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
 
         if self.config.norm_type != "ada_norm_single":
             self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
-            self.proj_out_1 = nn.Dense(self.inner_dim, 2 * self.inner_dim)
-            self.proj_out_2 = nn.Dense(
+            self.proj_out_1 = mint.nn.Linear(self.inner_dim, 2 * self.inner_dim)
+            self.proj_out_2 = mint.nn.Linear(
                 self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
             )
         elif self.config.norm_type == "ada_norm_single":
             self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
             self.scale_shift_table = ms.Parameter(
-                ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
+                mint.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
             )
-            self.proj_out = nn.Dense(
+            self.proj_out = mint.nn.Linear(
                 self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
             )
 
@@ -406,12 +402,12 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = mint.unsqueeze(attention_mask, 1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
+            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
 
         # 1. Input
         # define variables outside to fool ai compiler
@@ -507,6 +503,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
     def _get_output_for_continuous_inputs(self, hidden_states, residual, batch_size, height, width, inner_dim):
         if not self.use_linear_projection:
             hidden_states = hidden_states.reshape(batch_size, height, width, inner_dim).permute(0, 3, 1, 2)
+
             hidden_states = self.proj_out(hidden_states)
         else:
             hidden_states = self.proj_out(hidden_states)
@@ -519,9 +516,9 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         hidden_states = self.norm_out(hidden_states)
         logits = self.out(hidden_states)
         # (batch, self.num_vector_embeds - 1, self.num_latent_pixels)
-        logits = logits.permute(0, 2, 1)
+        logits = mint.permute(logits, (0, 2, 1))
         # log(p(x_0))
-        output = ops.log_softmax(logits.float(), axis=1).to(hidden_states.dtype)
+        output = mint.nn.functional.log_softmax(logits.float(), dim=1).to(hidden_states.dtype)
         return output
 
     def _get_output_for_patched_inputs(
@@ -531,11 +528,11 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             conditioning = self.transformer_blocks[0].norm1.emb(
                 timestep, class_labels, hidden_dtype=hidden_states.dtype
             )
-            shift, scale = self.proj_out_1(ops.silu(conditioning)).chunk(2, axis=1)
+            shift, scale = self.proj_out_1(mint.nn.functional.silu(conditioning)).chunk(2, dim=1)
             hidden_states = self.norm_out(hidden_states) * (1 + scale[:, None]) + shift[:, None]
             hidden_states = self.proj_out_2(hidden_states)
         elif self.config.norm_type == "ada_norm_single":
-            shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+            shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
             hidden_states = self.norm_out(hidden_states)
             # Modulation
             hidden_states = hidden_states * (1 + scale) + shift
@@ -547,7 +544,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         if self.adaln_single is None:
             height = width = int(hidden_states.shape[1] ** 0.5)
         hidden_states = hidden_states.reshape(-1, height, width, self.patch_size, self.patch_size, self.out_channels)
-        # hidden_states = ops.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape(-1, self.out_channels, height * self.patch_size, width * self.patch_size)
         return output

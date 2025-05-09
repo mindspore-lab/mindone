@@ -15,7 +15,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
@@ -44,19 +44,18 @@ class GLUMBConv(nn.Cell):
         self.norm_type = norm_type
         self.residual_connection = residual_connection
 
-        self.nonlinearity = nn.SiLU()
-        self.conv_inverted = nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, pad_mode="pad", padding=0, has_bias=True)
-        self.conv_depth = nn.Conv2d(
+        self.nonlinearity = mint.nn.SiLU()
+        self.conv_inverted = mint.nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, padding=0, bias=True)
+        self.conv_depth = mint.nn.Conv2d(
             hidden_channels * 2,
             hidden_channels * 2,
             3,
             1,
-            pad_mode="pad",
             padding=1,
-            group=hidden_channels * 2,
-            has_bias=True,
+            groups=hidden_channels * 2,
+            bias=True,
         )
-        self.conv_point = nn.Conv2d(hidden_channels, out_channels, 1, 1, pad_mode="pad", padding=0, has_bias=False)
+        self.conv_point = mint.nn.Conv2d(hidden_channels, out_channels, 1, 1, padding=0, bias=False)
 
         self.norm = None
         if norm_type == "rms_norm":
@@ -71,7 +70,7 @@ class GLUMBConv(nn.Cell):
         hidden_states = self.nonlinearity(hidden_states)
 
         hidden_states = self.conv_depth(hidden_states)
-        hidden_states, gate = ops.chunk(hidden_states, 2, axis=1)
+        hidden_states, gate = mint.chunk(hidden_states, 2, dim=1)
         hidden_states = hidden_states * self.nonlinearity(gate)
 
         hidden_states = self.conv_point(hidden_states)
@@ -137,7 +136,7 @@ class SanaTransformerBlock(nn.Cell):
         # 3. Feed-forward
         self.ff = GLUMBConv(dim, dim, mlp_ratio, norm_type=None, residual_connection=False)
 
-        self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -152,9 +151,9 @@ class SanaTransformerBlock(nn.Cell):
         batch_size = hidden_states.shape[0]
 
         # 1. Modulation
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + mint.reshape(timestep, (batch_size, 6, -1)), 6, dim=1
+        )
 
         # 2. Self Attention
         norm_hidden_states = self.norm1(hidden_states)
@@ -294,10 +293,10 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         # 4. Output blocks
-        self.scale_shift_table = ms.Parameter(ops.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
 
         self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * out_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
 
         self._gradient_checkpointing = False
 
@@ -448,7 +447,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             )
 
         # 3. Normalization
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
 
         # 4. Modulation

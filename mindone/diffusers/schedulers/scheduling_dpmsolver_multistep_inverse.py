@@ -20,7 +20,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import deprecate, is_scipy_available
@@ -206,11 +206,11 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         # Currently we only support VP-type noise schedule
-        self.alpha_t = ops.sqrt(self.alphas_cumprod)
-        self.sigma_t = ops.sqrt(1 - self.alphas_cumprod)
-        self.lambda_t = ops.log(self.alpha_t) - ops.log(self.sigma_t)
+        self.alpha_t = mint.sqrt(self.alphas_cumprod)
+        self.sigma_t = mint.sqrt(1 - self.alphas_cumprod)
+        self.lambda_t = mint.log(self.alpha_t) - mint.log(self.sigma_t)
         self.sigmas = ((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5
 
         # standard deviation of the initial noise distribution
@@ -258,7 +258,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         # Clipping the minimum of all lambda(t) for numerical stability.
         # This is critical for cosine (squaredcos_cap_v2) noise schedule.
         clipped_idx = ms.tensor(
-            np.searchsorted(ops.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
+            np.searchsorted(mint.flip(self.lambda_t, [0]).asnumpy(), self.config.lambda_min_clipped)
         ).item()
         self.noisiest_timestep = self.config.num_train_timesteps - 1 - clipped_idx
 
@@ -356,11 +356,11 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
         s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
@@ -632,27 +632,27 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         sigma_t, sigma_s = self.sigmas[self.step_index + 1], self.sigmas[self.step_index]
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s, sigma_s = self._sigma_to_alpha_sigma_t(sigma_s)
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s = ops.log(alpha_s) - ops.log(sigma_s)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s = mint.log(alpha_s) - mint.log(sigma_s)
 
         h = lambda_t - lambda_s
         if self.config.algorithm_type == "dpmsolver++":
-            x_t = (sigma_t / sigma_s).to(dtype) * sample - ((alpha_t * (ops.exp(-h) - 1.0))).to(dtype) * model_output
+            x_t = (sigma_t / sigma_s).to(dtype) * sample - ((alpha_t * (mint.exp(-h) - 1.0))).to(dtype) * model_output
         elif self.config.algorithm_type == "dpmsolver":
-            x_t = (alpha_t / alpha_s).to(dtype) * sample - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * model_output
+            x_t = (alpha_t / alpha_s).to(dtype) * sample - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * model_output
         elif self.config.algorithm_type == "sde-dpmsolver++":
             assert noise is not None
             x_t = (
-                ((sigma_t / sigma_s * ops.exp(-h))).to(dtype) * sample
-                + (alpha_t * (1 - ops.exp(-2.0 * h))).to(dtype) * model_output
-                + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)).to(dtype) * noise
+                ((sigma_t / sigma_s * mint.exp(-h))).to(dtype) * sample
+                + (alpha_t * (1 - mint.exp(-2.0 * h))).to(dtype) * model_output
+                + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)).to(dtype) * noise
             )
         elif self.config.algorithm_type == "sde-dpmsolver":
             assert noise is not None
             x_t = (
                 ((alpha_t / alpha_s)).to(dtype) * sample
-                - (2.0 * (sigma_t * (ops.exp(h) - 1.0))).to(dtype) * model_output
-                + (sigma_t * ops.sqrt(ops.exp(2 * h) - 1.0)).to(dtype) * noise
+                - (2.0 * (sigma_t * (mint.exp(h) - 1.0))).to(dtype) * model_output
+                + (sigma_t * mint.sqrt(mint.exp(2 * h) - 1.0)).to(dtype) * noise
             )
 
         return x_t
@@ -711,9 +711,9 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
         alpha_s1, sigma_s1 = self._sigma_to_alpha_sigma_t(sigma_s1)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
-        lambda_s1 = ops.log(alpha_s1) - ops.log(sigma_s1)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
+        lambda_s1 = mint.log(alpha_s1) - mint.log(sigma_s1)
 
         m0, m1 = model_output_list[-1], model_output_list[-2]
 
@@ -725,60 +725,60 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (sigma_t / sigma_s0).to(dtype) * sample
-                    - (alpha_t * (ops.exp(-h) - 1.0)).to(dtype) * D0
-                    - 0.5 * (alpha_t * (ops.exp(-h) - 1.0)).to(dtype) * D1
+                    - (alpha_t * (mint.exp(-h) - 1.0)).to(dtype) * D0
+                    - 0.5 * (alpha_t * (mint.exp(-h) - 1.0)).to(dtype) * D1
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (sigma_t / sigma_s0).to(dtype) * sample
-                    - (alpha_t * (ops.exp(-h) - 1.0)).to(dtype) * D0
-                    + (alpha_t * ((ops.exp(-h) - 1.0) / h + 1.0)).to(dtype) * D1
+                    - (alpha_t * (mint.exp(-h) - 1.0)).to(dtype) * D0
+                    + (alpha_t * ((mint.exp(-h) - 1.0) / h + 1.0)).to(dtype) * D1
                 )
         elif self.config.algorithm_type == "dpmsolver":
             # See https://arxiv.org/abs/2206.00927 for detailed derivations
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (alpha_t / alpha_s0).to(dtype) * sample
-                    - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * D0
-                    - 0.5 * (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * D1
+                    - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * D0
+                    - 0.5 * (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * D1
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (alpha_t / alpha_s0).to(dtype) * sample
-                    - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * D0
-                    - (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0)).to(dtype) * D1
+                    - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * D0
+                    - (sigma_t * ((mint.exp(h) - 1.0) / h - 1.0)).to(dtype) * D1
                 )
         elif self.config.algorithm_type == "sde-dpmsolver++":
             assert noise is not None
             if self.config.solver_type == "midpoint":
                 x_t = (
-                    (sigma_t / sigma_s0 * ops.exp(-h)).to(dtype) * sample
-                    + (alpha_t * (1 - ops.exp(-2.0 * h))).to(dtype) * D0
-                    + 0.5 * (alpha_t * (1 - ops.exp(-2.0 * h))).to(dtype) * D1
-                    + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)).to(dtype) * noise
+                    (sigma_t / sigma_s0 * mint.exp(-h)).to(dtype) * sample
+                    + (alpha_t * (1 - mint.exp(-2.0 * h))).to(dtype) * D0
+                    + 0.5 * (alpha_t * (1 - mint.exp(-2.0 * h))).to(dtype) * D1
+                    + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)).to(dtype) * noise
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
-                    (sigma_t / sigma_s0 * ops.exp(-h)).to(dtype) * sample
-                    + (alpha_t * (1 - ops.exp(-2.0 * h))).to(dtype) * D0
-                    + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)).to(dtype) * D1
-                    + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)).to(dtype) * noise
+                    (sigma_t / sigma_s0 * mint.exp(-h)).to(dtype) * sample
+                    + (alpha_t * (1 - mint.exp(-2.0 * h))).to(dtype) * D0
+                    + (alpha_t * ((1.0 - mint.exp(-2.0 * h)) / (-2.0 * h) + 1.0)).to(dtype) * D1
+                    + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)).to(dtype) * noise
                 )
         elif self.config.algorithm_type == "sde-dpmsolver":
             assert noise is not None
             if self.config.solver_type == "midpoint":
                 x_t = (
                     (alpha_t / alpha_s0).to(dtype) * sample
-                    - (2.0 * (sigma_t * (ops.exp(h) - 1.0))).to(dtype) * D0
-                    - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * D1
-                    + (sigma_t * ops.sqrt(ops.exp(2 * h) - 1.0)).to(dtype) * noise
+                    - (2.0 * (sigma_t * (mint.exp(h) - 1.0))).to(dtype) * D0
+                    - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * D1
+                    + (sigma_t * mint.sqrt(mint.exp(2 * h) - 1.0)).to(dtype) * noise
                 )
             elif self.config.solver_type == "heun":
                 x_t = (
                     (alpha_t / alpha_s0).to(dtype) * sample
-                    - (2.0 * (sigma_t * (ops.exp(h) - 1.0))).to(dtype) * D0
-                    - (2.0 * (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0))).to(dtype) * D1
-                    + (sigma_t * ops.sqrt(ops.exp(2 * h) - 1.0)).to(dtype) * noise
+                    - (2.0 * (sigma_t * (mint.exp(h) - 1.0))).to(dtype) * D0
+                    - (2.0 * (sigma_t * ((mint.exp(h) - 1.0) / h - 1.0))).to(dtype) * D1
+                    + (sigma_t * mint.sqrt(mint.exp(2 * h) - 1.0)).to(dtype) * noise
                 )
         return x_t
 
@@ -839,10 +839,10 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         alpha_s1, sigma_s1 = self._sigma_to_alpha_sigma_t(sigma_s1)
         alpha_s2, sigma_s2 = self._sigma_to_alpha_sigma_t(sigma_s2)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
-        lambda_s1 = ops.log(alpha_s1) - ops.log(sigma_s1)
-        lambda_s2 = ops.log(alpha_s2) - ops.log(sigma_s2)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
+        lambda_s1 = mint.log(alpha_s1) - mint.log(sigma_s1)
+        lambda_s2 = mint.log(alpha_s2) - mint.log(sigma_s2)
 
         m0, m1, m2 = model_output_list[-1], model_output_list[-2], model_output_list[-3]
 
@@ -856,26 +856,26 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
             # See https://arxiv.org/abs/2206.00927 for detailed derivations
             x_t = (
                 (sigma_t / sigma_s0).to(dtype) * sample
-                - (alpha_t * (ops.exp(-h) - 1.0)).to(dtype) * D0
-                + (alpha_t * ((ops.exp(-h) - 1.0) / h + 1.0)).to(dtype) * D1
-                - (alpha_t * ((ops.exp(-h) - 1.0 + h) / h**2 - 0.5)).to(dtype) * D2
+                - (alpha_t * (mint.exp(-h) - 1.0)).to(dtype) * D0
+                + (alpha_t * ((mint.exp(-h) - 1.0) / h + 1.0)).to(dtype) * D1
+                - (alpha_t * ((mint.exp(-h) - 1.0 + h) / h**2 - 0.5)).to(dtype) * D2
             )
         elif self.config.algorithm_type == "dpmsolver":
             # See https://arxiv.org/abs/2206.00927 for detailed derivations
             x_t = (
                 (alpha_t / alpha_s0).to(dtype) * sample
-                - (sigma_t * (ops.exp(h) - 1.0)).to(dtype) * D0
-                - (sigma_t * ((ops.exp(h) - 1.0) / h - 1.0)).to(dtype) * D1
-                - (sigma_t * ((ops.exp(h) - 1.0 - h) / h**2 - 0.5)).to(dtype) * D2
+                - (sigma_t * (mint.exp(h) - 1.0)).to(dtype) * D0
+                - (sigma_t * ((mint.exp(h) - 1.0) / h - 1.0)).to(dtype) * D1
+                - (sigma_t * ((mint.exp(h) - 1.0 - h) / h**2 - 0.5)).to(dtype) * D2
             )
         elif self.config.algorithm_type == "sde-dpmsolver++":
             assert noise is not None
             x_t = (
-                (sigma_t / sigma_s0 * ops.exp(-h)) * sample
-                + (alpha_t * (1.0 - ops.exp(-2.0 * h))) * D0
-                + (alpha_t * ((1.0 - ops.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
-                + (alpha_t * ((1.0 - ops.exp(-2.0 * h) - 2.0 * h) / (2.0 * h) ** 2 - 0.5)) * D2
-                + sigma_t * ops.sqrt(1.0 - ops.exp(-2 * h)) * noise
+                (sigma_t / sigma_s0 * mint.exp(-h)) * sample
+                + (alpha_t * (1.0 - mint.exp(-2.0 * h))) * D0
+                + (alpha_t * ((1.0 - mint.exp(-2.0 * h)) / (-2.0 * h) + 1.0)) * D1
+                + (alpha_t * ((1.0 - mint.exp(-2.0 * h) - 2.0 * h) / (2.0 * h) ** 2 - 0.5)) * D2
+                + sigma_t * mint.sqrt(1.0 - mint.exp(-2 * h)) * noise
             )
         return x_t
 
@@ -1020,7 +1020,7 @@ class DPMSolverMultistepInverseScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
         noisy_samples = alpha_t * original_samples + sigma_t * noise

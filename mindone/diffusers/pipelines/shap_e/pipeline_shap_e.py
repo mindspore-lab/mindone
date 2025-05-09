@@ -21,7 +21,7 @@ import PIL.Image
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPTextModelWithProjection
 from ...models import PriorTransformer
@@ -159,15 +159,15 @@ class ShapEPipeline(DiffusionPipeline):
 
         prompt_embeds = prompt_embeds.repeat_interleave(num_images_per_prompt, dim=0)
         # in Shap-E it normalize the prompt_embeds and then later rescale it
-        prompt_embeds = prompt_embeds / ops.norm(prompt_embeds, dim=-1, keepdim=True)
+        prompt_embeds = prompt_embeds / mint.norm(prompt_embeds, dim=-1, keepdim=True)
 
         if do_classifier_free_guidance:
-            negative_prompt_embeds = ops.zeros_like(prompt_embeds)
+            negative_prompt_embeds = mint.zeros_like(prompt_embeds)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # Rescale the features to have unit variance
         prompt_embeds = float(math.sqrt(prompt_embeds.shape[1])) * prompt_embeds
@@ -257,7 +257,7 @@ class ShapEPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
             # TODO: method of scheduler should not change the dtype of input.
             #  Remove the casting after cuiyushi confirm that.
             tmp_dtype = latent_model_input.dtype
@@ -271,12 +271,12 @@ class ShapEPipeline(DiffusionPipeline):
             )[0]
 
             # remove the variance
-            noise_pred, _ = noise_pred.split(
-                scaled_model_input.shape[2], axis=2
+            noise_pred, _ = mint.split(
+                noise_pred, scaled_model_input.shape[2], dim=2
             )  # batch_size, num_embeddings, embedding_dim
 
             if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred = noise_pred.chunk(2)
+                noise_pred_uncond, noise_pred = mint.chunk(noise_pred, 2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred - noise_pred_uncond)
 
             # TODO: method of scheduler should not change the dtype of input.
@@ -314,7 +314,7 @@ class ShapEPipeline(DiffusionPipeline):
                 )
                 images.append(image)
 
-            images = ops.stack(images)
+            images = mint.stack(images)
 
             images = images.numpy()
 

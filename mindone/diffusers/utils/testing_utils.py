@@ -28,7 +28,7 @@ from packaging import version
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from .import_utils import BACKENDS_MAPPING, is_opencv_available
 from .logging import get_logger
@@ -39,7 +39,7 @@ logger = get_logger(__name__)
 
 
 def mindspore_all_close(a, b, *args, **kwargs):
-    if not ops.all(ops.isclose(a, b, *args, **kwargs)):
+    if not mint.all(mint.isclose(a, b, *args, **kwargs)):
         assert False, f"Max diff is absolute {(a - b).abs().max()}. Diff tensor is {(a - b).abs()}."
     return True
 
@@ -62,6 +62,7 @@ def print_tensor_test(
         np.set_printoptions(threshold=10000)  # str(ms.Tensor) -> str(tensor.asnumpy())
 
     test_name = os.environ.get("PYTEST_CURRENT_TEST")
+    # todo: unavailable mint interface
     if not ops.is_tensor(tensor):
         tensor = ms.Tensor.from_numpy(tensor)
     if limit_to_slices:

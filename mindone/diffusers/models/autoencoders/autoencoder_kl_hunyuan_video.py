@@ -17,7 +17,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -35,18 +35,18 @@ def prepare_causal_attention_mask(
     num_frames: int, height_width: int, dtype: ms.Type, batch_size: int = None
 ) -> ms.Tensor:
     seq_len = num_frames * height_width
-    mask = ops.full((seq_len, seq_len), float("-inf"), dtype=dtype)
+    mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
     # this loop is not supported in graph mode
     # for i in range(seq_len):
     #     i_frame = i // height_width
     #     mask[i, : (i_frame + 1) * height_width] = 0
 
-    indices = ops.arange(seq_len)
+    indices = mint.arange(seq_len)
     frame_indices = indices // height_width
     cutoff = (frame_indices + 1) * height_width
-    j = ops.arange(seq_len).reshape(1, -1)
+    j = mint.arange(seq_len).reshape(1, -1)
     valid_mask = j < cutoff.reshape(-1, 1)
-    mask = ops.where(valid_mask, ops.zeros_like(mask), mask)
+    mask = mint.where(valid_mask, mint.zeros_like(mask), mask)
 
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
@@ -79,7 +79,7 @@ class HunyuanVideoCausalConv3d(nn.Cell):
             0,
         )
 
-        self.conv = nn.Conv3d(in_channels, out_channels, kernel_size, stride, "pad", padding, dilation, has_bias=bias)
+        self.conv = mint.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = pad(hidden_states, self.time_causal_padding, mode=self.pad_mode)
@@ -106,8 +106,8 @@ class HunyuanVideoUpsampleCausal3D(nn.Cell):
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         num_frames = hidden_states.shape[2]
 
-        first_frame, other_frames = hidden_states.split((1, num_frames - 1), axis=2)
-        first_frame = ops.interpolate(
+        first_frame, other_frames = hidden_states.split((1, num_frames - 1), dim=2)
+        first_frame = mint.nn.functional.interpolate(
             first_frame.squeeze(2), scale_factor=self.upsample_factor[1:], mode="nearest", recompute_scale_factor=True
         ).unsqueeze(2)
 
@@ -119,10 +119,10 @@ class HunyuanVideoUpsampleCausal3D(nn.Cell):
             # `vae.enable_tiling()` first. If that doesn't work, open an issue at:
             # https://github.com/huggingface/diffusers/issues
             other_frames = other_frames.contiguous()
-            other_frames = ops.interpolate(
-                other_frames, scale_factor=self.upsample_factor, mode="nearest", recompute_scale_factor=True
+            other_frames = mint.nn.functional.interpolate(
+                other_frames, scale_factor=self.upsample_factor, mode="nearest"
             )
-            hidden_states = ops.cat((first_frame, other_frames), axis=2)
+            hidden_states = mint.cat((first_frame, other_frames), dim=2)
         else:
             hidden_states = first_frame
 
@@ -165,11 +165,11 @@ class HunyuanVideoResnetBlockCausal3D(nn.Cell):
 
         self.nonlinearity = get_activation(non_linearity)()
 
-        self.norm1 = nn.GroupNorm(groups, in_channels, eps=eps, affine=True)
+        self.norm1 = mint.nn.GroupNorm(groups, in_channels, eps=eps, affine=True)
         self.conv1 = HunyuanVideoCausalConv3d(in_channels, out_channels, 3, 1, 0)
 
-        self.norm2 = nn.GroupNorm(groups, out_channels, eps=eps, affine=True)
-        self.dropout = nn.Dropout(p=dropout)
+        self.norm2 = mint.nn.GroupNorm(groups, out_channels, eps=eps, affine=True)
+        self.dropout = mint.nn.Dropout(p=dropout)
         self.conv2 = HunyuanVideoCausalConv3d(out_channels, out_channels, 3, 1, 0)
 
         self.conv_shortcut = None
@@ -473,8 +473,10 @@ class HunyuanVideoEncoder3D(nn.Cell):
             add_attention=mid_block_add_attention,
         )
 
-        self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
+        self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
         self.conv_out = HunyuanVideoCausalConv3d(block_out_channels[-1], conv_out_channels, kernel_size=3)
@@ -575,8 +577,8 @@ class HunyuanVideoDecoder3D(nn.Cell):
             prev_output_channel = output_channel
 
         # out
-        self.conv_norm_out = nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_act = mint.nn.SiLU()
         self.conv_out = HunyuanVideoCausalConv3d(block_out_channels[0], out_channels, kernel_size=3)
 
         self.gradient_checkpointing = False
@@ -666,12 +668,8 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
             mid_block_add_attention=mid_block_add_attention,
         )
 
-        self.quant_conv = nn.Conv3d(
-            2 * latent_channels, 2 * latent_channels, kernel_size=1, pad_mode="pad", padding=0, has_bias=True
-        )
-        self.post_quant_conv = nn.Conv3d(
-            latent_channels, latent_channels, kernel_size=1, pad_mode="pad", padding=0, has_bias=True
-        )
+        self.quant_conv = mint.nn.Conv3d(2 * latent_channels, 2 * latent_channels, kernel_size=1)
+        self.post_quant_conv = mint.nn.Conv3d(latent_channels, latent_channels, kernel_size=1)
 
         self.spatial_compression_ratio = spatial_compression_ratio
         self.temporal_compression_ratio = temporal_compression_ratio
@@ -797,7 +795,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
 
@@ -844,7 +842,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
         """
         if self.use_slicing and z.shape[0] > 1:
             decoded_slices = [self._decode(z_slice).sample for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)[0]
 
@@ -922,9 +920,9 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, :tile_latent_stride_height, :tile_latent_stride_width])
-            result_rows.append(ops.cat(result_row, axis=4))
+            result_rows.append(mint.cat(result_row, dim=4))
 
-        enc = ops.cat(result_rows, axis=3)[:, :, :, :latent_height, :latent_width]
+        enc = mint.cat(result_rows, dim=3)[:, :, :, :latent_height, :latent_width]
         return enc
 
     def tiled_decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
@@ -977,9 +975,9 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_width)
                 result_row.append(tile[:, :, :, : self.tile_sample_stride_height, : self.tile_sample_stride_width])
-            result_rows.append(ops.cat(result_row, axis=-1))
+            result_rows.append(mint.cat(result_row, dim=-1))
 
-        dec = ops.cat(result_rows, axis=3)[:, :, :, :sample_height, :sample_width]
+        dec = mint.cat(result_rows, dim=3)[:, :, :, :sample_height, :sample_width]
 
         if not return_dict:
             return (dec,)
@@ -1013,7 +1011,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
             else:
                 result_row.append(tile[:, :, : tile_latent_stride_num_frames + 1, :, :])
 
-        enc = ops.cat(result_row, axis=2)[:, :, :latent_num_frames]
+        enc = mint.cat(result_row, dim=2)[:, :, :latent_num_frames]
         return enc
 
     def _temporal_tiled_decode(self, z: ms.Tensor, return_dict: bool = False) -> Union[DecoderOutput, ms.Tensor]:
@@ -1046,7 +1044,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
             else:
                 result_row.append(tile[:, :, : self.tile_sample_stride_num_frames + 1, :, :])
 
-        dec = ops.cat(result_row, axis=2)[:, :, :num_sample_frames]
+        dec = mint.cat(result_row, dim=2)[:, :, :num_sample_frames]
 
         if not return_dict:
             return (dec,)

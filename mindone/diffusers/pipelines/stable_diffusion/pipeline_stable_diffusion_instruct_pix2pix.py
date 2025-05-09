@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
@@ -58,7 +58,7 @@ def preprocess(image):
         image = 2.0 * image - 1.0
         image = ms.Tensor.from_numpy(image)
     elif isinstance(image[0], ms.Tensor):
-        image = ops.cat(image, axis=0)
+        image = mint.cat(image, dim=0)
     return image
 
 
@@ -401,11 +401,11 @@ class StableDiffusionInstructPix2PixPipeline(
                 # Expand the latents if we are doing classifier free guidance.
                 # The latents are expanded 3 times because for pix2pix the guidance\
                 # is applied for both the text and the input image.
-                latent_model_input = ops.cat([latents] * 3) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 3) if self.do_classifier_free_guidance else latents
 
                 # concat latents, image_latents in the channel dimension
                 scaled_latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-                scaled_latent_model_input = ops.cat([scaled_latent_model_input, image_latents], axis=1)
+                scaled_latent_model_input = mint.cat([scaled_latent_model_input, image_latents], dim=1)
 
                 # predict the noise residual
                 noise_pred = self.unet(
@@ -607,7 +607,7 @@ class StableDiffusionInstructPix2PixPipeline(
             # to avoid doing two forward passes
             # pix2pix has two negative embeddings, and unlike in other pipelines latents are ordered [prompt_embeds,
             # negative_prompt_embeds, negative_prompt_embeds]
-            prompt_embeds = ops.cat([prompt_embeds, negative_prompt_embeds, negative_prompt_embeds])
+            prompt_embeds = mint.cat([prompt_embeds, negative_prompt_embeds, negative_prompt_embeds])
 
         return prompt_embeds
 
@@ -623,7 +623,7 @@ class StableDiffusionInstructPix2PixPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[-1][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[-1][
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[-1][
                 -2
             ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
@@ -633,7 +633,7 @@ class StableDiffusionInstructPix2PixPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -657,11 +657,11 @@ class StableDiffusionInstructPix2PixPipeline(
                 single_image_embeds, single_negative_image_embeds = self.encode_image(
                     single_ip_adapter_image, 1, output_hidden_state
                 )
-                single_image_embeds = ops.stack([single_image_embeds] * num_images_per_prompt, axis=0)
-                single_negative_image_embeds = ops.stack([single_negative_image_embeds] * num_images_per_prompt, axis=0)
+                single_image_embeds = mint.stack([single_image_embeds] * num_images_per_prompt, dim=0)
+                single_negative_image_embeds = mint.stack([single_negative_image_embeds] * num_images_per_prompt, dim=0)
 
                 if do_classifier_free_guidance:
-                    single_image_embeds = ops.cat(
+                    single_image_embeds = mint.cat(
                         [single_image_embeds, single_negative_image_embeds, single_negative_image_embeds]
                     )
                     single_image_embeds = single_image_embeds
@@ -683,7 +683,7 @@ class StableDiffusionInstructPix2PixPipeline(
                     single_negative_image_embeds = single_negative_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
-                    single_image_embeds = ops.cat(
+                    single_image_embeds = mint.cat(
                         [single_image_embeds, single_negative_image_embeds, single_negative_image_embeds]
                     )
                 else:
@@ -699,6 +699,7 @@ class StableDiffusionInstructPix2PixPipeline(
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
@@ -853,17 +854,17 @@ class StableDiffusionInstructPix2PixPipeline(
             )
             deprecate("len(prompt) != len(image)", "1.0.0", deprecation_message, standard_warn=False)
             additional_image_per_prompt = batch_size // image_latents.shape[0]
-            image_latents = ops.cat([image_latents] * additional_image_per_prompt, axis=0)
+            image_latents = mint.cat([image_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {image_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            image_latents = ops.cat([image_latents], axis=0)
+            image_latents = mint.cat([image_latents], dim=0)
 
         if do_classifier_free_guidance:
-            uncond_image_latents = ops.zeros_like(image_latents)
-            image_latents = ops.cat([image_latents, image_latents, uncond_image_latents], axis=0)
+            uncond_image_latents = mint.zeros_like(image_latents)
+            image_latents = mint.cat([image_latents, image_latents, uncond_image_latents], dim=0)
 
         return image_latents
 

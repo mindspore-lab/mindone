@@ -19,7 +19,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import Attention, SpatialNorm
@@ -60,86 +60,43 @@ class AllegroTemporalConvLayer(nn.Cell):
         if down_sample:
             self.conv1 = nn.SequentialCell(
                 GroupNorm(norm_num_groups, in_dim),
-                nn.SiLU(),
-                nn.Conv3d(
-                    in_dim,
-                    out_dim,
-                    (2, stride, stride),
-                    stride=(2, 1, 1),
-                    padding=(0, 0, pad_h, pad_h, pad_w, pad_w),
-                    pad_mode="pad",
-                    has_bias=True,
-                ),
+                mint.nn.SiLU(),
+                mint.nn.Conv3d(in_dim, out_dim, (2, stride, stride), stride=(2, 1, 1), padding=(0, pad_h, pad_w)),
             )
         elif up_sample:
             self.conv1 = nn.SequentialCell(
                 GroupNorm(norm_num_groups, in_dim),
-                nn.SiLU(),
-                nn.Conv3d(
-                    in_dim,
-                    out_dim * 2,
-                    (1, stride, stride),
-                    padding=(0, 0, pad_h, pad_h, pad_w, pad_w),
-                    pad_mode="pad",
-                    has_bias=True,
-                ),
+                mint.nn.SiLU(),
+                mint.nn.Conv3d(in_dim, out_dim * 2, (1, stride, stride), padding=(0, pad_h, pad_w)),
             )
         else:
             self.conv1 = nn.SequentialCell(
                 GroupNorm(norm_num_groups, in_dim),
-                nn.SiLU(),
-                nn.Conv3d(
-                    in_dim,
-                    out_dim,
-                    (3, stride, stride),
-                    padding=(pad_t, pad_t, pad_h, pad_h, pad_w, pad_w),
-                    pad_mode="pad",
-                    has_bias=True,
-                ),
+                mint.nn.SiLU(),
+                mint.nn.Conv3d(in_dim, out_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w)),
             )
         self.conv2 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
-            nn.SiLU(),
-            nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim,
-                in_dim,
-                (3, stride, stride),
-                padding=(pad_t, pad_t, pad_h, pad_h, pad_w, pad_w),
-                pad_mode="pad",
-                has_bias=True,
-            ),
+            mint.nn.SiLU(),
+            mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_w)),
         )
         self.conv3 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
-            nn.SiLU(),
-            nn.Dropout(p=dropout),
-            nn.Conv3d(
-                out_dim,
-                in_dim,
-                (3, stride, stride),
-                padding=(pad_t, pad_t, pad_h, pad_h, pad_h, pad_h),
-                pad_mode="pad",
-                has_bias=True,
-            ),
+            mint.nn.SiLU(),
+            mint.nn.Dropout(p=dropout),
+            mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h)),
         )
         self.conv4 = nn.SequentialCell(
             GroupNorm(norm_num_groups, out_dim),
-            nn.SiLU(),
-            nn.Conv3d(
-                out_dim,
-                in_dim,
-                (3, stride, stride),
-                padding=(pad_t, pad_t, pad_h, pad_h, pad_h, pad_h),
-                pad_mode="pad",
-                has_bias=True,
-            ),
+            mint.nn.SiLU(),
+            mint.nn.Conv3d(out_dim, in_dim, (3, stride, stride), padding=(pad_t, pad_h, pad_h)),
         )
 
     @staticmethod
     def _pad_temporal_dim(hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = ops.cat((hidden_states[:, :, 0:1], hidden_states), axis=2)
-        hidden_states = ops.cat((hidden_states, hidden_states[:, :, -1:]), axis=2)
+        hidden_states = mint.cat((hidden_states[:, :, 0:1], hidden_states), dim=2)
+        hidden_states = mint.cat((hidden_states, hidden_states[:, :, -1:]), dim=2)
         return hidden_states
 
     def construct(self, hidden_states: ms.Tensor, batch_size: int) -> ms.Tensor:
@@ -488,23 +445,20 @@ class AllegroEncoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[0],
             kernel_size=3,
             stride=1,
             padding=1,
-            pad_mode="pad",
-            has_bias=True,
+            bias=True,
         )
 
-        self.temp_conv_in = nn.Conv3d(
+        self.temp_conv_in = mint.nn.Conv3d(
             in_channels=block_out_channels[0],
             out_channels=block_out_channels[0],
             kernel_size=(3, 1, 1),
-            padding=(1, 1, 0, 0, 0, 0),
-            pad_mode="pad",
-            has_bias=True,
+            padding=(1, 0, 0),
         )
 
         down_blocks = []
@@ -548,21 +502,14 @@ class AllegroEncoder3D(nn.Cell):
 
         # out
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
-        self.conv_act = nn.SiLU()
+        self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
 
-        self.temp_conv_out = nn.Conv3d(
-            block_out_channels[-1],
-            block_out_channels[-1],
-            (3, 1, 1),
-            padding=(1, 1, 0, 0, 0, 0),
-            pad_mode="pad",
-            has_bias=True,
+        self.temp_conv_out = mint.nn.Conv3d(
+            block_out_channels[-1], block_out_channels[-1], (3, 1, 1), padding=(1, 0, 0)
         )
-        self.conv_out = nn.Conv2d(
-            block_out_channels[-1], conv_out_channels, 3, padding=1, pad_mode="pad", has_bias=True
-        )
+        self.conv_out = mint.nn.Conv2d(block_out_channels[-1], conv_out_channels, 3, padding=1, bias=True)
 
         self.gradient_checkpointing = False
 
@@ -621,24 +568,16 @@ class AllegroDecoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.conv_in = nn.Conv2d(
+        self.conv_in = mint.nn.Conv2d(
             in_channels,
             block_out_channels[-1],
             kernel_size=3,
             stride=1,
             padding=1,
-            pad_mode="pad",
-            has_bias=True,
+            bias=True,
         )
 
-        self.temp_conv_in = nn.Conv3d(
-            block_out_channels[-1],
-            block_out_channels[-1],
-            (3, 1, 1),
-            padding=(1, 1, 0, 0, 0, 0),
-            pad_mode="pad",
-            has_bias=True,
-        )
+        self.temp_conv_in = mint.nn.Conv3d(block_out_channels[-1], block_out_channels[-1], (3, 1, 1), padding=(1, 0, 0))
 
         self.mid_block = None
         up_blocks = []
@@ -692,17 +631,10 @@ class AllegroDecoder3D(nn.Cell):
         else:
             self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
 
-        self.conv_act = nn.SiLU()
+        self.conv_act = mint.nn.SiLU()
 
-        self.temp_conv_out = nn.Conv3d(
-            block_out_channels[0],
-            block_out_channels[0],
-            (3, 1, 1),
-            padding=(1, 1, 0, 0, 0, 0),
-            pad_mode="pad",
-            has_bias=True,
-        )
-        self.conv_out = nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1, pad_mode="pad", has_bias=True)
+        self.temp_conv_out = mint.nn.Conv3d(block_out_channels[0], block_out_channels[0], (3, 1, 1), padding=(1, 0, 0))
+        self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, 3, padding=1, bias=True)
 
         self.upscale_dtype = next(iter(self.up_blocks.get_parameters())).dtype
 
@@ -847,8 +779,8 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
             norm_num_groups=norm_num_groups,
             act_fn=act_fn,
         )
-        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True, pad_mode="valid")
-        self.post_quant_conv = nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True, pad_mode="valid")
+        self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
+        self.post_quant_conv = mint.nn.Conv2d(latent_channels, latent_channels, 1)
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
         # TODO(aryan): For the 1.0.0 refactor, `temporal_compression_ratio` can be inferred directly and we don't need
@@ -929,7 +861,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
 
@@ -965,7 +897,7 @@ class AutoencoderKLAllegro(ModelMixin, ConfigMixin):
         """
         if self.use_slicing and z.shape[0] > 1:
             decoded_slices = [self._decode(z_slice) for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)
 
@@ -1194,22 +1126,22 @@ def _prepare_for_blend(n_param, h_param, w_param, x):
     if overlap_n > 0:
         if n > 0:  # the head overlap part decays from 0 to 1
             x[:, :, 0:overlap_n, :, :] = x[:, :, 0:overlap_n, :, :] * (
-                ops.arange(0, overlap_n).float() / overlap_n
+                mint.arange(0, overlap_n).float() / overlap_n
             ).reshape(overlap_n, 1, 1)
         if n < n_max - 1:  # the tail overlap part decays from 1 to 0
             x[:, :, -overlap_n:, :, :] = x[:, :, -overlap_n:, :, :] * (
-                1 - ops.arange(0, overlap_n).float() / overlap_n
+                1 - mint.arange(0, overlap_n).float() / overlap_n
             ).reshape(overlap_n, 1, 1)
     if h > 0:
         x[:, :, :, 0:overlap_h, :] = x[:, :, :, 0:overlap_h, :] * (
-            ops.arange(0, overlap_h).float() / overlap_h
+            mint.arange(0, overlap_h).float() / overlap_h
         ).reshape(overlap_h, 1)
     if h < h_max - 1:
         x[:, :, :, -overlap_h:, :] = x[:, :, :, -overlap_h:, :] * (
-            1 - ops.arange(0, overlap_h).float() / overlap_h
+            1 - mint.arange(0, overlap_h).float() / overlap_h
         ).reshape(overlap_h, 1)
     if w > 0:
-        x[:, :, :, :, 0:overlap_w] = x[:, :, :, :, 0:overlap_w] * (ops.arange(0, overlap_w).float() / overlap_w)
+        x[:, :, :, :, 0:overlap_w] = x[:, :, :, :, 0:overlap_w] * (mint.arange(0, overlap_w).float() / overlap_w)
     if w < w_max - 1:
-        x[:, :, :, :, -overlap_w:] = x[:, :, :, :, -overlap_w:] * (1 - ops.arange(0, overlap_w).float() / overlap_w)
+        x[:, :, :, :, -overlap_w:] = x[:, :, :, :, -overlap_w:] * (1 - mint.arange(0, overlap_w).float() / overlap_w)
     return x

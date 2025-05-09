@@ -1,6 +1,6 @@
 from transformers import XLMRobertaConfig
 
-from mindspore import nn
+from mindspore import mint
 
 from mindone.transformers import MSPreTrainedModel, XLMRobertaModel
 
@@ -20,9 +20,9 @@ class MultilingualCLIP(MSPreTrainedModel):
     def __init__(self, config, *args, **kwargs):
         super().__init__(config, *args, **kwargs)
         self.transformer = XLMRobertaModel(config)
-        self.LinearTransformation = nn.Dense(in_channels=config.transformerDimensions, out_channels=config.numDims)
+        self.LinearTransformation = mint.nn.Linear(config.transformerDimensions, config.numDims)
 
     def construct(self, input_ids, attention_mask):
         embs = self.transformer(input_ids=input_ids, attention_mask=attention_mask)[0]
-        embs2 = (embs * attention_mask.unsqueeze(2)).sum(axis=1) / attention_mask.sum(axis=1)[:, None]
+        embs2 = (embs * attention_mask.unsqueeze(2)).sum(dim=1) / attention_mask.sum(dim=1)[:, None]
         return self.LinearTransformation(embs2), embs

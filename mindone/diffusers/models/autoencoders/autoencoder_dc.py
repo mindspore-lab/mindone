@@ -16,7 +16,7 @@
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
@@ -41,9 +41,9 @@ class ResBlock(nn.Cell):
 
         self.norm_type = norm_type
 
-        self.nonlinearity = get_activation(act_fn)() if act_fn is not None else nn.Identity()
-        self.conv1 = nn.Conv2d(in_channels, in_channels, 3, 1, pad_mode="pad", padding=1, has_bias=True)
-        self.conv2 = nn.Conv2d(in_channels, out_channels, 3, 1, pad_mode="pad", padding=1, has_bias=False)
+        self.nonlinearity = get_activation(act_fn)() if act_fn is not None else mint.nn.Identity()
+        self.conv1 = mint.nn.Conv2d(in_channels, in_channels, 3, 1, padding=1, bias=True)
+        self.conv2 = mint.nn.Conv2d(in_channels, out_channels, 3, 1, padding=1, bias=False)
         self.norm = get_normalization(norm_type, out_channels)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -132,26 +132,27 @@ class DCDownBlock2d(nn.Cell):
             assert out_channels % out_ratio == 0
             out_channels = out_channels // out_ratio
 
-        self.conv = nn.Conv2d(
+        self.conv = mint.nn.Conv2d(
             in_channels,
             out_channels,
             kernel_size=3,
             stride=self.stride,
             padding=1,
-            pad_mode="pad",
-            has_bias=True,
+            bias=True,
         )
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         x = self.conv(hidden_states)
         if self.downsample:
+            # todo: unavailable mint interface
             x = ops.pixel_unshuffle(x, self.factor)
 
         if self.shortcut:
+            # todo: unavailable mint interface
             y = ops.pixel_unshuffle(hidden_states, self.factor)
             # y = y.unflatten(1, (-1, self.group_size))
             y = y.reshape(y.shape[0], -1, self.group_size, *y.shape[2:])
-            y = y.mean(axis=2)
+            y = y.mean(dim=2)
             hidden_states = x + y
         else:
             hidden_states = x
@@ -181,7 +182,7 @@ class DCUpBlock2d(nn.Cell):
         if not interpolate:
             out_channels = out_channels * out_ratio
 
-        self.conv = nn.Conv2d(in_channels, out_channels, 3, 1, pad_mode="pad", padding=1, has_bias=True)
+        self.conv = mint.nn.Conv2d(in_channels, out_channels, 3, 1, padding=1, bias=True)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         if self.interpolate:
@@ -189,10 +190,12 @@ class DCUpBlock2d(nn.Cell):
             x = self.conv(x)
         else:
             x = self.conv(hidden_states)
+            # todo: unavailable mint interface
             x = ops.pixel_shuffle(x, self.factor)
 
         if self.shortcut:
             y = hidden_states.repeat_interleave(self.repeats, dim=1)
+            # todo: unavailable mint interface
             y = ops.pixel_shuffle(y, self.factor)
             hidden_states = x + y
         else:
@@ -222,14 +225,13 @@ class Encoder(nn.Cell):
             block_type = (block_type,) * num_blocks
 
         if layers_per_block[0] > 0:
-            self.conv_in = nn.Conv2d(
+            self.conv_in = mint.nn.Conv2d(
                 in_channels,
                 block_out_channels[0] if layers_per_block[0] > 0 else block_out_channels[1],
                 kernel_size=3,
                 stride=1,
                 padding=1,
-                pad_mode="pad",
-                has_bias=True,
+                bias=True,
             )
         else:
             self.conv_in = DCDownBlock2d(
@@ -268,9 +270,7 @@ class Encoder(nn.Cell):
 
         self.down_blocks = nn.CellList(down_blocks)
 
-        self.conv_out = nn.Conv2d(
-            block_out_channels[-1], latent_channels, 3, 1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_out = mint.nn.Conv2d(block_out_channels[-1], latent_channels, 3, 1, padding=1, bias=True)
 
         self.out_shortcut = out_shortcut
         if out_shortcut:
@@ -286,7 +286,7 @@ class Encoder(nn.Cell):
             x = hidden_states.reshape(
                 hidden_states.shape[0], -1, self.out_shortcut_average_group_size, *hidden_states.shape[2:]
             )
-            x = x.mean(axis=2)
+            x = x.mean(dim=2)
             hidden_states = self.conv_out(hidden_states) + x
         else:
             hidden_states = self.conv_out(hidden_states)
@@ -320,9 +320,7 @@ class Decoder(nn.Cell):
         if isinstance(act_fn, str):
             act_fn = (act_fn,) * num_blocks
 
-        self.conv_in = nn.Conv2d(
-            latent_channels, block_out_channels[-1], 3, 1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_in = mint.nn.Conv2d(latent_channels, block_out_channels[-1], 3, 1, padding=1, bias=True)
 
         self.in_shortcut = in_shortcut
         if in_shortcut:
@@ -361,11 +359,11 @@ class Decoder(nn.Cell):
         channels = block_out_channels[0] if layers_per_block[0] > 0 else block_out_channels[1]
 
         self.norm_out = RMSNorm(channels, 1e-5, elementwise_affine=True, bias=True)
-        self.conv_act = nn.ReLU()
+        self.conv_act = mint.nn.ReLU()
         self.conv_out = None
 
         if layers_per_block[0] > 0:
-            self.conv_out = nn.Conv2d(channels, in_channels, 3, 1, pad_mode="pad", padding=1, has_bias=True)
+            self.conv_out = mint.nn.Conv2d(channels, in_channels, 3, 1, padding=1, bias=True)
         else:
             self.conv_out = DCUpBlock2d(
                 channels, in_channels, interpolate=upsample_block_type == "interpolate", shortcut=False
@@ -575,7 +573,7 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            encoded = ops.cat(encoded_slices)
+            encoded = mint.cat(encoded_slices)
         else:
             encoded = self._encode(x)
 
@@ -609,7 +607,7 @@ class AutoencoderDC(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         """
         if self.use_slicing and z.size(0) > 1:
             decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)
 

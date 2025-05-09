@@ -217,8 +217,10 @@ class UNet1DModel(ModelMixin, ConfigMixin):
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             timesteps = ms.tensor([timesteps], dtype=ms.int64)
+        # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 

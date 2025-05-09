@@ -18,7 +18,7 @@ import numpy as np
 from transformers import CLIPImageProcessor
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPVisionModelWithProjection
 
@@ -295,7 +295,7 @@ class KolorsPAGPipeline(
         zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt
 
         if do_classifier_free_guidance and negative_prompt_embeds is None and zero_out_negative_prompt:
-            negative_prompt_embeds = ops.zeros_like(prompt_embeds)
+            negative_prompt_embeds = mint.zeros_like(prompt_embeds)
         elif do_classifier_free_guidance and negative_prompt_embeds is None:
             uncond_tokens: List[str]
             if negative_prompt is None:
@@ -380,7 +380,9 @@ class KolorsPAGPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -388,7 +390,7 @@ class KolorsPAGPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -429,10 +431,10 @@ class KolorsPAGPipeline(
 
         ip_adapter_image_embeds = []
         for i, single_image_embeds in enumerate(image_embeds):
-            single_image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+            single_image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.cat([negative_image_embeds[i]] * num_images_per_prompt, axis=0)
-                single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds], axis=0)
+                single_negative_image_embeds = mint.cat([negative_image_embeds[i]] * num_images_per_prompt, dim=0)
+                single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds], dim=0)
 
             ip_adapter_image_embeds.append(single_image_embeds)
 
@@ -576,7 +578,7 @@ class KolorsPAGPipeline(
         passed_add_embed_dim = (
             self.unet.config.addition_time_embed_dim * len(add_time_ids) + text_encoder_projection_dim
         )
-        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_channels
+        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_features
 
         if expected_add_embed_dim != passed_add_embed_dim:
             raise ValueError(
@@ -613,12 +615,12 @@ class KolorsPAGPipeline(
         w = w * 1000.0
 
         half_dim = embedding_dim // 2
-        emb = ops.log(ms.Tensor(10000.0)) / (half_dim - 1)
-        emb = ops.exp(ops.arange(half_dim, dtype=dtype) * -emb)
+        emb = mint.log(ms.Tensor(10000.0)) / (half_dim - 1)
+        emb = mint.exp(mint.arange(half_dim, dtype=dtype) * -emb)
         emb = w.to(dtype)[:, None] * emb[None, :]
-        emb = ops.cat([ops.sin(emb), ops.cos(emb)], axis=1)
+        emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1)
         if embedding_dim % 2 == 1:  # zero pad
-            emb = ops.pad(emb, (0, 1))
+            emb = mint.nn.functional.pad(emb, (0, 1))
         assert emb.shape == (w.shape[0], embedding_dim)
         return emb
 
@@ -937,11 +939,11 @@ class KolorsPAGPipeline(
                 add_time_ids, negative_add_time_ids, self.do_classifier_free_guidance
             )
         elif self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            add_text_embeds = ops.cat([negative_pooled_prompt_embeds, add_text_embeds], axis=0)
-            add_time_ids = ops.cat([negative_add_time_ids, add_time_ids], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
+            add_time_ids = mint.cat([negative_add_time_ids, add_time_ids], dim=0)
 
-        add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
+        add_time_ids = mint.tile(add_time_ids, (batch_size * num_images_per_prompt, 1))
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -961,7 +963,7 @@ class KolorsPAGPipeline(
                         image_embeds, negative_image_embeds, self.do_classifier_free_guidance
                     )
                 elif self.do_classifier_free_guidance:
-                    image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0)
+                    image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0)
                 ip_adapter_image_embeds[i] = image_embeds
 
         # 8. Denoising loop
@@ -1005,7 +1007,7 @@ class KolorsPAGPipeline(
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
+                latent_model_input = mint.cat([latents] * (prompt_embeds.shape[0] // latents.shape[0]))
 
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 

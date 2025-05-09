@@ -112,7 +112,7 @@ class IFImg2ImgPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         pipe_cls = get_module("mindone.diffusers.pipelines.deepfloyd_if.IFImg2ImgPipeline")
         pipe = pipe_cls.from_pretrained(
             "DeepFloyd/IF-I-L-v1.0",
-            variant="fp16",
+            # variant="fp16",
             mindspore_dtype=ms_dtype,
         )
 

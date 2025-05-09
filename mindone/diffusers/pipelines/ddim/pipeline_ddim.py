@@ -93,7 +93,7 @@ class DDIMPipeline(DiffusionPipeline):
         >>> image = pipe(eta=0.0, num_inference_steps=50)
 
         >>> # process image to PIL
-        >>> image_processed = image.cpu().permute(0, 2, 3, 1)
+        >>> image_processed = image.permute(0, 2, 3, 1)
         >>> image_processed = (image_processed + 1.0) * 127.5
         >>> image_processed = image_processed.numpy().astype(np.uint8)
         >>> image_pil = PIL.Image.fromarray(image_processed[0])

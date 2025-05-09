@@ -21,7 +21,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import deprecate, is_scipy_available
@@ -91,7 +91,7 @@ def rescale_zero_terminal_snr(betas):
     """
     # Convert betas to alphas_bar_sqrt
     alphas = 1.0 - betas
-    alphas_cumprod = ops.cumprod(alphas, dim=0)
+    alphas_cumprod = mint.cumprod(alphas, dim=0)
     alphas_bar_sqrt = alphas_cumprod.sqrt()
 
     # Store old values.
@@ -107,7 +107,7 @@ def rescale_zero_terminal_snr(betas):
     # Convert alphas_bar_sqrt to betas
     alphas_bar = alphas_bar_sqrt**2  # Revert sqrt
     alphas = alphas_bar[1:] / alphas_bar[:-1]  # Revert cumprod
-    alphas = ops.cat([alphas_bar[0:1], alphas])
+    alphas = mint.cat([alphas_bar[0:1], alphas])
     betas = 1 - alphas
 
     return betas
@@ -244,11 +244,11 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             self.alphas_cumprod[-1] = 2**-24
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
         # Currently we only support VP-type noise schedule
-        self.alpha_t = ops.sqrt(self.alphas_cumprod)
-        self.sigma_t = ops.sqrt(1 - self.alphas_cumprod)
-        self.lambda_t = ops.log(self.alpha_t) - ops.log(self.sigma_t)
+        self.alpha_t = mint.sqrt(self.alphas_cumprod)
+        self.sigma_t = mint.sqrt(1 - self.alphas_cumprod)
+        self.lambda_t = mint.log(self.alpha_t) - mint.log(self.sigma_t)
         self.sigmas = ((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5
 
         # standard deviation of the initial noise distribution
@@ -444,11 +444,11 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         abs_sample = sample.abs()  # "a certain percentile absolute pixel value"
 
         s = ms.Tensor.from_numpy(np.quantile(abs_sample.asnumpy(), self.config.dynamic_thresholding_ratio, axis=1))
-        s = ops.clamp(
+        s = mint.clamp(
             s, min=1, max=self.config.sample_max_value
         )  # When clamped to min=1, equivalent to standard clipping to [-1, 1]
         s = s.unsqueeze(1)  # (batch_size, 1) because clamp will broadcast along dim=0
-        sample = ops.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
+        sample = mint.clamp(sample, -s, s) / s  # "we threshold xt0 to the range [-s, s] and then divide by s"
 
         sample = sample.reshape(batch_size, channels, *remaining_dims)
         sample = sample.to(dtype)
@@ -700,8 +700,8 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
 
         h = lambda_t - lambda_s0
 
@@ -711,7 +711,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             si = self.step_index - i
             mi = model_output_list[-(i + 1)]
             alpha_si, sigma_si = self._sigma_to_alpha_sigma_t(self.sigmas[si])
-            lambda_si = ops.log(alpha_si) - ops.log(sigma_si)
+            lambda_si = mint.log(alpha_si) - mint.log(sigma_si)
             rk = (lambda_si - lambda_s0) / h
             rks.append(rk.item())
             D1s.append((mi - m0) / rk)
@@ -723,7 +723,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         b = []
 
         hh = -h if self.predict_x0 else h
-        h_phi_1 = ops.expm1(hh)  # h\phi_1(h) = e^h - 1
+        h_phi_1 = mint.expm1(hh)  # h\phi_1(h) = e^h - 1
         h_phi_k = h_phi_1 / hh - 1
 
         factorial_i = 1
@@ -731,21 +731,21 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.config.solver_type == "bh1":
             B_h = hh
         elif self.config.solver_type == "bh2":
-            B_h = ops.expm1(hh)
+            B_h = mint.expm1(hh)
         else:
             raise NotImplementedError()
 
         for i in range(1, order + 1):
-            R.append(ops.pow(rks, i - 1))
+            R.append(mint.pow(rks, i - 1))
             b.append((h_phi_k * factorial_i / B_h).item())
             factorial_i *= i + 1
             h_phi_k = h_phi_k / hh - 1 / factorial_i
 
-        R = ops.stack(R)
+        R = mint.stack(R)
         b = ms.Tensor(b)
 
         if len(D1s) > 0:
-            D1s = ops.stack(D1s, axis=1)  # (B, K)
+            D1s = mint.stack(D1s, dim=1)  # (B, K)
             # for order 2, we use a simplified version
             if order == 2:
                 rhos_p = ms.tensor([0.5], dtype=x.dtype)
@@ -757,14 +757,14 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.predict_x0:
             x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0
             if D1s is not None:
-                pred_res = (rhos_p[:, None] * D1s).sum(axis=1)
+                pred_res = (rhos_p[:, None] * D1s).sum(dim=1)
             else:
                 pred_res = 0
             x_t = x_t_ - alpha_t * B_h * pred_res
         else:
             x_t_ = alpha_t / alpha_s0 * x - sigma_t * h_phi_1 * m0
             if D1s is not None:
-                pred_res = (rhos_p[:, None] * D1s).sum(axis=1)
+                pred_res = (rhos_p[:, None] * D1s).sum(dim=1)
             else:
                 pred_res = 0
             x_t = x_t_ - sigma_t * B_h * pred_res
@@ -834,8 +834,8 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma_t)
         alpha_s0, sigma_s0 = self._sigma_to_alpha_sigma_t(sigma_s0)
 
-        lambda_t = ops.log(alpha_t) - ops.log(sigma_t)
-        lambda_s0 = ops.log(alpha_s0) - ops.log(sigma_s0)
+        lambda_t = mint.log(alpha_t) - mint.log(sigma_t)
+        lambda_s0 = mint.log(alpha_s0) - mint.log(sigma_s0)
 
         h = lambda_t - lambda_s0
 
@@ -845,7 +845,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             si = self.step_index - (i + 1)
             mi = model_output_list[-(i + 1)]
             alpha_si, sigma_si = self._sigma_to_alpha_sigma_t(self.sigmas[si])
-            lambda_si = ops.log(alpha_si) - ops.log(sigma_si)
+            lambda_si = mint.log(alpha_si) - mint.log(sigma_si)
             rk = (lambda_si - lambda_s0) / h
             rks.append(rk.item())
             D1s.append((mi - m0) / rk)
@@ -857,7 +857,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         b = []
 
         hh = -h if self.predict_x0 else h
-        h_phi_1 = ops.expm1(hh)  # h\phi_1(h) = e^h - 1
+        h_phi_1 = mint.expm1(hh)  # h\phi_1(h) = e^h - 1
         h_phi_k = h_phi_1 / hh - 1
 
         factorial_i = 1
@@ -865,21 +865,21 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.config.solver_type == "bh1":
             B_h = hh
         elif self.config.solver_type == "bh2":
-            B_h = ops.expm1(hh)
+            B_h = mint.expm1(hh)
         else:
             raise NotImplementedError()
 
         for i in range(1, order + 1):
-            R.append(ops.pow(rks, i - 1))
+            R.append(mint.pow(rks, i - 1))
             b.append((h_phi_k * factorial_i / B_h).item())
             factorial_i *= i + 1
             h_phi_k = h_phi_k / hh - 1 / factorial_i
 
-        R = ops.stack(R)
+        R = mint.stack(R)
         b = ms.Tensor(b)
 
         if len(D1s) > 0:
-            D1s = ops.stack(D1s, axis=1)
+            D1s = mint.stack(D1s, dim=1)
         else:
             D1s = None
 
@@ -892,7 +892,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.predict_x0:
             x_t_ = sigma_t / sigma_s0 * x - alpha_t * h_phi_1 * m0
             if D1s is not None:
-                corr_res = (rhos_c[:-1][:, None] * D1s).sum(axis=1)
+                corr_res = (rhos_c[:-1][:, None] * D1s).sum(dim=1)
             else:
                 corr_res = 0
             D1_t = model_t - m0
@@ -900,7 +900,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         else:
             x_t_ = alpha_t / alpha_s0 * x - sigma_t * h_phi_1 * m0
             if D1s is not None:
-                corr_res = (rhos_c[:-1][:, None] * D1s).sum(axis=1)
+                corr_res = mint.sum((rhos_c[:-1][:, None] * D1s), dim=1)
             else:
                 corr_res = 0
             D1_t = model_t - m0
@@ -1062,7 +1062,7 @@ class UniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
         noisy_samples = alpha_t * original_samples + sigma_t * noise

@@ -19,7 +19,7 @@ import numpy as np
 from transformers import T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -226,8 +226,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         # but this can lead to overflow when placing the entire pipeline under the autocast context
         # adding this here so that we can enable zeroing prompts if necessary
         if self.config.force_zeros_for_empty_prompt and (prompt == "" or prompt[-1] == ""):
-            text_input_ids = ops.zeros_like(text_input_ids)
-            prompt_attention_mask = ops.zeros_like(prompt_attention_mask, dtype=ms.bool_)
+            text_input_ids = mint.zeros_like(text_input_ids)
+            prompt_attention_mask = mint.zeros_like(prompt_attention_mask, dtype=ms.bool_)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -622,8 +622,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
 
         # 5. Prepare timestep
         # from https://github.com/genmoai/models/blob/075b6e36db58f1242921deff83a1066887b9c9e1/src/mochi_preview/infer.py#L77
@@ -653,7 +653,7 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
 

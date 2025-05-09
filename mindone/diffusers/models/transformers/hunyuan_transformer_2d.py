@@ -14,7 +14,7 @@
 from typing import Dict, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -41,7 +41,7 @@ class AdaLayerNormShift(nn.Cell):
     def __init__(self, embedding_dim: int, elementwise_affine=True, eps=1e-6):
         super().__init__()
         self.silu = SiLU()
-        self.linear = nn.Dense(embedding_dim, embedding_dim)
+        self.linear = mint.nn.Linear(embedding_dim, embedding_dim)
         self.norm = FP32LayerNorm(embedding_dim, elementwise_affine=elementwise_affine, eps=eps)
 
     def construct(self, x: ms.Tensor, emb: ms.Tensor) -> ms.Tensor:
@@ -143,7 +143,7 @@ class HunyuanDiTBlock(nn.Cell):
         # 4. Skip Connection
         if skip:
             self.skip_norm = FP32LayerNorm(2 * dim, norm_eps, elementwise_affine=True)
-            self.skip_linear = nn.Dense(2 * dim, dim)
+            self.skip_linear = mint.nn.Linear(2 * dim, dim)
         else:
             self.skip_linear = None
 
@@ -169,7 +169,7 @@ class HunyuanDiTBlock(nn.Cell):
         # 0. Long Skip Connection
         cat = None
         if self.skip_linear is not None:
-            cat = ops.cat([hidden_states, skip], axis=-1)
+            cat = mint.cat([hidden_states, skip], dim=-1)
             cat = self.skip_norm(cat)
             hidden_states = self.skip_linear(cat)
 
@@ -273,7 +273,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         )
 
         self.text_embedding_padding = ms.Parameter(
-            ops.randn(text_len + text_len_t5, cross_attention_dim, dtype=ms.float32),
+            mint.randn(text_len + text_len_t5, cross_attention_dim, dtype=ms.float32),
             name="text_embedding_padding",
         )
 
@@ -311,7 +311,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         )
 
         self.norm_out = AdaLayerNormContinuous(self.inner_dim, self.inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -436,11 +436,11 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         )
         encoder_hidden_states_t5 = encoder_hidden_states_t5.view(batch_size, sequence_length, -1)
 
-        encoder_hidden_states = ops.cat([encoder_hidden_states, encoder_hidden_states_t5], axis=1)
-        text_embedding_mask = ops.cat([text_embedding_mask, text_embedding_mask_t5], axis=-1)
+        encoder_hidden_states = mint.cat([encoder_hidden_states, encoder_hidden_states_t5], dim=1)
+        text_embedding_mask = mint.cat([text_embedding_mask, text_embedding_mask_t5], dim=-1)
         text_embedding_mask = text_embedding_mask.unsqueeze(2).bool()
 
-        encoder_hidden_states = ops.where(text_embedding_mask, encoder_hidden_states, self.text_embedding_padding)
+        encoder_hidden_states = mint.where(text_embedding_mask, encoder_hidden_states, self.text_embedding_padding)
 
         skips = []
         for layer, block in enumerate(self.blocks):
@@ -486,8 +486,7 @@ class HunyuanDiT2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states.reshape(
             hidden_states.shape[0], height, width, patch_size, patch_size, self.out_channels
         )
-        # hidden_states = ops.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape(
             hidden_states.shape[0], self.out_channels, height * patch_size, width * patch_size
         )
