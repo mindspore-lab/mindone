@@ -614,7 +614,7 @@ class MarigoldIntrinsicsPipeline(DiffusionPipeline):
 
         image_latent = mint.cat(
             [
-                retrieve_latents(self.vae.encode(image[i : i + batch_size]))
+                retrieve_latents(self.vae.encode(image[i : i + batch_size])[0])
                 for i in range(0, image.shape[0], batch_size)
             ],
             dim=0,
