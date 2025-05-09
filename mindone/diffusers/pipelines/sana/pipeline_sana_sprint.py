@@ -19,12 +19,13 @@ import urllib.parse as ul
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import AutoTokenizer
+from transformers import GemmaTokenizer, GemmaTokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
-from ....transformers import MSPreTrainedModel
+from mindone.transformers import Gemma2PreTrainedModel
+
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PixArtImageProcessor
 from ...loaders import SanaLoraLoaderMixin
@@ -40,9 +41,10 @@ from ...utils import (
 )
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
-from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_512_BIN, ASPECT_RATIO_1024_BIN
-from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
+from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_1024_BIN
 from .pipeline_output import SanaPipelineOutput
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -56,16 +58,14 @@ if is_ftfy_available():
 EXAMPLE_DOC_STRING = """
     Examples:
         ```py
-        >>> import mindspore
-        >>> from mindone.diffusers import SanaPipeline
+        >>> import mindspore as ms
+        >>> from mindone.diffusers import SanaSprintPipeline
 
-        >>> pipe = SanaPipeline.from_pretrained(
-        ...     "Efficient-Large-Model/Sana_1600M_1024px_BF16_diffusers", mindspore_dtype=mindspore.float32
+        >>> pipe = SanaSprintPipeline.from_pretrained(
+        ...     "Efficient-Large-Model/Sana_Sprint_1.6B_1024px_diffusers", mindspore_dtype=ms.bfloat16
         ... )
-        >>> pipe.text_encoder.to(mindspore.bfloat16)
-        >>> pipe.transformer = pipe.transformer.to(mindspore.bfloat16)
 
-        >>> image = pipe(prompt='a cyberpunk cat with a neon sign that says "Sana"')[0]
+        >>> image = pipe(prompt="a tiny astronaut hatching from an egg on the moon")[0]
         >>> image[0].save("output.png")
         ```
 """
@@ -128,9 +128,9 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
+class SanaSprintPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
     r"""
-    Pipeline for text-to-image generation using [Sana](https://huggingface.co/papers/2410.10629).
+    Pipeline for text-to-image generation using [SANA-Sprint](https://huggingface.co/papers/2503.09641).
     """
 
     # fmt: off
@@ -138,12 +138,12 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
     # fmt: on
 
     model_cpu_offload_seq = "text_encoder->transformer->vae"
-    _callback_tensor_inputs = ["latents", "prompt_embeds", "negative_prompt_embeds"]
+    _callback_tensor_inputs = ["latents", "prompt_embeds"]
 
     def __init__(
         self,
-        tokenizer: AutoTokenizer,
-        text_encoder: MSPreTrainedModel,
+        tokenizer: Union[GemmaTokenizer, GemmaTokenizerFast],
+        text_encoder: Gemma2PreTrainedModel,
         vae: AutoencoderDC,
         transformer: SanaTransformer2DModel,
         scheduler: DPMSolverMultistepScheduler,
@@ -161,6 +161,36 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         )
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
+    def enable_vae_slicing(self):
+        r"""
+        Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to
+        compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.
+        """
+        self.vae.enable_slicing()
+
+    def disable_vae_slicing(self):
+        r"""
+        Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_slicing()
+
+    def enable_vae_tiling(self):
+        r"""
+        Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to
+        compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow
+        processing larger images.
+        """
+        self.vae.enable_tiling()
+
+    def disable_vae_tiling(self):
+        r"""
+        Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to
+        computing decoding in one step.
+        """
+        self.vae.disable_tiling()
+
+    # Copied from diffusers.pipelines.sana.pipeline_sana.SanaPipeline._get_gemma_prompt_embeds
     def _get_gemma_prompt_embeds(
         self,
         prompt: Union[str, List[str]],
@@ -218,13 +248,9 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
-        do_classifier_free_guidance: bool = True,
-        negative_prompt: str = "",
         num_images_per_prompt: int = 1,
         prompt_embeds: Optional[ms.Tensor] = None,
-        negative_prompt_embeds: Optional[ms.Tensor] = None,
         prompt_attention_mask: Optional[ms.Tensor] = None,
-        negative_prompt_attention_mask: Optional[ms.Tensor] = None,
         clean_caption: bool = False,
         max_sequence_length: int = 300,
         complex_human_instruction: Optional[List[str]] = None,
@@ -236,19 +262,12 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         Args:
             prompt (`str` or `List[str]`, *optional*):
                 prompt to be encoded
-            negative_prompt (`str` or `List[str]`, *optional*):
-                The prompt not to guide the image generation. If not defined, one has to pass `negative_prompt_embeds`
-                instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is less than `1`). For
-                PixArt-Alpha, this should be "".
-            do_classifier_free_guidance (`bool`, *optional*, defaults to `True`):
-                whether to use classifier free guidance or not
+
             num_images_per_prompt (`int`, *optional*, defaults to 1):
                 number of images that should be generated per prompt
             prompt_embeds (`ms.Tensor`, *optional*):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
-            negative_prompt_embeds (`ms.Tensor`, *optional*):
-                Pre-generated negative text embeddings. For Sana, it's should be the embeddings of the "" string.
             clean_caption (`bool`, defaults to `False`):
                 If `True`, the function will preprocess and clean the provided caption before encoding.
             max_sequence_length (`int`, defaults to 300): Maximum sequence length to use for the prompt.
@@ -256,6 +275,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 If `complex_human_instruction` is not empty, the function will use the complex Human instruction for
                 the prompt.
         """
+
         if self.transformer is not None:
             dtype = self.transformer.dtype
         elif self.text_encoder is not None:
@@ -272,14 +292,8 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             if self.text_encoder is not None:
                 scale_lora_layers(self.text_encoder, lora_scale)
 
-        if prompt is not None and isinstance(prompt, str):
-            batch_size = 1
-        elif prompt is not None and isinstance(prompt, list):
-            batch_size = len(prompt)
-        else:
-            batch_size = prompt_embeds.shape[0]
-
-        self.tokenizer.padding_side = "right"
+        if getattr(self, "tokenizer", None) is not None:
+            self.tokenizer.padding_side = "right"
 
         # See Section 3.1. of the paper.
         max_length = max_sequence_length
@@ -293,6 +307,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 max_sequence_length=max_sequence_length,
                 complex_human_instruction=complex_human_instruction,
             )
+
             prompt_embeds = prompt_embeds[:, select_index]
             prompt_attention_mask = prompt_attention_mask[:, select_index]
 
@@ -303,38 +318,12 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         prompt_attention_mask = prompt_attention_mask.view(bs_embed, -1)
         prompt_attention_mask = prompt_attention_mask.tile((num_images_per_prompt, 1))
 
-        # get unconditional embeddings for classifier free guidance
-        if do_classifier_free_guidance and negative_prompt_embeds is None:
-            negative_prompt = [negative_prompt] * batch_size if isinstance(negative_prompt, str) else negative_prompt
-            negative_prompt_embeds, negative_prompt_attention_mask = self._get_gemma_prompt_embeds(
-                prompt=negative_prompt,
-                dtype=dtype,
-                clean_caption=clean_caption,
-                max_sequence_length=max_sequence_length,
-                complex_human_instruction=False,
-            )
-
-        if do_classifier_free_guidance:
-            # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
-            seq_len = negative_prompt_embeds.shape[1]
-
-            negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
-
-            negative_prompt_embeds = negative_prompt_embeds.tile((1, num_images_per_prompt, 1))
-            negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
-
-            negative_prompt_attention_mask = negative_prompt_attention_mask.view(bs_embed, -1)
-            negative_prompt_attention_mask = negative_prompt_attention_mask.tile((num_images_per_prompt, 1))
-        else:
-            negative_prompt_embeds = None
-            negative_prompt_attention_mask = None
-
         if self.text_encoder is not None:
             if isinstance(self, SanaLoraLoaderMixin):
                 # Retrieve the original scale by scaling back the LoRA layers
                 unscale_lora_layers(self.text_encoder, lora_scale)
 
-        return prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask
+        return prompt_embeds, prompt_attention_mask
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_extra_step_kwargs
     def prepare_extra_step_kwargs(self, generator, eta):
@@ -359,12 +348,13 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         prompt,
         height,
         width,
+        num_inference_steps,
+        timesteps,
+        max_timesteps,
+        intermediate_timesteps,
         callback_on_step_end_tensor_inputs=None,
-        negative_prompt=None,
         prompt_embeds=None,
-        negative_prompt_embeds=None,
         prompt_attention_mask=None,
-        negative_prompt_attention_mask=None,
     ):
         if height % 32 != 0 or width % 32 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 32 but are {height} and {width}.")
@@ -373,7 +363,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa: E501
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -388,37 +378,20 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         elif prompt is not None and (not isinstance(prompt, str) and not isinstance(prompt, list)):
             raise ValueError(f"`prompt` has to be of type `str` or `list` but is {type(prompt)}")
 
-        if prompt is not None and negative_prompt_embeds is not None:
-            raise ValueError(
-                f"Cannot forward both `prompt`: {prompt} and `negative_prompt_embeds`:"
-                f" {negative_prompt_embeds}. Please make sure to only forward one of the two."
-            )
-
-        if negative_prompt is not None and negative_prompt_embeds is not None:
-            raise ValueError(
-                f"Cannot forward both `negative_prompt`: {negative_prompt} and `negative_prompt_embeds`:"
-                f" {negative_prompt_embeds}. Please make sure to only forward one of the two."
-            )
-
         if prompt_embeds is not None and prompt_attention_mask is None:
             raise ValueError("Must provide `prompt_attention_mask` when specifying `prompt_embeds`.")
 
-        if negative_prompt_embeds is not None and negative_prompt_attention_mask is None:
-            raise ValueError("Must provide `negative_prompt_attention_mask` when specifying `negative_prompt_embeds`.")
+        if timesteps is not None and len(timesteps) != num_inference_steps + 1:
+            raise ValueError("If providing custom timesteps, `timesteps` must be of length `num_inference_steps + 1`.")
 
-        if prompt_embeds is not None and negative_prompt_embeds is not None:
-            if prompt_embeds.shape != negative_prompt_embeds.shape:
-                raise ValueError(
-                    "`prompt_embeds` and `negative_prompt_embeds` must have the same shape when passed directly, but"
-                    f" got: `prompt_embeds` {prompt_embeds.shape} != `negative_prompt_embeds`"
-                    f" {negative_prompt_embeds.shape}."
-                )
-            if prompt_attention_mask.shape != negative_prompt_attention_mask.shape:
-                raise ValueError(
-                    "`prompt_attention_mask` and `negative_prompt_attention_mask` must have the same shape when passed directly, but"
-                    f" got: `prompt_attention_mask` {prompt_attention_mask.shape} != `negative_prompt_attention_mask`"
-                    f" {negative_prompt_attention_mask.shape}."
-                )
+        if timesteps is not None and max_timesteps is not None:
+            raise ValueError("If providing custom timesteps, `max_timesteps` should not be provided.")
+
+        if timesteps is None and max_timesteps is None:
+            raise ValueError("Should provide either `timesteps` or `max_timesteps`.")
+
+        if intermediate_timesteps is not None and num_inference_steps != 2:
+            raise ValueError("Intermediate timesteps for SCM is not supported when num_inference_steps != 2.")
 
     # Copied from diffusers.pipelines.deepfloyd_if.pipeline_if.IFPipeline._text_preprocessing
     def _text_preprocessing(self, text, clean_caption=False):
@@ -560,6 +533,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         return caption.strip()
 
+    # Copied from diffusers.pipelines.sana.pipeline_sana.SanaPipeline.prepare_latents
     def prepare_latents(self, batch_size, num_channels_latents, height, width, dtype, generator, latents=None):
         if latents is not None:
             return latents.to(dtype=dtype)
@@ -588,10 +562,6 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         return self._attention_kwargs
 
     @property
-    def do_classifier_free_guidance(self):
-        return self._guidance_scale > 1.0
-
-    @property
     def num_timesteps(self):
         return self._num_timesteps
 
@@ -602,10 +572,10 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
     def __call__(
         self,
         prompt: Union[str, List[str]] = None,
-        negative_prompt: str = "",
-        num_inference_steps: int = 20,
+        num_inference_steps: int = 2,
         timesteps: List[int] = None,
-        sigmas: List[float] = None,
+        max_timesteps: float = 1.57080,
+        intermediate_timesteps: float = 1.3,
         guidance_scale: float = 4.5,
         num_images_per_prompt: Optional[int] = 1,
         height: int = 1024,
@@ -615,23 +585,21 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         latents: Optional[ms.Tensor] = None,
         prompt_embeds: Optional[ms.Tensor] = None,
         prompt_attention_mask: Optional[ms.Tensor] = None,
-        negative_prompt_embeds: Optional[ms.Tensor] = None,
-        negative_prompt_attention_mask: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
-        clean_caption: bool = True,
+        clean_caption: bool = False,
         use_resolution_binning: bool = True,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],
         max_sequence_length: int = 300,
         complex_human_instruction: List[str] = [
-            "Given a user prompt, generate an 'Enhanced prompt' that provides detailed visual descriptions suitable for image generation. Evaluate the level of detail in the user prompt:",  # noqa: E501
-            "- If the prompt is simple, focus on adding specifics about colors, shapes, sizes, textures, and spatial relationships to create vivid and concrete scenes.",  # noqa: E501
+            "Given a user prompt, generate an 'Enhanced prompt' that provides detailed visual descriptions suitable for image generation. Evaluate the level of detail in the user prompt:",  # noqa
+            "- If the prompt is simple, focus on adding specifics about colors, shapes, sizes, textures, and spatial relationships to create vivid and concrete scenes.",  # noqa
             "- If the prompt is already detailed, refine and enhance the existing details slightly without overcomplicating.",
             "Here are examples of how to transform or refine prompts:",
-            "- User Prompt: A cat sleeping -> Enhanced: A small, fluffy white cat curled up in a round shape, sleeping peacefully on a warm sunny windowsill, surrounded by pots of blooming red flowers.",  # noqa: E501
-            "- User Prompt: A busy city street -> Enhanced: A bustling city street scene at dusk, featuring glowing street lamps, a diverse crowd of people in colorful clothing, and a double-decker bus passing by towering glass skyscrapers.",  # noqa: E501
+            "- User Prompt: A cat sleeping -> Enhanced: A small, fluffy white cat curled up in a round shape, sleeping peacefully on a warm sunny windowsill, surrounded by pots of blooming red flowers.",  # noqa
+            "- User Prompt: A busy city street -> Enhanced: A bustling city street scene at dusk, featuring glowing street lamps, a diverse crowd of people in colorful clothing, and a double-decker bus passing by towering glass skyscrapers.",  # noqa
             "Please generate only the enhanced description for the prompt below and avoid including any additional commentary or evaluations:",
             "User Prompt: ",
         ],
@@ -643,21 +611,17 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             prompt (`str` or `List[str]`, *optional*):
                 The prompt or prompts to guide the image generation. If not defined, one has to pass `prompt_embeds`.
                 instead.
-            negative_prompt (`str` or `List[str]`, *optional*):
-                The prompt or prompts not to guide the image generation. If not defined, one has to pass
-                `negative_prompt_embeds` instead. Ignored when not using guidance (i.e., ignored if `guidance_scale` is
-                less than `1`).
             num_inference_steps (`int`, *optional*, defaults to 20):
                 The number of denoising steps. More denoising steps usually lead to a higher quality image at the
                 expense of slower inference.
+            max_timesteps (`float`, *optional*, defaults to 1.57080):
+                The maximum timestep value used in the SCM scheduler.
+            intermediate_timesteps (`float`, *optional*, defaults to 1.3):
+                The intermediate timestep value used in SCM scheduler (only used when num_inference_steps=2).
             timesteps (`List[int]`, *optional*):
                 Custom timesteps to use for the denoising process with schedulers which support a `timesteps` argument
                 in their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is
                 passed will be used. Must be in descending order.
-            sigmas (`List[float]`, *optional*):
-                Custom sigmas to use for the denoising process with schedulers which support a `sigmas` argument in
-                their `set_timesteps` method. If not defined, the default behavior when `num_inference_steps` is passed
-                will be used.
             guidance_scale (`float`, *optional*, defaults to 4.5):
                 Guidance scale as defined in [Classifier-Free Diffusion Guidance](https://arxiv.org/abs/2207.12598).
                 `guidance_scale` is defined as `w` of equation 2. of [Imagen
@@ -674,7 +638,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 Corresponds to parameter eta (η) in the DDIM paper: https://arxiv.org/abs/2010.02502. Only applies to
                 [`schedulers.DDIMScheduler`], will be ignored for others.
             generator (`np.random.Generator` or `List[np.random.Generator]`, *optional*):
-                One or a list of [numpy generator(s)](https://pytorch.org/docs/stable/generated/torch.Generator.html)
+                One or a list of [np.random.Generator(s)](https://numpy.org/doc/stable/reference/random/generator.html)
                 to make generation deterministic.
             latents (`ms.Tensor`, *optional*):
                 Pre-generated noisy latents, sampled from a Gaussian distribution, to be used as inputs for image
@@ -684,11 +648,6 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 Pre-generated text embeddings. Can be used to easily tweak text inputs, *e.g.* prompt weighting. If not
                 provided, text embeddings will be generated from `prompt` input argument.
             prompt_attention_mask (`ms.Tensor`, *optional*): Pre-generated attention mask for text embeddings.
-            negative_prompt_embeds (`ms.Tensor`, *optional*):
-                Pre-generated negative text embeddings. For PixArt-Sigma this negative prompt should be "". If not
-                provided, negative_prompt_embeds will be generated from `negative_prompt` input argument.
-            negative_prompt_attention_mask (`ms.Tensor`, *optional*):
-                Pre-generated attention mask for negative text embeddings.
             output_type (`str`, *optional*, defaults to `"pil"`):
                 The output format of the generate image. Choose between
                 [PIL](https://pillow.readthedocs.io/en/stable/): `PIL.Image.Image` or `np.array`.
@@ -734,27 +693,24 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         # 1. Check inputs. Raise error if not correct
         if use_resolution_binning:
-            if self.transformer.config.sample_size == 64:
-                aspect_ratio_bin = ASPECT_RATIO_2048_BIN
-            elif self.transformer.config.sample_size == 32:
+            if self.transformer.config.sample_size == 32:
                 aspect_ratio_bin = ASPECT_RATIO_1024_BIN
-            elif self.transformer.config.sample_size == 16:
-                aspect_ratio_bin = ASPECT_RATIO_512_BIN
             else:
                 raise ValueError("Invalid sample size")
             orig_height, orig_width = height, width
             height, width = self.image_processor.classify_height_width_bin(height, width, ratios=aspect_ratio_bin)
 
         self.check_inputs(
-            prompt,
-            height,
-            width,
-            callback_on_step_end_tensor_inputs,
-            negative_prompt,
-            prompt_embeds,
-            negative_prompt_embeds,
-            prompt_attention_mask,
-            negative_prompt_attention_mask,
+            prompt=prompt,
+            height=height,
+            width=width,
+            num_inference_steps=num_inference_steps,
+            timesteps=timesteps,
+            max_timesteps=max_timesteps,
+            intermediate_timesteps=intermediate_timesteps,
+            callback_on_step_end_tensor_inputs=callback_on_step_end_tensor_inputs,
+            prompt_embeds=prompt_embeds,
+            prompt_attention_mask=prompt_attention_mask,
         )
 
         self._guidance_scale = guidance_scale
@@ -775,28 +731,28 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         (
             prompt_embeds,
             prompt_attention_mask,
-            negative_prompt_embeds,
-            negative_prompt_attention_mask,
         ) = self.encode_prompt(
             prompt,
-            self.do_classifier_free_guidance,
-            negative_prompt=negative_prompt,
             num_images_per_prompt=num_images_per_prompt,
             prompt_embeds=prompt_embeds,
-            negative_prompt_embeds=negative_prompt_embeds,
             prompt_attention_mask=prompt_attention_mask,
-            negative_prompt_attention_mask=negative_prompt_attention_mask,
             clean_caption=clean_caption,
             max_sequence_length=max_sequence_length,
             complex_human_instruction=complex_human_instruction,
             lora_scale=lora_scale,
         )
-        if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
 
         # 4. Prepare timesteps
-        timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
+        timesteps, num_inference_steps = retrieve_timesteps(
+            self.scheduler,
+            num_inference_steps,
+            timesteps,
+            sigmas=None,
+            max_timesteps=max_timesteps,
+            intermediate_timesteps=intermediate_timesteps,
+        )
+        if hasattr(self.scheduler, "set_begin_index"):
+            self.scheduler.set_begin_index(0)
 
         # 5. Prepare latents.
         latent_channels = self.transformer.config.in_channels
@@ -810,15 +766,17 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             latents,
         )
 
+        latents = latents * self.scheduler.config.sigma_data
+
+        guidance = mint.full([1], guidance_scale, dtype=ms.float32)
+        guidance = guidance.expand((latents.shape[0],)).to(prompt_embeds.dtype)
+        guidance = guidance * self.transformer.config.guidance_embeds_scale
+
         # 6. Prepare extra step kwargs. TODO: Logic should ideally just be moved out of the pipeline
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
 
-        # 7.0 lora_scale outside transformer
-        if lora_scale is not None:
-            # weight the lora layers by setting `lora_scale` for each PEFT layer
-            scale_lora_layers(self.transformer, lora_scale)
-
         # 7. Denoising loop
+        timesteps = timesteps[:-1]
         num_warmup_steps = max(len(timesteps) - num_inference_steps * self.scheduler.order, 0)
         self._num_timesteps = len(timesteps)
 
@@ -827,36 +785,39 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
-                latent_model_input = latent_model_input.to(prompt_embeds.dtype)
-
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-                timestep = t.broadcast_to((latent_model_input.shape[0],)).to(latents.dtype)
+                timestep = t.expand((latents.shape[0],)).to(prompt_embeds.dtype)
+                latents_model_input = latents / self.scheduler.config.sigma_data
+
+                scm_timestep = mint.sin(timestep) / (mint.cos(timestep) + mint.sin(timestep))
+
+                scm_timestep_expanded = scm_timestep.view(-1, 1, 1, 1)
+                latent_model_input = latents_model_input * mint.sqrt(
+                    scm_timestep_expanded**2 + (1 - scm_timestep_expanded) ** 2
+                )
+                latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # predict noise model_output
                 noise_pred = self.transformer(
                     latent_model_input,
                     encoder_hidden_states=prompt_embeds,
                     encoder_attention_mask=prompt_attention_mask,
-                    timestep=timestep,
+                    guidance=guidance,
+                    timestep=scm_timestep,
                     return_dict=False,
                     attention_kwargs=self.attention_kwargs,
                 )[0]
-                noise_pred = noise_pred.float()
 
-                # perform guidance
-                if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-
-                # learned sigma
-                if self.transformer.config.out_channels // 2 == latent_channels:
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
-                else:
-                    noise_pred = noise_pred
+                noise_pred = (
+                    (1 - 2 * scm_timestep_expanded) * latent_model_input
+                    + (1 - 2 * scm_timestep_expanded + 2 * scm_timestep_expanded**2) * noise_pred
+                ) / mint.sqrt(scm_timestep_expanded**2 + (1 - scm_timestep_expanded) ** 2)
+                noise_pred = noise_pred.float() * self.scheduler.config.sigma_data
 
                 # compute previous image: x_t -> x_t-1
-                latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
+                latents, denoised = self.scheduler.step(
+                    noise_pred, timestep, latents, **extra_step_kwargs, return_dict=False
+                )
 
                 if callback_on_step_end is not None:
                     callback_kwargs = {}
@@ -866,16 +827,12 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
                     latents = callback_outputs.pop("latents", latents)
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
-                    negative_prompt_embeds = callback_outputs.pop("negative_prompt_embeds", negative_prompt_embeds)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
 
-        if lora_scale is not None:
-            # remove `lora_scale` from each PEFT layer
-            unscale_lora_layers(self.transformer, lora_scale)
-
+        latents = denoised / self.scheduler.config.sigma_data
         if output_type == "latent":
             image = latents
         else:
