@@ -1,12 +1,14 @@
 import argparse
+
+from transformers import AutoTokenizer
+
 import mindspore as ms
 from mindspore import JitConfig
-from transformers import AutoTokenizer
+
 from mindone.transformers.models.qwen3.modeling_qwen3 import Qwen3ForCausalLM
 
 
 def generate(args):
-
     # load model
     model = Qwen3ForCausalLM.from_pretrained(
         args.model_name,
@@ -21,10 +23,11 @@ def generate(args):
 
     # info
     print("*" * 100)
-    print(f"Using {config._attn_implementation}, use_cache {config.use_cache},"
-        f"dtype {config.mindspore_dtype}, layer {config.num_hidden_layers}")
+    print(
+        f"Using {config._attn_implementation}, use_cache {config.use_cache},"
+        f"dtype {config.mindspore_dtype}, layer {config.num_hidden_layers}"
+    )
     print("Successfully loaded Qwen3ForCausalLM")
-
 
     # prepare inputs
     input_ids = ms.Tensor(tokenizer([args.prompt], return_tensors="np").input_ids, ms.int32)
@@ -49,7 +52,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--prompt", type=str, default="the secret to baking a really good cake is", required=True)
     parser.add_argument("--model_name", type=str, default="Qwen/Qwen3-0.6B-Base", help="Path to the pre-trained model.")
-    parser.add_argument("--attn_implementation", type=str, default="paged_attention", choices=["paged_attention", "flash_attentions_2", "eager"])
+    parser.add_argument(
+        "--attn_implementation",
+        type=str,
+        default="paged_attention",
+        choices=["paged_attention", "flash_attentions_2", "eager"],
+    )
 
     # Parse the arguments
     args = parser.parse_args()

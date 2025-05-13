@@ -9,13 +9,17 @@ import mindspore as ms
 
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
+
 from .qwen_omni_utils import process_mm_info
 
 
 # inference function
 def inference(medium_path, prompt, sys_prompt):
     if sys_prompt is None:
-        sys_prompt = "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech."
+        sys_prompt = (
+            "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving "
+            "auditory and visual inputs, as well as generating text and speech."
+        )
     messages = [
         {"role": "system", "content": [{"type": "text", "text": sys_prompt}]},
         {

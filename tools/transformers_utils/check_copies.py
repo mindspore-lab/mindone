@@ -1,5 +1,6 @@
 import subprocess
 
+
 def run_ruff(code, check=False):
     if check:
         command = ["ruff", "check", "-", "--fix", "--exit-zero"]

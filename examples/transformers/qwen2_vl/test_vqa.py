@@ -154,9 +154,7 @@ print(f"generated_ids length / #steps: {len(generated_ids[0])}")
 elapsed = time.time() - start_time
 print("Average speed %.4fs/step" % (elapsed / len(generated_ids[0])))
 
-generated_ids = [
-    output_ids[len(input_ids):] for input_ids, output_ids in zip(inputs.input_ids, generated_ids)
-]
+generated_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(inputs.input_ids, generated_ids)]
 output_text = processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
 
 print("Generated response, time elapsed: %.4fs" % (time.time() - start_time))

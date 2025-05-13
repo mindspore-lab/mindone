@@ -1,9 +1,12 @@
 from typing import Optional, Tuple
 
 from transformers import PretrainedConfig
+from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import Tensor, mint
+
+logger = logging.get_logger(__name__)
 
 
 def _compute_default_rope_parameters(
@@ -240,6 +243,7 @@ ROPE_VALIDATION_FUNCTIONS = {
     "longrope": _validate_longrope_parameters,
     "llama3": _validate_llama3_parameters,
 }
+
 
 def rope_config_validation(config: PretrainedConfig, ignore_keys: Optional[set] = None):
     """

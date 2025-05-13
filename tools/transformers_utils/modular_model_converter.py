@@ -27,10 +27,8 @@ from create_dependency_mapping import find_priority_list
 from libcst import ClassDef, CSTVisitor
 from libcst import matchers as m
 from libcst.metadata import MetadataWrapper, ParentNodeProvider, PositionProvider, ScopeProvider
-
 from transformers import logging
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING_NAMES
-
 
 logger = logging.get_logger(__name__)
 
@@ -613,11 +611,12 @@ class ModuleMapper(CSTVisitor, ABC):
         self.classes: Dict[str, cst.ClassDef] = {}                 # mapping from class names to Nodes (it will be ordered by default!!)
         self.imports = []                                          # stores all import statements
         self.functions: Dict[str, cst.FunctionDef] = {}            # mapping of global scope function names to Nodes
-        self.object_dependency_mapping = defaultdict(set)          # immediate function/assignment dependency mapping (i.e. dependencies immediately in the function/assignment definition)
+        self.object_dependency_mapping = defaultdict(set)          # immediate function/assignment dependency mapping
         self.assignments: Dict[str, cst.SimpleStatementLine] = {}  # mapping of global assignments names to Nodes
         self.current_function = None                               # this keeps track of the current module-scope function
         self.current_assignment = None                             # this keeps track of the current module-scope assignment
-        # this keeps track of objects imported from modeling files (`from .configuration import Config`) -> `Config` should not be a dependency
+        # this keeps track of objects imported from modeling files (`from .configuration import Config`) ->
+        # `Config` should not be a dependency
         self.objects_imported_from_modeling = set()
         # regex pattern joining every possible file type
         self.match_patterns = "|".join(ALL_FILE_TYPES)
@@ -943,33 +942,18 @@ def replace_class_node(
     - replace all methods of the base node with the methods defined in the child class
     - append all new methods defined in the child class
     - replace all calls to super() with the unravelled code
-
-                    |    ```python                          |               |    ```python
-                    |    class GemmaModel(LlamaModel):      |               |       class GemmaModel(nn.Module):
-                    |        def __init__(self):            |               |           def __init__(self):
-    Going from:     |            super().__init__()         |       to:     |               super().__init__(config)
-                    |            self.dropout = 0.2         |               |               self.dropout = 0.2
-                    |     ```                               |               |               self.padding_idx = config.pad_token_id
-                                                                            |               self.vocab_size = config.vocab_size
-                                                                            |               self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-                                                                            |               self.layers = nn.ModuleList(
-                                                                            |                   [LlamaDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
-                                                                            |               )
-                                                                            |               self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-                                                                            |               self.gradient_checkpointing = False
-                                                                            |               # Initialize weights and apply final processing
-                                                                            |               self.post_init()
-                                                                            |     ```
     """
     all_bases = [get_full_attribute_name(k.value) for k in class_node.bases]
     if any(base is None for base in all_bases):
         raise ValueError(f"Could not parse the name of the bases for {class_node.name.value}")
 
     original_node = mapper.classes[renamed_super_class]
-    # Always use the new name of the class (in case we use e.g. `ColPaliForRetrieval` inheriting from `PaliGemmaForConditionalGeneration`)
+    # Always use the new name of the class (in case we use e.g. `ColPaliForRetrieval` inheriting from
+    # `PaliGemmaForConditionalGeneration`)
     new_name = class_node.name
 
-    # If the new class name is different from the renamed super class name, we need to update the docstrings/comments accordingly
+    # If the new class name is different from the renamed super class name,
+    # we need to update the docstrings/comments accordingly
     if new_name.value != renamed_super_class:
         common_suffix = common_partial_suffix(new_name.value, renamed_super_class)
         # Note that this works even without common prefix, in which case it does not replace anything
@@ -1247,7 +1231,8 @@ class ModularFileMapper(ModuleMapper):
                     source = _import.group(1)
                     if source == "modeling" and "Config" in self.python_module.code_for_node(imported_):
                         raise ValueError(
-                            f"You are importing {self.python_module.code_for_node(imported_)} from the modeling file. Import from the `configuration_xxxx.py` file instead"
+                            f"You are importing {self.python_module.code_for_node(imported_)} from the modeling file. "
+                            f"Import from the `configuration_xxxx.py` file instead"
                         )
                     if import_module not in self.model_specific_modules:
                         if "models" not in import_module:
@@ -1749,6 +1734,6 @@ if __name__ == "__main__":
 
     for file_name in priority_list:
         print(f"Converting {file_name} to a single model single file format")
-        module_path = file_name.replace("/", ".").replace(".py", "") # .replace("mindway.", "")
+        module_path = file_name.replace("/", ".").replace(".py", "")  # .replace("mindway.", "")
         converted_files = convert_modular_file(file_name)
         converter = save_modeling_file(file_name, converted_files)

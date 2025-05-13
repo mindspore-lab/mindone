@@ -18,11 +18,12 @@ import math
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
+from transformers.models.hiera.configuration_hiera import HieraConfig
+from transformers.utils import ModelOutput
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 from mindspore.mint.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
-from transformers.utils import ModelOutput
 
 from ...activations import ACT2FN
 from ...modeling_outputs import BackboneOutput, BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
@@ -32,7 +33,6 @@ from ...utils import (  # add_code_sample_docstrings,; add_start_docstrings,; ad
     mindspore_int,
 )
 from ...utils.backbone_utils import BackboneMixin
-from transformers.models.hiera.configuration_hiera import HieraConfig
 
 logger = logging.get_logger(__name__)
 

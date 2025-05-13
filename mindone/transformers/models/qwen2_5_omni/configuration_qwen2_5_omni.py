@@ -301,7 +301,8 @@ class Qwen2_5OmniTextConfig(PretrainedConfig):
     Example:
 
     ```python
-    >>> from transformers import Qwen2_5OmniThinkerForConditionalGeneration, Qwen2_5OmniThinkerConfig, Qwen2_5OmniAudioEncoderConfig, Qwen2_5OmniVisionEncoderConfig
+    >>> from transformers import Qwen2_5OmniThinkerForConditionalGeneration, Qwen2_5OmniThinkerConfig, \
+    >>>                          Qwen2_5OmniAudioEncoderConfig, Qwen2_5OmniVisionEncoderConfig
 
     >>> # Initializing a Qwen2_5OmniAudioEncoder config
     >>> audio_config = Qwen2_5OmniAudioEncoderConfig()
@@ -413,7 +414,8 @@ class Qwen2_5OmniThinkerConfig(PretrainedConfig):
     Example:
 
     ```python
-    >>> from transformers import Qwen2_5OmniThinkerForConditionalGeneration, Qwen2_5OmniThinkerConfig, Qwen2_5OmniAudioEncoderConfig, Qwen2_5OmniVisionEncoderConfig
+    >>> from transformers import Qwen2_5OmniThinkerForConditionalGeneration, Qwen2_5OmniThinkerConfig, \
+    >>>                          Qwen2_5OmniAudioEncoderConfig, Qwen2_5OmniVisionEncoderConfig
 
     >>> # Initializing a Qwen2_5OmniAudioEncoder config
     >>> audio_config = Qwen2_5OmniAudioEncoderConfig()
@@ -623,7 +625,8 @@ class Qwen2_5OmniTalkerConfig(PretrainedConfig):
     Example:
 
     ```python
-    >>> from transformers import Qwen2_5OmniTalkerForConditionalGeneration, Qwen2_5OmniThinkerConfig, Qwen2_5OmniAudioEncoderConfig, Qwen2_5OmniVisionEncoderConfig
+    >>> from transformers import Qwen2_5OmniTalkerForConditionalGeneration, Qwen2_5OmniThinkerConfig, \
+    >>>                          Qwen2_5OmniAudioEncoderConfig, Qwen2_5OmniVisionEncoderConfig
 
     >>> # Initializing a Qwen2_5OmniAudioEncoder config
     >>> audio_config = Qwen2_5OmniAudioEncoderConfig()
@@ -879,7 +882,8 @@ class Qwen2_5OmniBigVGANConfig(PretrainedConfig):
 class Qwen2_5OmniToken2WavConfig(PretrainedConfig):
     r"""
     This is the configuration class to store the configuration of a [`Qwen2_5OmniToken2WavModel`].
-    It is used to instantiate the Qwen2.5-Omni-Token2Wav model which combines a Diffusion Transformer (DiT) for mel-spectrogram generation with a BigVGAN model for waveform synthesis. The configuration contains sub-configurations for both components.
+    It is used to instantiate the Qwen2.5-Omni-Token2Wav model which combines a Diffusion Transformer (DiT) for mel-spectrogram generation with a BigVGAN model
+    for waveform synthesis. The configuration contains sub-configurations for both components.
 
     Configuration objects inherit from [`PretrainedConfig`] and can be used to control the model outputs. Read the
     documentation from [`PretrainedConfig`] for more information.

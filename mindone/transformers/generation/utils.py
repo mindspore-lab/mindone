@@ -1233,11 +1233,7 @@ class GenerationMixin:
         if generation_config.exponential_decay_length_penalty is not None:
             raise NotImplementedError
         if generation_config.suppress_tokens is not None:
-            processors.append(
-                SuppressTokensLogitsProcessor(
-                    generation_config.suppress_tokens
-                )
-            )
+            processors.append(SuppressTokensLogitsProcessor(generation_config.suppress_tokens))
         if generation_config.begin_suppress_tokens is not None:
             raise NotImplementedError
         if generation_config.forced_decoder_ids is not None:
@@ -1913,7 +1909,9 @@ class GenerationMixin:
             )
 
         # Padding inputs to avoid dynamic shape/ adapt to paged_attention
-        if not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention":  # if tuple cache
+        if (
+            not self._supports_default_dynamic_cache() and self.config._attn_implementation != "paged_attention"
+        ):  # if tuple cache
             (
                 padded_input_ids,
                 padded_inputs_embeds,

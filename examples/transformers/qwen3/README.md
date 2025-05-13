@@ -6,10 +6,10 @@ The advancements of Qwen3 series are as follows:
 1. support seamless switching between thinking mode and non-thinking mode
 2. significantly enhancement in its reasoning ability compared with previous QwQ and Qwen 2.5 Model
 3. superior human prefrence alignment, excelling in creative-writing, role-playing, multi-turn dialogues and etc
-3. expertise in agent capabilities 
+3. expertise in agent capabilities
 4. Support multiple languages
 
-Model structure is also evolving. RMSNorm for Q and K have been added in attention layer to reduce variance. 
+Model structure is also evolving. RMSNorm for Q and K have been added in attention layer to reduce variance.
 Besides that, Qwen3 apply normalization in each head. Finally, shared postion embeddings have been applied.
 
 # Get Started

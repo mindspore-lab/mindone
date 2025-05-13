@@ -15,7 +15,6 @@
 """MindSpore ALBERT model."""
 
 import numbers
-import warnings
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -28,9 +27,8 @@ from mindspore import nn, ops
 from mindspore.common.initializer import Normal, One, Zero, initializer
 
 from ...activations import ACT2FN
-from ...modeling_attn_mask_utils import dtype_to_min
 from ...mindspore_utils import find_pruneable_heads_and_indices, prune_linear_layer
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
+from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, dtype_to_min
 from ...modeling_outputs import (
     BaseModelOutput,
     BaseModelOutputWithPooling,
@@ -46,6 +44,7 @@ logger = logging.get_logger(__name__)
 
 _CHECKPOINT_FOR_DOC = "albert/albert-base-v2"
 _CONFIG_FOR_DOC = "AlbertConfig"
+
 
 class AlbertEmbeddings(nn.Cell):
     """
@@ -117,7 +116,7 @@ class AlbertAttention(nn.Cell):
                 f"The hidden size ({config.hidden_size}) is not a multiple of the number of attention "
                 f"heads ({config.num_attention_heads}"
             )
-    
+
         self.num_attention_heads = config.num_attention_heads
         self.attention_head_size = config.hidden_size // config.num_attention_heads
         self.all_head_size = self.num_attention_heads * self.attention_head_size
@@ -142,7 +141,7 @@ class AlbertAttention(nn.Cell):
         new_x_shape = x.shape[:-1] + (self.num_attention_heads, self.attention_head_size)
         x = x.view(new_x_shape)
         return x.permute(0, 2, 1, 3)
-    
+
     def prune_heads(self, heads) -> None:
         if len(heads) == 0:
             return
@@ -160,7 +159,7 @@ class AlbertAttention(nn.Cell):
         self.num_attention_heads = self.num_attention_heads - len(heads)
         self.all_head_size = self.attention_head_size * self.num_attention_heads
         self.pruned_heads = self.pruned_heads.union(heads)
-    
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -185,7 +184,7 @@ class AlbertAttention(nn.Cell):
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
             attention_scores = attention_scores + attention_mask
-        
+
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             seq_length = hidden_states.shape[1]
             position_ids_l = ops.arange(seq_length, dtype=ms.int64).view((-1, 1))
@@ -213,7 +212,7 @@ class AlbertAttention(nn.Cell):
                     -1
                 )  # "bhrd,lrd->bhlr"
                 attention_scores = attention_scores + relative_position_scores_query + relative_position_scores_key
-            
+
         # Normalize the attention scores to probabilities.
         attention_probs = ops.softmax(attention_scores, axis=-1)
 
@@ -232,14 +231,13 @@ class AlbertAttention(nn.Cell):
         projected_context_layer_dropout = self.output_dropout(projected_context_layer)
         layernormed_context_layer = self.LayerNorm(hidden_states + projected_context_layer_dropout)
         return (layernormed_context_layer, attention_probs) if output_attentions else (layernormed_context_layer,)
-    
 
 
 class AlbertSdpaAttention(AlbertAttention):
     def __init__(self, config):
         super().__init__(config)
         self.dropout_prob = config.attention_probs_dropout_prob
-    
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -256,7 +254,7 @@ class AlbertSdpaAttention(AlbertAttention):
                 '`attn_implementation="eager"` when loading the model.'
             )
             return super().construct(hidden_states, attention_mask, head_mask, output_attentions)
-    
+
         batch_size, seq_len, _ = hidden_states.shape
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
@@ -275,7 +273,8 @@ class AlbertSdpaAttention(AlbertAttention):
         projected_context_layer_dropout = self.output_dropout(projected_context_layer)
         layernormed_context_layer = self.LayerNorm(hidden_states + projected_context_layer_dropout)
         return (layernormed_context_layer,)
-    
+
+
 ALBERT_ATTENTION_CLASSES = {
     "eager": AlbertAttention,
     "sdpa": AlbertSdpaAttention,
@@ -295,7 +294,7 @@ class AlbertLayer(nn.Cell):
         self.ffn_output = nn.Dense(config.intermediate_size, config.hidden_size)
         self.activation = ACT2FN[config.hidden_act]
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
-    
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -305,12 +304,12 @@ class AlbertLayer(nn.Cell):
         output_hidden_states: bool = False,
     ) -> Tuple[ms.Tensor, ms.Tensor]:
         attention_output = self.attention(
-            hidden_states, 
-            attention_mask, 
-            head_mask, 
+            hidden_states,
+            attention_mask,
+            head_mask,
             output_attentions=output_attentions,
         )
-        
+
         ffn_output = self.ff_chunk(attention_output[0])
         hidden_states = self.full_layer_layer_norm(ffn_output + attention_output[0])
 
@@ -328,7 +327,7 @@ class AlbertLayerGroup(nn.Cell):
         super().__init__()
 
         self.albert_layers = nn.CellList([AlbertLayer(config) for _ in range(config.inner_group_num)])
-    
+
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -356,7 +355,7 @@ class AlbertLayerGroup(nn.Cell):
         if output_attentions:
             outputs = outputs + (layer_attentions,)
         return outputs  # last-layer hidden state, (layer hidden states), (layer attentions)
-    
+
 
 class AlbertTransformer(nn.Cell):
     def __init__(self, config: AlbertConfig):
@@ -482,8 +481,9 @@ class AlbertForPreTrainingOutput(ModelOutput):
     hidden_states: Optional[Tuple[ms.Tensor]] = None
     attentions: Optional[Tuple[ms.Tensor]] = None
 
+
 class AlbertModel(AlbertPreTrainedModel):
-    def __init__(self, config: AlbertConfig, add_pooling_layer = True):
+    def __init__(self, config: AlbertConfig, add_pooling_layer=True):
         super().__init__(config)
 
         self.config = config
@@ -514,13 +514,13 @@ class AlbertModel(AlbertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-    
+
     def get_input_embeddings(self) -> nn.Embedding:
         return self.embeddings.word_embeddings
 
     def set_input_embeddings(self, value) -> None:
         self.embeddings.word_embeddings = value
-    
+
     def _prune_heads(self, heads_to_prune: Dict[int, List[int]]) -> None:
         """
         Prunes heads of the model. heads_to_prune: dict of {layer_num: list of heads to prune in this layer} ALBERT has
@@ -573,7 +573,7 @@ class AlbertModel(AlbertPreTrainedModel):
                 token_type_ids = buffered_token_type_ids_expanded
             else:
                 token_type_ids = ops.zeros(input_shape, dtype=ms.int32)
-        
+
         embedding_output = self.embeddings(
             input_ids=input_ids,
             position_ids=position_ids,
@@ -622,7 +622,8 @@ class AlbertModel(AlbertPreTrainedModel):
             hidden_states=encoder_outputs.hidden_states,
             attentions=encoder_outputs.attentions,
         )
-    
+
+
 class AlbertForPreTraining(AlbertPreTrainedModel):
     _tied_weights_keys = ["predictions.decoder.bias", "predictions.decoder.weight"]
 
@@ -730,7 +731,6 @@ class AlbertForPreTraining(AlbertPreTrainedModel):
         )
 
 
-
 class AlbertMLMHead(nn.Cell):
     def __init__(self, config: AlbertConfig):
         super().__init__()
@@ -741,7 +741,7 @@ class AlbertMLMHead(nn.Cell):
         self.decoder = nn.Dense(config.embedding_size, config.vocab_size)
         self.activation = ACT2FN[config.hidden_act]
         self.decoder.bias = self.bias
-    
+
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.activation(hidden_states)
@@ -790,7 +790,7 @@ class AlbertForMaskedLM(AlbertPreTrainedModel):
     def set_output_embeddings(self, new_embeddings) -> None:
         self.predictions.decoder = new_embeddings
         self.predictions.bias = new_embeddings.bias
-    
+
     def get_input_embeddings(self) -> nn.Embedding:
         return self.albert.embeddings.word_embeddings
 
@@ -812,7 +812,7 @@ class AlbertForMaskedLM(AlbertPreTrainedModel):
             Labels for computing the masked language modeling loss. Indices should be in `[-100, 0, ...,
             config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are ignored (masked), the
             loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
-        
+
         Returns:
 
         Example:
@@ -877,7 +877,7 @@ class AlbertForMaskedLM(AlbertPreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-    
+
 
 class AlbertForSequenceClassification(AlbertPreTrainedModel):
     def __init__(self, config: AlbertConfig):
@@ -893,7 +893,7 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-    
+
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -956,7 +956,7 @@ class AlbertForSequenceClassification(AlbertPreTrainedModel):
             elif problem_type == "multi_label_classification":
                 loss_fct = nn.BCEWithLogitsLoss()
                 loss = loss_fct(logits, labels)
-        
+
         if not return_dict:
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
@@ -984,7 +984,7 @@ class AlbertForTokenClassification(AlbertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-    
+
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1036,7 +1036,8 @@ class AlbertForTokenClassification(AlbertPreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-    
+
+
 class AlbertForQuestionAnswering(AlbertPreTrainedModel):
     def __init__(self, config: AlbertConfig):
         super().__init__(config)
@@ -1047,7 +1048,7 @@ class AlbertForQuestionAnswering(AlbertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-    
+
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -1121,7 +1122,8 @@ class AlbertForQuestionAnswering(AlbertPreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-    
+
+
 class AlbertForMultipleChoice(AlbertPreTrainedModel):
     def __init__(self, config: AlbertConfig):
         super().__init__(config)
@@ -1133,7 +1135,7 @@ class AlbertForMultipleChoice(AlbertPreTrainedModel):
 
         # Initialize weights and apply final processing
         self.post_init()
-    
+
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,

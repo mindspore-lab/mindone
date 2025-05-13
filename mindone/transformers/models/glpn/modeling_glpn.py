@@ -17,6 +17,8 @@
 import math
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.glpn.configuration_glpn import GLPNConfig
+
 import mindspore.nn as nn
 from mindspore import mint, tensor
 
@@ -27,7 +29,6 @@ from ...modeling_utils import MSPreTrainedModel
 from ...utils import (  # add_code_sample_docstrings,; add_start_docstrings,; add_start_docstrings_to_model_forward,; replace_return_docstrings,
     logging,
 )
-from transformers.models.glpn.configuration_glpn import GLPNConfig
 
 logger = logging.get_logger(__name__)
 

@@ -18,6 +18,8 @@ import itertools
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
+from transformers.models.levit.configuration_levit import LevitConfig
+
 import mindspore as ms
 from mindspore import mint, nn
 from mindspore.common.initializer import Constant, Normal, initializer
@@ -32,7 +34,6 @@ from ...modeling_utils import MSPreTrainedModel
 from ...utils import (  # add_code_sample_docstrings,; add_start_docstrings,; add_start_docstrings_to_model_forward,
     logging,
 )
-from transformers.models.levit.configuration_levit import LevitConfig
 
 logger = logging.get_logger(__name__)
 

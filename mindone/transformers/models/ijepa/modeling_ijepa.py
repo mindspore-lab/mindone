@@ -1,10 +1,10 @@
 import collections.abc
 from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
+from transformers.models.ijepa.configuration_ijepa import IJepaConfig
+
 import mindspore as ms
 from mindspore import mint, nn
-
-from transformers.models.ijepa.configuration_ijepa import IJepaConfig
 
 from ...activations import ACT2FN
 from ...mindspore_adapter import scaled_dot_product_attention

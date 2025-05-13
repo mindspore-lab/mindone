@@ -42,11 +42,11 @@ from mindspore.common.initializer import Normal, initializer
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache  # TODO: SlidingWindowCache
 from ...generation import GenerationMixin
+from ...mindspore_adapter._conv import Conv1d, ConvTranspose1d, conv1d, conv_transpose1d
 from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPast, CausalLMOutputWithPast, ModelOutput
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import MSPreTrainedModel  # ALL_ATTENTION_FUNCTIONS
 from ...utils import is_flash_attn_2_available
-from ...mindspore_adapter._conv import Conv1d, ConvTranspose1d, conv1d, conv_transpose1d
 from .configuration_qwen2_5_omni import (
     Qwen2_5OmniAudioEncoderConfig,
     Qwen2_5OmniBigVGANConfig,
@@ -115,11 +115,13 @@ class Qwen2_5OmniPreTrainedModelForConditionalGeneration(Qwen2_5OmniPreTrainedMo
 
         Args:
             attention_mask (`ms.Tensor`):
-                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of
+                shape `(batch_size, 1, query_length, key_value_length)`.
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
             dtype (`mindspore.dtype`):
                 The dtype to use for the 4D attention mask.
             min_dtype (`float`):
@@ -220,9 +222,14 @@ class Qwen2_5OmniPreTrainedModelForConditionalGeneration(Qwen2_5OmniPreTrainedMo
                 Width: 2 patches, dividing each frame horizontally.
                 We also have some important parameters:
                 fps (Frames Per Second): The video's frame rate, set to 1. This means one frame is processed each second.
-                tokens_per_second: This is a crucial parameter. It dictates how many "time-steps" or "temporal tokens" are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens per second. So each second of the video will be represented with 25 separate time points. It essentially defines the temporal granularity.
+                tokens_per_second: This is a crucial parameter. It dictates how many "time-steps" or "temporal tokens"
+                are conceptually packed into a one-second interval of the video. In this case, we have 25 tokens
+                per second. So each second of the video will be represented with 25 separate time points.
+                It essentially defines the temporal granularity.
                 temporal_patch_size: The number of frames that compose one temporal patch. Here, it's 2 frames.
-                interval: The step size for the temporal position IDs, calculated as tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that each temporal patch will be have a difference of 50 in the temporal position IDs.
+                interval: The step size for the temporal position IDs, calculated as
+                tokens_per_second * temporal_patch_size / fps. In this case, 25 * 2 / 1 = 50. This means that
+                each temporal patch will be have a difference of 50 in the temporal position IDs.
                 input_ids: [V V V V V V V V V V V V T T T T T], here V is for vision.
                 vision temporal position_ids: [0, 0, 0, 0, 50, 50, 50, 50, 100, 100, 100, 100]
                 vision height position_ids: [0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]
@@ -857,7 +864,9 @@ class Qwen2_5OmniAudioEncoder(Qwen2_5OmniPreTrainedModel):
         hidden_states_list = hidden_states.split(aftercnn_lens.tolist(), dim=0)
         token_audio_list = []
         for each_audio_states in hidden_states_list:
-            each_audio_states = self.avg_pooler(each_audio_states.float().swapaxes(0, 1)).swapaxes(0, 1).to(hidden_states.dtype)
+            each_audio_states = (
+                self.avg_pooler(each_audio_states.float().swapaxes(0, 1)).swapaxes(0, 1).to(hidden_states.dtype)
+            )
             each_audio_states = self.ln_post(each_audio_states)
             each_audio_states = self.proj(each_audio_states)
             token_audio_list.append(each_audio_states)
@@ -1602,14 +1611,14 @@ class Qwen2_5OmniFlashAttention2(Qwen2_5OmniAttention):
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
         # TODO: sliding window
-        if (
-            self.config.use_sliding_window
-            and getattr(self.config, "sliding_window", None) is not None
-            and self.layer_idx >= self.config.max_window_layers
-        ):
-            sliding_window = self.config.sliding_window
-        else:
-            sliding_window = None
+        # if (
+        #     self.config.use_sliding_window
+        #     and getattr(self.config, "sliding_window", None) is not None
+        #     and self.layer_idx >= self.config.max_window_layers
+        # ):
+        #     sliding_window = self.config.sliding_window
+        # else:
+        #     sliding_window = None
 
         # attn_output = _flash_attention_forward(
         #     query_states,
@@ -1666,8 +1675,10 @@ class Qwen2_5OmniSdpaAttention(Qwen2_5OmniAttention):
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         if output_attentions:
             logger.warning_once(
-                "Qwen2_5OmniModel is using Qwen2_5OmniSdpaAttention, but `scaled_dot_product_attention` does not support `output_attentions=True`. Falling back to the manual attention implementation, "
-                'but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
+                "Qwen2_5OmniModel is using Qwen2_5OmniSdpaAttention, but `scaled_dot_product_attention` does not support"
+                " `output_attentions=True`. Falling back to the manual attention implementation, "
+                "but specifying the manual implementation will be required from Transformers version v5.0.0 onwards. "
+                'This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
             )
             return super().construct(
                 hidden_states=hidden_states,
@@ -1998,7 +2009,6 @@ class Qwen2_5OmniThinkerTextModel(Qwen2_5OmniPreTrainedModel):
         past_key_values: Cache,
         output_attentions: bool = False,
     ):
-
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
@@ -2022,7 +2032,6 @@ class Qwen2_5OmniThinkerTextModel(Qwen2_5OmniPreTrainedModel):
         #         return None
 
         dtype = ms.float16  # input_tensor.dtype
-        min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         # SlidingWindowCache or StaticCache
         if using_sliding_window_cache or using_static_cache:
@@ -2077,11 +2086,13 @@ class Qwen2_5OmniThinkerTextModel(Qwen2_5OmniPreTrainedModel):
 
         Args:
             attention_mask (`ms.Tensor`):
-                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of shape `(batch_size, 1, query_length, key_value_length)`.
+                A 2D attention mask of shape `(batch_size, key_value_length)` or a 4D attention mask of
+                shape `(batch_size, 1, query_length, key_value_length)`.
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
             dtype (`ms.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
@@ -2296,10 +2307,12 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
         >>> processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-7B")
 
         >>> conversations = [
-        >>>         {'role': 'system', 'content': 'You are a helpful voice chat bot, and please respond to me in a casual conversation manner using random voice.'},
+        >>>         {'role': 'system', 'content': 'You are a helpful voice chat bot, and please respond to me in \
+        >>>                                        a casual conversation manner using random voice.'},
         >>>         {"role": "user", "content": [
         >>>             {"type": "image", "image_url": "https://www.ilankelman.org/stopsigns/australia.jpg"},
-        >>>             {"type": "audio", "audio_url": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-Audio/audio/glass-breaking-151256.mp3"},
+        >>>             {"type": "audio", "audio_url": "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen2-Audio/ \
+        >>>                                             audio/glass-breaking-151256.mp3"},
         >>>         ]},
         >>> ]
 
@@ -2384,21 +2397,27 @@ class Qwen2_5OmniThinkerForConditionalGeneration(Qwen2_5OmniPreTrainedModelForCo
                     raise ValueError("length of audio_features should match audio_output_lengths")
                 audio_mask = (input_ids == self.config.audio_token_index).unsqueeze(-1).expand_as(inputs_embeds)
                 # audio_features = audio_features.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.float().masked_scatter(audio_mask, audio_features.float()).to(inputs_embeds.dtype)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(audio_mask, audio_features.float()).to(inputs_embeds.dtype)
+                )
 
             if pixel_values is not None:
                 pixel_values = pixel_values.type(self.visual.dtype)
                 image_embeds = self.visual(pixel_values, grid_thw=image_grid_thw)
                 image_mask = (input_ids == self.config.image_token_index).unsqueeze(-1).expand_as(inputs_embeds)
                 image_embeds = image_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(image_mask, image_embeds.float()).to(inputs_embeds.dtype)
+                )
 
             if pixel_values_videos is not None:
                 pixel_values_videos = pixel_values_videos.type(self.visual.dtype)
                 video_embeds = self.visual(pixel_values_videos, grid_thw=video_grid_thw)
                 video_mask = (input_ids == self.config.video_token_index).unsqueeze(-1).expand_as(inputs_embeds)
                 video_embeds = video_embeds.to(inputs_embeds.dtype)
-                inputs_embeds = inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
+                inputs_embeds = (
+                    inputs_embeds.float().masked_scatter(video_mask, video_embeds.float()).to(inputs_embeds.dtype)
+                )
 
         outputs = self.model(
             attention_mask=attention_mask,
@@ -2667,7 +2686,6 @@ class Qwen2_5OmniTalkerModel(Qwen2_5OmniPreTrainedModel):
         past_key_values: Cache,
         output_attentions: bool = False,
     ):
-
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
         # to infer the attention mask.
@@ -2749,7 +2767,8 @@ class Qwen2_5OmniTalkerModel(Qwen2_5OmniPreTrainedModel):
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache,to account for the 0 padding,
+                the part of the cache that is not filled yet.
             dtype (`ms.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
@@ -4181,7 +4200,8 @@ class Qwen2_5OmniToken2WavDiTModel(Qwen2_5OmniPreTrainedModel):
 
 
 @add_start_docstrings(
-    "The full Qwen2.5Omni Token2Wav model. Consists a DiT model take speech tokens as input and predict mel spectrogram and a BigVGAN vocoder take mel spectrogram as input and predict waveform.",
+    "The full Qwen2.5Omni Token2Wav model. Consists a DiT model take speech tokens as input and predict mel spectrogram "
+    "and a BigVGAN vocoder take mel spectrogram as input and predict waveform.",
     QWEN2_5OMNI_START_DOCSTRING.format(config_class="Qwen2_5OmniToken2WavConfig"),
 )
 class Qwen2_5OmniToken2WavModel(Qwen2_5OmniPreTrainedModel):

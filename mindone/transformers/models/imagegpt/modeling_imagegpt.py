@@ -4,6 +4,7 @@ import warnings
 from typing import Any, Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.imagegpt.configuration_imagegpt import ImageGPTConfig
 
 import mindspore as ms
 from mindspore import mint, nn
@@ -20,7 +21,6 @@ from ...modeling_utils import MSPreTrainedModel
 from ...utils import (  # add_start_docstrings,; add_start_docstrings_to_model_forward,; replace_return_docstrings,
     logging,
 )
-from transformers.models.imagegpt.configuration_imagegpt import ImageGPTConfig
 
 logger = logging.get_logger(__name__)
 

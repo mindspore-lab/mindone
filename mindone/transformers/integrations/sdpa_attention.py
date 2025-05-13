@@ -1,7 +1,7 @@
 from typing import Optional
 
 import mindspore as ms
-from mindspore import nn, mint
+from mindspore import mint, nn
 
 
 def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
@@ -24,7 +24,7 @@ def sdpa_attention_forward(
     attention_mask: Optional[ms.Tensor],
     dropout: float = 0.0,
     scaling: Optional[float] = None,
-    is_causal: Optional[bool] = None, # to align with torch
+    is_causal: Optional[bool] = None,  # to align with torch
     **kwargs,
 ) -> tuple[ms.Tensor, None]:
     key_states = repeat_kv(key, module.num_key_value_groups)
