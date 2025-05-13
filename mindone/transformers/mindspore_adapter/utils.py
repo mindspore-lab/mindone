@@ -86,9 +86,6 @@ def dtype_to_max(dtype):
 def dtype_to_str(dtype):
     return _DTYPE_2_STRING.get(dtype, "others dtype")
 
-def str_to_dtype(dtype):
-    return _STRING_2_DTYPE.get(dtype, "others dtype")
-
 
 def str_to_dtype(dtype):
     return _STRING_2_DTYPE.get(dtype, "others dtype")

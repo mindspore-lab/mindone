@@ -27,12 +27,7 @@ from .image_utils import (
     infer_channel_dimension_format,
 )
 from .utils import ExplicitEnum, TensorType, is_mindspore_tensor
-from .utils.import_utils import (
-    is_mindspore_available,
-    is_vision_available,
-    requires_backends
-)
-
+from .utils.import_utils import is_mindspore_available, is_vision_available, requires_backends
 
 if is_vision_available():
     import PIL
@@ -41,7 +36,7 @@ if is_vision_available():
 
 if is_mindspore_available():
     import mindspore as ms
-    from mindspore import ops, mint
+    from mindspore import mint
 
 
 def to_channel_dimension_format(
@@ -239,7 +234,8 @@ def get_size_with_aspect_ratio(image_size, size, max_size=None) -> tuple[int, in
     return (oh, ow)
 
 
-# Logic adapted from torchvision resizing logic: https://github.com/pytorch/vision/blob/511924c1ced4ce0461197e5caa64ce5b9e558aab/torchvision/transforms/functional.py#L366
+# Logic adapted from torchvision resizing logic: https://github.com/pytorch/vision/blob/
+# 511924c1ced4ce0461197e5caa64ce5b9e558aab/torchvision/transforms/functional.py#L366
 def get_resize_output_image_size(
     input_image: np.ndarray,
     size: Union[int, tuple[int, int], list[int], tuple[int]],
@@ -368,9 +364,7 @@ def resize(
         # so we need to add it back if necessary.
         resized_image = np.expand_dims(resized_image, axis=-1) if resized_image.ndim == 2 else resized_image
         # The image is always in channels last format after converting from a PIL image
-        resized_image = to_channel_dimension_format(
-            resized_image, data_format, input_channel_dim=ChannelDimension.LAST
-        )
+        resized_image = to_channel_dimension_format(resized_image, data_format, input_channel_dim=ChannelDimension.LAST)
         # If an image was rescaled to be in the range [0, 255] before converting to a PIL image, then we need to
         # rescale it back to the original range.
         resized_image = rescale(resized_image, 1 / 255) if do_rescale else resized_image

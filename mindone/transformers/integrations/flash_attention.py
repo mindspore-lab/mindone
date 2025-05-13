@@ -1,21 +1,22 @@
 from typing import Optional, Tuple
 
-import mindspore as ms
-from mindspore import nn, mint, ops
 from transformers.utils import logging
+
+import mindspore as ms
+from mindspore import mint, nn, ops
 
 logger = logging.get_logger(__name__)
 
 
 def flash_attention_forward(
-    module: Optional[nn.Cell], # aligned with torch
+    module: Optional[nn.Cell],  # aligned with torch
     query: ms.Tensor,
     key: ms.Tensor,
     value: ms.Tensor,
     attention_mask: Optional[ms.Tensor],
     dropout: float = 0.0,
     scaling: Optional[float] = None,
-    sliding_window: Optional[int] = None, # aligned with torch
+    sliding_window: Optional[int] = None,  # aligned with torch
     softcap: Optional[float] = None,  # a
     **kwargs,
 ) -> Tuple[ms.Tensor, None]:
@@ -43,17 +44,12 @@ def flash_attention_forward(
     """
 
     if sliding_window is not None:
-        raise NotImplementedError(
-            "Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`."
-        )
+        raise NotImplementedError("Sliding window is not supported in Mindspore yet. Please set `sliding_window=None`.")
     if softcap is not None:
-        raise NotImplementedError(
-            "Softcap is not supported in Mindspore yet. Please set `softcap=None`."
-        )
+        raise NotImplementedError("Softcap is not supported in Mindspore yet. Please set `softcap=None`.")
 
     # This is before the transpose
     num_head = query.shape[1]
-    seq_len = query.shape[2]  # BNSD, N: num_head, S: seq_len, D: head_dim
 
     # BNSD -> BSND
     query = query.swapaxes(1, 2)
@@ -63,7 +59,6 @@ def flash_attention_forward(
 
     # For `attn_mask` of ops.flash_attention_score, False indicates retention and True indicates discard, Which is
     # opposite to PyTorch
-    seq_len_key = key.shape[2]
     if attention_mask is not None:
         attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else attention_mask.bool()
 

@@ -12,16 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import inspect
-import os
 from typing import Optional, TypedDict
 
-import mindspore as ms
-from mindspore import nn
-from transformers.utils import (
-    logging,
-)
+from transformers.utils import logging
 
+import mindspore as ms
 
 logger = logging.get_logger(__name__)
 

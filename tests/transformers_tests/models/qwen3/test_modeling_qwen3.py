@@ -1,5 +1,6 @@
 # tests/models/llama/test_modeling_llama.py
 import inspect
+
 import numpy as np
 import pytest
 import torch
@@ -18,6 +19,7 @@ from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [0, 1]
+
 
 class Qwen3ModelTester:
     config_class = Qwen3Config
@@ -86,8 +88,9 @@ class Qwen3ModelTester:
             pad_token_id=self.pad_token_id,
             rms_norm_eps=self.rms_norm_eps,
             use_cache=False,
-            sliding_window=None
+            sliding_window=None,
         )
+
 
 model_tester = Qwen3ModelTester()
 config, input_ids, input_mask = model_tester.prepare_config_and_inputs()
@@ -108,6 +111,7 @@ LLAMA_CASES = [
         },
     ],
 ]
+
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",

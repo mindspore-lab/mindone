@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pytest
 import torch
+from transformers import LevitConfig
 
 import mindspore as ms
 
@@ -10,7 +11,6 @@ from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get
 
 # -------------------------------------------------------------
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
-from transformers import LevitConfig
 
 # fp16 NaN
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-3}

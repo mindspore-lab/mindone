@@ -17,18 +17,27 @@ import math
 from functools import partial
 from typing import Callable, Optional, Tuple, Union
 
-import mindspore as ms
 import numpy as np
-from mindspore import mint, nn, Tensor
+from transformers.models.qwen3.configuration_qwen3 import Qwen3Config
+from transformers.utils import (
+    LossKwargs,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
+import mindspore as ms
+from mindspore import Tensor, mint, nn
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, StaticCache, SlidingWindowCache, get_seq_length, update
-from ...mindspore_adapter import str_to_dtype
+from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache, get_seq_length, update
+from ...generation import GenerationMixin
+from ...mindspore_adapter import dtype_to_min, str_to_dtype
 from ...mindspore_adapter.paged_attention_freqs import FreqsMgr
 from ...mindspore_adapter.paged_attention_infer_attention_block import InferAttention
 from ...mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
-from ...generation import GenerationMixin
-from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
@@ -41,16 +50,6 @@ from ...modeling_outputs import (
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from transformers.utils import (
-    LossKwargs,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.models.qwen3.configuration_qwen3 import Qwen3Config
-
 
 logger = logging.get_logger(__name__)
 
@@ -263,6 +262,7 @@ class Qwen3PageAttention(Qwen3Attention):
     """
     Qwen3 page attention module
     """
+
     def __init__(self, config: Qwen3Config, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
         compute_dtype = str_to_dtype(config.mindspore_dtype)
@@ -357,7 +357,6 @@ class Qwen3DecoderLayer(nn.Cell):
             )
 
         self.is_first_iteration = True
-
 
     def construct(
         self,
@@ -459,7 +458,7 @@ QWEN3_START_DOCSTRING = r"""
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
 
-    This model is also a MindSpore 
+    This model is also a MindSpore
     [mindspore.nn.Cell](https://www.mindspore.cn/docs/zh-CN/master/api_python/nn/mindspore.nn.Cell.html) subclass.
     Use it as a regular MindSpore Module and refer to the MindSpore documentation for all matter related to general usage
     and behavior.
@@ -503,7 +502,6 @@ class Qwen3PreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=std)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
-
 
 
 QWEN3_INPUTS_DOCSTRING = r"""
@@ -652,18 +650,18 @@ class Qwen3Model(Qwen3PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
 
         is_page_attention = block_tables is not None
         # for paged attention, casual_mask is processed in the attention layer
-        causal_mask = self._update_causal_mask(
-            attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions
-        ) if not is_page_attention else attention_mask
+        causal_mask = (
+            self._update_causal_mask(attention_mask, inputs_embeds, cache_position, past_key_values, output_attentions)
+            if not is_page_attention
+            else attention_mask
+        )
 
         hidden_states = inputs_embeds
 
@@ -796,11 +794,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
             past_key_values=past_key_values,
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
@@ -829,7 +823,8 @@ class Qwen3Model(Qwen3PreTrainedModel):
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
             dtype (`ms.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
@@ -846,9 +841,7 @@ class Qwen3Model(Qwen3PreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
-            )
+            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             diagonal_attend_mask = mint.arange(target_length) > cache_position.reshape(-1, 1)
             if config.sliding_window is not None:
                 # if we have sliding window, we should not attend to tokens beyond sliding window length, so we mask them out also
@@ -873,7 +866,8 @@ class Qwen3Model(Qwen3PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
@@ -967,6 +961,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
             batch_valid_length,
             logits_to_keep,
         )
+
     # @can_return_tuple
     @add_start_docstrings_to_model_forward(QWEN3_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
@@ -1068,7 +1063,7 @@ class Qwen3ForCausalLM(Qwen3PreTrainedModel, GenerationMixin):
 
         result = (loss, logits) + outputs[1:]
         result = tuple(v for v in result if v is not None)
-        return  result
+        return result
 
 
 @add_start_docstrings(

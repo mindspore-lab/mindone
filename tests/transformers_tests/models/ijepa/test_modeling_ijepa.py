@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pytest
 import torch
+from transformers import IJepaConfig
 
 import mindspore as ms
 
@@ -10,7 +11,6 @@ from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get
 
 # -------------------------------------------------------------
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
-from transformers import IJepaConfig
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-3}
 MODES = [1]

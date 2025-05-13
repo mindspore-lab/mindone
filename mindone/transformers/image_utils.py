@@ -24,6 +24,15 @@ import numpy as np
 import requests
 from packaging import version
 from transformers import is_av_available
+from transformers.utils import is_cv2_available, is_decord_available, is_yt_dlp_available, logging
+from transformers.utils.constants import (  # noqa: F401
+    IMAGENET_DEFAULT_MEAN,
+    IMAGENET_DEFAULT_STD,
+    IMAGENET_STANDARD_MEAN,
+    IMAGENET_STANDARD_STD,
+    OPENAI_CLIP_MEAN,
+    OPENAI_CLIP_STD,
+)
 
 from .utils import (
     ExplicitEnum,
@@ -34,17 +43,6 @@ from .utils import (
     requires_backends,
     to_numpy,
 )
-
-from transformers.utils import logging, is_yt_dlp_available, is_decord_available, is_cv2_available
-from transformers.utils.constants import (  # noqa: F401
-    IMAGENET_DEFAULT_MEAN,
-    IMAGENET_DEFAULT_STD,
-    IMAGENET_STANDARD_MEAN,
-    IMAGENET_STANDARD_STD,
-    OPENAI_CLIP_MEAN,
-    OPENAI_CLIP_STD,
-)
-
 
 if is_vision_available():
     import PIL.Image
@@ -331,6 +329,26 @@ def to_numpy_array(img) -> np.ndarray:
     return to_numpy(img)
 
 
+def pil_to_tensor(image, is_normalize=True):
+    """
+    Pillow image to mindspore tensor
+
+    Args:
+    image (PIL.Image.Image): input pillow image
+    is_normalize (bool): whether to normalize the image to [0, 1], Default: True
+
+    Returns:
+    mindspore.Tensor: converted tensor
+    """
+    img_array = np.transpose(np.array(image), (2, 0, 1)).astype(np.float32)
+    if is_normalize:
+        img_array = img_array / 255.0
+
+    tensor = ms.tensor(img_array, dtype=mindspore.float32)
+
+    return tensor
+
+
 def infer_channel_dimension_format(
     image: np.ndarray, num_channels: Optional[Union[int, tuple[int, ...]]] = None
 ) -> ChannelDimension:
@@ -455,7 +473,8 @@ def is_valid_annotation_coco_detection(annotation: dict[str, Union[list, tuple]]
         and isinstance(annotation["annotations"], (list, tuple))
         and (
             # an image can have no annotations
-            len(annotation["annotations"]) == 0 or isinstance(annotation["annotations"][0], dict)
+            len(annotation["annotations"]) == 0
+            or isinstance(annotation["annotations"][0], dict)
         )
     ):
         return True
@@ -471,7 +490,8 @@ def is_valid_annotation_coco_panoptic(annotation: dict[str, Union[list, tuple]])
         and isinstance(annotation["segments_info"], (list, tuple))
         and (
             # an image can have no segments
-            len(annotation["segments_info"]) == 0 or isinstance(annotation["segments_info"][0], dict)
+            len(annotation["segments_info"]) == 0
+            or isinstance(annotation["segments_info"][0], dict)
         )
     ):
         return True

@@ -3,6 +3,7 @@ import logging
 import numpy as np
 import pytest
 import torch
+from transformers import HieraConfig
 
 import mindspore as ms
 
@@ -10,7 +11,6 @@ from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get
 
 # -------------------------------------------------------------
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
-from transformers import HieraConfig
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4}
 MODES = [1]

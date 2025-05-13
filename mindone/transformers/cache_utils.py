@@ -1,10 +1,7 @@
 """
 Cache utils.
 """
-import copy
-import json
-import os
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from transformers.configuration_utils import PretrainedConfig
@@ -218,7 +215,9 @@ class StaticCache(Cache):
 
         self.dtype = dtype if dtype is not None else ms.float32
         self.num_key_value_heads = (
-            config.num_attention_heads if getattr(config, "num_key_value_heads", None) is None else config.num_key_value_heads
+            config.num_attention_heads
+            if getattr(config, "num_key_value_heads", None) is None
+            else config.num_key_value_heads
         )
 
         key_cache: List[ms.Parameter] = []

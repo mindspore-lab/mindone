@@ -17,13 +17,11 @@ from functools import lru_cache, partial
 from typing import Any, Optional, TypedDict, Union
 
 import numpy as np
+from transformers.utils import add_start_docstrings, logging
+
 from mindspore import mint
 
-from .image_processing_utils import (
-    BaseImageProcessor,
-    BatchFeature,
-    get_size_dict,
-)
+from .image_processing_utils import BaseImageProcessor, BatchFeature, get_size_dict
 from .image_transforms import (
     convert_to_rgb,
     get_resize_output_image_size,
@@ -41,28 +39,22 @@ from .image_utils import (
     get_image_type,
     infer_channel_dimension_format,
     make_flat_list_of_images,
+    pil_to_tensor,
     validate_kwargs,
     validate_preprocess_arguments,
 )
 from .processing_utils import Unpack
-from .utils import (
-    TensorType,
-    is_mindspore_available,
-    is_vision_available,
-)
-
-from transformers.utils import add_start_docstrings, logging
-
+from .utils import TensorType, is_mindspore_available, is_vision_available
 
 if is_vision_available():
     from .image_utils import PILImageResampling
 
 if is_mindspore_available():
-    from .image_utils import pil_mindspore_interpolation_mapping
-
     import mindspore as ms
     from mindspore.dataset import vision
     from mindspore.dataset.vision import Inter as InterpolationMode
+
+    from .image_utils import pil_mindspore_interpolation_mapping
 
 
 logger = logging.get_logger(__name__)
@@ -141,9 +133,7 @@ def get_max_height_width(images: list["ms.Tensor"]) -> tuple[int]:
     return (max_height, max_width)
 
 
-def divide_to_patches(
-    image: Union[np.array, "ms.Tensor"], patch_size: int
-) -> list[Union[np.array, "ms.Tensor"]]:
+def divide_to_patches(image: Union[np.array, "ms.Tensor"], patch_size: int) -> list[Union[np.array, "ms.Tensor"]]:
     """
     Divides an image into patches of a specified size.
 
@@ -452,7 +442,7 @@ class BaseImageProcessorFast(BaseImageProcessor):
             image_mean=image_mean,
             image_std=image_std,
             do_rescale=do_rescale,
-            rescale_factor=rescale_factor
+            rescale_factor=rescale_factor,
         )
         # if/elif as we use fused rescale and normalize if both are set to True
         if do_normalize:
@@ -678,7 +668,9 @@ class BaseImageProcessorFast(BaseImageProcessor):
         # torch resize uses interpolation instead of resample
         resample = kwargs.pop("resample")
         kwargs["interpolation"] = (
-            pil_mindspore_interpolation_mapping[resample] if isinstance(resample, (PILImageResampling, int)) else resample
+            pil_mindspore_interpolation_mapping[resample]
+            if isinstance(resample, (PILImageResampling, int))
+            else resample
         )
 
         # Pop kwargs that are not needed in _preprocess
@@ -758,9 +750,7 @@ class SemanticSegmentationMixin:
         # Resize logits and compute semantic segmentation maps
         if target_sizes is not None:
             if len(logits) != len(target_sizes):
-                raise ValueError(
-                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
-                )
+                raise ValueError("Make sure that you pass in as many target sizes as the batch dimension of the logits")
 
             # if is_torch_tensor(target_sizes):
             #     target_sizes = target_sizes.numpy()

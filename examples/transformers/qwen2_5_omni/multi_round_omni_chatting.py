@@ -10,6 +10,7 @@ import mindspore as ms
 
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
+
 from .qwen_omni_utils import process_mm_info
 
 
@@ -52,7 +53,10 @@ model = Qwen2_5OmniForConditionalGeneration.from_pretrained(
 processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-7B")
 print("Finished loading model and processor.")
 
-sys_prompt = "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory and visual inputs, as well as generating text and speech."
+sys_prompt = (
+    "You are Qwen, a virtual human developed by the Qwen Team, Alibaba Group, capable of perceiving auditory "
+    "and visual inputs, as well as generating text and speech."
+)
 
 # Omni Chatting Round 1
 print("*" * 100)

@@ -1,10 +1,10 @@
 import random
 
+import numpy as np
+from transformers.models.qwen3.configuration_qwen3 import Qwen3Config
+
 import mindspore as ms
 from mindspore import JitConfig
-import numpy as np
-
-from transformers.models.qwen3.configuration_qwen3 import Qwen3Config
 
 from mindone.transformers.models.qwen3.modeling_qwen3 import Qwen3ForCausalLM
 
@@ -12,13 +12,14 @@ if __name__ == "__main__":
     # Debug and testing use only
 
     import time
+
     ms.set_seed(0)
     random.seed(0)
     np.random.seed(0)
 
     # ms.set_context(mode=ms.PYNATIVE_MODE)
     # ms.runtime.launch_blocking()
-    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT) # NOT SUPPORTED YET
+    ms.set_context(mode=ms.GRAPH_MODE, jit_syntax_level=ms.STRICT)  # NOT SUPPORTED YET
     print(f"mode: {ms.get_context('mode')}, device: {ms.get_context('device_target')}")
     # TEST: loading model
     start_time = time.time()
@@ -36,8 +37,10 @@ if __name__ == "__main__":
     model.set_jit_config(jit_config)
 
     print("*" * 100)
-    print(f"Using {config._attn_implementation}, use_cache {config.use_cache},"
-          f" dtype {config.mindspore_dtype}, layer {config.num_hidden_layers}")
+    print(
+        f"Using {config._attn_implementation}, use_cache {config.use_cache},"
+        f" dtype {config.mindspore_dtype}, layer {config.num_hidden_layers}"
+    )
     print("Test passed: Sucessfully loaded Qwen3ForCausalLM")
     print("Time elapsed: %.4fs" % (time.time() - start_time))
     print("*" * 100)
@@ -52,11 +55,7 @@ if __name__ == "__main__":
 
     output_ids = model.generate(**input_kwargs, max_new_tokens=5, do_sample=False)
 
-    generated_ids = [
-        output_ids[len(input_ids):] for input_ids, output_ids in zip(input_ids, output_ids)
-    ]
+    generated_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(input_ids, output_ids)]
 
     print(f"generated id: {generated_ids}")
     # outputs = tokenizer.batch_decode(output_ids, skip_special_tokens=True)[0].strip()
-
-
