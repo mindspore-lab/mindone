@@ -969,12 +969,12 @@ class Qwen2VLModel(Qwen2VLPreTrainedModel):
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
-        if use_cache and (cache_position is None):
+        if cache_position is None:
             past_seen_tokens = 0
             if past_key_values is not None and (isinstance(past_key_values, tuple)):
                 past_seen_tokens = get_seq_length(past_key_values)
             else:
-                past_seen_tokens = past_key_values.get_seq_length()
+                past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         # the hard coded `3` is for temporal, height and width.
