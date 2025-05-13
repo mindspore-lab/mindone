@@ -26,7 +26,7 @@ Tested with:
 - mindspore==2.4.1
 - transformers=4.46.3
 - tokenizers==0.20.0
-- mindway
+- mindone
 
 Pretrained weights from huggingface hub: [Qwen2-VL-7B-Instruct](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
 

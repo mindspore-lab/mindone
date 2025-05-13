@@ -1319,7 +1319,7 @@ class ModularFileMapper(ModuleMapper):
         # Note that we may visit several of the same file types, thus we save them per file type, not file
         self.imported_objects_per_file = defaultdict(set)
         for file, mapper in self.visited_modules.items():
-            file_type = re.search(rf"^mindway\.transformers\.models\.\w+\.({self.match_patterns})_.*", file).group(1)
+            file_type = re.search(rf"^mindone\.transformers\.models\.\w+\.({self.match_patterns})_.*", file).group(1)
             self.imported_objects_per_file[file_type].update(mapper.objects_imported_from_modeling)
 
     def merge_model_specific_imports(self, visited_modules):
@@ -1675,9 +1675,9 @@ def convert_modular_file(modular_file):
         wrapper.visit(cst_transformers)
         for file, module in create_modules(cst_transformers).items():
             if module != {}:
-                # Get relative path starting from mindway/transformers/
+                # Get relative path starting from mindone/transformers/
                 relative_path = re.search(
-                    r"(mindway/transformers/.*|examples/.*)", os.path.abspath(modular_file).replace("\\", "/")
+                    r"(mindone/transformers/.*|examples/.*)", os.path.abspath(modular_file).replace("\\", "/")
                 ).group(1)
 
                 header = AUTO_GENERATED_MESSAGE.format(
@@ -1725,7 +1725,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     if args.files_to_parse == ["all"]:
-        args.files_to_parse = glob.glob("mindway/transformers/models/**/modular_*.py", recursive=True)
+        args.files_to_parse = glob.glob("mindone/transformers/models/**/modular_*.py", recursive=True)
     if args.files_to_parse == ["examples"]:
         args.files_to_parse = glob.glob("examples/**/modular_*.py", recursive=True)
 
@@ -1734,6 +1734,6 @@ if __name__ == "__main__":
 
     for file_name in priority_list:
         print(f"Converting {file_name} to a single model single file format")
-        module_path = file_name.replace("/", ".").replace(".py", "")  # .replace("mindway.", "")
+        module_path = file_name.replace("/", ".").replace(".py", "")  # .replace("mindone.", "")
         converted_files = convert_modular_file(file_name)
         converter = save_modeling_file(file_name, converted_files)

@@ -23,7 +23,7 @@ latest state-of-the-art models, auto class, pipeline, agent, distributed and so 
 ## Quick Tour
 
 The following lines of code are an example that shows you how to download and use the pretrained models.
-Remember that the models are from `mindway.transformers`, and anything else is from 🤗 Transformers.
+Remember that the models are from `mindone.transformers`, and anything else is from 🤗 Transformers.
 
 ```diff
 +from mindspore import tensor
@@ -31,7 +31,7 @@ Remember that the models are from `mindway.transformers`, and anything else is f
 # use tokenizer from 🤗 transformers
 from transformers import AutoTokenizer
 
-# replace model from 🤗 transformers to mindway.transformers
+# replace model from 🤗 transformers to mindone.transformers
 -from transformers import LlamaForCausalLM
 +from mindone.transformers import LlamaForCausalLM
 

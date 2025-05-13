@@ -108,7 +108,7 @@ HIERA_CASES = [
     [
         "HieraModel",
         "transformers.HieraModel",
-        "mindway.transformers.HieraModel",
+        "mindone.transformers.HieraModel",
         (config,),
         {},
         (pixel_values,),
@@ -120,7 +120,7 @@ HIERA_CASES = [
     [
         "HieraForImageClassification_Logits",
         "transformers.HieraForImageClassification",
-        "mindway.transformers.HieraForImageClassification",
+        "mindone.transformers.HieraForImageClassification",
         (config,),
         {},
         (pixel_values,),

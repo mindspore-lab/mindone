@@ -100,7 +100,7 @@ GLPN_CASES = [
     [
         "GLPNModel",
         "transformers.GLPNModel",
-        "mindway.transformers.GLPNModel",
+        "mindone.transformers.GLPNModel",
         (config,),
         {},
         (pixel_values,),
@@ -112,7 +112,7 @@ GLPN_CASES = [
     [
         "GLPNForDepthEstimation",
         "transformers.GLPNForDepthEstimation",
-        "mindway.transformers.GLPNForDepthEstimation",
+        "mindone.transformers.GLPNForDepthEstimation",
         (config,),
         {},
         (pixel_values,),

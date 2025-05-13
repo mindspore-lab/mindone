@@ -107,7 +107,7 @@ LEVIT_CASES = [
     [
         "LevitModel",
         "transformers.LevitModel",
-        "mindway.transformers.LevitModel",
+        "mindone.transformers.LevitModel",
         (config,),
         {},
         (pixel_values,),
@@ -119,7 +119,7 @@ LEVIT_CASES = [
     [
         "LevitForImageClassification",
         "transformers.LevitForImageClassification",
-        "mindway.transformers.LevitForImageClassification",
+        "mindone.transformers.LevitForImageClassification",
         (config,),
         {},
         (pixel_values,),

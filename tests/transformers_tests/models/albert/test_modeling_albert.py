@@ -138,7 +138,7 @@ ALBERT_CASES = [
     [
         "AlbertForMaskedLM",
         "transformers.AlbertForMaskedLM",
-        "mindway.transformers.AlbertForMaskedLM",
+        "mindone.transformers.AlbertForMaskedLM",
         (config,),
         {},
         (input_ids,),
@@ -155,7 +155,7 @@ ALBERT_CASES = [
     [
         "AlbertForMultipleChoice",
         "transformers.AlbertForMultipleChoice",
-        "mindway.transformers.AlbertForMultipleChoice",
+        "mindone.transformers.AlbertForMultipleChoice",
         (config,),
         {},
         (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
@@ -172,7 +172,7 @@ ALBERT_CASES = [
     [
         "AlbertForPreTraining",
         "transformers.AlbertForPreTraining",
-        "mindway.transformers.AlbertForPreTraining",
+        "mindone.transformers.AlbertForPreTraining",
         (config,),
         {},
         (input_ids,),
@@ -191,7 +191,7 @@ ALBERT_CASES = [
     [
         "AlbertForQuestionAnswering",
         "transformers.AlbertForQuestionAnswering",
-        "mindway.transformers.AlbertForQuestionAnswering",
+        "mindone.transformers.AlbertForQuestionAnswering",
         (config,),
         {},
         (input_ids,),
@@ -210,7 +210,7 @@ ALBERT_CASES = [
     [
         "AlbertForSequenceClassification",
         "transformers.AlbertForSequenceClassification",
-        "mindway.transformers.AlbertForSequenceClassification",
+        "mindone.transformers.AlbertForSequenceClassification",
         (config_has_num_labels,),
         {},
         (input_ids,),
@@ -227,7 +227,7 @@ ALBERT_CASES = [
     [
         "AlbertForTokenClassification",
         "transformers.AlbertForTokenClassification",
-        "mindway.transformers.AlbertForTokenClassification",
+        "mindone.transformers.AlbertForTokenClassification",
         (config_has_num_labels,),
         {},
         (input_ids,),
@@ -244,7 +244,7 @@ ALBERT_CASES = [
     [
         "AlbertModel",
         "transformers.AlbertModel",
-        "mindway.transformers.AlbertModel",
+        "mindone.transformers.AlbertModel",
         (config,),
         {},
         (input_ids,),

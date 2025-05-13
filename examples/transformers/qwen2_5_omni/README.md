@@ -17,7 +17,7 @@ The abstract from the [Qwen2.5-Omni Technical Report](https://arxiv.org/abs/2503
 
 ### Installation
 ```
-# with installed mindway
+# with installed mindone
 cd examples/qwen2_5_omni
 pip install -r requirements.txt
 ```
@@ -27,14 +27,14 @@ pip install -r requirements.txt
 
 The speakers checkpoint need to be converted before use:
 ```python
-python mindway\transformers\models\qwen2_5_omni\convert_spk_dict_pt2np.py \
+python mindone\transformers\models\qwen2_5_omni\convert_spk_dict_pt2np.py \
     --spk_path "Qwen/Qwen2.5-Omni-7B/spk_dict.pt" \
     --np_spk_path"Qwen/Qwen2.5-Omni-7B/spk_dict.npy"
 ```
 ### Usage Examples
 
 
-Here are some usage chat examples and scripts with `mindway.transformers`:
+Here are some usage chat examples and scripts with `mindone.transformers`:
 |Example|	Description	|
 |---|---|
 |[Text-Only Generation](text_only_generation.py) | Q&A with Qwen2.5-Omni by text, image, video input and text-only output.
@@ -185,8 +185,8 @@ The model can batch inputs composed of mixed samples of various types such as te
 ```python
 import soundfile as sf
 import mindspore as ms
-from mindway.transformers import Qwen2_5OmniForConditionalGeneration
-from mindway.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
+from mindone.transformers import Qwen2_5OmniForConditionalGeneration
+from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
 
 model = Qwen2_5OmniForConditionalGeneration.from_pretrained("Qwen/Qwen2.5-Omni-7B")
 processor = Qwen2_5OmniProcessor.from_pretrained("Qwen/Qwen2.5-Omni-7B")

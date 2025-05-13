@@ -108,7 +108,7 @@ IJEPA_CASES = [
     [
         "IJepaModel",
         "transformers.IJepaModel",
-        "mindway.transformers.IJepaModel",
+        "mindone.transformers.IJepaModel",
         (config,),
         {},
         (pixel_values,),
@@ -120,7 +120,7 @@ IJEPA_CASES = [
     [
         "IJepaForImageClassification",
         "transformers.IJepaForImageClassification",
-        "mindway.transformers.IJepaForImageClassification",
+        "mindone.transformers.IJepaForImageClassification",
         (config,),
         {},
         (pixel_values,),

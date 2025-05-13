@@ -152,7 +152,7 @@ IMAGEGPT_CASES = [
     [
         "ImageGPTModel",
         "transformers.ImageGPTModel",
-        "mindway.transformers.ImageGPTModel",
+        "mindone.transformers.ImageGPTModel",
         (config,),
         {},
         (input_ids,),
@@ -166,7 +166,7 @@ IMAGEGPT_CASES = [
     [
         "ImageGPTForImageClassification",
         "transformers.ImageGPTForImageClassification",
-        "mindway.transformers.ImageGPTForImageClassification",
+        "mindone.transformers.ImageGPTForImageClassification",
         (config,),
         {},
         (input_ids,),

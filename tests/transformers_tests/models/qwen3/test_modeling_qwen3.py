@@ -99,7 +99,7 @@ LLAMA_CASES = [
     [
         "Qwen3Model",
         "transformers.Qwen3ForCausalLM",
-        "mindway.transformers.Qwen3ForCausalLM",
+        "mindone.transformers.Qwen3ForCausalLM",
         (config,),
         {},
         (input_ids,),

@@ -188,7 +188,7 @@ T5_CASES = [
     [
         "Qwen2_5OmniThinkerTextModel",
         "transformers.models.qwen2_5_omni.Qwen2_5OmniThinkerModel",  # NOTE: name is different from latest version
-        "mindway.transformers.Qwen2_5OmniThinkerTextModel",
+        "mindone.transformers.Qwen2_5OmniThinkerTextModel",
         (thinker_config,),
         {},
         (),
@@ -200,7 +200,7 @@ T5_CASES = [
     [
         "Qwen2_5OmniTalkerModel",
         "transformers.Qwen2_5OmniTalkerModel",
-        "mindway.transformers.Qwen2_5OmniTalkerModel",
+        "mindone.transformers.Qwen2_5OmniTalkerModel",
         (talker_config,),
         {},
         (),
@@ -215,7 +215,7 @@ T5_CASES = [
     # [
     #     "Qwen2_5OmniToken2WavModel",
     #     "transformers.Qwen2_5OmniToken2WavModel",
-    #     "mindway.transformers.Qwen2_5OmniToken2WavModel",
+    #     "mindone.transformers.Qwen2_5OmniToken2WavModel",
     #     (token2wav_config,),
     #     {},
     #     (),

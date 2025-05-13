@@ -172,7 +172,7 @@ Chameleon_CASES = [
     [
         "ChameleonModel",
         "transformers.ChameleonModel",
-        "mindway.transformers.ChameleonModel",
+        "mindone.transformers.ChameleonModel",
         (config,),
         {},
         (input_ids,),

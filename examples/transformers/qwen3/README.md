@@ -21,8 +21,8 @@ Besides that, Qwen3 apply normalization in each head. Finally, shared postion em
 
 ### Installation:
 ```
-git clone https://github.com/mindspore-lab/mindway.git
-cd mindway
+git clone https://github.com/mindspore-lab/mindone.git
+cd mindone
 pip install -e .
 cd examples/qwen3
 ```
