@@ -27,15 +27,7 @@ model:
   recompute_every_nth_block: 1
   dtype: bf16
 
-ae:
-  from_pretrained: hpcai-tech/Open-Sora-v2/hunyuan_vae.safetensors
-  in_channels: 3
-  out_channels: 3
-  layers_per_block: 2
-  latent_channels: 16
-  use_spatial_tiling: True
-  use_temporal_tiling: False
-  dtype: bf16
+ae: ../ae/hunyuan_vae.yaml
 
 dataset:
   v2_pipeline: True
@@ -53,6 +45,7 @@ dataset:
     clip: 0.31622777
   vae_scale_factor: 0.476986
   vae_shift_factor: 0
+  max_fps: 24
   apply_transforms_dataset: True
   output_columns: [ "video", "video_ids", "t5_caption", "txt_ids", "clip_caption", "shift_alpha" ]
 

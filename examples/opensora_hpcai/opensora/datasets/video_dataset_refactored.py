@@ -43,7 +43,7 @@ class VideoDatasetRefactored(BaseDataset):
         self,
         csv_path: str,
         video_folder: str,
-        text_emb_folder: Union[str, dict[str, str]],
+        text_emb_folder: Optional[Union[str, dict[str, str]]] = None,
         empty_text_emb: Optional[Union[str, dict[str, str]]] = None,
         text_drop_prob: Union[float, dict[str, float]] = 0.2,
         vae_latent_folder: Optional[str] = None,
@@ -52,6 +52,8 @@ class VideoDatasetRefactored(BaseDataset):
         vae_shift_factor: float = 0,
         sample_n_frames: int = 16,
         sample_stride: int = 1,
+        max_fps: Optional[int] = None,
+        deterministic_sample: bool = False,
         frames_mask_generator: Optional[Callable[[int], np.ndarray]] = None,
         latent_compress_func: Optional[Union[Callable[[int], int], Callable[[int, int, int], int]]] = None,
         pre_patchify: bool = False,
@@ -74,14 +76,11 @@ class VideoDatasetRefactored(BaseDataset):
         assert tokenizer is None, "tokenizer is not supported"
         if pre_patchify and vae_latent_folder is None:
             raise ValueError("`vae_latent_folder` must be provided when `pre_patchify=True`.")
-        if text_emb_folder is None:
-            raise NotImplementedError(
-                "Text embedding during training is not supported, please provide `text_emb_folder`."
-            )
 
         self._data = self._read_data(video_folder, csv_path, text_emb_folder, vae_latent_folder, filter_data)
         self._frames = sample_n_frames
         self._stride = sample_stride
+        self._deterministic = deterministic_sample
         self._min_length = (self._frames - 1) * self._stride + 1
         self._text_emb_folder = text_emb_folder
         self._empty_text_emb = empty_text_emb
@@ -100,6 +99,7 @@ class VideoDatasetRefactored(BaseDataset):
         self._latent_compress_func = latent_compress_func or (lambda x: x)
         self._pre_patchify = pre_patchify
         self._buckets = buckets
+        self._max_fps = max_fps
         self._v2_pipeline = v2_pipeline
 
         self.output_columns = output_columns
@@ -171,7 +171,9 @@ class VideoDatasetRefactored(BaseDataset):
             try:
                 data = []
                 for item in csv.DictReader(csv_file):
-                    sample = {**item, "video": os.path.join(data_dir, item["video"])}
+                    # Build the complete video file path while preserving the original path structure.
+                    # The original path is maintained for organized storage of processed results.
+                    sample = {**item, "video": os.path.join(data_dir, item["video"]), "path": item["video"]}
                     if text_emb_folder:
                         if isinstance(text_emb_folder, str):
                             sample["text_emb"] = os.path.join(text_emb_folder, Path(item["video"]).with_suffix(".npz"))
@@ -244,14 +246,16 @@ class VideoDatasetRefactored(BaseDataset):
                 with VideoReader_CV2(data["video"]) as reader:
                     self._data[idx]["fps"] = data["fps"] = reader.fps
 
+            dim = 2 if self._v2_pipeline else 1  # OSv1.x: [T, C, H, W], OSv2: [C, T, H, W]
             latent_mean, latent_std = vae_latent_data["latent_mean"], vae_latent_data["latent_std"]
-            if len(latent_mean) < self._min_length:
+            if latent_mean.shape[dim] < self._min_length:
                 raise ValueError(f"Video is too short: {data['video']}")
 
-            start_pos = random.randint(0, len(latent_mean) - self._min_length)
+            start_pos = 0 if self._deterministic else random.randint(0, len(latent_mean) - self._min_length)
             batch_index = np.linspace(start_pos, start_pos + self._min_length - 1, num_frames, dtype=int)
 
-            latent_mean, latent_std = latent_mean[batch_index], latent_std[batch_index]
+            latent_mean = np.take(latent_mean, batch_index, axis=dim)
+            latent_std = np.take(latent_std, batch_index, axis=dim)
             vae_latent = latent_mean + latent_std * np.random.standard_normal(latent_mean.shape)
             video = (self._vae_scale_factor * (vae_latent - self._vae_shift_factor)).astype(np.float32)
 
@@ -274,7 +278,12 @@ class VideoDatasetRefactored(BaseDataset):
                     cap.release()
 
                     bucket_id = self._buckets.get_bucket_id(
-                        T=video_length, H=frame_h, W=frame_w, frame_interval=self._stride, fps=reader.get_avg_fps()
+                        T=video_length,
+                        H=frame_h,
+                        W=frame_w,
+                        frame_interval=self._stride,
+                        fps=reader.get_avg_fps(),
+                        max_fps=self._max_fps,
                     )
                     if bucket_id is None:
                         raise ValueError(
@@ -288,7 +297,7 @@ class VideoDatasetRefactored(BaseDataset):
                     raise ValueError(f"Video is too short: {data['video']}")
 
                 clip_length = min(video_length, min_length)
-                start_pos = random.randint(0, len(reader) - clip_length)
+                start_pos = 0 if self._deterministic else random.randint(0, len(reader) - min_length)
 
                 batch_index = np.linspace(start_pos, start_pos + clip_length - 1, num_frames, dtype=int)
                 video = reader.get_batch(batch_index).asnumpy()
@@ -306,6 +315,7 @@ class VideoDatasetRefactored(BaseDataset):
                             W=reader.shape[0],
                             frame_interval=self._stride,
                             fps=reader.fps,
+                            max_fps=self._max_fps,
                         )
                         if bucket_id is None:
                             raise ValueError(
@@ -317,7 +327,7 @@ class VideoDatasetRefactored(BaseDataset):
 
                     if len(reader) < min_length:
                         raise ValueError(f"Video is too short: {data['video']}")
-                    start_pos = random.randint(0, len(reader) - min_length)
+                    start_pos = 0 if self._deterministic else random.randint(0, len(reader) - min_length)
                     video = reader.fetch_frames(num=num_frames, start_pos=start_pos, step=self._stride)
                     data["fps"] = np.array(reader.fps, dtype=np.float32)
             else:
@@ -477,7 +487,8 @@ class VideoDatasetRefactored(BaseDataset):
                 }
             )
 
-        if self._v2_pipeline:
+        # FIXME: VAE latents generation doesn't require captions
+        if self._v2_pipeline and "t5_caption" in self.output_columns:
             transforms.append(
                 {  # TODO: merge with _pre_patchify
                     "operations": [self._prepare_inputs],

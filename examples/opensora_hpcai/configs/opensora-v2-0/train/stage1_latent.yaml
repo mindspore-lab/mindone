@@ -31,6 +31,7 @@ ae: ../ae/hunyuan_vae.yaml
 
 dataset:
   v2_pipeline: True
+  target_size: [ 256, 256 ]
   sample_n_frames: 5
   csv_path: CSV_PATH
   video_folder: VIDEO_FOLDER
@@ -45,82 +46,11 @@ dataset:
     clip: 0.31622777
   vae_scale_factor: 0.476986
   vae_shift_factor: 0
-  max_fps: 24
   apply_transforms_dataset: True
   output_columns: [ "video", "video_ids", "t5_caption", "txt_ids", "clip_caption", "shift_alpha" ]
 
-bucket_config:
-  init_args:
-    bucket_config:
-      256px:
-        1: [ 1.0, 130 ]
-        5: [ 1.0, 14 ]
-        9: [ 1.0, 14 ]
-        13: [ 1.0, 14 ]
-        17: [ 1.0, 14 ]
-        21: [ 1.0, 14 ]
-        25: [ 1.0, 14 ]
-        29: [ 1.0, 14 ]
-        33: [ 1.0, 14 ]
-        37: [ 1.0, 10 ]
-        41: [ 1.0, 10 ]
-        45: [ 1.0, 10 ]
-        49: [ 1.0, 10 ]
-        53: [ 1.0, 10 ]
-        57: [ 1.0, 10 ]
-        61: [ 1.0, 10 ]
-        65: [ 1.0, 10 ]
-        73: [ 1.0, 7 ]
-        77: [ 1.0, 7 ]
-        81: [ 1.0, 7 ]
-        85: [ 1.0, 7 ]
-        89: [ 1.0, 7 ]
-        93: [ 1.0, 7 ]
-        97: [ 1.0, 7 ]
-        101: [ 1.0, 6 ]
-        105: [ 1.0, 6 ]
-        109: [ 1.0, 6 ]
-        113: [ 1.0, 6 ]
-        117: [ 1.0, 6 ]
-        121: [ 1.0, 6 ]
-        125: [ 1.0, 6 ]
-        129: [ 1.0, 6 ]
-      768px:
-        1: [ 1.0, 38 ]
-        5: [ 1.0, 6 ]
-        9: [ 1.0, 6 ]
-        13: [ 1.0, 6 ]
-        17: [ 1.0, 6 ]
-        21: [ 1.0, 6 ]
-        25: [ 1.0, 6 ]
-        29: [ 1.0, 6 ]
-        33: [ 1.0, 6 ]
-        37: [ 1.0, 4 ]
-        41: [ 1.0, 4 ]
-        45: [ 1.0, 4 ]
-        49: [ 1.0, 4 ]
-        53: [ 1.0, 4 ]
-        57: [ 1.0, 4 ]
-        61: [ 1.0, 4 ]
-        65: [ 1.0, 4 ]
-        69: [ 1.0, 3 ]
-        73: [ 1.0, 3 ]
-        77: [ 1.0, 3 ]
-        81: [ 1.0, 3 ]
-        85: [ 1.0, 3 ]
-        89: [ 1.0, 3 ]
-        93: [ 1.0, 3 ]
-        97: [ 1.0, 3 ]
-        101: [ 1.0, 2 ]
-        105: [ 1.0, 2 ]
-        109: [ 1.0, 2 ]
-        113: [ 1.0, 2 ]
-        117: [ 1.0, 2 ]
-        121: [ 1.0, 2 ]
-        125: [ 1.0, 2 ]
-        129: [ 1.0, 2 ]
-
 dataloader:
+  batch_size: 1
   shuffle: True
   num_workers_dataset: 4
 
@@ -129,7 +59,7 @@ train:
     is_causal_vae: True
 
   sequence_parallel:
-    shards: 8   # 1 == no SP
+    shards: 1   # 1 == no SP
 
   options:
     steps: 20000
@@ -166,4 +96,4 @@ train:
     ckpt_combine_online: False
 
 save:
-  output_path: ../../../output/stage2  # the path is relative to this config
+  output_path: ../../../output/stage1  # the path is relative to this config

@@ -12,7 +12,7 @@ _logger = logging.getLogger(__name__)
 
 def map_target_fps(
     fps: float,
-    max_fps: float,
+    max_fps: Optional[int] = None,
 ) -> tuple[float, int]:
     """
     Map fps to a new fps that is less than max_fps.
@@ -24,9 +24,7 @@ def map_target_fps(
     Returns:
         tuple[float, int]: New fps and sampling interval.
     """
-    if math.isnan(fps):
-        return 0, 1
-    if fps < max_fps:
+    if max_fps is None or fps < max_fps:
         return fps, 1
     sampling_interval = math.ceil(fps / max_fps)
     new_fps = math.floor(fps / sampling_interval)
@@ -101,13 +99,12 @@ class Bucket:
         H: int,
         W: int,
         fps: float,
-        path: Optional[str] = None,
         seed: Optional[int] = None,
-        fps_max: int = 16,
+        max_fps: Optional[int] = None,
         **kwargs,
     ) -> Optional[tuple[str, int, int]]:
         approx = 0.8
-        _, sampling_interval = map_target_fps(fps, fps_max)
+        _, sampling_interval = map_target_fps(fps, max_fps)
         T = T // sampling_interval
         resolution = H * W
         rng = np.random.default_rng(seed)

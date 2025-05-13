@@ -584,6 +584,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
 def CausalVAE3D_HUNYUAN(
     from_pretrained: str = None, dtype: Literal["fp32", "fp16", "bf16"] = "fp32", **kwargs
 ) -> AutoencoderKLCausal3D:
+    kwargs.pop("__path__", None)  # FIXME: when a config file is used
     dtype = {"fp32": ms.float32, "fp16": ms.float16, "bf16": ms.bfloat16}[dtype]
     config = AutoEncoder3DConfig(from_pretrained=from_pretrained, **kwargs)
     with nn.no_init_parameters():

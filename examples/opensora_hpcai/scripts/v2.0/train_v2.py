@@ -124,6 +124,7 @@ def main(args):
     if not args.dataset.vae_latent_folder:
         logger.info("Initializing VAE...")
         vae = CausalVAE3D_HUNYUAN(**args.ae).set_train(False)  # TODO: add DC-AE support
+        del vae.decoder
         for param in vae.get_parameters():  # turn grads off
             param.requires_grad = False
     else:
