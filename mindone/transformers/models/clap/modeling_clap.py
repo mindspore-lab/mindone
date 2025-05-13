@@ -26,7 +26,7 @@ import mindspore as ms
 from mindspore import Parameter, nn, ops
 from mindspore.common.initializer import Normal, One, Zero, initializer
 
-from ....diffusers.models.normalization import LayerNorm
+from mindspore.mint.nn import LayerNorm
 from ...activations import ACT2FN
 from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (

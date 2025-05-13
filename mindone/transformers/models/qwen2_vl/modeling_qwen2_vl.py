@@ -45,7 +45,8 @@ from mindone.transformers.cache_utils import (  # TODO: SlidingWindowCache
     get_seq_length,
     update,
 )
-from mindone.transformers.modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
+from mindone.transformers.mindspore_adapter.utils import _MIN_FP16
+from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, ModelOutput
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 

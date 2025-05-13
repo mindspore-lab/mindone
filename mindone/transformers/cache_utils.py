@@ -31,6 +31,7 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
         new_layer_key_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
         new_layer_value_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
         key_value_cache += [(new_layer_key_cache, new_layer_value_cache)]
+    key_value_cache = tuple(key_value_cache)
 
     return key_value_cache
 
@@ -176,8 +177,10 @@ class Cache(nn.Cell):
     def reorder_cache(self, beam_idx: ms.Tensor):
         """Reorders the cache for beam search, given the selected beam indices."""
         for layer_idx in range(len(self.key_cache)):
-            self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx)
-            self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx)
+            if self.key_cache[layer_idx] != []:
+                self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx)
+            if self.value_cache[layer_idx] != []:
+                self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx)
 
     @property
     def seen_tokens(self):
@@ -202,6 +205,8 @@ class StaticCache(Cache):
             The default `dtype` to use when initializing the layer.
     """
 
+    is_compileable = True
+
     def __init__(self, config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None) -> None:
         super().__init__()
         self.max_batch_size = max_batch_size
@@ -213,7 +218,7 @@ class StaticCache(Cache):
 
         self.dtype = dtype if dtype is not None else ms.float32
         self.num_key_value_heads = (
-            config.num_attention_heads if config.num_key_value_heads is None else config.num_key_value_heads
+            config.num_attention_heads if getattr(config, "num_key_value_heads", None) is None else config.num_key_value_heads
         )
 
         key_cache: List[ms.Parameter] = []
@@ -266,12 +271,12 @@ class StaticCache(Cache):
         k_out = self.key_cache[layer_idx]
         v_out = self.value_cache[layer_idx]
 
-        k_out[:, :, cache_position] = key_states
-        v_out[:, :, cache_position] = value_states
-
-        # update to self.key_cache?
-        self.key_cache[layer_idx] = k_out
-        self.value_cache[layer_idx] = v_out
+        if cache_position is None:
+            k_out.copy_(key_states)
+            v_out.copy_(value_states)
+        else:
+            k_out[:, :, cache_position] = key_states
+            v_out[:, :, cache_position] = value_states
 
         return k_out, v_out
 
@@ -294,102 +299,6 @@ class StaticCache(Cache):
             ops.assign(self.value_cache[layer_idx], ms.Tensor(0.0))
 
 
-class CacheConfig:
-    """
-    Base class for cache configs
-    """
-
-    cache_implementation: None
-
-    @classmethod
-    def from_dict(cls, config_dict, **kwargs):
-        """
-        Constructs a CacheConfig instance from a dictionary of parameters.
-        Args:
-            config_dict (Dict[str, Any]): Dictionary containing configuration parameters.
-            **kwargs: Additional keyword arguments to override dictionary values.
-
-        Returns:
-            CacheConfig: Instance of CacheConfig constructed from the dictionary.
-        """
-        config = cls(**config_dict)
-        to_remove = []
-        for key, value in kwargs.items():
-            if hasattr(config, key):
-                setattr(config, key, value)
-                to_remove.append(key)
-        for key in to_remove:
-            kwargs.pop(key, None)
-        return config
-
-    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.to_json_file
-    def to_json_file(self, json_file_path: Union[str, os.PathLike]):
-        """
-        Save this instance to a JSON file.
-
-        Args:
-            json_file_path (`str` or `os.PathLike`):
-                Path to the JSON file in which this configuration instance's parameters will be saved.
-            use_diff (`bool`, *optional*, defaults to `True`):
-                If set to `True`, only the difference between the config instance and the default
-                `QuantizationConfig()` is serialized to JSON file.
-        """
-        with open(json_file_path, "w", encoding="utf-8") as writer:
-            config_dict = self.to_dict()
-            json_string = json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
-
-            writer.write(json_string)
-
-    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.to_dict
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Serializes this instance to a Python dictionary. Returns:
-            `Dict[str, Any]`: Dictionary of all the attributes that make up this configuration instance.
-        """
-        return copy.deepcopy(self.__dict__)
-
-    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.__iter__
-    def __iter__(self):
-        """allows `dict(obj)` for situations where obj may be a dict or QuantizationConfigMixin"""
-        for attr, value in copy.deepcopy(self.__dict__).items():
-            yield attr, value
-
-    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.__repr__
-    def __repr__(self):
-        return f"{self.__class__.__name__} {self.to_json_string()}"
-
-    def to_json_string(self):
-        """
-        Serializes this instance to a JSON formatted string.
-        Returns:
-            str: JSON formatted string representing the configuration instance.
-        """
-        return json.dumps(self.__dict__, indent=2) + "\n"
-
-    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.update
-    def update(self, **kwargs):
-        """
-        Updates attributes of this class instance with attributes from `kwargs` if they match existing attributes,
-        returning all the unused kwargs.
-
-        Args:
-            kwargs (`Dict[str, Any]`):
-                Dictionary of attributes to tentatively update this class.
-
-        Returns:
-            `Dict[str, Any]`: Dictionary containing all the key-value pairs that were not used to update the instance.
-        """
-        to_remove = []
-        for key, value in kwargs.items():
-            if hasattr(self, key):
-                setattr(self, key, value)
-                to_remove.append(key)
-
-        # Remove all the attributes that were updated, without modifying the input dict
-        unused_kwargs = {key: value for key, value in kwargs.items() if key not in to_remove}
-        return unused_kwargs
-
-
 class DynamicCache(Cache):
     """
     A cache that grows dynamically as more tokens are generated. This is the default for generative models.
@@ -399,6 +308,9 @@ class DynamicCache(Cache):
     """
 
     def __init__(self, num_hidden_layers: Optional[int] = None) -> None:
+        # in hf transformers there is no `num_hidden_layers` but `_distributed_cache_data`
+        # it was originally added for compatibility with `torch.distributed` (DDP). See #36121
+        # in mindspore there is no DDP, so we keep `num_hidden_layers`
         super().__init__()
         if num_hidden_layers is None:
             self.key_cache: List[ms.Tensor] = []
@@ -462,11 +374,15 @@ class DynamicCache(Cache):
 
         # Update the cache
         if len(self.key_cache) <= layer_idx:
+            # There may be skipped layers, fill them with empty lists
+            for _ in range(len(self.key_cache), layer_idx):
+                self.key_cache.append([])
+                self.value_cache.append([])
             self.key_cache.append(key_states)
             self.value_cache.append(value_states)
         # content on layer cache can be a tensor and checking not tensor causes errors
         # so we explicitly check for the empty list
-        elif self.key_cache[layer_idx] == []:
+        elif len(self.key_cache[layer_idx]) == 0:
             self.key_cache[layer_idx] = key_states
             self.value_cache[layer_idx] = value_states
         else:
@@ -558,4 +474,10 @@ class DynamicCache(Cache):
 
 class EncoderDecoderCache(Cache):
     def __init__(self):
+        raise NotImplementedError
+
+
+class SlidingWindowCache(Cache):
+    def __init__(self):
+        super(SlidingWindowCache, self).__init__()
         raise NotImplementedError

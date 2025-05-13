@@ -1,4 +1,3 @@
-# coding=utf-8
 # Copyright 2022 The HuggingFace Inc. team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,8 +13,9 @@
 # limitations under the License.
 
 import warnings
+from collections.abc import Collection, Iterable
 from math import ceil
-from typing import Iterable, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 import numpy as np
 
@@ -27,7 +27,12 @@ from .image_utils import (
     infer_channel_dimension_format,
 )
 from .utils import ExplicitEnum, TensorType, is_mindspore_tensor
-from .utils.import_utils import is_mindspore_available, is_vision_available, requires_backends
+from .utils.import_utils import (
+    is_mindspore_available,
+    is_vision_available,
+    requires_backends
+)
+
 
 if is_vision_available():
     import PIL
@@ -36,7 +41,7 @@ if is_vision_available():
 
 if is_mindspore_available():
     import mindspore as ms
-    from mindspore import ops
+    from mindspore import ops, mint
 
 
 def to_channel_dimension_format(
@@ -73,7 +78,7 @@ def to_channel_dimension_format(
     elif target_channel_dim == ChannelDimension.LAST:
         image = image.transpose((1, 2, 0))
     else:
-        raise ValueError("Unsupported channel dimension format: {}".format(channel_dim))
+        raise ValueError(f"Unsupported channel dimension format: {channel_dim}")
 
     return image
 
@@ -177,7 +182,7 @@ def to_pil_image(
     if is_mindspore_tensor(image):
         image = image.asnumpy()
     elif not isinstance(image, np.ndarray):
-        raise ValueError("Input image type not supported: {}".format(type(image)))
+        raise ValueError(f"Input image type not supported: {type(image)}")
 
     # If the channel has been moved to first dim, we put it back at the end.
     image = to_channel_dimension_format(image, ChannelDimension.LAST, input_data_format)
@@ -195,9 +200,49 @@ def to_pil_image(
     return PIL.Image.fromarray(image, mode=image_mode)
 
 
+def get_size_with_aspect_ratio(image_size, size, max_size=None) -> tuple[int, int]:
+    """
+    Computes the output image size given the input image size and the desired output size.
+
+    Args:
+        image_size (`Tuple[int, int]`):
+            The input image size.
+        size (`int`):
+            The desired output size.
+        max_size (`int`, *optional*):
+            The maximum allowed output size.
+    """
+    height, width = image_size
+    raw_size = None
+    if max_size is not None:
+        min_original_size = float(min((height, width)))
+        max_original_size = float(max((height, width)))
+        if max_original_size / min_original_size * size > max_size:
+            raw_size = max_size * min_original_size / max_original_size
+            size = int(round(raw_size))
+
+    if (height <= width and height == size) or (width <= height and width == size):
+        oh, ow = height, width
+    elif width < height:
+        ow = size
+        if max_size is not None and raw_size is not None:
+            oh = int(raw_size * height / width)
+        else:
+            oh = int(size * height / width)
+    else:
+        oh = size
+        if max_size is not None and raw_size is not None:
+            ow = int(raw_size * width / height)
+        else:
+            ow = int(size * width / height)
+
+    return (oh, ow)
+
+
+# Logic adapted from torchvision resizing logic: https://github.com/pytorch/vision/blob/511924c1ced4ce0461197e5caa64ce5b9e558aab/torchvision/transforms/functional.py#L366
 def get_resize_output_image_size(
     input_image: np.ndarray,
-    size: Union[int, Tuple[int, int], List[int], Tuple[int]],
+    size: Union[int, tuple[int, int], list[int], tuple[int]],
     default_to_square: bool = True,
     max_size: Optional[int] = None,
     input_data_format: Optional[Union[str, ChannelDimension]] = None,
@@ -263,7 +308,7 @@ def get_resize_output_image_size(
 
 def resize(
     image: np.ndarray,
-    size: Tuple[int, int],
+    size: tuple[int, int],
     resample: "PILImageResampling" = None,
     reducing_gap: Optional[int] = None,
     data_format: Optional[ChannelDimension] = None,
@@ -323,7 +368,9 @@ def resize(
         # so we need to add it back if necessary.
         resized_image = np.expand_dims(resized_image, axis=-1) if resized_image.ndim == 2 else resized_image
         # The image is always in channels last format after converting from a PIL image
-        resized_image = to_channel_dimension_format(resized_image, data_format, input_channel_dim=ChannelDimension.LAST)
+        resized_image = to_channel_dimension_format(
+            resized_image, data_format, input_channel_dim=ChannelDimension.LAST
+        )
         # If an image was rescaled to be in the range [0, 255] before converting to a PIL image, then we need to
         # rescale it back to the original range.
         resized_image = rescale(resized_image, 1 / 255) if do_rescale else resized_image
@@ -332,8 +379,8 @@ def resize(
 
 def normalize(
     image: np.ndarray,
-    mean: Union[float, Iterable[float]],
-    std: Union[float, Iterable[float]],
+    mean: Union[float, Collection[float]],
+    std: Union[float, Collection[float]],
     data_format: Optional[ChannelDimension] = None,
     input_data_format: Optional[Union[str, ChannelDimension]] = None,
 ) -> np.ndarray:
@@ -345,9 +392,9 @@ def normalize(
     Args:
         image (`np.ndarray`):
             The image to normalize.
-        mean (`float` or `Iterable[float]`):
+        mean (`float` or `Collection[float]`):
             The mean to use for normalization.
-        std (`float` or `Iterable[float]`):
+        std (`float` or `Collection[float]`):
             The standard deviation to use for normalization.
         data_format (`ChannelDimension`, *optional*):
             The channel dimension format of the output image. If unset, will use the inferred format from the input.
@@ -368,14 +415,14 @@ def normalize(
     if not np.issubdtype(image.dtype, np.floating):
         image = image.astype(np.float32)
 
-    if isinstance(mean, Iterable):
+    if isinstance(mean, Collection):
         if len(mean) != num_channels:
             raise ValueError(f"mean must have {num_channels} elements if it is an iterable, got {len(mean)}")
     else:
         mean = [mean] * num_channels
     mean = np.array(mean, dtype=image.dtype)
 
-    if isinstance(std, Iterable):
+    if isinstance(std, Collection):
         if len(std) != num_channels:
             raise ValueError(f"std must have {num_channels} elements if it is an iterable, got {len(std)}")
     else:
@@ -393,7 +440,7 @@ def normalize(
 
 def center_crop(
     image: np.ndarray,
-    size: Tuple[int, int],
+    size: tuple[int, int],
     data_format: Optional[Union[str, ChannelDimension]] = None,
     input_data_format: Optional[Union[str, ChannelDimension]] = None,
     return_numpy: Optional[bool] = None,
@@ -492,10 +539,10 @@ def center_crop(
 
 def _center_to_corners_format_mindspore(bboxes_center: "ms.Tensor") -> "ms.Tensor":
     center_x, center_y, width, height = bboxes_center.unbind(-1)
-    bbox_corners = ops.stack(
+    bbox_corners = mint.stack(
         # top left x, top left y, bottom right x, bottom right y
         [(center_x - 0.5 * width), (center_y - 0.5 * height), (center_x + 0.5 * width), (center_y + 0.5 * height)],
-        axis=-1,
+        dim=-1,
     )
     return bbox_corners
 
@@ -517,7 +564,7 @@ def center_to_corners_format(bboxes_center: TensorType) -> TensorType:
 
     center format: contains the coordinate for the center of the box and its width, height dimensions
         (center_x, center_y, width, height)
-    corners format: contains the coodinates for the top-left and bottom-right corners of the box
+    corners format: contains the coordinates for the top-left and bottom-right corners of the box
         (top_left_x, top_left_y, bottom_right_x, bottom_right_y)
     """
     # Function is used during model forward pass, so we use the input framework if possible, without
@@ -538,7 +585,7 @@ def _corners_to_center_format_mindspore(bboxes_corners: "ms.Tensor") -> "ms.Tens
         (bottom_right_x - top_left_x),  # width
         (bottom_right_y - top_left_y),  # height
     ]
-    return ops.stack(b, axis=-1)
+    return mint.stack(b, dim=-1)
 
 
 def _corners_to_center_format_numpy(bboxes_corners: np.ndarray) -> np.ndarray:
@@ -619,7 +666,7 @@ class PaddingMode(ExplicitEnum):
 
 def pad(
     image: np.ndarray,
-    padding: Union[int, Tuple[int, int], Iterable[Tuple[int, int]]],
+    padding: Union[int, tuple[int, int], Iterable[tuple[int, int]]],
     mode: PaddingMode = PaddingMode.CONSTANT,
     constant_values: Union[float, Iterable[float]] = 0.0,
     data_format: Optional[Union[str, ChannelDimension]] = None,
@@ -768,32 +815,37 @@ def _cast_tensor_to_float(x):
     return x.float()
 
 
-class FusedRescaleNormalize:
+def group_images_by_shape(
+    images: list["ms.Tensor"],
+) -> tuple[dict[tuple[int, int], list["ms.Tensor"]], dict[int, tuple[tuple[int, int], int]]]:
     """
-    Rescale and normalize the input image in one step.
+    Groups images by shape.
+    Returns a dictionary with the shape as key and a list of images with that shape as value,
+    and a dictionary with the index of the image in the original list as key and the shape and index in the grouped list as value.
     """
+    grouped_images = {}
+    grouped_images_index = {}
+    for i, image in enumerate(images):
+        shape = image.shape[1:]
+        if shape not in grouped_images:
+            grouped_images[shape] = []
+        grouped_images[shape].append(image)
+        grouped_images_index[i] = (shape, len(grouped_images[shape]) - 1)
+    # stack images with the same shape
+    grouped_images = {shape: mint.stack(images, dim=0) for shape, images in grouped_images.items()}
+    return grouped_images, grouped_images_index
 
-    def __init__(self, mean, std, rescale_factor: float = 1.0, inplace: bool = False):
-        self.mean = ms.tensor(mean) * (1.0 / rescale_factor)
-        self.std = ms.tensor(std) * (1.0 / rescale_factor)
-        self.inplace = inplace
 
-    def __call__(self, image: "ms.Tensor"):
-        image = _cast_tensor_to_float(image)
-        return ops.normalize(image, self.mean, self.std, inplace=self.inplace)
-
-
-class Rescale:
+def reorder_images(
+    processed_images: dict[tuple[int, int], "ms.Tensor"], grouped_images_index: dict[int, tuple[int, int]]
+) -> list["ms.Tensor"]:
     """
-    Rescale the input image by rescale factor: image *= rescale_factor.
+    Reconstructs a list of images in the original order.
     """
-
-    def __init__(self, rescale_factor: float = 1.0):
-        self.rescale_factor = rescale_factor
-
-    def __call__(self, image: "ms.Tensor"):
-        image = image * self.rescale_factor
-        return image
+    return [
+        processed_images[grouped_images_index[i][0]][grouped_images_index[i][1]]
+        for i in range(len(grouped_images_index))
+    ]
 
 
 class NumpyToTensor:
@@ -802,4 +854,4 @@ class NumpyToTensor:
     """
 
     def __call__(self, image: np.ndarray):
-        return ms.tensor(image.transpose(2, 0, 1))
+        return ms.tensor(image.transpose(2, 0, 1)).contiguous()

@@ -23,15 +23,15 @@ latest state-of-the-art models, auto class, pipeline, agent, distributed and so 
 ## Quick Tour
 
 The following lines of code are an example that shows you how to download and use the pretrained models.
-Remember that the models are from `mindone.transformers`, and anything else is from 🤗 Transformers.
+Remember that the models are from `mindway.transformers`, and anything else is from 🤗 Transformers.
 
 ```diff
-+from mindspore import Tensor
++from mindspore import tensor
 
 # use tokenizer from 🤗 transformers
 from transformers import AutoTokenizer
 
-# replace model from 🤗 transformers to mindone.transformers
+# replace model from 🤗 transformers to mindway.transformers
 -from transformers import LlamaForCausalLM
 +from mindone.transformers import LlamaForCausalLM
 
@@ -46,7 +46,7 @@ inputs = tokenizer(
 +    return_tensors="np"
 )
 -outputs = model(**inputs)
-+outputs = model(Tensor(inputs.input_ids))
++outputs = model(tensor(inputs.input_ids))
 ```
 
 Then run text generation.
@@ -54,7 +54,7 @@ Then run text generation.
 ```diff
 generated_ids = model.generate(
 -    **inputs,
-+    input_ids=Tensor(inputs.input_ids),
++    input_ids=tensor(inputs.input_ids),
     max_new_tokens=30,
     use_cache=True,
     do_sample=False
@@ -95,7 +95,7 @@ We have tested the following pretrained weights from huggingface hub. Any other 
 - [laion/CLIP-ViT-bigG-14-laion2B-39B-b160k](https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k)
 
 ```python
-from mindspore import Tensor
+from mindspore import tensor
 from transformers import CLIPTokenizer
 from mindone.transformers import CLIPTextModel
 
@@ -104,58 +104,7 @@ model = CLIPTextModel.from_pretrained(MODEL_NAME)
 tokenizer = CLIPTokenizer.from_pretrained(MODEL_NAME)
 
 text_inputs = tokenizer(["a photo of a cat", "a photo of a dog"], padding=True, return_tensors="np")
-text_outputs = model(Tensor(text_inputs.input_ids))
-```
-
-#### Stable Diffusion 2.1
-
-[stabilityai/stable-diffusion-2-1](https://huggingface.co/stabilityai/stable-diffusion-2-1) is a model that can be used to generate and modify images based on text prompts.
-It is a [Latent Diffusion Model](https://arxiv.org/abs/2112.10752) that uses a fixed, pretrained text encoder ([OpenCLIP-ViT/H](https://github.com/mlfoundations/open_clip)).
-
-```python
-from mindspore import Tensor
-from transformers import CLIPTokenizer
-from mindone.transformers import CLIPTextModel
-
-MODEL_NAME="stabilityai/stable-diffusion-2-1"
-tokenizer = CLIPTokenizer.from_pretrained(MODEL_NAME, subfolder="tokenizer")
-text_encoder = CLIPTextModel.from_pretrained(MODEL_NAME, subfolder="text_encoder")
-text_inputs = tokenizer(
-    ["a photo of a cat", "a photo of a dog"],
-    max_length=tokenizer.model_max_length,
-    padding="max_length",
-    truncation=True,
-    return_tensors="np",
-)
-encoder_hidden_states = text_encoder(Tensor(text_inputs.input_ids))[0]
-```
-
-#### Stable Diffusion XL
-
-[stabilityai/stable-diffusion-xl-base-1.0](https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0) is a model that can be used to generate and modify images based on text prompts.
-It is a [Latent Diffusion Model](https://arxiv.org/abs/2112.10752) that uses two fixed, pretrained text encoders ([OpenCLIP-ViT/G](https://github.com/mlfoundations/open_clip) and [CLIP-ViT/L](https://github.com/openai/CLIP)).
-
-```python
-from mindspore import Tensor
-from transformers import AutoTokenizer
-from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
-
-MODEL_NAME = "stabilityai/stable-diffusion-xl-base-1.0"
-tokenizer_one = AutoTokenizer.from_pretrained(MODEL_NAME, subfolder="tokenizer", use_fast=False)
-tokenizer_two = AutoTokenizer.from_pretrained(MODEL_NAME, subfolder="tokenizer_2", use_fast=False)
-text_encoder_one = CLIPTextModel.from_pretrained(MODEL_NAME, subfolder="text_encoder")
-text_encoder_two = CLIPTextModelWithProjection.from_pretrained(MODEL_NAME, subfolder="text_encoder_2")
-
-for tokenizer, text_encoder in zip([tokenizer_one, tokenizer_two], [text_encoder_one, text_encoder_two]):
-    text_inputs = tokenizer(
-        ["a photo of a cat", "a photo of a dog"],
-        padding="max_length",
-        max_length=tokenizer.model_max_length,
-        truncation=True,
-        return_tensors="np",
-    )
-    text_input_ids = text_inputs.input_ids
-    prompt_embeds = text_encoder(Tensor(text_input_ids), output_hidden_states=True)
+text_outputs = model(tensor(text_inputs.input_ids))
 ```
 
 ### T5
@@ -171,7 +120,7 @@ We have tested the following pretrained weights from huggingface hub. Any other 
 It can be used as an encoder-decoder architecture `T5Model`, or just the encoder part `T5Model.encoder`.
 
 ```python
-from mindspore import Tensor
+from mindspore import tensor
 from transformers import AutoTokenizer
 from mindone.transformers import T5Model
 
@@ -179,16 +128,16 @@ tokenizer = AutoTokenizer.from_pretrained("google-t5/t5-small")
 model = T5Model.from_pretrained("google-t5/t5-small")
 
 input_ids = tokenizer(
-     "Studies have been shown that owning a dog is good for you", return_tensors="np"
+    "Studies have been shown that owning a dog is good for you", return_tensors="np"
 ).input_ids  # Batch size 1
 decoder_input_ids = tokenizer("Studies show that", return_tensors="np").input_ids  # Batch size 1
 
 # preprocess: Prepend decoder_input_ids with start token which is pad token for T5Model.
 # This is not needed for T5ForConditionalGeneration as it does this internally using labels arg.
-decoder_input_ids = model._shift_right(Tensor(decoder_input_ids))
+decoder_input_ids = model._shift_right(tensor(decoder_input_ids))
 
 # forward pass
-outputs = model(input_ids=Tensor(input_ids), decoder_input_ids=decoder_input_ids)
+outputs = model(input_ids=tensor(input_ids), decoder_input_ids=decoder_input_ids)
 last_hidden_states = outputs[0]
 encoder_outputs = outputs[1]
 ```
@@ -198,16 +147,16 @@ encoder_outputs = outputs[1]
 [DeepFloyd/t5-v1_1-xxl](https://huggingface.co/DeepFloyd/t5-v1_1-xxl) is an instance of `T5EncoderModel`, which only has the encoder part.
 
 ```python
-from mindspore import Tensor
+from mindspore import tensor
 from transformers import AutoTokenizer
 from mindone.transformers import T5EncoderModel
 
 tokenizer = AutoTokenizer.from_pretrained("DeepFloyd/t5-v1_1-xxl", revision="refs/pr/3")
 model = T5EncoderModel.from_pretrained("DeepFloyd/t5-v1_1-xxl", revision="refs/pr/3")
 input_ids = tokenizer(
-     "Studies have been shown that owning a dog is good for you", return_tensors="np"
+    "Studies have been shown that owning a dog is good for you", return_tensors="np"
 ).input_ids  # Batch size 1
-outputs = model(input_ids=Tensor(input_ids))
+outputs = model(input_ids=tensor(input_ids))
 encoder_outputs = outputs
 ```
 
@@ -216,7 +165,7 @@ encoder_outputs = outputs
 If you already know T5, [google/flan-t5-large](https://huggingface.co/google/flan-t5-large) is just better at everything. For the same number of parameters, these models have been fine-tuned on more than 1000 additional tasks covering also more languages.
 
 ```python
-from mindspore import Tensor
+from mindspore import tensor
 from transformers import AutoTokenizer
 from mindone.transformers import T5ForConditionalGeneration
 
@@ -225,122 +174,9 @@ model = T5ForConditionalGeneration.from_pretrained("google/flan-t5-large")
 
 input_ids = tokenizer("The <extra_id_0> walks in <extra_id_1> park", return_tensors="np").input_ids
 labels = tokenizer("<extra_id_0> cute dog <extra_id_1> the <extra_id_2>", return_tensors="np").input_ids
-outputs = model(input_ids=Tensor(input_ids), labels=Tensor(labels))
+outputs = model(input_ids=tensor(input_ids), labels=tensor(labels))
 logits = outputs[0]
 encoder_outputs = outputs[1]
 ```
-
-</details>
-
-
-## Numerical Parity
-
-We compare the numerical parity with the [huggingface/transformer](https://github.com/huggingface/transformers), as detailed below:
-
-<details onclose>
-
-MindSpore 2.2/2.3 @ Ascend **_vs._** Pytorch 2.2 @ CPU(aarch64)
-
-Error Formula: `max(abs(ms-pt)) / mean(abs(pt))`
-
-### MindSpore 2.2.10
-
-- PyNative Mode, FP16
-
-| model                                          | diff   |
-|------------------------------------------------|--------|
-| openai/clip-vit-large-patch14                  | 0.0385 |
-| stabilityai/stable-diffusion-2-1               | 0.0272 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 0.0212 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 0.0233 |
-| google-t5/t5-small                             | 0.0488 |
-| DeepFloyd/t5-v1_1-xxl                          | 0.0480 |
-| google/flan-t5-large                           | 0.0032 |
-
-- PyNative Mode, FP32
-
-| model                                          | diff   |
-|------------------------------------------------|--------|
-| openai/clip-vit-large-patch14                  | 0.0062 |
-| stabilityai/stable-diffusion-2-1               | 0.0053 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 0.0030 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 0.0023 |
-| google-t5/t5-small                             | 0.0466 |
-| DeepFloyd/t5-v1_1-xxl                          | 0.0349 |
-| google/flan-t5-large                           | 0.0009 |
-
-- Graph Mode, FP16
-
-| model                                          | diff   |
-|------------------------------------------------|--------|
-| openai/clip-vit-large-patch14                  | 0.0385 |
-| stabilityai/stable-diffusion-2-1               | 0.0340 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 0.0151 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 0.0208 |
-| google-t5/t5-small                             | N.A.   |
-| DeepFloyd/t5-v1_1-xxl                          | N.A.   |
-| google/flan-t5-large                           | N.A.   |
-
-- Graph Mode, FP32
-
-| model                                          | diff   |
-|------------------------------------------------|--------|
-| openai/clip-vit-large-patch14                  | 0.0186 |
-| stabilityai/stable-diffusion-2-1               | 0.0084 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 0.0059 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 0.0039 |
-| google-t5/t5-small                             | N.A.   |
-| DeepFloyd/t5-v1_1-xxl                          | N.A.   |
-| google/flan-t5-large                           | N.A.   |
-
-### MindSpore 2.3
-
-- PyNative Mode, FP16
-
-| model                                          | diff   |
-|------------------------------------------------|--------|
-| openai/clip-vit-large-patch14                  | 0.0385 |
-| stabilityai/stable-diffusion-2-1               | 0.0272 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 0.0212 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 0.0233 |
-| google-t5/t5-small                             | 0.0636 |
-| DeepFloyd/t5-v1_1-xxl                          | 0.0426 |
-| google/flan-t5-large                           | 0.0025 |
-
-- PyNative Mode, FP32
-
-| model                                          | diff     |
-|------------------------------------------------|----------|
-| openai/clip-vit-large-patch14                  | 8.30E-05 |
-| stabilityai/stable-diffusion-2-1               | 3.28E-05 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 1.55E-05 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 1.38E-05 |
-| google-t5/t5-small                             | 6.72E-05 |
-| DeepFloyd/t5-v1_1-xxl                          | 1.40E-04 |
-| google/flan-t5-large                           | 4.55E-06 |
-
-- Graph Mode, FP16
-
-| model                                          | diff   |
-|------------------------------------------------|--------|
-| openai/clip-vit-large-patch14                  | 0.0385 |
-| stabilityai/stable-diffusion-2-1               | 0.0268 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 0.0151 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 0.0258 |
-| google-t5/t5-small                             | 0.0488 |
-| DeepFloyd/t5-v1_1-xxl                          | 0.0918 |
-| google/flan-t5-large                           | 0.0023 |
-
-- Graph Mode, FP32
-
-| model                                          | diff     |
-|------------------------------------------------|----------|
-| openai/clip-vit-large-patch14                  | 7.81E-05 |
-| stabilityai/stable-diffusion-2-1               | 3.16E-05 |
-| stabilityai/stable-diffusion-xl-base-1.0(H)    | 1.72E-05 |
-| stabilityai/stable-diffusion-xl-base-1.0(bigG) | 1.75E-05 |
-| google-t5/t5-small                             | 4.88E-05 |
-| DeepFloyd/t5-v1_1-xxl                          | 9.84E-05 |
-| google/flan-t5-large                           | 4.55E-06 |
 
 </details>
