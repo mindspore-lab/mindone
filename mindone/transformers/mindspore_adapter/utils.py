@@ -55,32 +55,12 @@ _DTYPE_2_MAX = {
 }
 
 
-_STRING_2_DTYPE = {
-    "float16": ms.float16,
-    "bfloat16": ms.bfloat16,
-    "float32": ms.float32,
-    "float64": ms.float64,
-    "uint8": ms.uint8,
-    "int8": ms.int8,
-    "int16": ms.int16,
-    "int32": ms.int32,
-    "int64": ms.int64,
-    "bool": ms.bool_,
-}
-
-
 def dtype_to_min(dtype):
-    if dtype in _DTYPE_2_MIN:
-        return _DTYPE_2_MIN[dtype]
-    else:
-        raise ValueError(f"Only support get minimum value of ({_DTYPE_2_MIN.keys()}), but got {dtype}")
+    return _DTYPE_2_MIN.get(dtype, "others dtype")
 
 
 def dtype_to_max(dtype):
-    if dtype in _DTYPE_2_MAX:
-        return _DTYPE_2_MAX[dtype]
-    else:
-        raise ValueError(f"Only support get maximum value of ({_DTYPE_2_MAX.keys()}), but got {dtype}")
+    return _DTYPE_2_MAX.get(dtype, "others dtype")
 
 
 def dtype_to_str(dtype):
