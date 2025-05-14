@@ -24,9 +24,9 @@ from transformers.utils import logging
 import mindspore as ms
 from mindspore import Parameter, nn, ops
 from mindspore.common.initializer import Constant, HeUniform, Normal, One, Uniform, Zero, initializer
+from mindspore.mint.nn import LayerNorm
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, L1Loss
 
-from ....diffusers.models.normalization import LayerNorm
 from ...activations import ACT2FN
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
 from ...modeling_outputs import (
