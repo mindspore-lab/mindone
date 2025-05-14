@@ -1,7 +1,10 @@
 """
 Cache utils.
 """
-from typing import Any, Dict, List, Optional, Tuple
+import copy
+import json
+import os
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from transformers.configuration_utils import PretrainedConfig
@@ -296,6 +299,102 @@ class StaticCache(Cache):
             # In-place ops prevent breaking the static address
             ops.assign(self.key_cache[layer_idx], ms.Tensor(0.0))
             ops.assign(self.value_cache[layer_idx], ms.Tensor(0.0))
+
+
+class CacheConfig:
+    """
+    Base class for cache configs
+    """
+
+    cache_implementation: None
+
+    @classmethod
+    def from_dict(cls, config_dict, **kwargs):
+        """
+        Constructs a CacheConfig instance from a dictionary of parameters.
+        Args:
+            config_dict (Dict[str, Any]): Dictionary containing configuration parameters.
+            **kwargs: Additional keyword arguments to override dictionary values.
+
+        Returns:
+            CacheConfig: Instance of CacheConfig constructed from the dictionary.
+        """
+        config = cls(**config_dict)
+        to_remove = []
+        for key, value in kwargs.items():
+            if hasattr(config, key):
+                setattr(config, key, value)
+                to_remove.append(key)
+        for key in to_remove:
+            kwargs.pop(key, None)
+        return config
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.to_json_file
+    def to_json_file(self, json_file_path: Union[str, os.PathLike]):
+        """
+        Save this instance to a JSON file.
+
+        Args:
+            json_file_path (`str` or `os.PathLike`):
+                Path to the JSON file in which this configuration instance's parameters will be saved.
+            use_diff (`bool`, *optional*, defaults to `True`):
+                If set to `True`, only the difference between the config instance and the default
+                `QuantizationConfig()` is serialized to JSON file.
+        """
+        with open(json_file_path, "w", encoding="utf-8") as writer:
+            config_dict = self.to_dict()
+            json_string = json.dumps(config_dict, indent=2, sort_keys=True) + "\n"
+
+            writer.write(json_string)
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.to_dict
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serializes this instance to a Python dictionary. Returns:
+            `Dict[str, Any]`: Dictionary of all the attributes that make up this configuration instance.
+        """
+        return copy.deepcopy(self.__dict__)
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.__iter__
+    def __iter__(self):
+        """allows `dict(obj)` for situations where obj may be a dict or QuantizationConfigMixin"""
+        for attr, value in copy.deepcopy(self.__dict__).items():
+            yield attr, value
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.__repr__
+    def __repr__(self):
+        return f"{self.__class__.__name__} {self.to_json_string()}"
+
+    def to_json_string(self):
+        """
+        Serializes this instance to a JSON formatted string.
+        Returns:
+            str: JSON formatted string representing the configuration instance.
+        """
+        return json.dumps(self.__dict__, indent=2) + "\n"
+
+    # Copied from transformers.utils.quantization_config.QuantizationConfigMixin.update
+    def update(self, **kwargs):
+        """
+        Updates attributes of this class instance with attributes from `kwargs` if they match existing attributes,
+        returning all the unused kwargs.
+
+        Args:
+            kwargs (`Dict[str, Any]`):
+                Dictionary of attributes to tentatively update this class.
+
+        Returns:
+            `Dict[str, Any]`: Dictionary containing all the key-value pairs that were not used to update the instance.
+        """
+        to_remove = []
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+                to_remove.append(key)
+
+        # Remove all the attributes that were updated, without modifying the input dict
+        unused_kwargs = {key: value for key, value in kwargs.items() if key not in to_remove}
+        return unused_kwargs
 
 
 class DynamicCache(Cache):
