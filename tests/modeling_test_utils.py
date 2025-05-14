@@ -148,6 +148,10 @@ def convert_state_dict(m, state_dict_pt):
 
 
 def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
+    # set seed for reproducibility
+    torch.manual_seed(42)
+    ms.set_seed(42)
+
     ms_dtype = pt_dtype = dtype
 
     pt_path, pt_cls_name = pt_module.rsplit(".", 1)
