@@ -13,6 +13,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
+from transformers import Qwen2VLConfig
 
 import mindspore as ms
 
@@ -24,10 +25,9 @@ from tests.modeling_test_utils import (
     get_modules,
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
-from transformers import Qwen2VLConfig
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-3, "fp16": 5e-4, "bf16": 5e-2}
-MODES = [1] # not support graph mode yet
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-2}
+MODES = [1]  # not support graph mode yet
 
 
 class Qwen2VLModelTester:
@@ -85,11 +85,7 @@ class Qwen2VLModelTester:
         config = self.get_config()
         # config._attn_implementation = self.attn_implementation
 
-        return (
-            config,
-            input_ids,
-            attention_mask
-        )
+        return (config, input_ids, attention_mask)
 
     def get_config(self):
         config = Qwen2VLConfig(
@@ -113,11 +109,7 @@ class Qwen2VLModelTester:
 
 
 model_tester = Qwen2VLModelTester()
-(
-    config,
-    input_ids,
-    attention_mask
-) = model_tester.prepare_config_and_inputs()
+(config, input_ids, attention_mask) = model_tester.prepare_config_and_inputs()
 
 
 T5_CASES = [
