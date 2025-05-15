@@ -36,7 +36,7 @@ dependencies = [
     "mindcv==0.3.0",
     "huggingface-hub>=0.20.2",
     "safetensors>=0.3.1",
-    "transformers==4.46.3",
+    "transformers==4.51.0",
 ]
 
 [project.optional-dependencies]
