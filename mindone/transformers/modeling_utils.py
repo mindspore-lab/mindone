@@ -85,6 +85,15 @@ def _get_pt2ms_mappings(m):
             mappings[f"{name}.weight"] = f"{name}.weight", lambda x: ms.Parameter(
                 ops.expand_dims(x, axis=-2), name=x.name
             )
+            if "weight_norm_cell" in name:
+                ori_name = name.replace(".weight_norm_cell", "")
+                mappings[f"{ori_name}.weight_g"] = f"{ori_name}.weight_g", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.weight_v"] = f"{ori_name}.weight_v", lambda x: ms.Parameter(
+                    ops.expand_dims(x, axis=-2), name=x.name
+                )
+                mappings[f"{ori_name}.bias"] = f"{name}.bias", lambda x: x
         elif isinstance(cell, nn.Embedding):
             mappings[f"{name}.weight"] = f"{name}.embedding_table", lambda x: x
         elif isinstance(cell, (nn.BatchNorm2d, nn.LayerNorm, nn.GroupNorm)):
@@ -274,7 +283,7 @@ def load_state_dict(checkpoint_file: Union[str, os.PathLike]):
             # Check format of the archive
             with safe_open(checkpoint_file, framework="np") as f:
                 metadata = f.metadata()
-            if metadata.get("format") not in ["pt", "tf", "flax", "np"]:
+            if metadata is not None and metadata.get("format") not in ["pt", "tf", "flax", "np"]:
                 raise OSError(
                     f"The safetensors archive passed at {checkpoint_file} does not contain the valid metadata. Make sure "
                     "you save your model with the `save_pretrained` method."
@@ -879,8 +888,8 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         All context managers that the model should be initialized under go here.
 
         Args:
-            torch_dtype (`torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model under this dtype.
+            torch_dtype (str, *optional*):
+                Override the default torch_dtype and load the model under this dtype.
         """
         # when we init a model from within another model (e.g. VLMs) and dispatch on FA2
         # a warning is raised that dtype should be fp16. Since we never pass dtype from within
@@ -910,8 +919,13 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         model = cls(config, **kwargs)
 
+        # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
+
+            logger.info(
+                f"convert model:{model.__class__.__name__} parameters to mindspore_dtype {dtype_to_str(mindspore_dtype)}"
+            )
 
         return model
 
@@ -1234,6 +1248,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             old_embedding_dim,
         )
         new_embeddings.embedding_table.set_dtype(old_embeddings.embedding_table.dtype)
+        # initialize all new embeddings (in particular added tokens)
         self._init_weights(new_embeddings)
 
         # Copy token embeddings from the previous weights
@@ -1302,6 +1317,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             dtype=old_lm_head.weight.dtype,
         )
 
+        # initialize new lm head (in particular added tokens)
         self._init_weights(new_lm_head)
 
         num_tokens_to_copy = min(old_num_tokens, new_num_tokens)
@@ -2508,7 +2524,7 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             # loading checkpoint
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
-                state_dict = _convert_state_dict(model, state_dict, start_prefix)
+                state_dict = _convert_state_dict(model, state_dict, prefix)
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.
