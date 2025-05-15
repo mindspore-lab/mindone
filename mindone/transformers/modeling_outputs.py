@@ -205,6 +205,211 @@ class BaseModelOutputWithPastAndCrossAttentions(ModelOutput):
 
 
 @dataclass
+class MoEModelOutput(ModelOutput):
+    """
+    Base class for model's outputs, with potential hidden states and attentions.
+    Args:
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            Sequence of hidden-states at the output of the last layer of the model.
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
+        router_probs (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True`
+            and `config.add_router_probs=True` is passed or when `config.output_router_probs=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
+            Raw router probabilities that are computed by MoE routers, these terms are used to compute the auxiliary
+            loss and the z_loss for Mixture of Experts models.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    router_probs: Optional[Tuple[ms.Tensor]] = None
+
+
+@dataclass
+class MoEModelOutputWithPastAndCrossAttentions(ModelOutput):
+    """
+    Base class for model's outputs that may also contain a past key/values (to speed up sequential decoding) as well as
+    Mixture of Expert's router hidden states terms, to train a MoE model.
+    Args:
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            Sequence of hidden-states at the output of the last layer of the model.
+            If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
+            hidden_size)` is output.
+        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and optionally if
+            `config.is_encoder_decoder=True` 2 additional tensors of shape `(batch_size, num_heads,
+            encoder_sequence_length, embed_size_per_head)`.
+            Contains pre-computed hidden-states (key and values in the self-attention blocks and optionally if
+            `config.is_encoder_decoder=True` in the cross-attention blocks) that can be used (see `past_key_values`
+            input) to speed up sequential decoding.
+        hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+            Hidden-states of the model at the output of each layer plus the optional initial embedding outputs.
+        attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
+            heads.
+        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True`
+            and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
+            weighted average in the cross-attention heads.
+        router_probs (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True`
+            and `config.add_router_probs=True` is passed or when `config.output_router_probs=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
+            Raw router probabilities that are computed by MoE routers, these terms are used to compute the auxiliary
+            loss and the z_loss for Mixture of Experts models.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    router_probs: Optional[Tuple[ms.Tensor]] = None
+
+
+@dataclass
+class Seq2SeqMoEModelOutput(ModelOutput):
+    """
+    Base class for model encoder's outputs that also contains : pre-computed hidden states that can speed up sequential
+    decoding.
+    Args:
+        last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`):
+            Sequence of hidden-states at the output of the last layer of the decoder of the model.
+            If `past_key_values` is used only the last hidden-state of the sequences of shape `(batch_size, 1,
+            hidden_size)` is output.
+        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
+            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
+            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
+        decoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+            Hidden-states of the decoder at the output of each layer plus the optional initial embedding outputs.
+        decoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the decoder, after the attention softmax, used to compute the weighted average in the
+            self-attention heads.
+        decoder_router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_logits=True` is passed or when `config.add_router_probs=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
+            Router logits of the decoder model, useful to compute the auxiliary loss for Mixture of Experts models.
+        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
+            weighted average in the cross-attention heads.
+        encoder_last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+            Sequence of hidden-states at the output of the last layer of the encoder of the model.
+        encoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+            Hidden-states of the encoder at the output of each layer plus the optional initial embedding outputs.
+        encoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
+            self-attention heads.
+        encoder_router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_logits=True` is passed or when `config.add_router_probs=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
+            Router logits of the encoder model, useful to compute the auxiliary loss and the z_loss for the sparse
+            modules.
+    """
+
+    last_hidden_state: ms.Tensor = None
+    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    decoder_router_logits: Optional[Tuple[ms.Tensor]] = None
+    cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    encoder_last_hidden_state: Optional[ms.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    encoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    encoder_router_logits: Optional[Tuple[ms.Tensor]] = None
+
+
+@dataclass
+class Seq2SeqMoEOutput(ModelOutput):
+    """
+    Base class for sequence-to-sequence language models outputs.
+    Args:
+        loss (`ms.Tensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
+            Language modeling loss.
+        logits (`ms.Tensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
+            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
+        past_key_values (`tuple(tuple(ms.Tensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
+            Tuple of `tuple(ms.Tensor)` of length `config.n_layers`, with each tuple having 2 tensors of shape
+            `(batch_size, num_heads, sequence_length, embed_size_per_head)`) and 2 additional tensors of shape
+            `(batch_size, num_heads, encoder_sequence_length, embed_size_per_head)`.
+            Contains pre-computed hidden-states (key and values in the self-attention blocks and in the cross-attention
+            blocks) that can be used (see `past_key_values` input) to speed up sequential decoding.
+        decoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+            Hidden-states of the decoder at the output of each layer plus the initial embedding outputs.
+        decoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the decoder, after the attention softmax, used to compute the weighted average in the
+            self-attention heads.
+        decoder_router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_logits=True` is passed or when `config.add_router_probs=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
+            Router logits of the decoder model, useful to compute the auxiliary loss for Mixture of Experts models.
+        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
+            weighted average in the cross-attention heads.
+        encoder_last_hidden_state (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
+            Sequence of hidden-states at the output of the last layer of the encoder of the model.
+        encoder_hidden_states (`tuple(ms.Tensor)`, *optional*, returned when `output_hidden_states=True` is passed or when `config.output_hidden_states=True`):
+            Tuple of `ms.Tensor` (one for the output of the embeddings, if the model has an embedding layer, +
+            one for the output of each layer) of shape `(batch_size, sequence_length, hidden_size)`.
+            Hidden-states of the encoder at the output of each layer plus the initial embedding outputs.
+        encoder_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` is passed or when `config.output_attentions=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
+            sequence_length)`.
+            Attentions weights of the encoder, after the attention softmax, used to compute the weighted average in the
+            self-attention heads.
+        encoder_router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_logits=True` is passed or when `config.add_router_probs=True`):
+            Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
+            Router logits of the encoder model, useful to compute the auxiliary loss and z_loss for Mixture of Experts
+            models.
+    """
+
+    loss: Optional[ms.Tensor] = None
+    logits: ms.Tensor = None
+    encoder_z_loss: ms.Tensor = None
+    decoder_z_loss: ms.Tensor = None
+    encoder_aux_loss: ms.Tensor = None
+    decoder_aux_loss: ms.Tensor = None
+    past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None
+    decoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    decoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    decoder_router_logits: Optional[Tuple[ms.Tensor]] = None
+    cross_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    encoder_last_hidden_state: Optional[ms.Tensor] = None
+    encoder_hidden_states: Optional[Tuple[ms.Tensor, ...]] = None
+    encoder_attentions: Optional[Tuple[ms.Tensor, ...]] = None
+    encoder_router_logits: Optional[Tuple[ms.Tensor]] = None
+
+
+@dataclass
 class Seq2SeqModelOutput(ModelOutput):
     """
     Base class for model encoder's outputs that also contains : pre-computed hidden states that can speed up sequential
