@@ -5,7 +5,7 @@ Usage:
 EXP_NAME=T2I-SFT
 python emu3/train/ckpt_combine.py \
     --checkpoint_dir outputs/parallel_logs/${EXP_NAME} \
-        --ckpt_name emu3-e50.ckpt \
+        --ckpt_name emu3-e5.ckpt \
         --params_info_dir params_info \
         --group_size 8
 """

@@ -31,6 +31,7 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
         new_layer_key_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
         new_layer_value_cache = ms.Tensor(np.zeros(cache_shape), dtype=dtype)
         key_value_cache += [(new_layer_key_cache, new_layer_value_cache)]
+    key_value_cache = tuple(key_value_cache)
 
     return key_value_cache
 
@@ -176,8 +177,10 @@ class Cache(nn.Cell):
     def reorder_cache(self, beam_idx: ms.Tensor):
         """Reorders the cache for beam search, given the selected beam indices."""
         for layer_idx in range(len(self.key_cache)):
-            self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx)
-            self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx)
+            if self.key_cache[layer_idx] != []:
+                self.key_cache[layer_idx] = self.key_cache[layer_idx].index_select(0, beam_idx)
+            if self.value_cache[layer_idx] != []:
+                self.value_cache[layer_idx] = self.value_cache[layer_idx].index_select(0, beam_idx)
 
     @property
     def seen_tokens(self):
@@ -202,6 +205,8 @@ class StaticCache(Cache):
             The default `dtype` to use when initializing the layer.
     """
 
+    is_compileable = True
+
     def __init__(self, config: PretrainedConfig, max_batch_size: int, max_cache_len: int, dtype=None) -> None:
         super().__init__()
         self.max_batch_size = max_batch_size
@@ -213,7 +218,9 @@ class StaticCache(Cache):
 
         self.dtype = dtype if dtype is not None else ms.float32
         self.num_key_value_heads = (
-            config.num_attention_heads if config.num_key_value_heads is None else config.num_key_value_heads
+            config.num_attention_heads
+            if getattr(config, "num_key_value_heads", None) is None
+            else config.num_key_value_heads
         )
 
         key_cache: List[ms.Parameter] = []
@@ -266,12 +273,12 @@ class StaticCache(Cache):
         k_out = self.key_cache[layer_idx]
         v_out = self.value_cache[layer_idx]
 
-        k_out[:, :, cache_position] = key_states
-        v_out[:, :, cache_position] = value_states
-
-        # update to self.key_cache?
-        self.key_cache[layer_idx] = k_out
-        self.value_cache[layer_idx] = v_out
+        if cache_position is None:
+            k_out.copy_(key_states)
+            v_out.copy_(value_states)
+        else:
+            k_out[:, :, cache_position] = key_states
+            v_out[:, :, cache_position] = value_states
 
         return k_out, v_out
 
@@ -399,6 +406,9 @@ class DynamicCache(Cache):
     """
 
     def __init__(self, num_hidden_layers: Optional[int] = None) -> None:
+        # in hf transformers there is no `num_hidden_layers` but `_distributed_cache_data`
+        # it was originally added for compatibility with `torch.distributed` (DDP). See #36121
+        # in mindspore there is no DDP, so we keep `num_hidden_layers`
         super().__init__()
         if num_hidden_layers is None:
             self.key_cache: List[ms.Tensor] = []
@@ -462,11 +472,15 @@ class DynamicCache(Cache):
 
         # Update the cache
         if len(self.key_cache) <= layer_idx:
+            # There may be skipped layers, fill them with empty lists
+            for _ in range(len(self.key_cache), layer_idx):
+                self.key_cache.append([])
+                self.value_cache.append([])
             self.key_cache.append(key_states)
             self.value_cache.append(value_states)
         # content on layer cache can be a tensor and checking not tensor causes errors
         # so we explicitly check for the empty list
-        elif self.key_cache[layer_idx] == []:
+        elif len(self.key_cache[layer_idx]) == 0:
             self.key_cache[layer_idx] = key_states
             self.value_cache[layer_idx] = value_states
         else:
@@ -558,4 +572,10 @@ class DynamicCache(Cache):
 
 class EncoderDecoderCache(Cache):
     def __init__(self):
+        raise NotImplementedError
+
+
+class SlidingWindowCache(Cache):
+    def __init__(self):
+        super(SlidingWindowCache, self).__init__()
         raise NotImplementedError
