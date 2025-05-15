@@ -125,6 +125,7 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.myt5 import MyT5Tokenizer
 from .models.phi3 import (
     Phi3ForCausalLM,
     Phi3ForSequenceClassification,
@@ -156,6 +157,14 @@ from .models.speecht5 import (
     SpeechT5HifiGan,
     SpeechT5Model,
     SpeechT5PreTrainedModel,
+)
+from .models.switch_transformers import (
+    SwitchTransformersEncoderModel,
+    SwitchTransformersForConditionalGeneration,
+    SwitchTransformersModel,
+    SwitchTransformersPreTrainedModel,
+    SwitchTransformersSparseMLP,
+    SwitchTransformersTop1Router,
 )
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
