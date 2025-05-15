@@ -1383,10 +1383,6 @@ class UniDiffuserPipeline(DiffusionPipeline):
             do_denormalize = [True] * image.shape[0]
             image = self.image_processor.postprocess(image, output_type=output_type, do_denormalize=do_denormalize)
 
-        # Offload last model to CPU
-        if hasattr(self, "final_offload_hook") and self.final_offload_hook is not None:
-            self.final_offload_hook.offload()
-
         if not return_dict:
             return (image, text)
 
