@@ -31,6 +31,7 @@ logger = logging.get_logger(__name__)
 CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
+        ("bart", "BartConfig"),
         ("bert", "BertConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
@@ -52,6 +53,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
 MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
+        ("bart", "BART"),
         ("bert", "BERT"),
         ("bit", "BiT"),
         ("blip-2", "BLIP-2"),
