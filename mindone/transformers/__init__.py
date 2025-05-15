@@ -116,6 +116,7 @@ from .models.levit import (
     LevitModel,
     LevitPreTrainedModel,
 )
+from .models.llada import LLaDAConfig, LLaDAModelLM
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.mt5 import (
