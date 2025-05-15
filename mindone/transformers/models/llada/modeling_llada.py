@@ -8,8 +8,6 @@ from abc import abstractmethod
 from dataclasses import fields
 from typing import Iterable, List, NamedTuple, Optional, Sequence, Tuple, Union, cast
 
-import numpy as np
-
 import mindspore as ms
 import mindspore.nn as nn
 import mindspore.ops as ops
@@ -18,6 +16,7 @@ from mindspore.common.initializer import Constant, HeNormal, Normal, TruncatedNo
 
 from mindone.transformers import MSPreTrainedModel
 from mindone.transformers.cache_utils import Cache
+from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
 from mindone.transformers.modeling_outputs import CausalLMOutputWithPast
 from mindone.transformers.models.auto import AutoModel
 from mindone.transformers.utils import is_flash_attn_2_available
@@ -74,18 +73,6 @@ class ModuleType(StrEnum):
     final_out = "final_out"
 
 
-DTYPE_FP16_MIN = float(np.finfo(np.float16).min)
-DTYPE_FP32_MIN = float(np.finfo(np.float32).min)
-DTYPE_FP16_MAX = float(np.finfo(np.float16).max)
-DTYPE_FP32_MAX = float(np.finfo(np.float32).max)
-
-DTYPE_MIN_MAX_MAPPINGS = {
-    ms.float16: {"min": DTYPE_FP16_MIN, "max": DTYPE_FP16_MAX},
-    ms.float32: {"min": DTYPE_FP32_MIN, "max": DTYPE_FP32_MAX},
-    ms.bfloat16: {"min": DTYPE_FP32_MIN, "max": DTYPE_FP32_MAX},
-}
-
-
 def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, dtype=None):
     # force dtype(fp16 or bf16) precision calculation
     ori_dtype = query.dtype
@@ -95,7 +82,7 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
     if attn_mask is not None:
         if attn_mask.dtype == ms.bool_:
             attn_mask = attn_mask.to(ms.float32)
-            attn_mask = attn_mask.masked_fill((1 - attn_mask).to(ms.bool_), DTYPE_MIN_MAX_MAPPINGS[ms.float16]["min"])
+            attn_mask = attn_mask.masked_fill((1 - attn_mask).to(ms.bool_), _DTYPE_2_MIN[ms.float16])
         attn_mask = attn_mask.to(query.dtype)
 
         attn_weight = mint.nn.functional.softmax(
@@ -109,9 +96,7 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
         if is_causal:
             # assert attn_mask is None
             temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
-            attn_bias = ops.masked_fill(
-                attn_bias, mint.logical_not(temp_mask), DTYPE_MIN_MAX_MAPPINGS[ms.float16]["min"]
-            )
+            attn_bias = ops.masked_fill(attn_bias, mint.logical_not(temp_mask), _DTYPE_2_MIN[ms.float16])
             attn_bias = attn_bias.to(query.dtype)
 
         attn_weight = mint.nn.functional.softmax(
@@ -229,9 +214,9 @@ def ensure_finite_(x: Tensor, check_neg_inf: bool = True, check_pos_inf: bool = 
     is ``True`` and to replace ``float("inf")`` with the maximum value of the dtype when ``check_pos_inf`` is ``True``.
     """
     if check_neg_inf:
-        x = ops.masked_fill(x, x == float("-inf"), DTYPE_MIN_MAX_MAPPINGS[x.dtype]["min"])
+        x = ops.masked_fill(x, x == float("-inf"), _DTYPE_2_MIN[x.dtype])
     if check_pos_inf:
-        x = ops.masked_fill(x, x == float("inf"), DTYPE_MIN_MAX_MAPPINGS[x.dtype]["max"])
+        x = ops.masked_fill(x, x == float("inf"), _DTYPE_2_MAX[x.dtype])
     return x
 
 
@@ -514,7 +499,7 @@ def causal_attention_bias(seq_len: int) -> Tensor:
         ops.ones((seq_len, seq_len), dtype=ms.float32),
         diagonal=1,
     )
-    att_bias = ops.masked_fill(att_bias, att_bias == 1, DTYPE_MIN_MAX_MAPPINGS[att_bias.dtype]["min"])
+    att_bias = ops.masked_fill(att_bias, att_bias == 1, _DTYPE_2_MIN[att_bias.dtype])
     return att_bias.view(1, 1, seq_len, seq_len)
 
 
@@ -1182,7 +1167,7 @@ class LLaDAModel(nn.Cell):
         if attention_mask is not None and 0.0 in attention_mask:
             # shape: (batch_size, 1, 1, seq_len)
             attention_mask = attention_mask.astype(ms.float32).view(batch_size, -1)[:, None, None, :]
-            attention_mask = (1.0 - attention_mask) * DTYPE_MIN_MAX_MAPPINGS[attention_mask.dtype]["min"]
+            attention_mask = (1.0 - attention_mask) * _DTYPE_2_MIN[attention_mask.dtype]
         else:
             attention_mask = None
 
@@ -1206,7 +1191,7 @@ class LLaDAModel(nn.Cell):
             elif attention_bias.dtype in (ms.int8, ms.bool_):
                 attention_bias = attention_bias.astype(ms.float32)
                 attention_bias = ops.masked_fill(
-                    attention_bias, attention_bias == 0.0, DTYPE_MIN_MAX_MAPPINGS[attention_bias.dtype]["min"]
+                    attention_bias, attention_bias == 0.0, _DTYPE_2_MIN[attention_bias.dtype]
                 )
 
             # Transform to the right shape and data type.
