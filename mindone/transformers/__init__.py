@@ -157,6 +157,14 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.switch_transformers import (
+    SwitchTransformersEncoderModel,
+    SwitchTransformersForConditionalGeneration,
+    SwitchTransformersModel,
+    SwitchTransformersPreTrainedModel,
+    SwitchTransformersSparseMLP,
+    SwitchTransformersTop1Router,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,

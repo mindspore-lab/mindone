@@ -24,6 +24,7 @@ from . import (
     qwen2_vl,
     qwen3,
     speecht5,
+    switch_transformers,
     t5,
     umt5,
     wav2vec2,
