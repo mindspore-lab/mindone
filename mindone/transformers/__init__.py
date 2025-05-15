@@ -164,6 +164,18 @@ from .models.t5 import (
     T5Model,
     T5PreTrainedModel,
 )
+from .models.megatron_bert import (
+    MegatronBertModel,
+    MegatronBertForCausalLM,
+    MegatronBertForMaskedLM,
+    MegatronBertForMultipleChoice,
+    MegatronBertForNextSentencePrediction,
+    MegatronBertForPreTraining,
+    MegatronBertForQuestionAnswering,
+    MegatronBertForSequenceClassification,
+    MegatronBertForTokenClassification,
+    MegatronBertPreTrainedModel,
+)
 from .models.umt5 import (
     UMT5EncoderModel,
     UMT5ForQuestionAnswering,
