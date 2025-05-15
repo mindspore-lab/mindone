@@ -170,7 +170,7 @@ class PixArt(nn.Cell):
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
         w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
         constant_(self.x_embedder.proj.bias, 0)
 
         # Initialize timestep embedding MLP:
@@ -345,7 +345,7 @@ class PixArtMS(PixArt):
         # Initialize patch_embed like nn.Linear (instead of nn.Conv2d):
         w = self.x_embedder.proj.weight.data
         w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
         constant_(self.x_embedder.proj.bias, 0)
 
         # Initialize timestep embedding MLP:
