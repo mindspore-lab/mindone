@@ -19,7 +19,7 @@ def ids_numpy(shape, vocab_size, rng=None, name=None):
 
     values = []
     for _ in range(total_dims):
-        values.append(rng.randint(0, vocab_size - 1))
+        values.append(rng.randint(1, vocab_size - 1))
 
     return np.array(values, dtype=np.int64).reshape(shape)
 
