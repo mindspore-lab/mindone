@@ -5,6 +5,7 @@ from . import (
     blip_2,
     clap,
     clip,
+    codegen,
     dpt,
     gemma,
     gemma2,
@@ -28,5 +29,4 @@ from . import (
     umt5,
     wav2vec2,
     xlm_roberta,
-    codegen,
 )
