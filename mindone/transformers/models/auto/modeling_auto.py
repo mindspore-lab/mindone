@@ -27,6 +27,7 @@ logger = logging.get_logger(__name__)
 MODEL_MAPPING_NAMES = OrderedDict(
     [
         # Base model mapping
+        ("albert", "AlbertModel"),
         ("bert", "BertModel"),
         ("bit", "BitModel"),
         ("blip-2", "Blip2Model"),
@@ -38,6 +39,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2Model"),
         ("gpt2", "GPT2Model"),
         ("llama", "LlamaModel"),
+        ("mobilebert", "MobileBertModel"),
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
@@ -47,8 +49,10 @@ MODEL_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
     [
         # Model for pre-training mapping
+        ("albert", "AlbertForPreTraining"),
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("mobilebert", "MobileBertForPreTraining"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -58,8 +62,10 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
 MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
     [
         # Model with LM heads mapping
+        ("albert", "AlbertForMaskedLM"),
         ("bert", "BertForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("mobilebert", "MobileBertForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -129,7 +135,9 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Masked LM mapping
+        ("albert", "AlbertForMaskedLM"),
         ("bert", "BertForMaskedLM"),
+        ("mobilebert", "MobileBertForMaskedLM"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
     ]
@@ -181,10 +189,12 @@ MODEL_FOR_SPEECH_SEQ_2_SEQ_MAPPING_NAMES = OrderedDict()
 MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Sequence Classification mapping
+        ("albert", "AlbertForSequenceClassification"),
         ("bert", "BertForSequenceClassification"),
         ("gemma", "GemmaForSequenceClassification"),
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
+        ("mobilebert", "MobileBertForSequenceClassification"),
         ("mt5", "MT5ForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
@@ -194,8 +204,10 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     [
         # Model for Question Answering mapping
+        ("albert", "AlbertForQuestionAnswering"),
         ("bert", "BertForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),
+        ("mobilebert", "MobileBertForQuestionAnswering"),
         ("t5", "T5ForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
@@ -211,7 +223,9 @@ MODEL_FOR_DOCUMENT_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict()
 MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Token Classification mapping
+        ("albert", "AlbertForTokenClassification"),
         ("bert", "BertForTokenClassification"),
+        ("mobilebert", "MobileBertForTokenClassification"),
         ("mt5", "MT5ForTokenClassification"),
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
@@ -222,7 +236,9 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Multiple Choice mapping
+        ("albert", "AlbertForMultipleChoice"),
         ("bert", "BertForMultipleChoice"),
+        ("mobilebert", "MobileBertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
     ]
 )
@@ -230,6 +246,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_NEXT_SENTENCE_PREDICTION_MAPPING_NAMES = OrderedDict(
     [
         ("bert", "BertForNextSentencePrediction"),
+        ("mobilebert", "MobileBertForNextSentencePrediction"),
     ]
 )
 
@@ -257,7 +274,9 @@ MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
     [
+        ("albert", "AlbertModel"),
         ("bert", "BertModel"),
+        ("mobilebert", "MobileBertModel"),
         ("mt5", "MT5EncoderModel"),
         ("t5", "T5EncoderModel"),
         ("umt5", "UMT5EncoderModel"),
