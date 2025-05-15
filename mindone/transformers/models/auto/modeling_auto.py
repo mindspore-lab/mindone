@@ -41,6 +41,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
+        ("codegen", "CodeGenModel"),
     ]
 )
 
@@ -78,6 +79,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2ForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
+        ("codegen", "CodeGenForCausalLM"),
     ]
 )
 
