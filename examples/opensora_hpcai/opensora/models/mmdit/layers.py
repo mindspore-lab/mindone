@@ -28,35 +28,31 @@ from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from ...acceleration import AlltoAll2 as AlltoAll
 from ...acceleration import get_sequence_parallel_group
-from .math import apply_rope, apply_rotary_pos_emb, liger_rope, rope
+from .math import LigerRoPE, RoPE, apply_rope, apply_rotary_pos_emb
 
 
 class EmbedND(nn.Cell):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super().__init__()
-        self.dim = dim
-        self.theta = theta
-        self.axes_dim = axes_dim
+        self._rope = RoPE(axes_dim, theta)
 
     def construct(self, ids: Tensor) -> Tensor:
         n_axes = ids.shape[-1]
-        emb = mint.cat([rope(ids[..., i], self.axes_dim[i], self.theta) for i in range(n_axes)], dim=-3)
+        emb = mint.cat([self._rope(ids[..., i], i) for i in range(n_axes)], dim=-3)
         return emb.unsqueeze(1)
 
 
 class LigerEmbedND(nn.Cell):
     def __init__(self, dim: int, theta: int, axes_dim: list[int]):
         super().__init__()
-        self.dim = dim
-        self.theta = theta
-        self.axes_dim = axes_dim
+        self._liger_rope = LigerRoPE(axes_dim, theta)
 
     def construct(self, ids: Tensor) -> tuple[Tensor, Tensor]:
         n_axes = ids.shape[-1]
         cos_list = []
         sin_list = []
         for i in range(n_axes):
-            cos, sin = liger_rope(ids[..., i], self.axes_dim[i], self.theta)
+            cos, sin = self._liger_rope(ids[..., i], i)
             cos_list.append(cos)
             sin_list.append(sin)
         cos_emb = mint.cat(cos_list, dim=-1).tile((1, 1, 2)).contiguous()

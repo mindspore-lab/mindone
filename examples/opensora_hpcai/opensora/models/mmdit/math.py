@@ -1,27 +1,28 @@
+import numpy as np
+
 from mindspore import Tensor
 from mindspore import dtype as mstype
-from mindspore import mint
+from mindspore import mint, nn, tensor
 
 
-def liger_rope(pos: Tensor, dim: int, theta: int) -> tuple[Tensor, Tensor]:
-    assert dim % 2 == 0
-    scale = mint.arange(0, dim, 2, dtype=mstype.float32) / dim
-    omega = 1.0 / (theta**scale)
-    out = pos[..., None] * omega  # (b, seq, dim//2)
-    cos = out.cos()
-    sin = out.sin()
+class RoPE(nn.Cell):
+    def __init__(self, dims: list[int], theta: int):
+        super().__init__()
+        assert all([dim % 2 == 0 for dim in dims])
+        scales = [np.arange(0, dim, 2, dtype=np.float32) / dim for dim in dims]
+        self._omegas = [tensor(1.0 / (theta**scale), dtype=mstype.float32) for scale in scales]
 
-    return cos, sin
+    def construct(self, pos: Tensor, i: int) -> Tensor:
+        out = pos[..., None] * self._omegas[i]
+        out = mint.stack([mint.cos(out), -mint.sin(out), mint.sin(out), mint.cos(out)], dim=-1)
+        out = out.reshape(*out.shape[:3], 2, 2)  # b n d (i j) -> b n d i j
+        return out
 
 
-def rope(pos: Tensor, dim: int, theta: int) -> Tensor:
-    assert dim % 2 == 0
-    scale = mint.arange(0, dim, 2, dtype=mstype.float64) / dim
-    omega = 1.0 / (theta**scale)
-    out = pos[..., None] * omega
-    out = mint.stack([mint.cos(out), -mint.sin(out), mint.sin(out), mint.cos(out)], dim=-1)
-    out = out.reshape(*out.shape[:3], 2, 2)  # b n d (i j) -> b n d i j
-    return out.to(mstype.float32)
+class LigerRoPE(RoPE):
+    def construct(self, pos: Tensor, i: int) -> tuple[Tensor, Tensor]:
+        out = pos[..., None] * self._omegas[i]
+        return mint.cos(out), mint.sin(out)
 
 
 def apply_rope(xq: Tensor, xk: Tensor, freqs_cis: Tensor) -> tuple[Tensor, Tensor]:
