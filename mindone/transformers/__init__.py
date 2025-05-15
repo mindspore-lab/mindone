@@ -29,6 +29,26 @@ from .models.bert import (
     BertModel,
     BertPreTrainedModel,
 )
+from .models.big_bird import (
+    BigBirdForCausalLM,
+    BigBirdForMaskedLM,
+    BigBirdForMultipleChoice,
+    BigBirdForPreTraining,
+    BigBirdForQuestionAnswering,
+    BigBirdForSequenceClassification,
+    BigBirdForTokenClassification,
+    BigBirdLayer,
+    BigBirdModel,
+    BigBirdPreTrainedModel,
+)
+from .models.bigbird_pegasus import (
+    BigBirdPegasusForCausalLM,
+    BigBirdPegasusForConditionalGeneration,
+    BigBirdPegasusForQuestionAnswering,
+    BigBirdPegasusForSequenceClassification,
+    BigBirdPegasusModel,
+    BigBirdPegasusPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
