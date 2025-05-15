@@ -9,6 +9,20 @@ All Code Llama model checkpoints can be found [here](https://huggingface.co/mode
 
 This model was contributed by [ArthurZucker](https://huggingface.co/ArthurZ). The original code can be found [here](https://github.com/facebookresearch/llama).
 
+## Checkpoints
+
+CodeLlama checkpoints are restricted. One need to authenticate with Hugging Face to download the checkpoints. We recommend using the following command to authenticate:
+
+```bash
+huggingface-cli login
+```
+Login with your HuggingFace access token with the correct permissions.
+
+Afterwards, you can download the checkpoints using the following command:
+```bash
+huggingface-cli download --resume-download meta-llama/CodeLlama-7b-hf
+```
+
 ## Examples
 
 Here's an example usage:
