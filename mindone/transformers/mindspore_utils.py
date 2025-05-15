@@ -237,6 +237,23 @@ def apply_chunking_to_forward(
 
     return forward_fn(*input_tensors)
 
+def isin_mps_friendly(elements: ms.Tensor, test_elements: ms.Tensor) -> ms.Tensor:
+    """
+    Same as `torch.isin` without flags, but MPS-friendly. We can remove this function when we stop supporting
+    torch <= 2.3. See https://github.com/pytorch/pytorch/issues/77764#issuecomment-2067838075
+
+    Args:
+        elements (`ms.Tensor`): Input elements
+        test_elements (`ms.Tensor` or `int`): The elements to check against.
+
+    Returns:
+        `ms.Tensor`: A boolean tensor of the same shape as `elements` that is True for `elements` in `test_elements`
+        and False otherwise
+    """
+    import numpy as np
+
+    # Note: don't use named arguments in `torch.isin`, see https://github.com/pytorch/pytorch/issues/126045
+    return ms.tensor(np.isin(elements.numpy(), test_elements.numpy()))
 
 def meshgrid(*tensors: ms.Tensor, indexing) -> tuple[ms.Tensor, ...]:
     """
