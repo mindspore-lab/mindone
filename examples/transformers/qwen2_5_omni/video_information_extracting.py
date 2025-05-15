@@ -10,7 +10,7 @@ import mindspore as ms
 from mindone.transformers import Qwen2_5OmniForConditionalGeneration
 from mindone.transformers.models.qwen2_5_omni import Qwen2_5OmniProcessor
 
-from .qwen_omni_utils import process_mm_info
+from qwen_omni_utils import process_mm_info
 
 
 # inference function
