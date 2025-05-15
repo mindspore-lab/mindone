@@ -97,7 +97,7 @@ LLAMA_CASES = [
     [
         "LlamaModel",
         "transformers.LlamaModel",
-        "mindway.transformers.LlamaModel",
+        "mindone.transformers.LlamaModel",
         (config,),
         {},
         (input_ids,),
