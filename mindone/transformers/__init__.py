@@ -109,7 +109,6 @@ from .models.imagegpt import (
     ImageGPTModel,
     ImageGPTPreTrainedModel,
 )
-from .models.kimi_vl import KimiVLConfig, KimiVLForConditionalGeneration, KimiVLPreTrainedModel
 from .models.levit import (
     LevitFeatureExtractor,
     LevitForImageClassification,

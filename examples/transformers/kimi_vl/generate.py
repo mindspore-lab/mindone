@@ -2,13 +2,12 @@ import os
 import ssl
 import urllib.request
 
+from kimi_vl import KimiVLConfig, KimiVLForConditionalGeneration
 from PIL import Image
 from transformers import AutoProcessor
 
 import mindspore as ms
 import mindspore.nn as nn
-
-from mindone.transformers import KimiVLConfig, KimiVLForConditionalGeneration
 
 DEBUG = False  # for debugging only
 MODEL_PATH = "moonshotai/Kimi-VL-A3B-Instruct"
