@@ -63,6 +63,7 @@ from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
+from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
@@ -462,7 +463,7 @@ class ModuleUtilsMixin:
             # Provided a padding mask of dimensions [batch_size, seq_length]
             # - if the model is a decoder, apply a causal mask in addition to the padding mask
             # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
-            if self.is_decoder:
+            if self.config.is_decoder:
                 extended_attention_mask = ModuleUtilsMixin.create_extended_attention_mask_for_decoder(
                     input_shape, attention_mask
                 )
@@ -854,6 +855,30 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if not hard_check_only:
             config._attn_implementation = "flash_attention_2"
         return config
+
+    @property
+    def loss_function(self):
+        if hasattr(self, "_loss_function"):
+            return self._loss_function
+
+    @loss_function.setter
+    def loss_function(self, value):
+        self._loss_function = value
+
+    @property
+    def loss_function(self):
+        if hasattr(self, "_loss_function"):
+            return self._loss_function
+
+        loss_type = getattr(self, "loss_type", None)
+
+        if loss_type is None or loss_type not in LOSS_MAPPING:
+            logger.warning_once(
+                f"`loss_type={loss_type}` was set in the config but it is unrecognised."
+                f"Using the default loss: `ForCausalLMLoss`."
+            )
+            loss_type = "ForCausalLM"
+        return LOSS_MAPPING[loss_type]
 
     @classmethod
     def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
