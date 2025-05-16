@@ -1604,7 +1604,7 @@ BIGBIRD_PEGASUS_GENERATION_EXAMPLE = r"""
     ```python
     >>> import mindspore as ms
     >>> from transformers import AutoTokenizer
-    >>> from mindway import BigBirdPegasusForConditionalGeneration
+    >>> from mindone import BigBirdPegasusForConditionalGeneration
     >>> model = BigBirdPegasusForConditionalGeneration.from_pretrained("google/bigbird-pegasus-large-arxiv")
     >>> tokenizer = AutoTokenizer.from_pretrained("google/bigbird-pegasus-large-arxiv")
     >>> ARTICLE_TO_SUMMARIZE = (
@@ -2905,7 +2905,7 @@ class BigBirdPegasusForCausalLM(BigBirdPegasusPreTrainedModel, GenerationMixin):
         ```python
         >>> import mindspore as ms
         >>> from transformers import AutoTokenizer
-        >>> from mindway import BigBirdPegasusForCausalLM
+        >>> from mindone import BigBirdPegasusForCausalLM
         >>> tokenizer = AutoTokenizer.from_pretrained("google/bigbird-pegasus-large-arxiv")
         >>> model = BigBirdPegasusForCausalLM.from_pretrained(
         ...     "google/bigbird-pegasus-large-arxiv", add_cross_attention=False

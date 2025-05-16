@@ -2271,7 +2271,7 @@ class BigBirdForPreTraining(BigBirdPreTrainedModel):
         Example:
         ```python
         >>> from transformers import AutoTokenizer
-        >>> from mindway import BigBirdForPreTraining
+        >>> from mindone import BigBirdForPreTraining
         >>> import mindspore
         >>> tokenizer = AutoTokenizer.from_pretrained("google/bigbird-roberta-base")
         >>> model = BigBirdForPreTraining.from_pretrained("google/bigbird-roberta-base")
@@ -2375,7 +2375,7 @@ class BigBirdForMaskedLM(BigBirdPreTrainedModel):
         >>> import mindspore as ms
         >>> from mindspore import mint
         >>> from transformers import AutoTokenizer
-        >>> from mindway import BigBirdForMaskedLM
+        >>> from mindone import BigBirdForMaskedLM
         >>> from datasets import load_dataset
         >>> tokenizer = AutoTokenizer.from_pretrained("google/bigbird-roberta-base")
         >>> model = BigBirdForMaskedLM.from_pretrained("google/bigbird-roberta-base")
@@ -2651,7 +2651,7 @@ class BigBirdForSequenceClassification(BigBirdPreTrainedModel):
         ```python
         >>> import mindspore as ms
         >>> from transformers import AutoTokenizer
-        >>> from mindway import BigBirdForSequenceClassification
+        >>> from mindone import BigBirdForSequenceClassification
         >>> from datasets import load_dataset
         >>> tokenizer = AutoTokenizer.from_pretrained("l-yohai/bigbird-roberta-base-mnli")
         >>> model = BigBirdForSequenceClassification.from_pretrained("l-yohai/bigbird-roberta-base-mnli")
@@ -2975,7 +2975,7 @@ class BigBirdForQuestionAnswering(BigBirdPreTrainedModel):
         ```python
         >>> import mindspore as ms
         >>> from transformers import AutoTokenizer
-        >>> from mindway import BigBirdForQuestionAnswering
+        >>> from mindone import BigBirdForQuestionAnswering
         >>> from datasets import load_dataset
         >>> tokenizer = AutoTokenizer.from_pretrained("google/bigbird-roberta-base")
         >>> model = BigBirdForQuestionAnswering.from_pretrained("google/bigbird-roberta-base")

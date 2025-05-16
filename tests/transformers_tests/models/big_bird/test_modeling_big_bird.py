@@ -24,7 +24,7 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.models.modeling_common import ids_numpy, random_attention_mask
+from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
@@ -156,7 +156,7 @@ BERT_CASES = [
     [
         "BigBirdForCausalLM",
         "transformers.BigBirdForCausalLM",
-        "mindway.transformers.BigBirdForCausalLM",
+        "mindone.transformers.BigBirdForCausalLM",
         (config,),
         {},
         (input_ids,),
@@ -173,7 +173,7 @@ BERT_CASES = [
     [
         "BigBirdForMaskedLM",
         "transformers.BigBirdForMaskedLM",
-        "mindway.transformers.BigBirdForMaskedLM",
+        "mindone.transformers.BigBirdForMaskedLM",
         (config,),
         {},
         (input_ids,),
@@ -190,7 +190,7 @@ BERT_CASES = [
     [
         "BigBirdForMultipleChoice",
         "transformers.BigBirdForMultipleChoice",
-        "mindway.transformers.BigBirdForMultipleChoice",
+        "mindone.transformers.BigBirdForMultipleChoice",
         (config,),
         {},
         (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
@@ -207,7 +207,7 @@ BERT_CASES = [
     [
         "BigBirdForQuestionAnswering",
         "transformers.BigBirdForQuestionAnswering",
-        "mindway.transformers.BigBirdForQuestionAnswering",
+        "mindone.transformers.BigBirdForQuestionAnswering",
         (config,),
         {},
         (input_ids,),
@@ -226,7 +226,7 @@ BERT_CASES = [
     [
         "BigBirdForSequenceClassification",
         "transformers.BigBirdForSequenceClassification",
-        "mindway.transformers.BigBirdForSequenceClassification",
+        "mindone.transformers.BigBirdForSequenceClassification",
         (config,),
         {},
         (input_ids,),
@@ -243,7 +243,7 @@ BERT_CASES = [
     [
         "BigBirdModel",
         "transformers.BigBirdModel",
-        "mindway.transformers.BigBirdModel",
+        "mindone.transformers.BigBirdModel",
         (config,),
         {},
         (input_ids,),
