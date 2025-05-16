@@ -67,6 +67,7 @@ def update(
     key_states: ms.Tensor,
     value_states: ms.Tensor,
     cache_position: Optional[ms.Tensor] = None,
+    dynamic: bool = False,
 ) -> Tuple[ms.Tensor, ms.Tensor]:
     """
     Notes: Only return the updated value, do not modifying the original `past_key_value` in-place !
@@ -89,6 +90,13 @@ def update(
     """
     k_out, v_out = past_key_value[0], past_key_value[1]
 
+    if dynamic:
+        if len(k_out) == 0:  # first time, prefill the cache
+            return key_states, value_states
+        k_out = ops.cat((k_out, key_states), axis=-2)
+        v_out = ops.cat((v_out, value_states), axis=-2)
+        return k_out, v_out
+
     k_out = ops.select(
         (ops.arange(k_out.shape[2]) == cache_position)[None, None, :, None],
         key_states,
@@ -103,11 +111,15 @@ def update(
     return k_out, v_out
 
 
-def get_seq_length(past_key_values, layer_idx: Optional[int] = 0) -> int:
+def get_seq_length(past_key_values, layer_idx: Optional[int] = 0, dynamic=False) -> int:
     """Returns the sequence length of the cached states that were seen by the model."""
     # Occupied cache == any slot in the 3rd dim (sequence length) holds a non-zero value. To save on compute, let's
     # limit the check to the first batch member and head dimension.
     # TODO: deprecate this function in favor of `cache_position`
+    if dynamic:
+        if len(past_key_values[layer_idx][0]) == 0:
+            return 0
+        return past_key_values[layer_idx][0].shape[-2]
     return (past_key_values[layer_idx][0][0, 0].any(axis=-1)).sum()
 
 
