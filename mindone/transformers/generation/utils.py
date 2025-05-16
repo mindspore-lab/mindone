@@ -665,8 +665,8 @@ class GenerationMixin:
             return model_kwargs
 
         past_length = 0
-        cache = model_kwargs.get("past_key_values")
-        if cache is not None:
+        if model_kwargs.get("past_key_values") is not None:
+            cache = model_kwargs["past_key_values"]
             if isinstance(cache, Tuple):
                 past_length = get_seq_length(cache)
             elif hasattr(cache, "get_seq_length") and cache.get_seq_length() is not None:
@@ -1687,14 +1687,14 @@ class GenerationMixin:
         # Use DynamicCache instance by default. This will avoid back and forth from legacy format that
         # keeps copying the cache thus using much more memory
         elif (
-                generation_config.cache_implementation is None
-                and self._supports_default_dynamic_cache()
-                and model_kwargs.get("use_cache", False)
+            generation_config.cache_implementation is None
+            and self._supports_default_dynamic_cache()
+            and model_kwargs.get("use_cache", False)
         ):
             past = model_kwargs.get(cache_name, None)
 
             requires_cross_attention_cache = (
-                    self.config.is_encoder_decoder or model_kwargs.get("encoder_outputs") is not None
+                self.config.is_encoder_decoder or model_kwargs.get("encoder_outputs") is not None
             )
             if past is None:
                 model_kwargs[cache_name] = (
@@ -1713,9 +1713,9 @@ class GenerationMixin:
 
         # Use static tuple cache by default.
         elif (
-                generation_config.cache_implementation is None
-                and not self._supports_default_dynamic_cache()
-                and model_kwargs.get("use_cache", False)
+            generation_config.cache_implementation is None
+            and not self._supports_default_dynamic_cache()
+            and model_kwargs.get("use_cache", False)
         ):
             past = model_kwargs.get(cache_name, None)
             max_batch_size, max_cache_len, cache_dtype = (
