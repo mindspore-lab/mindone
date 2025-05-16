@@ -19,11 +19,21 @@ import math
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+from transformers.models.bigbird_pegasus.configuration_bigbird_pegasus import BigBirdPegasusConfig
+from transformers.utils import (
+    add_code_sample_docstrings,
+    add_end_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
 import mindspore as ms
 from mindspore import mint, nn
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_adapter import dtype_to_max
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask, _prepare_4d_causal_attention_mask
 from ...modeling_outputs import (
     BaseModelOutput,
@@ -35,16 +45,6 @@ from ...modeling_outputs import (
     Seq2SeqSequenceClassifierOutput,
 )
 from ...modeling_utils import MSPreTrainedModel
-from transformers.utils import (
-    add_code_sample_docstrings,
-    add_end_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from ...mindspore_adapter import dtype_to_max
-from transformers.models.bigbird_pegasus.configuration_bigbird_pegasus import BigBirdPegasusConfig
 
 
 logger = logging.get_logger(__name__)
@@ -81,9 +81,7 @@ class BigBirdPegasusLearnedPositionalEmbedding(mint.nn.Embedding):
     def construct(self, input_ids_shape, past_key_values_length: int = 0):
         """`input_ids_shape` is expected to be [bsz x seqlen]."""
         bsz, seq_len = input_ids_shape[:2]
-        positions = mint.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=ms.int64
-        )
+        positions = mint.arange(past_key_values_length, past_key_values_length + seq_len, dtype=ms.int64)
         return super().construct(positions)
 
 
@@ -585,7 +583,9 @@ class BigBirdPegasusBlockSparseAttention(nn.Cell):
         )  # [bsz, n_heads, (4+r)*to_block_size, -1]
 
         # [bsz, n_heads, from_block_size, -1] x [bsz, n_heads, (4+n_rand_blocks)*to_block_size, -1] ==> [bsz, n_heads, from_block_size, (4+n_rand_blocks)*to_block_size]
-        second_last_product = self.minsdpore_bmm_nd_transpose(blocked_query_matrix[:, :, -2], second_last_key_mat, ndim=4)
+        second_last_product = self.minsdpore_bmm_nd_transpose(
+            blocked_query_matrix[:, :, -2], second_last_key_mat, ndim=4
+        )
         second_last_seq_pad = mint.cat(
             [
                 to_mask[:, :, :, :to_block_size],
@@ -636,9 +636,7 @@ class BigBirdPegasusBlockSparseAttention(nn.Cell):
         # this is just for visualizing; construct pass doesn't depend on following code
         if output_attentions:
             # TODO(PVP): need to verify if below code is correct
-            attention_probs = mint.zeros(
-                bsz, n_heads, from_seq_len, to_seq_len, dtype=ms.float32
-            )
+            attention_probs = mint.zeros(bsz, n_heads, from_seq_len, to_seq_len, dtype=ms.float32)
 
             # 1st query block
             # corresponding to `first_context_layer`
@@ -689,11 +687,15 @@ class BigBirdPegasusBlockSparseAttention(nn.Cell):
             # global keys (corresponding to 1st key block)
             attention_probs[:, :, 2 * from_block_size : -2 * from_block_size, :to_block_size] = attn_weights[
                 :, :, :, :, :to_block_size
-            ].view(bsz, n_heads, -1, to_block_size)  # first_band_product
+            ].view(
+                bsz, n_heads, -1, to_block_size
+            )  # first_band_product
             # global keys (corresponding to last key block)
             attention_probs[:, :, 2 * from_block_size : -2 * from_block_size, -to_block_size:] = attn_weights[
                 :, :, :, :, -to_block_size:
-            ].view(bsz, n_heads, -1, to_block_size)  # last_band_product
+            ].view(
+                bsz, n_heads, -1, to_block_size
+            )  # last_band_product
             # random keys
             for p1, i1, w1 in zip(range(bsz), rand_attn, attn_weights):
                 # p1, i1, w1 corresponds to batch_dim i.e. following operation is done for each sequence in batch
@@ -718,9 +720,11 @@ class BigBirdPegasusBlockSparseAttention(nn.Cell):
             attention_probs[:, :, -2 * from_block_size : -from_block_size, :to_block_size] = second_last_attn_weights[
                 :, :, :, :to_block_size
             ]  # 1st key block (global)
-            attention_probs[:, :, -2 * from_block_size : -from_block_size, -3 * to_block_size :] = (
-                second_last_attn_weights[:, :, :, to_block_size : 4 * to_block_size]
-            )  # last three blocks (global + sliding)
+            attention_probs[
+                :, :, -2 * from_block_size : -from_block_size, -3 * to_block_size :
+            ] = second_last_attn_weights[
+                 :, :, :, to_block_size : 4 * to_block_size
+            ]  # last three blocks (global + sliding)
             # random keys
             for p1, i1, w1 in zip(range(bsz), rand_attn, second_last_attn_weights):
                 # p1, i1, w1 corresponds to batch_dim i.e. following operation is done for each sequence in batch
@@ -1385,9 +1389,7 @@ class BigBirdPegasusEncoderLayer(nn.Cell):
         hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
 
-        if hidden_states.dtype == ms.float16 and (
-            mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any()
-        ):
+        if hidden_states.dtype == ms.float16 and (mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any()):
             clamp_value = dtype_to_max(hidden_states.dtype) - 1000
             hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -1925,9 +1927,7 @@ class BigBirdPegasusEncoder(BigBirdPegasusPreTrainedModel):
 
         self.encoder_o = hidden_states
 
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
     def set_attention_type(self, value: str):
         if value not in ["original_full", "block_sparse"]:
@@ -2525,10 +2525,7 @@ class BigBirdPegasusForConditionalGeneration(BigBirdPegasusPreTrainedModel, Gene
         reordered_past = ()
         for layer_past in past_key_values:
             # cached cross_attention states don't have to be reordered -> they are always the same
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2])
-                + layer_past[2:],
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],)
         return reordered_past
 
 

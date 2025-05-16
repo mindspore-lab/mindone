@@ -1563,7 +1563,6 @@ class GenerationMixin:
 
         return new_input_ids, new_inputs_embeds, new_labels, new_position_ids, new_attention_mask
 
-
     @staticmethod
     def _flatten_beam_dim(tensor: ms.Tensor) -> ms.Tensor:
         """[batch_size, num_beams, ...] -> [batch_size * num_beams, ...]"""
@@ -1647,7 +1646,6 @@ class GenerationMixin:
 
         return topk_log_probs, topk_running_sequences, topk_running_beam_indices
 
-
     def _get_running_beams_for_next_iteration(
         self,
         topk_log_probs: ms.Tensor,
@@ -1669,7 +1667,6 @@ class GenerationMixin:
         running_beam_scores = self._gather_beams(topk_running_log_probs, next_topk_indices)
         running_beam_indices = self._gather_beams(topk_running_beam_indices, next_topk_indices)
         return running_sequences, running_beam_scores, running_beam_indices
-
 
     def _update_finished_beams(
         self,
@@ -1701,7 +1698,9 @@ class GenerationMixin:
         # - add length penalty
         topk_log_probs = topk_log_probs / ((cur_len + 1 - decoder_prompt_len) ** length_penalty)
         # - make sure no scores can be added anymore if beam is full and early stopping is on
-        beams_in_batch_are_full = ops.all(is_sent_finished, axis=-1, keep_dims=True) & ms.Tensor(early_stopping is True, ms.int32)
+        beams_in_batch_are_full = ops.all(is_sent_finished, axis=-1, keep_dims=True) & ms.Tensor(
+            early_stopping is True, ms.int32
+        )
         topk_log_probs += beams_in_batch_are_full.to(ms.float32) * -1.0e9
         # - make sure still running sequences cannot be chosen as finalized beam
         topk_log_probs += (~did_top_num_beams_just_finished) * -1.0e9
@@ -1728,7 +1727,6 @@ class GenerationMixin:
             f" enable beam search for {self.__class__}"
         )
 
-
     # Auxiliary functions for beam search
     def _temporary_reorder_cache(self, past_key_values, beam_idx):
         """
@@ -1754,7 +1752,6 @@ class GenerationMixin:
         else:
             past_key_values.reorder_cache(beam_idx)
         return past_key_values
-
 
     @staticmethod
     def _beam_search_has_unfinished_sequences(
@@ -1788,14 +1785,15 @@ class GenerationMixin:
 
         # b. Is there still a beam without fully completed sequences? This is only relevant if early_stopping is
         # enabled, where we want to finish as soon as all beams have a completed sequence.
-        exists_open_beam = ms.Tensor(~(mint.all(is_sent_finished) & ms.Tensor(early_stopping is True, ms.int32)), ms.int32)
+        exists_open_beam = ms.Tensor(
+            ~(mint.all(is_sent_finished) & ms.Tensor(early_stopping is True, ms.int32)), ms.int32
+        )
 
         # c. Have we hit a stopping criteria with all running sequences and have no way to continue? e.g. we have
         # reached `max_length``
         valid_continuations = ~mint.all(next_token_hits_stopping_criteria)
 
         return improvement_possible & exists_open_beam & valid_continuations
-
 
     def _beam_search(
         self,
@@ -1912,7 +1910,7 @@ class GenerationMixin:
             dtype=ms.int64,
         )
         running_sequences[:, :, :cur_len] = self._unflatten_beam_dim(input_ids, batch_size, num_beams)
-        sequences = running_sequences.copy() # .detach()
+        sequences = running_sequences.copy()  # .detach()
 
         # per batch, beam-item score, logprobs
         # initialise score of first beam with 0 and the rest with -1e9. This makes sure that only tokens
@@ -1925,15 +1923,11 @@ class GenerationMixin:
         is_sent_finished = mint.zeros((batch_size, num_beams), dtype=ms.bool_)
 
         # per batch, beam-item state bit indicating if there are valid continuations.
-        next_token_hits_stopping_criteria = mint.zeros(
-            (batch_size, num_beams), dtype=ms.bool_
-        )
+        next_token_hits_stopping_criteria = mint.zeros((batch_size, num_beams), dtype=ms.bool_)
 
         # per batch selected beam indices
-        running_beam_indices = mint.full(
-            (batch_size, num_beams, max_length - cur_len), fill_value=-1, dtype=ms.int32
-        )
-        beam_indices = running_beam_indices.copy() # .detach()
+        running_beam_indices = mint.full((batch_size, num_beams, max_length - cur_len), fill_value=-1, dtype=ms.int32)
+        beam_indices = running_beam_indices.copy()  # .detach()
 
         # 4. run the generation loop
         while self._has_unfinished_sequences(this_peer_finished, synced_gpus):

@@ -20,12 +20,21 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
+from transformers.utils import (
+    ModelOutput,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+from transformers.models.big_bird.configuration_big_bird import BigBirdConfig
 import mindspore as ms
 from mindspore import mint, nn
-from transformers.utils import ModelOutput
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_utils import apply_chunking_to_forward
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -36,15 +45,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import MSPreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward
-from transformers.utils import (
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.models.big_bird.configuration_big_bird import BigBirdConfig
 
 
 logger = logging.get_logger(__name__)
@@ -250,7 +250,7 @@ class BigBirdEmbeddings(nn.Cell):
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
         self.position_ids = mint.arange(config.max_position_embeddings).broadcast_to((1, -1))
-        self.token_type_ids =  mint.zeros(self.position_ids.shape, dtype=ms.int64)
+        self.token_type_ids = mint.zeros(self.position_ids.shape, dtype=ms.int64)
         # self.register_buffer(
         #     "position_ids", mint.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
         # )
@@ -837,9 +837,7 @@ class BigBirdBlockSparseAttention(nn.Cell):
         # this is just for visualizing; forward pass doesn't depend on following code
         if output_attentions:
             # TODO(PVP): need to verify if below code is correct
-            attention_probs = mint.zeros(
-                bsz, n_heads, from_seq_len, to_seq_len, dtype=ms.float32
-            )
+            attention_probs = mint.zeros(bsz, n_heads, from_seq_len, to_seq_len, dtype=ms.float32)
 
             # 1st query block
             # corresponding to `first_context_layer`
@@ -890,11 +888,15 @@ class BigBirdBlockSparseAttention(nn.Cell):
             # global keys (corresponding to 1st key block)
             attention_probs[:, :, 2 * from_block_size : -2 * from_block_size, :to_block_size] = attn_weights[
                 :, :, :, :, :to_block_size
-            ].view(bsz, n_heads, -1, to_block_size)  # first_band_product
+            ].view(
+                bsz, n_heads, -1, to_block_size
+            )  # first_band_product
             # global keys (corresponding to last key block)
             attention_probs[:, :, 2 * from_block_size : -2 * from_block_size, -to_block_size:] = attn_weights[
                 :, :, :, :, -to_block_size:
-            ].view(bsz, n_heads, -1, to_block_size)  # last_band_product
+            ].view(
+                bsz, n_heads, -1, to_block_size
+            )  # last_band_product
             # random keys
             for p1, i1, w1 in zip(range(bsz), rand_attn, attn_weights):
                 # p1, i1, w1 corresponds to batch_dim i.e. following operation is done for each sequence in batch
@@ -919,9 +921,11 @@ class BigBirdBlockSparseAttention(nn.Cell):
             attention_probs[:, :, -2 * from_block_size : -from_block_size, :to_block_size] = second_last_attn_weights[
                 :, :, :, :to_block_size
             ]  # 1st key block (global)
-            attention_probs[:, :, -2 * from_block_size : -from_block_size, -3 * to_block_size :] = (
-                second_last_attn_weights[:, :, :, to_block_size : 4 * to_block_size]
-            )  # last three blocks (global + sliding)
+            attention_probs[
+                :, :, -2 * from_block_size : -from_block_size, -3 * to_block_size :
+            ] = second_last_attn_weights[
+                 :, :, :, to_block_size : 4 * to_block_size
+            ]  # last three blocks (global + sliding)
             # random keys
             for p1, i1, w1 in zip(range(bsz), rand_attn, second_last_attn_weights):
                 # p1, i1, w1 corresponds to batch_dim i.e. following operation is done for each sequence in batch
@@ -2208,7 +2212,9 @@ class BigBirdModel(BigBirdPreTrainedModel):
             attention_mask = mint.nn.functional.pad(
                 attention_mask, (0, padding_len), value=False
             )  # no attention on the padding tokens
-            token_type_ids = mint.nn.functional.pad(token_type_ids, (0, padding_len), value=0)  # pad with token_type_id = 0
+            token_type_ids = mint.nn.functional.pad(
+                token_type_ids, (0, padding_len), value=0
+            )  # pad with token_type_id = 0
 
         return padding_len, input_ids, attention_mask, token_type_ids, position_ids, inputs_embeds
 
@@ -2448,8 +2454,7 @@ class BigBirdForMaskedLM(BigBirdPreTrainedModel):
         if self.config.pad_token_id is None:
             raise ValueError("The PAD token should be defined for generation")
         attention_mask = mint.cat([attention_mask, attention_mask.new_zeros((attention_mask.shape[0], 1))], dim=-1)
-        dummy_token = mint.full(
-            (effective_batch_size, 1), self.config.pad_token_id, dtype=ms.int64)
+        dummy_token = mint.full((effective_batch_size, 1), self.config.pad_token_id, dtype=ms.int64)
         input_ids = mint.cat([input_ids, dummy_token], dim=1)
 
         return {"input_ids": input_ids, "attention_mask": attention_mask}
@@ -2574,8 +2579,7 @@ class BigBirdForCausalLM(BigBirdPreTrainedModel, GenerationMixin):
         reordered_past = ()
         for layer_past in past_key_values:
             reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2])
-                + layer_past[2:],
+                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past[:2]) + layer_past[2:],
             )
         return reordered_past
 
@@ -2746,9 +2750,7 @@ class BigBirdForMultipleChoice(BigBirdPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_forward(
-        BIG_BIRD_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length")
-    )
+    @add_start_docstrings_to_model_forward(BIG_BIRD_INPUTS_DOCSTRING.format("batch_size, num_choices, sequence_length"))
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=MultipleChoiceModelOutput,

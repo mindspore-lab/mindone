@@ -54,7 +54,6 @@ def prepare_bigbird_pegasus_inputs_dict(
     return input_dict
 
 
-
 class BigBirdPegasusModelTester:
     def __init__(
         self,
@@ -140,10 +139,7 @@ class BigBirdPegasusModelTester:
 
 
 model_tester = BigBirdPegasusModelTester()
-(
-    config,
-    inputs_dict
-) = model_tester.prepare_config_and_inputs()
+(config, inputs_dict) = model_tester.prepare_config_and_inputs()
 
 
 BERT_CASES = [
@@ -154,10 +150,7 @@ BERT_CASES = [
         (config,),
         {},
         (inputs_dict["input_ids"],),
-        {
-            "decoder_input_ids": inputs_dict["decoder_input_ids"],
-            "use_cache": True
-        },
+        {"decoder_input_ids": inputs_dict["decoder_input_ids"], "use_cache": True},
         {
             "last_hidden_state": 0,
         },

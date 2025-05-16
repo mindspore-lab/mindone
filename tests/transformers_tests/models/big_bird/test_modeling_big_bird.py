@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 import torch
 from transformers import BigBirdConfig
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -147,7 +148,7 @@ model_tester = BigBirdModelTester()
     sequence_labels,
     token_labels,
     choice_labels,
-    num_choices
+    num_choices,
 ) = model_tester.prepare_config_and_inputs()
 
 
@@ -239,22 +240,6 @@ BERT_CASES = [
             "logits": 1,
         },
     ],
-    # [
-    #     "BigBirdForTokenClassification",
-    #     "transformers.BigBirdForTokenClassification",
-    #     "mindway.transformers.BigBirdForTokenClassification",
-    #     (config,),
-    #     {},
-    #     (input_ids,),
-    #     {
-    #         "attention_mask": input_mask,
-    #         "token_type_ids": token_type_ids,
-    #         "labels": token_labels,
-    #     },
-    #     {
-    #         "logits": 0,
-    #     },
-    # ],
     [
         "BigBirdModel",
         "transformers.BigBirdModel",
@@ -262,8 +247,7 @@ BERT_CASES = [
         (config,),
         {},
         (input_ids,),
-        {
-        },
+        {},
         {
             "last_hidden_state": 0,
         },

@@ -29,6 +29,28 @@ from .models.bert import (
     BertModel,
     BertPreTrainedModel,
 )
+from .models.big_bird import (
+    BigBirdForCausalLM,
+    BigBirdForMaskedLM,
+    BigBirdForMultipleChoice,
+    BigBirdForPreTraining,
+    BigBirdForQuestionAnswering,
+    BigBirdForSequenceClassification,
+    BigBirdForTokenClassification,
+    BigBirdLayer,
+    BigBirdModel,
+    BigBirdPreTrainedModel,
+    BigBirdTokenizer,
+    BigBirdTokenizerFast,
+)
+from .models.bigbird_pegasus import (
+    BigBirdPegasusForCausalLM,
+    BigBirdPegasusForConditionalGeneration,
+    BigBirdPegasusForQuestionAnswering,
+    BigBirdPegasusForSequenceClassification,
+    BigBirdPegasusModel,
+    BigBirdPegasusPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
@@ -191,28 +213,6 @@ from .models.whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
     WhisperProcessor,
-)
-from .models.big_bird import (
-    BigBirdForCausalLM,
-    BigBirdForMaskedLM,
-    BigBirdForMultipleChoice,
-    BigBirdForPreTraining,
-    BigBirdForQuestionAnswering,
-    BigBirdForSequenceClassification,
-    BigBirdForTokenClassification,
-    BigBirdLayer,
-    BigBirdModel,
-    BigBirdPreTrainedModel,
-    BigBirdTokenizer,
-    BigBirdTokenizerFast,
-)
-from .models.bigbird_pegasus import (
-    BigBirdPegasusForCausalLM,
-    BigBirdPegasusForConditionalGeneration,
-    BigBirdPegasusForQuestionAnswering,
-    BigBirdPegasusForSequenceClassification,
-    BigBirdPegasusModel,
-    BigBirdPegasusPreTrainedModel,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline

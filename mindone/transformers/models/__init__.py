@@ -1,6 +1,8 @@
 from . import (
     auto,
     bert,
+    big_bird,
+    bigbird_pegasus,
     bit,
     blip_2,
     clap,
@@ -28,6 +30,4 @@ from . import (
     umt5,
     wav2vec2,
     xlm_roberta,
-    big_bird,
-    bigbird_pegasus
 )

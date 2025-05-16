@@ -60,10 +60,10 @@ from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
+from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
-from .loss.loss_utils import LOSS_MAPPING
 
 if is_safetensors_available():
     from safetensors import safe_open
