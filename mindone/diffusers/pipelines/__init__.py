@@ -187,6 +187,10 @@ _import_structure = {
         "StableDiffusionXLInstructPix2PixPipeline",
         "StableDiffusionXLPipeline",
     ],
+    "stable_diffusion_k_diffusion": [
+        "StableDiffusionKDiffusionPipeline",
+        "StableDiffusionXLKDiffusionPipeline",
+    ],
     "stable_diffusion_diffedit": ["StableDiffusionDiffEditPipeline"],
     "stable_diffusion_ldm3d": ["StableDiffusionLDM3DPipeline"],
     "stable_diffusion_panorama": ["StableDiffusionPanoramaPipeline"],
@@ -372,6 +376,7 @@ if TYPE_CHECKING:
     )
     from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
+    from .stable_diffusion_k_diffusion import StableDiffusionKDiffusionPipeline, StableDiffusionXLKDiffusionPipeline
     from .stable_diffusion_ldm3d import StableDiffusionLDM3DPipeline
     from .stable_diffusion_panorama import StableDiffusionPanoramaPipeline
     from .stable_diffusion_sag import StableDiffusionSAGPipeline
