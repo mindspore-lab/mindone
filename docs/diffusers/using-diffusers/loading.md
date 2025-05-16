@@ -124,6 +124,125 @@ pipeline = StableDiffusionXLPipeline.from_pretrained(
 )
 ```
 
+## Reuse a pipeline
+
+When you load multiple pipelines that share the same model components, it makes sense to reuse the shared components instead of reloading everything into memory again, especially if your hardware is memory-constrained. For example:
+
+1. You generated an image with the [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline) but you want to improve its quality with the [`StableDiffusionSAGPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline). Both of these pipelines share the same pretrained model, so it'd be a waste of memory to load the same model twice.
+2. You want to add a model component, like a [`MotionAdapter`](../api/pipelines/animatediff.md#animatediffpipeline), to [`AnimateDiffPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/animatediff/#mindone.diffusers.pipelines.AnimateDiffPipeline) which was instantiated from an existing [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline). Again, both pipelines share the same pretrained model, so it'd be a waste of memory to load an entirely new pipeline again.
+
+With the [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) API, you can switch between multiple pipelines to take advantage of their different features without increasing memory-usage. It is similar to turning on and off a feature in your pipeline.
+
+!!! tip
+
+    To switch between tasks (rather than features), use the [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) method with the [AutoPipeline](../api/pipelines/auto_pipeline.md) class, which automatically identifies the pipeline class based on the task (learn more in the [AutoPipeline](../tutorials/autopipeline) tutorial).
+
+Let's start with a [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline) and then reuse the loaded model components to create a [`StableDiffusionSAGPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline) to increase generation quality. You'll use the [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline) with an [IP-Adapter](./ip_adapter.md) to generate a bear eating pizza.
+
+```python
+from mindone.diffusers import DiffusionPipeline, StableDiffusionSAGPipeline
+import mindspore as ms
+from mindone.diffusers.utils import load_image
+import numpy as np
+
+image = load_image("https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/load_neg_embed.png")
+
+pipe_sd = DiffusionPipeline.from_pretrained("SG161222/Realistic_Vision_V6.0_B1_noVAE", mindspore_dtype=ms.float16, revision="refs/pr/8")
+pipe_sd.load_ip_adapter("h94/IP-Adapter", subfolder="models", weight_name="ip-adapter_sd15.safetensors")
+pipe_sd.set_ip_adapter_scale(0.6)
+
+generator = np.random.Generator(np.random.PCG64(seed=33))
+out_sd = pipe_sd(
+    prompt="bear eats pizza",
+    negative_prompt="wrong white balance, dark, sketches,worst quality,low quality",
+    ip_adapter_image=image,
+    num_inference_steps=50,
+    generator=generator,
+)[0][0]
+out_sd
+```
+
+<div class="flex justify-center">
+  <img class="rounded-xl" src="https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/from_pipe_out_sd_0.png"/>
+</div>
+
+For reference, you can check how much memory this process consumed.
+
+```bash
+export MS_MEMORY_STATISTIC=1
+...
+
+"Actual peak memory usage (with fragments): 4428M"
+```
+
+Now, reuse the same pipeline components from [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline) in [`StableDiffusionSAGPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline) with the [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) method.
+
+!!! warning
+
+    Some pipeline methods may not function properly on new pipelines created with [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe).
+
+    To ensure everything works as expected, we recommend re-applying a pipeline method on a new pipeline created with [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe).
+
+```python
+pipe_sag = StableDiffusionSAGPipeline.from_pipe(
+    pipe_sd
+)
+
+generator = np.random.Generator(np.random.PCG64(seed=33))
+out_sag = pipe_sag(
+    prompt="bear eats pizza",
+    negative_prompt="wrong white balance, dark, sketches,worst quality,low quality",
+    ip_adapter_image=image,
+    num_inference_steps=50,
+    generator=generator,
+    guidance_scale=1.0,
+    sag_scale=0.75
+)[0][0]
+out_sag
+```
+
+<div class="flex justify-center">
+  <img class="rounded-xl" src="https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/from_pipe_out_sag_1.png"/>
+</div>
+
+If you check the memory usage, you'll see it remains the same as before because [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline) and [`StableDiffusionSAGPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline) are sharing the same pipeline components. This allows you to use them interchangeably without any additional memory overhead.
+
+```bash
+export MS_MEMORY_STATISTIC=1
+...
+
+"Actual peak memory usage (with fragments): 4436M"
+```
+
+### Modify from_pipe components
+
+Pipelines loaded with [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) can be customized with different model components or methods. However, whenever you modify the *state* of the model components, it affects all the other pipelines that share the same components. For example, if you call [`unload_ip_adapter`] on the [`StableDiffusionSAGPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline), you won't be able to use IP-Adapter with the [`StableDiffusionPipeline`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline) because it's been removed from their shared components.
+
+```py
+pipe_sag.unload_ip_adapter()
+
+generator = np.random.Generator(np.random.PCG64(seed=33))
+out_sd = pipe_sd(
+    prompt="bear eats pizza",
+    negative_prompt="wrong white balance, dark, sketches,worst quality,low quality",
+    ip_adapter_image=image,
+    num_inference_steps=50,
+    generator=generator,
+)[0][0]
+"AttributeError: 'NoneType' object has no attribute 'image_projection_layers'"
+```
+
+### Memory usage of from_pipe
+
+The memory requirement of loading multiple pipelines with [`from_pipe`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe) is determined by the pipeline with the highest memory-usage regardless of the number of pipelines you create.
+
+| Pipeline                   | Memory usage (MB) |
+|----------------------------|-------------------|
+| StableDiffusionPipeline    | 4428              |
+| StableDiffusionSAGPipeline | 4436              |
+
+Your memory-usage will not increase if you create additional pipelines. Each pipeline can be used interchangeably without any additional memory overhead.
+
 ## Safety checker
 
 Diffusers implements a [safety checker](https://github.com/The-truthh/mindone/blob/docs/mindone/diffusers/pipelines/stable_diffusion/safety_checker.py) for Stable Diffusion models which can generate harmful content. The safety checker screens the generated output against known hardcoded not-safe-for-work (NSFW) content. If for whatever reason you'd like to disable the safety checker, pass `safety_checker=None` to the [`from_pretrained`](https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained) method.
