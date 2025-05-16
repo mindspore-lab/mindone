@@ -9,3 +9,5 @@ ftfy
 imageio-ffmpeg
 gradio>=4.44.1
 numpy>=1.23.5,<2
+omegaconf
+ml_dtypes
