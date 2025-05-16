@@ -59,6 +59,7 @@ from mindone.models.utils import normal_, zeros_
 from mindone.transformers.activations import ClassInstantier
 from mindone.transformers.cache_utils import Cache
 from mindone.transformers.generation.utils import GenerationMixin
+from mindone.transformers.mindspore_adapter import dtype_to_min
 from mindone.transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask
 from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
 from mindone.transformers.modeling_utils import PreTrainedModel
@@ -143,9 +144,10 @@ def eager_attention(
     q: ms.Tensor, k: ms.Tensor, v: ms.Tensor, q_cu_seqlens: ms.Tensor, k_cu_seqlens: ms.Tensor
 ) -> ms.Tensor:
     seq_length = q.shape[0]
-    attention_mask = mint.zeros([1, seq_length, k.shape[0]], dtype=ms.bool_)
+    # the original repo's mask is not correct. We fix here.
+    attention_mask = mint.full([1, seq_length, k.shape[0]], dtype_to_min(q.dtype).item(), dtype=q.dtype)
     for i in range(1, len(q_cu_seqlens)):
-        attention_mask[..., q_cu_seqlens[i - 1] : q_cu_seqlens[i], k_cu_seqlens[i - 1] : k_cu_seqlens[i]] = True
+        attention_mask[..., q_cu_seqlens[i - 1] : q_cu_seqlens[i], k_cu_seqlens[i - 1] : k_cu_seqlens[i]] = 0
     q = q.transpose(0, 1)
     k = k.transpose(0, 1)
     v = v.transpose(0, 1)
