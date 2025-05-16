@@ -1708,7 +1708,9 @@ class GenerationMixin:
                 valid_len = cur_len - past_length
                 if valid_len < cache_position.shape[0]:
                     cache_position = cache_position[:valid_len]
-                    cache_position = mint.cat([cache_position, mint.zeros(cache_position.shape[0] - valid_len, dtype=ms.int32)])
+                    cache_position = mint.cat(
+                        [cache_position, mint.zeros(cache_position.shape[0] - valid_len, dtype=ms.int32)]
+                    )
 
         model_kwargs["cache_position"] = cache_position
         return model_kwargs
@@ -1793,13 +1795,12 @@ class GenerationMixin:
             or self.config._attn_implementation == "paged_attention"
         )
 
-
     def _prepare_static_legacy_cache(
-            self,
-            generation_config: GenerationConfig,
-            model_kwargs: Dict,
-            cache_name: str,
-            batch_size: int,
+        self,
+        generation_config: GenerationConfig,
+        model_kwargs: Dict,
+        cache_name: str,
+        batch_size: int,
     ):
         """
         Prepares a static legacy cache (tuple of tuples) for `generate`.
@@ -1811,11 +1812,11 @@ class GenerationMixin:
             self.dtype,
         )
         need_new_cache = (
-                past is None
-                or (not isinstance(past, tuple))
-                or (not isinstance(past[0][0], ms.Tensor))
-                or past[0][0].shape[0] != max_batch_size
-                or past[0][0].shape[2] < max_cache_len
+            past is None
+            or (not isinstance(past, tuple))
+            or (not isinstance(past[0][0], ms.Tensor))
+            or past[0][0].shape[0] != max_batch_size
+            or past[0][0].shape[2] < max_cache_len
         )
 
         if need_new_cache:
@@ -1883,8 +1884,8 @@ class GenerationMixin:
                 )
             if self._supports_default_dynamic_input():
                 logger.warning_once(
-                    "This model supports dynamic input but does not support `Cache` instances, it only supports the dynamic legacy cache format (tuple "
-                    f"of tuples). Cache will stay as None after intialization. Consider converting legacy cache to dynamic cache in your model.",
+                    "This model supports dynamic input but does not support `Cache` instances, it only supports the dynamic legacy cache "
+                    "format (tuple of tuples). Cache will stay as None after intialization. Consider converting legacy cache to dynamic cache in your model.",
                     UserWarning,
                 )
                 return
@@ -2779,15 +2780,15 @@ class GenerationMixin:
 
     @staticmethod
     def _beam_search_has_unfinished_sequences(
-            running_beam_scores: ms.Tensor,
-            beam_scores: ms.Tensor,
-            is_sent_finished: ms.Tensor,
-            next_token_hits_stopping_criteria: ms.Tensor,
-            cur_len: int,
-            max_length: int,
-            decoder_prompt_len: int,
-            early_stopping: Union[bool, str],
-            length_penalty: float,
+        running_beam_scores: ms.Tensor,
+        beam_scores: ms.Tensor,
+        is_sent_finished: ms.Tensor,
+        next_token_hits_stopping_criteria: ms.Tensor,
+        cur_len: int,
+        max_length: int,
+        decoder_prompt_len: int,
+        early_stopping: Union[bool, str],
+        length_penalty: float,
     ):
         """
         Beam Search stopping condition -- halts the generation loop if any of these conditions becomes False
@@ -2803,7 +2804,7 @@ class GenerationMixin:
             best_hypothetical_length = max_length - decoder_prompt_len
         else:
             best_hypothetical_length = cur_len - decoder_prompt_len
-        best_possible_running_score = running_beam_scores[:, :1] / (best_hypothetical_length ** length_penalty)
+        best_possible_running_score = running_beam_scores[:, :1] / (best_hypothetical_length**length_penalty)
         worst_finished_score = mint.where(is_sent_finished, mint.min(beam_scores, dim=1, keepdim=True)[0], -1.0e9)
         improvement_possible = mint.any(best_possible_running_score > worst_finished_score)
 
@@ -2820,17 +2821,17 @@ class GenerationMixin:
         return improvement_possible & exists_open_beam & valid_continuations
 
     def _get_top_k_continuations(
-            self,
-            accumulated_log_probs: ms.Tensor,
-            running_sequences: ms.Tensor,
-            running_beam_indices: ms.Tensor,
-            cur_len: int,
-            decoder_prompt_len: int,
-            do_sample: bool,
-            beams_to_keep: int,
-            num_beams: int,
-            vocab_size: int,
-            batch_size: int,
+        self,
+        accumulated_log_probs: ms.Tensor,
+        running_sequences: ms.Tensor,
+        running_beam_indices: ms.Tensor,
+        cur_len: int,
+        decoder_prompt_len: int,
+        do_sample: bool,
+        beams_to_keep: int,
+        num_beams: int,
+        vocab_size: int,
+        batch_size: int,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
         """
         Get top-K continuations given the accumulated log probs on the next token.
@@ -2873,12 +2874,12 @@ class GenerationMixin:
         return topk_log_probs, topk_running_sequences, topk_running_beam_indices
 
     def _get_running_beams_for_next_iteration(
-            self,
-            topk_log_probs: ms.Tensor,
-            topk_running_sequences: ms.Tensor,
-            topk_running_beam_indices: ms.Tensor,
-            next_token_hits_stopping_criteria: ms.Tensor,
-            num_beams: int,
+        self,
+        topk_log_probs: ms.Tensor,
+        topk_running_sequences: ms.Tensor,
+        topk_running_beam_indices: ms.Tensor,
+        next_token_hits_stopping_criteria: ms.Tensor,
+        num_beams: int,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor]:
         """
         Given the top-K continuations, their scores, and whether they hit a stopping criteria, select the
@@ -2895,21 +2896,21 @@ class GenerationMixin:
         return running_sequences, running_beam_scores, running_beam_indices
 
     def _update_finished_beams(
-            self,
-            sequences: ms.Tensor,
-            topk_running_sequences: ms.Tensor,
-            beam_scores: ms.Tensor,
-            topk_log_probs: ms.Tensor,
-            beam_indices: ms.Tensor,
-            topk_running_beam_indices: ms.Tensor,
-            is_sent_finished: ms.Tensor,
-            next_token_hits_stopping_criteria: ms.Tensor,
-            top_num_beam_mask: ms.Tensor,
-            num_beams: int,
-            cur_len: int,
-            decoder_prompt_len: int,
-            length_penalty: float,
-            early_stopping: Union[bool, str],
+        self,
+        sequences: ms.Tensor,
+        topk_running_sequences: ms.Tensor,
+        beam_scores: ms.Tensor,
+        topk_log_probs: ms.Tensor,
+        beam_indices: ms.Tensor,
+        topk_running_beam_indices: ms.Tensor,
+        is_sent_finished: ms.Tensor,
+        next_token_hits_stopping_criteria: ms.Tensor,
+        top_num_beam_mask: ms.Tensor,
+        num_beams: int,
+        cur_len: int,
+        decoder_prompt_len: int,
+        length_penalty: float,
+        early_stopping: Union[bool, str],
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         """
         Updates the finished beams if (and only if) there are new completed sequences that have a higher score than
@@ -2948,13 +2949,13 @@ class GenerationMixin:
     # end of auxiliary functions for beam search
 
     def _beam_search(
-            self,
-            input_ids: ms.Tensor,
-            logits_processor: LogitsProcessorList,
-            stopping_criteria: StoppingCriteriaList,
-            generation_config: GenerationConfig,
-            synced_gpus: bool,
-            **model_kwargs,
+        self,
+        input_ids: ms.Tensor,
+        logits_processor: LogitsProcessorList,
+        stopping_criteria: StoppingCriteriaList,
+        generation_config: GenerationConfig,
+        synced_gpus: bool,
+        **model_kwargs,
     ) -> Union[GenerateBeamOutput, ms.Tensor]:
         r"""
         Generates sequences of token ids for models with a language modeling head using **beam search decoding** and
@@ -3255,4 +3256,3 @@ class GenerationMixin:
                 )
         else:
             return sequences
-

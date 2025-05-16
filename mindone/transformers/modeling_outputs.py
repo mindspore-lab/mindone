@@ -177,7 +177,8 @@ class BaseModelOutputWithCrossAttentions(ModelOutput):
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
             heads.
-        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or
+            when `config.output_attentions=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
@@ -355,7 +356,8 @@ class MoEModelOutput(ModelOutput):
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
             heads.
-        router_probs (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or when `config.output_router_probs=True`):
+        router_probs (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or
+            when `config.output_router_probs=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
 
             Raw router probabilities that are computed by MoE routers, these terms are used to compute the auxiliary
@@ -396,7 +398,8 @@ class MoeModelOutputWithPast(ModelOutput):
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
             heads.
-        router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or when `config.output_router_probs=True`):
+        router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or
+            when `config.output_router_probs=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
 
             Raw router logtis (post-softmax) that are computed by MoE routers, these terms are used to compute the auxiliary
@@ -425,7 +428,8 @@ class MoeCausalLMOutputWithPast(ModelOutput):
         aux_loss (`ms.Tensor`, *optional*, returned when `labels` is provided):
             aux_loss for the sparse modules.
 
-        router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or when `config.output_router_probs=True`):
+        router_logits (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or
+            when `config.output_router_probs=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
 
             Raw router logtis (post-softmax) that are computed by MoE routers, these terms are used to compute the auxiliary
@@ -491,13 +495,15 @@ class MoEModelOutputWithPastAndCrossAttentions(ModelOutput):
 
             Attentions weights after the attention softmax, used to compute the weighted average in the self-attention
             heads.
-        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or when `config.output_attentions=True`):
+        cross_attentions (`tuple(ms.Tensor)`, *optional*, returned when `output_attentions=True` and `config.add_cross_attention=True` is passed or
+            when `config.output_attentions=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, num_heads, sequence_length,
             sequence_length)`.
 
             Attentions weights of the decoder's cross-attention layer, after the attention softmax, used to compute the
             weighted average in the cross-attention heads.
-        router_probs (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or when `config.output_router_probs=True`):
+        router_probs (`tuple(ms.Tensor)`, *optional*, returned when `output_router_probs=True` and `config.add_router_probs=True` is passed or
+            when `config.output_router_probs=True`):
             Tuple of `ms.Tensor` (one for each layer) of shape `(batch_size, sequence_length, num_experts)`.
 
             Raw router probabilities that are computed by MoE routers, these terms are used to compute the auxiliary
