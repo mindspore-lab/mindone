@@ -1787,11 +1787,12 @@ class GenerationMixin:
 
     def _supports_default_dynamic_input(self) -> bool:
         """
-        Return `True` if current model use dynamic cache or _supports_dynamic_input is `True` or `_attn_implementation` is `paged_attention`.
+        Return `True` if current model use dynamic cache or _supports_dynamic_input is `True` , but add exception for `paged_attention` which use dynamic input
+        shape.
         """
         return (
             getattr(self, "_supports_dynamic_input", False)
-            or self._supports_default_dynamic_cache
+            or self._supports_default_dynamic_cache()
             or self.config._attn_implementation == "paged_attention"
         )
 
