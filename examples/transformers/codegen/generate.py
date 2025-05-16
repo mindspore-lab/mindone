@@ -1,8 +1,8 @@
+from mindone.transformers.models.codegen import CodeGenForCausalLM
 from transformers import AutoTokenizer
 
 import mindspore as ms
 
-from mindway.transformers.models.codegen import CodeGenForCausalLM
 
 checkpoint = "Salesforce/codegen-350M-mono"
 model = CodeGenForCausalLM.from_pretrained(checkpoint, use_safetensors=True)
