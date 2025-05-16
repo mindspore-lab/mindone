@@ -61,11 +61,7 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
-from .models.codegen import (
-    CodeGenForCausalLM,
-    CodeGenModel,
-    CodeGenPreTrainedModel
-)
+from .models.codegen import CodeGenForCausalLM, CodeGenModel, CodeGenPreTrainedModel
 from .models.dpt import DPTForDepthEstimation
 from .models.gemma import (
     GemmaForCausalLM,
