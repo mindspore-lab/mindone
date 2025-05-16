@@ -14,12 +14,6 @@ MODEL_PATH = "moonshotai/Kimi-VL-A3B-Instruct"
 # MODEL_PATH = "moonshotai/Kimi-VL-A3B-Thinking"
 
 
-def int64_to_int32(x: ms.Tensor):
-    if x.dtype == ms.int64:
-        return x.to(ms.int32)
-    return x
-
-
 def main():
     if DEBUG:
         ms.runtime.launch_blocking()
@@ -55,7 +49,7 @@ def main():
     text = processor.apply_chat_template(messages, add_generation_prompt=True, return_tensors="np")
     inputs = processor(images=image, text=text, return_tensors="np", padding=True, truncation=True)
     for k, v in inputs.items():
-        inputs[k] = int64_to_int32(ms.Tensor(v))
+        inputs[k] = ms.Tensor(v)
     generated_ids = model.generate(**inputs, max_new_tokens=512, do_sample=False, temperature=1.0)
     generated_ids_trimmed = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)]
     response = processor.batch_decode(
