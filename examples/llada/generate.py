@@ -1,14 +1,13 @@
 from time import time
 
 import numpy as np
+from src import LLaDAModelLM
 from tqdm import tqdm
 from transformers import AutoConfig, AutoTokenizer
 
 import mindspore as ms
 import mindspore.ops as ops
 from mindspore import Tensor, mint
-
-from mindone.transformers.models.llada import LLaDAModelLM
 
 ms.set_context(mode=ms.PYNATIVE_MODE)
 

@@ -1,10 +1,10 @@
+from src import LLaDAModelLM
 from transformers import AutoConfig, AutoTokenizer
 
 import mindspore as ms
 from mindspore import Tensor, mint
 
 from examples.llada.generate import generate
-from mindone.transformers.models.llada import LLaDAModelLM
 
 ms.set_context(mode=ms.PYNATIVE_MODE)
 
