@@ -1,4 +1,5 @@
 from . import (
+    aria,
     auto,
     bert,
     bit,
