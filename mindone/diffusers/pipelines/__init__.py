@@ -116,7 +116,7 @@ _import_structure = {
         "LatentConsistencyModelPipeline",
     ],
     "latte": ["LattePipeline"],
-    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline"],
+    "ltx": ["LTXPipeline", "LTXImageToVideoPipeline", "LTXConditionPipeline"],
     "lumina": ["LuminaText2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
@@ -319,7 +319,7 @@ if TYPE_CHECKING:
         LEditsPPPipelineStableDiffusion,
         LEditsPPPipelineStableDiffusionXL,
     )
-    from .ltx import LTXImageToVideoPipeline, LTXPipeline
+    from .ltx import LTXConditionPipeline, LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
