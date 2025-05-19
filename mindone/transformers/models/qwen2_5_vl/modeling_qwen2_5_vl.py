@@ -296,7 +296,7 @@ class Qwen2_5_VLPreTrainedModel(MSPreTrainedModel):
     _no_split_modules = ["Qwen2_5_VLDecoderLayer", "Qwen2_5_VLVisionBlock"]
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
     _supports_cache_class = True
     _supports_static_cache = False
 
@@ -309,7 +309,7 @@ class Qwen2_5_VLPreTrainedModel(MSPreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight[module.padding_idx] = 0
 
 
 class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
@@ -1349,7 +1349,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
                     llm_pos_ids_list.append(mint.arange(text_len, dtype=ms.int32).view(1, -1).expand((3, -1)) + st_idx)
 
                 llm_positions = mint.cat(llm_pos_ids_list, dim=1).reshape(3, -1)
-                position_ids[..., i, attention_mask[i] == 1] = llm_positions
+                position_ids[..., i, attention_mask[i] == 1] = llm_positions.to(position_ids.dtype)
                 mrope_position_deltas.append(llm_positions.max() + 1 - len(total_input_ids[i]))
             mrope_position_deltas = Tensor(mrope_position_deltas).unsqueeze(1)
             return position_ids, mrope_position_deltas
