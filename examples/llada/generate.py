@@ -153,7 +153,7 @@ def run_profiler(
     steps = steps // num_blocks
     output_path = "./profiler_data"
     profiler = ms.Profiler(
-        start_profile=False, output_path=output_path, profiler_level=ms.profiler.ProfilerLevel.Level1
+        start_profile=False, output_path=output_path, use_stack=True, profiler_level=ms.profiler.ProfilerLevel.Level1
     )
     for num_block in range(num_blocks):
         for i in range(steps):
