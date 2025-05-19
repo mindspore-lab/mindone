@@ -355,8 +355,8 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
     @property
     def do_classifier_free_guidance(self):
         if isinstance(self.guidance_scale, (int, float)):
-            return self.guidance_scale.max() > 1
-        return mint.max(self.guidance_scale) > 1
+            return self.guidance_scale > 1
+        return self.guidance_scale.max() > 1
 
     @property
     def num_timesteps(self):

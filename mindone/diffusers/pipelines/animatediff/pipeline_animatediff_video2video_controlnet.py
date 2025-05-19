@@ -508,7 +508,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         else:
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(dim=2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     negative_image_embeds.append(single_negative_image_embeds)
                 image_embeds.append(single_image_embeds)
 
@@ -1219,7 +1219,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                     # Infer ControlNet only for the conditional batch.
                     control_model_input = latents
                     control_model_input = self.scheduler.scale_model_input(control_model_input, t)
-                    controlnet_prompt_embeds = prompt_embeds.chunk(dim=2)[1]
+                    controlnet_prompt_embeds = prompt_embeds.chunk(2)[1]
                 else:
                     control_model_input = latent_model_input
                     controlnet_prompt_embeds = prompt_embeds
@@ -1260,7 +1260,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

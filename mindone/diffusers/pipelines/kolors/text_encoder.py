@@ -327,7 +327,7 @@ class SelfAttention(nn.Cell):
                     self.num_multi_query_groups_per_partition * self.hidden_size_per_attention_head,
                     self.num_multi_query_groups_per_partition * self.hidden_size_per_attention_head,
                 ],
-                dim=-1,
+                axis=-1,
             )
             query_layer = query_layer.view(
                 query_layer.shape[:-1] + (self.num_attention_heads_per_partition, self.hidden_size_per_attention_head)

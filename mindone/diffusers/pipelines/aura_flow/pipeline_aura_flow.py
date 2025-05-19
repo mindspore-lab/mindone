@@ -268,9 +268,7 @@ class AuraFlowPipeline(DiffusionPipeline):
 
             text_inputs = {k: ms.Tensor(v) for k, v in text_inputs.items()}
             prompt_embeds = self.text_encoder(**text_inputs)[0]
-            prompt_attention_mask = mint.broadcast_to(
-                mint.unsqueeze(text_inputs["attention_mask"], -1), prompt_embeds.shape
-            )
+            prompt_attention_mask = text_inputs["attention_mask"].unsqueeze(-1).broadcast_to(prompt_embeds.shape)
             prompt_embeds = prompt_embeds * prompt_attention_mask
 
         if self.text_encoder is not None:
@@ -528,7 +526,7 @@ class AuraFlowPipeline(DiffusionPipeline):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1
