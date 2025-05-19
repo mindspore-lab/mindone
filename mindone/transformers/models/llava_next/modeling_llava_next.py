@@ -357,7 +357,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
                 if image_newline is not None:
                     image_feature = mint.cat((image_feature, image_newline[None].to(image_feature)), dim=0)
             new_image_features.append(image_feature)
-            feature_lens.append(image_feature.size(0))
+            feature_lens.append(image_feature.shape[0])
         image_features = mint.cat(new_image_features, dim=0)
         feature_lens = ms.tensor(feature_lens, dtype=ms.int64)
         return image_features, feature_lens
@@ -405,7 +405,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
             # otherwise has to be stacked from list of (num_patches, num_channels, height, width)
             raise ValueError(f"pixel_values of shape {pixel_values.shape}, expect to be of 4 or 5 dimensions")
 
-        image_features = self.vision_tower(pixel_values, output_hidden_states=True)
+        image_features = self.vision_tower(pixel_values, output_hidden_states=True, return_dict=True)
         # If we have one vision feature layer, return the corresponding hidden states,
         # otherwise, select the hidden states of each feature layer and concatenate them
         if isinstance(vision_feature_layer, int):
@@ -505,7 +505,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
         if inputs_embeds is None:
             inputs_embeds = self.get_input_embeddings()(input_ids)
 
-        if pixel_values is not None and pixel_values.size(0) > 0:
+        if pixel_values is not None and pixel_values.shape[0] > 0:
             image_features = self.get_image_features(
                 pixel_values,
                 image_sizes,
@@ -530,7 +530,10 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
             image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            # TODO: remove cast
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
+            )
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -542,7 +545,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
-            logits_to_keep=logits_to_keep,
+            # logits_to_keep=logits_to_keep,  # FIXME: add logits_to_keep in llama
             **lm_kwargs,
         )
 
@@ -562,7 +565,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]

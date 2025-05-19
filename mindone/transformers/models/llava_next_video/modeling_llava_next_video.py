@@ -391,7 +391,7 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
                 if image_newline is not None:
                     image_feature = mint.cat((image_feature, image_newline[None].to(image_feature)), dim=0)
             new_image_features.append(image_feature)
-            feature_lens.append(image_feature.size(0))
+            feature_lens.append(image_feature.shape[0])
         image_features = mint.cat(new_image_features, dim=0)
         feature_lens = ms.tensor(feature_lens, dtype=ms.int64)
         return image_features, feature_lens
@@ -503,7 +503,7 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
         if inputs_embeds is None:
             inputs_embeds = self.get_input_embeddings()(input_ids)
 
-        if pixel_values is not None and pixel_values.size(0) > 0:
+        if pixel_values is not None and pixel_values.shape[0] > 0:
             image_features = self.get_image_features(
                 pixel_values,
                 image_sizes,
@@ -526,16 +526,19 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
             image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            # TODO: remove cast
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
+            )
 
-        if pixel_values_videos is not None and pixel_values_videos.size(0) > 0:
+        if pixel_values_videos is not None and pixel_values_videos.shape[0] > 0:
             video_features = self.get_video_features(
                 pixel_values_videos,
                 vision_feature_layer=self.vision_feature_layer,
                 vision_feature_select_strategy=self.vision_feature_select_strategy,
             )
             video_features = [feature.flatten(0, 1) for feature in video_features]
-            video_feature_lens = [feature.size(0) for feature in video_features]
+            video_feature_lens = [feature.shape[0] for feature in video_features]
             video_features = mint.cat(video_features, dim=0)
             video_feature_lens = ms.tensor(video_feature_lens, dtype=ms.int64)
 
@@ -548,7 +551,10 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
                     f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
                 )
             video_features = video_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, video_features)
+            # TODO: remove cast
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, video_features.float()).to(inputs_embeds.dtype)
+            )
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -580,7 +586,7 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]
