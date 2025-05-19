@@ -39,6 +39,8 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2Model"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
+        ("siglip", "SiglipModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
     ]
@@ -49,6 +51,9 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("llava_next", "LlavaNextForConditionalGeneration"),
+        ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
+        ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -86,6 +91,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
         # Model for Image mapping
         ("bit", "BitModel"),
         ("dpt", "DPTModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
     ]
 )
 
@@ -116,6 +122,9 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("llava_next", "LlavaNextForConditionalGeneration"),
+        ("llava_next_video", "LlavaNextVideoForConditionalGeneration"),
+        ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
     ]
 )
 
@@ -123,6 +132,8 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("llava_next", "LlavaNextForConditionalGeneration"),
+        ("llava_onevision", "LlavaOnevisionForConditionalGeneration"),
     ]
 )
 
@@ -245,7 +256,12 @@ MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_ZERO_SHOT_IMAGE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
+    [
+        # Model for Zero Shot Image Classification mapping
+        ("siglip", "SiglipModel"),
+    ]
+)
 
 MODEL_FOR_BACKBONE_MAPPING_NAMES = OrderedDict()
 
