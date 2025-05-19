@@ -135,7 +135,7 @@ def kaiming_normal_(tensor: Parameter, a: float = 0, mode: str = "fan_in", nonli
 
 def init_weights(
     config: ModelConfig,
-    module: Union[nn.Dense, nn.Embedding],
+    module: Union[nn.Dense, mint.nn.Embedding],
     d: Optional[int] = None,
     layer_id: Optional[int] = None,
     std_factor: float = 1.0,
@@ -542,7 +542,7 @@ class LLaDABlock(nn.Cell):
         assert config.d_model % config.n_heads == 0
 
         # Dropout.
-        self.dropout = nn.Dropout(p=config.residual_dropout)
+        self.dropout = mint.nn.Dropout(p=config.residual_dropout)
 
         # Layer norms.
         self.k_norm: Optional[LayerNormBase] = None
@@ -983,8 +983,8 @@ class Transformer(nn.Cell):
         super().__init__()
         self.config = config
         self.__cache = cache
-        self.wte = nn.Embedding(config.embedding_size or config.vocab_size, config.d_model)
-        self.emb_drop = nn.Dropout(p=config.embedding_dropout)
+        self.wte = mint.nn.Embedding(config.embedding_size or config.vocab_size, config.d_model)
+        self.emb_drop = mint.nn.Dropout(p=config.embedding_dropout)
         self.ln_f = LayerNorm.build(config)
 
         blocks = [LLaDABlock.build(i, config, self.__cache) for i in range(config.n_layers)]
@@ -998,7 +998,7 @@ class Transformer(nn.Cell):
             self.blocks = nn.CellList(blocks)
 
         if not (self.config.alibi or self.config.rope):
-            self.wpe = nn.Embedding(config.max_sequence_length, config.d_model)
+            self.wpe = mint.nn.Embedding(config.max_sequence_length, config.d_model)
         if not config.weight_tying:
             self.ff_out = nn.Dense(
                 config.d_model,
