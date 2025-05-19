@@ -59,6 +59,7 @@ class LlavaNextVisionText2TextModelTester:
             "attention_dropout": 0.1,
             "initializer_range": 0.02,
         },
+        attn_implementation="eager",
     ):
         self.ignore_index = ignore_index
         self.image_token_index = image_token_index
@@ -82,6 +83,7 @@ class LlavaNextVisionText2TextModelTester:
         self.num_image_tokens = 24
         self.seq_length = seq_length + self.num_image_tokens
         self.encoder_seq_length = self.seq_length
+        self.attn_implementation = attn_implementation
 
     def get_config(self):
         return LlavaNextConfig(
@@ -94,6 +96,7 @@ class LlavaNextVisionText2TextModelTester:
             vision_feature_layer=self.vision_feature_layer,
             image_grid_pinpoints=self.image_grid_pinpoints,
             image_seq_length=self.num_image_tokens,
+            attn_implementation=self.attn_implementation,
         )
 
     def prepare_config_and_inputs(self):
