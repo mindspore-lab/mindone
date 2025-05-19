@@ -6,7 +6,6 @@ import torch
 from transformers import LlavaNextConfig
 
 import mindspore as ms
-import mindspore.mint as mint
 
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
@@ -17,14 +16,13 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]  # not support graph mode yet
 
 
 class LlavaNextVisionText2TextModelTester:
     def __init__(
         self,
-        parent,
         ignore_index=-100,
         image_token_index=0,
         projector_hidden_act="gelu",
@@ -34,10 +32,10 @@ class LlavaNextVisionText2TextModelTester:
         text_config={
             "model_type": "llama",
             "seq_length": 7,
-            "is_training": True,
+            "is_training": False,  # inference only
             "use_input_mask": True,
             "use_token_type_ids": False,
-            "use_labels": True,
+            "use_labels": False,  # inference only
             "vocab_size": 99,
             "hidden_size": 32,
             "num_hidden_layers": 2,
@@ -54,12 +52,12 @@ class LlavaNextVisionText2TextModelTester:
             "num_choices": 4,
             "pad_token_id": 1,
         },
-        is_training=True,
+        is_training=False,  # inference only
         vision_config={
             "image_size": 8,
             "patch_size": 4,
             "num_channels": 3,
-            "is_training": True,
+            "is_training": False,  # inference only
             "hidden_size": 32,
             "projection_dim": 32,
             "num_hidden_layers": 2,
@@ -70,7 +68,6 @@ class LlavaNextVisionText2TextModelTester:
             "initializer_range": 0.02,
         },
     ):
-        self.parent = parent
         self.ignore_index = ignore_index
         self.image_token_index = image_token_index
         self.projector_hidden_act = projector_hidden_act
@@ -124,15 +121,15 @@ class LlavaNextVisionText2TextModelTester:
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         config, pixel_values = config_and_inputs
-        input_ids = ms.Tensor(ids_numpy([self.batch_size, self.seq_length], config.text_config.vocab_size - 2) + 2)
-        attention_mask = mint.ones(input_ids.shape, dtype=ms.int64)
+        input_ids = ids_numpy([self.batch_size, self.seq_length], config.text_config.vocab_size - 2) + 2
+        attention_mask = np.ones(input_ids.shape, dtype=np.int64)
         input_ids[input_ids == config.image_token_index] = self.pad_token_id
 
         input_ids[:, : self.num_image_tokens] = config.image_token_index
 
         inputs_dict = {
             "pixel_values": pixel_values,
-            "image_sizes": ms.Tensor(
+            "image_sizes": np.array(
                 [[self.vision_config["image_size"], self.vision_config["image_size"]]] * self.batch_size
             ),
             "input_ids": input_ids,
@@ -154,6 +151,7 @@ _CASES = [
         {},
         (),
         inputs_dict,
+        {"logits": "logits"},
     ],
 ]
 
@@ -206,13 +204,11 @@ def test_named_modules(
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
+
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
             ms_output = getattr(ms_outputs, ms_idx)
             if isinstance(pt_output, (list, tuple)):

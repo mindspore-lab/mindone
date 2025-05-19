@@ -350,7 +350,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
                 if image_newline is not None:
                     image_feature = mint.cat((image_feature, image_newline[None].to(image_feature)), dim=0)
             new_image_features.append(image_feature)
-            feature_lens.append(image_feature.size(0))
+            feature_lens.append(image_feature.shape[0])
         image_features = mint.cat(new_image_features, dim=0)
         feature_lens = ms.tensor(feature_lens, dtype=ms.int64)
         return image_features, feature_lens
@@ -551,7 +551,10 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
                     f"Image features and image tokens do not match: tokens: {n_image_tokens}, features {n_image_features}"
                 )
             image_features = image_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
+            # TODO: remove cast
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_image_mask, image_features.float()).to(inputs_embeds.dtype)
+            )
 
         # Video are simply embedded and further pooled to decrease seq len
         if pixel_values_videos is not None:
@@ -573,7 +576,9 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
                     f"Video features and video tokens do not match: tokens: {n_video_tokens}, features {n_video_features}"
                 )
             video_features = video_features.to(inputs_embeds.dtype)
-            inputs_embeds = inputs_embeds.masked_scatter(special_video_mask, video_features)
+            inputs_embeds = (
+                inputs_embeds.float().masked_scatter(special_video_mask, video_features.float()).to(inputs_embeds.dtype)
+            )
 
         outputs = self.language_model(
             attention_mask=attention_mask,
@@ -605,7 +610,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = mint.nn.CrossEntropyLoss()
-            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+            loss = loss_fct(shift_logits.view(-1, shift_logits.shape[-1]), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]
