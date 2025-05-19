@@ -31,6 +31,8 @@ logger = logging.get_logger(__name__)
 CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
+        ("aria", "AriaConfig"),
+        ("aria_text", "AriaTextConfig"),
         ("bert", "BertConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
@@ -52,6 +54,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
 MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
+        ("aria", "Aria"),
+        ("aria_text", "AriaText"),
         ("bert", "BERT"),
         ("bit", "BiT"),
         ("blip-2", "BLIP-2"),
@@ -115,6 +119,7 @@ SPECIAL_MODEL_TYPE_TO_MODULE_NAME = OrderedDict(
         ("clip_vision_model", "clip"),
         ("qwen2_audio_encoder", "qwen2_audio"),
         ("clip_text_model", "clip"),
+        ("aria_text", "aria"),
         ("siglip_vision_model", "siglip"),
         ("chinese_clip_vision_model", "chinese_clip"),
         ("rt_detr_resnet", "rt_detr"),

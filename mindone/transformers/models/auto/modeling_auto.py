@@ -27,6 +27,8 @@ logger = logging.get_logger(__name__)
 MODEL_MAPPING_NAMES = OrderedDict(
     [
         # Base model mapping
+        ("aria", "AriaForConditionalGeneration"),
+        ("aria_text", "AriaTextModel"),
         ("bert", "BertModel"),
         ("bit", "BitModel"),
         ("blip-2", "Blip2Model"),
@@ -69,6 +71,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Causal LM mapping
+        ("aria_text", "AriaTextForCausalLM"),
         ("bert", "BertLMHeadModel"),
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
@@ -121,6 +124,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
+        ("aria", "AriaForConditionalGeneration"),
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
     ]
