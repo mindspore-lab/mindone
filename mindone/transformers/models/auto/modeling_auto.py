@@ -39,6 +39,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2Model"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
+        ("qwen2_5_vl", "Qwen2_5_VLModel"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
     ]
@@ -116,6 +117,7 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
     ]
 )
 
@@ -123,6 +125,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
     ]
 )
 
