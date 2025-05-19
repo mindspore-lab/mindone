@@ -121,6 +121,14 @@ from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.llava_next import LlavaNextForConditionalGeneration, LlavaNextPreTrainedModel
 from .models.llava_next_video import LlavaNextVideoForConditionalGeneration, LlavaNextVideoPreTrainedModel
 from .models.llava_onevision import LlavaOnevisionForConditionalGeneration, LlavaOnevisionPreTrainedModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
