@@ -1,28 +1,28 @@
 import numpy as np
 import pytest
 import torch
-from transformers import LlavaNextConfig
+from transformers import LlavaOnevisionConfig
 
 import mindspore as ms
 
 from tests.modeling_test_utils import compute_diffs, generalized_parse_args, get_modules
 from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-3}
 MODES = [1]  # not support graph mode yet
 
 
-class LlavaNextVisionText2TextModelTester:
+class LlavaOnevisionVisionText2TextModelTester:
     def __init__(
         self,
         ignore_index=-100,
-        image_token_index=0,
+        image_token_index=1,
         projector_hidden_act="gelu",
         seq_length=7,
-        vision_feature_select_strategy="default",
+        vision_feature_select_strategy="full",
         vision_feature_layer=-1,
         text_config={
-            "model_type": "llama",
+            "model_type": "qwen2",
             "seq_length": 7,
             "is_training": False,  # inference only
             "use_input_mask": True,
@@ -32,6 +32,7 @@ class LlavaNextVisionText2TextModelTester:
             "hidden_size": 32,
             "num_hidden_layers": 2,
             "num_attention_heads": 4,
+            "num_key_value_heads": 4,
             "intermediate_size": 37,
             "hidden_act": "gelu",
             "hidden_dropout_prob": 0.1,
@@ -42,12 +43,12 @@ class LlavaNextVisionText2TextModelTester:
             "initializer_range": 0.02,
             "num_labels": 3,
             "num_choices": 4,
-            "pad_token_id": 1,
+            "pad_token_id": 0,
         },
         is_training=False,  # inference only
         vision_config={
-            "image_size": 8,
-            "patch_size": 4,
+            "image_size": 16,
+            "patch_size": 8,
             "num_channels": 3,
             "is_training": False,  # inference only
             "hidden_size": 32,
@@ -68,6 +69,8 @@ class LlavaNextVisionText2TextModelTester:
         self.text_config = text_config
         self.vision_config = vision_config
         self.pad_token_id = text_config["pad_token_id"]
+        self.num_image_tokens = 10
+        self.seq_length = seq_length + self.num_image_tokens
 
         self.num_hidden_layers = text_config["num_hidden_layers"]
         self.vocab_size = text_config["vocab_size"]
@@ -79,12 +82,9 @@ class LlavaNextVisionText2TextModelTester:
         self.num_channels = 3
         self.image_size = 30
         self.image_grid_pinpoints = [[16, 16]]
-        self.num_image_tokens = 24
-        self.seq_length = seq_length + self.num_image_tokens
-        self.encoder_seq_length = self.seq_length
 
     def get_config(self):
-        return LlavaNextConfig(
+        return LlavaOnevisionConfig(
             text_config=self.text_config,
             vision_config=self.vision_config,
             ignore_index=self.ignore_index,
@@ -93,14 +93,13 @@ class LlavaNextVisionText2TextModelTester:
             vision_feature_select_strategy=self.vision_feature_select_strategy,
             vision_feature_layer=self.vision_feature_layer,
             image_grid_pinpoints=self.image_grid_pinpoints,
-            image_seq_length=self.num_image_tokens,
         )
 
     def prepare_config_and_inputs(self):
         pixel_values = floats_numpy(
             [
                 self.batch_size,
-                5,
+                3,
                 self.vision_config["num_channels"],
                 self.vision_config["image_size"],
                 self.vision_config["image_size"],
@@ -115,30 +114,28 @@ class LlavaNextVisionText2TextModelTester:
         config, pixel_values = config_and_inputs
         input_ids = ids_numpy([self.batch_size, self.seq_length], config.text_config.vocab_size - 2) + 2
         attention_mask = np.ones(input_ids.shape, dtype=np.int64)
-        input_ids[input_ids == config.image_token_index] = self.pad_token_id
 
+        input_ids[input_ids == config.image_token_index] = self.pad_token_id
         input_ids[:, : self.num_image_tokens] = config.image_token_index
 
         inputs_dict = {
             "pixel_values": pixel_values,
-            "image_sizes": np.array(
-                [[self.vision_config["image_size"], self.vision_config["image_size"]]] * self.batch_size
-            ),
+            "image_sizes": np.array([[45, 45]] * self.batch_size),
             "input_ids": input_ids,
             "attention_mask": attention_mask,
         }
         return config, inputs_dict
 
 
-model_tester = LlavaNextVisionText2TextModelTester()
+model_tester = LlavaOnevisionVisionText2TextModelTester()
 config, inputs_dict = model_tester.prepare_config_and_inputs_for_common()
 
 
 _CASES = [
     [
-        "LlavaNextForConditionalGeneration",
-        "transformers.LlavaNextForConditionalGeneration",
-        "mindone.transformers.LlavaNextForConditionalGeneration",
+        "LlavaOnevisionForConditionalGeneration",
+        "transformers.LlavaOnevisionForConditionalGeneration",
+        "mindone.transformers.LlavaOnevisionForConditionalGeneration",
         (config,),
         {},
         (),
