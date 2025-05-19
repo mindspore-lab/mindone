@@ -73,7 +73,9 @@ class ModuleType(StrEnum):
     final_out = "final_out"
 
 
-def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, dtype=None):
+def scaled_dot_product_attention(
+    query, key, value, attn_mask=None, dropout_p=0.0, is_causal=False, dtype=None, training=True
+):
     # force dtype(fp16 or bf16) precision calculation
     ori_dtype = query.dtype
     if dtype is not None:
@@ -105,7 +107,7 @@ def scaled_dot_product_attention(query, key, value, attn_mask=None, dropout_p=0.
             dtype=ms.float32,
         ).astype(query.dtype)
 
-    attn_weight = mint.nn.Dropout(p=dropout_p)(attn_weight)
+    attn_weight = mint.nn.functional.dropout(attn_weight, p=dropout_p, training=training)
 
     out = mint.matmul(attn_weight, value)
     out = out.astype(ori_dtype)
@@ -249,12 +251,12 @@ class LayerNormBase(nn.Cell):
         self.eps = eps
         self.normalized_shape = (size or config.d_model,)
         if elementwise_affine or (elementwise_affine is None and self.config.layer_norm_with_affine):
-            self.weight = Parameter(ops.ones(self.normalized_shape, dtype=ms.float32))
+            self.weight = Parameter(mint.ones(self.normalized_shape, dtype=ms.float32))
             use_bias = self.config.bias_for_layer_norm
             if use_bias is None:
                 use_bias = self.config.include_bias
             if use_bias:
-                self.bias = Parameter(ops.zeros(self.normalized_shape, dtype=ms.float32))
+                self.bias = Parameter(mint.zeros(self.normalized_shape, dtype=ms.float32))
             else:
                 self.bias = None
         else:
@@ -333,8 +335,8 @@ class RMSLayerNorm(LayerNormBase):
     def construct(self, x: Tensor) -> Tensor:
         og_dtype = x.dtype
         x = x.to(ms.float32)
-        variance = ops.mean(ops.pow(x, 2), -1, keep_dims=True)
-        x = x * ops.rsqrt(variance + self.eps)
+        variance = mint.mean(mint.pow(x, 2), -1, keepdim=True)
+        x = x * mint.rsqrt(variance + self.eps)
         x = x.to(og_dtype)
 
         if self.weight is not None:
@@ -363,8 +365,8 @@ class GemmaRMSLayerNorm(LayerNormBase):
     def construct(self, x: Tensor) -> Tensor:
         og_dtype = x.dtype
         x = x.to(ms.float32)
-        variance = ops.mean(ops.pow(x, 2), -1, keep_dims=True)
-        x = x * ops.rsqrt(variance + self.eps)
+        variance = mint.mean(mint.pow(x, 2), -1, keepdim=True)
+        x = x * mint.rsqrt(variance + self.eps)
         x = x.to(og_dtype)
 
         if self.weight is not None:
@@ -401,20 +403,20 @@ class RotaryEmbedding(nn.Cell):
             return self.pos_sin[:, :, :seq_len, :], self.pos_cos[:, :, :seq_len, :]
 
         dim = self.config.d_model // self.config.n_heads
-        inv_freq = 1.0 / (self.rope_theta ** (ops.arange(0, dim, 2, dtype=ms.float32) / dim))
-        seq = ops.arange(seq_len, dtype=ms.float32)
+        inv_freq = 1.0 / (self.rope_theta ** (mint.arange(0, dim, 2, dtype=ms.float32) / dim))
+        seq = mint.arange(seq_len, dtype=ms.float32)
         # freqs = einsum("i , j -> i j", seq, inv_freq)
         freqs = ops.outer(seq, inv_freq)
-        positions = ops.cat((freqs, freqs), axis=-1)
-        pos_sin, pos_cos = ops.sin(positions)[None, None, :, :], ops.cos(positions)[None, None, :, :]
+        positions = mint.cat((freqs, freqs), dim=-1)
+        pos_sin, pos_cos = mint.sin(positions)[None, None, :, :], mint.cos(positions)[None, None, :, :]
 
         return pos_sin, pos_cos
 
     def rotate_half(self, x: Tensor) -> Tensor:
         B, nh, T, hs = x.shape
         x = x.view(B, nh, T, 2, hs // 2)
-        x1, x2 = ops.unbind(x, -2)
-        return ops.cat((-x2, x1), axis=-1)
+        x1, x2 = mint.unbind(x, -2)
+        return mint.cat((-x2, x1), dim=-1)
 
     def apply_rotary_pos_emb(self, pos_sin: Tensor, pos_cos: Tensor, t: Tensor) -> Tensor:
         return ((t * pos_cos) + (self.rotate_half(t) * pos_sin)).to(t.dtype)
@@ -486,8 +488,8 @@ class SiLU(mint.nn.SiLU):
 
 class SwiGLU(Activation):
     def construct(self, x: Tensor) -> Tensor:
-        x, gate = ops.chunk(x, 2, axis=-1)
-        return ops.silu(gate) * x
+        x, gate = mint.chunk(x, 2, dim=-1)
+        return mint.nn.functional.silu(gate) * x
 
     @property
     def output_multiplier(self) -> float:
@@ -496,7 +498,7 @@ class SwiGLU(Activation):
 
 def causal_attention_bias(seq_len: int) -> Tensor:
     att_bias = mint.triu(
-        ops.ones((seq_len, seq_len), dtype=ms.float32),
+        mint.ones((seq_len, seq_len), dtype=ms.float32),
         diagonal=1,
     )
     att_bias = ops.masked_fill(att_bias, att_bias == 1, _DTYPE_2_MIN[att_bias.dtype])
@@ -510,14 +512,14 @@ def get_causal_attention_bias(seq_len: int) -> Tensor:
 
 
 def alibi_attention_bias(seq_len: int, config: ModelConfig) -> Tensor:
-    alibi_bias = ops.arange(1 - seq_len, 1, dtype=ms.float32).view(1, 1, 1, seq_len)
+    alibi_bias = mint.arange(1 - seq_len, 1, dtype=ms.float32).view(1, 1, 1, seq_len)
 
     # shape: (1, 1, seq_len, seq_len)
-    alibi_bias = alibi_bias - ops.arange(1 - seq_len, 1, dtype=ms.float32).view(1, 1, seq_len, 1)
-    alibi_bias = ops.abs(alibi_bias) * (-1)
+    alibi_bias = alibi_bias - mint.arange(1 - seq_len, 1, dtype=ms.float32).view(1, 1, seq_len, 1)
+    alibi_bias = mint.abs(alibi_bias) * (-1)
 
     # shape: (n_heads,)
-    m = ops.arange(1, config.n_heads + 1, dtype=ms.float32)
+    m = mint.arange(1, config.n_heads + 1, dtype=ms.float32)
     m = m * (config.alibi_bias_max / config.n_heads)
 
     # shape: (1, n_heads, seq_len, seq_len)
@@ -628,7 +630,7 @@ class LLaDABlock(nn.Cell):
                 head_num=num_heads,
                 input_layout="BNSD",
                 dtype=ms.float16,
-                attention_dropout=dropout_p,
+                attention_dropout=dropout_p if self.training else 0.0,
             )(q, k, v)
 
             return r
@@ -650,6 +652,7 @@ class LLaDABlock(nn.Cell):
                 attn_mask=None,
                 dropout_p=dropout_p,
                 is_causal=False,
+                training=self.training,
             )
 
     def attention(
@@ -679,8 +682,8 @@ class LLaDABlock(nn.Cell):
 
         if layer_past is not None:
             past_key, past_value = layer_past
-            k = ops.cat((past_key, k), axis=-2)
-            v = ops.cat((past_value, v), axis=-2)
+            k = mint.cat((past_key, k), dim=-2)
+            v = mint.cat((past_value, v), dim=-2)
 
         present = (k, v) if use_cache else None
         query_len, key_len = q.shape[-2], k.shape[-2]  # could be different if layer_past not None
@@ -785,7 +788,7 @@ class LLaDASequentialBlock(LLaDABlock):
         #                      k, v: (batch_size, seq_len, d_model // n_heads)
         #  - for group query attn q: (batch_size, seq_len, d_model)
         #                      k, v: (batch_size, seq_len, d_model // n_kv_heads)
-        q, k, v = ops.split(self.att_proj(self.attn_norm(x)), self.fused_dims, axis=-1)
+        q, k, v = mint.split(self.att_proj(self.attn_norm(x)), self.fused_dims, dim=-1)
 
         # Get attention scores.
         # shape: (batch_size, seq_len, d_model)
@@ -1154,7 +1157,7 @@ class LLaDAModel(nn.Cell):
         if not (self.config.alibi or self.config.rope):
             # Get positional embeddings.
             # shape: (1, seq_len)
-            pos = ops.arange(past_length, past_length + seq_len, dtype=ms.int32).unsqueeze(0)
+            pos = mint.arange(past_length, past_length + seq_len, dtype=ms.int32).unsqueeze(0)
             # shape: (1, seq_len, d_model)
             pos_emb = self.transformer.wpe(pos)
             x = pos_emb + x
@@ -1280,7 +1283,7 @@ class LLaDAModel(nn.Cell):
         # Get logits.
         # shape: (batch_size, seq_len or 1, vocab_size)
         if self.config.weight_tying:
-            logits = ops.dense(x, self.transformer.wte.embedding_table, None)
+            logits = mint.nn.functional.linear(x, self.transformer.wte.embedding_table, None)
         else:
             logits = self.transformer.ff_out(x)
         if self.config.scale_logits:
