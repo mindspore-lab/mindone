@@ -135,7 +135,7 @@ def kaiming_normal_(tensor: Parameter, a: float = 0, mode: str = "fan_in", nonli
 
 def init_weights(
     config: ModelConfig,
-    module: Union[nn.Dense, mint.nn.Embedding],
+    module: Union[mint.nn.Linear, mint.nn.Embedding],
     d: Optional[int] = None,
     layer_id: Optional[int] = None,
     std_factor: float = 1.0,
@@ -202,7 +202,7 @@ def init_weights(
     else:
         raise NotImplementedError(config.init_fn)
 
-    if isinstance(module, nn.Dense):
+    if isinstance(module, mint.nn.Linear):
         if module.bias is not None:
             constant_(module.bias, 0.0)
 
@@ -560,13 +560,13 @@ class LLaDABlock(nn.Cell):
         assert (self.act.output_multiplier * self.hidden_size) % 1 == 0
 
         # Attention output projection.
-        self.attn_out = nn.Dense(config.d_model, config.d_model, has_bias=config.include_bias)
+        self.attn_out = mint.nn.Linear(config.d_model, config.d_model, bias=config.include_bias)
 
         # Feed-forward output projection.
-        self.ff_out = nn.Dense(
+        self.ff_out = mint.nn.Linear(
             int(self.act.output_multiplier * self.hidden_size),
             config.d_model,
-            has_bias=config.include_bias,
+            bias=config.include_bias,
         )
         self.ff_out._is_residual = True  # type: ignore
 
@@ -756,11 +756,11 @@ class LLaDASequentialBlock(LLaDABlock):
             config.effective_n_kv_heads * head_dim,
             config.effective_n_kv_heads * head_dim,
         )
-        self.att_proj = nn.Dense(
-            config.d_model, sum(self.fused_dims), has_bias=config.include_bias | config.include_qkv_bias
+        self.att_proj = mint.nn.Linear(
+            config.d_model, sum(self.fused_dims), bias=config.include_bias | config.include_qkv_bias
         )
         # Feed-forward input projection.
-        self.ff_proj = nn.Dense(config.d_model, self.hidden_size, has_bias=config.include_bias)
+        self.ff_proj = mint.nn.Linear(config.d_model, self.hidden_size, bias=config.include_bias)
 
     def reset_parameters(self):
         super().reset_parameters()
@@ -831,14 +831,14 @@ class LLaDALlamaBlock(LLaDABlock):
         q_proj_out_dim = config.d_model
         k_proj_out_dim = config.effective_n_kv_heads * head_dim
         v_proj_out_dim = config.effective_n_kv_heads * head_dim
-        self.q_proj = nn.Dense(config.d_model, q_proj_out_dim, has_bias=config.include_bias | config.include_qkv_bias)
-        self.k_proj = nn.Dense(config.d_model, k_proj_out_dim, has_bias=config.include_bias | config.include_qkv_bias)
-        self.v_proj = nn.Dense(config.d_model, v_proj_out_dim, has_bias=config.include_bias | config.include_qkv_bias)
+        self.q_proj = mint.nn.Linear(config.d_model, q_proj_out_dim, bias=config.include_bias | config.include_qkv_bias)
+        self.k_proj = mint.nn.Linear(config.d_model, k_proj_out_dim, bias=config.include_bias | config.include_qkv_bias)
+        self.v_proj = mint.nn.Linear(config.d_model, v_proj_out_dim, bias=config.include_bias | config.include_qkv_bias)
 
         # Feed-forward input projection.
-        self.ff_proj = nn.Dense(config.d_model, self.hidden_size, has_bias=config.include_bias)
+        self.ff_proj = mint.nn.Linear(config.d_model, self.hidden_size, bias=config.include_bias)
         # new add
-        self.up_proj = nn.Dense(config.d_model, self.hidden_size, has_bias=config.include_bias)
+        self.up_proj = mint.nn.Linear(config.d_model, self.hidden_size, bias=config.include_bias)
 
     def reset_parameters(self):
         super().reset_parameters()
@@ -1000,10 +1000,10 @@ class Transformer(nn.Cell):
         if not (self.config.alibi or self.config.rope):
             self.wpe = mint.nn.Embedding(config.max_sequence_length, config.d_model)
         if not config.weight_tying:
-            self.ff_out = nn.Dense(
+            self.ff_out = mint.nn.Linear(
                 config.d_model,
                 config.embedding_size or config.vocab_size,
-                has_bias=config.include_bias,
+                bias=config.include_bias,
             )
 
 
