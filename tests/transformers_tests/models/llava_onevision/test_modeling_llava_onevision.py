@@ -60,6 +60,7 @@ class LlavaOnevisionVisionText2TextModelTester:
             "attention_dropout": 0.1,
             "initializer_range": 0.02,
         },
+        attn_implementation="eager",
     ):
         self.ignore_index = ignore_index
         self.image_token_index = image_token_index
@@ -82,6 +83,7 @@ class LlavaOnevisionVisionText2TextModelTester:
         self.num_channels = 3
         self.image_size = 30
         self.image_grid_pinpoints = [[16, 16]]
+        self.attn_implementation = attn_implementation
 
     def get_config(self):
         return LlavaOnevisionConfig(
@@ -93,6 +95,7 @@ class LlavaOnevisionVisionText2TextModelTester:
             vision_feature_select_strategy=self.vision_feature_select_strategy,
             vision_feature_layer=self.vision_feature_layer,
             image_grid_pinpoints=self.image_grid_pinpoints,
+            attn_implementation=self.attn_implementation,
         )
 
     def prepare_config_and_inputs(self):
