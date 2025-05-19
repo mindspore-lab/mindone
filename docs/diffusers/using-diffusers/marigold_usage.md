@@ -10,32 +10,40 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 -->
 
-# Marigold Pipelines for Computer Vision Tasks
+# Marigold Computer Vision
 
-[Marigold](../api/pipelines/marigold.md) is a novel diffusion-based dense prediction approach, and a set of pipelines for various computer vision tasks, such as monocular depth estimation.
+# Marigold Computer Vision
 
-This guide will show you how to use Marigold to obtain fast and high-quality predictions for images and videos.
+**Marigold** is a diffusion-based [method](https://huggingface.co/papers/2312.02145) and a collection of [pipelines](../api/pipelines/marigold) designed for
+dense computer vision tasks, including **monocular depth prediction**, **surface normals estimation**, and **intrinsic
+image decomposition**.
 
-Each pipeline supports one Computer Vision task, which takes an input RGB image as input and produces a *prediction* of the modality of interest, such as a depth map of the input image.
-Currently, the following tasks are implemented:
+This guide will walk you through using Marigold to generate fast and high-quality predictions for images and videos.
 
-| Pipeline                                                                                                                                    | Predicted Modalities                                                                                             |                                                                       Demos                                                                        |
-|---------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------------------:|
-| [MarigoldDepthPipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines/marigold/pipeline_marigold_depth.py)     | [Depth](https://en.wikipedia.org/wiki/Depth_map), [Disparity](https://en.wikipedia.org/wiki/Binocular_disparity) | [Fast Demo (LCM)](https://huggingface.co/spaces/prs-eth/marigold-lcm), [Slow Original Demo (DDIM)](https://huggingface.co/spaces/prs-eth/marigold) |
-| [MarigoldNormalsPipeline](https://github.com/mindspore-lab/mindone/tree/master/mindone/diffusers/pipelines/marigold/pipeline_marigold_normals.py) | [Surface normals](https://en.wikipedia.org/wiki/Normal_mapping)                                                  |                                   [Fast Demo (LCM)](https://huggingface.co/spaces/prs-eth/marigold-normals-lcm)                                    |
+Each pipeline is tailored for a specific computer vision task, processing an input RGB image and generating a
+corresponding prediction.
+Currently, the following computer vision tasks are implemented:
 
-The original checkpoints can be found under the [PRS-ETH](https://huggingface.co/prs-eth/) Hugging Face organization.
-These checkpoints are meant to work with diffusers pipelines and the [original codebase](https://github.com/prs-eth/marigold).
-The original code can also be used to train new checkpoints.
+| Pipeline                                                                                                                                          | Recommended Model Checkpoints                                                                                                                                                                           |                              Spaces (Interactive Apps)                               | Predicted Modalities                                                                                                                                                               |
+|---------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [MarigoldDepthPipeline](../../../mindone/diffusers/pipelines/marigold/pipeline_marigold_depth.py)           | [prs-eth/marigold-depth-v1-1](https://huggingface.co/prs-eth/marigold-depth-v1-1)                                                                                                                       |          [Depth Estimation](https://huggingface.co/spaces/prs-eth/marigold)          | [Depth](https://en.wikipedia.org/wiki/Depth_map), [Disparity](https://en.wikipedia.org/wiki/Binocular_disparity)                                                                   |
+| [MarigoldNormalsPipeline](../../../mindone/diffusers/pipelines/marigold/pipeline_marigold_normals.py)       | [prs-eth/marigold-normals-v1-1](https://huggingface.co/prs-eth/marigold-normals-v1-1)                                                                                                                   | [Surface Normals Estimation](https://huggingface.co/spaces/prs-eth/marigold-normals) | [Surface normals](https://en.wikipedia.org/wiki/Normal_mapping)                                                                                                                    |
+| [MarigoldIntrinsicsPipeline](../../../mindone/diffusers/pipelines/marigold/pipeline_marigold_intrinsics.py) | [prs-eth/marigold-iid-appearance-v1-1](https://huggingface.co/prs-eth/marigold-iid-appearance-v1-1),<br>[prs-eth/marigold-iid-lighting-v1-1](https://huggingface.co/prs-eth/marigold-iid-lighting-v1-1) | [Intrinsic Image Decomposition](https://huggingface.co/spaces/prs-eth/marigold-iid)  | [Albedo](https://en.wikipedia.org/wiki/Albedo), [Materials](https://www.n.aiq3d.com/wiki/roughnessmetalnessao-map), [Lighting](https://en.wikipedia.org/wiki/Diffuse_reflection)   |
 
-| Checkpoint                                                                                    | Modality | Comment                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-|-----------------------------------------------------------------------------------------------|----------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [prs-eth/marigold-v1-0](https://huggingface.co/prs-eth/marigold-v1-0)                         | Depth    | The first Marigold Depth checkpoint, which predicts *affine-invariant depth* maps. The performance of this checkpoint in benchmarks was studied in the original [paper](https://huggingface.co/papers/2312.02145). Designed to be used with the `DDIMScheduler` at inference, it requires at least 10 steps to get reliable predictions. Affine-invariant depth prediction has a range of values in each pixel between 0 (near plane) and 1 (far plane); both planes are chosen by the model as part of the inference process. See the `MarigoldImageProcessor` reference for visualization utilities. |
-| [prs-eth/marigold-depth-lcm-v1-0](https://huggingface.co/prs-eth/marigold-depth-lcm-v1-0)     | Depth    | The fast Marigold Depth checkpoint, fine-tuned from `prs-eth/marigold-v1-0`. Designed to be used with the `LCMScheduler` at inference, it requires as little as 1 step to get reliable predictions. The prediction reliability saturates at 4 steps and declines after that.                                                                                                                                                                                                                                                                                                                           |
-| [prs-eth/marigold-normals-v0-1](https://huggingface.co/prs-eth/marigold-normals-v0-1)         | Normals  | A preview checkpoint for the Marigold Normals pipeline. Designed to be used with the `DDIMScheduler` at inference, it requires at least 10 steps to get reliable predictions. The surface normals predictions are unit-length 3D vectors with values in the range from -1 to 1. *This checkpoint will be phased out after the release of `v1-0` version.*                                                                                                                                                                                                                                              |
-| [prs-eth/marigold-normals-lcm-v0-1](https://huggingface.co/prs-eth/marigold-normals-lcm-v0-1) | Normals  | The fast Marigold Normals checkpoint, fine-tuned from `prs-eth/marigold-normals-v0-1`. Designed to be used with the `LCMScheduler` at inference, it requires as little as 1 step to get reliable predictions. The prediction reliability saturates at 4 steps and declines after that. *This checkpoint will be phased out after the release of `v1-0` version.*                                                                                                                                                                                                                                       |
+All original checkpoints are available under the [PRS-ETH](https://huggingface.co/prs-eth/) organization on Hugging Face.
+They are designed for use with diffusers pipelines and the [original codebase](https://github.com/prs-eth/marigold), which can also be used to train
+new model checkpoints.
+The following is a summary of the recommended checkpoints, all of which produce reliable results with 1 to 4 steps.
 
-The examples below are mostly given for depth prediction, but they can be universally applied with other supported modalities.
+| Checkpoint                                                                                          | Modality     | Comment                                                                                                                                                           |
+|-----------------------------------------------------------------------------------------------------|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [prs-eth/marigold-depth-v1-1](https://huggingface.co/prs-eth/marigold-depth-v1-1)                   | Depth        | Affine-invariant depth prediction assigns each pixel a value between 0 (near plane) and 1 (far plane), with both planes determined by the model during inference. |
+| [prs-eth/marigold-normals-v0-1](https://huggingface.co/prs-eth/marigold-normals-v0-1)               | Normals      | The surface normals predictions are unit-length 3D vectors in the screen space camera, with values in the range from -1 to 1.                                     |
+| [prs-eth/marigold-iid-appearance-v1-1](https://huggingface.co/prs-eth/marigold-iid-appearance-v1-1) | Intrinsics   | InteriorVerse decomposition is comprised of Albedo and two BRDF material properties: Roughness and Metallicity.                                                   |
+| [prs-eth/marigold-iid-lighting-v1-1](https://huggingface.co/prs-eth/marigold-iid-lighting-v1-1)     | Intrinsics   | HyperSim decomposition of an image \\(I\\) is comprised of Albedo \\(A\\), Diffuse shading \\(S\\), and Non-diffuse residual \\(R\\): \\(I = A*S+R\\).            |
+
+The examples below are mostly given for depth prediction, but they can be universally applied to other supported
+modalities.
 We showcase the predictions using the same input image of Albert Einstein generated by Midjourney.
 This makes it easier to compare visualizations of the predictions across various modalities and checkpoints.
 
@@ -48,16 +56,17 @@ This makes it easier to compare visualizations of the predictions across various
   </figure>
 </div>
 
-### Depth Prediction Quick Start
+## Depth Prediction
 
-To get the first depth prediction, load `prs-eth/marigold-depth-lcm-v1-0` checkpoint into `MarigoldDepthPipeline` pipeline, put the image through the pipeline, and save the predictions:
+To get a depth prediction, load the `prs-eth/marigold-depth-v1-1` checkpoint into [`MarigoldDepthPipeline`],
+put the image through the pipeline, and save the predictions:
 
 ```python
 import mindone.diffusers
 import mindspore as ms
 
 pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
-    "prs-eth/marigold-depth-lcm-v1-0", variant="fp16", mindspore_dtype=ms.float16
+    "prs-eth/marigold-depth-v1-1", variant="fp16", mindspore_dtype=ms.float16
 )
 
 image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
@@ -70,10 +79,13 @@ depth_16bit = pipe.image_processor.export_depth_to_16bit_png(depth[0])
 depth_16bit[0].save("einstein_depth_16bit.png")
 ```
 
-The visualization function for depth [`~pipelines.marigold.marigold_image_processing.MarigoldImageProcessor.visualize_depth`] applies one of [matplotlib's colormaps](https://matplotlib.org/stable/users/explain/colors/colormaps.html) (`Spectral` by default) to map the predicted pixel values from a single-channel `[0, 1]` depth range into an RGB image.
-With the `Spectral` colormap, pixels with near depth are painted red, and far pixels are assigned blue color.
+The [`~pipelines.marigold.marigold_image_processing.MarigoldImageProcessor.visualize_depth`] function applies one of
+[matplotlib's colormaps](https://matplotlib.org/stable/users/explain/colors/colormaps.html) (`Spectral` by default) to map the predicted pixel values from a single-channel `[0, 1]`
+depth range into an RGB image.
+With the `Spectral` colormap, pixels with near depth are painted red, and far pixels are blue.
 The 16-bit PNG file stores the single channel values mapped linearly from the `[0, 1]` range into `[0, 65535]`.
-Below are the raw and the visualized predictions; as can be seen, dark areas (mustache) are easier to distinguish in the visualization:
+Below are the raw and the visualized predictions. The darker and closer areas (mustache) are easier to distinguish in
+the visualization.
 
 <div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
   <div style="flex: 1 1 50%; max-width: 50%;">
@@ -90,16 +102,17 @@ Below are the raw and the visualized predictions; as can be seen, dark areas (mu
   </div>
 </div>
 
-### Surface Normals Prediction Quick Start
+## Surface Normals Estimation
 
-Load `prs-eth/marigold-normals-lcm-v0-1` checkpoint into `MarigoldNormalsPipeline` pipeline, put the image through the pipeline, and save the predictions:
+Load the `prs-eth/marigold-normals-v1-1` checkpoint into [`MarigoldNormalsPipeline`], put the image through the
+pipeline, and save the predictions:
 
 ```python
 import mindone.diffusers
 import mindspore as ms
 
 pipe = mindone.diffusers.MarigoldNormalsPipeline.from_pretrained(
-    "prs-eth/marigold-normals-lcm-v0-1", variant="fp16", mindspore_dtype=ms.float16
+    "prs-eth/marigold-normals-v1-1", variant="fp16", mindspore_dtype=ms.float16
 )
 
 image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
@@ -109,9 +122,12 @@ vis = pipe.image_processor.visualize_normals(normals[0])
 vis[0].save("einstein_normals.png")
 ```
 
-The visualization function for normals [`~pipelines.marigold.marigold_image_processing.MarigoldImageProcessor.visualize_normals`] maps the three-dimensional prediction with pixel values in the range `[-1, 1]` into an RGB image.
-The visualization function supports flipping surface normals axes to make the visualization compatible with other choices of the frame of reference.
-Conceptually, each pixel is painted according to the surface normal vector in the frame of reference, where `X` axis points right, `Y` axis points up, and `Z` axis points at the viewer.
+The [`~pipelines.marigold.marigold_image_processing.MarigoldImageProcessor.visualize_normals`] maps the three-dimensional
+prediction with pixel values in the range `[-1, 1]` into an RGB image.
+The visualization function supports flipping surface normals axes to make the visualization compatible with other
+choices of the frame of reference.
+Conceptually, each pixel is painted according to the surface normal vector in the frame of reference, where `X` axis
+points right, `Y` axis points up, and `Z` axis points at the viewer.
 Below is the visualized prediction:
 
 <div class="flex gap-4" style="justify-content: center; width: 100%;">
@@ -128,20 +144,96 @@ This vector maps to the RGB `[128, 128, 255]`, which corresponds to the violet-b
 Similarly, a surface normal on the cheek in the right part of the image has a large `X` component, which increases the red hue.
 Points on the shoulders pointing up with a large `Y` promote green color.
 
+## Intrinsic Image Decomposition
+
+Marigold provides two models for Intrinsic Image Decomposition (IID): "Appearance" and "Lighting".
+Each model produces Albedo maps, derived from InteriorVerse and Hypersim annotations, respectively.
+
+- The "Appearance" model also estimates Material properties: Roughness and Metallicity.
+- The "Lighting" model generates Diffuse Shading and Non-diffuse Residual.
+
+Here is the sample code saving predictions made by the "Appearance" model:
+
+```python
+import mindone.diffusers
+import mindspore
+
+pipe = mindone.diffusers.MarigoldIntrinsicsPipeline.from_pretrained(
+    "prs-eth/marigold-iid-appearance-v1-1", variant="fp16", mindspore_dtype=mindspore.float16
+)
+
+image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
+
+intrinsics = pipe(image)
+
+vis = pipe.image_processor.visualize_intrinsics(intrinsics[0], pipe.target_properties)
+vis[0]["albedo"].save("einstein_albedo.png")
+vis[0]["roughness"].save("einstein_roughness.png")
+vis[0]["metallicity"].save("einstein_metallicity.png")
+```
+
+Another example demonstrating the predictions made by the "Lighting" model:
+
+```python
+import mindone.diffusers
+import mindspore
+
+pipe = mindone.diffusers.MarigoldIntrinsicsPipeline.from_pretrained(
+    "prs-eth/marigold-iid-lighting-v1-1", variant="fp16", mindspore_dtype=mindspore.float16
+)
+
+image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
+
+intrinsics = pipe(image)
+
+vis = pipe.image_processor.visualize_intrinsics(intrinsics[0], pipe.target_properties)
+vis[0]["albedo"].save("einstein_albedo.png")
+vis[0]["shading"].save("einstein_shading.png")
+vis[0]["residual"].save("einstein_residual.png")
+```
+
+Both models share the same pipeline while supporting different decomposition types.
+The exact decomposition parameterization (e.g., sRGB vs. linear space) is stored in the
+`pipe.target_properties` dictionary, which is passed into the
+[`~pipelines.marigold.marigold_image_processing.MarigoldImageProcessor.visualize_intrinsics`] function.
+
+
 ### Speeding up inference
 
-The above quick start snippets are already optimized for speed: they load the LCM checkpoint, use the `fp16` variant of weights and computation, and perform just one denoising diffusion step.
-The `pipe(image)` call completes in 180ms on Ascend Atlas 800T A2 machines in Graph mode.
-Internally, the input image is encoded with the Stable Diffusion VAE encoder, then the U-Net performs one denoising step, and finally, the prediction latent is decoded with the VAE decoder into pixel space.
-In this case, two out of three module calls are dedicated to converting between pixel and latent space of LDM.
-Because Marigold's latent space is compatible with the base Stable Diffusion, it is possible to speed up the pipeline call by more than 3x (85ms on RTX 3090) by using a [lightweight replacement of the SD VAE](../api/models/autoencoder_tiny.md):
+The above quick start snippets are already optimized for quality and speed, loading the checkpoint, utilizing the
+`fp16` variant of weights and computation, and performing the default number (4) of denoising diffusion steps.
+The first step to accelerate inference, at the expense of prediction quality, is to reduce the denoising diffusion
+steps to the minimum:
+
+```diff
+  import mindone.diffusers
+  import mindspore
+
+  pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
+      "prs-eth/marigold-depth-v1-1", variant="fp16", mindspore_dtype=mindspore.float16
+  )
+
+  image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
+
+- depth = pipe(image)
++ depth = pipe(image, num_inference_steps=1)
+```
+
+With this change, the `pipe(image)` call completes in 180ms on Ascend Atlas 800T A2 machines in Graph mode.
+Internally, the input image is first encoded using the Stable Diffusion VAE encoder, followed by a single denoising
+step performed by the U-Net.
+Finally, the prediction latent is decoded with the VAE decoder into pixel space.
+In this setup, two out of three module calls are dedicated to converting between the pixel and latent spaces of the LDM.
+Because Marigold's latent space is compatible with the base Stable Diffusion, it is possible to speed up the pipeline call by more than 3x by using a [lightweight replacement of the SD VAE](../api/models/autoencoder_tiny.md).
+Note that using a lightweight VAE may slightly reduce the visual quality of the predictions.
+
 
 ```diff
   import mindone.diffusers
   import mindspore as ms
 
   pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
-      "prs-eth/marigold-depth-lcm-v1-0", variant="fp16", mindspore_dtype=ms.float16
+      "prs-eth/marigold-depth-v1-1", variant="fp16", mindspore_dtype=ms.float16
   )
 
 + pipe.vae = mindone.diffusers.AutoencoderTiny.from_pretrained(
@@ -149,59 +241,48 @@ Because Marigold's latent space is compatible with the base Stable Diffusion, it
 + )
 
   image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
-  depth = pipe(image)
+  depth = pipe(image, num_inference_steps=1)
 ```
 
-## Qualitative Comparison with Depth Anything
+So far, we have optimized the number of diffusion steps and model components. Self-attention operations account for a
+significant portion of computations.
+Speeding them up can be achieved by using a more efficient attention processor:
 
-With the above speed optimizations, Marigold delivers predictions with more details and faster than [Depth Anything](https://huggingface.co/docs/transformers/main/en/model_doc/depth_anything) with the largest checkpoint [LiheYoung/depth-anything-large-hf](https://huggingface.co/LiheYoung/depth-anything-large-hf):
+```diff
+  import mindone.diffusers
+  import mindspore
++ from mindone.diffusers.models.attention_processor import AttnProcessor2_0
 
-<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
-  <div style="flex: 1 1 50%; max-width: 50%;">
-    <img class="rounded-xl" src="https://github.com/user-attachments/assets/56af1f6e-6f0c-45ba-a6f5-70f830f42d9c"/>
-    <figcaption class="mt-1 text-center text-sm text-gray-500">
-      Marigold LCM fp16 with Tiny AutoEncoder
-    </figcaption>
-  </div>
-  <div style="flex: 1 1 50%; max-width: 50%;">
-    <img class="rounded-xl" src="https://github.com/user-attachments/assets/83186dd2-2d29-488b-9d66-5d953eb06046"/>
-    <figcaption class="mt-1 text-center text-sm text-gray-500">
-      Depth Anything Large
-    </figcaption>
-  </div>
-</div>
+  pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
+      "prs-eth/marigold-depth-v1-1", variant="fp16", mindspore_dtype=mindspore.float16
+  )
+
++ pipe.vae.set_attn_processor(AttnProcessor2_0())
++ pipe.unet.set_attn_processor(AttnProcessor2_0())
+
+  image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
+
+  depth = pipe(image, num_inference_steps=1)
+```
+
 
 ## Maximizing Precision and Ensembling
 
 Marigold pipelines have a built-in ensembling mechanism combining multiple predictions from different random latents.
 This is a brute-force way of improving the precision of predictions, capitalizing on the generative nature of diffusion.
-The ensembling path is activated automatically when the `ensemble_size` argument is set greater than `1`.
+The ensembling path is activated automatically when the `ensemble_size` argument is set greater or equal than `3`.
 When aiming for maximum precision, it makes sense to adjust `num_inference_steps` simultaneously with `ensemble_size`.
 The recommended values vary across checkpoints but primarily depend on the scheduler type.
 The effect of ensembling is particularly well-seen with surface normals:
 
-```python
+```diff
 import mindone.diffusers
 
-model_path = "prs-eth/marigold-normals-v0-1"
-
-model_paper_kwargs = {
-	mindone.diffusers.schedulers.DDIMScheduler: {
-		"num_inference_steps": 10,
-		"ensemble_size": 10,
-	},
-	mindone.diffusers.schedulers.LCMScheduler: {
-		"num_inference_steps": 4,
-		"ensemble_size": 5,
-	},
-}
-
+pipe = mindone.diffusers.MarigoldNormalsPipeline.from_pretrained("prs-eth/marigold-normals-v1-1")
 image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
 
-pipe = mindone.diffusers.MarigoldNormalsPipeline.from_pretrained(model_path)
-pipe_kwargs = model_paper_kwargs[type(pipe.scheduler)]
-
-depth = pipe(image, **pipe_kwargs)
+- depth = pipe(image)
++ depth = pipe(image, num_inference_steps=10, ensemble_size=5)
 
 vis = pipe.image_processor.visualize_normals(depth[0])
 vis[0].save("einstein_normals.png")
@@ -225,40 +306,6 @@ vis[0].save("einstein_normals.png")
 As can be seen, all areas with fine-grained structurers, such as hair, got more conservative and on average more correct predictions.
 Such a result is more suitable for precision-sensitive downstream tasks, such as 3D reconstruction.
 
-## Quantitative Evaluation
-
-To evaluate Marigold quantitatively in standard leaderboards and benchmarks (such as NYU, KITTI, and other datasets), follow the evaluation protocol outlined in the paper: load the full precision fp32 model and use appropriate values for `num_inference_steps` and `ensemble_size`.
-Optionally seed randomness to ensure reproducibility. Maximizing `batch_size` will deliver maximum device utilization.
-
-```python
-import mindone.diffusers
-import mindspore as ms
-import numpy as np
-
-seed = 2024
-model_path = "prs-eth/marigold-v1-0"
-
-model_paper_kwargs = {
-	mindone.diffusers.schedulers.DDIMScheduler: {
-		"num_inference_steps": 50,
-		"ensemble_size": 10,
-	},
-	mindone.diffusers.schedulers.LCMScheduler: {
-		"num_inference_steps": 4,
-		"ensemble_size": 10,
-	},
-}
-
-image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
-
-generator = np.random.Generator(np.random.PCG64(seed))
-pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(model_path)
-pipe_kwargs = model_paper_kwargs[type(pipe.scheduler)]
-
-depth = pipe(image, generator=generator, **pipe_kwargs)
-
-# evaluate metrics
-```
 
 ## Frame-by-frame Video Processing with Temporal Consistency
 
@@ -284,18 +331,20 @@ import imageio
 from PIL import Image
 from tqdm import tqdm
 import mindone.diffusers
+from mindone.diffusers.models.attention_processor import AttnProcessor2_0
 import mindspore as ms
 import numpy as np
 
-path_in = "obama.mp4"
+path_in = "https://huggingface.co/spaces/prs-eth/marigold-lcm/resolve/c7adb5427947d2680944f898cd91d386bf0d4924/files/video/obama.mp4"
 path_out = "obama_depth.gif"
 
 pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
-    "prs-eth/marigold-depth-lcm-v1-0", variant="fp16", mindspore_dtype=ms.float16
+    "prs-eth/marigold-depth-lcm-v1-1", variant="fp16", mindspore_dtype=ms.float16
 )
 pipe.vae = mindone.diffusers.AutoencoderTiny.from_pretrained(
     "madebyollin/taesd", mindspore_dtype=ms.float16
 )
+pipe.unet.set_attn_processor(AttnProcessor2_0())
 pipe.set_progress_bar_config(disable=True)
 
 with imageio.get_reader(path_in) as reader:
@@ -313,7 +362,7 @@ with imageio.get_reader(path_in) as reader:
             latents = 0.9 * latents + 0.1 * last_frame_latent
 
         depth = pipe(
-			frame, match_input_resolution=False, latents=latents, output_latent=True
+          frame, num_inference_steps=1, match_input_resolution=False, latents=latents, output_latent=True
         )
         last_frame_latent = depth[2]
         out.append(pipe.image_processor.visualize_depth(depth[0])[0])
@@ -354,7 +403,7 @@ image = mindone.diffusers.utils.load_image(
 )
 
 pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
-    "prs-eth/marigold-depth-lcm-v1-0", mindspore_dtype=ms.float16, variant="fp16"
+    "prs-eth/marigold-depth-lcm-v1-1", mindspore_dtype=ms.float16, variant="fp16"
 )
 
 depth_image = pipe(image, generator=generator)[0]
@@ -403,4 +452,74 @@ controlnet_out[0].save("motorcycle_controlnet_out.png")
   </div>
 </div>
 
-Hopefully, you will find Marigold useful for solving your downstream tasks, be it a part of a more broad generative workflow, or a perception task, such as 3D reconstruction.
+
+## Quantitative Evaluation
+
+To evaluate Marigold quantitatively in standard leaderboards and benchmarks (such as NYU, KITTI, and other datasets), follow the evaluation protocol outlined in the paper: load the full precision fp32 model and use appropriate values for `num_inference_steps` and `ensemble_size`.
+Optionally seed randomness to ensure reproducibility. Maximizing `batch_size` will deliver maximum device utilization.
+
+```python
+import mindone.diffusers
+import mindspore as ms
+import numpy as np
+
+seed = 2024
+
+generator = np.random.Generator(np.random.PCG64(seed))
+pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained("prs-eth/marigold-depth-v1-1")
+
+image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
+
+depth = pipe(
+    image,
+    num_inference_steps=4,  # set according to the evaluation protocol from the paper
+    ensemble_size=10,       # set according to the evaluation protocol from the paper
+    generator=generator,
+)
+
+# evaluate metrics
+```
+
+## Using Predictive Uncertainty
+
+The ensembling mechanism built into Marigold pipelines combines multiple predictions obtained from different random
+latents.
+As a side effect, it can be used to quantify epistemic (model) uncertainty; simply specify `ensemble_size` greater
+or equal than 3 and set `output_uncertainty=True`.
+The resulting uncertainty will be available in the `uncertainty` field of the output.
+It can be visualized as follows:
+
+```python
+import mindnone.diffusers
+import mindspore
+
+pipe = mindone.diffusers.MarigoldDepthPipeline.from_pretrained(
+    "prs-eth/marigold-depth-v1-1", variant="fp16", mindspore_dtype=mindspore.float16
+)
+
+image = mindone.diffusers.utils.load_image("https://marigoldmonodepth.github.io/images/einstein.jpg")
+
+depth = pipe(
+	image,
+	ensemble_size=10,  # any number >= 3
+	output_uncertainty=True,
+)
+# return (prediction, uncertainty, pred_latent)
+
+uncertainty = pipe.image_processor.visualize_uncertainty(depth[1])
+uncertainty[0].save("einstein_depth_uncertainty.png")
+```
+
+
+The interpretation of uncertainty is easy: higher values (white) correspond to pixels, where the model struggles to
+make consistent predictions.
+- The depth model exhibits the most uncertainty around discontinuities, where object depth changes abruptly.
+- The surface normals model is least confident in fine-grained structures like hair and in dark regions such as the
+collar area.
+- Albedo uncertainty is represented as an RGB image, as it captures uncertainty independently for each color channel,
+unlike depth and surface normals. It is also higher in shaded regions and at discontinuities.
+
+## Conclusion
+
+We hope Marigold proves valuable for your downstream tasks, whether as part of a broader generative workflow or for
+perception-based applications like 3D reconstruction.

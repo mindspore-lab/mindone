@@ -596,7 +596,7 @@ class MarigoldImageProcessor(ConfigMixin):
                     img = img ** (1 / 2.2)
                 elif prediction_space == "srgb":
                     pass
-                img = (img * 255).to(dtype=ms.uint8, device="cpu").numpy()
+                img = (img * 255).to(dtype=ms.uint8).numpy()
                 img = PIL.Image.fromarray(img)
                 out[target_name] = img
             return out
