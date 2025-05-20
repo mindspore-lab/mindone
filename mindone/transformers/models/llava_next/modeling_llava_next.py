@@ -254,6 +254,9 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
         self.image_newline = ms.Parameter(mint.randn(config.text_config.hidden_size, dtype=self.dtype) * embed_std)
 
         self.vocab_size = config.text_config.vocab_size
+        # TODO: remove the config fix once they are fixed.
+        config.text_config._attn_implementation = config._attn_implementation
+        config.text_config.torch_dtype = config.mindspore_dtype
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
