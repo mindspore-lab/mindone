@@ -213,6 +213,8 @@ class MistralAttention(nn.Cell):
             else:
                 if self.config._attn_implementation == "flash_attention_2":
                     attention_interface = flash_attention_2_construct
+                else:
+                    raise NotImplementedError()
 
         attn_output, attn_weights = attention_interface(
             self,
