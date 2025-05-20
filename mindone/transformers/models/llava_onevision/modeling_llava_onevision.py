@@ -223,8 +223,8 @@ class LlavaOnevisionPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["LlavaOnevisionVisionAttention"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_flash_attn_2 = True
-    _supports_cache_class = True
+    _supports_flash_attn_2 = False  # FIXME: since qwen2 does not support flash attention, so it is false
+    _supports_cache_class = False  # FIXME: since qwen2 does not support cache class, so it is false
     _supports_sdpa = True
 
     # Copied from transformers.models.llava_next.modeling_llava_next.LlavaNextPreTrainedModel._init_weights
@@ -254,6 +254,9 @@ class LlavaOnevisionPreTrainedModel(PreTrainedModel):
 class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, GenerationMixin):
     def __init__(self, config: LlavaOnevisionConfig):
         super().__init__(config)
+        # TODO: remove the config fix once they are fixed.
+        config.vision_config._attn_implementation = config._attn_implementation
+        config.vision_config.torch_dtype = getattr(config, "mindspore_dtype", None)
         self.vision_tower = AutoModel.from_config(config.vision_config)
 
         self.multi_modal_projector = LlavaOnevisionMultiModalProjector(config)
@@ -263,7 +266,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
         self.vocab_size = config.text_config.vocab_size
         # TODO: remove the config fix once they are fixed.
         config.text_config._attn_implementation = config._attn_implementation
-        config.text_config.torch_dtype = config.mindspore_dtype
+        config.text_config.torch_dtype = getattr(config, "mindspore_dtype", None)
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
@@ -415,7 +418,10 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
             # otherwise has to be stacked from list of (num_patches, num_channels, height, width)
             raise ValueError(f"pixel_values of shape {pixel_values.shape}, expect to be of 4 or 5 dimensions")
 
-        image_features = self.vision_tower(pixel_values, output_hidden_states=True, return_dict=True)
+        # FIXME: no need to cast pixel_value in the original repo
+        image_features = self.vision_tower(
+            pixel_values.to(self.vision_tower.dtype), output_hidden_states=True, return_dict=True
+        )
         # If we have one vision feature layer, return the corresponding hidden states,
         # otherwise, select the hidden states of each feature layer and concatenate them
         if isinstance(vision_feature_layer, int):
@@ -457,7 +463,10 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
         """
         batch_size, frames, channels, height, width = pixel_values.shape
         pixel_values = pixel_values.view(batch_size * frames, channels, height, width)
-        video_features = self.vision_tower(pixel_values, output_hidden_states=True, return_dict=True)
+        # FIXME: no need to cast pixel_value in the original repo
+        video_features = self.vision_tower(
+            pixel_values.to(self.vision_tower.dtype), output_hidden_states=True, return_dict=True
+        )
 
         # If we have one vision feature layer, return the corresponding hidden states,
         # otherwise, select the hidden states of each feature layer and concatenate them
