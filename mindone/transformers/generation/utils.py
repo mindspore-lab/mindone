@@ -1496,7 +1496,7 @@ class GenerationMixin:
                 encoder = getattr(base_model, "encoder", None)
 
             if encoder is not None:
-                encoder_model_args = set(inspect.signature(encoder.forward).parameters)
+                encoder_model_args = set(inspect.signature(encoder.construct).parameters)
                 model_args |= encoder_model_args
 
             # allow decoder kwargs
@@ -1505,7 +1505,7 @@ class GenerationMixin:
                 decoder = getattr(base_model, "decoder", None)
 
             if decoder is not None:
-                decoder_model_args = set(inspect.signature(decoder.forward).parameters)
+                decoder_model_args = set(inspect.signature(decoder.construct).parameters)
                 model_args |= {f"decoder_{x}" for x in decoder_model_args}
 
         for key, value in model_kwargs.items():
@@ -3004,8 +3004,8 @@ class GenerationMixin:
         """
 
         # 1. init beam_search values
-        pad_token_id = generation_config.pad_token_id
-        eos_token_id = generation_config.eos_token_id
+        pad_token_id = generation_config._pad_token_tensor
+        eos_token_id = generation_config._eos_token_tensor
         output_attentions = generation_config.output_attentions
         output_hidden_states = generation_config.output_hidden_states
         output_scores = generation_config.output_scores
