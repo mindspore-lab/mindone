@@ -1823,8 +1823,7 @@ class GenerationMixin:
         """
         Prepares a static legacy cache (tuple of tuples) for `generate`.
         """
-        if self._supports_default_dynamic_input():
-            model_kwargs[cache_name] = tuple(((), ()) for _ in range(self.config.num_hidden_layers))
+        if self._supports_default_dynamic_input():  # cache will be default None and will be processed further in model
             return
 
         past = model_kwargs.get(cache_name, None)

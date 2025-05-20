@@ -117,7 +117,7 @@ def get_seq_length(past_key_values, layer_idx: Optional[int] = 0, dynamic=False)
     # limit the check to the first batch member and head dimension.
     # TODO: deprecate this function in favor of `cache_position`
     if dynamic:
-        if len(past_key_values[layer_idx][0]) == 0:
+        if past_key_values is None:
             return 0
         return past_key_values[layer_idx][0].shape[-2]
     return (past_key_values[layer_idx][0][0, 0].any(axis=-1)).sum()
