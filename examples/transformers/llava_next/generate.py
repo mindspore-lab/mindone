@@ -21,15 +21,12 @@ def main():
             MODEL_NAME, mindspore_dtype=ms.float16, attn_implementation="flash_attention_2"
         )
 
+    # prepare image and text prompt, using the appropriate prompt template
+    url = "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true"
     image_path = "demo.jpg"
     if not os.path.isfile(image_path):
         ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
-        urllib.request.urlretrieve(
-            "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true",
-            image_path,
-        )
-
-    # prepare image and text prompt, using the appropriate prompt template
+        urllib.request.urlretrieve(url, image_path)
     image = Image.open(image_path)
 
     # Define a chat history and use `apply_chat_template` to get correctly formatted prompt
