@@ -665,6 +665,9 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     _supports_cache_class = False
     _supports_static_cache = False
 
+    # Has support for dynamic model input?
+    _supports_dynamic_input = False
+
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
 

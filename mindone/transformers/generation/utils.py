@@ -1808,7 +1808,7 @@ class GenerationMixin:
         shape.
         """
         return (
-            getattr(self, "_supports_dynamic_input", False)
+            self._supports_dynamic_input
             or self._supports_default_dynamic_cache()
             or self.config._attn_implementation == "paged_attention"
         )
