@@ -740,7 +740,7 @@ class AlbertMLMHead(nn.Cell):
         self.dense = nn.Dense(config.hidden_size, config.embedding_size)
         self.decoder = nn.Dense(config.embedding_size, config.vocab_size)
         self.activation = ACT2FN[config.hidden_act]
-        # self.decoder.bias = self.bias
+        self.decoder.bias = self.bias
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dense(hidden_states)
