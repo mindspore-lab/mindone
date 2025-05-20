@@ -1,3 +1,3 @@
-from importlib.metadata import version
+from importlib.metadata import version  # noqa: F401
 
-__version__ = "0.3.0"
+__version__ = "0.3.3"
