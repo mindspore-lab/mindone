@@ -26,7 +26,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel
 from ...image_processor import PipelineImageInput
@@ -70,11 +70,12 @@ class MarigoldDepthOutput(BaseOutput):
 
     Args:
         prediction (`np.ndarray`, `ms.Tensor`):
-            Predicted depth maps with values in the range [0, 1]. The shape is always $numimages \times 1 \times height
-            \times width$, regardless of whether the images were passed as a 4D array or a list.
+            Predicted depth maps with values in the range [0, 1]. The shape is $numimages \times 1 \times height \times
+            width$ for `ms.Tensor` or $numimages \times height \times width \times 1$ for `np.ndarray`.
         uncertainty (`None`, `np.ndarray`, `ms.Tensor`):
             Uncertainty maps computed from the ensemble, with values in the range [0, 1]. The shape is $numimages
-            \times 1 \times height \times width$.
+            \times 1 \times height \times width$ for `ms.Tensor` or $numimages \times height \times width \times 1$
+            for `np.ndarray`.
         latent (`None`, `ms.Tensor`):
             Latent features corresponding to the predictions, compatible with the `latents` argument of the pipeline.
             The shape is $numimages * numensemble \times 4 \times latentheight \times latentwidth$.
@@ -166,7 +167,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
             default_processing_resolution=default_processing_resolution,
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
 
         self.scale_invariant = scale_invariant
         self.shift_invariant = shift_invariant
@@ -192,6 +193,11 @@ class MarigoldDepthPipeline(DiffusionPipeline):
         output_type: str,
         output_uncertainty: bool,
     ) -> int:
+        actual_vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        if actual_vae_scale_factor != self.vae_scale_factor:
+            raise ValueError(
+                f"`vae_scale_factor` computed at initialization ({self.vae_scale_factor}) differs from the actual one ({actual_vae_scale_factor})."
+            )
         if num_inference_steps is None:
             raise ValueError("`num_inference_steps` is not specified and could not be resolved from the model config.")
         if num_inference_steps < 1:
@@ -350,11 +356,9 @@ class MarigoldDepthPipeline(DiffusionPipeline):
                 same width and height.
             num_inference_steps (`int`, *optional*, defaults to `None`):
                 Number of denoising diffusion steps during inference. The default value `None` results in automatic
-                selection. The number of steps should be at least 10 with the full Marigold models, and between 1 and 4
-                for Marigold-LCM models.
+                selection.
             ensemble_size (`int`, defaults to `1`):
-                Number of ensemble predictions. Recommended values are 5 and higher for better precision, or 1 for
-                faster inference.
+                Number of ensemble predictions. Higher values result in measurable improvements and visual degradation.
             processing_resolution (`int`, *optional*, defaults to `None`):
                 Effective processing resolution. When set to `0`, matches the larger input image dimension. This
                 produces crisper predictions, but may also lead to the overall loss of global context. The default
@@ -389,7 +393,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
                 Random number generator object to ensure reproducibility.
             output_type (`str`, *optional*, defaults to `"np"`):
                 Preferred format of the output's `prediction` and the optional `uncertainty` fields. The accepted
-                values are: `"np"` (numpy array) or `"pt"` (torch tensor).
+                values are: `"np"` (numpy array) or `"pt"` (mindspore tensor).
             output_uncertainty (`bool`, *optional*, defaults to `False`):
                 When enabled, the output's `uncertainty` field contains the predictive uncertainty map, provided that
                 the `ensemble_size` argument is set to a value above 2.
@@ -465,9 +469,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
         # `pred_latent` variable. The variable `image_latent` is of the same shape: it contains each input image encoded
         # into latent space and replicated `E` times. The latents can be either generated (see `generator` to ensure
         # reproducibility), or passed explicitly via the `latents` argument. The latter can be set outside the pipeline
-        # code. For example, in the Marigold-LCM video processing demo, the latents initialization of a frame is taken
-        # as a convex combination of the latents output of the pipeline for the previous frame and a newly-sampled
-        # noise. This behavior can be achieved by setting the `output_latent` argument to `True`. The latent space
+        # code. This behavior can be achieved by setting the `output_latent` argument to `True`. The latent space
         # dimensions are `(h, w)`. Encoding into latent space happens in batches of size `batch_size`.
         # Model invocation: self.vae.encoder.
         image_latent, pred_latent = self.prepare_latents(
@@ -730,10 +732,10 @@ class MarigoldDepthPipeline(DiffusionPipeline):
                     uncertainty = ops.std(depth_aligned, axis=0, keepdims=True)
             elif reduction == "median":
                 # ops.median has two return values and does not supported some data-type
-                prediction = ops.median(depth_aligned.float(), axis=0, keepdims=True)[0]
+                prediction = mint.median(depth_aligned.float(), dim=0, keepdim=True)[0]
                 prediction = prediction.to(depth_aligned.dtype)
                 if return_uncertainty:
-                    uncertainty = ops.median(ops.abs(depth_aligned - prediction).float(), axis=0, keepdims=True)[0]
+                    uncertainty = mint.median(ops.abs(depth_aligned - prediction).float(), dim=0, keepdim=True)[0]
                     uncertainty = uncertainty.to(depth_aligned.dtype)
             else:
                 raise ValueError(f"Unrecognized reduction method: {reduction}.")
@@ -749,7 +751,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
             if regularizer_strength > 0:
                 prediction, _ = ensemble(depth_aligned, return_uncertainty=False)
-                err_near = (0.0 - prediction.min()).abs().item()
+                err_near = (prediction.min()).abs().item()
                 err_far = (1.0 - prediction.max()).abs().item()
                 cost += (err_near + err_far) * regularizer_strength
 

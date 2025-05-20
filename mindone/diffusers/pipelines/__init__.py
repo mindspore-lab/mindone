@@ -118,6 +118,7 @@ _import_structure = {
     "lumina": ["LuminaText2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
+        "MarigoldIntrinsicsPipeline",
         "MarigoldNormalsPipeline",
     ],
     "mochi": ["MochiPipeline"],
@@ -292,7 +293,7 @@ if TYPE_CHECKING:
     from .latte import LattePipeline
     from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
-    from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
+    from .marigold import MarigoldDepthPipeline, MarigoldIntrinsicsPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
     from .musicldm import MusicLDMPipeline
     from .pag import (
