@@ -137,6 +137,12 @@ def flash_attention_2_construct(
 
     if attention_mask is not None:
         attention_mask = attention_mask.to(ms.uint8)
+    else:
+        q_len = query.shape[2]
+        if q_len > 1:
+            attention_mask = 1 - mint.tril(mint.ones((1, 1, q_len, q_len), dtype=ms.uint8))
+        else:
+            attention_mask = None
 
     attn_output = ops.flash_attention_score(
         query,

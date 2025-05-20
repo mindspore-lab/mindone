@@ -1,38 +1,58 @@
-import requests
+import os
+import ssl
+import urllib.request
+
 from PIL import Image
 from transformers import LlavaNextProcessor
 
 import mindspore as ms
+import mindspore.nn as nn
 
 from mindone.transformers import LlavaNextForConditionalGeneration
 
-processor = LlavaNextProcessor.from_pretrained("llava-hf/llava-v1.6-mistral-7b-hf")
+MODEL_NAME = "llava-hf/llava-v1.6-mistral-7b-hf"
 
-model = LlavaNextForConditionalGeneration.from_pretrained(
-    "llava-hf/llava-v1.6-mistral-7b-hf", mindspore_dtype=ms.float16
-)
 
-# prepare image and text prompt, using the appropriate prompt template
-url = "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true"
-image = Image.open(requests.get(url, stream=True).raw)
+def main():
+    processor = LlavaNextProcessor.from_pretrained(MODEL_NAME)
 
-# Define a chat history and use `apply_chat_template` to get correctly formatted prompt
-# Each value in "content" has to be a list of dicts with types ("text", "image")
-conversation = [
-    {
-        "role": "user",
-        "content": [
-            {"type": "text", "text": "What is shown in this image?"},
-            {"type": "image"},
-        ],
-    },
-]
-prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+    with nn.no_init_parameters():
+        model = LlavaNextForConditionalGeneration.from_pretrained(
+            MODEL_NAME, mindspore_dtype=ms.float16, attn_implementation="flash_attention_2"
+        )
 
-inputs = processor(images=image, text=prompt, return_tensors="np")
-for k, v in inputs.items():
-    inputs[k] = v
-# autoregressively complete prompt
-output = model.generate(**inputs, max_new_tokens=100)
+    image_path = "demo.jpg"
+    if not os.path.isfile(image_path):
+        ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
+        urllib.request.urlretrieve(
+            "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true",
+            image_path,
+        )
 
-print(processor.decode(output[0], skip_special_tokens=True))
+    # prepare image and text prompt, using the appropriate prompt template
+    image = Image.open(image_path)
+
+    # Define a chat history and use `apply_chat_template` to get correctly formatted prompt
+    # Each value in "content" has to be a list of dicts with types ("text", "image")
+    conversation = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "What is shown in this image?"},
+                {"type": "image"},
+            ],
+        },
+    ]
+    prompt = processor.apply_chat_template(conversation, add_generation_prompt=True)
+
+    inputs = processor(images=image, text=prompt, return_tensors="np")
+    for k, v in inputs.items():
+        inputs[k] = ms.Tensor(v)
+    # autoregressively complete prompt
+    output = model.generate(**inputs, max_new_tokens=100)
+
+    print(processor.decode(output[0], skip_special_tokens=True))
+
+
+if __name__ == "__main__":
+    main()
