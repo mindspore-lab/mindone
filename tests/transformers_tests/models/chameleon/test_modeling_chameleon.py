@@ -211,6 +211,9 @@ def test_named_modules(
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)
             else:
+                # we do not need to compare the logits of image tokens, which are very negative values
+                pt_output[pt_output < -10e5] = 0
+                ms_output[ms_output < -10e5] = 0
                 pt_outputs_n.append(pt_output)
                 ms_outputs_n.append(ms_output)
         diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
