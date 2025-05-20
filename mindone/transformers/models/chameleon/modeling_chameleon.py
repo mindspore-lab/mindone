@@ -928,7 +928,7 @@ class ChameleonModel(ChameleonPreTrainedModel):
                 The tensors corresponding to the input images.
         """
         batch_size = pixel_values.shape[0]
-        _, _, image_toks = self.vqmodel.encode(pixel_values)
+        _, _, image_toks = self.vqmodel.encode(pixel_values.to(self.vqmodel.dtype))
         bpe_toks = self.vocabulary_mapping.convert_img2bpe(image_toks)
         bpe_toks = bpe_toks.view(batch_size, -1)
         return bpe_toks
