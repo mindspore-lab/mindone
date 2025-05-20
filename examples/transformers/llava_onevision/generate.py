@@ -18,7 +18,9 @@ def main():
 
     with nn.no_init_parameters():
         model = LlavaOnevisionForConditionalGeneration.from_pretrained(
-            MODEL_NAME, mindspore_dtype=ms.float16, attn_implementation="flash_attention_2"
+            MODEL_NAME,
+            mindspore_dtype=ms.float16,
+            attn_implementation="eager",  # TODO: does not support flash attention yet.
         )
 
     # prepare image and text prompt, using the appropriate prompt template

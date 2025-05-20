@@ -124,7 +124,7 @@ class LlavaNextVideoPreTrainedModel(PreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["LlavaNextVideoVisionAttention"]
     _skip_keys_device_placement = "past_key_values"
-    _supports_cache_class = True
+    _supports_cache_class = False  # FIXME: since llama does not support cache_class, so it is false
     _supports_flash_attn_2 = True
     _supports_sdpa = True
 
@@ -295,7 +295,7 @@ class LlavaNextVideoForConditionalGeneration(LlavaNextVideoPreTrainedModel, Gene
         self.vocab_size = config.text_config.vocab_size
         # TODO: remove the config fix once they are fixed.
         config.text_config._attn_implementation = config._attn_implementation
-        config.text_config.torch_dtype = config.mindspore_dtype
+        config.text_config.torch_dtype = getattr(config, "mindspore_dtype", None)
         self.language_model = AutoModelForCausalLM.from_config(config.text_config)
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
