@@ -45,6 +45,7 @@ images = Tensor(images).unsqueeze(0)  # [1, Frames, C, H, W]
 
 # single image autoencode #
 image = images[:, 0].to(MS_DTYPE)
+start_time = time.time()
 with no_grad():
     # encode
     codes = ops.stop_gradient(model.encode(image))
