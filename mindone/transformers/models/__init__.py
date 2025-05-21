@@ -8,6 +8,7 @@ from . import (
     dpt,
     gemma,
     gemma2,
+    gemma3,
     glm,
     glpn,
     gpt2,

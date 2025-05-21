@@ -192,6 +192,12 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.gemma3 import (
+    Gemma3TextModel,
+    Gemma3PreTrainedModel,
+    Gemma3ForConditionalGeneration,
+    Gemma3ForCausalLM,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
