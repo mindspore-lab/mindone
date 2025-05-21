@@ -55,6 +55,7 @@ import mindspore as ms
 from mindspore import Parameter, Tensor, nn, ops
 from mindspore.nn import Identity
 
+from .loss.loss_utils import LOSS_MAPPING
 from .activations import get_activation
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
@@ -792,6 +793,25 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if not hard_check_only:
             config._attn_implementation = "flash_attention_2"
         return config
+
+    @loss_function.setter
+    def loss_function(self, value):
+        self._loss_function = value
+
+    @property
+    def loss_function(self):
+        if hasattr(self, "_loss_function"):
+            return self._loss_function
+
+        loss_type = getattr(self, "loss_type", None)
+
+        if loss_type is None or loss_type not in LOSS_MAPPING:
+            logger.warning_once(
+                f"`loss_type={loss_type}` was set in the config but it is unrecognised."
+                f"Using the default loss: `ForCausalLMLoss`."
+            )
+            loss_type = "ForCausalLM"
+        return LOSS_MAPPING[loss_type]
 
     @classmethod
     def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
