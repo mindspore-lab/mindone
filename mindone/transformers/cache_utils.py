@@ -352,6 +352,7 @@ class CacheConfig:
     def to_json_file(self, json_file_path: Union[str, os.PathLike]):
         """
         Save this instance to a JSON file.
+
         Args:
             json_file_path (`str` or `os.PathLike`):
                 Path to the JSON file in which this configuration instance's parameters will be saved.
@@ -396,9 +397,11 @@ class CacheConfig:
         """
         Updates attributes of this class instance with attributes from `kwargs` if they match existing attributes,
         returning all the unused kwargs.
+
         Args:
             kwargs (`Dict[str, Any]`):
                 Dictionary of attributes to tentatively update this class.
+
         Returns:
             `Dict[str, Any]`: Dictionary containing all the key-value pairs that were not used to update the instance.
         """
@@ -611,15 +614,8 @@ class SlidingWindowCache(StaticCache):
             smaller batch size is used.
         max_cache_len (`int`):
             The maximum sequence length with which the model will be used.
-        device (`torch.device` or `str`):
-            The device on which the cache should be initialized. If you're using more than 1 computation device, you
-            should pass the `layer_device_map` argument instead.
         dtype (`torch.dtype`, *optional*, defaults to `torch.float32`):
             The default `dtype` to use when initializing the layer.
-        layer_device_map(`Dict[int, Union[str, torch.device, int]]]`, `optional`):
-            Mapping between the layers and its device. This is required when you are manually initializing the cache
-            and the model is splitted between differents gpus. You can know which layers mapped to which device by
-            checking the associated device_map: `model.hf_device_map`.
 
     Example:
 
@@ -634,7 +630,7 @@ class SlidingWindowCache(StaticCache):
         >>> # Prepare a cache class and pass it to model's forward
         >>> # Leave empty space for 10 new tokens, which can be used when calling forward iteratively 10 times to generate
         >>> max_generated_length = inputs.input_ids.shape[1] + 10
-        >>> past_key_values = SlidingWindowCache(config=model.config, batch_size=1, max_cache_len=max_generated_length, device=model.device, dtype=model.dtype)
+        >>> past_key_values = SlidingWindowCache(config=model.config, batch_size=1, max_cache_len=max_generated_length, dtype=model.dtype)
         >>> outputs = model(**inputs, past_key_values=past_key_values, use_cache=True)
         >>> outputs.past_key_values # access cache filled with key/values from generation
         SlidingWindowCache()
@@ -650,10 +646,8 @@ class SlidingWindowCache(StaticCache):
         config: PretrainedConfig,
         batch_size: int = None,
         max_cache_len: int = None,
-        device=None,
         dtype: ms.Type = ms.float32,
         max_batch_size: Optional[int] = None,
-        layer_device_map: Optional[Dict[int, Union[str, int]]] = None,
     ) -> None:
         if not hasattr(config, "sliding_window") or config.sliding_window is None:
             raise ValueError(
@@ -666,10 +660,8 @@ class SlidingWindowCache(StaticCache):
             config=config,
             batch_size=batch_size,
             max_cache_len=max_cache_len,
-            device=device,
             dtype=dtype,
             max_batch_size=max_batch_size,
-            layer_device_map=layer_device_map,
         )
 
     def update(
@@ -909,15 +901,8 @@ class HybridCache(Cache):
             smaller batch size is used.
         max_cache_len (`int`):
             The maximum sequence length with which the model will be used.
-        device (`torch.device` or `str`, *optional*):
-            The device on which the cache should be initialized. If you're using more than 1 computation device, you
-            should pass the `layer_device_map` argument instead.
         dtype (torch.dtype, *optional*, defaults to `torch.float32`):
             The default `dtype` to use when initializing the layer.
-        layer_device_map(`Dict[int, Union[str, torch.device, int]]]`, `optional`):
-            Mapping between the layers and its device. This is required when you are manually initializing the cache
-            and the model is splitted between differents gpus. You can know which layers mapped to which device by
-            checking the associated device_map: `model.hf_device_map`.
 
     Example:
 
@@ -932,7 +917,7 @@ class HybridCache(Cache):
         >>> # Prepare a cache class and pass it to model's forward
         >>> # Leave empty space for 10 new tokens, which can be used when calling forward iteratively 10 times to generate
         >>> max_generated_length = inputs.input_ids.shape[1] + 10
-        >>> past_key_values = HybridCache(config=model.config, batch_size=1, max_cache_len=max_generated_length, device=model.device, dtype=model.dtype)
+        >>> past_key_values = HybridCache(config=model.config, batch_size=1, max_cache_len=max_generated_length, dtype=model.dtype)
         >>> outputs = model(**inputs, past_key_values=past_key_values, use_cache=True)
         >>> outputs.past_key_values # access cache filled with key/values from generation
         HybridCache()
