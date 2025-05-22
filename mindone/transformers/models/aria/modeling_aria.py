@@ -21,16 +21,8 @@
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Tuple, Union
 
-from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, StaticCache
-from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import AttentionMaskConverter
-from ...modeling_flash_attention_utils import FlashAttentionKwargs
-from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, ModelOutput
-from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
-from ...processing_utils import Unpack
-from ...utils import (
+from transformers import AriaConfig, AriaTextConfig
+from transformers.utils import (
     LossKwargs,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
@@ -38,21 +30,28 @@ from ...utils import (
     replace_return_docstrings,
 )
 from transformers.utils.deprecation import deprecate_kwarg
-from transformers.auto import AutoModel, AutoModelForCausalLM
-from transformers.configuration_aria import AriaConfig, AriaTextConfig
-
-
-from mindone.models.utils import normal_, zeros_, trunc_normal_
-from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
 from mindspore import nn
-from ...utils import is_flash_attn_2_available
 
-if is_flash_attn_2_available:
-    from mindspore.ops.operations.nn_ops import FlashAttentionScore
+from mindone.models.utils import normal_, trunc_normal_, zeros_
+from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
+
+from ...activations import ACT2FN
+from ...cache_utils import Cache, DynamicCache, StaticCache
+from ...generation import GenerationMixin
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
+from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, ModelOutput
+from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
+from ...processing_utils import Unpack
+from ..auto import AutoModelForCausalLM  # AutoModel
+
+# from ...utils import is_flash_attn_2_available
+# if is_flash_attn_2_available:
+#     from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "AriaTextConfig"
@@ -72,7 +71,7 @@ class AriaTextRMSNorm(nn.Cell):
         hidden_states = hidden_states.to(ms.float32)
         variance = hidden_states.pow(2).mean(-1, keepdim=True)
         hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
-        return self.weight * hidden_states.to(input_dtype)
+        return (self.weight * hidden_states).to(input_dtype)
 
     def extra_repr(self):
         return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
@@ -182,7 +181,7 @@ class AriaProjector(nn.Cell):
         self.hidden_features = config.text_config.hidden_size
         self.output_dim = config.text_config.hidden_size
 
-        self.query = ms.Parameter(mint.zeros(config.max_value_projector_patch_to_query_dict, self.in_features))
+        self.query = ms.Parameter(mint.zeros((config.max_value_projector_patch_to_query_dict, self.in_features)))
 
         self.cross_attn = AriaCrossAttention(config)
 
@@ -251,7 +250,8 @@ class AriaSharedExpertsMLP(nn.Cell):
 
 def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
     """
-    Compute the matrix multiplication (GEMM) for each expert sequentially. This approach is computationally inefficient, especially when dealing with a large number of experts.
+    Compute the matrix multiplication (GEMM) for each expert sequentially.
+    This approach is computationally inefficient, especially when dealing with a large number of experts.
 
     Args:
         token_states (ms.Tensor): Input tensor of shape (num_tokens, in_features).
@@ -263,11 +263,11 @@ def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
     """
     num_tokens = token_states.shape[0]
     out_features = expert_weights.shape[-1]
-    output = mint.zeros(num_tokens, out_features, dtype=token_states.dtype)
+    output = mint.zeros((num_tokens, out_features), dtype=token_states.dtype)
 
     cumsum_num_tokens = mint.cumsum(tokens_per_expert, dim=0)
     # Insert zero at the begining for offset index's convenience
-    zero_tensor = mint.zeros(1, dtype=ms.int64)
+    zero_tensor = mint.zeros((1,), dtype=ms.int64)
     cumsum_num_tokens = mint.cat((zero_tensor, cumsum_num_tokens))
 
     for expert_num in range(expert_weights.shape[0]):
@@ -302,7 +302,7 @@ class AriaGroupedExpertsGemm(nn.Cell):
         self.in_features = in_features
         self.out_features = out_features
         self.groups = groups
-        self.weight = ms.Parameter(mint.empty(groups, in_features, out_features))
+        self.weight = ms.Parameter(mint.empty((groups, in_features, out_features)))
 
     def construct(self, input, tokens_per_expert):
         """
@@ -357,7 +357,8 @@ class AriaGroupedExpertsMLP(nn.Cell):
         return fc2_output
 
 
-# Token permutation adapted from https://github.com/NVIDIA/Megatron-LM/blob/54f1f78529cbc2b9cddad313e7f9d96ac0420a27/megatron/core/transformer/moe/token_dispatcher.py#L291-L587
+# Token permutation adapted from
+# https://github.com/NVIDIA/Megatron-LM/blob/54f1f78529cbc2b9cddad313e7f9d96ac0420a27/megatron/core/transformer/moe/token_dispatcher.py#L291-L587
 class AriaTextMoELayer(nn.Cell):
     """
     Aria Text Mixture of Experts (MoE) Layer.
@@ -712,7 +713,7 @@ class AriaPreTrainedModel(MSPreTrainedModel):
     _skip_keys_device_placement = ["past_key_values"]
     _supports_flash_attn_2 = True
     _supports_sdpa = True
-    _supports_flex_attn = False # not supported yet
+    _supports_flex_attn = False  # not supported yet
     _supports_cache_class = True
     _supports_quantized_cache = True
     _supports_static_cache = False  # MoE models don't work with dynamic slicing
@@ -932,9 +933,7 @@ class AriaTextModel(AriaTextPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -1059,7 +1058,7 @@ class AriaTextModel(AriaTextPreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            min_dtype = dtype_to_min(dtype)
+            min_dtype = dtype_to_min(dtype).item()
             causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
@@ -1077,7 +1076,8 @@ class AriaTextModel(AriaTextPreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 class AriaTextForCausalLM(AriaTextPreTrainedModel, GenerationMixin):
@@ -1327,10 +1327,15 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
     def __init__(self, config: AriaConfig):
         super().__init__(config)
 
-        self.vision_tower = AutoModel.from_config(config.vision_config)
+        # self.vision_tower = AutoModel.from_config(config.vision_config)
+        # self.vision_tower = Idefics3VisionTransformer.from_config(config.vision_config)
+        self.vision_tower = None  # TODO: after adding idefics3
+
         self.multi_modal_projector = AriaProjector(config)
         self.vocab_size = config.text_config.vocab_size
-        self.language_model = AutoModelForCausalLM.from_config(config.text_config)
+        self.language_model = AutoModelForCausalLM.from_config(config.text_config)  # AriaTextForCausalLM
+        # OR
+        # self.language_model = AriaTextForCausalLM.from_config(config.text_config)
         self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
         self._use_flash_attention_2 = config.text_config._attn_implementation == "flash_attention_2"
         self.post_init()
@@ -1339,6 +1344,7 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         if pixel_mask is None:
             return None
 
+        # torch.tensor.unfold x 2: (B, H, W) => (B, H', W', K, K)
         # patches_subgrid = pixel_mask.unfold(
         #     dimension=1,
         #     size=self.vision_tower.config.patch_size,
@@ -1350,7 +1356,13 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         #     step=self.vision_tower.config.patch_size,
         # )
 
-        # TODO
+        # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
+        patch_size = self.vision_tower.config.patch_size
+        patches_subgrid = F.unfold(pixel_mask[:, None, ...], kernel_size=patch_size, stride=patch_size)
+        h, w = pixel_mask.shape[1:] // patch_size
+        patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(pixel_mask.shape[0], h, w, patch_size, patch_size)
+        # ref: https://zhuanlan.zhihu.com/p/673802546
+
         patches_subgrid = pixel_mask.unfold(
             1,
             self.vision_tower.config.patch_size,
@@ -1520,6 +1532,8 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
             image_features = image_features.to(inputs_embeds.dtype)
             inputs_embeds = inputs_embeds.masked_scatter(special_image_mask, image_features)
 
+        if logits_to_keep is None:
+            logits_to_keep = 0
         outputs = self.language_model(
             attention_mask=attention_mask,
             position_ids=position_ids,

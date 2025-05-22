@@ -5,13 +5,6 @@ from .image_processing_base import ImageProcessingMixin
 from .image_processing_utils import BaseImageProcessor
 from .image_utils import ImageFeatureExtractionMixin
 from .modeling_utils import MSPreTrainedModel
-from .models.aria import (
-    AriaForConditionalGeneration,
-    AriaPreTrainedModel,
-    AriaTextForCausalLM,
-    AriaTextModel,
-    AriaTextPreTrainedModel,
-)
 from .models.albert import (
     AlbertForMaskedLM,
     AlbertForMultipleChoice,
@@ -21,6 +14,13 @@ from .models.albert import (
     AlbertForTokenClassification,
     AlbertModel,
     AlbertPreTrainedModel,
+)
+from .models.aria import (
+    AriaForConditionalGeneration,
+    AriaPreTrainedModel,
+    AriaTextForCausalLM,
+    AriaTextModel,
+    AriaTextPreTrainedModel,
 )
 from .models.auto import AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
 from .models.bert import (
