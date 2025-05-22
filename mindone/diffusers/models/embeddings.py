@@ -1142,7 +1142,7 @@ def get_1d_rotary_pos_embed(
         return freqs_cos, freqs_sin
     else:
         # lumina
-        freqs_cis = ops.polar(ops.ones_like(freqs), freqs)  # complex64     # [S, D/2]
+        freqs_cis = ops.polar(ops.ones_like(freqs.float()), freqs.float())  # complex64     # [S, D/2]
         return freqs_cis
 
 
