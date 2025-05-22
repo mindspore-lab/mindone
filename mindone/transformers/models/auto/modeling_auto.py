@@ -37,6 +37,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
         ("gpt2", "GPT2Model"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
@@ -49,6 +50,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
