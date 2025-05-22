@@ -88,7 +88,7 @@ def scaled_dot_product_attention(
         attn_mask = attn_mask.to(query.dtype)
 
         attn_weight = mint.nn.functional.softmax(
-            mint.matmul(query, mint.swapaxes(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_mask,
+            mint.matmul(query, mint.transpose(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_mask,
             dim=-1,
             dtype=ms.float32,
         ).astype(query.dtype)
@@ -102,7 +102,7 @@ def scaled_dot_product_attention(
             attn_bias = attn_bias.to(query.dtype)
 
         attn_weight = mint.nn.functional.softmax(
-            mint.matmul(query, mint.swapaxes(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_bias,
+            mint.matmul(query, mint.transpose(key, -2, -1)) / (query.shape[-1] ** 0.5) + attn_bias,
             dim=-1,
             dtype=ms.float32,
         ).astype(query.dtype)
@@ -667,11 +667,11 @@ class LLaDABlock(nn.Cell):
 
         # Move head forward to be next to the batch dim.
         # shape: (B, nh, T, hs)
-        q = q.view(B, T, self.config.n_heads, C // self.config.n_heads).swapaxes(1, 2)
+        q = mint.transpose(q.view(B, T, self.config.n_heads, C // self.config.n_heads), 1, 2)
         # shape: (B, n_kv_h, T, hs)
-        k = k.view(B, T, self.config.effective_n_kv_heads, C // self.config.n_heads).swapaxes(1, 2)
+        k = mint.transpose(k.view(B, T, self.config.effective_n_kv_heads, C // self.config.n_heads), 1, 2)
         # shape: (B, n_kv_h, T, hs)
-        v = v.view(B, T, self.config.effective_n_kv_heads, C // self.config.n_heads).swapaxes(1, 2)
+        v = mint.transpose(v.view(B, T, self.config.effective_n_kv_heads, C // self.config.n_heads), 1, 2)
 
         if layer_past is not None:
             past_key, past_value = layer_past
@@ -706,7 +706,7 @@ class LLaDABlock(nn.Cell):
         )
 
         # Re-assemble all head outputs side-by-side.
-        att = att.swapaxes(1, 2).view(B, T, C)
+        att = mint.transpose(att, 1, 2).view(B, T, C)
 
         # Apply output projection.
         return self.attn_out(att), present
