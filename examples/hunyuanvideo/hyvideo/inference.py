@@ -71,6 +71,8 @@ class Inference(object):
             "dtype": PRECISION_TO_TYPE[args.precision],
             "attn_mode": args.attn_mode,
             "use_conv2d_patchify": args.use_conv2d_patchify,
+            "enable_teacache": args.enable_teacache,
+            "teacache_thresh": args.teacache_thresh,
         }
         in_channels = args.latent_channels
         out_channels = args.latent_channels
