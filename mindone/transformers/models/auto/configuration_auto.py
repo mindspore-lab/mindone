@@ -31,6 +31,7 @@ logger = logging.get_logger(__name__)
 CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
+        ("albert", "AlbertConfig"),
         ("bert", "BertConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
@@ -41,6 +42,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2Config"),
         ("llama", "LlamaConfig"),
         ("llava", "LlavaConfig"),
+        ("mobilebert", "MobileBertConfig"),
         ("mt5", "MT5Config"),
         ("qwen2", "Qwen2Config"),
         ("t5", "T5Config"),
@@ -52,6 +54,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
 MODEL_NAMES_MAPPING = OrderedDict(
     [
         # Add full (and cased) model names here
+        ("albert", "ALBERT"),
         ("bert", "BERT"),
         ("bit", "BiT"),
         ("blip-2", "BLIP-2"),
@@ -64,6 +67,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("llama2", "Llama2"),
         ("llama3", "Llama3"),
         ("llava", "Llava"),
+        ("mobilebert", "MobileBERT"),
         ("mt5", "MT5"),
         ("qwen2", "Qwen2"),
         ("t5", "T5"),
