@@ -1,0 +1,68 @@
+# coding=utf-8
+# Copyright 2024 HuggingFace Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import unittest
+
+import numpy as np
+from ddt import data, ddt, unpack
+
+import mindspore as ms
+
+from mindone.diffusers import AmusedImg2ImgPipeline
+from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, slow
+
+from ..pipeline_test_utils import PipelineTesterMixin
+
+test_cases = [
+    {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
+    {"mode": ms.PYNATIVE_MODE, "dtype": "float16"},
+    {"mode": ms.GRAPH_MODE, "dtype": "float32"},
+    {"mode": ms.GRAPH_MODE, "dtype": "float16"},
+]
+
+
+@slow
+@ddt
+class AmusedPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
+    @data(*test_cases)
+    @unpack
+    def test_amused_512(self, mode, dtype):
+        ms.set_context(mode=mode)
+        ms_dtype = getattr(ms, dtype)
+        pipe = AmusedImg2ImgPipeline.from_pretrained("amused/amused-512", mindspore_dtype=ms_dtype)
+        image = (
+            load_downloaded_image_from_hf_hub(
+                "diffusers/docs-images",
+                "mountains.jpg",
+                subfolder="open_muse",
+            )
+            .resize((512, 512))
+            .convert("RGB")
+        )
+        image = pipe(
+            "winter mountains",
+            image,
+            generator=ms.Generator().manual_seed(0),
+            num_inference_steps=2,
+            output_type="np",
+        )[0]
+        image_slice = image[0, -3:, -3:, -1].flatten()
+
+        if dtype == "float32":
+            expected_slice = np.array([0.1984, 0.1867, 0.1718, 0.1611, 0.1800, 0.1752, 0.1613, 0.2151, 0.1300])
+            assert np.abs(image_slice - expected_slice).max() < 0.1
+        else:
+            expected_slice = np.array([0.2305, 0.2235, 0.2257, 0.2332, 0.2520, 0.2375, 0.2236, 0.2635, 0.1815])
+            assert np.abs(image_slice - expected_slice).max() < 0.1
