@@ -1,12 +1,13 @@
 import time
-import mindspore as ms
 
 # from transformers import AutoProcessor
 # from mindone.transformers import AutoModelForVision2Seq
 from transformers import Idefics3Processor
+
+import mindspore as ms
+
 from mindone.transformers import Idefic32ForConditionalGeneration
 from mindone.transformers.image_utils import load_image
-
 
 # Note that passing the image urls (instead of the actual pil images) to the processor is also possible
 image1 = load_image("https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-Liberty-Island-New-York-Bay.jpg")
@@ -15,13 +16,11 @@ image3 = load_image("https://cdn.britannica.com/68/170868-050-8DDE8263/Golden-Ga
 
 start_time = time.time()
 processor = Idefics3Processor.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3")
-print("Loaded Idefics3Processor, time elapsed: %.4fs"%(time.time() - start_time))
+print("Loaded Idefics3Processor, time elapsed: %.4fs" % (time.time() - start_time))
 
 start_time = time.time()
-model = Idefic32ForConditionalGeneration.from_pretrained(
-    "HuggingFaceM4/Idefics3-8B-Llama3", torch_dtype=ms.bfloat16
-)
-print("Loaded IdefiIdefic32ForConditionalGenerationcs3Processor, time elapsed: %.4fs"%(time.time() - start_time))
+model = Idefic32ForConditionalGeneration.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3", torch_dtype=ms.bfloat16)
+print("Loaded IdefiIdefic32ForConditionalGenerationcs3Processor, time elapsed: %.4fs" % (time.time() - start_time))
 
 # Create inputs
 messages = [
@@ -30,20 +29,23 @@ messages = [
         "content": [
             {"type": "image"},
             {"type": "text", "text": "What do we see in this image?"},
-        ]
+        ],
     },
     {
         "role": "assistant",
         "content": [
-            {"type": "text", "text": "In this image, we can see the city of New York, and more specifically the Statue of Liberty."},
-        ]
+            {
+                "type": "text",
+                "text": "In this image, we can see the city of New York, and more specifically the Statue of Liberty.",
+            },
+        ],
     },
     {
         "role": "user",
         "content": [
             {"type": "image"},
             {"type": "text", "text": "And how about this image?"},
-        ]
+        ],
     },
 ]
 prompt = processor.apply_chat_template(messages, add_generation_prompt=True)

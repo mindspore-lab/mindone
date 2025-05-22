@@ -104,7 +104,7 @@ from .models.idefics3 import (
     Idefics3ForConditionalGeneration,
     Idefics3Model,
     Idefics3PreTrainedModel,
-    Idefics3VisionTransformer
+    Idefics3VisionTransformer,
 )
 from .models.ijepa import IJepaForImageClassification, IJepaModel, IJepaPreTrainedModel
 from .models.imagegpt import (

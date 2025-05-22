@@ -37,6 +37,10 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
         ("gpt2", "GPT2Model"),
+        ("idefics", "IdeficsModel"),
+        ("idefics2", "Idefics2Model"),
+        ("idefics3", "Idefics3Model"),
+        ("idefics3_vision", "Idefics3VisionTransformer"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
@@ -49,6 +53,9 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("idefics", "IdeficsForVisionText2Text"),
+        ("idefics2", "Idefics2ForConditionalGeneration"),
+        ("idefics3", "Idefics3ForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -116,6 +123,8 @@ MODEL_FOR_VISION_2_SEQ_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("idefics2", "Idefics2ForConditionalGeneration"),
+        ("idefics3", "Idefics3ForConditionalGeneration"),
     ]
 )
 
@@ -123,6 +132,9 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("idefics", "IdeficsForVisionText2Text"),
+        ("idefics2", "Idefics2ForConditionalGeneration"),
+        ("idefics3", "Idefics3ForConditionalGeneration"),
     ]
 )
 

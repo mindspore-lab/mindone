@@ -17,9 +17,17 @@
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+from transformers import Idefics3Config, Idefics3VisionConfig
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
-from mindspore import nn, mint, ops
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn, ops
 from mindspore.mint.nn import CrossEntropyLoss
 
 from ...activations import ACT2FN
@@ -28,16 +36,9 @@ from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
 from ...modeling_outputs import BaseModelOutput, ModelOutput
 from ...modeling_utils import MSPreTrainedModel
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers import Idefics3Config, Idefics3VisionConfig
+from ...utils import is_flash_attn_2_available
 from ..auto import AutoModel
 
-from ...utils import is_flash_attn_2_available
 if is_flash_attn_2_available():
     # from ...modeling_flash_attention_utils import _flash_attention_forward
     from ...integrations.flash_attention import flash_attention_forward
@@ -48,13 +49,14 @@ logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "Idefics3Config"
 
+
 def _tensor_unfold(tensor, dimension, size, step) -> ms.Tensor:
     new_tensor = []
     length = tensor.shape[dimension]
     for i in range(0, length, step):
-        if i+size >= length:
+        if i + size >= length:
             break
-        new_tensor.append(tensor[i: i+ size])
+        new_tensor.append(tensor[i : i + size])
     new_tensor = mint.stack(new_tensor, dim=0)
     return new_tensor.to(tensor.dtype)
 
@@ -77,6 +79,7 @@ def _tensor_unfold(tensor, dimension, size, step) -> ms.Tensor:
 #             new_tensor.append(tensor[:, :, i: i+ size,...])
 #     new_tensor = torch.stack(new_tensor, dim=0)
 #     return new_tensor.to(tensor.dtype)
+
 
 @dataclass
 class Idefics3BaseModelOutputWithPast(ModelOutput):
@@ -190,7 +193,7 @@ class Idefics3VisionEmbeddings(nn.Cell):
         batch_size, _, max_im_h, max_im_w = pixel_values.shape
 
         patch_embeds = self.patch_embedding(pixel_values)
-        embeddings = patch_embeds.flatten(2).transpose(1, 2)
+        embeddings = patch_embeds.flatten(2).swapaxes(1, 2)
 
         max_nb_patches_h, max_nb_patches_w = max_im_h // self.patch_size, max_im_w // self.patch_size
         boundaries = mint.arange(1 / self.num_patches_per_side, 1.0, 1 / self.num_patches_per_side)
@@ -254,12 +257,12 @@ class Idefics3VisionAttention(nn.Cell):
         key_states = self.k_proj(hidden_states)
         value_states = self.v_proj(hidden_states)
 
-        query_states = query_states.view(batch_size, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        key_states = key_states.view(batch_size, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(batch_size, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        query_states = query_states.view(batch_size, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
+        key_states = key_states.view(batch_size, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
+        value_states = value_states.view(batch_size, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
 
         k_v_seq_len = key_states.shape[-2]
-        attn_weights = mint.matmul(query_states, key_states.transpose(2, 3)) * self.scale
+        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) * self.scale
 
         if attn_weights.shape != (batch_size, self.num_heads, q_len, k_v_seq_len):
             raise ValueError(
@@ -285,7 +288,7 @@ class Idefics3VisionAttention(nn.Cell):
                 f" {attn_output.shape}"
             )
 
-        attn_output = attn_output.transpose(1, 2).contiguous()
+        attn_output = attn_output.swapaxes(1, 2).contiguous()
         attn_output = attn_output.reshape(batch_size, q_len, self.embed_dim)
 
         attn_output = self.out_proj(attn_output)
@@ -326,8 +329,8 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         # batch_size x seq_length x head_dim x hidden_dim
         # therefore we just need to keep the original shape
         query_states = query_states.view(bsz, q_len, self.num_heads, self.head_dim)
-        key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
-        value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).transpose(1, 2)
+        key_states = key_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
+        value_states = value_states.view(bsz, q_len, self.num_heads, self.head_dim).swapaxes(1, 2)
 
         kv_seq_len = key_states.shape[-2]
         if past_key_value is not None:
@@ -336,8 +339,8 @@ class Idefics3VisionFlashAttention2(Idefics3VisionAttention):
         # Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim].
         # We would need to refactor the KV cache
         # to be able to avoid many of these transpose/reshape/view.
-        key_states = key_states.transpose(1, 2)
-        value_states = value_states.transpose(1, 2)
+        key_states = key_states.swapaxes(1, 2)
+        value_states = value_states.swapaxes(1, 2)
 
         dropout_rate = self.dropout if self.training else 0.0
 
@@ -422,9 +425,9 @@ class Idefics3EncoderLayer(nn.Cell):
         super().__init__()
         self.embed_dim = config.hidden_size
         self.self_attn = IDEFICS_VISION_ATTENTION_CLASSES[config._attn_implementation](config)
-        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps) # TODO: to fp32?
+        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)  # TODO: to fp32?
         self.mlp = Idefics3VisionMLP(config)
-        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps) # TODO: to fp32?
+        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)  # TODO: to fp32?
 
     # Copied from transformers.models.siglip.modeling_siglip.SiglipEncoderLayer.forward
     def construct(
@@ -543,9 +546,7 @@ class Idefics3Encoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 # Copied from transformers.models.llama.modeling_llama.repeat_kv
@@ -557,7 +558,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -689,7 +690,7 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
         self.embeddings = Idefics3VisionEmbeddings(config)
         self.encoder = Idefics3Encoder(config)
         self.patch_size = config.patch_size
-        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps) # TODO fp32?
+        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)  # TODO fp32?
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
     # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2VisionTransformer.get_input_embeddings
@@ -905,9 +906,14 @@ class Idefics3Model(Idefics3PreTrainedModel):
         This method aims at merging the token embeddings with the image hidden states into one single sequence of vectors that are fed to the transformer LM.
         The merging happens as follows:
         - The text token sequence is: `tok_1 tok_2 tok_3 <fake_token_around_image> <image> <image> ... <image> <fake_token_around_image> tok_4`.
-        - We get the image hidden states for the image through the vision encoder and that hidden state, after a pixel shuffle operation, is then projected into the text embedding space.
-        We thus have a sequence of image hidden states of size (1, image_seq_len, hidden_dim), where 1 is for batch_size of 1 image and hidden_dim is the hidden_dim of the LM transformer.
-        - The merging happens so that we obtain the following sequence: `vector_tok_1 vector_tok_2 vector_tok_3 vector_fake_tok_around_image {sequence of image_seq_len image hidden states} vector_fake_toke_around_image vector_tok_4`. That sequence is fed to the LM.
+        - We get the image hidden states for the image through the vision encoder and
+          that hidden state, after a pixel shuffle operation, is then projected into the text embedding space.
+          We thus have a sequence of image hidden states of size (1, image_seq_len, hidden_dim),
+          where 1 is for batch_size of 1 image and hidden_dim is the hidden_dim of the LM transformer.
+        - The merging happens so that we obtain the following sequence:
+          `vector_tok_1 vector_tok_2 vector_tok_3 vector_fake_tok_around_image vector_fake_toke_around_image vector_tok_4`
+          (vector_fake_tok_around_image {sequence of image_seq_len image hidden states}).
+          That sequence is fed to the LM.
         - To fit the format of that sequence, `input_ids`, `input_embeds`, `attention_mask` are all 3 adapted to insert the image hidden states.
         """
         num_images, _, vision_hidden_size = image_hidden_states.shape
@@ -1015,9 +1021,11 @@ class Idefics3Model(Idefics3PreTrainedModel):
             # patches_subgrid = patches_subgrid.unfold(dimension=2, size=patch_size, step=patch_size)
 
             # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
-            patches_subgrid = F.unfold(pixel_attention_mask[:,None,...], kernel_size=patch_size, stride=patch_size)
+            patches_subgrid = F.unfold(pixel_attention_mask[:, None, ...], kernel_size=patch_size, stride=patch_size)
             h, w = pixel_attention_mask.shape[1:] // patch_size
-            patches_subgrid = patches_subgrid.swapaxes(1,2).reshape(pixel_attention_mask.shape[0], h, w, patch_size, patch_size)
+            patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(
+                pixel_attention_mask.shape[0], h, w, patch_size, patch_size
+            )
             # ref: https://zhuanlan.zhihu.com/p/673802546
 
             patch_attention_mask = (patches_subgrid.sum(dim=(-1, -2)) > 0).bool()
