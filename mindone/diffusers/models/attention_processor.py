@@ -4459,6 +4459,11 @@ class SanaLinearAttnProcessor2_0:
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
 
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
         query = query.swapaxes(1, 2)
         query = query.reshape(query.shape[0], attn.heads, -1, *query.shape[2:])
         key = key.swapaxes(1, 2)
