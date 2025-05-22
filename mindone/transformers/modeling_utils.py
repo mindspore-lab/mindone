@@ -20,8 +20,7 @@ import os
 import re
 import warnings
 from contextlib import contextmanager, nullcontext
-from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, MutableMapping, Optional, Tuple, Union
+from typing import Callable, Dict, List, MutableMapping, Optional, Tuple, Union
 
 from transformers.configuration_utils import PretrainedConfig
 from transformers.dynamic_module_utils import custom_object_save
@@ -39,7 +38,6 @@ from transformers.utils import (
     TF_WEIGHTS_NAME,
     WEIGHTS_INDEX_NAME,
     WEIGHTS_NAME,
-    ModelOutput,
     PushToHubMixin,
     cached_file,
     download_url,
@@ -50,20 +48,18 @@ from transformers.utils import (
     is_remote_url,
     is_safetensors_available,
     logging,
-    replace_return_docstrings,
 )
 from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shard_files
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, mint, nn, ops
-from mindspore.nn import CrossEntropyLoss, Identity
+from mindspore import Parameter, Tensor, nn, ops
+from mindspore.nn import Identity
 
 from .activations import get_activation
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
 from .integrations.flash_attention import flash_attention_forward
 from .integrations.sdpa_attention import sdpa_attention_forward
-from .loss.loss_utils import LOSS_MAPPING
 from .mindspore_adapter import dtype_to_str
 from .modeling_attn_mask_utils import dtype_to_min
 from .utils.import_utils import is_flash_attn_2_available, is_sdpa_available
@@ -154,13 +150,6 @@ def silence_mindspore_logger():
     ms_logger.setLevel("ERROR")
     yield
     ms_logger.setLevel(ms_level)
-
-
-def get_first_parameter_dtype(parameter: Union[nn.Cell, "ModuleUtilsMixin"]):
-    """
-    Returns the first parameter dtype (can be non-floating) or asserts if none were found.
-    """
-    return next(parameter.parameters_dict()).dtype
 
 
 def get_parameter_dtype(parameter: Union[nn.Cell, "ModuleUtilsMixin"]):
@@ -463,7 +452,7 @@ class ModuleUtilsMixin:
             # Provided a padding mask of dimensions [batch_size, seq_length]
             # - if the model is a decoder, apply a causal mask in addition to the padding mask
             # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
-            if self.config.is_decoder:
+            if self.is_decoder:
                 extended_attention_mask = ModuleUtilsMixin.create_extended_attention_mask_for_decoder(
                     input_shape, attention_mask
                 )
@@ -555,51 +544,6 @@ class ModuleUtilsMixin:
 
         return sum(total_numel)
 
-    def estimate_tokens(self, input_dict: Dict[str, Union[ms.Tensor, Any]]) -> int:
-        """
-        Helper function to estimate the total number of tokens from the model inputs.
-
-        Args:
-            inputs (`dict`): The model inputs.
-
-        Returns:
-            `int`: The total number of tokens.
-        """
-        if not hasattr(self, "warnings_issued"):
-            self.warnings_issued = {}
-        if self.main_input_name in input_dict:
-            return input_dict[self.main_input_name].numel()
-        elif "estimate_tokens" not in self.warnings_issued:
-            logger.warning(
-                "Could not estimate the number of tokens of the input, floating-point operations will not be computed"
-            )
-            self.warnings_issued["estimate_tokens"] = True
-        return 0
-
-    def floating_point_ops(self, input_dict: Dict[str, Union[ms.Tensor, Any]], exclude_embeddings: bool = True) -> int:
-        """
-        Get number of (optionally, non-embeddings) floating-point operations for the forward and backward passes of a
-        batch with this transformer model. Default approximation neglects the quadratic dependency on the number of
-        tokens (valid if `12 * d_model << sequence_length`) as laid out in [this
-        paper](https://arxiv.org/pdf/2001.08361.pdf) section 2.1. Should be overridden for transformers with parameter
-        re-use e.g. Albert or Universal Transformers, or if doing long-range modeling with very high sequence lengths.
-
-        Args:
-            batch_size (`int`):
-                The batch size for the forward pass.
-
-            sequence_length (`int`):
-                The number of tokens in each line of the batch.
-
-            exclude_embeddings (`bool`, *optional*, defaults to `True`):
-                Whether or not to count embedding and softmax operations.
-
-        Returns:
-            `int`: The number of floating-point operations.
-        """
-
-        return 6 * self.estimate_tokens(input_dict) * self.num_parameters(exclude_embeddings=exclude_embeddings)
-
 
 class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin, PeftAdapterMixin):
     r"""
@@ -664,9 +608,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
     # Has support for a `Cache` instance as `past_key_values`? Does it support a `StaticCache`?
     _supports_cache_class = False
     _supports_static_cache = False
-
-    # Has support for dynamic model input?
-    _supports_dynamic_input = False
 
     # Has support for a `QuantoQuantizedCache` instance as `past_key_values`
     _supports_quantized_cache = False
@@ -773,13 +714,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         return config
 
-    @property
-    def base_model(self) -> nn.Cell:
-        """
-        `mindspore.nn.Cell`: The main body of the model.
-        """
-        return getattr(self, self.base_model_prefix, self)
-
     @classmethod
     def can_generate(cls) -> bool:
         """
@@ -858,25 +792,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if not hard_check_only:
             config._attn_implementation = "flash_attention_2"
         return config
-
-    @property
-    def loss_function(self):
-        if hasattr(self, "_loss_function"):
-            return self._loss_function
-
-        loss_type = getattr(self, "loss_type", None)
-
-        if loss_type is None or loss_type not in LOSS_MAPPING:
-            logger.warning_once(
-                f"`loss_type={loss_type}` was set in the config but it is unrecognised."
-                f"Using the default loss: `ForCausalLMLoss`."
-            )
-            loss_type = "ForCausalLM"
-        return LOSS_MAPPING[loss_type]
-
-    @loss_function.setter
-    def loss_function(self, value):
-        self._loss_function = value
 
     @classmethod
     def _check_and_enable_sdpa(cls, config, hard_check_only: bool = False) -> PretrainedConfig:
@@ -1178,9 +1093,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         self.config.vocab_size = model_embeds.embedding_table.shape[0]
         self.vocab_size = model_embeds.embedding_table.shape[0]
 
-        # Tie weights again if needed
-        self.tie_weights()
-
         return model_embeds
 
     def _resize_token_embeddings(self, new_num_tokens, pad_to_multiple_of=None):
@@ -1280,14 +1192,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         n = min(old_num_tokens, new_num_tokens)
         new_embeddings.embedding_table.data[:n, :] = old_embeddings.embedding_table.data[:n, :]
 
-        # Replace weights in old_embeddings and return to maintain the same embedding type.
-        # This ensures correct functionality when a Custom Embedding class is passed as input.
-        # The input and output embedding types remain consistent. (c.f. https://github.com/huggingface/transformers/pull/31979)
-        old_embeddings.weight.data = new_embeddings.embedding_table.data
-        old_embeddings.num_embeddings = new_embeddings.embedding_table.data.shape[0]
-        if old_embeddings.padding_idx is not None and (new_num_tokens - 1) < old_embeddings.padding_idx:
-            old_embeddings.padding_idx = None
-
         return new_embeddings
 
     def _get_resized_lm_head(
@@ -1350,51 +1254,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         return new_lm_head
 
-    def _init_added_embeddings_weights_with_mean(
-        self, old_embeddings, new_embeddings, old_embedding_dim, old_num_tokens, added_num_tokens
-    ):
-        old_embeddings_weight = old_embeddings.weight.to(ms.float32)
-        mean_embeddings = mint.mean(old_embeddings_weight, axis=0)
-
-        # Check if the covariance is positive definite.
-        is_covariance_psd = False
-        if is_covariance_psd:
-            raise NotImplementedError
-        else:
-            # Otherwise, just initialize with the mean. because distribution will not be created.
-            new_embeddings.weight[-1 * added_num_tokens :, :] = (
-                mean_embeddings[None, :].repeat(added_num_tokens, 1).to(old_embeddings.weight.dtype)
-            )
-
-    def _init_added_lm_head_weights_with_mean(
-        self,
-        old_lm_head,
-        new_lm_head,
-        old_lm_head_dim,
-        old_num_tokens,
-        added_num_tokens,
-        transposed=False,
-    ):
-        if transposed:
-            # Transpose to the desired shape for the function.
-            new_lm_head.weight = new_lm_head.weight.t()
-            old_lm_head.weight.data = old_lm_head.weight.t()
-
-        # The same initialization logic as Embeddings.
-        self._init_added_embeddings_weights_with_mean(
-            old_lm_head, new_lm_head, old_lm_head_dim, old_num_tokens, added_num_tokens
-        )
-
-        if transposed:
-            # Transpose again to the correct shape.
-            new_lm_head.weight = new_lm_head.weight.t()
-            old_lm_head.weight = old_lm_head.weight.t()
-
-    def _init_added_lm_head_bias_with_mean(self, old_lm_head, new_lm_head, added_num_tokens):
-        bias_mean = mint.mean(old_lm_head.bias.data, axis=0, dtype=ms.float32)
-        bias_std = mint.std(old_lm_head.bias.data, axis=0).to(ms.float32)
-        new_lm_head.bias.data[-1 * added_num_tokens :].normal_(mean=bias_mean, std=1e-9 * bias_std)
-
     def _copy_lm_head_original_to_resized(
         self, new_lm_head, old_lm_head, num_tokens_to_copy, transposed, has_new_lm_head_bias
     ):
@@ -1428,10 +1287,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if _init_weights:
             # Initialize weights
             self.apply(self._initialize_weights)
-
-            # Tie weights should be skipped when not initializing all weights
-            # since from_pretrained(...) calls tie weights anyways
-            self.tie_weights()
 
         # MindSpore patch. Refresh name of parameters.
         for name, param in self.parameters_and_names():
@@ -2308,10 +2163,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         )
 
         model = cls(config, *model_args, **model_kwargs)
-
-        # Make sure to tie the weights correctly
-        model.tie_weights()
-
         # We cannot set default mindspore dtype. So we need to cast model weights after creating.
         if mindspore_dtype is not None:
             model = model.to(mindspore_dtype)
@@ -2359,9 +2210,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 token=token,
                 adapter_kwargs=adapter_kwargs,
             )
-
-        # make sure token embedding weights are still tied if needed
-        model.tie_weights()
 
         # Set model in evaluation mode to deactivate DropOut modules by default
         model.set_train(False)
@@ -2617,55 +2465,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
 
         return model, missing_keys, unexpected_keys, mismatched_keys, error_msgs
 
-    def retrieve_modules_from_names(self, names, add_prefix=False, remove_prefix=False):
-        module_keys = {".".join(key.split(".")[:-1]) for key in names}
-
-        # torch.nn.ParameterList is a special case where two parameter keywords
-        # are appended to the module name, *e.g.* bert.special_embeddings.0
-        module_keys = module_keys.union(
-            {".".join(key.split(".")[:-2]) for key in names if len(key) > 0 and key[-1].isdigit()}
-        )
-
-        retrieved_modules = []
-        # retrieve all modules that has at least one missing weight name
-        for name, module in self.named_modules():
-            if remove_prefix:
-                _prefix = f"{self.base_model_prefix}."
-                name = name[len(_prefix) :] if name.startswith(_prefix) else name
-            elif add_prefix:
-                name = ".".join([self.base_model_prefix, name]) if len(name) > 0 else self.base_model_prefix
-
-            if name in module_keys:
-                retrieved_modules.append(module)
-
-        return retrieved_modules
-
-    @classmethod
-    def register_for_auto_class(cls, auto_class="AutoModel"):
-        """
-        Register this class with a given auto class. This should only be used for custom models as the ones in the
-        library are already mapped with an auto class.
-
-        <Tip warning={true}>
-
-        This API is experimental and may have some slight breaking changes in the next releases.
-
-        </Tip>
-
-        Args:
-            auto_class (`str` or `type`, *optional*, defaults to `"AutoModel"`):
-                The auto class to register this new model with.
-        """
-        if not isinstance(auto_class, str):
-            auto_class = auto_class.__name__
-
-        import transformers.models.auto as auto_module
-
-        if not hasattr(auto_module, auto_class):
-            raise ValueError(f"{auto_class} is not a valid auto class.")
-
-        cls._auto_class = auto_class
-
     def warn_if_padding_and_no_attention_mask(self, input_ids, attention_mask):
         """
         Shows a one-time warning if the input_ids appear to contain padding and no attention mask was given.
@@ -2696,328 +2495,6 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
                 )
 
             logger.warning_once(warn_string)
-
-
-class PoolerStartLogits(nn.Cell):
-    """
-    Compute SQuAD start logits from sequence hidden states.
-
-    Args:
-        config ([`PretrainedConfig`]):
-            The config used by the model, will be used to grab the `hidden_size` of the model.
-    """
-
-    def __init__(self, config: PretrainedConfig):
-        super().__init__()
-        self.dense = mint.nn.Linear(config.hidden_size, 1)
-
-    def construct(self, hidden_states: ms.Tensor, p_mask: Optional[ms.Tensor] = None) -> ms.Tensor:
-        """
-        Args:
-            hidden_states (`ms.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
-                The final hidden states of the model.
-            p_mask (`ms.Tensor` of shape `(batch_size, seq_len)`, *optional*):
-                Mask for tokens at invalid position, such as query and special symbols (PAD, SEP, CLS). 1.0 means token
-                should be masked.
-
-        Returns:
-            `ms.Tensor`: The start logits for SQuAD.
-        """
-        x = self.dense(hidden_states).squeeze(-1)
-
-        if p_mask is not None:
-            if get_parameter_dtype(self) == ms.float16:
-                x = x * (1 - p_mask) - 65500 * p_mask
-            else:
-                x = x * (1 - p_mask) - 1e30 * p_mask
-
-        return x
-
-
-class PoolerEndLogits(nn.Cell):
-    """
-    Compute SQuAD end logits from sequence hidden states.
-
-    Args:
-        config ([`PretrainedConfig`]):
-            The config used by the model, will be used to grab the `hidden_size` of the model and the `layer_norm_eps`
-            to use.
-    """
-
-    def __init__(self, config: PretrainedConfig):
-        super().__init__()
-        self.dense_0 = mint.nn.Linear(config.hidden_size * 2, config.hidden_size)
-        self.activation = mint.nn.Tanh()
-        self.LayerNorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.dense_1 = mint.nn.Linear(config.hidden_size, 1)
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        start_states: Optional[ms.Tensor] = None,
-        start_positions: Optional[ms.Tensor] = None,
-        p_mask: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
-        """
-        Args:
-            hidden_states (`ms.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
-                The final hidden states of the model.
-            start_states (`ms.Tensor` of shape `(batch_size, seq_len, hidden_size)`, *optional*):
-                The hidden states of the first tokens for the labeled span.
-            start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
-                The position of the first token for the labeled span.
-            p_mask (`ms.Tensor` of shape `(batch_size, seq_len)`, *optional*):
-                Mask for tokens at invalid position, such as query and special symbols (PAD, SEP, CLS). 1.0 means token
-                should be masked.
-
-        <Tip>
-
-        One of `start_states` or `start_positions` should be not `None`. If both are set, `start_positions` overrides
-        `start_states`.
-
-        </Tip>
-
-        Returns:
-            `ms.Tensor`: The end logits for SQuAD.
-        """
-        assert (
-            start_states is not None or start_positions is not None
-        ), "One of start_states, start_positions should be not None"
-        if start_positions is not None:
-            slen, hsz = hidden_states.shape[-2:]
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
-            start_states = hidden_states.gather(-2, start_positions)  # shape (bsz, 1, hsz)
-            start_states = start_states.expand(-1, slen, -1)  # shape (bsz, slen, hsz)
-
-        x = self.dense_0(mint.cat([hidden_states, start_states], dim=-1))
-        x = self.activation(x)
-        x = self.LayerNorm(x)
-        x = self.dense_1(x).squeeze(-1)
-
-        if p_mask is not None:
-            if get_parameter_dtype(self) == ms.float16:
-                x = x * (1 - p_mask) - 65500 * p_mask
-            else:
-                x = x * (1 - p_mask) - 1e30 * p_mask
-
-        return x
-
-
-class PoolerAnswerClass(nn.Cell):
-    """
-    Compute SQuAD 2.0 answer class from classification and start tokens hidden states.
-
-    Args:
-        config ([`PretrainedConfig`]):
-            The config used by the model, will be used to grab the `hidden_size` of the model.
-    """
-
-    def __init__(self, config):
-        super().__init__()
-        self.dense_0 = mint.nn.Linear(config.hidden_size * 2, config.hidden_size)
-        self.activation = mint.nn.Tanh()
-        self.dense_1 = mint.nn.Linear(config.hidden_size, 1, bias=False)
-
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        start_states: Optional[ms.Tensor] = None,
-        start_positions: Optional[ms.Tensor] = None,
-        cls_index: Optional[ms.Tensor] = None,
-    ) -> ms.Tensor:
-        """
-        Args:
-            hidden_states (`ms.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
-                The final hidden states of the model.
-            start_states (`ms.Tensor` of shape `(batch_size, seq_len, hidden_size)`, *optional*):
-                The hidden states of the first tokens for the labeled span.
-            start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
-                The position of the first token for the labeled span.
-            cls_index (`ms.Tensor` of shape `(batch_size,)`, *optional*):
-                Position of the CLS token for each sentence in the batch. If `None`, takes the last token.
-
-        <Tip>
-
-        One of `start_states` or `start_positions` should be not `None`. If both are set, `start_positions` overrides
-        `start_states`.
-
-        </Tip>
-
-        Returns:
-            `ms.Tensor`: The SQuAD 2.0 answer class.
-        """
-        # No dependency on end_feature so that we can obtain one single `cls_logits` for each sample.
-        hsz = hidden_states.shape[-1]
-        assert (
-            start_states is not None or start_positions is not None
-        ), "One of start_states, start_positions should be not None"
-        if start_positions is not None:
-            start_positions = start_positions[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
-            start_states = hidden_states.gather(-2, start_positions).squeeze(-2)  # shape (bsz, hsz)
-
-        if cls_index is not None:
-            cls_index = cls_index[:, None, None].expand(-1, -1, hsz)  # shape (bsz, 1, hsz)
-            cls_token_state = hidden_states.gather(-2, cls_index).squeeze(-2)  # shape (bsz, hsz)
-        else:
-            cls_token_state = hidden_states[:, -1, :]  # shape (bsz, hsz)
-
-        x = self.dense_0(mint.cat([start_states, cls_token_state], dim=-1))
-        x = self.activation(x)
-        x = self.dense_1(x).squeeze(-1)
-
-        return x
-
-
-@dataclass
-class SquadHeadOutput(ModelOutput):
-    """
-    Base class for outputs of question answering models using a [`~modeling_utils.SQuADHead`].
-
-    Args:
-        loss (`mindspore.Tensor` of shape `(1,)`, *optional*, returned if both `start_positions` and `end_positions` are provided):
-            Classification loss as the sum of start token, end token (and is_impossible if provided) classification
-            losses.
-        start_top_log_probs (`mindspore.Tensor` of shape `(batch_size, config.start_n_top)`, *optional*,
-            returned if `start_positions` or `end_positions` is not provided):
-            Log probabilities for the top config.start_n_top start token possibilities (beam-search).
-        start_top_index (`mindspore.Tensor` of shape `(batch_size, config.start_n_top)`, *optional*,
-            returned if `start_positions` or `end_positions` is not provided):
-            Indices for the top config.start_n_top start token possibilities (beam-search).
-        end_top_log_probs (`mindspore.Tensor` of shape `(batch_size, config.start_n_top * config.end_n_top)`, *optional*,
-            returned if `start_positions` or `end_positions` is not provided):
-            Log probabilities for the top `config.start_n_top * config.end_n_top` end token possibilities
-            (beam-search).
-        end_top_index (`mindspore.Tensor` of shape `(batch_size, config.start_n_top * config.end_n_top)`, *optional*,
-            returned if `start_positions` or `end_positions` is not provided):
-            Indices for the top `config.start_n_top * config.end_n_top` end token possibilities (beam-search).
-        cls_logits (`mindspore.Tensor` of shape `(batch_size,)`, *optional*, returned if `start_positions` or `end_positions` is not provided):
-            Log probabilities for the `is_impossible` label of the answers.
-
-    """
-
-    loss: Optional[ms.Tensor] = None
-    start_top_log_probs: Optional[ms.Tensor] = None
-    start_top_index: Optional[ms.Tensor] = None
-    end_top_log_probs: Optional[ms.Tensor] = None
-    end_top_index: Optional[ms.Tensor] = None
-    cls_logits: Optional[ms.Tensor] = None
-
-
-class SQuADHead(nn.Cell):
-    r"""
-    A SQuAD head inspired by XLNet.
-
-    Args:
-        config ([`PretrainedConfig`]):
-            The config used by the model, will be used to grab the `hidden_size` of the model and the `layer_norm_eps`
-            to use.
-    """
-
-    def __init__(self, config):
-        super().__init__()
-        self.start_n_top = config.start_n_top
-        self.end_n_top = config.end_n_top
-
-        self.start_logits = PoolerStartLogits(config)
-        self.end_logits = PoolerEndLogits(config)
-        self.answer_class = PoolerAnswerClass(config)
-
-    @replace_return_docstrings(output_type=SquadHeadOutput, config_class=PretrainedConfig)
-    def construct(
-        self,
-        hidden_states: ms.Tensor,
-        start_positions: Optional[ms.Tensor] = None,
-        end_positions: Optional[ms.Tensor] = None,
-        cls_index: Optional[ms.Tensor] = None,
-        is_impossible: Optional[ms.Tensor] = None,
-        p_mask: Optional[ms.Tensor] = None,
-        return_dict: bool = False,
-    ) -> Union[SquadHeadOutput, Tuple[ms.Tensor]]:
-        """
-        Args:
-            hidden_states (`mindspore.Tensor` of shape `(batch_size, seq_len, hidden_size)`):
-                Final hidden states of the model on the sequence tokens.
-            start_positions (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
-                Positions of the first token for the labeled span.
-            end_positions (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
-                Positions of the last token for the labeled span.
-            cls_index (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
-                Position of the CLS token for each sentence in the batch. If `None`, takes the last token.
-            is_impossible (`mindspore.Tensor` of shape `(batch_size,)`, *optional*):
-                Whether the question has a possible answer in the paragraph or not.
-            p_mask (`mindspore.Tensor` of shape `(batch_size, seq_len)`, *optional*):
-                Mask for tokens at invalid position, such as query and special symbols (PAD, SEP, CLS). 1.0 means token
-                should be masked.
-            return_dict (`bool`, *optional*, defaults to `False`):
-                Whether or not to return a [`~utils.ModelOutput`] instead of a plain tuple.
-
-        Returns:
-        """
-        start_logits = self.start_logits(hidden_states, p_mask=p_mask)
-
-        if start_positions is not None and end_positions is not None:
-            # If we are on multi-GPU, let's remove the dimension added by batch splitting
-            for x in (start_positions, end_positions, cls_index, is_impossible):
-                if x is not None and x.dim() > 1:
-                    x.squeeze_(-1)
-
-            # during training, compute the end logits based on the ground truth of the start position
-            end_logits = self.end_logits(hidden_states, start_positions=start_positions, p_mask=p_mask)
-
-            loss_fct = CrossEntropyLoss()
-            start_loss = loss_fct(start_logits, start_positions)
-            end_loss = loss_fct(end_logits, end_positions)
-            total_loss = (start_loss + end_loss) / 2
-
-            if cls_index is not None and is_impossible is not None:
-                # Predict answerability from the representation of CLS and START
-                cls_logits = self.answer_class(hidden_states, start_positions=start_positions, cls_index=cls_index)
-                loss_fct_cls = nn.BCEWithLogitsLoss()
-                cls_loss = loss_fct_cls(cls_logits, is_impossible)
-
-                # note(zhiliny): by default multiply the loss by 0.5 so that the scale is comparable to start_loss and end_loss
-                total_loss += cls_loss * 0.5
-
-            return SquadHeadOutput(loss=total_loss) if return_dict else (total_loss,)
-
-        else:
-            # during inference, compute the end logits based on beam search
-            bsz, slen, hsz = hidden_states.size()
-            start_log_probs = mint.softmax(start_logits, dim=-1)  # shape (bsz, slen)
-
-            start_top_log_probs, start_top_index = mint.topk(
-                start_log_probs, self.start_n_top, dim=-1
-            )  # shape (bsz, start_n_top)
-            start_top_index_exp = start_top_index.unsqueeze(-1).expand(-1, -1, hsz)  # shape (bsz, start_n_top, hsz)
-            start_states = mint.gather(hidden_states, -2, start_top_index_exp)  # shape (bsz, start_n_top, hsz)
-            start_states = start_states.unsqueeze(1).expand(-1, slen, -1, -1)  # shape (bsz, slen, start_n_top, hsz)
-
-            hidden_states_expanded = hidden_states.unsqueeze(2).expand_as(
-                start_states
-            )  # shape (bsz, slen, start_n_top, hsz)
-            p_mask = p_mask.unsqueeze(-1) if p_mask is not None else None
-            end_logits = self.end_logits(hidden_states_expanded, start_states=start_states, p_mask=p_mask)
-            end_log_probs = mint.softmax(end_logits, dim=1)  # shape (bsz, slen, start_n_top)
-
-            end_top_log_probs, end_top_index = mint.topk(
-                end_log_probs, self.end_n_top, dim=1
-            )  # shape (bsz, end_n_top, start_n_top)
-            end_top_log_probs = end_top_log_probs.view(-1, self.start_n_top * self.end_n_top)
-            end_top_index = end_top_index.view(-1, self.start_n_top * self.end_n_top)
-
-            start_states = mint.einsum("blh,bl->bh", hidden_states, start_log_probs)
-            cls_logits = self.answer_class(hidden_states, start_states=start_states, cls_index=cls_index)
-
-            if not return_dict:
-                return (start_top_log_probs, start_top_index, end_top_log_probs, end_top_index, cls_logits)
-            else:
-                return SquadHeadOutput(
-                    start_top_log_probs=start_top_log_probs,
-                    start_top_index=start_top_index,
-                    end_top_log_probs=end_top_log_probs,
-                    end_top_index=end_top_index,
-                    cls_logits=cls_logits,
-                )
 
 
 class SequenceSummary(nn.Cell):

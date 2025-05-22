@@ -41,7 +41,6 @@ from mindone.transformers.modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
@@ -140,23 +139,19 @@ class Qwen2RMSNorm(nn.Cell):
 
 # Copied from transformers.models.mixtral.modeling_mixtral.MixtralRotaryEmbedding with Mixtral->Qwen2
 class Qwen2RotaryEmbedding(nn.Cell):
-    def __init__(self, config: Qwen2Config, device=None):
+    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
         super().__init__()
 
-        # BC: "rope_type" was originally "type"
-        if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
-            rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type"))
-        else:
-            rope_type = "default"
-
-        rope_init_fn = ROPE_INIT_FUNCTIONS[rope_type]
-
-        inv_freq, _ = rope_init_fn(config)
+        self.dim = dim
+        self.max_position_embeddings = max_position_embeddings
+        self.base = base
+        inv_freq = 1.0 / (self.base ** (ops.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim))
         self.inv_freq = inv_freq
-        # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(seq_len=config.max_position_embeddings, dtype=ms.float32)
 
-    def _set_cos_sin_cache(self, seq_len, dtype):
+        # Build here to make `torch.jit.trace` work.
+        self._set_cos_sin_cache(seq_len=max_position_embeddings, device=None, dtype=ms.float32)
+
+    def _set_cos_sin_cache(self, seq_len, device, dtype):
         self.max_seq_len_cached = seq_len
         t = ops.arange(self.max_seq_len_cached, dtype=ms.int64).type_as(self.inv_freq)
 
@@ -280,7 +275,11 @@ class Qwen2Attention(nn.Cell):
         self.v_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
         self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=False)
 
-        self.rotary_emb = Qwen2RotaryEmbedding(config)
+        self.rotary_emb = Qwen2RotaryEmbedding(
+            self.head_dim,
+            max_position_embeddings=self.max_position_embeddings,
+            base=self.rope_theta,
+        )
 
         self.scale = self.head_dim**-0.5
 
