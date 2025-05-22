@@ -691,8 +691,12 @@ class LLaDABlock(nn.Cell):
             # run in if AMP is enabled, and this can be a problem if some tokens are masked out due to padding
             # as down-casting the attention bias to the autocast precision will result in -infs, which will
             # cause the SDP attn function to produce NaNs.
-
-            attention_bias = self._cast_attn_bias(attention_bias[:, :, key_len - query_len : key_len, :key_len], dtype)
+            if query_len == key_len:
+                attention_bias = self._cast_attn_bias(attention_bias, dtype)
+            else:
+                attention_bias = self._cast_attn_bias(
+                    attention_bias[:, :, key_len - query_len : key_len, :key_len], dtype
+                )
 
         # Get the attention scores.
         # shape: (B, nh, T, hs)
