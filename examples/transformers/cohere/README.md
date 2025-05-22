@@ -28,7 +28,7 @@ We recommend to download the model checkpoint from [HuggingFace](https://hugging
 huggingface-cli download --resume-download CohereLabs/c4ai-command-r-v01
 ```
 
-`CohereLabs/c4ai-command-r-v01` is a 32B model, which takes about 70GB storage room.
+`CohereLabs/c4ai-command-r-v01` is a 35B model, which takes over 70GB storage room.
 
 
 ## Usage
