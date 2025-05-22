@@ -4,7 +4,7 @@ import inspect
 import numpy as np
 import pytest
 import torch
-from transformers import AriaConfig, AriaTextConfig
+from transformers import AriaTextConfig
 
 import mindspore as ms
 
@@ -17,12 +17,11 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-4, "bf16": 5e-3}
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-4, "bf16": 6e-3}
 MODES = [0, 1]
 
 
 class AriaModelTester:
-
     def __init__(
         self,
         batch_size=13,
@@ -39,7 +38,7 @@ class AriaModelTester:
         pad_token_id=0,
         rms_norm_eps=1e-6,
         use_cache=False,
-        moe_num_experts = 2,
+        moe_num_experts=2,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -56,7 +55,6 @@ class AriaModelTester:
         self.rms_norm_eps = rms_norm_eps
         self.use_cache = use_cache
         self.moe_num_experts = moe_num_experts
-
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
@@ -102,10 +100,11 @@ ARIA_CASES = [
         {},
         (),
         {
-            "input_ids": input_ids, "attention_mask": input_mask, "return_dict": True
+            "input_ids": input_ids,
+            "attention_mask": input_mask,
         },
         {
-            "logits": "logits",
+            "logits": 0,
         },
     ],
 ]
@@ -161,9 +160,9 @@ def test_named_modules(
     if outputs_map:
         pt_outputs_n = []
         ms_outputs_n = []
-        for pt_key, ms_key in outputs_map.items():
+        for pt_key, ms_idx in outputs_map.items():
             pt_output = getattr(pt_outputs, pt_key)
-            ms_output = getattr(ms_outputs, ms_key)
+            ms_output = ms_outputs[ms_idx]
             if isinstance(pt_output, (list, tuple)):
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)

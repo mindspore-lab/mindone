@@ -29,7 +29,6 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers.utils.deprecation import deprecate_kwarg
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -213,7 +212,7 @@ class AriaProjector(nn.Cell):
 
         if attn_mask is not None:
             attn_mask = attn_mask.repeat_interleave(self.num_heads, 0)
-            attn_mask = attn_mask.unsqueeze(1).expand((-1, queries.shape[1], -1))
+            attn_mask = attn_mask.unsqueeze(1).broadcast_to((-1, queries.shape[1], -1))
 
         attention_out = self.cross_attn(key_value_states, queries, attn_mask=attn_mask)
 
@@ -263,7 +262,7 @@ def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
     """
     num_tokens = token_states.shape[0]
     out_features = expert_weights.shape[-1]
-    output = mint.zeros((num_tokens, out_features), dtype=token_states.dtype)
+    output = mint.zeros((num_tokens, out_features), dtype=ms.float32)
 
     cumsum_num_tokens = mint.cumsum(tokens_per_expert, dim=0)
     # Insert zero at the begining for offset index's convenience
@@ -276,8 +275,8 @@ def sequential_experts_gemm(token_states, expert_weights, tokens_per_expert):
         tokens = token_states[start:end]
 
         out = mint.matmul(tokens, expert_weights[expert_num])
-        output[start:end] = out
-    return output
+        output[start:end] = out.float()
+    return output.to(token_states.dtype)
 
 
 class AriaGroupedExpertsGemm(nn.Cell):
@@ -481,7 +480,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -498,7 +497,7 @@ def eager_attention_forward(
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
-    attn_weights = mint.matmul(query, key_states.transpose(2, 3)) * scaling
+    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) * scaling
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
         attn_weights = attn_weights + causal_mask
@@ -506,7 +505,7 @@ def eager_attention_forward(
     attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
     attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
-    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
 
     return attn_output, attn_weights
 
@@ -549,9 +548,9 @@ class AriaTextAttention(nn.Cell):
         input_shape = hidden_states.shape[:-1]
         hidden_shape = (*input_shape, -1, self.head_dim)
 
-        query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
-        key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)
-        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        query_states = self.q_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
+        key_states = self.k_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
+        value_states = self.v_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
 
         cos, sin = position_embeddings
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin)
@@ -675,7 +674,7 @@ class AriaTextPreTrainedModel(MSPreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight[module.padding_idx] = 0.0
         elif isinstance(module, AriaGroupedExpertsGemm):
             normal_(module.weight, mean=0.0, std=std)
         elif isinstance(module, mint.nn.Conv2d):
@@ -728,7 +727,7 @@ class AriaPreTrainedModel(MSPreTrainedModel):
         elif isinstance(module, mint.nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                zeros_(module.weight.data[module.padding_idx])
+                module.weight[module.padding_idx] = 0.0
         elif isinstance(module, AriaProjector):
             trunc_normal_(module.query, std=std)
 
@@ -770,10 +769,10 @@ class AriaTextRotaryEmbedding(nn.Cell):
             self._dynamic_frequency_update(position_ids)
 
         # Core RoPE block
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
+        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
         # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
-        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
+        freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).swapaxes(1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)
         cos = emb.cos()
         sin = emb.sin()
@@ -916,7 +915,7 @@ class AriaTextModel(AriaTextPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is not None) and (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.gradient_checkpointing and self.training and use_cache:
@@ -978,13 +977,9 @@ class AriaTextModel(AriaTextPreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        output = BaseModelOutputWithPast(
-            last_hidden_state=hidden_states,
-            past_key_values=past_key_values if use_cache else None,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attns,
-        )
-        return output if return_dict else output.to_tuple()
+        past_key_values = past_key_values if use_cache else None
+
+        return hidden_states, past_key_values, all_hidden_states, all_self_attns
 
     def _update_causal_mask(
         self,
@@ -1063,7 +1058,7 @@ class AriaTextModel(AriaTextPreTrainedModel):
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -1124,7 +1119,6 @@ class AriaTextForCausalLM(AriaTextPreTrainedModel, GenerationMixin):
     def get_decoder(self):
         return self.model
 
-    @deprecate_kwarg("num_logits_to_keep", version="4.50", new_name="logits_to_keep")
     @add_start_docstrings_to_model_forward(ARIA_TEXT_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
@@ -1205,17 +1199,9 @@ class AriaTextForCausalLM(AriaTextPreTrainedModel, GenerationMixin):
         if labels is not None:
             loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
 
-        if not return_dict:
-            output = (logits,) + outputs[1:]
-            return (loss,) + output if loss is not None else output
-
-        return CausalLMOutputWithPast(
-            loss=loss,
-            logits=logits,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
+        result = (loss, logits) + outputs[1:]
+        result = tuple(v for v in result if v is not None)
+        return result
 
 
 @dataclass
@@ -1412,7 +1398,6 @@ class AriaForConditionalGeneration(AriaPreTrainedModel, GenerationMixin):
         image_features = self.multi_modal_projector(selected_image_feature, attn_mask=image_attn_mask)
         return image_features
 
-    @deprecate_kwarg("num_logits_to_keep", version="4.50", new_name="logits_to_keep")
     @add_start_docstrings_to_model_forward(ARIA_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=AriaCausalLMOutputWithPast, config_class=AriaConfig)
     def construct(
