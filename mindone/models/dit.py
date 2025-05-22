@@ -2,7 +2,7 @@ import math
 from typing import Optional, Tuple, Type, Union
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, mint, nn, ops
+from mindspore import Parameter, Tensor, mint, nn
 from mindspore.common.initializer import XavierUniform, Zero, initializer
 
 from mindone.models.modules.flash_attention import FLASH_IS_AVAILABLE, MSFlashAttention
@@ -381,7 +381,7 @@ class LabelEmbedder(nn.Cell):
         Drops labels to enable classifier-free guidance.
         """
         if force_drop_ids is None:
-            drop_ids = ops.rand(labels.shape[0]) < self.dropout_prob
+            drop_ids = mint.rand(labels.shape[0]) < self.dropout_prob
         else:
             drop_ids = force_drop_ids == 1
         labels = mint.where(drop_ids, self.num_classes, labels)
@@ -418,7 +418,7 @@ class DiTBlock(nn.Cell):
         )
 
     def construct(self, x, c):
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.adaLN_modulation(c).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(self.adaLN_modulation(c), 6, dim=1)
         x = x + gate_msa.unsqueeze(1) * self.attn(modulate(self.norm1(x), shift_msa, scale_msa))
         x = x + gate_mlp.unsqueeze(1) * self.mlp(modulate(self.norm2(x), shift_mlp, scale_mlp))
         return x
@@ -438,7 +438,7 @@ class FinalLayer(nn.Cell):
         )
 
     def construct(self, x, c):
-        shift, scale = self.adaLN_modulation(c).chunk(2, axis=1)
+        shift, scale = mint.chunk(self.adaLN_modulation(c), 2, dim=1)
         x = modulate(self.norm_final(x), shift, scale)
         x = self.linear(x)
         return x
@@ -672,4 +672,4 @@ DiT_models = {
 if __name__ == "__main__":
     ms.set_context(mode=ms.GRAPH_MODE)
     model = DiT_S_2(input_size=32, block_kwargs={"enable_flash_attention": True})
-    print(model(ops.randn(2, 4, 32, 32), ops.randint(0, 50, (2,)), mint.arange(2)))
+    print(model(mint.randn(2, 4, 32, 32), mint.randint(0, 50, (2,)), mint.arange(2)))
