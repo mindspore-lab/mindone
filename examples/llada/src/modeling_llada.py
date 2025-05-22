@@ -390,23 +390,13 @@ class RotaryEmbedding(nn.Cell):
         # Warm up cache.
         self.rope_theta = config.rope_theta
 
-        # compute rotary embedding
-        self.pos_sin, self.pos_cos = self.get_rotary_embedding(config.max_sequence_length)
+        self.dim = self.config.d_model // self.config.n_heads
+        self.inv_freq = 1.0 / (self.rope_theta ** (mint.arange(0, self.dim, 2, dtype=ms.float32) / self.dim))
 
     def get_rotary_embedding(self, seq_len: int) -> Tuple[Tensor, Tensor]:
-        if (
-            hasattr(self, "pos_sin")
-            and hasattr(self, "pos_cos")
-            and self.pos_sin.shape[-2] >= seq_len
-            and self.pos_cos.shape[-2] >= seq_len
-        ):
-            return self.pos_sin[:, :, :seq_len, :], self.pos_cos[:, :, :seq_len, :]
-
-        dim = self.config.d_model // self.config.n_heads
-        inv_freq = 1.0 / (self.rope_theta ** (mint.arange(0, dim, 2, dtype=ms.float32) / dim))
         seq = mint.arange(seq_len, dtype=ms.float32)
         # freqs = einsum("i , j -> i j", seq, inv_freq)
-        freqs = ops.outer(seq, inv_freq)
+        freqs = ops.outer(seq, self.inv_freq)
         positions = mint.cat((freqs, freqs), dim=-1)
         pos_sin, pos_cos = mint.sin(positions)[None, None, :, :], mint.cos(positions)[None, None, :, :]
 
@@ -431,11 +421,14 @@ class RotaryEmbedding(nn.Cell):
         pos_sin, pos_cos = self.get_rotary_embedding(key_len)
         pos_sin = pos_sin.to(q_.dtype)
         pos_cos = pos_cos.to(q_.dtype)
-        q_ = self.apply_rotary_pos_emb(
-            pos_sin[:, :, key_len - query_len : key_len, :],
-            pos_cos[:, :, key_len - query_len : key_len, :],
-            q_,
-        )
+        if query_len == key_len:
+            q_ = self.apply_rotary_pos_emb(pos_sin, pos_cos, q_)
+        else:
+            q_ = self.apply_rotary_pos_emb(
+                pos_sin[:, :, key_len - query_len : key_len, :],
+                pos_cos[:, :, key_len - query_len : key_len, :],
+                q_,
+            )
         k_ = self.apply_rotary_pos_emb(pos_sin, pos_cos, k_)
         return q_.to(q.dtype), k_.to(k.dtype)
 
