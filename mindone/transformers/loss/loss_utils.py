@@ -1,5 +1,5 @@
 from mindspore import mint
-
+import mindspore as ms
 
 def fixed_cross_entropy(source, target, num_items_in_batch: int = None, ignore_index: int = -100, **kwargs):
     reduction = "sum" if num_items_in_batch is not None else "mean"
@@ -33,7 +33,41 @@ def ForCausalLMLoss(
     loss = fixed_cross_entropy(logits, shift_labels, num_items_in_batch, ignore_index, **kwargs)
     return loss
 
+def ForSequenceClassificationLoss(labels, pooled_logits, config, **kwargs):
+    num_labels = config.num_labels
+    if config.problem_type is None:
+        if num_labels == 1:
+            config.problem_type = "regression"
+        elif num_labels > 1 and (labels.dtype == ms.int64 or labels.dtype == ms.int32):
+            config.problem_type = "single_label_classification"
+        else:
+            config.problem_type = "multi_label_classification"
+
+    if config.problem_type == "regression":
+        loss_fct = mint.nn.MSELoss()
+        if num_labels == 1:
+            loss = loss_fct(pooled_logits.squeeze(), labels.squeeze())
+        else:
+            loss = loss_fct(pooled_logits, labels)
+    elif config.problem_type == "single_label_classification":
+        loss = fixed_cross_entropy(pooled_logits.view(-1, num_labels), labels.view(-1), **kwargs)
+    elif config.problem_type == "multi_label_classification":
+        loss_fct = mint.nn.BCEWithLogitsLoss()
+        loss = loss_fct(pooled_logits, labels)
+    return loss
+
+
+def ForTokenClassification(logits, labels, config, **kwargs):
+    # Upcast to float if we need to compute the loss to avoid potential precision issues
+    logits = logits.view(-1, config.num_labels)
+    labels = labels.view(-1)
+    logits = logits.float()
+    # Flatten the tokens
+    return fixed_cross_entropy(logits, labels, **kwargs)
+
 
 LOSS_MAPPING = {
     "ForCausalLM": ForCausalLMLoss,
+    "ForSequenceClassification": ForSequenceClassificationLoss,
+    "ForTokenClassification": ForTokenClassification,
 }

@@ -57,7 +57,6 @@ from transformers.utils.hub import convert_file_size_to_int, get_checkpoint_shar
 import mindspore as ms
 from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import CrossEntropyLoss, Identity
-
 from .activations import get_activation
 from .generation.utils import GenerationMixin
 from .integrations import PeftAdapterMixin
