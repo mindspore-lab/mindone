@@ -107,15 +107,16 @@ class pynative_context(contextlib.ContextDecorator):
     change os.environ["MS_JIT"] to '0' to enable network run in eager mode. When exit this context,
     we will resume its prev state. Currently, it CANNOT used inside mindspore.nn.Cell.construct()
     when `mindspore.context.get_context("mode") == mindspore.context.GRAPH_MODE`. It can be used
-    as decorator.
+    as a decorator.
     """
 
     def __init__(self):
-        self._prev_mode = ms.context.get_context("mode")
+        self._switch = ms.context.get_context("mode") == ms.GRAPH_MODE
 
     def __enter__(self):
-        ms.context.set_context(mode=ms.context.PYNATIVE_MODE)
+        if self._switch:
+            ms.context.set_context(mode=ms.context.PYNATIVE_MODE)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        ms.context.set_context(mode=self._prev_mode)
-        return False
+        if self._switch:
+            ms.context.set_context(mode=ms.GRAPH_MODE)

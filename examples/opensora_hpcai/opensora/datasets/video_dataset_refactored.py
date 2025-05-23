@@ -10,7 +10,7 @@ from typing import Any, Callable, Optional, Union
 
 import cv2
 import numpy as np
-from einops import rearrange, repeat
+from einops import rearrange
 from tqdm import tqdm
 
 from mindspore.dataset.transforms import Compose
@@ -434,14 +434,14 @@ class VideoDatasetRefactored(BaseDataset):
         img_ids[..., 0] = img_ids[..., 0] + np.arange(t)[:, None, None]
         img_ids[..., 1] = img_ids[..., 1] + np.arange(h // self._patch_size[1])[None, :, None]
         img_ids[..., 2] = img_ids[..., 2] + np.arange(w // self._patch_size[2])[None, None, :]
-        img_ids = repeat(img_ids, "t h w c -> (t h w) c")
+        img_ids = img_ids.reshape(-1, 3)
 
         # Encode the tokenized prompts
         txt_ids = np.zeros((t5_emb.shape[0], 3), dtype=np.int32)
         return img, img_ids, t5_emb, txt_ids, np.array(shift_alpha, dtype=np.float32)
 
     def train_transforms(
-        self, target_size: tuple[int, int], tokenizer: Optional[Callable[[str], np.ndarray]] = None
+        self, target_size: Optional[tuple[int, int]] = None, tokenizer: Optional[Callable[[str], np.ndarray]] = None
     ) -> list[dict]:
         transforms = []
         vae_downsample_rate = self._vae_downsample_rate

@@ -241,7 +241,7 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
         # sample z from latent distribution
         logvar = mint.clamp(logvar, -30.0, 20.0)
         std = mint.exp(0.5 * logvar)
-        z = mean + std * self.stdnormal(mean.shape)
+        z = mean + std * self.stdnormal(mean.shape).to(self.dtype)
 
         return z
 

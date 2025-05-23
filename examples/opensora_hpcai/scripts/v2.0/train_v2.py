@@ -6,7 +6,7 @@ from typing import Optional, Tuple, Union
 from jsonargparse import ActionConfigFile, ArgumentParser
 
 import mindspore.dataset as mds
-from mindspore import GRAPH_MODE, Model, Symbol
+from mindspore import GRAPH_MODE, PYNATIVE_MODE, Model, Symbol
 from mindspore import dtype as mstype
 from mindspore import get_context, nn, tensor
 
@@ -24,7 +24,7 @@ from opensora.datasets.video_dataset_refactored import VideoDatasetRefactored
 from opensora.models.hunyuan_vae.autoencoder_kl_causal_3d import CausalVAE3D_HUNYUAN
 from opensora.models.mmdit import Flux
 from opensora.pipelines.train_pipeline_v2 import DiffusionWithLoss
-from opensora.utils.callbacks import PerfRecorderCallback
+from opensora.utils.callbacks import PerfRecorderCallback, VAEEmbedCallback
 from opensora.utils.ema import EMA
 from opensora.utils.saving import TrainingSavingOptions
 from opensora.utils.training import TrainingOptions
@@ -140,6 +140,7 @@ def main(args):
     latent_diffusion_with_loss = DiffusionWithLoss(
         network,
         vae,
+        vae_embed=mode == PYNATIVE_MODE,  # embed videos in the pipeline only in Pynative mode
         patch_size=(1, network.patch_size, network.patch_size),
         condition_config=condition_config,
         **initializer.train.pipeline,
@@ -177,18 +178,20 @@ def main(args):
     if mode == GRAPH_MODE:
         if args.train.sequence_parallel.shards <= 1:
             bs = Symbol(unique=True)
-            if args.dataset.vae_latent_folder is not None:
-                video = tensor(shape=[bs, None, 64], dtype=mstype.float32)
-            else:
-                video = tensor(shape=[bs, 3, None, None, None], dtype=mstype.float32)
+            # videos have a constant shape because latents are either generated in advance or in the VAEEmbedCallback
+            video = tensor(shape=[bs, None, 64], dtype=mstype.float32)
             img_ids = tensor(shape=[bs, None, 3], dtype=mstype.int32)
             text_embed = tensor(shape=[bs, 512, 4096], dtype=mstype.float32)
             txt_ids = tensor(shape=[bs, 512, 3], dtype=mstype.int32)
             y_vec = tensor(shape=[bs, 768], dtype=mstype.float32)
             shift_alpha = tensor(shape=[bs], dtype=mstype.float32)
-            net_with_grads.set_inputs(video, img_ids, text_embed, txt_ids, y_vec, shift_alpha)
+            if not network.config.cond_embed:
+                net_with_grads.set_inputs(video, img_ids, text_embed, txt_ids, y_vec, shift_alpha)
+            else:
+                cond = tensor(shape=[bs, None, 68], dtype=mstype.float32)
+                net_with_grads.set_inputs(video, img_ids, text_embed, txt_ids, y_vec, shift_alpha, cond)
             logger.info("Dynamic inputs are initialized for bucket config training in Graph mode.")
-        elif args.train.sequence_parallel.shards > 1:
+        else:
             logger.warning(
                 "Dynamic shape is not supported with sequence parallelism. The graph will be re-compiled for each new shape."
             )
@@ -197,6 +200,11 @@ def main(args):
 
     # 5.4 callbacks
     callbacks = [OverflowMonitor()]
+    if args.dataset.vae_latent_folder is None and mode == GRAPH_MODE:  # embed videos in the callback only in Graph mode
+        callbacks.append(
+            VAEEmbedCallback(latent_diffusion_with_loss.get_latents, return_cond=network.config.cond_embed)
+        )
+
     if args.train.settings.zero_stage == 3 or rank_id == 0:
         callbacks.append(
             EvalSaveCallback(
@@ -291,7 +299,7 @@ if __name__ == "__main__":
     )
     parser.link_arguments("env.debug", "dataloader.debug", apply_on="parse")
     parser.add_class_arguments(
-        DiffusionWithLoss, "train.pipeline", skip={"network", "vae", "patch_size"}, instantiate=False
+        DiffusionWithLoss, "train.pipeline", skip={"network", "vae", "vae_embed", "patch_size"}, instantiate=False
     )
     parser.add_function_arguments(create_scheduler, "train.lr_scheduler", skip={"steps_per_epoch", "num_epochs"})
     parser.add_function_arguments(create_optimizer, "train.optimizer", skip={"params", "lr"})

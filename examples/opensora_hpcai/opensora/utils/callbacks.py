@@ -1,12 +1,17 @@
 import logging
 import os
 import time
-from typing import List, Optional, Union
+from typing import Callable, List, Optional, Union
 
 import numpy as np
-from opensora.utils.ema import EMA, EMA_
 
+from mindspore import Tensor
 from mindspore.train import Callback, RunContext
+
+from mindone.diffusers.utils.mindspore_utils import pynative_context
+
+from ..pipelines.train_pipeline_v2 import no_grad
+from ..utils.ema import EMA, EMA_
 
 _logger = logging.getLogger(__name__)
 
@@ -80,3 +85,28 @@ class EMAEvalSwapCallback(Callback):
     def on_eval_end(self, run_context: RunContext):
         if self._ema is not None:
             self._ema.swap_after_eval()
+
+
+class VAEEmbedCallback(Callback):
+    def __init__(self, vae_embed_func: Callable[[Tensor], tuple[Tensor, Optional[Tensor]]], return_cond: bool = False):
+        """
+        Callback that embeds input images/videos and conditions into latent space using VAE.
+        As VAEs don't support dynamic graph shape in MindSpore, the input images/videos are embedded in this callback in
+        Pynative mode.
+
+        Args:
+            vae_embed_func: function that takes input batch of images/videos and generates latent space representation
+                            and conditioning.
+            return_cond: whether to return conditioning or not.
+        """
+        super().__init__()
+        self._vae_embed_func = vae_embed_func
+        self._return_cond = return_cond
+
+    @pynative_context()
+    @no_grad()
+    def on_train_step_begin(self, run_context: RunContext) -> None:
+        batch = run_context.original_args().train_dataset_element  # is a mutable list
+        batch[0], cond = self._vae_embed_func(batch[0])
+        if self._return_cond:
+            batch.append(cond)  # I/V conditioning

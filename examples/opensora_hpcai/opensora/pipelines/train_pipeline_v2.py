@@ -39,14 +39,16 @@ class DiffusionWithLoss(nn.Cell):
     """A training pipeline for a diffusion model
 
     Args:
-        network (nn.Cell): A noise prediction model to denoise the encoded image latents.
-        vae (nn.Cell): Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
+        network: A noise prediction model to denoise the encoded image latents.
+        vae: Variational Auto-Encoder (VAE) Model to encode and decode images to and from latent representations.
+        vae_embed: Generate latents in the pipeline (True for Pynative, False for Graph).
     """
 
     def __init__(
         self,
         network: nn.Cell,
         vae: Optional[nn.Cell] = None,
+        vae_embed: bool = True,
         is_causal_vae: bool = True,
         patch_size: tuple[int, int, int] = (1, 2, 2),
         guidance: float = 4.0,
@@ -56,6 +58,7 @@ class DiffusionWithLoss(nn.Cell):
         super().__init__()
         self.network = network
         self.vae = vae
+        self._vae_embed = vae_embed
         self._prep_vc = prepare_visual_condition_causal if is_causal_vae else prepare_visual_condition_uncausal
         self._patch_size = patch_size
         self._sigma_min = sigma_min
@@ -87,7 +90,7 @@ class DiffusionWithLoss(nn.Cell):
         x = mint.permute(x, (0, 2, 3, 5, 1, 4, 6))
         return mint.reshape(x, (b, -1, c * ph * pw))
 
-    def get_latents(self, x) -> tuple[Tensor, Union[Tensor, None]]:
+    def get_latents(self, x: Tensor) -> tuple[Tensor, Union[Tensor, None]]:
         """
         x: (b c t h w)
         """
@@ -96,14 +99,20 @@ class DiffusionWithLoss(nn.Cell):
         cond = None
         if self._condition_config is not None:
             cond = self._prep_vc(x, out_shape=z.shape, condition_config=self._condition_config.copy(), ae=self.vae)
-            cond = self._pack(cond)
-        return self._pack(z), cond
+            cond = self._pack(cond).to(mstype.float32)
+        return self._pack(z).to(mstype.float32), cond
 
     def construct(
-        self, x: Tensor, img_ids: Tensor, text_embed: Tensor, txt_ids: Tensor, y_vec: Tensor, shift_alpha: Tensor
+        self,
+        x: Tensor,
+        img_ids: Tensor,
+        text_embed: Tensor,
+        txt_ids: Tensor,
+        y_vec: Tensor,
+        shift_alpha: Tensor,
+        cond: Optional[Tensor] = None,
     ) -> Tensor:
-        cond = None
-        if self.vae is not None:
+        if self._vae_embed and self.vae is not None:
             with no_grad():  # Pynative
                 x, cond = ops.stop_gradient(self.get_latents(x))  # Graph
 
