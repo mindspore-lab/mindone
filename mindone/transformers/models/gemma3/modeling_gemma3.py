@@ -36,16 +36,11 @@ from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast,
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
+from transformers.utils import logging
 from ..auto import AutoModel, AutoModelForCausalLM
 from transformers.models.gemma3.configuration_gemma3 import Gemma3Config, Gemma3TextConfig
-import numpy as np
 from mindspore.common.initializer import Normal, initializer
+from mindone.transformers.modeling_attn_mask_utils import dtype_to_min
 
 logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "Gemma3Config"
@@ -97,7 +92,7 @@ class Gemma3TextScaledWordEmbedding(nn.Embedding):
     """
 
     def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: int, embed_scale: Optional[float] = 1.0):
-        super().__init__(num_embeddings, embedding_dim, padding_idx)
+        super().__init__(num_embeddings, embedding_dim, padding_idx=padding_idx)
         self.embed_scale = embed_scale
 
     def construct(self, input_ids: ms.Tensor):
@@ -239,7 +234,7 @@ def repeat_kv(hidden_states: ms.Tensor, n_rep: int) -> ms.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -260,7 +255,7 @@ def eager_attention_forward(
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
-    attn_weights = mint.matmul(query, key_states.transpose(2, 3)) * scaling
+    attn_weights = mint.matmul(query, key_states.swapaxes(2, 3)) * scaling
 
     if softcap is not None:
         attn_weights = attn_weights / softcap
@@ -274,7 +269,7 @@ def eager_attention_forward(
     attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
     attn_weights = ops.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
-    attn_output = attn_output.transpose(1, 2).contiguous()
+    attn_output = attn_output.swapaxes(1, 2).contiguous()
     return attn_output, attn_weights
 
 
@@ -305,8 +300,8 @@ class Gemma3Attention(nn.Cell):
             config.num_attention_heads * self.head_dim, config.hidden_size, has_bias=config.attention_bias
         )
         self.attn_logit_softcapping = self.config.attn_logit_softcapping
-        self.sliding_window = config.sliding_window if self.is_sliding else None
-
+        # self.sliding_window = config.sliding_window if self.is_sliding else None
+        self.sliding_window = None # Sliding window is not supportes in Mindspore yet
         self.q_norm = Gemma3RMSNorm(dim=config.head_dim, eps=config.rms_norm_eps)
         self.k_norm = Gemma3RMSNorm(dim=config.head_dim, eps=config.rms_norm_eps)
 
@@ -319,12 +314,12 @@ class Gemma3Attention(nn.Cell):
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        input_shape = hidden_states.shape[:-1]
-        hidden_shape = (*input_shape, -1, self.head_dim)
+        bsz, seq_len = hidden_states.shape[:-1]
+        hidden_shape = (bsz, seq_len, -1, self.head_dim)
 
-        query_states = self.q_proj(hidden_states).view(hidden_shape).transpose(1, 2)
-        key_states = self.k_proj(hidden_states).view(hidden_shape).transpose(1, 2)
-        value_states = self.v_proj(hidden_states).view(hidden_shape).transpose(1, 2)
+        query_states = self.q_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
+        key_states = self.k_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
+        value_states = self.v_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
 
         query_states = self.q_norm(query_states)
         key_states = self.k_norm(key_states)
@@ -352,7 +347,7 @@ class Gemma3Attention(nn.Cell):
             attention_interface = ALL_ATTENTION_FUNCTIONS[self.config._attn_implementation]
         if attention_mask is not None:
             # backwards compatibility
-            attention_mask = attention_mask.to(query_states)
+            attention_mask = attention_mask.to(query_states.dtype)
         attn_output, attn_weights = attention_interface(
             self,
             query_states,
@@ -365,7 +360,7 @@ class Gemma3Attention(nn.Cell):
             **kwargs,
         )
 
-        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        attn_output = attn_output.reshape(bsz, seq_len, -1).contiguous()
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -384,7 +379,13 @@ class Gemma3DecoderLayer(nn.Cell):
         self.post_feedforward_layernorm = Gemma3RMSNorm(self.hidden_size, eps=config.rms_norm_eps)
         self.is_sliding = self.self_attn.is_sliding
         self.sliding_window = config.sliding_window
-
+        if (
+            config.sliding_window and config._attn_implementation != "flash_attention_2"
+        ):  # diff with Llama is this warning
+            logger.warning_once(
+                f"Sliding Window Attention is enabled but not implemented for `{config._attn_implementation}`; "
+                "unexpected results may be encountered."
+            )
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -409,7 +410,7 @@ class Gemma3DecoderLayer(nn.Cell):
             # Otherwise, the mask is 4D of shape [bs, 1, query_len, max_cache_len] thus we must slice
             # from the left, with an offset if we are beyond the sliding window
             else:
-                min_dtype = np.finfo(attention_mask.dtype).min
+                min_dtype = dtype_to_min(attention_mask.dtype)
                 sliding_window_mask = mint.tril(
                     mint.ones_like(attention_mask, dtype=ms.bool_), diagonal=-self.sliding_window
                 )
@@ -459,27 +460,6 @@ class Gemma3DecoderLayer(nn.Cell):
         return outputs
 
 
-GEMMA3_START_DOCSTRING = r"""
-    This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
-    library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
-    etc.)
-
-    This model is also a PyTorch [torch.nn.Cell](https://pytorch.org/docs/stable/nn.html#torch.nn.Cell) subclass.
-    Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
-    and behavior.
-
-    Parameters:
-        config ([`Gemma3Config`]):
-            Model configuration class with all the parameters of the model. Initializing with a config file does not
-            load the weights associated with the model, only the configuration. Check out the
-            [`~PreTrainedModel.from_pretrained`] method to load the model weights.
-"""
-
-
-@add_start_docstrings(
-    "The bare Gemma3 Model outputting raw hidden-states without any specific head on top.",
-    GEMMA3_START_DOCSTRING,
-)
 class Gemma3PreTrainedModel(PreTrainedModel):
     config_class = Gemma3Config
     base_model_prefix = "language_model"
@@ -595,10 +575,6 @@ GEMMA3_INPUTS_DOCSTRING = r"""
 """
 
 
-@add_start_docstrings(
-    "The bare Gemma3Text Model outputting raw hidden-states without any specific head on top.",
-    GEMMA3_START_DOCSTRING,
-)
 class Gemma3TextModel(Gemma3PreTrainedModel):
     """
     Transformer decoder consisting of *config.num_hidden_layers* layers. Each layer is a [`Gemma3TextDecoderLayer`]
@@ -641,7 +617,6 @@ class Gemma3TextModel(Gemma3PreTrainedModel):
     def set_input_embeddings(self, value):
         self.embed_tokens = value
 
-    @add_start_docstrings_to_model_forward(GEMMA3_INPUTS_DOCSTRING)
     def construct(
         self,
         input_ids: Optional[ms.Tensor] = None,
@@ -664,7 +639,7 @@ class Gemma3TextModel(Gemma3PreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if (input_ids is None) and (inputs_embeds is None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.gradient_checkpointing and self.training and use_cache:
@@ -767,13 +742,17 @@ class Gemma3TextModel(Gemma3PreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
+        if not return_dict:
+            return tuple(v for v in[hidden_states, past_key_values, all_hidden_states, all_self_attns] if v is not None)
+
         output = BaseModelOutputWithPast(
-            last_hidden_state=hidden_states,
-            past_key_values=past_key_values,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attns,
-        )
-        return output if return_dict else output.to_tuple()
+                last_hidden_state=hidden_states,
+                past_key_values=past_key_values,
+                hidden_states=all_hidden_states,
+                attentions=all_self_attns,
+            )
+
+        return output
 
     def _update_causal_mask(
         self,
@@ -787,8 +766,8 @@ class Gemma3TextModel(Gemma3PreTrainedModel):
         # So we will pass in attention mask as is in any case, not only when ther's padding. Then we'll use its shape
         # to cut out keys/values trailing 0 used in static cache. This workaround should be compile compatible
         # as it doesn't cause dynamic control issues.
-        if self.config._attn_implementation == "flash_attention_2":
-            return attention_mask
+        # if self.config._attn_implementation == "flash_attention_2":
+        #     return attention_mask
 
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
@@ -842,14 +821,14 @@ class Gemma3TextModel(Gemma3PreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            min_dtype = np.finfo(dtype).min
-            causal_mask = mint.full(
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = ops.full(
                 (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
             )
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -896,8 +875,6 @@ class Gemma3ForCausalLM(Gemma3PreTrainedModel, GenerationMixin):
     def get_decoder(self):
         return self.model
 
-    @add_start_docstrings_to_model_forward(GEMMA3_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: ms.Tensor = None,
@@ -1071,7 +1048,7 @@ class Gemma3MultiModalProjector(nn.Cell):
     def construct(self, vision_outputs: ms.Tensor):
         batch_size, _, seq_length = vision_outputs.shape
 
-        reshaped_vision_outputs = vision_outputs.transpose(1, 2)
+        reshaped_vision_outputs = vision_outputs.swapaxes(1, 2)
         reshaped_vision_outputs = reshaped_vision_outputs.reshape(
             batch_size, seq_length, self.patches_per_image, self.patches_per_image
         )
@@ -1079,7 +1056,7 @@ class Gemma3MultiModalProjector(nn.Cell):
 
         pooled_vision_outputs = self.avg_pool(reshaped_vision_outputs)
         pooled_vision_outputs = pooled_vision_outputs.flatten(2)
-        pooled_vision_outputs = pooled_vision_outputs.transpose(1, 2)
+        pooled_vision_outputs = pooled_vision_outputs.swapaxes(1, 2)
 
         normed_vision_outputs = self.mm_soft_emb_norm(pooled_vision_outputs)
 
@@ -1087,10 +1064,6 @@ class Gemma3MultiModalProjector(nn.Cell):
         return projected_vision_outputs.type_as(vision_outputs)
 
 
-@add_start_docstrings(
-    """The GEMMA3 model which consists of a vision backbone and a language model.""",
-    GEMMA3_START_DOCSTRING,
-)
 class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
     def __init__(self, config: Gemma3Config):
         super().__init__(config)
@@ -1134,8 +1107,8 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
         input_tensor,
         is_training: bool = False,
     ):
-        if self.config.text_config._attn_implementation == "flash_attention_2":
-            return attention_mask
+        # if self.config.text_config._attn_implementation == "flash_attention_2":
+        #     return attention_mask
 
         if attention_mask is not None and attention_mask.dim() == 4:
             # In this case we assume that the mask comes already in inverted
@@ -1143,7 +1116,7 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
             return attention_mask
 
         using_static_cache = isinstance(past_key_values, StaticCache)
-        min_dtype = np.finfo(self.dtype).min
+        min_dtype = dtype_to_min(self.dtype)
         inputs_lead_dim, sequence_length = input_tensor.shape[:2]
         if using_static_cache:
             target_length = past_key_values.get_max_cache_shape()
@@ -1160,7 +1133,7 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             return attention_mask
 
-        causal_mask = mint.full(
+        causal_mask = ops.full(
             (sequence_length, target_length), fill_value=min_dtype, dtype=self.dtype
         )
 
@@ -1169,7 +1142,7 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
             causal_mask = mint.triu(causal_mask, diagonal=1)
 
         causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
-        causal_mask = causal_mask[None, None, :, :].expand(inputs_lead_dim, 1, -1, -1)
+        causal_mask = causal_mask[None, None, :, :].broadcast_to((inputs_lead_dim, 1, -1, -1))
 
         # Apply bidirectional mask on images if token type ids are provided
         if token_type_ids is not None and sequence_length != 1:
@@ -1204,12 +1177,10 @@ class Gemma3ForConditionalGeneration(Gemma3PreTrainedModel, GenerationMixin):
         Returns:
             image_features (`ms.Tensor`): Image feature tensor of shape `(num_images, image_length, embed_dim)`).
         """
-        vision_outputs = self.vision_tower(pixel_values=pixel_values).last_hidden_state
+        vision_outputs = self.vision_tower(pixel_values=pixel_values)[0]
         image_features = self.multi_modal_projector(vision_outputs)
         return image_features
 
-    @add_start_docstrings_to_model_forward(GEMMA3_INPUTS_DOCSTRING)
-    @replace_return_docstrings(output_type=Gemma3CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
         input_ids: ms.Tensor = None,
