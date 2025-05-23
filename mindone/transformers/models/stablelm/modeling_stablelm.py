@@ -417,13 +417,7 @@ class StableLmFlashAttention2(StableLmAttention):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        dropout_rate = self.attention_dropout if self.training else 0.0
-        self._flash_attention_forward = MSFlashAttention(
-            head_num=self.num_heads,
-            keep_prob=1 - dropout_rate,
-            scale_value=1.0 / math.sqrt(self.head_dim),
-            input_layout="BSND",
-        )
+        self.dropout_rate = self.attention_dropout if self.training else 0.0
 
     def construct(
         self,
@@ -484,25 +478,20 @@ class StableLmFlashAttention2(StableLmAttention):
             }
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        # TODO: These transpose are quite inefficient but Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim]. We would need to refactor the KV cache
-        # to be able to avoid many of these transpose/reshape/view.
-        query_states = query_states.transpose(1, 2)
-        key_states = key_states.transpose(1, 2)
-        value_states = value_states.transpose(1, 2)
-
         if self.is_causal:
             attention_mask = mint.tril(mint.ones((query_states.shape[-2], key_states.shape[-2])))
-            attention_mask = mint.logical_not(attention_mask.bool())
 
-        attn_output = self._flash_attention_forward(
+        attn_output, _ = flash_attention_forward(
             self,
             query_states,
             key_states,
             value_states,
-            attn_mask=attention_mask,
-        )[
-            -1
-        ].to(query_states.dtype)
+            attention_mask,
+            dropout=self.dropout_rate,
+            scaling=1.0 / math.sqrt(self.head_dim),
+            **kwargs
+        )
+        attn_output = attn_output.to(query_states.dtype)
         attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
