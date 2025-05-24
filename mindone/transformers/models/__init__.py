@@ -28,4 +28,6 @@ from . import (
     umt5,
     wav2vec2,
     xlm_roberta,
+    persimmon,
+    fuyu,
 )

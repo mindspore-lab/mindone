@@ -36,6 +36,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
+        ("persimmon", "PersimmonModel"),
         ("gpt2", "GPT2Model"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
@@ -74,6 +75,8 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("persimmon", "PersimmonForCausalLM"),
+        ("fuyu", "FuyuForCausalLM"),
         ("llama", "LlamaForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
@@ -123,6 +126,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("fuyu", "FuyuForCausalLM"),
     ]
 )
 
@@ -185,6 +189,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gemma", "GemmaForSequenceClassification"),
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
+        ("persimmon", "PersimmonForSequenceClassification"),
         ("mt5", "MT5ForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
@@ -213,6 +218,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Token Classification mapping
         ("bert", "BertForTokenClassification"),
         ("mt5", "MT5ForTokenClassification"),
+        ("persimmon", "PersimmonForTokenClassification"),
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
