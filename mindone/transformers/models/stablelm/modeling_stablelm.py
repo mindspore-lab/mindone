@@ -478,7 +478,7 @@ class StableLmFlashAttention2(StableLmAttention):
             }
             key_states, value_states = past_key_value.update(key_states, value_states, self.layer_idx, cache_kwargs)
 
-        if self.is_causal:
+        if self.is_causal and query_states.shape[-2] > 1:
             attention_mask = mint.tril(mint.ones((query_states.shape[-2], key_states.shape[-2])))
 
         attn_output, _ = flash_attention_forward(
