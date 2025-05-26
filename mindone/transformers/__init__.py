@@ -30,6 +30,15 @@ from .models.bert import (
     BertPreTrainedModel,
 )
 from .models.bit import BitBackbone
+from .models.blip import (
+    BlipForConditionalGeneration,
+    BlipForImageTextRetrieval,
+    BlipForQuestionAnswering,
+    BlipModel,
+    BlipPreTrainedModel,
+    BlipTextModel,
+    BlipVisionModel,
+)
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
     Blip2Model,
@@ -77,6 +86,13 @@ from .models.glm import (
     GlmModel,
     GlmPreTrainedModel,
 )
+from .models.glm4 import (
+    Glm4ForCausalLM,
+    Glm4ForSequenceClassification,
+    Glm4ForTokenClassification,
+    Glm4Model,
+    Glm4PreTrainedModel,
+)
 from .models.glpn import (
     GLPNFeatureExtractor,
     GLPNForDepthEstimation,
@@ -118,6 +134,26 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.mistral3 import (
+    Mistral3ForConditionalGeneration,
+    Mistral3PreTrainedModel,
+)
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
+from .models.mpt import (
+    MptForCausalLM,
+    MptForQuestionAnswering,
+    MptForSequenceClassification,
+    MptForTokenClassification,
+    MptModel,
+    MptPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
@@ -131,6 +167,10 @@ from .models.phi3 import (
     Phi3ForTokenClassification,
     Phi3Model,
     Phi3PreTrainedModel,
+)
+from .models.pixtral import (
+    PixtralPreTrainedModel,
+    PixtralVisionModel,
 )
 from .models.qwen2 import Qwen2ForCausalLM, Qwen2ForSequenceClassification, Qwen2ForTokenClassification, Qwen2Model
 from .models.qwen2_5_omni import (

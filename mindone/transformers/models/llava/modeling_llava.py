@@ -33,7 +33,7 @@ from ...cache_utils import Cache
 from ...modeling_outputs import ModelOutput
 from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
 
-# from ..auto import AutoModel, AutoModelForCausalLM
+from ..auto import AutoModel, AutoModelForCausalLM
 # from ..clip.configuration_clip import CLIPVisionConfig
 from ..clip.modeling_clip import CLIPVisionModel
 from ..llama.modeling_llama import LlamaForCausalLM
@@ -259,7 +259,7 @@ LLAVA_INPUTS_DOCSTRING = r"""
 class LlavaForConditionalGeneration(LlavaPreTrainedModel):
     def __init__(self, config: LlavaConfig):
         super().__init__(config)
-        self.vision_tower = CLIPVisionModel(config.vision_config)
+        self.vision_tower = AutoModel.from_config(config.vision_config)
 
         self.multi_modal_projector = LlavaMultiModalProjector(config)
         self.vocab_size = config.text_config.vocab_size
@@ -268,7 +268,7 @@ class LlavaForConditionalGeneration(LlavaPreTrainedModel):
         #     config.text_config, attn_implementation=config._attn_implementation
         # )
         # config.text_config._attn_implementation = "flash_attention_2"
-        self.language_model = LlamaForCausalLM(config.text_config)
+        self.language_model = AutoModelForCausalLM.from_config(config.text_config)
 
         self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
         self.post_init()
