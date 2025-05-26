@@ -22,7 +22,7 @@ from mindspore import mint, nn
 from .activations import get_activation
 from .attention_processor import SpatialNorm
 from .downsampling import Downsample1D, Downsample2D, FirDownsample2D, KDownsample2D, downsample_2d  # noqa
-from .normalization import AdaGroupNorm, GroupNorm
+from .normalization import AdaGroupNorm
 from .upsampling import FirUpsample2D, KUpsample2D, Upsample1D, Upsample2D, upfirdn2d_native, upsample_2d  # noqa
 
 
@@ -256,7 +256,7 @@ class ResnetBlock2D(nn.Cell):
         if groups_out is None:
             groups_out = groups
 
-        self.norm1 = GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
+        self.norm1 = mint.nn.GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
 
         self.conv1 = mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=1, padding=1)
 
@@ -270,7 +270,7 @@ class ResnetBlock2D(nn.Cell):
         else:
             self.time_emb_proj = None
 
-        self.norm2 = GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+        self.norm2 = mint.nn.GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
 
         self.dropout = mint.nn.Dropout(p=dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
@@ -389,13 +389,11 @@ class Conv1dBlock(nn.Cell):
     ):
         super().__init__()
 
-        from .normalization import GroupNorm
-
         # todo: unavailable mint interface
         self.conv1d = nn.Conv1d(
             inp_channels, out_channels, kernel_size, pad_mode="pad", padding=kernel_size // 2, has_bias=True
         )
-        self.group_norm = GroupNorm(n_groups, out_channels)
+        self.group_norm = mint.nn.GroupNorm(n_groups, out_channels)
         self.mish = get_activation(activation)
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
@@ -477,32 +475,30 @@ class TemporalConvLayer(nn.Cell):
         norm_num_groups: int = 32,
     ):
         super().__init__()
-        from .normalization import GroupNorm
-
         out_dim = out_dim or in_dim
         self.in_dim = in_dim
         self.out_dim = out_dim
 
         # conv layers
         self.conv1 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, in_dim),
+            mint.nn.GroupNorm(norm_num_groups, in_dim),
             mint.nn.SiLU(),
             mint.nn.Conv3d(in_dim, out_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
         self.conv2 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
         self.conv3 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0)),
         )
         self.conv4 = nn.SequentialCell(
-            GroupNorm(norm_num_groups, out_dim),
+            mint.nn.GroupNorm(norm_num_groups, out_dim),
             mint.nn.SiLU(),
             mint.nn.Dropout(p=dropout),
             mint.nn.Conv3d(out_dim, in_dim, (3, 1, 1), padding=(1, 0, 0)),
@@ -552,8 +548,6 @@ class TemporalResnetBlock(nn.Cell):
         eps: float = 1e-6,
     ):
         super().__init__()
-        from .normalization import GroupNorm
-
         self.in_channels = in_channels
         out_channels = in_channels if out_channels is None else out_channels
         self.out_channels = out_channels
@@ -561,7 +555,7 @@ class TemporalResnetBlock(nn.Cell):
         kernel_size = (3, 1, 1)
         padding = (1, 0, 0)
 
-        self.norm1 = GroupNorm(num_groups=32, num_channels=in_channels, eps=eps, affine=True)
+        self.norm1 = mint.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=eps, affine=True)
         self.conv1 = mint.nn.Conv3d(
             in_channels,
             out_channels,
@@ -575,7 +569,7 @@ class TemporalResnetBlock(nn.Cell):
         else:
             self.time_emb_proj = None
 
-        self.norm2 = GroupNorm(num_groups=32, num_channels=out_channels, eps=eps, affine=True)
+        self.norm2 = mint.nn.GroupNorm(num_groups=32, num_channels=out_channels, eps=eps, affine=True)
 
         self.dropout = mint.nn.Dropout(p=0.0)
         self.conv2 = mint.nn.Conv3d(

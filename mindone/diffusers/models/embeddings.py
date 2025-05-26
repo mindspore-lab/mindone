@@ -482,8 +482,6 @@ class PatchEmbed(nn.Cell):
         zero_module=False,  # For SD3 ControlNet
     ):
         super().__init__()
-        from .normalization import LayerNorm
-
         num_patches = (height // patch_size) * (width // patch_size)
         self.flatten = flatten
         self.layer_norm = layer_norm
@@ -502,7 +500,7 @@ class PatchEmbed(nn.Cell):
             self.proj.bias.set_data(init.initializer("zeros", self.proj.bias.shape, self.proj.bias.dtype))
 
         if layer_norm:
-            self.norm = LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
+            self.norm = mint.nn.LayerNorm(embed_dim, elementwise_affine=False, eps=1e-6)
         else:
             self.norm = None
 
@@ -1531,11 +1529,9 @@ class ImageProjection(nn.Cell):
         num_image_text_embeds: int = 32,
     ):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.num_image_text_embeds = num_image_text_embeds
         self.image_embeds = mint.nn.Linear(image_embed_dim, self.num_image_text_embeds * cross_attention_dim)
-        self.norm = LayerNorm(cross_attention_dim)
+        self.norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         batch_size = image_embeds.shape[0]
@@ -1551,10 +1547,9 @@ class IPAdapterFullImageProjection(nn.Cell):
     def __init__(self, image_embed_dim=1024, cross_attention_dim=1024):
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
         self.ff = FeedForward(image_embed_dim, cross_attention_dim, mult=1, activation_fn="gelu")
-        self.norm = LayerNorm(cross_attention_dim)
+        self.norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         return self.norm(self.ff(image_embeds))
@@ -1564,12 +1559,11 @@ class IPAdapterFaceIDImageProjection(nn.Cell):
     def __init__(self, image_embed_dim=1024, cross_attention_dim=1024, mult=1, num_tokens=1):
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
         self.num_tokens = num_tokens
         self.cross_attention_dim = cross_attention_dim
         self.ff = FeedForward(image_embed_dim, cross_attention_dim * num_tokens, mult=mult, activation_fn="gelu")
-        self.norm = LayerNorm(cross_attention_dim)
+        self.norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         x = self.ff(image_embeds)
@@ -1781,8 +1775,6 @@ class HunyuanCombinedTimestepTextSizeStyleEmbedding(nn.Cell):
 class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
     def __init__(self, hidden_size=4096, cross_attention_dim=2048, frequency_embedding_size=256):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.time_proj = Timesteps(
             num_channels=frequency_embedding_size, flip_sin_to_cos=True, downscale_freq_shift=0.0
         )
@@ -1790,7 +1782,7 @@ class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
         self.timestep_embedder = TimestepEmbedding(in_channels=frequency_embedding_size, time_embed_dim=hidden_size)
 
         self.caption_embedder = nn.SequentialCell(
-            LayerNorm(cross_attention_dim),
+            mint.nn.LayerNorm(cross_attention_dim),
             mint.nn.Linear(
                 cross_attention_dim,
                 hidden_size,
@@ -1852,12 +1844,10 @@ class MochiCombinedTimestepCaptionEmbedding(nn.Cell):
 class TextTimeEmbedding(nn.Cell):
     def __init__(self, encoder_dim: int, time_embed_dim: int, num_heads: int = 64):
         super().__init__()
-        from .normalization import LayerNorm
-
-        self.norm1 = LayerNorm(encoder_dim)
+        self.norm1 = mint.nn.LayerNorm(encoder_dim)
         self.pool = AttentionPooling(num_heads, encoder_dim)
         self.proj = mint.nn.Linear(encoder_dim, time_embed_dim)
-        self.norm2 = LayerNorm(time_embed_dim)
+        self.norm2 = mint.nn.LayerNorm(time_embed_dim)
 
     def construct(self, hidden_states):
         hidden_states = self.norm1(hidden_states)
@@ -1870,10 +1860,8 @@ class TextTimeEmbedding(nn.Cell):
 class TextImageTimeEmbedding(nn.Cell):
     def __init__(self, text_embed_dim: int = 768, image_embed_dim: int = 768, time_embed_dim: int = 1536):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.text_proj = mint.nn.Linear(text_embed_dim, time_embed_dim)
-        self.text_norm = LayerNorm(time_embed_dim)
+        self.text_norm = mint.nn.LayerNorm(time_embed_dim)
         self.image_proj = mint.nn.Linear(image_embed_dim, time_embed_dim)
 
     def construct(self, text_embeds: ms.Tensor, image_embeds: ms.Tensor):
@@ -1890,10 +1878,8 @@ class TextImageTimeEmbedding(nn.Cell):
 class ImageTimeEmbedding(nn.Cell):
     def __init__(self, image_embed_dim: int = 768, time_embed_dim: int = 1536):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.image_proj = mint.nn.Linear(image_embed_dim, time_embed_dim)
-        self.image_norm = LayerNorm(time_embed_dim)
+        self.image_norm = mint.nn.LayerNorm(time_embed_dim)
 
     def construct(self, image_embeds: ms.Tensor):
         # image
@@ -1905,10 +1891,8 @@ class ImageTimeEmbedding(nn.Cell):
 class ImageHintTimeEmbedding(nn.Cell):
     def __init__(self, image_embed_dim: int = 768, time_embed_dim: int = 1536):
         super().__init__()
-        from .normalization import LayerNorm
-
         self.image_proj = mint.nn.Linear(image_embed_dim, time_embed_dim)
-        self.image_norm = LayerNorm(time_embed_dim)
+        self.image_norm = mint.nn.LayerNorm(time_embed_dim)
         self.input_hint_block = nn.SequentialCell(
             mint.nn.Conv2d(3, 16, 3, padding=1),
             mint.nn.SiLU(),
@@ -2275,10 +2259,9 @@ class IPAdapterPlusImageProjectionBlock(nn.Cell):
     ) -> None:
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
-        self.ln0 = LayerNorm(embed_dims)
-        self.ln1 = LayerNorm(embed_dims)
+        self.ln0 = mint.nn.LayerNorm(embed_dims)
+        self.ln1 = mint.nn.LayerNorm(embed_dims)
         self.attn = Attention(
             query_dim=embed_dims,
             dim_head=dim_head,
@@ -2286,7 +2269,7 @@ class IPAdapterPlusImageProjectionBlock(nn.Cell):
             out_bias=False,
         )
         self.ff = nn.SequentialCell(
-            LayerNorm(embed_dims),
+            mint.nn.LayerNorm(embed_dims),
             FeedForward(embed_dims, embed_dims, activation_fn="gelu", mult=ffn_ratio, bias=False),
         )
 
@@ -2327,14 +2310,12 @@ class IPAdapterPlusImageProjection(nn.Cell):
         ffn_ratio: float = 4,
     ) -> None:
         super().__init__()
-        from .normalization import LayerNorm
-
         self.latents = ms.Parameter(mint.randn(1, num_queries, hidden_dims) / hidden_dims**0.5, name="latents")
 
         self.proj_in = mint.nn.Linear(embed_dims, hidden_dims)
 
         self.proj_out = mint.nn.Linear(hidden_dims, output_dims)
-        self.norm_out = LayerNorm(output_dims)
+        self.norm_out = mint.nn.LayerNorm(output_dims)
 
         self.layers = nn.CellList(
             [IPAdapterPlusImageProjectionBlock(hidden_dims, dim_head, heads, ffn_ratio) for _ in range(depth)]
@@ -2393,7 +2374,6 @@ class IPAdapterFaceIDPlusImageProjection(nn.Cell):
     ) -> None:
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
         self.num_tokens = num_tokens
         self.embed_dim = embed_dims
@@ -2402,12 +2382,12 @@ class IPAdapterFaceIDPlusImageProjection(nn.Cell):
         self.shortcut_scale = 1.0
 
         self.proj = FeedForward(id_embeddings_dim, embed_dims * num_tokens, activation_fn="gelu", mult=ffproj_ratio)
-        self.norm = LayerNorm(embed_dims)
+        self.norm = mint.nn.LayerNorm(embed_dims)
 
         self.proj_in = mint.nn.Linear(hidden_dims, embed_dims)
 
         self.proj_out = mint.nn.Linear(embed_dims, output_dims)
-        self.norm_out = LayerNorm(output_dims)
+        self.norm_out = mint.nn.LayerNorm(output_dims)
 
         self.layers = nn.CellList(
             [IPAdapterPlusImageProjectionBlock(embed_dims, dim_head, heads, ffn_ratio) for _ in range(depth)]
@@ -2464,10 +2444,9 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
     ) -> None:
         super().__init__()
         from .attention import FeedForward
-        from .normalization import LayerNorm
 
-        self.ln0 = LayerNorm(hidden_dim)
-        self.ln1 = LayerNorm(hidden_dim)
+        self.ln0 = mint.nn.LayerNorm(hidden_dim)
+        self.ln1 = mint.nn.LayerNorm(hidden_dim)
         self.attn = Attention(
             query_dim=hidden_dim,
             cross_attention_dim=hidden_dim,
@@ -2481,7 +2460,7 @@ class IPAdapterTimeImageProjectionBlock(nn.Cell):
         # AdaLayerNorm
         self.adaln_silu = mint.nn.SiLU()
         self.adaln_proj = mint.nn.Linear(hidden_dim, 4 * hidden_dim)
-        self.adaln_norm = LayerNorm(hidden_dim)
+        self.adaln_norm = mint.nn.LayerNorm(hidden_dim)
 
         # Set attention scale and fuse KV
         self.attn.scale = 1 / math.sqrt(math.sqrt(dim_head))
@@ -2585,12 +2564,10 @@ class IPAdapterTimeImageProjection(nn.Cell):
         timestep_freq_shift: int = 0,
     ) -> None:
         super().__init__()
-        from .normalization import LayerNorm
-
         self.latents = ms.Parameter(mint.randn(1, num_queries, hidden_dim) / hidden_dim**0.5, name="latents")
         self.proj_in = mint.nn.Linear(embed_dim, hidden_dim)
         self.proj_out = mint.nn.Linear(hidden_dim, output_dim)
-        self.norm_out = LayerNorm(output_dim)
+        self.norm_out = mint.nn.LayerNorm(output_dim)
         self.layers = nn.CellList(
             [IPAdapterTimeImageProjectionBlock(hidden_dim, dim_head, heads, ffn_ratio) for _ in range(depth)]
         )

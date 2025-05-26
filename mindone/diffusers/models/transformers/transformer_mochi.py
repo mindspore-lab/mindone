@@ -396,16 +396,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
         )
         self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
 
-        self._gradient_checkpointing = False
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block._recompute(value)
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        self.gradient_checkpointing = value
+        self.gradient_checkpointing = False
 
     def construct(
         self,

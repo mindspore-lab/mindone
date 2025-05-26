@@ -15,7 +15,7 @@
 
 import inspect
 import math
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from PIL import Image
@@ -24,8 +24,10 @@ from transformers import T5Tokenizer
 import mindspore as ms
 from mindspore import mint
 
-from ....transformers import T5EncoderModel
+from mindone.transformers import T5EncoderModel
+
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
+from ...loaders import CogVideoXLoraLoaderMixin
 from ...models import AutoencoderKLCogVideoX, CogVideoXTransformer3DModel
 from ...models.embeddings import get_3d_rotary_pos_embed
 from ...pipelines.pipeline_utils import DiffusionPipeline
@@ -160,7 +162,7 @@ def retrieve_latents(
         return encoder_output
 
 
-class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
+class CogVideoXVideoToVideoPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
     r"""
     Pipeline for video-to-video generation using CogVideoX.
 
@@ -576,6 +578,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
         negative_prompt_embeds: Optional[ms.Tensor] = None,
         output_type: str = "pil",
         return_dict: bool = False,
+        attention_kwargs: Optional[Dict[str, Any]] = None,
         callback_on_step_end: Optional[
             Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
         ] = None,
@@ -636,6 +639,10 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
             return_dict (`bool`, *optional*, defaults to `False`):
                 Whether or not to return a [`~pipelines.stable_diffusion_xl.StableDiffusionXLPipelineOutput`] instead
                 of a plain tuple.
+            attention_kwargs (`dict`, *optional*):
+                A kwargs dictionary that if specified is passed along to the `AttentionProcessor` as defined under
+                `self.processor` in
+                [diffusers.models.attention_processor](https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/attention_processor.py).
             callback_on_step_end (`Callable`, *optional*):
                 A function that calls at the end of each denoising steps during the inference. The function is called
                 with the following arguments: `callback_on_step_end(self: DiffusionPipeline, step: int, timestep: int,

@@ -190,12 +190,12 @@ class LDMTextToImagePipeline(DiffusionPipeline):
             uncond_input = self.tokenizer(
                 [""] * batch_size, padding="max_length", max_length=77, truncation=True, return_tensors="np"
             )
-            uncond_input_ids = ms.Tensor(uncond_input.input_ids)
+            uncond_input_ids = ms.tensor(uncond_input.input_ids)
             negative_prompt_embeds = self.bert(uncond_input_ids)[0]
 
         # get prompt text embeddings
         text_input = self.tokenizer(prompt, padding="max_length", max_length=77, truncation=True, return_tensors="np")
-        text_input_ids = ms.Tensor(text_input.input_ids)
+        text_input_ids = ms.tensor(text_input.input_ids)
         prompt_embeds = self.bert(text_input_ids)[0]
 
         # get the initial random noise unless the user supplied it
@@ -364,10 +364,10 @@ class LDMBertAttention(nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.is_decoder = is_decoder
 
-        self.k_proj = nn.Dense(embed_dim, self.inner_dim, has_bias=bias)
-        self.v_proj = nn.Dense(embed_dim, self.inner_dim, has_bias=bias)
-        self.q_proj = nn.Dense(embed_dim, self.inner_dim, has_bias=bias)
-        self.out_proj = nn.Dense(self.inner_dim, embed_dim)
+        self.k_proj = mint.nn.Linear(embed_dim, self.inner_dim, bias=bias)
+        self.v_proj = mint.nn.Linear(embed_dim, self.inner_dim, bias=bias)
+        self.q_proj = mint.nn.Linear(embed_dim, self.inner_dim, bias=bias)
+        self.out_proj = mint.nn.Linear(self.inner_dim, embed_dim)
 
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).swapaxes(1, 2)
@@ -496,13 +496,13 @@ class LDMBertEncoderLayer(nn.Cell):
             head_dim=config.head_dim,
             dropout=config.attention_dropout,
         )
-        self.self_attn_layer_norm = nn.LayerNorm((self.embed_dim,))
+        self.self_attn_layer_norm = mint.nn.LayerNorm((self.embed_dim,))
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
         self.activation_dropout = config.activation_dropout
-        self.fc1 = nn.Dense(self.embed_dim, config.encoder_ffn_dim)
-        self.fc2 = nn.Dense(config.encoder_ffn_dim, self.embed_dim)
-        self.final_layer_norm = nn.LayerNorm((self.embed_dim,))
+        self.fc1 = mint.nn.Linear(self.embed_dim, config.encoder_ffn_dim)
+        self.fc2 = mint.nn.Linear(config.encoder_ffn_dim, self.embed_dim)
+        self.final_layer_norm = mint.nn.LayerNorm((self.embed_dim,))
 
     def construct(
         self,
@@ -562,11 +562,11 @@ class LDMBertPreTrainedModel(MSPreTrainedModel):
 
     def _init_weights(self, module):
         std = self.config.init_std
-        if isinstance(module, nn.Dense):
+        if isinstance(module, mint.nn.Linear):
             module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
                 module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
+        elif isinstance(module, mint.nn.Embedding):
             module.embedding_table.set_data(
                 initializer(Normal(sigma=std, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
             )
@@ -582,7 +582,7 @@ class LDMBertPreTrainedModel(MSPreTrainedModel):
     @property
     def dummy_inputs(self):
         pad_token = self.config.pad_token_id
-        input_ids = ms.Tensor([[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]])
+        input_ids = ms.tensor([[0, 6, 10, 4, 2], [0, 8, 12, 2, pad_token]])
         dummy_inputs = {
             "attention_mask": input_ids.ne(pad_token),
             "input_ids": input_ids,
@@ -597,7 +597,7 @@ class LDMBertEncoder(LDMBertPreTrainedModel):
 
     Args:
         config: LDMBertConfig
-        embed_tokens (nn.Embedding): output embedding
+        embed_tokens (mint.nn.Embedding): output embedding
     """
 
     def __init__(self, config: LDMBertConfig):
@@ -609,8 +609,8 @@ class LDMBertEncoder(LDMBertPreTrainedModel):
         self.padding_idx = config.pad_token_id
         self.max_source_positions = config.max_position_embeddings
 
-        self.embed_tokens = nn.Embedding(config.vocab_size, embed_dim)
-        self.embed_positions = nn.Embedding(config.max_position_embeddings, embed_dim)
+        self.embed_tokens = mint.nn.Embedding(config.vocab_size, embed_dim)
+        self.embed_positions = mint.nn.Embedding(config.max_position_embeddings, embed_dim)
         self.layers = nn.CellList([LDMBertEncoderLayer(config) for _ in range(config.encoder_layers)])
         self.layer_norm = nn.LayerNorm((embed_dim,))
 
@@ -752,7 +752,7 @@ class LDMBertModel(LDMBertPreTrainedModel):
     def __init__(self, config: LDMBertConfig):
         super().__init__(config)
         self.model = LDMBertEncoder(config)
-        self.to_logits = nn.Dense(config.hidden_size, config.vocab_size)
+        self.to_logits = mint.nn.Linear(config.hidden_size, config.vocab_size)
 
     def construct(
         self,

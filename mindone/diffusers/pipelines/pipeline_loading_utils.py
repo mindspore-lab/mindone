@@ -39,7 +39,7 @@ from ..utils import (
     WEIGHTS_NAME,
     deprecate,
     get_class_from_dynamic_module,
-    is_transformers_version,
+    is_transformers_available,
     logging,
     maybe_import_module_in_mindone,
 )
@@ -466,7 +466,6 @@ def load_sub_model(
     cached_folder: Union[str, os.PathLike],
     use_safetensors: bool,
     dduf_entries: Optional[Dict[str, DDUFEntry]],
-    provider_options: Any,
 ):
     """Helper method to load the module `name` from `library_name` and `class_name`"""
 

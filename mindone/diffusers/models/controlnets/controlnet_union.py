@@ -28,7 +28,6 @@ from ..attention_processor import (
 )
 from ..embeddings import TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
 from ..unets.unet_2d_blocks import UNetMidBlock2DCrossAttn, get_down_block
 from ..unets.unet_2d_condition import UNet2DConditionModel
 from .controlnet import ControlNetConditioningEmbedding, ControlNetOutput, zero_module
@@ -64,9 +63,9 @@ class ResidualAttentionBlock(nn.Cell):
         super().__init__()
         # todo: unavailable mint interface
         self.attn = nn.MultiheadAttention(d_model, n_head)
-        self.ln_1 = LayerNorm(d_model)
+        self.ln_1 = mint.nn.LayerNorm(d_model)
         self.mlp = ResidualAttentionMlp(d_model)
-        self.ln_2 = LayerNorm(d_model)
+        self.ln_2 = mint.nn.LayerNorm(d_model)
         self.attn_mask = attn_mask
 
     def attention(self, x: ms.Tensor):

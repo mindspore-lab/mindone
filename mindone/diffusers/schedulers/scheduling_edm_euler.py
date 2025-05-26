@@ -122,7 +122,7 @@ class EDMEulerScheduler(SchedulerMixin, ConfigMixin):
                 f"`final_sigmas_type` must be one of 'zero', or 'sigma_min', but got {self.config.final_sigmas_type}"
             )
 
-        self.sigmas = mint.cat([sigmas, mint.full((1,), fill_value=sigma_last)])
+        self.sigmas = mint.cat([sigmas, mint.full((1,), fill_value=sigma_last, dtype=sigmas.dtype)])
 
         self.is_scale_input_called = False
 

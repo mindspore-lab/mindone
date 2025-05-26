@@ -473,7 +473,9 @@ class UNet2DConditionModel(
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
 
             self.conv_act = get_activation(act_fn)
 

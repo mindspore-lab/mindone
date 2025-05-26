@@ -570,7 +570,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         custom_pipeline, custom_class_name = _resolve_custom_pipeline_and_cls(
             folder=cached_folder, config=config_dict, custom_pipeline=custom_pipeline
         )
-
         pipeline_class = _get_pipeline_class(
             cls,
             config=config_dict,
@@ -656,7 +655,6 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                     if isinstance(mindspore_dtype, dict)
                     else mindspore_dtype
                 )
-                # load sub model
                 loaded_sub_model = load_sub_model(
                     library_name=library_name,
                     class_name=class_name,
@@ -1148,6 +1146,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
                 signature_types[k] = (v.annotation,)
             elif get_origin(v.annotation) == Union:
                 signature_types[k] = get_args(v.annotation)
+            elif get_origin(v.annotation) in [List, Dict, list, dict]:
+                signature_types[k] = (v.annotation,)
             else:
                 logger.warning(f"cannot get type annotation for Parameter {k} of {cls}.")
         return signature_types

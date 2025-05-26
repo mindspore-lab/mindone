@@ -850,18 +850,7 @@ class UNetMidBlock2DCrossAttn(nn.Cell):
         self.attentions = nn.CellList(attentions)
         self.resnets = nn.CellList(resnets)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        # we exclude 0-th resnet following huggingface/diffusers. HF does this just for simplicity in forward?
-        for resnet in self.resnets[1:]:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -1222,17 +1211,7 @@ class CrossAttnDownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -1326,17 +1305,7 @@ class DownBlock2D(nn.Cell):
         else:
             self.downsamplers = None
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self, hidden_states: ms.Tensor, temb: Optional[ms.Tensor] = None
@@ -2331,17 +2300,7 @@ class CrossAttnUpBlock2D(nn.Cell):
             self.upsamplers = None
 
         self.resolution_idx = resolution_idx
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -2438,18 +2397,8 @@ class UpBlock2D(nn.Cell):
         else:
             self.upsamplers = None
 
+        self.gradient_checkpointing = False
         self.resolution_idx = resolution_idx
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
 
     def construct(
         self,

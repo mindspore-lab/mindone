@@ -1,6 +1,7 @@
 import importlib
 import itertools
 import logging
+import random
 
 import numpy as np
 import torch
@@ -36,6 +37,12 @@ PT_DTYPE_MAPPING = {
 }
 MS_DTYPE_MAPPING = {"fp16": ms.float16, "fp32": ms.float32, "bf16": ms.bfloat16}
 NP_DTYPE_MAPPING = {"fp16": np.float16, "fp32": np.float32, "bf16": bfloat16}
+
+
+def set_seed(seed: int = 42):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
 
 
 class _OutputTo(nn.Cell):
@@ -150,6 +157,7 @@ def get_modules(pt_module, ms_module, dtype, *args, **kwargs):
     pt_module_cls = getattr(importlib.import_module(pt_path), pt_cls_name)
     ms_module_cls = getattr(importlib.import_module(ms_path), ms_cls_name)
 
+    set_seed(42)
     pt_modules_instance = pt_module_cls(*args, **kwargs)
     ms_modules_instance = ms_module_cls(*args, **kwargs)
 

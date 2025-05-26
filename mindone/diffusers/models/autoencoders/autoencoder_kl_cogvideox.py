@@ -405,17 +405,7 @@ class CogVideoXDownBlock3D(nn.Cell):
                 ]
             )
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -501,17 +491,7 @@ class CogVideoXMidBlock3D(nn.Cell):
             )
         self.resnets = nn.CellList(resnets)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -609,17 +589,7 @@ class CogVideoXUpBlock3D(nn.Cell):
                 [CogVideoXUpsample3D(out_channels, out_channels, padding=upsample_padding, compress_time=compress_time)]
             )
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for resnet in self.resnets:
-            resnet._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -743,18 +713,7 @@ class CogVideoXEncoder3D(nn.Cell):
             block_out_channels[-1], 2 * out_channels, kernel_size=3, pad_mode=pad_mode
         )
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for down_block in self.down_blocks:
-            down_block._recompute(value)
-        self.mid_block._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -893,18 +852,7 @@ class CogVideoXDecoder3D(nn.Cell):
             reversed_block_out_channels[-1], out_channels, kernel_size=3, pad_mode=pad_mode
         )
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        self.mid_block._recompute(value)
-        for up_block in self.up_blocks:
-            up_block._recompute(value)
+        self.gradient_checkpointing = False
 
     def construct(
         self,

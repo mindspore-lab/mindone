@@ -16,15 +16,11 @@
 
 import copy
 import inspect
-import itertools
 import json
 import os
 import re
-import shutil
-import tempfile
 from collections import OrderedDict
-from contextlib import ExitStack, contextmanager
-from functools import partial, wraps
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Callable, ContextManager, Dict, List, Optional, Tuple, Type, Union
 
@@ -34,6 +30,7 @@ from typing_extensions import Self
 
 import mindspore as ms
 from mindspore import mint, nn
+from mindspore.nn.utils import no_init_parameters
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
 
@@ -55,8 +52,8 @@ from .model_loading_utils import (
     _fetch_index_file,
     _fetch_index_file_legacy,
     _load_state_dict_into_model,
-    load_checkpoint_and_dispatch,
     load_state_dict,
+    split_torch_state_dict_into_shards,
 )
 
 
@@ -81,23 +78,6 @@ class ContextManagers:
 logger = logging.get_logger(__name__)
 
 _REGEX_SHARD = re.compile(r"(.*?)-\d{5}-of-\d{5}")
-
-MINDSPORE_INIT_FUNCTIONS = {
-    "uniform_": nn.init.uniform_,
-    "normal_": nn.init.normal_,
-    "trunc_normal_": nn.init.trunc_normal_,
-    "constant_": nn.init.constant_,
-    "xavier_uniform_": nn.init.xavier_uniform_,
-    "xavier_normal_": nn.init.xavier_normal_,
-    "kaiming_uniform_": nn.init.kaiming_uniform_,
-    "kaiming_normal_": nn.init.kaiming_normal_,
-    "uniform": nn.init.uniform,
-    "normal": nn.init.normal,
-    "xavier_uniform": nn.init.xavier_uniform,
-    "xavier_normal": nn.init.xavier_normal,
-    "kaiming_uniform": nn.init.kaiming_uniform,
-    "kaiming_normal": nn.init.kaiming_normal,
-}
 
 
 def _get_pt2ms_mappings(m):
@@ -161,26 +141,6 @@ def get_parameter_dtype(module: nn.Cell) -> ms.Type:
     if last_dtype is not None:
         # if no floating dtype was found return whatever the first dtype is
         return last_dtype
-
-
-@contextmanager
-def no_init_weights():
-    """
-    Context manager to globally disable weight initialization to speed up loading large models. To do that, all the
-    torch.nn.init function are all replaced with skip.
-    """
-
-    def _skip_init(*args, **kwargs):
-        pass
-
-    for name, init_func in MINDSPORE_INIT_FUNCTIONS.items():
-        setattr(ms.nn.init, name, _skip_init)
-    try:
-        yield
-    finally:
-        # Restore the original initialization functions
-        for name, init_func in MINDSPORE_INIT_FUNCTIONS.items():
-            setattr(ms.nn.init, name, init_func)
 
 
 class ModelMixin(nn.Cell, PushToHubMixin):
@@ -256,7 +216,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
             gradient_checkpointing_func = _gradient_checkpointing_func
 
-        self._set_gradient_checkpointing(enable=True, gradient_checkpointing_func=gradient_checkpointing_func)
+        self._set_gradient_checkpointing(enable=True)
 
     def disable_gradient_checkpointing(self) -> None:
         """
@@ -856,9 +816,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                     f"{mindspore_dtype} needs to be of type `mindspore.Type`, e.g. `mindspore.float16`, but is {type(mindspore_dtype)}."
                 )
 
-        init_contexts = [no_init_weights()]
-
-        with ContextManagers(init_contexts):
+        with no_init_parameters():
             model = cls.from_config(config, **unused_kwargs)
 
         state_dict = None
@@ -952,6 +910,8 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         mismatched_keys = []
 
+        error_msgs = []
+
         if state_dict is not None:
             # load_state_dict will manage the case where we pass a dict instead of a file
             # if state dict is not None, it means that we don't need to read the files from resolved_model_file also
@@ -987,16 +947,18 @@ class ModelMixin(nn.Cell, PushToHubMixin):
                             del state_dict[checkpoint_key]
                 return mismatched_keys
 
-        mismatched_keys += _find_mismatched_keys(
-            state_dict,
-            model_state_dict,
-            loaded_keys,
-            ignore_mismatched_sizes,
-        )
+            mismatched_keys += _find_mismatched_keys(
+                state_dict,
+                model_state_dict,
+                loaded_keys,
+                ignore_mismatched_sizes,
+            )
+            if len(resolved_model_file) > 1:
+                error_msgs += _load_state_dict_into_model(model, state_dict, is_sharded=True)
+            else:
+                error_msgs += _load_state_dict_into_model(model, state_dict, is_sharded=False)
 
         offload_index = None
-
-        error_msgs += _load_state_dict_into_model(model, state_dict)
 
         if len(error_msgs) > 0:
             error_msg = "\n\t".join(error_msgs)
@@ -1154,16 +1116,13 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         return sum(total_numel)
 
-    def _set_gradient_checkpointing(
-        self, enable: bool = True, gradient_checkpointing_func: Callable = torch.utils.checkpoint.checkpoint
-    ) -> None:
+    def _set_gradient_checkpointing(self, enable: bool = True) -> None:
         is_gradient_checkpointing_set = False
 
         for name, module in self.cells_and_names():
-            if hasattr(module, "gradient_checkpointing"):
+            if hasattr(module, "recompute_"):
                 logger.debug(f"Setting `gradient_checkpointing={enable}` for '{name}'")
-                module._gradient_checkpointing_func = gradient_checkpointing_func
-                module.gradient_checkpointing = enable
+                module.recompute_(enable)
                 is_gradient_checkpointing_set = True
 
         if not is_gradient_checkpointing_set:

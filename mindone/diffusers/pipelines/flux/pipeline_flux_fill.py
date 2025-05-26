@@ -379,7 +379,7 @@ class FluxFillPipeline(
         mask = mask.view(
             batch_size, height, self.vae_scale_factor, width, self.vae_scale_factor
         )  # batch_size, height, 8, width, 8
-        mask = mint.permute(mask, (0, 2, 4, 1, 3))  # batch_size, 8, 8, height, width
+        mask = mask.permute(0, 2, 4, 1, 3)  # batch_size, 8, 8, height, width
         mask = mask.reshape(
             batch_size, self.vae_scale_factor * self.vae_scale_factor, height, width
         )  # batch_size, 8*8, height, width
@@ -661,6 +661,7 @@ class FluxFillPipeline(
         if latents is not None:
             return latents.to(dtype=dtype), latent_image_ids
 
+        image = image.to(dtype=dtype)
         if image.shape[1] != self.latent_channels:
             image_latents = self._encode_vae_image(image=image, generator=generator)
         else:

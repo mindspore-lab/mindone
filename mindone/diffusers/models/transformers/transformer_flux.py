@@ -269,7 +269,7 @@ class FluxTransformer2DModel(
         self.norm_out = AdaLayerNormContinuous(self.inner_dim, self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
-        self._gradient_checkpointing = False
+        self.gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -370,19 +370,6 @@ class FluxTransformer2DModel(
         """
         if self.original_attn_processors is not None:
             self.set_attn_processor(self.original_attn_processors)
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        if self._gradient_checkpointing != value:
-            self._gradient_checkpointing = value
-            for block in self.transformer_blocks:
-                block.recompute()
-            for block in self.single_transformer_blocks:
-                block.recompute()
 
     def construct(
         self,

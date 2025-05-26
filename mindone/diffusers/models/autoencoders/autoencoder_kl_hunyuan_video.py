@@ -24,7 +24,7 @@ from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
 from ..activations import get_activation
 from ..attention_processor import Attention
-from ..layers_compat import pad, unflatten
+from ..layers_compat import unflatten
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
 from .vae import DecoderOutput, DiagonalGaussianDistribution
@@ -74,7 +74,7 @@ class HunyuanVideoCausalConv3d(nn.Cell):
         self.conv = mint.nn.Conv3d(in_channels, out_channels, kernel_size, stride, padding, dilation, bias=bias)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        hidden_states = pad(hidden_states, self.time_causal_padding, mode=self.pad_mode)
+        hidden_states = F.pad(hidden_states, self.time_causal_padding, mode=self.pad_mode)
         return self.conv(hidden_states)
 
 
@@ -99,8 +99,8 @@ class HunyuanVideoUpsampleCausal3D(nn.Cell):
         num_frames = hidden_states.shape[2]
 
         first_frame, other_frames = hidden_states.split((1, num_frames - 1), dim=2)
-        first_frame = mint.nn.functional.interpolate(
-            first_frame.squeeze(2), scale_factor=self.upsample_factor[1:], mode="nearest", recompute_scale_factor=True
+        first_frame = F.interpolate(
+            first_frame.squeeze(2), scale_factor=self.upsample_factor[1:], mode="nearest"
         ).unsqueeze(2)
 
         if num_frames > 1:
@@ -111,9 +111,7 @@ class HunyuanVideoUpsampleCausal3D(nn.Cell):
             # `vae.enable_tiling()` first. If that doesn't work, open an issue at:
             # https://github.com/huggingface/diffusers/issues
             other_frames = other_frames.contiguous()
-            other_frames = mint.nn.functional.interpolate(
-                other_frames, scale_factor=self.upsample_factor, mode="nearest"
-            )
+            other_frames = F.interpolate(other_frames, scale_factor=self.upsample_factor, mode="nearest")
             hidden_states = mint.cat((first_frame, other_frames), dim=2)
         else:
             hidden_states = first_frame
@@ -161,7 +159,7 @@ class HunyuanVideoResnetBlockCausal3D(nn.Cell):
         self.conv1 = HunyuanVideoCausalConv3d(in_channels, out_channels, 3, 1, 0)
 
         self.norm2 = mint.nn.GroupNorm(groups, out_channels, eps=eps, affine=True)
-        self.dropout = mint.nn.Dropout(p=dropout)
+        self.dropout = mint.nn.Dropout(dropout)
         self.conv2 = HunyuanVideoCausalConv3d(out_channels, out_channels, 3, 1, 0)
 
         self.conv_shortcut = None
@@ -257,7 +255,7 @@ class HunyuanVideoMidBlock3D(nn.Cell):
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
                 batch_size, num_channels, num_frames, height, width = hidden_states.shape
-                hidden_states = hidden_states.permute(0, 2, 3, 4, 1).flatten(start_dim=1, end_dim=3)
+                hidden_states = hidden_states.permute(0, 2, 3, 4, 1).flatten(1, 3)
                 attention_mask = prepare_causal_attention_mask(
                     num_frames, height * width, hidden_states.dtype, batch_size=batch_size
                 )

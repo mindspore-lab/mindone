@@ -17,7 +17,7 @@ import mindspore as ms
 from mindspore import mint, nn
 
 from .layers_compat import conv_transpose2d, pad, upsample_nearest3d_free_interpolate
-from .normalization import LayerNorm, RMSNorm
+from .normalization import RMSNorm
 
 
 class Upsample1D(nn.Cell):
@@ -112,7 +112,7 @@ class Upsample2D(nn.Cell):
         self.interpolate = interpolate
 
         if norm_type == "ln_norm":
-            self.norm = LayerNorm(channels, eps, elementwise_affine)
+            self.norm = mint.nn.LayerNorm(channels, eps, elementwise_affine)
         elif norm_type == "rms_norm":
             self.norm = RMSNorm(channels, eps, elementwise_affine)
         elif norm_type is None:

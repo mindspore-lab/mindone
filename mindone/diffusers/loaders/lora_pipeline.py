@@ -20,7 +20,7 @@ from huggingface_hub.utils import validate_hf_hub_args
 import mindspore as ms
 from mindspore import mint, nn, ops
 
-from ..utils import deprecate, get_submodule_by_name, is_gguf_available, logging
+from ..utils import deprecate, get_submodule_by_name, logging
 from .lora_base import (  # noqa
     LORA_WEIGHT_NAME,
     LORA_WEIGHT_NAME_SAFE,

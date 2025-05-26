@@ -180,8 +180,8 @@ class FromOriginalModelMixin:
             original_config (`str`, *optional*):
                 Dict or path to a yaml file containing the configuration for the model in its original format.
                     If a dict is provided, it will be used to initialize the model configuration.
-            mindspore_dtype (`str` or `torch.dtype`, *optional*):
-                Override the default `torch.dtype` and load the model with another dtype. If `"auto"` is passed, the
+            mindspore_dtype (`str` or `mindspore.Type`, *optional*):
+                Override the default `mindspore.Type` and load the model with another dtype. If `"auto"` is passed, the
                 dtype is automatically derived from the model's weights.
             force_download (`bool`, *optional*, defaults to `False`):
                 Whether or not to force the (re-)download of the model weights and configuration files, overriding the

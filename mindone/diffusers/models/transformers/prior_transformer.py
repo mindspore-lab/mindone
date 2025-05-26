@@ -11,7 +11,6 @@ from ..attention import BasicTransformerBlock
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
 
 
 @dataclass
@@ -101,7 +100,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         if embedding_proj_norm_type is None:
             self.embedding_proj_norm = None
         elif embedding_proj_norm_type == "layer":
-            self.embedding_proj_norm = LayerNorm(embedding_proj_dim)
+            self.embedding_proj_norm = mint.nn.LayerNorm(embedding_proj_dim)
         else:
             raise ValueError(f"unsupported embedding_proj_norm_type: {embedding_proj_norm_type}")
 
@@ -142,13 +141,13 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         )
 
         if norm_in_type == "layer":
-            self.norm_in = LayerNorm(inner_dim)
+            self.norm_in = mint.nn.LayerNorm(inner_dim)
         elif norm_in_type is None:
             self.norm_in = None
         else:
             raise ValueError(f"Unsupported norm_in_type: {norm_in_type}.")
 
-        self.norm_out = LayerNorm(inner_dim)
+        self.norm_out = mint.nn.LayerNorm(inner_dim)
 
         self.proj_to_clip_embeddings = mint.nn.Linear(inner_dim, clip_embed_dim)
 

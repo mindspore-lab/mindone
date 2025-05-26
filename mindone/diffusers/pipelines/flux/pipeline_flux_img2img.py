@@ -146,7 +146,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class FluxImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSingleFileMixin, FluxIPAdapterMixi):
+class FluxImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSingleFileMixin, FluxIPAdapterMixin):
     r"""
     The Flux pipeline for image inpainting.
 

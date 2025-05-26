@@ -23,7 +23,6 @@ from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models import ModelMixin
-from ...models.normalization import LayerNorm
 from ...utils import BaseOutput
 from .camera import create_pan_cameras
 
@@ -654,7 +653,7 @@ class MLPNeRSTFModel(ModelMixin, ConfigMixin):
         if insert_direction_at is not None:
             input_widths[insert_direction_at] += d_posenc_dir
 
-        self.mlp = nn.CellList([nn.Dense(d_in, d_out) for d_in, d_out in zip(input_widths, output_widths)])
+        self.mlp = nn.CellList([mint.nn.Linear(d_in, d_out) for d_in, d_out in zip(input_widths, output_widths)])
 
         if act_fn == "swish":
             # self.activation = swish
@@ -736,8 +735,8 @@ class ChannelsProj(nn.Cell):
         d_latent: int,
     ):
         super().__init__()
-        self.proj = nn.Dense(d_latent, vectors * channels)
-        self.norm = LayerNorm(channels)
+        self.proj = mint.nn.Linear(d_latent, vectors * channels)
+        self.norm = mint.nn.LayerNorm(channels)
         self.d_latent = d_latent
         self.vectors = vectors
         self.channels = channels

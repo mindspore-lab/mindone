@@ -404,18 +404,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         self.norm_out = SanaModulatedNorm(inner_dim, elementwise_affine=False, eps=1e-6)
         self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        assert value, "Can only set recompute value to `True`"
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block.recompute()
+        self.gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors

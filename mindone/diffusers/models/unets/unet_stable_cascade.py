@@ -27,11 +27,10 @@ from ...loaders import FromOriginalModelMixin
 from ...utils import BaseOutput
 from ..attention_processor import Attention
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm
 
 
 # Copied from diffusers.pipelines.wuerstchen.modeling_wuerstchen_common.WuerstchenLayerNorm with WuerstchenLayerNorm -> SDCascadeLayerNorm
-class SDCascadeLayerNorm(LayerNorm):
+class SDCascadeLayerNorm(mint.nn.LayerNorm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -284,7 +283,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             self.clip_txt_mapper = mint.nn.Linear(clip_text_in_channels, conditioning_dim)
         if clip_image_in_channels is not None:
             self.clip_img_mapper = mint.nn.Linear(clip_image_in_channels, conditioning_dim * clip_seq)
-        self.clip_norm = LayerNorm(conditioning_dim, elementwise_affine=False, eps=1e-6)
+        self.clip_norm = mint.nn.LayerNorm(conditioning_dim, elementwise_affine=False, eps=1e-6)
 
         self.embedding = nn.SequentialCell(
             # todo: unavailable mint interface
@@ -411,7 +410,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             nn.PixelShuffle(patch_size),
         )
 
-        self._gradient_checkpointing = False
+        self.gradient_checkpointing = False
 
     def _init_weights(self, m):
         if isinstance(m, (mint.nn.Conv2d, mint.nn.Linear)):
@@ -491,19 +490,6 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         else:
             clip = clip_txt_pool
         return self.clip_norm(clip)
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        # we exclude 0-th resnet following huggingface/diffusers. HF does this just for simplicity in forward?
-        for block in self.down_blocks:
-            block._recompute(value)
-        for block in self.up_blocks:
-            block._recompute(value)
 
     def _down_encode(self, x, r_embed, clip):
         level_outputs = []

@@ -170,9 +170,6 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         elif self.is_input_patches:
             self._init_patched_inputs(norm_type=norm_type)
 
-        # Move here to call `gradient_checkpointing.setter` after self.transformer_blocks initiated
-        self._gradient_checkpointing = False
-
     def _init_continuous_input(self, norm_type):
         self.norm = mint.nn.GroupNorm(
             num_groups=self.config.norm_num_groups, num_channels=self.in_channels, eps=1e-6, affine=True
@@ -323,16 +320,6 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             self.caption_projection = PixArtAlphaTextProjection(
                 in_features=self.caption_channels, hidden_size=self.inner_dim
             )
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        for block in self.transformer_blocks:
-            block._recompute(value)
 
     def construct(
         self,

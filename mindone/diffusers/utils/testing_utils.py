@@ -731,3 +731,13 @@ def enable_full_determinism():
 
 def disable_full_determinism():
     ms.set_context(deterministic="OFF", pynative_synchronize=False)
+
+
+def load_numpy_from_local_file(repo_id, filename, subfolder=None):
+    file_path = os.path.join(".", repo_id, subfolder, filename)
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Test result not found: {file_path}")
+
+    ndarray = np.load(file_path)
+    return ndarray

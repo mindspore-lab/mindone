@@ -326,18 +326,7 @@ class CogVideoXTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 
         self.proj_out = mint.nn.Linear(inner_dim, output_dim)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        if self._gradient_checkpointing != value:
-            self._gradient_checkpointing = value
-            for block in self.transformer_blocks:
-                block.recompute()
+        self.gradient_checkpointing = False
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors

@@ -2,7 +2,7 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import nn
 
 from ...models.controlnets.controlnet import ControlNetOutput
 from ...models.controlnets.controlnet_union import ControlNetUnionModel

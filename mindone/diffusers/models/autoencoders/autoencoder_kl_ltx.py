@@ -28,7 +28,7 @@ from ..embeddings import PixArtAlphaCombinedTimestepSizeEmbeddings
 from ..layers_compat import unflatten
 from ..modeling_outputs import AutoencoderKLOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import LayerNorm, RMSNorm
+from ..normalization import RMSNorm
 from .vae import DecoderOutput, DiagonalGaussianDistribution
 
 
@@ -136,7 +136,7 @@ class LTXVideoResnetBlock3d(nn.Cell):
         self.norm3 = None
         self.conv_shortcut = None
         if in_channels != out_channels:
-            self.norm3 = LayerNorm(in_channels, eps=eps, elementwise_affine=True, bias=True)
+            self.norm3 = mint.nn.LayerNorm(in_channels, eps=eps, elementwise_affine=True, bias=True)
             self.conv_shortcut = LTXVideoCausalConv3d(
                 in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=1, is_causal=is_causal
             )

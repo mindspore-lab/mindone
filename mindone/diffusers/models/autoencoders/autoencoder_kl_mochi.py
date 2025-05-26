@@ -207,19 +207,7 @@ class MochiDownBlock3D(nn.Cell):
         self.norms = nn.CellList(norms)
         self.attentions = nn.CellList(attentions)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        if self._gradient_checkpointing:
-            for resnet in self.resnets:
-                resnet.recompute()
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -316,19 +304,7 @@ class MochiMidBlock3D(nn.Cell):
         self.norms = nn.CellList(norms)
         self.attentions = nn.CellList(attentions)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        if self._gradient_checkpointing:
-            for resnet in self.resnets:
-                resnet.recompute()
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -400,19 +376,7 @@ class MochiUpBlock3D(nn.Cell):
 
         self.proj = mint.nn.Linear(in_channels, out_channels * temporal_expansion * spatial_expansion**2)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-
-        if self._gradient_checkpointing:
-            for resnet in self.resnets:
-                resnet.recompute()
+        self.gradient_checkpointing = False
 
     def construct(
         self,
@@ -539,19 +503,7 @@ class MochiEncoder3D(nn.Cell):
         self.norm_out = MochiChunkedGroupNorm3D(block_out_channels[-1])
         self.proj_out = mint.nn.Linear(block_out_channels[-1], 2 * out_channels, bias=False)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        if self._gradient_checkpointing:
-            for down_block in self.down_blocks:
-                down_block.recompute()
-            self.block_in.recompute()
+        self.gradient_checkpointing = False
 
     def construct(self, hidden_states: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
         r"""Forward method of the `MochiEncoder3D` class."""
@@ -649,19 +601,7 @@ class MochiDecoder3D(nn.Cell):
         )
         self.proj_out = mint.nn.Linear(block_out_channels[0], out_channels)
 
-        self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
-
-    @gradient_checkpointing.setter
-    def gradient_checkpointing(self, value):
-        self._gradient_checkpointing = value
-        if self._gradient_checkpointing:
-            for up_block in self.up_blocks:
-                up_block.recompute()
-            self.block_in.recompute()
+        self.gradient_checkpointing = False
 
     def construct(self, hidden_states: ms.Tensor, conv_cache: Optional[Dict[str, ms.Tensor]] = None) -> ms.Tensor:
         r"""Forward method of the `MochiDecoder3D` class."""

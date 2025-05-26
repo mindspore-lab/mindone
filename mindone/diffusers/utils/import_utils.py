@@ -129,7 +129,6 @@ _imageio_available, _imageio_version = _is_package_available("imageio")
 _ftfy_available, _ftfy_version = _is_package_available("ftfy")
 _scipy_available, _scipy_version = _is_package_available("scipy")
 _librosa_available, _librosa_version = _is_package_available("librosa")
-_gguf_available, _gguf_version = _is_package_available("gguf")
 
 
 def is_mindspore_available():
@@ -206,10 +205,6 @@ def is_sentencepiece_available():
 
 def is_imageio_available():
     return _imageio_available
-
-
-def is_gguf_available():
-    return _gguf_available
 
 
 # docstyle-ignore
@@ -305,11 +300,6 @@ IMAGEIO_IMPORT_ERROR = """
 {0} requires the imageio library and ffmpeg but it was not found in your environment. You can install it with pip: `pip install imageio imageio-ffmpeg`
 """
 
-# docstyle-ignore
-GGUF_IMPORT_ERROR = """
-{0} requires the gguf library but it was not found in your environment. You can install it with pip: `pip install gguf`
-"""
-
 BACKENDS_MAPPING = OrderedDict(
     [
         ("bs4", (is_bs4_available, BS4_IMPORT_ERROR)),
@@ -327,7 +317,6 @@ BACKENDS_MAPPING = OrderedDict(
         ("safetensors", (is_safetensors_available, SAFETENSORS_IMPORT_ERROR)),
         ("sentencepiece", (is_sentencepiece_available, SENTENCEPIECE_IMPORT_ERROR)),
         ("imageio", (is_imageio_available, IMAGEIO_IMPORT_ERROR)),
-        ("gguf", (is_gguf_available, GGUF_IMPORT_ERROR)),
     ]
 )
 
@@ -391,26 +380,11 @@ def is_peft_version(operation: str, version: str):
         version (`str`):
             A version string
     """
-    from mindone.diffusers._peft import __version__ as _peft_available
+    from mindone.diffusers._peft import __version__ as _peft_version
 
-    if not _peft_available:
+    if not _peft_version:
         return False
     return compare_versions(parse(_peft_version), operation, version)
-
-
-def is_gguf_version(operation: str, version: str):
-    """
-    Compares the current Accelerate version to a given reference with an operation.
-
-    Args:
-        operation (`str`):
-            A string representation of an operator, such as `">"` or `"<="`
-        version (`str`):
-            A version string
-    """
-    if not _gguf_available:
-        return False
-    return compare_versions(parse(_gguf_version), operation, version)
 
 
 def maybe_import_module_in_mindone(module_name: str, force_original: bool = False):

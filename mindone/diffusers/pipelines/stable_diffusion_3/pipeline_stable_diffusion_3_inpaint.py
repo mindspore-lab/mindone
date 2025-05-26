@@ -21,7 +21,8 @@ from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 import mindspore as ms
 from mindspore import mint
 
-from ....transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
+from mindone.transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
+
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
@@ -114,8 +115,8 @@ def retrieve_timesteps(
             `num_inference_steps` and `timesteps` must be `None`.
 
     Returns:
-        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and
-        the second element is the number of inference steps.
+        `Tuple[ms.Tensor, int]`: A tuple where the first element is the timestep schedule from the scheduler and the
+        second element is the number of inference steps.
     """
     if timesteps is not None and sigmas is not None:
         raise ValueError("Only one of `timesteps` or `sigmas` can be passed. Please choose one to set custom values")
@@ -693,6 +694,8 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
             # if strength is 1. then initialise the latents to noise, else initial to image + noise
             latents = noise if is_strength_max else self.scheduler.scale_noise(image_latents, timestep, noise)
+        else:
+            latents = noise
 
         outputs = (latents,)
 
@@ -806,9 +809,11 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
     # Copied from mindone.diffusers.pipelines.stable_diffusion_3.pipeline_stable_diffusion_3.StableDiffusion3Pipeline.encode_image
     def encode_image(self, image: PipelineImageInput) -> ms.Tensor:
         """Encodes the given image into a feature representation using a pre-trained image encoder.
+
         Args:
             image (`PipelineImageInput`):
                 Input image to be encoded.
+
         Returns:
             `ms.Tensor`: The encoded image feature representation.
         """
@@ -829,7 +834,9 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         do_classifier_free_guidance: bool = True,
     ) -> ms.Tensor:
         """Prepares image embeddings for use in the IP-Adapter.
+
         Either `ip_adapter_image` or `ip_adapter_image_embeds` must be passed.
+
         Args:
             ip_adapter_image (`PipelineImageInput`, *optional*):
                 The input image to extract features from for IP-Adapter.
@@ -889,6 +896,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         ip_adapter_image_embeds: Optional[ms.Tensor] = None,
         output_type: Optional[str] = "pil",
         return_dict: bool = False,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
         clip_skip: Optional[int] = None,
         callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
         callback_on_step_end_tensor_inputs: List[str] = ["latents"],

@@ -710,17 +710,9 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
             )
 
         # Check `image`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
+        if isinstance(self.controlnet, ControlNetModel):
             self.check_image(image, prompt, prompt_embeds)
-        elif (
-            isinstance(self.controlnet, ControlNetUnionModel)
-            or is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetUnionModel)
-        ):
+        elif isinstance(self.controlnet, ControlNetUnionModel):
             self.check_image(image, prompt, prompt_embeds)
 
         else:

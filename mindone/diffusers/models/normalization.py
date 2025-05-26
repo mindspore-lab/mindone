@@ -16,11 +16,11 @@
 import numbers
 from typing import Dict, Optional, Tuple
 
-import numpy as np
+from packaging.version import parse
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import Parameter, Tensor, mint, nn
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from .activations import get_activation
@@ -515,50 +515,91 @@ else:
             return F.layer_norm(input, self.dim, self.weight, self.bias, self.eps)
 
 
-class RMSNorm(nn.Cell):
-    r"""
-    RMS Norm as introduced in https://arxiv.org/abs/1910.07467 by Zhang et al.
+if MINDSPORE_VERSION == parse("2.5.0"):
 
-    Args:
-        dim (`int`): Number of dimensions to use for `weights`. Only effective when `elementwise_affine` is True.
-        eps (`float`): Small value to use when calculating the reciprocal of the square-root.
-        elementwise_affine (`bool`, defaults to `True`):
-            Boolean flag to denote if affine transformation should be applied.
-        bias (`bool`, defaults to False): If also training the `bias` param.
-    """
+    class RMSNorm(nn.Cell):
+        r"""
+        RMS Norm as introduced in https://arxiv.org/abs/1910.07467 by Zhang et al.
 
-    def __init__(self, dim, eps: float, elementwise_affine: bool = True, bias: bool = False):
-        super().__init__()
+        Args:
+            dim (`int`): Number of dimensions to use for `weights`. Only effective when `elementwise_affine` is True.
+            eps (`float`): Small value to use when calculating the reciprocal of the square-root.
+            elementwise_affine (`bool`, defaults to `True`):
+                Boolean flag to denote if affine transformation should be applied.
+            bias (`bool`, defaults to False): If also training the `bias` param.
+        """
 
-        self.eps = eps
-        self.elementwise_affine = elementwise_affine
+        def __init__(self, dim, eps: float, elementwise_affine: bool = True, bias: bool = False):
+            super().__init__()
 
-        if isinstance(dim, numbers.Integral):
-            dim = (dim,)
+            self.eps = eps
+            self.elementwise_affine = elementwise_affine
 
-        self.dim = tuple(dim)
+            if isinstance(dim, numbers.Integral):
+                dim = (dim,)
 
-        self.weight = None
-        self.bias = None
+            self.dim = tuple(dim)
 
-        if elementwise_affine:
-            self.weight = ms.Parameter(mint.ones(dim), name="weight")
-            if bias:
-                self.bias = ms.Parameter(mint.zeros(dim), name="bias")
+            self.weight = None
+            self.bias = None
 
-    def construct(self, hidden_states):
-        if self.weight is not None:
-            # convert into half-precision if necessary
-            if self.weight.dtype in [ms.float16, ms.bfloat16]:
-                hidden_states = hidden_states.to(self.weight.dtype)
-            weight = self.weight
-        else:
-            weight = mint.ones(hidden_states.shape[-1], dtype=hidden_states.dtype)
-        hidden_states = ops.rms_norm(hidden_states, weight, epsilon=self.eps)[0]
-        if self.bias is not None:
-            hidden_states = hidden_states + self.bias
+            if elementwise_affine:
+                self.weight = ms.Parameter(mint.ones(dim), name="weight")
+                if bias:
+                    self.bias = ms.Parameter(mint.zeros(dim), name="bias")
 
-        return hidden_states
+        def construct(self, hidden_states):
+            if self.weight is not None:
+                # convert into half-precision if necessary
+                if self.weight.dtype in [ms.float16, ms.bfloat16]:
+                    hidden_states = hidden_states.to(self.weight.dtype)
+                weight = self.weight
+            else:
+                weight = mint.ones(hidden_states.shape[-1], dtype=hidden_states.dtype)
+            hidden_states = ops.rms_norm(hidden_states, weight, epsilon=self.eps)[0]
+            if self.bias is not None:
+                hidden_states = hidden_states + self.bias
+
+            return hidden_states
+
+else:
+
+    class RMSNorm(nn.Cell):
+        def __init__(self, dim, eps: float, elementwise_affine: bool = True, bias: bool = False):
+            super().__init__()
+
+            self.eps = eps
+            self.elementwise_affine = elementwise_affine
+
+            if isinstance(dim, numbers.Integral):
+                dim = (dim,)
+
+            self.dim = dim
+
+            self.weight = None
+            self.bias = None
+
+            if elementwise_affine:
+                self.weight = ms.Parameter(ops.ones(dim), name="weight")
+                if bias:
+                    self.bias = ms.Parameter(ops.zeros(dim), name="bias")
+
+        def construct(self, hidden_states):
+            input_dtype = hidden_states.dtype
+            variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
+            hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
+
+            if self.weight is not None:
+                # convert into half-precision if necessary
+                if self.weight.dtype in [ms.float16, ms.bfloat16]:
+                    hidden_states = hidden_states.to(self.weight.dtype)
+                hidden_states = hidden_states * self.weight
+                if self.bias is not None:
+                    hidden_states = hidden_states + self.bias
+            else:
+                hidden_states = hidden_states.to(input_dtype)
+
+            return hidden_states
 
 
 # TODO: (Dhruv) This can be replaced with regular RMSNorm in Mochi once `_keep_in_fp32_modules` is supported

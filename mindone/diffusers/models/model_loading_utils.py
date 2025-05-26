@@ -35,7 +35,6 @@ from mindspore import nn, ops
 from ...safetensors.mindspore import load as safe_load
 from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
-    GGUF_FILE_EXTENSION,
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
     WEIGHTS_INDEX_NAME,
@@ -97,8 +96,6 @@ def load_state_dict(
                 return safe_load(open(checkpoint_file, "rb").read())
             else:
                 return safe_load_file(checkpoint_file)
-        elif file_extension == GGUF_FILE_EXTENSION:
-            return load_gguf_checkpoint(checkpoint_file)
         else:
             raise NotImplementedError(
                 f"Only supports deserialization of weights file in safetensors format, but got {checkpoint_file}"
@@ -124,7 +121,7 @@ def load_state_dict(
 
 
 def _load_state_dict_into_model(
-    model_to_load, state_dict: OrderedDict, keep_in_fp32_modules=None, dtype=None
+    model_to_load, state_dict: OrderedDict, keep_in_fp32_modules=None, dtype=None, is_sharded=False
 ) -> List[str]:
     # TODO: error_msgs is always empty for now. Maybe we need to rewrite MindSpore's `load_param_into_net`.
     #  Error msgs should contain caught exception like size mismatch instead of missing/unexpected keys.
@@ -148,7 +145,9 @@ def _load_state_dict_into_model(
                 v.set_dtype(local_state[k].dtype)
         else:
             pass  # unexpect key keeps origin dtype
-    ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
+    cm = silence_mindspore_logger() if is_sharded else nullcontext()
+    with cm:
+        ms.load_param_into_net(model_to_load, state_dict, strict_load=True)
     return error_msgs
 
 

@@ -698,7 +698,7 @@ class StableDiffusionXLControlNetUnionPipeline(
                 )
 
         # Check `image`
-        controlnet = self.controlnet._orig_mod if is_compiled_module(self.controlnet) else self.controlnet
+        controlnet = self.controlnet
 
         if isinstance(controlnet, ControlNetUnionModel):
             for image_ in image:
@@ -1131,7 +1131,7 @@ class StableDiffusionXLControlNetUnionPipeline(
         if isinstance(callback_on_step_end, (PipelineCallback, MultiPipelineCallbacks)):
             callback_on_step_end_tensor_inputs = callback_on_step_end.tensor_inputs
 
-        controlnet = self.controlnet._orig_mod if is_compiled_module(self.controlnet) else self.controlnet
+        controlnet = self.controlnet
 
         if not isinstance(control_image, list):
             control_image = [control_image]

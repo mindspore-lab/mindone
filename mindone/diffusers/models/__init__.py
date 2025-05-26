@@ -25,12 +25,12 @@ _import_structure = {
     "autoencoders.autoencoder_kl_cogvideox": ["AutoencoderKLCogVideoX"],
     "autoencoders.autoencoder_kl_hunyuan_video": ["AutoencoderKLHunyuanVideo"],
     "autoencoders.autoencoder_kl_ltx": ["AutoencoderKLLTXVideo"],
+    "autoencoders.autoencoder_kl_mochi": ["AutoencoderKLMochi"],
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
     "autoencoders.autoencoder_oobleck": ["AutoencoderOobleck"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
     "autoencoders.vq_model": ["VQModel"],
-    "autoencoders.autoencoder_kl_mochi": ["AutoencoderKLMochi"],
     "controlnets.controlnet": ["ControlNetModel"],
     "controlnets.controlnet_flux": ["FluxControlNetModel", "FluxMultiControlNetModel"],
     "controlnets.controlnet_hunyuan": [
@@ -42,7 +42,7 @@ _import_structure = {
     "controlnets.controlnet_union": ["ControlNetUnionModel"],
     "controlnets.controlnet_xs": ["ControlNetXSAdapter", "UNetControlNetXSModel"],
     "controlnets.multicontrolnet": ["MultiControlNetModel"],
-    "dual_transformer_2d": ["DualTransformer2DModel"],
+    "controlnets.multicontrolnet_union": ["MultiControlNetUnionModel"],
     "embeddings": ["ImageProjection"],
     "modeling_utils": ["ModelMixin"],
     "transformers.auraflow_transformer_2d": ["AuraFlowTransformer2DModel"],
@@ -74,13 +74,14 @@ _import_structure = {
     "unets.unet_i2vgen_xl": ["I2VGenXLUNet"],
     "unets.unet_kandinsky3": ["Kandinsky3UNet"],
     "unets.unet_motion_model": ["MotionAdapter", "UNetMotionModel"],
-    "unets.unet_stable_cascade": ["StableCascadeUNet"],
     "unets.unet_spatio_temporal_condition": ["UNetSpatioTemporalConditionModel"],
+    "unets.unet_stable_cascade": ["StableCascadeUNet"],
     "unets.uvit_2d": ["UVit2DModel"],
 }
 
 if TYPE_CHECKING:
     from .adapter import MultiAdapter, T2IAdapter
+    from .auto_model import AutoModel
     from .autoencoders import (
         AsymmetricAutoencoderKL,
         AutoencoderDC,
@@ -105,6 +106,7 @@ if TYPE_CHECKING:
         HunyuanDiT2DControlNetModel,
         HunyuanDiT2DMultiControlNetModel,
         MultiControlNetModel,
+        MultiControlNetUnionModel,
         SD3ControlNetModel,
         SD3MultiControlNetModel,
         SparseControlNetModel,

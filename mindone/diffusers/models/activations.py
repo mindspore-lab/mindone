@@ -163,7 +163,7 @@ class LinearActivation(nn.Cell):
         super().__init__()
 
         self.proj = mint.nn.Linear(dim_in, dim_out, bias=bias)
-        self.activation = get_activation(activation)()
+        self.activation = get_activation(activation)
 
     def construct(self, hidden_states):
         hidden_states = self.proj(hidden_states)

@@ -374,7 +374,7 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
             ]
         )
 
-        self.norm_out = mint.LayerNorm(inner_dim, eps=1e-6)
+        self.norm_out = mint.nn.LayerNorm(inner_dim, eps=1e-6)
         self.proj_out = mint.nn.Linear(inner_dim, out_channels)
 
         self.gradient_checkpointing = False
