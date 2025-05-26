@@ -1,5 +1,5 @@
 # coding=utf-8
-# Copyright 2024 The HuggingFace Inc. team and MindSpore team.
+# Copyright 2025 The HuggingFace Inc. team and MindSpore team.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -34,6 +34,10 @@ from .controlnet import (
     StableDiffusionXLControlNetUnionInpaintPipeline,
     StableDiffusionXLControlNetUnionPipeline,
 )
+from .controlnet_sd3 import (
+    StableDiffusion3ControlNetInpaintingPipeline,
+    StableDiffusion3ControlNetPipeline,
+)
 from .deepfloyd_if import IFImg2ImgPipeline, IFInpaintingPipeline, IFPipeline
 from .flux import (
     FluxControlImg2ImgPipeline,
@@ -65,10 +69,11 @@ from .kandinsky2_2 import (
 )
 from .kandinsky3 import Kandinsky3Img2ImgPipeline, Kandinsky3Pipeline
 from .latent_consistency_models import LatentConsistencyModelImg2ImgPipeline, LatentConsistencyModelPipeline
-from .lumina import LuminaText2ImgPipeline
+from .lumina import LuminaPipeline
 from .pag import (
     HunyuanDiTPAGPipeline,
     PixArtSigmaPAGPipeline,
+    SanaPAGPipeline,
     StableDiffusion3PAGImg2ImgPipeline,
     StableDiffusion3PAGPipeline,
     StableDiffusionControlNetPAGInpaintPipeline,
@@ -83,8 +88,13 @@ from .pag import (
     StableDiffusionXLPAGPipeline,
 )
 from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
+from .sana import SanaPipeline
 from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline
-from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline, StableDiffusionPipeline
+from .stable_diffusion import (
+    StableDiffusionImg2ImgPipeline,
+    StableDiffusionInpaintPipeline,
+    StableDiffusionPipeline,
+)
 from .stable_diffusion_3 import (
     StableDiffusion3Img2ImgPipeline,
     StableDiffusion3InpaintPipeline,
@@ -96,6 +106,7 @@ from .stable_diffusion_xl import (
     StableDiffusionXLPipeline,
 )
 from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline
+
 
 AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
     [
@@ -112,11 +123,14 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("stable-diffusion-controlnet", StableDiffusionControlNetPipeline),
         ("stable-diffusion-xl-controlnet", StableDiffusionXLControlNetPipeline),
         ("stable-diffusion-xl-controlnet-union", StableDiffusionXLControlNetUnionPipeline),
+        ("stable-diffusion-3-controlnet", StableDiffusion3ControlNetPipeline),
         ("wuerstchen", WuerstchenCombinedPipeline),
         ("cascade", StableCascadeCombinedPipeline),
         ("lcm", LatentConsistencyModelPipeline),
         ("pixart-alpha", PixArtAlphaPipeline),
         ("pixart-sigma", PixArtSigmaPipeline),
+        ("sana", SanaPipeline),
+        ("sana-pag", SanaPAGPipeline),
         ("stable-diffusion-pag", StableDiffusionPAGPipeline),
         ("stable-diffusion-controlnet-pag", StableDiffusionControlNetPAGPipeline),
         ("stable-diffusion-xl-pag", StableDiffusionXLPAGPipeline),
@@ -126,7 +140,7 @@ AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("flux", FluxPipeline),
         ("flux-control", FluxControlPipeline),
         ("flux-controlnet", FluxControlNetPipeline),
-        ("lumina", LuminaText2ImgPipeline),
+        ("lumina", LuminaPipeline),
         ("cogview3", CogView3PlusPipeline),
         ("cogview4", CogView4Pipeline),
     ]
@@ -143,9 +157,9 @@ AUTO_IMAGE2IMAGE_PIPELINES_MAPPING = OrderedDict(
         ("kandinsky22", KandinskyV22Img2ImgCombinedPipeline),
         ("kandinsky3", Kandinsky3Img2ImgPipeline),
         ("stable-diffusion-controlnet", StableDiffusionControlNetImg2ImgPipeline),
-        ("stable-diffusion-xl-controlnet-union", StableDiffusionXLControlNetUnionImg2ImgPipeline),
         ("stable-diffusion-pag", StableDiffusionPAGImg2ImgPipeline),
         ("stable-diffusion-xl-controlnet", StableDiffusionXLControlNetImg2ImgPipeline),
+        ("stable-diffusion-xl-controlnet-union", StableDiffusionXLControlNetUnionImg2ImgPipeline),
         ("stable-diffusion-xl-pag", StableDiffusionXLPAGImg2ImgPipeline),
         ("stable-diffusion-xl-controlnet-pag", StableDiffusionXLControlNetPAGImg2ImgPipeline),
         ("lcm", LatentConsistencyModelImg2ImgPipeline),
@@ -167,6 +181,7 @@ AUTO_INPAINT_PIPELINES_MAPPING = OrderedDict(
         ("stable-diffusion-controlnet-pag", StableDiffusionControlNetPAGInpaintPipeline),
         ("stable-diffusion-xl-controlnet", StableDiffusionXLControlNetInpaintPipeline),
         ("stable-diffusion-xl-controlnet-union", StableDiffusionXLControlNetUnionInpaintPipeline),
+        ("stable-diffusion-3-controlnet", StableDiffusion3ControlNetInpaintingPipeline),
         ("stable-diffusion-xl-pag", StableDiffusionXLPAGInpaintPipeline),
         ("flux", FluxInpaintPipeline),
         ("flux-controlnet", FluxControlNetInpaintPipeline),
@@ -217,7 +232,9 @@ SUPPORTED_TASKS_MAPPINGS = [
 def _get_connected_pipeline(pipeline_cls):
     # for now connected pipelines can only be loaded from decoder pipelines, such as kandinsky-community/kandinsky-2-2-decoder
     if pipeline_cls in _AUTO_TEXT2IMAGE_DECODER_PIPELINES_MAPPING.values():
-        return _get_task_class(AUTO_TEXT2IMAGE_PIPELINES_MAPPING, pipeline_cls.__name__, throw_error_if_not_exist=False)
+        return _get_task_class(
+            AUTO_TEXT2IMAGE_PIPELINES_MAPPING, pipeline_cls.__name__, throw_error_if_not_exist=False
+        )
     if pipeline_cls in _AUTO_IMAGE2IMAGE_DECODER_PIPELINES_MAPPING.values():
         return _get_task_class(
             AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, pipeline_cls.__name__, throw_error_if_not_exist=False
@@ -288,7 +305,7 @@ class AutoPipelineForText2Image(ConfigMixin):
         If you get the error message below, you need to finetune the weights for your downstream task:
 
         ```
-        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:  # noqa: E501
+        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at stable-diffusion-v1-5/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:  # noqa: E501
         - conv_in.weight: found shape [320, 4, 3, 3] in the checkpoint and [320, 9, 3, 3] in the model instantiated
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```
@@ -361,7 +378,7 @@ class AutoPipelineForText2Image(ConfigMixin):
         ```py
         >>> from mindone.diffusers import AutoPipelineForText2Image
 
-        >>> pipeline = AutoPipelineForText2Image.from_pretrained("runwayml/stable-diffusion-v1-5")
+        >>> pipeline = AutoPipelineForText2Image.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5")
         >>> image = pipeline(prompt)[0][0]
         ```
         """
@@ -424,7 +441,7 @@ class AutoPipelineForText2Image(ConfigMixin):
         >>> from mindone.diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image
 
         >>> pipe_i2i = AutoPipelineForImage2Image.from_pretrained(
-        ...     "runwayml/stable-diffusion-v1-5", requires_safety_checker=False
+        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", requires_safety_checker=False
         ... )
 
         >>> pipe_t2i = AutoPipelineForText2Image.from_pipe(pipe_i2i)
@@ -504,7 +521,9 @@ class AutoPipelineForText2Image(ConfigMixin):
             if k not in text_2_image_kwargs
         }
 
-        missing_modules = set(expected_modules) - set(pipeline._optional_components) - set(text_2_image_kwargs.keys())
+        missing_modules = (
+            set(expected_modules) - set(text_2_image_cls._optional_components) - set(text_2_image_kwargs.keys())
+        )
 
         if len(missing_modules) > 0:
             raise ValueError(
@@ -563,7 +582,7 @@ class AutoPipelineForImage2Image(ConfigMixin):
         If you get the error message below, you need to finetune the weights for your downstream task:
 
         ```
-        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:  # noqa: E501
+        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at stable-diffusion-v1-5/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:  # noqa: E501
         - conv_in.weight: found shape [320, 4, 3, 3] in the checkpoint and [320, 9, 3, 3] in the model instantiated
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```
@@ -636,7 +655,7 @@ class AutoPipelineForImage2Image(ConfigMixin):
         ```py
         >>> from mindone.diffusers import AutoPipelineForImage2Image
 
-        >>> pipeline = AutoPipelineForImage2Image.from_pretrained("runwayml/stable-diffusion-v1-5")
+        >>> pipeline = AutoPipelineForImage2Image.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5")
         >>> image = pipeline(prompt, image)[0][0]
         ```
         """
@@ -711,7 +730,7 @@ class AutoPipelineForImage2Image(ConfigMixin):
         >>> from mindone.diffusers import AutoPipelineForText2Image, AutoPipelineForImage2Image
 
         >>> pipe_t2i = AutoPipelineForText2Image.from_pretrained(
-        ...     "runwayml/stable-diffusion-v1-5", requires_safety_checker=False
+        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", requires_safety_checker=False
         ... )
 
         >>> pipe_i2i = AutoPipelineForImage2Image.from_pipe(pipe_t2i)
@@ -793,7 +812,9 @@ class AutoPipelineForImage2Image(ConfigMixin):
             if k not in image_2_image_kwargs
         }
 
-        missing_modules = set(expected_modules) - set(pipeline._optional_components) - set(image_2_image_kwargs.keys())
+        missing_modules = (
+            set(expected_modules) - set(image_2_image_cls._optional_components) - set(image_2_image_kwargs.keys())
+        )
 
         if len(missing_modules) > 0:
             raise ValueError(
@@ -851,7 +872,7 @@ class AutoPipelineForInpainting(ConfigMixin):
         If you get the error message below, you need to finetune the weights for your downstream task:
 
         ```
-        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at runwayml/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:  # noqa: E501
+        Some weights of UNet2DConditionModel were not initialized from the model checkpoint at stable-diffusion-v1-5/stable-diffusion-v1-5 and are newly initialized because the shapes did not match:  # noqa: E501
         - conv_in.weight: found shape [320, 4, 3, 3] in the checkpoint and [320, 9, 3, 3] in the model instantiated
         You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
         ```
@@ -924,7 +945,7 @@ class AutoPipelineForInpainting(ConfigMixin):
         ```py
         >>> from mindone.diffusers import AutoPipelineForInpainting
 
-        >>> pipeline = AutoPipelineForInpainting.from_pretrained("runwayml/stable-diffusion-v1-5")
+        >>> pipeline = AutoPipelineForInpainting.from_pretrained("stable-diffusion-v1-5/stable-diffusion-v1-5")
         >>> image = pipeline(prompt, image=init_image, mask_image=mask_image)[0][0]
         ```
         """
@@ -1077,7 +1098,9 @@ class AutoPipelineForInpainting(ConfigMixin):
             if k not in inpainting_kwargs
         }
 
-        missing_modules = set(expected_modules) - set(pipeline._optional_components) - set(inpainting_kwargs.keys())
+        missing_modules = (
+            set(expected_modules) - set(inpainting_cls._optional_components) - set(inpainting_kwargs.keys())
+        )
 
         if len(missing_modules) > 0:
             raise ValueError(

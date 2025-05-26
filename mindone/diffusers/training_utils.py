@@ -149,14 +149,18 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
     """
 
     text_encoder_state_dict = {
-        f'{k.replace(prefix, "")}': v for k, v in lora_state_dict.items() if k.startswith(prefix)
+        f"{k.replace(prefix, '')}": v for k, v in lora_state_dict.items() if k.startswith(prefix)
     }
     text_encoder_state_dict = convert_state_dict_to_peft(convert_state_dict_to_diffusers(text_encoder_state_dict))
     set_peft_model_state_dict(text_encoder, text_encoder_state_dict, adapter_name="default")
 
 
 def compute_density_for_timestep_sampling(
-    weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
+    weighting_scheme: str,
+    batch_size: int,
+    logit_mean: float = None,
+    logit_std: float = None,
+    mode_scale: float = None
 ):
     """
     Compute the density for sampling the timesteps when doing SD3 training.

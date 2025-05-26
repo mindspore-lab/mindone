@@ -29,7 +29,11 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline, StableDiffusionMixin
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -97,7 +101,7 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
             scheduler=scheduler,
             vocoder=vocoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
 
     def _encode_prompt(
         self,

@@ -413,9 +413,6 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         self._gradient_checkpointing = False
 
-    # def _set_gradient_checkpointing(self, value=False):
-    #     self._gradient_checkpointing = value
-
     def _init_weights(self, m):
         if isinstance(m, (mint.nn.Conv2d, mint.nn.Linear)):
             m.weight.set_data(initializer(XavierNormal(), m.weight.shape, m.weight.dtype))
@@ -461,7 +458,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 if isinstance(block, SDCascadeResBlock):
                     block.channelwise[-1].weight *= np.sqrt(1 / sum(self.config.blocks[0]))
                 elif isinstance(block, SDCascadeTimestepBlock):
-                    nn.init.constant_(block.mapper.weight, 0)
+                    block.mapper.weight.data.constant_(0)
 
     def get_timestep_ratio_embedding(self, timestep_ratio, max_positions=10000):
         r = timestep_ratio * max_positions

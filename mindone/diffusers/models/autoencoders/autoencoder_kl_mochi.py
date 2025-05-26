@@ -111,7 +111,7 @@ class MochiResnetBlock3D(nn.Cell):
 
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.nonlinearity = get_activation(act_fn)()
+        self.nonlinearity = get_activation(act_fn)
 
         self.norm1 = MochiChunkedGroupNorm3D(num_channels=in_channels)
         self.conv1 = CogVideoXCausalConv3d(
@@ -468,7 +468,9 @@ class FourierFeatures(nn.Cell):
         w = w.repeat(num_channels)[None, :, None, None, None]  # [1, num_channels * num_freqs, 1, 1, 1]
 
         # Interleaved repeat of input channels to match w
-        h = inputs.repeat_interleave(num_freqs, dim=1)  # [B, C * num_freqs, T, H, W]
+        h = inputs.repeat_interleave(
+            num_freqs, dim=1, output_size=inputs.shape[1] * num_freqs
+        )  # [B, C * num_freqs, T, H, W]
         # Scale channels by frequency.
         h = w * h
 
@@ -510,7 +512,7 @@ class MochiEncoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.nonlinearity = get_activation(act_fn)()
+        self.nonlinearity = get_activation(act_fn)
 
         self.fourier_features = FourierFeatures()
         self.proj_in = mint.nn.Linear(in_channels, block_out_channels[0])
@@ -619,7 +621,7 @@ class MochiDecoder3D(nn.Cell):
     ):
         super().__init__()
 
-        self.nonlinearity = get_activation(act_fn)()
+        self.nonlinearity = get_activation(act_fn)
 
         self.conv_in = mint.nn.Conv3d(in_channels, block_out_channels[-1], kernel_size=(1, 1, 1))
         self.block_in = MochiMidBlock3D(
@@ -823,10 +825,6 @@ class AutoencoderKLMochi(ModelMixin, ConfigMixin):
         # The minimal distance between two spatial tiles
         self.tile_sample_stride_height = 192
         self.tile_sample_stride_width = 192
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (MochiEncoder3D, MochiDecoder3D)):
-            module.gradient_checkpointing = value
 
     def enable_tiling(
         self,

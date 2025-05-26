@@ -54,13 +54,15 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
 
         >>> vae = ConsistencyDecoderVAE.from_pretrained("openai/consistency-decoder", mindspore_dtype=mindspore.float16)
         >>> pipe = StableDiffusionPipeline.from_pretrained(
-        ...     "runwayml/stable-diffusion-v1-5", vae=vae, mindspore_dtype=mindspore.float16
+        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", vae=vae, mindspore_dtype=mindspore.float16
         ... )
 
         >>> image = pipe("horse")[0][0]
         >>> image
         ```
     """
+
+    _supports_group_offloading = False
 
     @register_to_config
     def __init__(

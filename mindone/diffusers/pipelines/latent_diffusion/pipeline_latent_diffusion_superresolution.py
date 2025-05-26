@@ -21,6 +21,9 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
 
+XLA_AVAILABLE = False
+
+
 def preprocess(image):
     w, h = image.size
     w, h = (x - x % 32 for x in (w, h))  # resize to integer multiple of 32

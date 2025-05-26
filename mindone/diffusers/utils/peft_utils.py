@@ -191,22 +191,15 @@ def set_weights_and_activate_adapters(model, adapter_names, weights):
 
         return block_weight
 
-    # iterate over each adapter, make it active and set the corresponding scaling weight
-    for adapter_name, weight in zip(adapter_names, weights):
-        for module_name, module in model.cells_and_names():
-            if isinstance(module, BaseTunerLayer):
-                # For backward compatibility with previous PEFT versions
-                if hasattr(module, "set_adapter"):
-                    module.set_adapter(adapter_name)
-                else:
-                    raise RuntimeError("'BaseTunerLayer' object has no attribute 'set_adapter'")
-                module.set_scale(adapter_name, get_module_weight(weight, module_name))
-
-    # set multiple active adapters
-    for _, module in model.cells_and_names():
+    for module_name, module in model.cells_and_names():
         if isinstance(module, BaseTunerLayer):
-            # For backward compatibility with previous PEFT versions
+            # For backward compatibility with previous PEFT versions, set multiple active adapters
             if hasattr(module, "set_adapter"):
                 module.set_adapter(adapter_names)
             else:
                 raise RuntimeError("'BaseTunerLayer' object has no attribute 'set_adapter'")
+
+            # Set the scaling weight for each adapter for this module
+            for adapter_name, weight in zip(adapter_names, weights):
+                module.set_scale(adapter_name, get_module_weight(weight, module_name))
+

@@ -15,8 +15,13 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 
+from ...models import UNet2DModel
+from ...schedulers import DDPMScheduler
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+
+
+XLA_AVAILABLE = False
 
 
 class DDPMPipeline(DiffusionPipeline):
@@ -36,7 +41,7 @@ class DDPMPipeline(DiffusionPipeline):
 
     model_cpu_offload_seq = "unet"
 
-    def __init__(self, unet, scheduler):
+    def __init__(self, unet: UNet2DModel, scheduler: DDPMScheduler):
         super().__init__()
         self.register_modules(unet=unet, scheduler=scheduler)
 

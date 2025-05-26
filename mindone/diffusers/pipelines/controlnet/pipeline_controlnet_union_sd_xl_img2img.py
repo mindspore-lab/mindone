@@ -41,8 +41,12 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 
+
 if is_invisible_watermark_available():
     from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -224,12 +228,7 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
         "feature_extractor",
         "image_encoder",
     ]
-    _callback_tensor_inputs = [
-        "latents",
-        "prompt_embeds",
-        "add_text_embeds",
-        "add_time_ids",
-    ]
+    _callback_tensor_inputs = ["latents", "prompt_embeds", "add_text_embeds", "add_time_ids", "control_image"]
 
     def __init__(
         self,
@@ -264,7 +263,7 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True)
         self.control_image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
@@ -368,6 +367,9 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
             prompt_embeds_list = []
             prompts = [prompt, prompt_2]
             for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders):
+                if isinstance(self, TextualInversionLoaderMixin):
+                    prompt = self.maybe_convert_prompt(prompt, tokenizer)
+
                 text_inputs = tokenizer(
                     prompt,
                     padding="max_length",
@@ -388,10 +390,12 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                pooled_prompt_embeds = prompt_embeds[0]
+                if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
+                    pooled_prompt_embeds = prompt_embeds[0]
+
                 if clip_skip is None:
                     prompt_embeds = prompt_embeds[-1][-2]
                 else:
@@ -434,6 +438,9 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
 
             negative_prompt_embeds_list = []
             for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders):
+                if isinstance(self, TextualInversionLoaderMixin):
+                    negative_prompt = self.maybe_convert_prompt(negative_prompt, tokenizer)
+
                 max_length = prompt_embeds.shape[1]
                 uncond_input = tokenizer(
                     negative_prompt,
@@ -444,11 +451,13 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
                 )
 
                 negative_prompt_embeds = text_encoder(
-                    ms.Tensor(uncond_input.input_ids),
+                    ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
+
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                negative_pooled_prompt_embeds = negative_prompt_embeds[0]
+                if negative_pooled_prompt_embeds is None and negative_prompt_embeds[0].ndim == 2:
+                    negative_pooled_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[-1][-2]
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
@@ -503,7 +512,7 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
@@ -683,16 +692,6 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
             self.check_image(image, prompt, prompt_embeds)
         elif isinstance(self.controlnet, ControlNetUnionModel):
             self.check_image(image, prompt, prompt_embeds)
-        else:
-            assert False
-
-        # Check `controlnet_conditioning_scale`
-        if isinstance(self.controlnet, ControlNetModel):
-            if not isinstance(controlnet_conditioning_scale, float):
-                raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
-        elif isinstance(self.controlnet, ControlNetUnionModel):
-            if not isinstance(controlnet_conditioning_scale, float):
-                raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
         else:
             assert False
 
@@ -1215,6 +1214,8 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
 
         if not isinstance(control_image, list):
             control_image = [control_image]
+        else:
+            control_image = control_image.copy()
 
         if not isinstance(control_mode, list):
             control_mode = [control_mode]
@@ -1249,7 +1250,7 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
                 callback_on_step_end_tensor_inputs,
             )
 
-        control_type = ms.Tensor(control_type)
+        control_type = ms.tensor(control_type)
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
@@ -1488,6 +1489,7 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
                     prompt_embeds = callback_outputs.pop("prompt_embeds", prompt_embeds)
                     add_text_embeds = callback_outputs.pop("add_text_embeds", add_text_embeds)
                     add_time_ids = callback_outputs.pop("add_time_ids", add_time_ids)
+                    control_image = callback_outputs.pop("control_image", control_image)
 
                 # call the callback, if provided
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
@@ -1509,8 +1511,8 @@ class StableDiffusionXLControlNetUnionImg2ImgPipeline(
             has_latents_mean = hasattr(self.vae.config, "latents_mean") and self.vae.config.latents_mean is not None
             has_latents_std = hasattr(self.vae.config, "latents_std") and self.vae.config.latents_std is not None
             if has_latents_mean and has_latents_std:
-                latents_mean = ms.Tensor(self.vae.config.latents_mean).view(1, 4, 1, 1).to(latents.dtype)
-                latents_std = ms.Tensor(self.vae.config.latents_std).view(1, 4, 1, 1).to(latents.dtype)
+                latents_mean = ms.tensor(self.vae.config.latents_mean).view(1, 4, 1, 1).to(latents.dtype)
+                latents_std = ms.tensor(self.vae.config.latents_std).view(1, 4, 1, 1).to(latents.dtype)
                 latents = latents * latents_std / self.vae.config.scaling_factor + latents_mean
             else:
                 latents = latents / self.vae.config.scaling_factor

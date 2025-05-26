@@ -22,6 +22,9 @@ from ..pipeline_utils import DiffusionPipeline
 from .modeling_text_decoder import UniDiffuserTextDecoder
 from .modeling_uvit import UniDiffuserModel
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

@@ -23,7 +23,7 @@ from mindspore import mint
 
 from ....transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...image_processor import PipelineImageInput
-from ...loaders import IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+from ...loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import AutoencoderKL, ImageProjection, UNet2DConditionModel, UNetMotionModel
 from ...models.unets.unet_motion_model import MotionAdapter
 from ...schedulers import (
@@ -40,6 +40,9 @@ from ...video_processor import VideoProcessor
 from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import AnimateDiffPipelineOutput
+
+
+XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -90,6 +93,7 @@ class AnimateDiffPipeline(
     IPAdapterMixin,
     LoraLoaderMixin,
     AnimateDiffFreeNoiseMixin,
+    FromSingleFileMixin,
 ):
     r"""
     Pipeline for text-to-video generation.
@@ -155,7 +159,7 @@ class AnimateDiffPipeline(
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(do_resize=False, vae_scale_factor=self.vae_scale_factor)
 
     # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.encode_prompt with num_images_per_prompt -> num_videos_per_prompt  # noqa: E501

@@ -95,7 +95,6 @@ if TYPE_CHECKING:
     from .scheduling_unipc_multistep import UniPCMultistepScheduler
     from .scheduling_utils import AysSchedules, KarrasDiffusionSchedulers, SchedulerMixin
     from .scheduling_vq_diffusion import VQDiffusionScheduler
-
 else:
     import sys
 

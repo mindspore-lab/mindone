@@ -59,7 +59,7 @@ class DownResnetBlock1D(nn.Cell):
         self.resnets = nn.CellList(resnets)
 
         if self.non_linearity is not None:
-            self.nonlinearity = get_activation(non_linearity)()
+            self.nonlinearity = get_activation(non_linearity)
 
         if self.add_downsample:
             self.downsample = Downsample1D(out_channels, use_conv=True, padding=1)
@@ -117,7 +117,7 @@ class UpResnetBlock1D(nn.Cell):
         self.resnets = nn.CellList(resnets)
 
         if self.non_linearity is not None:
-            self.nonlinearity = get_activation(non_linearity)()
+            self.nonlinearity = get_activation(non_linearity)
 
         if self.add_upsample:
             self.upsample = Upsample1D(out_channels, use_conv_transpose=True)
@@ -192,7 +192,7 @@ class MidResTemporalBlock1D(nn.Cell):
         self.resnets = nn.CellList(resnets)
 
         if self.non_linearity is not None:
-            self.nonlinearity = get_activation(non_linearity)()
+            self.nonlinearity = get_activation(non_linearity)
 
         if self.add_upsample:
             self.upsample = Upsample1D(out_channels, use_conv=True)
@@ -222,7 +222,7 @@ class OutConv1DBlock(nn.Cell):
         # todo: unavailable mint interface
         self.final_conv1d_1 = nn.Conv1d(embed_dim, embed_dim, 5, padding=2, has_bias=True, pad_mode="pad")
         self.final_conv1d_gn = GroupNorm(num_groups_out, embed_dim)
-        self.final_conv1d_act = get_activation(act_fn)()
+        self.final_conv1d_act = get_activation(act_fn)
         # todo: unavailable mint interface
         self.final_conv1d_2 = nn.Conv1d(embed_dim, out_channels, 1, has_bias=True, pad_mode="valid")
 
@@ -242,7 +242,7 @@ class OutValueFunctionBlock(nn.Cell):
         self.final_block = nn.CellList(
             [
                 mint.nn.Linear(fc_dim + embed_dim, fc_dim // 2),
-                get_activation(act_fn)(),
+                get_activation(act_fn),
                 mint.nn.Linear(fc_dim // 2, 1),
             ]
         )

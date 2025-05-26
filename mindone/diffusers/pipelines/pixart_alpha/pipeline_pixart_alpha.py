@@ -31,7 +31,11 @@ from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_avai
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -275,7 +279,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     def encode_prompt(
@@ -910,9 +914,7 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                 latents_dtype = latents.dtype
                 if num_inference_steps == 1:
                     # For DMD one step sampling: https://arxiv.org/abs/2311.18828
-                    latents = self.scheduler.step(
-                        noise_pred, t, latents, **extra_step_kwargs, return_dict=True
-                    ).pred_original_sample
+                    latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[1]
                 else:
                     latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
                 latents = latents.to(latents_dtype)

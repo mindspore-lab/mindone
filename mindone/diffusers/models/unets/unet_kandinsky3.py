@@ -23,7 +23,7 @@ from ...utils import BaseOutput, logging
 from ..attention_processor import Attention, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..normalization import GroupNorm, LayerNorm
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -37,7 +37,7 @@ class Kandinsky3EncoderProj(nn.Cell):
     def __init__(self, encoder_hid_dim, cross_attention_dim):
         super().__init__()
         self.projection_linear = mint.nn.Linear(encoder_hid_dim, cross_attention_dim, bias=False)
-        self.projection_norm = LayerNorm(cross_attention_dim)
+        self.projection_norm = mint.nn.LayerNorm(cross_attention_dim)
 
     def construct(self, x):
         x = self.projection_linear(x)
@@ -138,7 +138,7 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
             )
         self.up_blocks = nn.CellList(self.up_blocks)
 
-        self.conv_norm_out = GroupNorm(groups, init_channels)
+        self.conv_norm_out = mint.nn.GroupNorm(groups, init_channels)
         self.conv_act_out = mint.nn.SiLU()
         self.conv_out = mint.nn.Conv2d(init_channels, out_channels, kernel_size=3, padding=1)
 
@@ -202,10 +202,6 @@ class Kandinsky3UNet(ModelMixin, ConfigMixin):
         Disables custom attention processors and sets the default attention implementation.
         """
         self.set_attn_processor(AttnProcessor())
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
 
     def construct(self, sample, timestep, encoder_hidden_states=None, encoder_attention_mask=None, return_dict=False):
         if encoder_attention_mask is not None:
@@ -387,7 +383,7 @@ class Kandinsky3DownSampleBlock(nn.Cell):
 class Kandinsky3ConditionalGroupNorm(nn.Cell):
     def __init__(self, groups, normalized_shape, context_dim):
         super().__init__()
-        self.norm = GroupNorm(groups, normalized_shape, affine=False)
+        self.norm = mint.nn.GroupNorm(groups, normalized_shape, affine=False)
         self.context_mlp = nn.SequentialCell(
             mint.nn.SiLU(),
             mint.nn.Linear(context_dim, 2 * normalized_shape, weight_init="zeros", bias_init="zeros"),

@@ -30,7 +30,11 @@ from ..blip_diffusion.modeling_blip2 import Blip2QFormerModel
 from ..blip_diffusion.modeling_ctx_clip import ContextCLIPTextModel
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:

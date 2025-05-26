@@ -29,7 +29,11 @@ from .blip_image_processing import BlipImageProcessor
 from .modeling_blip2 import Blip2QFormerModel
 from .modeling_ctx_clip import ContextCLIPTextModel
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:

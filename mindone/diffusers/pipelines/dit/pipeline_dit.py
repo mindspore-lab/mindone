@@ -31,6 +31,9 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
 
+XLA_AVAILABLE = False
+
+
 class DiTPipeline(DiffusionPipeline):
     r"""
     Pipeline for image generation based on a Transformer backbone instead of a UNet.
@@ -178,13 +181,10 @@ class DiTPipeline(DiffusionPipeline):
             timesteps = t
             # todo: unavailable mint interface
             if not ops.is_tensor(timesteps):
-                # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
-                # This would be a good case for the `match` statement (Python 3.10+)
-                is_mps = False
                 if isinstance(timesteps, float):
-                    dtype = ms.float32 if is_mps else ms.float64
+                    dtype = ms.float32
                 else:
-                    dtype = ms.int32 if is_mps else ms.int64
+                    dtype = ms.int32
                 timesteps = ms.Tensor([timesteps], dtype=dtype)
             elif len(timesteps.shape) == 0:
                 timesteps = timesteps[None]

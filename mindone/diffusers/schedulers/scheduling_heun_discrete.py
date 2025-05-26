@@ -343,7 +343,7 @@ class HeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
         timesteps = ms.Tensor(timesteps)
         timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
 
-        self.timesteps = timesteps
+        self.timesteps = timesteps.to(dtype=ms.float32)
 
         # empty dt and derivative
         self.prev_derivative = None

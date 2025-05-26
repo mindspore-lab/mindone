@@ -283,7 +283,7 @@ class StableDiffusionXLPAGInpaintPipeline(
         )
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
         self.register_to_config(requires_aesthetics_score=requires_aesthetics_score)
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
         self.mask_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_normalize=False, do_binarize=True, do_convert_grayscale=True
@@ -484,7 +484,9 @@ class StableDiffusionXLPAGInpaintPipeline(
                 prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                pooled_prompt_embeds = prompt_embeds[0]
+                if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
+                    pooled_prompt_embeds = prompt_embeds[0]
+
                 if clip_skip is None:
                     prompt_embeds = prompt_embeds[-1][-2]
                 else:
@@ -543,8 +545,10 @@ class StableDiffusionXLPAGInpaintPipeline(
                     ms.Tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
+
                 # We are only ALWAYS interested in the pooled output of the final text encoder
-                negative_pooled_prompt_embeds = negative_prompt_embeds[0]
+                if negative_pooled_prompt_embeds is None and negative_prompt_embeds[0].ndim == 2:
+                    negative_pooled_prompt_embeds = negative_prompt_embeds[0]
                 negative_prompt_embeds = negative_prompt_embeds[-1][-2]
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
@@ -691,7 +695,7 @@ class StableDiffusionXLPAGInpaintPipeline(
         if padding_mask_crop is not None:
             if not isinstance(image, PIL.Image.Image):
                 raise ValueError(
-                    f"The image should be a PIL image when inpainting mask crop, but is of type" f" {type(image)}."
+                    f"The image should be a PIL image when inpainting mask crop, but is of type {type(image)}."
                 )
             if not isinstance(mask_image, PIL.Image.Image):
                 raise ValueError(
@@ -699,7 +703,7 @@ class StableDiffusionXLPAGInpaintPipeline(
                     f" {type(mask_image)}."
                 )
             if output_type != "pil":
-                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is" f" {output_type}.")
+                raise ValueError(f"The output type should be PIL when inpainting mask crop, but is {output_type}.")
 
         if ip_adapter_image is not None and ip_adapter_image_embeds is not None:
             raise ValueError(
@@ -1443,7 +1447,7 @@ class StableDiffusionXLPAGInpaintPipeline(
                     f"Incorrect configuration settings! The config of `pipeline.unet`: {self.unet.config} expects"
                     f" {self.unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
                     f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
-                    f" = {num_channels_latents+num_channels_masked_image+num_channels_mask}. Please verify the config of"
+                    f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
                     " `pipeline.unet` or your `mask_image` or `image` input."
                 )
         elif num_channels_unet != 4:

@@ -160,7 +160,7 @@ class Attention(nn.Cell):
             )
 
         if norm_num_groups is not None:
-            self.group_norm = GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
+            self.group_norm = mint.nn.GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
         else:
             self.group_norm = None
 
@@ -173,15 +173,15 @@ class Attention(nn.Cell):
             self.norm_q = None
             self.norm_k = None
         elif qk_norm == "layer_norm":
-            self.norm_q = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
-            self.norm_k = LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_q = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            self.norm_k = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
         elif qk_norm == "fp32_layer_norm":
             self.norm_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
             self.norm_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
         elif qk_norm == "layer_norm_across_heads":
             # Lumina applies qk norm across all heads
-            self.norm_q = LayerNorm(dim_head * heads, eps=eps)
-            self.norm_k = LayerNorm(dim_head * kv_heads, eps=eps)
+            self.norm_q = mint.nn.LayerNorm(dim_head * heads, eps=eps)
+            self.norm_k = mint.nn.LayerNorm(dim_head * kv_heads, eps=eps)
         elif qk_norm == "rms_norm":
             self.norm_q = RMSNorm(dim_head, eps=eps)
             self.norm_k = RMSNorm(dim_head, eps=eps)
@@ -193,13 +193,14 @@ class Attention(nn.Cell):
             self.norm_q = LpNorm(p=2, dim=-1, eps=eps)
             self.norm_k = LpNorm(p=2, dim=-1, eps=eps)
         else:
-            raise ValueError(f"unknown qk_norm: {qk_norm}. Should be None,'layer_norm','fp32_layer_norm','rms_norm'")
+            raise ValueError(
+                f"unknown qk_norm: {qk_norm}. Should be one of None, 'layer_norm', 'fp32_layer_norm', 'layer_norm_across_heads', 'rms_norm', 'rms_norm_across_heads', 'l2'."
+            )
 
-        self.cross_attention_norm = cross_attention_norm
         if cross_attention_norm is None:
             self.norm_cross = None
         elif cross_attention_norm == "layer_norm":
-            self.norm_cross = LayerNorm(self.cross_attention_dim)
+            self.norm_cross = mint.nn.LayerNorm(self.cross_attention_dim)
         elif cross_attention_norm == "group_norm":
             if self.added_kv_proj_dim is not None:
                 # The given `encoder_hidden_states` are initially of shape
@@ -211,7 +212,7 @@ class Attention(nn.Cell):
             else:
                 norm_cross_num_channels = self.cross_attention_dim
 
-            self.norm_cross = GroupNorm(
+            self.norm_cross = mint.nn.GroupNorm(
                 num_channels=norm_cross_num_channels, num_groups=cross_attention_norm_num_groups, eps=1e-5, affine=True
             )
         else:
@@ -241,9 +242,9 @@ class Attention(nn.Cell):
             self.add_v_proj = None
 
         if not self.pre_only:
-            self.to_out = nn.CellList(
-                [mint.nn.Linear(self.inner_dim, self.out_dim, bias=out_bias), mint.nn.Dropout(p=dropout)]
-            )
+            self.to_out = nn.CellList([
+                mint.nn.Linear(self.inner_dim, self.out_dim, bias=out_bias),
+                mint.nn.Dropout(p=dropout)])
         else:
             self.to_out = None
 
@@ -253,12 +254,20 @@ class Attention(nn.Cell):
             self.to_add_out = None
 
         if qk_norm is not None and added_kv_proj_dim is not None:
-            if qk_norm == "fp32_layer_norm":
+            if qk_norm == "layer_norm":
+                self.norm_added_q = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+                self.norm_added_k = mint.nn.LayerNorm(dim_head, eps=eps, elementwise_affine=elementwise_affine)
+            elif qk_norm == "fp32_layer_norm":
                 self.norm_added_q = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
                 self.norm_added_k = FP32LayerNorm(dim_head, elementwise_affine=False, bias=False, eps=eps)
             elif qk_norm == "rms_norm":
                 self.norm_added_q = RMSNorm(dim_head, eps=eps)
                 self.norm_added_k = RMSNorm(dim_head, eps=eps)
+            elif qk_norm == "rms_norm_across_heads":
+                # Wan applies qk norm across all heads
+                # Wan also doesn't apply a q norm
+                self.norm_added_q = None
+                self.norm_added_k = RMSNorm(dim_head * kv_heads, eps=eps)
             else:
                 raise ValueError(
                     f"unknown qk_norm: {qk_norm}. Should be one of `None,'layer_norm','fp32_layer_norm','rms_norm'`"
@@ -312,11 +321,8 @@ class Attention(nn.Cell):
                 try:
                     # Make sure we can run the memory efficient attention
                     flash_attn = ops.operations.nn_ops.FlashAttentionScore(1, input_layout="BSH")
-                    _ = flash_attn(
-                        mint.randn(1, 16, 64, dtype=ms.float16),
-                        mint.randn(1, 16, 64, dtype=ms.float16),
-                        mint.randn(1, 16, 64, dtype=ms.float16),
-                    )
+                    q = mint.randn(1, 16, 64, dtype=ms.float16)
+                    _ = flash_attn(q, q, q)
                 except Exception as e:
                     raise e
 
@@ -566,10 +572,14 @@ class Attention(nn.Cell):
 
         if out_dim == 3:
             if attention_mask.shape[0] < batch_size * head_size:
-                attention_mask = attention_mask.repeat_interleave(head_size, dim=0)
+                attention_mask = attention_mask.repeat_interleave(
+                    head_size, dim=0, output_size=attention_mask.shape[0] * head_size
+                )
         elif out_dim == 4:
             attention_mask = attention_mask.unsqueeze(1)
-            attention_mask = attention_mask.repeat_interleave(head_size, dim=1)
+            attention_mask = attention_mask.repeat_interleave(
+                head_size, dim=1, output_size=attention_mask.shape[1] * head_size
+            )
 
         if attention_mask_dtype == ms.bool_:
             attention_mask = attention_mask.bool()
@@ -1104,7 +1114,7 @@ class SanaMultiscaleLinearAttention(nn.Cell):
         scores = mint.matmul(key.swapaxes(-1, -2), query)
         scores = scores.to(dtype=ms.float32)
         scores = scores / (mint.sum(scores, dim=2, keepdim=True) + self.eps)
-        hidden_states = mint.matmul(value, scores)
+        hidden_states = mint.matmul(value, scores.to(value.dtype))
         return hidden_states
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -2163,6 +2173,7 @@ class FluxAttnProcessor2_0:
         hidden_states = attn.scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
+
         hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
         hidden_states = hidden_states.to(query.dtype)
 
@@ -2389,9 +2400,8 @@ class FluxIPAdapterJointAttnProcessor2_0(nn.Cell):
 
             # IP-adapter
             ip_query = hidden_states_query_proj
-            ip_attn_output = None
-            # for ip-adapter
-            # TODO: support for multiple adapters
+            ip_attn_output = mint.zeros_like(hidden_states)
+
             for current_ip_hidden_states, scale, to_k_ip, to_v_ip in zip(
                 ip_hidden_states, self.scale, self.to_k_ip, self.to_v_ip
             ):
@@ -2402,12 +2412,14 @@ class FluxIPAdapterJointAttnProcessor2_0(nn.Cell):
                 ip_value = ip_value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
                 # the output of sdp = (batch, num_heads, seq_len, head_dim)
                 # TODO: add support for attn.scale when we move to Torch 2.1
-                ip_attn_output = attn.scaled_dot_product_attention(
+                current_ip_hidden_states = attn.scaled_dot_product_attention(
                     ip_query, ip_key, ip_value, attn_mask=None, dropout_p=0.0, is_causal=False
                 )
-                ip_attn_output = ip_attn_output.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
-                ip_attn_output = scale * ip_attn_output
-                ip_attn_output = ip_attn_output.to(ip_query.dtype)
+                current_ip_hidden_states = current_ip_hidden_states.swapaxes(1, 2).reshape(
+                    batch_size, -1, attn.heads * head_dim
+                )
+                current_ip_hidden_states = current_ip_hidden_states.to(ip_query.dtype)
+                ip_attn_output += scale * current_ip_hidden_states
 
             return hidden_states, encoder_hidden_states, ip_attn_output
         else:
@@ -2459,9 +2471,7 @@ class CogVideoXAttnProcessor2_0:
 
         hidden_states = mint.cat([encoder_hidden_states, hidden_states], dim=1)
 
-        batch_size, sequence_length, _ = (
-            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
-        )
+        batch_size, sequence_length, _ = hidden_states.shape
 
         if attention_mask is not None:
             attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
@@ -3071,8 +3081,10 @@ class StableAudioAttnProcessor2_0:
         if kv_heads != attn.heads:
             # if GQA or MQA, repeat the key/value heads to reach the number of query heads.
             heads_per_kv_head = attn.heads // kv_heads
-            key = mint.repeat_interleave(key, heads_per_kv_head, dim=1)
-            value = mint.repeat_interleave(value, heads_per_kv_head, dim=1)
+            key = mint.repeat_interleave(key, heads_per_kv_head, dim=1, output_size=key.shape[1] * heads_per_kv_head)
+            value = mint.repeat_interleave(
+                value, heads_per_kv_head, dim=1, output_size=value.shape[1] * heads_per_kv_head
+            )
 
         if attn.norm_q is not None:
             query = attn.norm_q(query)
@@ -3240,6 +3252,8 @@ class IPAdapterAttnProcessor(nn.Cell):
                 )
             else:
                 for index, (mask, scale, ip_state) in enumerate(zip(ip_adapter_masks, self.scale, ip_hidden_states)):
+                    if mask is None:
+                        continue
                     if not isinstance(mask, ms.Tensor) or mask.ndim != 4:
                         raise ValueError(
                             "Each element of the ip_adapter_masks array should be a tensor with shape "
@@ -3451,6 +3465,8 @@ class IPAdapterAttnProcessor2_0(nn.Cell):
                 )
             else:
                 for index, (mask, scale, ip_state) in enumerate(zip(ip_adapter_masks, self.scale, ip_hidden_states)):
+                    if mask is None:
+                        continue
                     if not isinstance(mask, ms.Tensor) or mask.ndim != 4:
                         raise ValueError(
                             "Each element of the ip_adapter_masks array should be a tensor with shape "
@@ -4455,6 +4471,14 @@ class SanaLinearAttnProcessor2_0:
         key = attn.to_k(encoder_hidden_states)
         value = attn.to_v(encoder_hidden_states)
 
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        # query = query.transpose(1, 2).unflatten(1, (attn.heads, -1))
+        # key = key.transpose(1, 2).unflatten(1, (attn.heads, -1)).transpose(2, 3)
+        # value = value.transpose(1, 2).unflatten(1, (attn.heads, -1))
         query = query.swapaxes(1, 2)
         query = query.reshape(query.shape[0], attn.heads, -1, *query.shape[2:])
         key = key.swapaxes(1, 2)

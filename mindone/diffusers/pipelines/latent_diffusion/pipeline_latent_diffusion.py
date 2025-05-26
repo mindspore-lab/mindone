@@ -32,6 +32,10 @@ from ...schedulers import DDIMScheduler, LMSDiscreteScheduler, PNDMScheduler
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+
+XLA_AVAILABLE = False
+
+
 _MIN_FP16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
 _MIN_FP32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
 _MIN_FP64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
@@ -576,10 +580,6 @@ class LDMBertPreTrainedModel(MSPreTrainedModel):
                     )
                 )
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (LDMBertEncoder,)):
-            module.gradient_checkpointing = value
-
     @property
     def dummy_inputs(self):
         pad_token = self.config.pad_token_id
@@ -723,13 +723,6 @@ class LDMBertEncoder(LDMBertPreTrainedModel):
             if output_hidden_states:
                 encoder_states = encoder_states + (hidden_states,)
             if self.gradient_checkpointing and self.training:
-
-                def create_custom_forward(module):
-                    def custom_forward(*inputs):
-                        return module(*inputs, output_attentions)
-
-                    return custom_forward
-
                 raise NotImplementedError("Gradient checkpointing is not yet supported.")
             else:
                 layer_outputs = encoder_layer(

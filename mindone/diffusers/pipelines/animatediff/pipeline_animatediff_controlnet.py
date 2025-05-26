@@ -24,7 +24,7 @@ from mindspore import mint
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
 from ...image_processor import PipelineImageInput
-from ...loaders import IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
+from ...loaders import FromSingleFileMixin, IPAdapterMixin, StableDiffusionLoraLoaderMixin, TextualInversionLoaderMixin
 from ...models import (
     AutoencoderKL,
     ControlNetModel,
@@ -39,10 +39,14 @@ from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 from ..free_noise_utils import AnimateDiffFreeNoiseMixin
-from ..pipeline_utils import DiffusionPipeline
+from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import AnimateDiffPipelineOutput
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -115,10 +119,12 @@ EXAMPLE_DOC_STRING = """
 
 class AnimateDiffControlNetPipeline(
     DiffusionPipeline,
+    StableDiffusionMixin,
     TextualInversionLoaderMixin,
     IPAdapterMixin,
     StableDiffusionLoraLoaderMixin,
     AnimateDiffFreeNoiseMixin,
+    FromSingleFileMixin,
 ):
     r"""
     Pipeline for text-to-video generation with ControlNet guidance.
@@ -182,7 +188,7 @@ class AnimateDiffControlNetPipeline(
             feature_extractor=feature_extractor,
             image_encoder=image_encoder,
         )
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor)
         self.control_video_processor = VideoProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False

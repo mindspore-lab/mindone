@@ -18,6 +18,7 @@ import numpy as np
 
 import mindspore as ms
 from mindspore import mint, nn
+import mindspore.mint.nn.functional as F
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -34,19 +35,10 @@ logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 def prepare_causal_attention_mask(
     num_frames: int, height_width: int, dtype: ms.Type, batch_size: int = None
 ) -> ms.Tensor:
-    seq_len = num_frames * height_width
-    mask = mint.full((seq_len, seq_len), float("-inf"), dtype=dtype)
-    # this loop is not supported in graph mode
-    # for i in range(seq_len):
-    #     i_frame = i // height_width
-    #     mask[i, : (i_frame + 1) * height_width] = 0
-
-    indices = mint.arange(seq_len)
-    frame_indices = indices // height_width
-    cutoff = (frame_indices + 1) * height_width
-    j = mint.arange(seq_len).reshape(1, -1)
-    valid_mask = j < cutoff.reshape(-1, 1)
-    mask = mint.where(valid_mask, mint.zeros_like(mask), mask)
+    indices = mint.arange(1, num_frames + 1, dtype=ms.int32)
+    indices_blocks = indices.repeat_interleave(height_width)
+    x, y = mint.meshgrid(indices_blocks, indices_blocks, indexing="xy")
+    mask = mint.where(x <= y, 0, -float("inf")).to(dtype=dtype)
 
     if batch_size is not None:
         mask = mask.unsqueeze(0).broadcast_to((batch_size, -1, -1))
@@ -163,7 +155,7 @@ class HunyuanVideoResnetBlockCausal3D(nn.Cell):
         super().__init__()
         out_channels = out_channels or in_channels
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         self.norm1 = mint.nn.GroupNorm(groups, in_channels, eps=eps, affine=True)
         self.conv1 = HunyuanVideoCausalConv3d(in_channels, out_channels, 3, 1, 0)
@@ -686,7 +678,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
         self.use_tiling = False
 
         # When decoding temporally long video latents, the memory requirement is very high. By decoding latent frames
-        # at a fixed frame batch size (based on `self.num_latent_frames_batch_sizes`), the memory requirement can be lowered.
+        # at a fixed frame batch size (based on `self.tile_sample_min_num_frames`), the memory requirement can be lowered.
         self.use_framewise_encoding = True
         self.use_framewise_decoding = True
 
@@ -699,10 +691,6 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
         self.tile_sample_stride_height = 192
         self.tile_sample_stride_width = 192
         self.tile_sample_stride_num_frames = 12
-
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, (HunyuanVideoEncoder3D, HunyuanVideoDecoder3D)):
-            module.gradient_checkpointing = value
 
     def enable_tiling(
         self,
@@ -768,7 +756,7 @@ class AutoencoderKLHunyuanVideo(ModelMixin, ConfigMixin):
     def _encode(self, x: ms.Tensor) -> ms.Tensor:
         batch_size, num_channels, num_frames, height, width = x.shape
 
-        if self.use_framewise_decoding and num_frames > self.tile_sample_min_num_frames:
+        if self.use_framewise_encoding and num_frames > self.tile_sample_min_num_frames:
             return self._temporal_tiled_encode(x)
 
         if self.use_tiling and (width > self.tile_sample_min_width or height > self.tile_sample_min_height):

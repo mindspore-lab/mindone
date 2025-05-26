@@ -35,7 +35,11 @@ from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_256_BIN, ASPECT_RA
 from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
 from .pag_utils import PAGMixin
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup
@@ -160,7 +164,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
         self.set_pag_applied_layers(pag_applied_layers)
@@ -770,9 +774,9 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
                 current_timestep = t
                 if not ops.is_tensor(current_timestep):
                     if isinstance(current_timestep, float):
-                        dtype = ms.float64
+                        dtype = ms.float32
                     else:
-                        dtype = ms.int64
+                        dtype = ms.int32
                     current_timestep = ms.Tensor([current_timestep], dtype=dtype)
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]

@@ -622,10 +622,6 @@ class ChatGLMPreTrainedModel(MSPreTrainedModel):
         position_ids = mint.tile(mint.unsqueeze(mint.arange(seq_length, dtype=ms.int32), 0), (batch_size, 1))
         return position_ids
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, GLMTransformer):
-            module.gradient_checkpointing = value
-
 
 def default_init(cls, *args, **kwargs):
     return cls(*args, **kwargs)

@@ -31,7 +31,11 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 from .text_encoder import MultilingualCLIP
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -553,7 +557,7 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
                 f"Incorrect configuration settings! The config of `pipeline.unet`: {self.unet.config} expects"
                 f" {self.unet.config.in_channels} but received `num_channels_latents`: {num_channels_latents} +"
                 f" `num_channels_mask`: {num_channels_mask} + `num_channels_masked_image`: {num_channels_masked_image}"
-                f" = {num_channels_latents+num_channels_masked_image+num_channels_mask}. Please verify the config of"
+                f" = {num_channels_latents + num_channels_masked_image + num_channels_mask}. Please verify the config of"
                 " `pipeline.unet` or your `mask_image` or `image` input."
             )
 

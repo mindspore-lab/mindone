@@ -71,6 +71,8 @@ class UNet1DModel(ModelMixin, ConfigMixin):
             Experimental feature for using a UNet without upsampling.
     """
 
+    _skip_layerwise_casting_patterns = ["norm"]
+
     @register_to_config
     def __init__(
         self,
@@ -231,7 +233,7 @@ class UNet1DModel(ModelMixin, ConfigMixin):
         # there might be better ways to encapsulate this.
         timestep_embed = timestep_embed.to(dtype=self.dtype)
         if self.use_timestep_embedding:
-            timestep_embed = self.time_mlp(timestep_embed)
+            timestep_embed = self.time_mlp(timestep_embed.to(sample.dtype))
         else:
             timestep_embed = timestep_embed[..., None]
             timestep_embed = timestep_embed.tile((1, 1, sample.shape[2])).to(sample.dtype)

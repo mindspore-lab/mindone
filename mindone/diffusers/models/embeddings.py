@@ -143,10 +143,10 @@ def get_3d_sincos_pos_embed(
     pos_embed_spatial = pos_embed_spatial[None, :, :]
     if pos_embed_spatial.dtype == ms.float64:
         pos_embed_spatial = (
-            pos_embed_spatial.to(ms.float32).repeat_interleave(temporal_size, dim=0).to(ms.float64)
+            pos_embed_spatial.to(ms.float32).repeat_interleave(temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size).to(ms.float64)
         )  # [T, H*W, D // 4 * 3]
     else:
-        pos_embed_spatial = pos_embed_spatial.repeat_interleave(temporal_size, dim=0)  # [T, H*W, D // 4 * 3]
+        pos_embed_spatial = pos_embed_spatial.repeat_interleave(temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size)  # [T, H*W, D // 4 * 3]
 
     pos_embed_temporal = pos_embed_temporal[:, None, :]
     if pos_embed_spatial.dtype == ms.float64:
@@ -337,7 +337,7 @@ def get_1d_sincos_pos_embed_from_grid(embed_dim, pos, output_type="np"):
             " `from_numpy` is no longer required."
             "  Pass `output_type='ms' to use the new version now."
         )
-        deprecate("output_type=='np'", "0.33.0", deprecation_message, standard_warn=False)
+        deprecate("output_type=='np'", "0.34.0", deprecation_message, standard_warn=False)
         return get_1d_sincos_pos_embed_from_grid_np(embed_dim=embed_dim, pos=pos)
     if embed_dim % 2 != 0:
         raise ValueError("embed_dim must be divisible by 2")
@@ -1138,15 +1138,11 @@ def get_1d_rotary_pos_embed(
     theta = theta * ntk_factor
     freqs = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=freqs_dtype)[: (dim // 2)] / dim)) / linear_factor  # [D/2]
     freqs = mint.outer(pos, freqs)  # type: ignore   # [S, D/2]
+    freqs = freqs.float()
     if use_real and repeat_interleave_real:
         # flux, hunyuan-dit, cogvideox
-        # ms.float64 is not support in mint.repeat_interleave
-        if freqs_dtype == ms.float64:
-            freqs_cos = freqs.cos().to(ms.float32).repeat_interleave(2, dim=1).to(freqs_dtype)  # [S, D]
-            freqs_sin = freqs.sin().to(ms.float32).repeat_interleave(2, dim=1).to(freqs_dtype)  # [S, D]
-        else:
-            freqs_cos = freqs.cos().repeat_interleave(2, dim=1)  # [S, D]
-            freqs_sin = freqs.sin().repeat_interleave(2, dim=1)  # [S, D]
+        freqs_cos = freqs.cos().repeat_interleave(2, dim=1, output_size=freqs.shape[1] * 2).float()  # [S, D]
+        freqs_sin = freqs.sin().repeat_interleave(2, dim=1, output_size=freqs.shape[1] * 2).float()  # [S, D]
         return freqs_cos, freqs_sin
     elif use_real:
         # stable audio, allegro
@@ -1289,7 +1285,7 @@ class TimestepEmbedding(nn.Cell):
         else:
             self.cond_proj = None
 
-        self.act = get_activation(act_fn)()
+        self.act = get_activation(act_fn)
 
         if out_dim is not None:
             time_embed_dim_out = out_dim
@@ -1300,7 +1296,7 @@ class TimestepEmbedding(nn.Cell):
         if post_act_fn is None:
             self.post_act = None
         else:
-            self.post_act = get_activation(post_act_fn)()
+            self.post_act = get_activation(post_act_fn)
 
     def construct(self, sample, condition=None):
         if condition is not None:
@@ -1801,7 +1797,7 @@ class LuminaCombinedTimestepCaptionEmbedding(nn.Cell):
     def construct(self, timestep, caption_feat, caption_mask):
         # timestep embedding:
         time_freq = self.time_proj(timestep)
-        time_embed = self.timestep_embedder(time_freq.to(dtype=self.timestep_embedder.linear_1.weight.dtype))
+        time_embed = self.timestep_embedder(time_freq.to(dtype=caption_feat.dtype))
 
         # caption condition embedding:
         caption_mask_float = caption_mask.float().unsqueeze(-1)
@@ -2249,7 +2245,7 @@ class PixArtAlphaTextProjection(nn.Cell):
             out_features = hidden_size
         self.linear_1 = mint.nn.Linear(in_features, hidden_size, bias=True)
         if act_fn == "gelu_tanh":
-            self.act_1 = _GELU(approximate="tanh")
+            self.act_1 = mint.nn.GELU(approximate="tanh")
         elif act_fn == "silu":
             self.act_1 = mint.nn.SiLU()
         elif act_fn == "silu_fp32":
@@ -2630,6 +2626,11 @@ class MultiIPAdapterImageProjection(nn.Cell):
         super().__init__()
         self.image_projection_layers = nn.CellList(IPAdapterImageProjectionLayers)
 
+    @property
+    def num_ip_adapters(self) -> int:
+        """Number of IP-Adapters loaded."""
+        return len(self.image_projection_layers)
+
     def construct(self, image_embeds: List[ms.Tensor]):
         projected_image_embeds = []
 
@@ -2656,12 +2657,3 @@ class MultiIPAdapterImageProjection(nn.Cell):
             projected_image_embeds.append(image_embed)
 
         return projected_image_embeds
-
-
-class _GELU(nn.Cell):
-    def __init__(self, approximate: str = "none") -> None:
-        super().__init__()
-        self.approximate = approximate
-
-    def construct(self, input: ms.Tensor) -> ms.Tensor:
-        return mint.nn.functional.gelu(input, approximate=self.approximate)

@@ -28,7 +28,11 @@ from .pipeline_output import IFPipelineOutput
 from .safety_checker import IFSafetyChecker
 from .watermark import IFWatermarker
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 if is_bs4_available():
     from bs4 import BeautifulSoup

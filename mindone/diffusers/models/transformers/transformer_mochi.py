@@ -30,6 +30,7 @@ from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormContinuous, RMSNorm
 
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -329,6 +330,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["MochiTransformerBlock"]
+    _skip_layerwise_casting_patterns = ["patch_embed", "norm"]
 
     @register_to_config
     def __init__(
@@ -394,13 +396,8 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             norm_type="layer_norm",
         )
         self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
-        self.p = self.config.patch_size
 
         self._gradient_checkpointing = False
-
-    @property
-    def gradient_checkpointing(self):
-        return self._gradient_checkpointing
 
     @gradient_checkpointing.setter
     def gradient_checkpointing(self, value):
@@ -433,7 +430,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             )
 
         batch_size, num_channels, num_frames, height, width = hidden_states.shape
-        p = self.p
+        p = self.config["patch_size"]
 
         post_patch_height = height // p
         post_patch_width = width // p
@@ -444,6 +441,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             encoder_attention_mask,
             hidden_dtype=hidden_states.dtype,
         )
+
         hidden_states = hidden_states.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
         hidden_states = self.patch_embed(hidden_states)
         hidden_states = unflatten(hidden_states, 0, (batch_size, -1)).flatten(start_dim=1, end_dim=2)
@@ -464,7 +462,6 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
                 encoder_attention_mask=encoder_attention_mask,
                 image_rotary_emb=image_rotary_emb,
             )
-
         hidden_states = self.norm_out(hidden_states, temb)
         hidden_states = self.proj_out(hidden_states)
 

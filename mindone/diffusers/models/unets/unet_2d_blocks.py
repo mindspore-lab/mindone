@@ -21,7 +21,7 @@ from mindspore import mint, nn
 from ...utils import logging
 from ..activations import get_activation
 from ..attention_processor import Attention, AttnAddedKVProcessor
-from ..normalization import AdaGroupNorm, GroupNorm
+from ..normalization import AdaGroupNorm
 from ..resnet import (
     Downsample2D,
     FirDownsample2D,
@@ -34,6 +34,7 @@ from ..resnet import (
 )
 from ..transformers.dual_transformer_2d import DualTransformer2DModel
 from ..transformers.transformer_2d import Transformer2DModel
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -565,7 +566,7 @@ class AutoencoderTinyBlock(nn.Cell):
 
     def __init__(self, in_channels: int, out_channels: int, act_fn: str):
         super().__init__()
-        act_fn = get_activation(act_fn)()
+        act_fn = get_activation(act_fn)
         self.conv = nn.SequentialCell(
             mint.nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
             act_fn,
@@ -2744,7 +2745,7 @@ class AttnSkipUpBlock2D(nn.Cell):
             self.skip_conv = mint.nn.Conv2d(
                 out_channels, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
             )
-            self.skip_norm = GroupNorm(
+            self.skip_norm = mint.nn.GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
             self.act = mint.nn.SiLU()
@@ -2856,7 +2857,7 @@ class SkipUpBlock2D(nn.Cell):
             self.skip_conv = mint.nn.Conv2d(
                 out_channels, 3, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1), bias=False
             )
-            self.skip_norm = GroupNorm(
+            self.skip_norm = mint.nn.GroupNorm(
                 num_groups=min(out_channels // 4, 32), num_channels=out_channels, eps=resnet_eps, affine=True
             )
             self.act = mint.nn.SiLU()

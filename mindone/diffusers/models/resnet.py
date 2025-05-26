@@ -110,7 +110,7 @@ class ResnetBlockCondNorm2D(nn.Cell):
         conv_2d_out_channels = conv_2d_out_channels or out_channels
         self.conv2 = mint.nn.Conv2d(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1)
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
         if self.up:
@@ -276,7 +276,7 @@ class ResnetBlock2D(nn.Cell):
         conv_2d_out_channels = conv_2d_out_channels or out_channels
         self.conv2 = mint.nn.Conv2d(out_channels, conv_2d_out_channels, kernel_size=3, stride=1, padding=1)
 
-        self.nonlinearity = get_activation(non_linearity)()
+        self.nonlinearity = get_activation(non_linearity)
 
         self.upsample = self.downsample = None
         if self.up:
@@ -396,7 +396,7 @@ class Conv1dBlock(nn.Cell):
             inp_channels, out_channels, kernel_size, pad_mode="pad", padding=kernel_size // 2, has_bias=True
         )
         self.group_norm = GroupNorm(n_groups, out_channels)
-        self.mish = get_activation(activation)()
+        self.mish = get_activation(activation)
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
         intermediate_repr = self.conv1d(inputs)
@@ -432,7 +432,7 @@ class ResidualTemporalBlock1D(nn.Cell):
         self.conv_in = Conv1dBlock(inp_channels, out_channels, kernel_size)
         self.conv_out = Conv1dBlock(out_channels, out_channels, kernel_size)
 
-        self.time_emb_act = get_activation(activation)()
+        self.time_emb_act = get_activation(activation)
         self.time_emb = mint.nn.Linear(embed_dim, out_channels)
 
         self.residual_conv = (
@@ -586,7 +586,7 @@ class TemporalResnetBlock(nn.Cell):
             padding=padding,
         )
 
-        self.nonlinearity = get_activation("silu")()
+        self.nonlinearity = get_activation("silu")
 
         self.use_in_shortcut = self.in_channels != out_channels
 
@@ -619,7 +619,7 @@ class TemporalResnetBlock(nn.Cell):
         hidden_states = self.conv2(hidden_states)
 
         if self.conv_shortcut is not None:
-            input_tensor = self.conv_shortcut(input_tensor)
+            input_tensor = self.conv_shortcut(input_tensor.contiguous())
 
         output_tensor = input_tensor + hidden_states
 

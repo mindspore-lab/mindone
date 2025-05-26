@@ -35,6 +35,9 @@ from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import CogVideoXPipelineOutput
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -203,12 +206,14 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
         self.register_modules(
             tokenizer=tokenizer, text_encoder=text_encoder, vae=vae, transformer=transformer, scheduler=scheduler
         )
+
         self.vae_scale_factor_spatial = (
-            2 ** (len(self.vae.config.block_out_channels) - 1) if hasattr(self, "vae") and self.vae is not None else 8
+            2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         )
         self.vae_scale_factor_temporal = (
-            self.vae.config.temporal_compression_ratio if hasattr(self, "vae") and self.vae is not None else 4
+            self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 4
         )
+        self.vae_scaling_factor_image = self.vae.config.scaling_factor if getattr(self, "vae", None) else 0.7
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)
 
@@ -543,6 +548,14 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
         return self._num_timesteps
 
     @property
+    def attention_kwargs(self):
+        return self._attention_kwargs
+
+    @property
+    def current_timestep(self):
+        return self._current_timestep
+
+    @property
     def interrupt(self):
         return self._interrupt
 
@@ -668,6 +681,8 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
             negative_prompt_embeds,
         )
         self._guidance_scale = guidance_scale
+        self._attention_kwargs = attention_kwargs
+        self._current_timestep = None
         self._interrupt = False
 
         # 2. Default call parameters
@@ -750,6 +765,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
+                self._current_timestep = t
                 latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
@@ -762,6 +778,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
                     encoder_hidden_states=prompt_embeds,
                     timestep=timestep,
                     image_rotary_emb=image_rotary_emb,
+                    attention_kwargs=attention_kwargs,
                     return_dict=False,
                 )[0]
                 noise_pred = noise_pred.float()
@@ -803,6 +820,8 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
 
                 if i == len(timesteps) - 1 or ((i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0):
                     progress_bar.update()
+
+        self._current_timestep = None
 
         if not output_type == "latent":
             video = self.decode_latents(latents)

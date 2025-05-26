@@ -16,45 +16,34 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FluxTransformer2DLoadersMixin, FromOriginalModelMixin, PeftAdapterMixin
 from ...models.attention import FeedForward
 from ...models.attention_processor import Attention, AttentionProcessor, FluxAttnProcessor2_0, FusedFluxAttnProcessor2_0
 from ...models.modeling_utils import ModelMixin
-from ...models.normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle, LayerNorm
+from ...models.normalization import AdaLayerNormContinuous, AdaLayerNormZero, AdaLayerNormZeroSingle
 from ...utils import logging
 from ..embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings, FluxPosEmbed
 from ..modeling_outputs import Transformer2DModelOutput
+
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
 class FluxSingleTransformerBlock(nn.Cell):
-    r"""
-    A Transformer block following the MMDiT architecture, introduced in Stable Diffusion 3.
-
-    Reference: https://arxiv.org/abs/2403.03206
-
-    Parameters:
-        dim (`int`): The number of channels in the input and output.
-        num_attention_heads (`int`): The number of heads to use for multi-head attention.
-        attention_head_dim (`int`): The number of channels in each head.
-        context_pre_only (`bool`): Boolean to determine if we should add some blocks associated with the
-            processing of `context` conditions.
-    """
-
-    def __init__(self, dim, num_attention_heads, attention_head_dim, mlp_ratio=4.0):
+    def __init__(self, dim: int, num_attention_heads: int, attention_head_dim: int, mlp_ratio: float = 4.0):
         super().__init__()
         self.mlp_hidden_dim = int(dim * mlp_ratio)
 
         self.norm = AdaLayerNormZeroSingle(dim)
         self.proj_mlp = mint.nn.Linear(dim, self.mlp_hidden_dim)
-        self.act_mlp = _GELU(approximate="tanh")
+        self.act_mlp = mint.nn.GELU(approximate="tanh")
         self.proj_out = mint.nn.Linear(dim + self.mlp_hidden_dim, dim)
 
         processor = FluxAttnProcessor2_0()
+
         self.attn = Attention(
             query_dim=dim,
             cross_attention_dim=None,
@@ -72,9 +61,9 @@ class FluxSingleTransformerBlock(nn.Cell):
         self,
         hidden_states: ms.Tensor,
         temb: ms.Tensor,
-        image_rotary_emb=None,
-        joint_attention_kwargs=None,
-    ):
+        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> ms.Tensor:
         residual = hidden_states
         norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
         mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
@@ -96,30 +85,14 @@ class FluxSingleTransformerBlock(nn.Cell):
 
 
 class FluxTransformerBlock(nn.Cell):
-    r"""
-    A Transformer block following the MMDiT architecture, introduced in Stable Diffusion 3.
-
-    Reference: https://arxiv.org/abs/2403.03206
-
-    Parameters:
-        dim (`int`): The number of channels in the input and output.
-        num_attention_heads (`int`): The number of heads to use for multi-head attention.
-        attention_head_dim (`int`): The number of channels in each head.
-        context_pre_only (`bool`): Boolean to determine if we should add some blocks associated with the
-            processing of `context` conditions.
-    """
-
-    def __init__(self, dim, num_attention_heads, attention_head_dim, qk_norm="rms_norm", eps=1e-6):
+    def __init__(
+        self, dim: int, num_attention_heads: int, attention_head_dim: int, qk_norm: str = "rms_norm", eps: float = 1e-6
+    ):
         super().__init__()
 
         self.norm1 = AdaLayerNormZero(dim)
-
         self.norm1_context = AdaLayerNormZero(dim)
 
-        if hasattr(ops.operations.nn_ops, "FlashAttentionScore"):
-            processor = FluxAttnProcessor2_0()
-        else:
-            raise ValueError("The current PyTorch version does not support the `FlashAttentionScore` function.")
         self.attn = Attention(
             query_dim=dim,
             cross_attention_dim=None,
@@ -129,29 +102,25 @@ class FluxTransformerBlock(nn.Cell):
             out_dim=dim,
             context_pre_only=False,
             bias=True,
-            processor=processor,
+            processor=FluxAttnProcessor2_0(),
             qk_norm=qk_norm,
             eps=eps,
         )
 
-        self.norm2 = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
 
-        self.norm2_context = LayerNorm(dim, elementwise_affine=False, eps=1e-6)
+        self.norm2_context = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
         self.ff_context = FeedForward(dim=dim, dim_out=dim, activation_fn="gelu-approximate")
-
-        # let chunk size default to None
-        self._chunk_size = None
-        self._chunk_dim = 0
 
     def construct(
         self,
         hidden_states: ms.Tensor,
         encoder_hidden_states: ms.Tensor,
         temb: ms.Tensor,
-        image_rotary_emb=None,
-        joint_attention_kwargs=None,
-    ):
+        image_rotary_emb: Optional[Tuple[ms.Tensor, ms.Tensor]] = None,
+        joint_attention_kwargs: Optional[Dict[str, Any]] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
         norm_hidden_states, gate_msa, shift_mlp, scale_mlp, gate_mlp = self.norm1(hidden_states, emb=temb)
 
         norm_encoder_hidden_states, c_gate_msa, c_shift_mlp, c_scale_mlp, c_gate_mlp = self.norm1_context(
@@ -215,20 +184,35 @@ class FluxTransformer2DModel(
 
     Reference: https://blackforestlabs.ai/announcing-black-forest-labs/
 
-    Parameters:
-        patch_size (`int`): Patch size to turn the input data into small patches.
-        in_channels (`int`, *optional*, defaults to 16): The number of channels in the input.
-        num_layers (`int`, *optional*, defaults to 18): The number of layers of MMDiT blocks to use.
-        num_single_layers (`int`, *optional*, defaults to 18): The number of layers of single DiT blocks to use.
-        attention_head_dim (`int`, *optional*, defaults to 64): The number of channels in each head.
-        num_attention_heads (`int`, *optional*, defaults to 18): The number of heads to use for multi-head attention.
-        joint_attention_dim (`int`, *optional*): The number of `encoder_hidden_states` dimensions to use.
-        pooled_projection_dim (`int`): Number of dimensions to use when projecting the `pooled_projections`.
-        guidance_embeds (`bool`, defaults to False): Whether to use guidance embeddings.
+    Args:
+        patch_size (`int`, defaults to `1`):
+            Patch size to turn the input data into small patches.
+        in_channels (`int`, defaults to `64`):
+            The number of channels in the input.
+        out_channels (`int`, *optional*, defaults to `None`):
+            The number of channels in the output. If not specified, it defaults to `in_channels`.
+        num_layers (`int`, defaults to `19`):
+            The number of layers of dual stream DiT blocks to use.
+        num_single_layers (`int`, defaults to `38`):
+            The number of layers of single stream DiT blocks to use.
+        attention_head_dim (`int`, defaults to `128`):
+            The number of dimensions to use for each attention head.
+        num_attention_heads (`int`, defaults to `24`):
+            The number of attention heads to use.
+        joint_attention_dim (`int`, defaults to `4096`):
+            The number of dimensions to use for the joint attention (embedding/channel dimension of
+            `encoder_hidden_states`).
+        pooled_projection_dim (`int`, defaults to `768`):
+            The number of dimensions to use for the pooled projection.
+        guidance_embeds (`bool`, defaults to `False`):
+            Whether to use guidance embeddings for guidance-distilled variant of the model.
+        axes_dims_rope (`Tuple[int]`, defaults to `(16, 56, 56)`):
+            The dimensions to use for the rotary positional embeddings.
     """
 
     _supports_gradient_checkpointing = True
     _no_split_modules = ["FluxTransformerBlock", "FluxSingleTransformerBlock"]
+    _skip_layerwise_casting_patterns = ["pos_embed", "norm"]
 
     @register_to_config
     def __init__(
@@ -247,7 +231,7 @@ class FluxTransformer2DModel(
     ):
         super().__init__()
         self.out_channels = out_channels or in_channels
-        self.inner_dim = self.config.num_attention_heads * self.config.attention_head_dim
+        self.inner_dim = num_attention_heads * attention_head_dim
 
         self.pos_embed = FluxPosEmbed(theta=10000, axes_dim=axes_dims_rope)
 
@@ -255,20 +239,20 @@ class FluxTransformer2DModel(
             CombinedTimestepGuidanceTextProjEmbeddings if guidance_embeds else CombinedTimestepTextProjEmbeddings
         )
         self.time_text_embed = text_time_guidance_cls(
-            embedding_dim=self.inner_dim, pooled_projection_dim=self.config.pooled_projection_dim
+            embedding_dim=self.inner_dim, pooled_projection_dim=pooled_projection_dim
         )
 
-        self.context_embedder = mint.nn.Linear(self.config.joint_attention_dim, self.inner_dim)
-        self.x_embedder = mint.nn.Linear(self.config.in_channels, self.inner_dim)
+        self.context_embedder = mint.nn.Linear(joint_attention_dim, self.inner_dim)
+        self.x_embedder = mint.nn.Linear(in_channels, self.inner_dim)
 
         self.transformer_blocks = nn.CellList(
             [
                 FluxTransformerBlock(
                     dim=self.inner_dim,
-                    num_attention_heads=self.config.num_attention_heads,
-                    attention_head_dim=self.config.attention_head_dim,
+                    num_attention_heads=num_attention_heads,
+                    attention_head_dim=attention_head_dim,
                 )
-                for i in range(self.config.num_layers)
+                for _ in range(num_layers)
             ]
         )
 
@@ -276,10 +260,10 @@ class FluxTransformer2DModel(
             [
                 FluxSingleTransformerBlock(
                     dim=self.inner_dim,
-                    num_attention_heads=self.config.num_attention_heads,
-                    attention_head_dim=self.config.attention_head_dim,
+                    num_attention_heads=num_attention_heads,
+                    attention_head_dim=attention_head_dim,
                 )
-                for i in range(self.config.num_single_layers)
+                for _ in range(num_single_layers)
             ]
         )
 
@@ -388,10 +372,6 @@ class FluxTransformer2DModel(
         if self.original_attn_processors is not None:
             self.set_attn_processor(self.original_attn_processors)
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if hasattr(module, "gradient_checkpointing"):
-            module.gradient_checkpointing = value
-
     @property
     def gradient_checkpointing(self):
         return self._gradient_checkpointing
@@ -424,9 +404,9 @@ class FluxTransformer2DModel(
         The [`FluxTransformer2DModel`] forward method.
 
         Args:
-            hidden_states (`ms.Tensor` of shape `(batch size, channel, height, width)`):
+            hidden_states (`ms.Tensor` of shape `(batch_size, image_sequence_length, in_channels)`):
                 Input `hidden_states`.
-            encoder_hidden_states (`ms.Tensor` of shape `(batch size, sequence_len, embed_dims)`):
+            encoder_hidden_states (`ms.Tensor` of shape `(batch_size, text_sequence_length, joint_attention_dim)`):
                 Conditional embeddings (embeddings computed from the input conditions such as prompts) to use.
             pooled_projections (`ms.Tensor` of shape `(batch_size, projection_dim)`): Embeddings projected
                 from the embeddings of input conditions.
@@ -544,12 +524,3 @@ class FluxTransformer2DModel(
             return (output,)
 
         return Transformer2DModelOutput(sample=output)
-
-
-class _GELU(nn.Cell):
-    def __init__(self, approximate: str = "none") -> None:
-        super().__init__()
-        self.approximate = approximate
-
-    def construct(self, input: ms.Tensor) -> ms.Tensor:
-        return mint.nn.functional.gelu(input, approximate=self.approximate)

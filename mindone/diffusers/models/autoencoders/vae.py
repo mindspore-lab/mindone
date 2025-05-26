@@ -835,7 +835,7 @@ class DecoderTiny(nn.Cell):
 
         layers = [
             mint.nn.Conv2d(in_channels, block_out_channels[0], kernel_size=3, padding=1),
-            get_activation(act_fn)(),
+            get_activation(act_fn),
         ]
 
         for i, num_block in enumerate(num_blocks):

@@ -34,7 +34,11 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
 from .stable_unclip_image_normalizer import StableUnCLIPImageNormalizer
 
+
+XLA_AVAILABLE = False
+
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
+
 
 EXAMPLE_DOC_STRING = """
     Examples:
@@ -127,7 +131,7 @@ class StableUnCLIPPipeline(
         image_noising_scheduler: KarrasDiffusionSchedulers,
         # regular denoising components
         tokenizer: CLIPTokenizer,
-        text_encoder: CLIPTextModelWithProjection,
+        text_encoder: CLIPTextModel,
         unet: UNet2DConditionModel,
         scheduler: KarrasDiffusionSchedulers,
         # vae
@@ -149,7 +153,7 @@ class StableUnCLIPPipeline(
             vae=vae,
         )
 
-        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1)
+        self.vae_scale_factor = 2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         self.image_processor = VaeImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
     # Copied from diffusers.pipelines.unclip.pipeline_unclip.UnCLIPPipeline._encode_prompt with _encode_prompt->_encode_prior_prompt, tokenizer->prior_tokenizer, text_encoder->prior_text_encoder  # noqa: E501
