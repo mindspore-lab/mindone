@@ -20,7 +20,6 @@ from mindspore import Parameter, mint
 
 from ..utils import is_peft_version, logging, state_dict_all_zero
 
-
 logger = logging.get_logger(__name__)
 
 
@@ -185,9 +184,9 @@ def _convert_non_diffusers_lora_to_diffusers(state_dict, unet_name="unet", text_
             # Store DoRA scale if present.
             if dora_present_in_unet:
                 dora_scale_key_to_replace = "_lora.down." if "_lora.down." in diffusers_name else ".lora.down."
-                unet_state_dict[diffusers_name.replace(dora_scale_key_to_replace, ".lora_magnitude_vector.")] = (
-                    state_dict.pop(key.replace("lora_down.weight", "dora_scale"))
-                )
+                unet_state_dict[
+                    diffusers_name.replace(dora_scale_key_to_replace, ".lora_magnitude_vector.")
+                ] = state_dict.pop(key.replace("lora_down.weight", "dora_scale"))
 
         # Handle text encoder LoRAs.
         elif lora_name.startswith(("lora_te_", "lora_te1_", "lora_te2_")):
@@ -207,13 +206,13 @@ def _convert_non_diffusers_lora_to_diffusers(state_dict, unet_name="unet", text_
                     "_lora.down." if "_lora.down." in diffusers_name else ".lora_linear_layer."
                 )
                 if lora_name.startswith(("lora_te_", "lora_te1_")):
-                    te_state_dict[diffusers_name.replace(dora_scale_key_to_replace_te, ".lora_magnitude_vector.")] = (
-                        state_dict.pop(key.replace("lora_down.weight", "dora_scale"))
-                    )
+                    te_state_dict[
+                        diffusers_name.replace(dora_scale_key_to_replace_te, ".lora_magnitude_vector.")
+                    ] = state_dict.pop(key.replace("lora_down.weight", "dora_scale"))
                 elif lora_name.startswith("lora_te2_"):
-                    te2_state_dict[diffusers_name.replace(dora_scale_key_to_replace_te, ".lora_magnitude_vector.")] = (
-                        state_dict.pop(key.replace("lora_down.weight", "dora_scale"))
-                    )
+                    te2_state_dict[
+                        diffusers_name.replace(dora_scale_key_to_replace_te, ".lora_magnitude_vector.")
+                    ] = state_dict.pop(key.replace("lora_down.weight", "dora_scale"))
 
         # Store alpha if present.
         if lora_name_alpha in state_dict:
@@ -379,9 +378,7 @@ def _convert_kohya_flux_lora_to_diffusers(state_dict):
         sd_lora_rank = down_weight.shape[0]
 
         # scale weight by alpha and dim
-        default_alpha = ms.tensor(
-            sd_lora_rank, dtype=down_weight.dtype
-        )
+        default_alpha = ms.tensor(sd_lora_rank, dtype=down_weight.dtype)
         alpha = sds_sd.pop(sds_key + ".alpha", default_alpha)
         scale = alpha / sd_lora_rank
 
@@ -1031,21 +1028,21 @@ def _convert_bfl_flux_control_lora_to_diffusers(original_state_dict):
 
     for lora_key in ["lora_A", "lora_B"]:
         # time_text_embed.timestep_embedder <-  time_in
-        converted_state_dict[f"time_text_embed.timestep_embedder.linear_1.{lora_key}.weight"] = (
-            original_state_dict.pop(f"time_in.in_layer.{lora_key}.weight")
+        converted_state_dict[f"time_text_embed.timestep_embedder.linear_1.{lora_key}.weight"] = original_state_dict.pop(
+            f"time_in.in_layer.{lora_key}.weight"
         )
         if f"time_in.in_layer.{lora_key}.bias" in original_state_dict_keys:
-            converted_state_dict[f"time_text_embed.timestep_embedder.linear_1.{lora_key}.bias"] = (
-                original_state_dict.pop(f"time_in.in_layer.{lora_key}.bias")
-            )
+            converted_state_dict[
+                f"time_text_embed.timestep_embedder.linear_1.{lora_key}.bias"
+            ] = original_state_dict.pop(f"time_in.in_layer.{lora_key}.bias")
 
-        converted_state_dict[f"time_text_embed.timestep_embedder.linear_2.{lora_key}.weight"] = (
-            original_state_dict.pop(f"time_in.out_layer.{lora_key}.weight")
+        converted_state_dict[f"time_text_embed.timestep_embedder.linear_2.{lora_key}.weight"] = original_state_dict.pop(
+            f"time_in.out_layer.{lora_key}.weight"
         )
         if f"time_in.out_layer.{lora_key}.bias" in original_state_dict_keys:
-            converted_state_dict[f"time_text_embed.timestep_embedder.linear_2.{lora_key}.bias"] = (
-                original_state_dict.pop(f"time_in.out_layer.{lora_key}.bias")
-            )
+            converted_state_dict[
+                f"time_text_embed.timestep_embedder.linear_2.{lora_key}.bias"
+            ] = original_state_dict.pop(f"time_in.out_layer.{lora_key}.bias")
 
         # time_text_embed.text_embedder <- vector_in
         converted_state_dict[f"time_text_embed.text_embedder.linear_1.{lora_key}.weight"] = original_state_dict.pop(
@@ -1067,21 +1064,21 @@ def _convert_bfl_flux_control_lora_to_diffusers(original_state_dict):
         # guidance
         has_guidance = any("guidance" in k for k in original_state_dict)
         if has_guidance:
-            converted_state_dict[f"time_text_embed.guidance_embedder.linear_1.{lora_key}.weight"] = (
-                original_state_dict.pop(f"guidance_in.in_layer.{lora_key}.weight")
-            )
+            converted_state_dict[
+                f"time_text_embed.guidance_embedder.linear_1.{lora_key}.weight"
+            ] = original_state_dict.pop(f"guidance_in.in_layer.{lora_key}.weight")
             if f"guidance_in.in_layer.{lora_key}.bias" in original_state_dict_keys:
-                converted_state_dict[f"time_text_embed.guidance_embedder.linear_1.{lora_key}.bias"] = (
-                    original_state_dict.pop(f"guidance_in.in_layer.{lora_key}.bias")
-                )
+                converted_state_dict[
+                    f"time_text_embed.guidance_embedder.linear_1.{lora_key}.bias"
+                ] = original_state_dict.pop(f"guidance_in.in_layer.{lora_key}.bias")
 
-            converted_state_dict[f"time_text_embed.guidance_embedder.linear_2.{lora_key}.weight"] = (
-                original_state_dict.pop(f"guidance_in.out_layer.{lora_key}.weight")
-            )
+            converted_state_dict[
+                f"time_text_embed.guidance_embedder.linear_2.{lora_key}.weight"
+            ] = original_state_dict.pop(f"guidance_in.out_layer.{lora_key}.weight")
             if f"guidance_in.out_layer.{lora_key}.bias" in original_state_dict_keys:
-                converted_state_dict[f"time_text_embed.guidance_embedder.linear_2.{lora_key}.bias"] = (
-                    original_state_dict.pop(f"guidance_in.out_layer.{lora_key}.bias")
-                )
+                converted_state_dict[
+                    f"time_text_embed.guidance_embedder.linear_2.{lora_key}.bias"
+                ] = original_state_dict.pop(f"guidance_in.out_layer.{lora_key}.bias")
 
         # context_embedder
         converted_state_dict[f"context_embedder.{lora_key}.weight"] = original_state_dict.pop(
@@ -1466,9 +1463,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
         elif "linear1.lora_A.bias" in key or "linear1.lora_B.bias" in key:
             linear1_bias = state_dict.pop(key)
             if "lora_A" in key:
-                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(
-                    ".linear1.lora_A.bias"
-                )
+                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(".linear1.lora_A.bias")
                 state_dict[f"{new_key}.attn.to_q.lora_A.bias"] = linear1_bias
                 state_dict[f"{new_key}.attn.to_k.lora_A.bias"] = linear1_bias
                 state_dict[f"{new_key}.attn.to_v.lora_A.bias"] = linear1_bias
@@ -1476,9 +1471,7 @@ def _convert_hunyuan_video_lora_to_diffusers(original_state_dict):
             else:
                 split_size = (hidden_size, hidden_size, hidden_size, linear1_bias.shape[0] - 3 * hidden_size)
                 q_bias, k_bias, v_bias, mlp_bias = mint.split(linear1_bias, split_size, dim=0)
-                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(
-                    ".linear1.lora_B.bias"
-                )
+                new_key = key.replace("single_blocks", "single_transformer_blocks").removesuffix(".linear1.lora_B.bias")
                 state_dict[f"{new_key}.attn.to_q.lora_B.bias"] = q_bias
                 state_dict[f"{new_key}.attn.to_k.lora_B.bias"] = k_bias
                 state_dict[f"{new_key}.attn.to_v.lora_B.bias"] = v_bias

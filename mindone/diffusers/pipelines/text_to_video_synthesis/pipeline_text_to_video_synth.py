@@ -32,7 +32,6 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from . import TextToVideoSDPipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

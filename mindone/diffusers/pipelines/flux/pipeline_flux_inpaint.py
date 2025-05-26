@@ -400,9 +400,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FluxIPAdapterM
         return image_embeds
 
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline.prepare_ip_adapter_image_embeds
-    def prepare_ip_adapter_image_embeds(
-        self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt
-    ):
+    def prepare_ip_adapter_image_embeds(self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt):
         image_embeds = []
         if ip_adapter_image_embeds is None:
             if not isinstance(ip_adapter_image, list):
@@ -541,7 +539,7 @@ class FluxInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FluxIPAdapterM
             )
         if negative_prompt_embeds is not None and negative_pooled_prompt_embeds is None:
             raise ValueError(
-                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`." # noqa
+                "If `negative_prompt_embeds` are provided, `negative_pooled_prompt_embeds` also have to be passed. Make sure to generate `negative_pooled_prompt_embeds` from the same text encoder that was used to generate `negative_prompt_embeds`."  # noqa
             )
 
         if padding_mask_crop is not None:

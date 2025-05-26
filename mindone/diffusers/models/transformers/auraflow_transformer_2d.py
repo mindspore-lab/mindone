@@ -16,8 +16,8 @@
 from typing import Dict, Union
 
 import mindspore as ms
-from mindspore import mint, nn
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
@@ -27,7 +27,6 @@ from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormZero, FP32LayerNorm
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

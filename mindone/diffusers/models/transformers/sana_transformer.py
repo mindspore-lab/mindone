@@ -27,7 +27,6 @@ from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormSingle, RMSNorm
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -532,9 +531,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         hidden_states = self.patch_embed(hidden_states)
 
         if guidance is not None:
-            timestep, embedded_timestep = self.time_embed(
-                timestep, guidance=guidance, hidden_dtype=hidden_states.dtype
-            )
+            timestep, embedded_timestep = self.time_embed(timestep, guidance=guidance, hidden_dtype=hidden_states.dtype)
         else:
             timestep, embedded_timestep = self.time_embed(
                 timestep, batch_size=batch_size, hidden_dtype=hidden_states.dtype

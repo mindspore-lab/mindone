@@ -17,13 +17,13 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, is_scipy_available, logging
 from .scheduling_utils import SchedulerMixin
-
 
 if is_scipy_available():
     import scipy.stats

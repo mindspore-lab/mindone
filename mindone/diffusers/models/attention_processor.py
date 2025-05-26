@@ -160,7 +160,9 @@ class Attention(nn.Cell):
             )
 
         if norm_num_groups is not None:
-            self.group_norm = mint.nn.GroupNorm(num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True)
+            self.group_norm = mint.nn.GroupNorm(
+                num_channels=query_dim, num_groups=norm_num_groups, eps=eps, affine=True
+            )
         else:
             self.group_norm = None
 
@@ -242,9 +244,9 @@ class Attention(nn.Cell):
             self.add_v_proj = None
 
         if not self.pre_only:
-            self.to_out = nn.CellList([
-                mint.nn.Linear(self.inner_dim, self.out_dim, bias=out_bias),
-                mint.nn.Dropout(p=dropout)])
+            self.to_out = nn.CellList(
+                [mint.nn.Linear(self.inner_dim, self.out_dim, bias=out_bias), mint.nn.Dropout(p=dropout)]
+            )
         else:
             self.to_out = None
 

@@ -27,7 +27,6 @@ from ...models.modeling_utils import ModelMixin
 from ...models.transformers.transformer_2d import Transformer2DModelOutput
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -397,7 +396,7 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
         hidden_states = self.preprocess_conv(hidden_states) + hidden_states
         # (batch_size, dim, sequence_length) -> (batch_size, sequence_length, dim)
 
-        hidden_states = hidden_states.swapaxes(0, 2, 1)
+        hidden_states = hidden_states.swapaxes(1, 2)
         hidden_states = self.proj_in(hidden_states)
 
         # prepend global states to hidden states
@@ -420,7 +419,7 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
 
         # (batch_size, sequence_length, dim) -> (batch_size, dim, sequence_length)
         # remove prepend length that has been added by global hidden states
-        hidden_states = hidden_states.swapaxes(0, 2, 1)[:, :, 1:]
+        hidden_states = hidden_states.swapaxes(1, 2)[:, :, 1:]
         hidden_states = self.postprocess_conv(hidden_states) + hidden_states
 
         if not return_dict:

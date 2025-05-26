@@ -24,11 +24,7 @@ from ...utils import BaseOutput, logging
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
 from ..embeddings import TextImageProjection, TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
-from ..unets.unet_2d_blocks import (
-    UNetMidBlock2D,
-    UNetMidBlock2DCrossAttn,
-    get_down_block,
-)
+from ..unets.unet_2d_blocks import UNetMidBlock2D, UNetMidBlock2DCrossAttn, get_down_block
 from ..unets.unet_2d_condition import UNet2DConditionModel
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

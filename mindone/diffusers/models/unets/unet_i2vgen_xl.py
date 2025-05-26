@@ -26,13 +26,8 @@ from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
 from ..transformers.transformer_temporal import TransformerTemporalModel
-from .unet_3d_blocks import (
-    UNetMidBlock3DCrossAttn,
-    get_down_block,
-    get_up_block,
-)
+from .unet_3d_blocks import UNetMidBlock3DCrossAttn, get_down_block, get_up_block
 from .unet_3d_condition import UNet3DConditionOutput
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -312,7 +307,9 @@ class I2VGenXLUNet(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin):
         self.layers_per_resnet_in_up_blocks = layers_per_resnet_in_up_blocks
 
         # out
-        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-05)
+        self.conv_norm_out = mint.nn.GroupNorm(
+            num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-05
+        )
         self.conv_act = get_activation("silu")
         self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, kernel_size=3, padding=1)
 

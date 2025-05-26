@@ -35,7 +35,6 @@ from ..resnet import (
 from ..transformers.dual_transformer_2d import DualTransformer2DModel
 from ..transformers.transformer_2d import Transformer2DModel
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

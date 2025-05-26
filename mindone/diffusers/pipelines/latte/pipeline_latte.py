@@ -36,7 +36,6 @@ from ...utils import BACKENDS_MAPPING, BaseOutput, deprecate, is_bs4_available, 
 from ...utils.mindspore_utils import randn_tensor
 from ...video_processor import VideoProcessor
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

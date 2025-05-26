@@ -30,7 +30,6 @@ from .unet_motion_model import (
     UpBlockMotion,
 )
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

@@ -32,7 +32,6 @@ from ...video_processor import VideoProcessor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import MochiPipelineOutput
 
-
 XLA_AVAILABLE = False
 
 

@@ -35,7 +35,6 @@ from ..utils import (
 from .lora_base import _fetch_state_dict
 from .unet_loader_utils import _maybe_expand_lora_scales
 
-
 logger = logging.get_logger(__name__)
 
 _SET_ADAPTER_SCALE_FN_MAPPING = {
@@ -525,9 +524,7 @@ class PeftAdapterMixin:
             raise ValueError(f"Adapter with name {adapter_name} already exists. Please use a different name.")
 
         if not isinstance(adapter_config, PeftConfig):
-            raise ValueError(
-                f"adapter_config should be an instance of PeftConfig. Got {type(adapter_config)} instead."
-            )
+            raise ValueError(f"adapter_config should be an instance of PeftConfig. Got {type(adapter_config)} instead.")
 
         # Unlike transformers, here we don't need to retrieve the name_or_path of the unet as the loading logic is
         # handled by the `load_lora_layers` or `StableDiffusionLoraLoaderMixin`. Therefore we set it to `None` here.

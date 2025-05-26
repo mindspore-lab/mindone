@@ -29,7 +29,6 @@ from .blip_image_processing import BlipImageProcessor
 from .modeling_blip2 import Blip2QFormerModel
 from .modeling_ctx_clip import ContextCLIPTextModel
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -327,7 +326,7 @@ class BlipDiffusionPipeline(DiffusionPipeline):
 
             # perform guidance
             if do_classifier_free_guidance:
-                noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
+                noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
             latents = self.scheduler.step(

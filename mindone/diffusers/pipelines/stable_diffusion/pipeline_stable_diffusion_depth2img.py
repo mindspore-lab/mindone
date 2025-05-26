@@ -34,7 +34,6 @@ from ...utils import PIL_INTERPOLATION, deprecate, logging, scale_lora_layers, u
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

@@ -41,7 +41,6 @@ from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import AnimateDiffPipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -396,7 +395,7 @@ class AnimateDiffPipeline(
             image_embeds = []
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(dim=2)
+                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
                     single_image_embeds = single_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
@@ -822,7 +821,7 @@ class AnimateDiffPipeline(
 
                 # perform guidance
                 if self.do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

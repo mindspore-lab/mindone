@@ -79,5 +79,4 @@ from .state_dict_utils import (
 )
 from .typing_utils import _get_detailed_type, _is_valid_type
 
-
 logger = get_logger(__name__)

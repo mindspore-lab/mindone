@@ -33,7 +33,6 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import StableDiffusion3PipelineOutput
 
-
 XLA_AVAILABLE = False
 
 

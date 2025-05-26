@@ -29,6 +29,7 @@ from mindone.safetensors.mindspore import load_file, save_file
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection, MSPreTrainedModel
 
 from .._peft.tuners.tuners_utils import BaseTunerLayer
+from ..models.lora import text_encoder_attn_modules, text_encoder_mlp_modules
 from ..models.modeling_utils import ModelMixin
 from ..utils import (
     _get_model_file,
@@ -45,9 +46,6 @@ from ..utils import (
     set_adapter_layers,
     set_weights_and_activate_adapters,
 )
-
-from ..models.lora import text_encoder_attn_modules, text_encoder_mlp_modules
-
 
 logger = logging.get_logger(__name__)
 
@@ -323,7 +321,7 @@ def _load_lora_into_text_encoder(
 
     # Load the layers corresponding to text encoder and make necessary adjustments.
     if prefix is not None:
-        state_dict = {k[len(f"{prefix}."):]: v for k, v in state_dict.items() if k.startswith(f"{prefix}.")}
+        state_dict = {k[len(f"{prefix}.") :]: v for k, v in state_dict.items() if k.startswith(f"{prefix}.")}
 
     if len(state_dict) > 0:
         logger.info(f"Loading {prefix}.")
@@ -627,9 +625,7 @@ class LoraBaseMixin:
         all_adapters = {adapter for adapters in list_adapters.values() for adapter in adapters}
         missing_adapters = set(adapter_names) - all_adapters
         if len(missing_adapters) > 0:
-            raise ValueError(
-                f"Adapter name(s) {missing_adapters} not in the list of present adapters: {all_adapters}."
-            )
+            raise ValueError(f"Adapter name(s) {missing_adapters} not in the list of present adapters: {all_adapters}.")
 
         # eg {"adapter1": ["unet"], "adapter2": ["unet", "text_encoder"]}
         invert_list_adapters = {

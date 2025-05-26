@@ -485,7 +485,11 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
         use_onnx = kwargs.pop("use_onnx", None)
         load_connected_pipeline = kwargs.pop("load_connected_pipeline", False)
 
-        if mindspore_dtype is not None and not isinstance(mindspore_dtype, dict) and not isinstance(mindspore_dtype, ms.Type):
+        if (
+            mindspore_dtype is not None
+            and not isinstance(mindspore_dtype, dict)
+            and not isinstance(mindspore_dtype, ms.Type)
+        ):
             mindspore_dtype = ms.float32
             logger.warning(
                 f"Passed `mindspore_dtype` {mindspore_dtype} is not a `mindspore.dtype`. Defaulting to `mindspore.float32`."
@@ -980,8 +984,8 @@ class DiffusionPipeline(ConfigMixin, PushToHubMixin):
 
             if load_components_from_hub and not trust_remote_code:
                 raise ValueError(
-                    f"The repository for {pretrained_model_name} contains custom code in {'.py, '.join([os.path.join(k, v) for k, v in custom_components.items()])} which must be executed to correctly " # noqa
-                    f"load the model. You can inspect the repository content at {', '.join([f'https://hf.co/{pretrained_model_name}/{k}/{v}.py' for k, v in custom_components.items()])}.\n" # noqa
+                    f"The repository for {pretrained_model_name} contains custom code in {'.py, '.join([os.path.join(k, v) for k, v in custom_components.items()])} which must be executed to correctly "  # noqa
+                    f"load the model. You can inspect the repository content at {', '.join([f'https://hf.co/{pretrained_model_name}/{k}/{v}.py' for k, v in custom_components.items()])}.\n"  # noqa
                     f"Please pass the argument `trust_remote_code=True` to allow custom code to be run."
                 )
 

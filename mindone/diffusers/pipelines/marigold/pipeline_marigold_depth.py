@@ -632,7 +632,7 @@ class MarigoldDepthPipeline(DiffusionPipeline):
 
         prediction = self.vae.decode(pred_latent / self.vae.config.scaling_factor, return_dict=False)[0]  # [B,3,H,W]
 
-        prediction = prediction.mean(dim=1, keep_dims=True)  # [B,1,H,W]
+        prediction = prediction.mean(dim=1, keepdim=True)  # [B,1,H,W]
         prediction = mint.clip(prediction, -1.0, 1.0)  # [B,1,H,W]
         prediction = (prediction + 1.0) / 2.0
 

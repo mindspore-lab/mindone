@@ -24,21 +24,18 @@ import shutil
 import tempfile
 from collections import OrderedDict
 from contextlib import ExitStack, contextmanager
-from functools import wraps, partial
+from functools import partial, wraps
 from pathlib import Path
 from typing import Any, Callable, ContextManager, Dict, List, Optional, Tuple, Type, Union
 
-from huggingface_hub import create_repo
+from huggingface_hub import DDUFEntry, create_repo
 from huggingface_hub.utils import validate_hf_hub_args
+from typing_extensions import Self
 
 import mindspore as ms
 from mindspore import mint, nn
 
 from mindone.safetensors.mindspore import save_file as safe_save_file
-
-from huggingface_hub import DDUFEntry, create_repo
-from huggingface_hub.utils import validate_hf_hub_args
-from typing_extensions import Self
 
 from .. import __version__
 from ..utils import (
@@ -101,6 +98,7 @@ MINDSPORE_INIT_FUNCTIONS = {
     "kaiming_uniform": nn.init.kaiming_uniform,
     "kaiming_normal": nn.init.kaiming_normal,
 }
+
 
 def _get_pt2ms_mappings(m):
     mappings = {}  # pt_param_name: (ms_param_name, pt_param_to_ms_param_func)
@@ -901,10 +899,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
             "error_msgs": error_msgs,
         }
 
-        if (
-            mindspore_dtype is not None
-            and not use_keep_in_fp32_modules
-        ):
+        if mindspore_dtype is not None and not use_keep_in_fp32_modules:
             model = model.to(mindspore_dtype)
 
         model.register_to_config(_name_or_path=pretrained_model_name_or_path)

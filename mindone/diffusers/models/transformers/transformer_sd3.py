@@ -31,7 +31,6 @@ from ...utils import logging
 from ..embeddings import CombinedTimestepTextProjEmbeddings, PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

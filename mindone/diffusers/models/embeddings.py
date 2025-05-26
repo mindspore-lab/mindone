@@ -143,10 +143,14 @@ def get_3d_sincos_pos_embed(
     pos_embed_spatial = pos_embed_spatial[None, :, :]
     if pos_embed_spatial.dtype == ms.float64:
         pos_embed_spatial = (
-            pos_embed_spatial.to(ms.float32).repeat_interleave(temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size).to(ms.float64)
+            pos_embed_spatial.to(ms.float32)
+            .repeat_interleave(temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size)
+            .to(ms.float64)
         )  # [T, H*W, D // 4 * 3]
     else:
-        pos_embed_spatial = pos_embed_spatial.repeat_interleave(temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size)  # [T, H*W, D // 4 * 3]
+        pos_embed_spatial = pos_embed_spatial.repeat_interleave(
+            temporal_size, dim=0, output_size=pos_embed_spatial.shape[0] * temporal_size
+        )  # [T, H*W, D // 4 * 3]
 
     pos_embed_temporal = pos_embed_temporal[:, None, :]
     if pos_embed_spatial.dtype == ms.float64:
@@ -2052,7 +2056,7 @@ class MochiAttentionPool(nn.Cell):
         # Extract heads.
         head_dim = D // self.num_attention_heads
         kv = unflatten(kv, 2, (2, self.num_attention_heads, head_dim))  # (B, 1+L, 2, H, head_dim)
-        kv = kv.transpose(1, 3)  # (B, H, 2, 1+L, head_dim)
+        kv = kv.swapaxes(1, 3)  # (B, H, 2, 1+L, head_dim)
         k, v = kv.unbind(2)  # (B, H, 1+L, head_dim)
         q = unflatten(q, 1, (self.num_attention_heads, head_dim))  # (B, H, head_dim)
         q = q.unsqueeze(2)  # (B, H, 1, head_dim)

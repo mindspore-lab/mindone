@@ -28,7 +28,6 @@ from ..embeddings import CogView3CombinedTimestepSizeEmbeddings, CogView3PlusPat
 from ..modeling_outputs import Transformer2DModelOutput
 from ..normalization import CogView3PlusAdaLayerNormZeroTextImage
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

@@ -54,8 +54,7 @@ def _is_valid_type(obj: Any, class_or_tuple: Union[Type, Tuple[Type, ...]]) -> b
     elif obj_type is tuple:
         return any(
             # Tuples with any length and single type (e.g. Tuple[int, ...])
-            (len(t) == 2 and t[-1] is Ellipsis and all(_is_valid_type(x, t[0]) for x in obj))
-            or
+            (len(t) == 2 and t[-1] is Ellipsis and all(_is_valid_type(x, t[0]) for x in obj)) or
             # Tuples with fixed length and any types (e.g. Tuple[int, str])
             (len(obj) == len(t) and all(_is_valid_type(x, tt) for x, tt in zip(obj, t)))
             for t in elem_class_or_tuple

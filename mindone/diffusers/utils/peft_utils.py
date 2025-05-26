@@ -202,4 +202,3 @@ def set_weights_and_activate_adapters(model, adapter_names, weights):
             # Set the scaling weight for each adapter for this module
             for adapter_name, weight in zip(adapter_names, weights):
                 module.set_scale(adapter_name, get_module_weight(weight, module_name))
-

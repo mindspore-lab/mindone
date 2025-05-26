@@ -31,7 +31,6 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .modeling_wuerstchen_prior import WuerstchenPrior
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

@@ -27,7 +27,6 @@ from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormSingle
 
-
 logger = logging.get_logger(__name__)
 
 

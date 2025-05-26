@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from ...utils import _LazyModule
 
-
 _additional_imports = {}
 _import_structure = {"pipeline_output": ["CogView4PlusPipelineOutput"]}
 

@@ -34,7 +34,6 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from .pipeline_output import CogView4PipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

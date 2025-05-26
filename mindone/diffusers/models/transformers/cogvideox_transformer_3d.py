@@ -28,7 +28,6 @@ from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNorm, CogVideoXLayerNormZero
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

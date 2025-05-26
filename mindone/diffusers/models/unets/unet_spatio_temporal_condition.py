@@ -12,7 +12,6 @@ from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
 from .unet_3d_blocks import UNetMidBlockSpatioTemporal, get_down_block, get_up_block
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

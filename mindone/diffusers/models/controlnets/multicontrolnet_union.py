@@ -9,7 +9,6 @@ from ...models.controlnets.controlnet_union import ControlNetUnionModel
 from ...models.modeling_utils import ModelMixin
 from ...utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 

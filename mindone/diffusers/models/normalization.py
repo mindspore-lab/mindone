@@ -19,8 +19,8 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, mint, nn
 import mindspore.mint.nn.functional as F
+from mindspore import Parameter, Tensor, mint, nn
 from mindspore.common.initializer import initializer
 
 from .activations import get_activation
@@ -481,6 +481,7 @@ class CogVideoXLayerNormZero(nn.Cell):
 if MINDSPORE_VERSION >= parse("2.3.0"):
     LayerNorm = mint.nn.LayerNorm
 else:
+
     class LayerNorm(nn.Cell):
         r"""
         LayerNorm with the bias parameter.

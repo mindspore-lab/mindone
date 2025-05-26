@@ -24,13 +24,12 @@
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
 import mindspore.mint.nn.functional as F
-
-from ..utils import deprecate, logging
+from mindspore import mint, nn
 
 from mindone.transformers import CLIPTextModel, CLIPTextModelWithProjection
 
+from ..utils import deprecate, logging
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -261,7 +260,9 @@ class LoRAConv2dLayer(nn.Cell):
         deprecation_message = "Use of `LoRAConv2dLayer` is deprecated. Please switch to PEFT backend by installing PEFT: `pip install peft`."
         deprecate("LoRAConv2dLayer", "1.0.0", deprecation_message)
 
-        self.down = mint.nn.Conv2d(in_features, rank, kernel_size=kernel_size, stride=stride, padding=padding, bias=False)
+        self.down = mint.nn.Conv2d(
+            in_features, rank, kernel_size=kernel_size, stride=stride, padding=padding, bias=False
+        )
         # according to the official kohya_ss trainer kernel_size are always fixed for the up layer
         # # see: https://github.com/bmaltais/kohya_ss/blob/2accb1305979ba62f5077a23aabac23b4c37e935/networks/lora_diffusers.py#L129
         self.up = mint.nn.Conv2d(rank, out_features, kernel_size=(1, 1), stride=(1, 1), bias=False)

@@ -27,7 +27,6 @@ from ...models import UVit2DModel, VQModel
 from ...schedulers import AmusedScheduler
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
-
 XLA_AVAILABLE = False
 
 

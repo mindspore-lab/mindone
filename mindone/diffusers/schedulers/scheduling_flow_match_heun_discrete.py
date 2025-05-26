@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import mint
 
@@ -23,7 +24,6 @@ from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
 from ..utils.mindspore_utils import randn_tensor
 from .scheduling_utils import SchedulerMixin
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 

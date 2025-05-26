@@ -28,7 +28,6 @@ from ...utils import logging
 from ..embeddings import CombinedTimestepGuidanceTextProjEmbeddings, CombinedTimestepTextProjEmbeddings, FluxPosEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

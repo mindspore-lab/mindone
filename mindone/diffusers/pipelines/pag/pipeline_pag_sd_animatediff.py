@@ -36,7 +36,6 @@ from ..free_noise_utils import AnimateDiffFreeNoiseMixin
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pag_utils import PAGMixin
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

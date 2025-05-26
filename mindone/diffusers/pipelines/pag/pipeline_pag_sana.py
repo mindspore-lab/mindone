@@ -21,10 +21,11 @@ from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 from transformers import GemmaTokenizer, GemmaTokenizerFast
-from mindone.transformers import Gemma2PreTrainedModel
 
 import mindspore as ms
 from mindspore import mint
+
+from mindone.transformers import Gemma2PreTrainedModel
 
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PixArtImageProcessor
@@ -38,7 +39,6 @@ from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_512_BIN, ASPECT_RA
 from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
 from ..sana.pipeline_sana import ASPECT_RATIO_4096_BIN
 from .pag_utils import PAGMixin
-
 
 XLA_AVAILABLE = False
 

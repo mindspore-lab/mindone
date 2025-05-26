@@ -28,7 +28,6 @@ from ...utils import logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import AudioPipelineOutput, DiffusionPipeline, StableDiffusionMixin
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -515,7 +514,7 @@ class AudioLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
 
                 # perform guidance
                 if do_classifier_free_guidance:
-                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(dim=2)
+                    noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
                 # compute the previous noisy sample x_t -> x_t-1

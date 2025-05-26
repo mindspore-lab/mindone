@@ -31,7 +31,6 @@ from ..transformers.transformer_2d import Transformer2DModel
 from .unet_2d_blocks import UNetMidBlock2DCrossAttn
 from .unet_2d_condition import UNet2DConditionModel
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
@@ -1465,7 +1464,9 @@ class UNetMotionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Peft
 
         # out
         if norm_num_groups is not None:
-            self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps)
+            self.conv_norm_out = mint.nn.GroupNorm(
+                num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=norm_eps
+            )
             self.conv_act = mint.nn.SiLU()
         else:
             self.conv_norm_out = None

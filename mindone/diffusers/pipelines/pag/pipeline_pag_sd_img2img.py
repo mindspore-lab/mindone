@@ -38,7 +38,6 @@ from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
 from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from .pag_utils import PAGMixin
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
+
 import mindspore as ms
 from mindspore import mint
 

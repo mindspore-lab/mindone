@@ -26,6 +26,7 @@ import mindspore as ms
 from mindspore import mint
 
 from mindone.transformers import Gemma2PreTrainedModel
+
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
 from ...image_processor import PixArtImageProcessor
 from ...loaders import SanaLoraLoaderMixin
@@ -44,7 +45,6 @@ from ..pipeline_utils import DiffusionPipeline
 from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_512_BIN, ASPECT_RATIO_1024_BIN
 from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
 from .pipeline_output import SanaPipelineOutput
-
 
 XLA_AVAILABLE = False
 

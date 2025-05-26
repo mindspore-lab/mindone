@@ -35,7 +35,6 @@ from ..pixart_alpha.pipeline_pixart_alpha import ASPECT_RATIO_256_BIN, ASPECT_RA
 from ..pixart_alpha.pipeline_pixart_sigma import ASPECT_RATIO_2048_BIN
 from .pag_utils import PAGMixin
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

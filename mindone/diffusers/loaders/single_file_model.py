@@ -15,9 +15,11 @@ import importlib
 import inspect
 import re
 from typing import Optional
-import mindspore as ms
+
 from huggingface_hub.utils import validate_hf_hub_args
 from typing_extensions import Self
+
+import mindspore as ms
 
 from ..models.modeling_utils import _convert_state_dict
 from ..utils import deprecate, logging
@@ -48,7 +50,6 @@ from .single_file_utils import (
     fetch_original_config,
     load_single_file_checkpoint,
 )
-
 
 logger = logging.get_logger(__name__)
 

@@ -40,7 +40,6 @@ from .single_file_utils import (
     load_single_file_checkpoint,
 )
 
-
 logger = logging.get_logger(__name__)
 
 # Legacy behaviour. `from_single_file` does not load the safety checker unless explicitly provided

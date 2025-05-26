@@ -35,7 +35,6 @@ from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ...video_processor import VideoProcessor
 from .pipeline_output import CogVideoXPipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -188,9 +187,7 @@ class CogVideoXPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
         self.vae_scale_factor_spatial = (
             2 ** (len(self.vae.config.block_out_channels) - 1) if getattr(self, "vae", None) else 8
         )
-        self.vae_scale_factor_temporal = (
-            self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 4
-        )
+        self.vae_scale_factor_temporal = self.vae.config.temporal_compression_ratio if getattr(self, "vae", None) else 4
         self.vae_scaling_factor_image = self.vae.config.scaling_factor if getattr(self, "vae", None) else 0.7
 
         self.video_processor = VideoProcessor(vae_scale_factor=self.vae_scale_factor_spatial)

@@ -18,7 +18,6 @@ from ..models.embeddings import IPAdapterTimeImageProjection
 from ..models.modeling_utils import _load_state_dict_into_model
 from ..utils import logging
 
-
 logger = logging.get_logger(__name__)
 
 
@@ -26,7 +25,8 @@ class SD3Transformer2DLoadersMixin:
     """Load IP-Adapters and LoRA layers into a `[SD3Transformer2DModel]`."""
 
     def _convert_ip_adapter_attn_to_diffusers(
-        self, state_dict: Dict,
+        self,
+        state_dict: Dict,
     ) -> Dict:
         # IP-Adapter cross attention parameters
         hidden_size = self.config.attention_head_dim * self.config.num_attention_heads
@@ -53,7 +53,8 @@ class SD3Transformer2DLoadersMixin:
         return attn_procs
 
     def _convert_ip_adapter_image_proj_to_diffusers(
-        self, state_dict: Dict,
+        self,
+        state_dict: Dict,
     ) -> IPAdapterTimeImageProjection:
         # Convert to diffusers
         updated_state_dict = {}

@@ -17,16 +17,14 @@ import io
 import json
 from typing import List, Literal, Optional, Union, cast
 
+import numpy as np
 import requests
 
-from .deprecation_utils import deprecate
-
 import mindspore as ms
-import numpy as np
 
 from ..image_processor import VaeImageProcessor
 from ..video_processor import VideoProcessor
-
+from .deprecation_utils import deprecate
 
 DTYPE_MAP = {
     "float16": ms.float16,

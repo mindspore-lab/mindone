@@ -232,9 +232,9 @@ class LatteTransformer3DModel(ModelMixin, ConfigMixin):
         ).view(-1, encoder_hidden_states.shape[-2], encoder_hidden_states.shape[-1])
 
         # Prepare timesteps for spatial and temporal block
-        timestep_spatial = timestep.repeat_interleave(
-            num_frame, dim=0, output_size=timestep.shape[0] * num_frame
-        ).view(-1, timestep.shape[-1])
+        timestep_spatial = timestep.repeat_interleave(num_frame, dim=0, output_size=timestep.shape[0] * num_frame).view(
+            -1, timestep.shape[-1]
+        )
         timestep_temp = timestep.repeat_interleave(
             num_patches, dim=0, output_size=timestep.shape[0] * num_patches
         ).view(-1, timestep.shape[-1])

@@ -24,7 +24,6 @@ from ..attention_processor import Attention, AttentionProcessor, AttnProcessor
 from ..embeddings import TimestepEmbedding, Timesteps
 from ..modeling_utils import ModelMixin
 
-
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 

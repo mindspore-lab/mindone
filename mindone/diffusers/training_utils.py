@@ -156,11 +156,7 @@ def _set_state_dict_into_text_encoder(lora_state_dict: Dict[str, ms.Tensor], pre
 
 
 def compute_density_for_timestep_sampling(
-    weighting_scheme: str,
-    batch_size: int,
-    logit_mean: float = None,
-    logit_std: float = None,
-    mode_scale: float = None
+    weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
 ):
     """
     Compute the density for sampling the timesteps when doing SD3 training.

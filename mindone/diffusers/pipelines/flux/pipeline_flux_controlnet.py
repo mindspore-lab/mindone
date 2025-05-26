@@ -406,9 +406,7 @@ class FluxControlNetPipeline(DiffusionPipeline, FluxLoraLoaderMixin, FromSingleF
         return image_embeds
 
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline.prepare_ip_adapter_image_embeds
-    def prepare_ip_adapter_image_embeds(
-        self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt
-    ):
+    def prepare_ip_adapter_image_embeds(self, ip_adapter_image, ip_adapter_image_embeds, num_images_per_prompt):
         image_embeds = []
         if ip_adapter_image_embeds is None:
             if not isinstance(ip_adapter_image, list):

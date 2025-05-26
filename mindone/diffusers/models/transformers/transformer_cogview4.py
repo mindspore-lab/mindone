@@ -15,8 +15,8 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
@@ -27,7 +27,6 @@ from ..embeddings import CogView3CombinedTimestepSizeEmbeddings
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..normalization import AdaLayerNormContinuous
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -298,12 +297,8 @@ class CogView4RotaryPosEmbed(nn.Cell):
         height, width = height // self.patch_size, width // self.patch_size
 
         dim_h, dim_w = self.dim // 2, self.dim // 2
-        h_inv_freq = 1.0 / (
-            self.theta ** (mint.arange(0, dim_h, 2, dtype=ms.float32)[: (dim_h // 2)].float() / dim_h)
-        )
-        w_inv_freq = 1.0 / (
-            self.theta ** (mint.arange(0, dim_w, 2, dtype=ms.float32)[: (dim_w // 2)].float() / dim_w)
-        )
+        h_inv_freq = 1.0 / (self.theta ** (mint.arange(0, dim_h, 2, dtype=ms.float32)[: (dim_h // 2)].float() / dim_h))
+        w_inv_freq = 1.0 / (self.theta ** (mint.arange(0, dim_w, 2, dtype=ms.float32)[: (dim_w // 2)].float() / dim_w))
         h_seq = mint.arange(self.rope_axes_dim[0])
         w_seq = mint.arange(self.rope_axes_dim[1])
         freqs_h = mint.outer(h_seq, h_inv_freq)

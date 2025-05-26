@@ -12,7 +12,6 @@ import PIL.ImageOps
 from .import_utils import BACKENDS_MAPPING, is_imageio_available, is_opencv_available
 from .logging import get_logger
 
-
 global_rng = random.Random()
 
 logger = get_logger(__name__)

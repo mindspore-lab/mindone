@@ -33,7 +33,6 @@ from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
 from .pipeline_output import StableDiffusionXLPipelineOutput
 
-
 if is_invisible_watermark_available():
     from .watermark import StableDiffusionXLWatermarker
 

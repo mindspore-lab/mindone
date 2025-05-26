@@ -313,9 +313,9 @@ class TransformerSpatioTemporalModel(nn.Cell):
         batch_size = batch_frames // num_frames
 
         time_context = encoder_hidden_states
-        time_context_first_timestep = time_context[None, :].reshape(
-            batch_size, num_frames, -1, time_context.shape[-1]
-        )[:, 0]
+        time_context_first_timestep = time_context[None, :].reshape(batch_size, num_frames, -1, time_context.shape[-1])[
+            :, 0
+        ]
         time_context = time_context_first_timestep[:, None].broadcast_to(
             (batch_size, height * width, time_context.shape[-2], time_context.shape[-1])
         )

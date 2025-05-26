@@ -34,10 +34,7 @@ from .controlnet import (
     StableDiffusionXLControlNetUnionInpaintPipeline,
     StableDiffusionXLControlNetUnionPipeline,
 )
-from .controlnet_sd3 import (
-    StableDiffusion3ControlNetInpaintingPipeline,
-    StableDiffusion3ControlNetPipeline,
-)
+from .controlnet_sd3 import StableDiffusion3ControlNetInpaintingPipeline, StableDiffusion3ControlNetPipeline
 from .deepfloyd_if import IFImg2ImgPipeline, IFInpaintingPipeline, IFPipeline
 from .flux import (
     FluxControlImg2ImgPipeline,
@@ -90,11 +87,7 @@ from .pag import (
 from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
 from .sana import SanaPipeline
 from .stable_cascade import StableCascadeCombinedPipeline, StableCascadeDecoderPipeline
-from .stable_diffusion import (
-    StableDiffusionImg2ImgPipeline,
-    StableDiffusionInpaintPipeline,
-    StableDiffusionPipeline,
-)
+from .stable_diffusion import StableDiffusionImg2ImgPipeline, StableDiffusionInpaintPipeline, StableDiffusionPipeline
 from .stable_diffusion_3 import (
     StableDiffusion3Img2ImgPipeline,
     StableDiffusion3InpaintPipeline,
@@ -106,7 +99,6 @@ from .stable_diffusion_xl import (
     StableDiffusionXLPipeline,
 )
 from .wuerstchen import WuerstchenCombinedPipeline, WuerstchenDecoderPipeline
-
 
 AUTO_TEXT2IMAGE_PIPELINES_MAPPING = OrderedDict(
     [
@@ -232,9 +224,7 @@ SUPPORTED_TASKS_MAPPINGS = [
 def _get_connected_pipeline(pipeline_cls):
     # for now connected pipelines can only be loaded from decoder pipelines, such as kandinsky-community/kandinsky-2-2-decoder
     if pipeline_cls in _AUTO_TEXT2IMAGE_DECODER_PIPELINES_MAPPING.values():
-        return _get_task_class(
-            AUTO_TEXT2IMAGE_PIPELINES_MAPPING, pipeline_cls.__name__, throw_error_if_not_exist=False
-        )
+        return _get_task_class(AUTO_TEXT2IMAGE_PIPELINES_MAPPING, pipeline_cls.__name__, throw_error_if_not_exist=False)
     if pipeline_cls in _AUTO_IMAGE2IMAGE_DECODER_PIPELINES_MAPPING.values():
         return _get_task_class(
             AUTO_IMAGE2IMAGE_PIPELINES_MAPPING, pipeline_cls.__name__, throw_error_if_not_exist=False

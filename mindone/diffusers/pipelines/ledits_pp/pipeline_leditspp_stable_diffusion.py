@@ -22,7 +22,6 @@ from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import LEditsPPDiffusionPipelineOutput, LEditsPPInversionPipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

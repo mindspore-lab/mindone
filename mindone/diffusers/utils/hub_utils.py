@@ -47,14 +47,8 @@ from packaging import version
 from requests import HTTPError
 
 from .. import __version__
-from .constants import (
-    DEPRECATED_REVISION_ARGS,
-    HUGGINGFACE_CO_RESOLVE_ENDPOINT,
-    SAFETENSORS_WEIGHTS_NAME,
-    WEIGHTS_NAME,
-)
+from .constants import DEPRECATED_REVISION_ARGS, HUGGINGFACE_CO_RESOLVE_ENDPOINT, SAFETENSORS_WEIGHTS_NAME, WEIGHTS_NAME
 from .logging import get_logger
-
 
 logger = get_logger(__name__)
 

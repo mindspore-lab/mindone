@@ -45,7 +45,6 @@ from ..utils import (
 )
 from .transformers_loading_utils import _load_tokenizer_from_dduf, _load_transformers_model_from_dduf
 
-
 if is_transformers_available():
     import transformers
     from transformers import PreTrainedTokenizerBase
@@ -241,7 +240,9 @@ def variant_compatible_siblings(filenames, variant=None, ignore_patterns=None) -
     usable_filenames.update(variant_filenames)
 
     if len(variant_filenames) == 0 and variant is not None:
-        error_message = f"You are trying to load model files of the `variant={variant}`, but no such modeling files are available. "
+        error_message = (
+            f"You are trying to load model files of the `variant={variant}`, but no such modeling files are available. "
+        )
         raise ValueError(error_message)
 
     if len(variant_filenames) > 0 and usable_filenames != variant_filenames:
@@ -287,9 +288,7 @@ def _unwrap_model(model):
     return model
 
 
-def maybe_raise_or_warn(
-    library_name, class_name, importable_classes, passed_class_obj, name, is_pipeline_module
-):
+def maybe_raise_or_warn(library_name, class_name, importable_classes, passed_class_obj, name, is_pipeline_module):
     """Simple helper method to raise or warn in case incorrect module has been passed"""
     if not is_pipeline_module:
         if library_name == "diffusers":

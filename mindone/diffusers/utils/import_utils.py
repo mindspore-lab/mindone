@@ -29,7 +29,6 @@ from packaging.version import Version, parse
 
 from . import logging
 
-
 # The package importlib_metadata is in a different place, depending on the python version.
 if sys.version_info < (3, 8):
     import importlib_metadata
@@ -135,6 +134,7 @@ _gguf_available, _gguf_version = _is_package_available("gguf")
 
 def is_mindspore_available():
     return _mindspore_available
+
 
 def is_transformers_available():
     return _transformers_available

@@ -16,12 +16,12 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import CLIPTokenizer, T5TokenizerFast, SiglipImageProcessor
+from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 
 import mindspore as ms
 from mindspore import mint
 
-from mindone.transformers import CLIPTextModelWithProjection, T5EncoderModel, SiglipModel
+from mindone.transformers import CLIPTextModelWithProjection, SiglipModel, T5EncoderModel
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin

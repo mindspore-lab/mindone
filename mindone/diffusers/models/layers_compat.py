@@ -505,7 +505,7 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
     assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
     real_part, imag_part = input.chunk(2, dim=-1)
     # todo: unavailable mint interface ops.Complex
-    output = ops.Complex()(real_part, imag_part).squeeze(dim=-1)
+    output = ops.Complex()(real_part, imag_part).squeeze(axis=-1)
     return output
 
 

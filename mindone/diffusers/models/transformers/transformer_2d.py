@@ -14,8 +14,8 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import mint, nn
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 from ...configuration_utils import LegacyConfigMixin, register_to_config
 from ...utils import deprecate, logging
@@ -24,7 +24,6 @@ from ..embeddings import ImagePositionalEmbeddings, PatchEmbed, PixArtAlphaTextP
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import LegacyModelMixin
 from ..normalization import AdaLayerNormSingle
-
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -213,9 +212,9 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
 
     def _init_vectorized_inputs(self, norm_type):
         assert self.config.sample_size is not None, "Transformer2DModel over discrete input must provide sample_size"
-        assert self.config.num_vector_embeds is not None, (
-            "Transformer2DModel over discrete input must provide num_embed"
-        )
+        assert (
+            self.config.num_vector_embeds is not None
+        ), "Transformer2DModel over discrete input must provide num_embed"
 
         self.height = self.config.sample_size
         self.width = self.config.sample_size

@@ -23,6 +23,7 @@ import mindspore as ms
 from mindspore import mint
 
 from mindone.transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
+
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
 from ...models.autoencoders import AutoencoderKL
@@ -32,7 +33,6 @@ from ...utils import logging, scale_lora_layers, unscale_lora_layers
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import StableDiffusion3PipelineOutput
-
 
 XLA_AVAILABLE = False
 

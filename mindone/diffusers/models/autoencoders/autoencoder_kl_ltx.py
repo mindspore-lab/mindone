@@ -1395,9 +1395,7 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         for i in range(0, height, self.tile_sample_stride_height):
             row = []
             for j in range(0, width, self.tile_sample_stride_width):
-                time = self.encoder(
-                    x[:, :, :, i : i + self.tile_sample_min_height, j : j + self.tile_sample_min_width]
-                )
+                time = self.encoder(x[:, :, :, i : i + self.tile_sample_min_height, j : j + self.tile_sample_min_width])
 
                 row.append(time)
             rows.append(row)

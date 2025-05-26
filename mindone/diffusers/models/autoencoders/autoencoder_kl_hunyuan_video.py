@@ -17,8 +17,8 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import mint, nn
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging

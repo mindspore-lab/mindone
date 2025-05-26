@@ -26,15 +26,16 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
 from zipfile import is_zipfile
 
-import mindspore as ms
-from mindspore import nn, ops
 from huggingface_hub import DDUFEntry
 from huggingface_hub.utils import EntryNotFoundError
 
-from ...safetensors.mindspore import load_file as safe_load_file
+import mindspore as ms
+from mindspore import nn, ops
+
 from ...safetensors.mindspore import load as safe_load
+from ...safetensors.mindspore import load_file as safe_load_file
 from ..utils import (
-    GGUF_FILE_EXTENSION
+    GGUF_FILE_EXTENSION,
     SAFE_WEIGHTS_INDEX_NAME,
     SAFETENSORS_FILE_EXTENSION,
     WEIGHTS_INDEX_NAME,

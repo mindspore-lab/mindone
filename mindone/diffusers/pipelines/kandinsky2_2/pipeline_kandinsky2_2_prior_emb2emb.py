@@ -14,7 +14,6 @@ from ...utils.mindspore_utils import randn_tensor
 from ..kandinsky import KandinskyPriorPipelineOutput
 from ..pipeline_utils import DiffusionPipeline
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

@@ -16,8 +16,8 @@
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import mint, nn, ops
 import mindspore.mint.nn.functional as F
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin

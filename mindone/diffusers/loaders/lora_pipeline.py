@@ -39,7 +39,6 @@ from .lora_conversion_utils import (
     _maybe_map_sgm_blocks_to_diffusers,
 )
 
-
 logger = logging.get_logger(__name__)
 
 TEXT_ENCODER_NAME = "text_encoder"
@@ -2087,9 +2086,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                         new_value = int(current_param_weight.shape[1])
                         old_value = getattr(transformer.config, attribute_name)
                         setattr(transformer.config, attribute_name, new_value)
-                        logger.info(
-                            f"Set the {attribute_name} attribute of the model to {new_value} from {old_value}."
-                        )
+                        logger.info(f"Set the {attribute_name} attribute of the model to {new_value} from {old_value}.")
 
     @classmethod
     def _maybe_expand_transformer_param_shape_or_error_(
@@ -2189,9 +2186,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
                         new_value = int(expanded_module.weight.data.shape[1])
                         old_value = getattr(transformer.config, attribute_name)
                         setattr(transformer.config, attribute_name, new_value)
-                        logger.info(
-                            f"Set the {attribute_name} attribute of the model to {new_value} from {old_value}."
-                        )
+                        logger.info(f"Set the {attribute_name} attribute of the model to {new_value} from {old_value}.")
 
                     # For `unload_lora_weights()`.
                     # TODO: this could lead to more memory overhead if the number of overwritten params
@@ -2211,9 +2206,7 @@ class FluxLoraLoaderMixin(LoraBaseMixin):
         transformer_state_dict = transformer.parameters_dict()
         prefix = f"{cls.transformer_name}."
 
-        lora_module_names = [
-            key[: -len(".lora_A.weight")] for key in lora_state_dict if key.endswith(".lora_A.weight")
-        ]
+        lora_module_names = [key[: -len(".lora_A.weight")] for key in lora_state_dict if key.endswith(".lora_A.weight")]
         lora_module_names = [name[len(prefix) :] for name in lora_module_names if name.startswith(prefix)]
         lora_module_names = sorted(set(lora_module_names))
         transformer_module_names = sorted({name for name, _ in transformer.cells_and_names()})

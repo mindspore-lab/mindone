@@ -17,10 +17,9 @@ State dict utilities: utility methods for converting state dicts easily
 
 import enum
 
-from .logging import get_logger
-
 from mindspore import mint
 
+from .logging import get_logger
 
 logger = get_logger(__name__)
 

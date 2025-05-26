@@ -19,9 +19,10 @@ from typing import TYPE_CHECKING, Dict
 
 from huggingface_hub import DDUFEntry
 from tqdm import tqdm
-
 from transformers import PreTrainedTokenizer
+
 from mindone.transformers import MSPreTrainedModel
+
 from ...safetensors.mindspore import load_file as safe_load_file
 
 

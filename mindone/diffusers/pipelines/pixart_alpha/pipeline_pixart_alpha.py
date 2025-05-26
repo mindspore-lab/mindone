@@ -31,7 +31,6 @@ from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_avai
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
-
 XLA_AVAILABLE = False
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name

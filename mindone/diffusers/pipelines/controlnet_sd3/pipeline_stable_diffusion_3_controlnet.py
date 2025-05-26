@@ -16,11 +16,12 @@ import inspect
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
-from transformers import CLIPTokenizer, T5TokenizerFast, SiglipImageProcessor
-from mindone.transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
+from transformers import CLIPTokenizer, SiglipImageProcessor, T5TokenizerFast
 
 import mindspore as ms
 from mindspore import mint
+
+from mindone.transformers import CLIPTextModelWithProjection, SiglipVisionModel, T5EncoderModel
 
 from ...image_processor import PipelineImageInput, VaeImageProcessor
 from ...loaders import FromSingleFileMixin, SD3IPAdapterMixin, SD3LoraLoaderMixin
@@ -117,9 +118,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class StableDiffusion3ControlNetPipeline(
-    DiffusionPipeline, SD3LoraLoaderMixin, FromSingleFileMixin, SD3IPAdapterMixin
-):
+class StableDiffusion3ControlNetPipeline(DiffusionPipeline, SD3LoraLoaderMixin, FromSingleFileMixin, SD3IPAdapterMixin):
     r"""
     Args:
         transformer ([`SD3Transformer2DModel`]):

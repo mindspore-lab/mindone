@@ -28,7 +28,6 @@ from ..wuerstchen.modeling_paella_vq_model import PaellaVQModel
 from .pipeline_stable_cascade import StableCascadeDecoderPipeline
 from .pipeline_stable_cascade_prior import StableCascadePriorPipeline
 
-
 TEXT2IMAGE_EXAMPLE_DOC_STRING = """
     Examples:
         ```py

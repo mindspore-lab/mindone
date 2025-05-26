@@ -247,9 +247,7 @@ class IPAdapterMixin:
         scale_configs = _maybe_expand_lora_scales(unet, scale, default_scale=0.0)
 
         for attn_name, attn_processor in unet.attn_processors.items():
-            if isinstance(
-                attn_processor, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0)
-            ):
+            if isinstance(attn_processor, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0)):
                 if len(scale_configs) != len(attn_processor.scale):
                     raise ValueError(
                         f"Cannot assign {len(scale_configs)} scale_configs to {len(attn_processor.scale)} IP-Adapter."
@@ -304,9 +302,7 @@ class IPAdapterMixin:
             attn_processor_class = AttnProcessor2_0()
             attn_procs[name] = (
                 attn_processor_class
-                if isinstance(
-                    value, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0)
-                )
+                if isinstance(value, (IPAdapterAttnProcessor, IPAdapterAttnProcessor2_0))
                 else value.__class__()
             )
         self.unet.set_attn_processor(attn_procs)
