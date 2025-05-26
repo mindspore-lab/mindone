@@ -9,6 +9,7 @@ from . import (
     big_bird,
     bigbird_pegasus,
     bit,
+    blip,
     blip_2,
     clap,
     clip,
@@ -32,8 +33,10 @@ from . import (
     llava,
     megatron_bert,
     minicpm4,
+    mistral,
     mixtral,
     mobilebert,
+    mpt,
     paligemma,
     persimmon,
     phi,
@@ -56,6 +59,9 @@ from . import (
 
 if version.parse(transformers.__version__) >= version.parse("4.51.0"):
     from . import qwen3
+
+if version.parse(transformers.__version__) >= version.parse("4.51.3"):
+    from . import glm4
 
 if version.parse(transformers.__version__) >= version.parse("4.53.0"):
     from . import glm4v
