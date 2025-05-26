@@ -61,6 +61,14 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.deberta import (
+    DebertaForMaskedLM,
+    DebertaForQuestionAnswering,
+    DebertaForSequenceClassification,
+    DebertaForTokenClassification,
+    DebertaModel,
+    DebertaPreTrainedModel,
+)
 from .models.dpt import DPTForDepthEstimation
 from .models.gemma import (
     GemmaForCausalLM,
