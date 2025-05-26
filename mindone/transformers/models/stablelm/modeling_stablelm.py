@@ -398,6 +398,7 @@ class StableLmSdpaAttention(StableLmAttention):
             key_states,
             value_states,
             attn_mask=causal_mask,
+            is_causal=is_causal
         )
 
         attn_output = attn_output.transpose(1, 2).contiguous()
