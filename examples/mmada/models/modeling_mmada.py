@@ -125,7 +125,7 @@ class MMadaModelLM(LLaDAModelLM):
                 model_input = mint.cat([input_ids, uncond_input_ids])
                 attention_mask = mint.cat([attention_mask, uncond_attention_mask], dim=0)
                 attention_bias = (attention_mask[:, :, None] * attention_mask[:, None, :]).bool().unsqueeze(1)
-                logits = self(model_input, attention_bias=attention_bias).logits
+                logits = self.construct(model_input, attention_bias=attention_bias, return_dict=False)[0]
                 cond_logits, uncond_logits = mint.chunk(logits, 2, dim=0)
                 logits = (1 + guidance_scale) * cond_logits - guidance_scale * uncond_logits
                 logits = logits[
@@ -138,7 +138,7 @@ class MMadaModelLM(LLaDAModelLM):
                 ]
             else:
                 attention_bias = (attention_mask[:, :, None] * attention_mask[:, None, :]).bool().unsqueeze(1)
-                logits = self(input_ids, attention_bias=attention_bias).logits
+                logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
                 logits = logits[
                     :,
                     -(num_vq_tokens + 1) : -1,
@@ -192,7 +192,7 @@ class MMadaModelLM(LLaDAModelLM):
         attention_bias = mint.ones(input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1])
         attention_bias_t2i = (t2i_masks[:, :, None] * t2i_masks[:, None, :]).bool().unsqueeze(1)
         attention_bias[:batch_size_t2i] = attention_bias_t2i
-        logits = self(input_ids, attention_bias=attention_bias).logits
+        logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
         self.output_size = logits.shape[-1]
 
         if batch_size_t2i == 0:
@@ -261,7 +261,7 @@ class MMadaModelLM(LLaDAModelLM):
         attention_bias = mint.ones(input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1])
         attention_bias_t2i = (t2i_masks[:, :, None] * t2i_masks[:, None, :]).bool().unsqueeze(1)
         attention_bias[:batch_size_t2i] = attention_bias_t2i
-        logits = self(input_ids, attention_bias=attention_bias).logits
+        logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
         self.output_size = logits.shape[-1]
 
         if batch_size_t2i == 0:
@@ -325,7 +325,7 @@ class MMadaModelLM(LLaDAModelLM):
         attention_bias = mint.ones(input_ids.shape[0], 1, input_ids.shape[1], input_ids.shape[1])
         attention_bias_t2i = (t2i_masks[:, :, None] * t2i_masks[:, None, :]).bool().unsqueeze(1)
         attention_bias[:batch_size_t2i] = attention_bias_t2i
-        logits = self(input_ids, attention_bias=attention_bias).logits
+        logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
         self.output_size = logits.shape[-1]
 
         loss_t2i = F.cross_entropy(
@@ -380,11 +380,11 @@ class MMadaModelLM(LLaDAModelLM):
                     un_x = x.clone()
                     un_x[prompt_index] = mask_id
                     x_ = mint.cat([x, un_x], dim=0)
-                    logits = self(x_).logits
+                    logits = self.construct(x_, return_dict=False)[0]
                     logits, un_logits = mint.chunk(logits, 2, dim=0)
                     logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
                 else:
-                    logits = self(x, attention_bias=attention_bias).logits
+                    logits = self.construct(x, attention_bias=attention_bias, return_dict=False)[0]
 
                 logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
                 x0 = mint.argmax(logits_with_noise, dim=-1)
@@ -453,11 +453,11 @@ class MMadaModelLM(LLaDAModelLM):
                     un_x = x.clone()
                     un_x[prompt_index] = mask_id
                     x_ = mint.cat([x, un_x], dim=0)
-                    logits = self(x_).logits
+                    logits = self.construct(x_, return_dict=False)[0]
                     logits, un_logits = mint.chunk(logits, 2, dim=0)
                     logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
                 else:
-                    logits = self(x, attention_bias=attention_bias).logits
+                    logits = self.construct(x, attention_bias=attention_bias, return_dict=False)[0]
 
                 logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
                 x0 = mint.argmax(logits_with_noise, dim=-1)
@@ -526,7 +526,7 @@ class MMadaModelLM(LLaDAModelLM):
                 model_input = mint.cat([input_ids, uncond_input_ids])
                 attention_mask = mint.cat([attention_mask, uncond_attention_mask], dim=0)
                 attention_bias = (attention_mask[:, :, None] * attention_mask[:, None, :]).bool().unsqueeze(1)
-                logits = self(model_input, attention_bias=attention_bias).logits
+                logits = self.construct(model_input, attention_bias=attention_bias, return_dict=False)[0]
                 cond_logits, uncond_logits = mint.chunk(logits, 2, dim=0)
                 logits = (1 + guidance_scale) * cond_logits - guidance_scale * uncond_logits
                 logits = logits[
@@ -539,7 +539,7 @@ class MMadaModelLM(LLaDAModelLM):
                 ]
             else:
                 attention_bias = (attention_mask[:, :, None] * attention_mask[:, None, :]).bool().unsqueeze(1)
-                logits = self(input_ids, attention_bias=attention_bias).logits
+                logits = self.construct(input_ids, attention_bias=attention_bias, return_dict=False)[0]
                 logits = logits[
                     :,
                     -(num_vq_tokens + 1) : -1,
