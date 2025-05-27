@@ -7,7 +7,7 @@ import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import mint, ops
 
-from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX
+from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX, _DTYPE_2_MIN
 from mindone.transformers.models.auto import AutoModel, AutoModelForCausalLM
 
 from .modeling_llada import LLaDAModelLM
@@ -42,7 +42,7 @@ def get_num_transfer_tokens(mask_index, steps):
     base = mask_num // steps
     remainder = mask_num % steps
 
-    num_transfer_tokens = mint.zeros((mask_num.shape[0], steps), dtype=ms.int64) + base
+    num_transfer_tokens = mint.zeros((mask_num.shape[0], steps), dtype=ms.int32) + base
 
     for i in range(mask_num.shape[0]):
         num_transfer_tokens[i, : remainder[0, i]] += 1
@@ -396,10 +396,10 @@ class MMadaModelLM(LLaDAModelLM):
                 else:
                     raise NotImplementedError(remasking)
 
-                x0_p[:, idx.shape[1] + (num_block + 1) * block_length :] = -np.inf
+                x0_p[:, idx.shape[1] + (num_block + 1) * block_length :] = _DTYPE_2_MIN[x0_p.dtype]
 
                 x0 = mint.where(mask_index, x0, x)
-                confidence = mint.where(mask_index, x0_p, -np.inf)
+                confidence = mint.where(mask_index, x0_p, _DTYPE_2_MIN[x0_p.dtype])
 
                 transfer_index = mint.zeros_like(x0, dtype=ms.bool_)
                 for j in range(confidence.shape[0]):
@@ -469,10 +469,10 @@ class MMadaModelLM(LLaDAModelLM):
                 else:
                     raise NotImplementedError(remasking)
 
-                x0_p[:, idx.shape[1] + (num_block + 1) * block_length :] = -np.inf
+                x0_p[:, idx.shape[1] + (num_block + 1) * block_length :] = _DTYPE_2_MIN[x0_p.dtype]
 
                 x0 = mint.where(mask_index, x0, x)
-                confidence = mint.where(mask_index, x0_p, -np.inf)
+                confidence = mint.where(mask_index, x0_p, _DTYPE_2_MIN[x0_p.dtype])
 
                 transfer_index = mint.zeros_like(x0, dtype=ms.bool_)
                 for j in range(confidence.shape[0]):
