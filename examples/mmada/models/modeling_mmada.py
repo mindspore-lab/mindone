@@ -42,7 +42,7 @@ def get_num_transfer_tokens(mask_index, steps):
     base = mask_num // steps
     remainder = mask_num % steps
 
-    num_transfer_tokens = mint.zeros((mask_num.shape[0], steps), dtype=ms.int32) + base
+    num_transfer_tokens = mint.zeros((mask_num.shape[0], steps), dtype=ms.int64) + base
 
     for i in range(mask_num.shape[0]):
         num_transfer_tokens[i, : remainder[0, i]] += 1
@@ -157,7 +157,7 @@ class MMadaModelLM(LLaDAModelLM):
 
             ratio = 1.0 * (step + 1) / timesteps
             mask_ratio = noise_schedule(ms.Tensor(ratio))
-            selected_probs = mint.gather(probs, -1, sampled_ids.long()[..., None])
+            selected_probs = mint.gather(probs, -1, sampled_ids.to(ms.int64)[..., None])
             selected_probs = selected_probs.squeeze(-1)
 
             selected_probs = mint.where(unknown_map, selected_probs, _DTYPE_2_MAX[selected_probs.dtype])

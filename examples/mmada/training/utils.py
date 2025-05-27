@@ -68,7 +68,7 @@ def soft_target_cross_entropy(logits, targets, soft_targets):
     loss.masked_fill_(padding_mask, 0.0)
 
     # Take the mean over the label dimensions, then divide by the number of active elements (i.e. not-padded):
-    num_active_elements = padding_mask.numel() - padding_mask.long().sum()
+    num_active_elements = padding_mask.numel() - padding_mask.to(ms.int64).sum()
     loss = loss.sum() / num_active_elements
     return loss
 
@@ -162,7 +162,7 @@ def mask_or_random_replace_tokens(image_tokens, mask_id, config, mask_schedule, 
         or config.training.get("noise_type", "mask") == "random_replace"
     ):
         labels = image_tokens
-        loss_weight = get_loss_weight(mask_prob, mask.long())
+        loss_weight = get_loss_weight(mask_prob, mask.to(ms.int64))
     else:
         labels = mint.where(mask, image_tokens, -100)
         loss_weight = None
