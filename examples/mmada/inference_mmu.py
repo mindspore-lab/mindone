@@ -106,6 +106,7 @@ if __name__ == "__main__":
     temperature = 0.8  # 1.0 = no change, < 1.0 = less random, > 1.0 = more random, in predictions
     top_k = 1  # retain only the top_k most likely tokens, clamp others to have 0 probability
     file_list = os.listdir(config.mmu_image_root)
+    file_list = [file_name for file_name in file_list if file_name.endswith("png") or file_name.endswith("jpg")]
     responses = ["" for i in range(len(file_list))]
     images = []
     config.question = config.question.split(" *** ")
@@ -130,12 +131,12 @@ if __name__ == "__main__":
 
             input_ids = mint.cat(
                 [
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(ms.int32),
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(ms.int32),
-                    image_tokens.to(ms.int32),
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(ms.int32),
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]).to(ms.int32),
-                    input_ids.to(ms.int32),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(ms.int64),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(ms.int64),
+                    image_tokens.to(ms.int64),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(ms.int64),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]).to(ms.int64),
+                    input_ids.to(ms.int64),
                 ],
                 dim=1,
             )
