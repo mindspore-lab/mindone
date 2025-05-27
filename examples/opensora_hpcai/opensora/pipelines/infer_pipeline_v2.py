@@ -79,7 +79,7 @@ class InferPipelineV2:
         cond_type: Literal["t2i", "t2v", "i2v", "v2v"] = "t2i",
         is_causal_vae: bool = False,
     ) -> Tensor:
-        x = self.vae.decode(x.to(mstype.bfloat16)).to(mstype.float32)  # FIXME
+        x = self.vae.decode(x.to(self.vae.dtype)).to(mstype.float32)
         x = x[:, :, :num_frames]  # image
 
         # remove the duplicate frames

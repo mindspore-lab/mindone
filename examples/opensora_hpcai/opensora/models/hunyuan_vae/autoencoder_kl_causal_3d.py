@@ -580,6 +580,15 @@ class AutoencoderKLCausal3D(ModelMixin, ConfigMixin, FromOriginalVAEMixin):
             latent_size.append((input_size[i] - 1) // self.spatial_compression_ratio + 1)
         return latent_size
 
+    def split_weights(self) -> "AutoencoderKLCausal3D":
+        """
+        Split model weights across tensor parallel groups for distributed execution.
+        """
+        for _, cell in self.cells_and_names():
+            if cell != self and hasattr(cell, "split_weights"):
+                cell.split_weights()
+        return self
+
 
 def CausalVAE3D_HUNYUAN(
     from_pretrained: str = None, dtype: Literal["fp32", "fp16", "bf16"] = "fp32", **kwargs
@@ -598,4 +607,4 @@ def CausalVAE3D_HUNYUAN(
         _logger.info(f"Loaded ckpt {ckpt_path} into CausalVAE3D_HUNYUAN.")
     model.init_parameters_data()
 
-    return model
+    return model.split_weights()

@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Union
+from typing import Literal, Optional, Tuple, Union
 
 from opensora.models.vae.utils import get_activation
 
@@ -9,6 +9,9 @@ from mindspore import mint, nn
 
 from mindone.diffusers.models.attention_processor import Attention
 from mindone.diffusers.utils import logging
+
+from ...acceleration import SplitForwardGatherBackward
+from .distributed import Conv3dTPCol, Conv3dTPRow, GroupNormTP, initialize_parallel_group
 
 logger = logging.get_logger(__name__)
 
@@ -96,6 +99,8 @@ class CausalConv3d(nn.Cell):
         stride: Union[int, Tuple[int, int, int]] = 1,
         dilation: Union[int, Tuple[int, int, int]] = 1,
         pad_mode="replicate",
+        tp_split: Optional[Literal["row", "col"]] = None,
+        split_output: bool = False,
         **kwargs,
     ):
         super().__init__()
@@ -110,7 +115,16 @@ class CausalConv3d(nn.Cell):
             0,
         )  # W, H, T
         self.time_causal_padding = padding
-        self.conv = mint.nn.Conv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
+
+        tp_group, *_ = initialize_parallel_group()
+        if tp_group is not None and tp_split == "row":
+            kwargs["split_output"] = split_output
+            conv3d = Conv3dTPRow
+        elif tp_group is not None and tp_split == "col":
+            conv3d = Conv3dTPCol
+        else:
+            conv3d = mint.nn.Conv3d
+        self.conv = conv3d(chan_in, chan_out, kernel_size, stride=stride, dilation=dilation, **kwargs)
         assert self.pad_mode == "replicate", f"pad mode {self.pad_mode} is not supported other than `replicate`"
         self.pad = MSReplicationPad5D(self.time_causal_padding)
 
@@ -131,16 +145,22 @@ class UpsampleCausal3D(nn.Cell):
         kernel_size: int = 3,
         bias=True,
         upsample_factor=(2, 2, 2),
+        parallel: bool = False,
     ):
         super().__init__()
         self.channels = channels
         self.out_channels = out_channels or channels
         self.upsample_factor = tuple(float(uf) for uf in upsample_factor)  # upsample_factor must be float in MindSpore
-        self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, bias=bias)
+        self.conv = CausalConv3d(
+            self.channels,
+            self.out_channels,
+            kernel_size=kernel_size,
+            bias=bias,
+            tp_split="row" if parallel else None,
+            split_output=True,
+        )
 
     def construct(self, hidden_states: Tensor) -> Tensor:
-        assert hidden_states.shape[1] == self.channels
-
         # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
         # dtype = hidden_states.dtype
         # if dtype == ms.bfloat16:
@@ -180,17 +200,22 @@ class DownsampleCausal3D(nn.Cell):
     A 3D downsampling layer with an optional convolution.
     """
 
-    def __init__(self, channels: int, kernel_size=3, bias=True, stride=2):
+    def __init__(
+        self, channels: int, kernel_size=3, bias=True, stride=2, parallel: bool = False, split_output: bool = False
+    ):
         super().__init__()
-        self.channels = channels
-        self.out_channels = channels
-        self.conv = CausalConv3d(self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, bias=bias)
+        self.conv = CausalConv3d(
+            channels,
+            channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            bias=bias,
+            tp_split="row" if parallel else None,
+            split_output=split_output,
+        )
 
     def construct(self, hidden_states: Tensor) -> Tensor:
-        assert hidden_states.shape[1] == self.channels
-        hidden_states = self.conv(hidden_states)
-
-        return hidden_states
+        return self.conv(hidden_states)
 
 
 class ResnetBlockCausal3D(nn.Cell):
@@ -213,6 +238,7 @@ class ResnetBlockCausal3D(nn.Cell):
         use_in_shortcut: Optional[bool] = None,
         conv_shortcut_bias: bool = True,
         conv_3d_out_channels: Optional[int] = None,
+        parallel: bool = False,
     ):
         super().__init__()
         self.pre_norm = pre_norm
@@ -225,13 +251,29 @@ class ResnetBlockCausal3D(nn.Cell):
         if groups_out is None:
             groups_out = groups
 
-        self.norm1 = mint.nn.GroupNorm(num_groups=groups, num_channels=in_channels, eps=eps, affine=True)
-        self.conv1 = CausalConv3d(in_channels, out_channels, kernel_size=3, stride=1)
-        self.norm2 = mint.nn.GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+        self.norm1 = GroupNormTP(num_groups=groups, num_channels=in_channels, eps=eps, affine=True, enable_tp=parallel)
+        self.conv1 = CausalConv3d(
+            in_channels,
+            out_channels,
+            kernel_size=3,
+            stride=1,
+            tp_split="row" if parallel else None,
+            split_output=True,
+        )
+        self.norm2 = GroupNormTP(
+            num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True, enable_tp=parallel
+        )
 
         self.dropout = mint.nn.Dropout(dropout)
         conv_3d_out_channels = conv_3d_out_channels or out_channels
-        self.conv2 = CausalConv3d(out_channels, conv_3d_out_channels, kernel_size=3, stride=1)
+        self.conv2 = CausalConv3d(
+            out_channels,
+            conv_3d_out_channels,
+            kernel_size=3,
+            stride=1,
+            tp_split="row" if parallel else None,
+            split_output=True,
+        )
 
         self.nonlinearity = get_activation(non_linearity)
 
@@ -242,7 +284,13 @@ class ResnetBlockCausal3D(nn.Cell):
         self.conv_shortcut = None
         if self.use_in_shortcut:
             self.conv_shortcut = CausalConv3d(
-                in_channels, conv_3d_out_channels, kernel_size=1, stride=1, bias=conv_shortcut_bias
+                in_channels,
+                conv_3d_out_channels,
+                kernel_size=1,
+                stride=1,
+                bias=conv_shortcut_bias,
+                tp_split="row" if parallel else None,
+                split_output=True,
             )
 
     def construct(self, input_tensor: Tensor) -> Tensor:
@@ -378,6 +426,8 @@ class DownEncoderBlockCausal3D(nn.Cell):
         output_scale_factor: float = 1.0,
         add_downsample: bool = True,
         downsample_stride: int = 2,
+        parallel: bool = False,
+        split_downsample_output: bool = False,
     ):
         super().__init__()
         resnets = []
@@ -394,13 +444,20 @@ class DownEncoderBlockCausal3D(nn.Cell):
                     non_linearity=resnet_act_fn,
                     output_scale_factor=output_scale_factor,
                     pre_norm=resnet_pre_norm,
+                    parallel=parallel,
                 )
             )
 
         self.resnets = nn.CellList(resnets)
 
         if add_downsample:
-            self.downsamplers = nn.CellList([DownsampleCausal3D(out_channels, stride=downsample_stride)])
+            self.downsamplers = nn.CellList(
+                [
+                    DownsampleCausal3D(
+                        out_channels, stride=downsample_stride, parallel=parallel, split_output=split_downsample_output
+                    )
+                ]
+            )
         else:
             self.downsamplers = None
 
@@ -430,6 +487,8 @@ class UpDecoderBlockCausal3D(nn.Cell):
         output_scale_factor: float = 1.0,
         add_upsample: bool = True,
         upsample_scale_factor=(2, 2, 2),
+        parallel: bool = False,
+        split_upsampler_input: bool = False,
     ):
         super().__init__()
         resnets = []
@@ -447,14 +506,27 @@ class UpDecoderBlockCausal3D(nn.Cell):
                     non_linearity=resnet_act_fn,
                     output_scale_factor=output_scale_factor,
                     pre_norm=resnet_pre_norm,
+                    parallel=parallel,
                 )
             )
 
         self.resnets = nn.CellList(resnets)
 
         if add_upsample:
+            self._split_forward_gather_backward = nn.Identity()
+            if split_upsampler_input:
+                tp_group, *_ = initialize_parallel_group()
+                if tp_group is not None:
+                    self._split_forward_gather_backward = SplitForwardGatherBackward(dim=1, group=tp_group)
             self.upsamplers = nn.CellList(
-                [UpsampleCausal3D(out_channels, out_channels=out_channels, upsample_factor=upsample_scale_factor)]
+                [
+                    UpsampleCausal3D(
+                        out_channels,
+                        out_channels=out_channels,
+                        upsample_factor=upsample_scale_factor,
+                        parallel=parallel or split_upsampler_input,
+                    )
+                ]
             )
         else:
             self.upsamplers = None
@@ -466,6 +538,7 @@ class UpDecoderBlockCausal3D(nn.Cell):
             hidden_states = resnet(hidden_states)
 
         if self.upsamplers is not None:
+            hidden_states = self._split_forward_gather_backward(hidden_states)
             for upsampler in self.upsamplers:
                 hidden_states = upsampler(hidden_states)
 

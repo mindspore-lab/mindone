@@ -4,6 +4,7 @@ import numpy as np
 
 from mindspore import Tensor, mint, nn
 
+from .distributed import GroupNormTP
 from .unet_causal_3d_blocks import (
     CausalConv3d,
     DownEncoderBlockCausal3D,
@@ -35,7 +36,7 @@ class EncoderCausal3D(nn.Cell):
         super().__init__()
         self.layers_per_block = layers_per_block
 
-        self.conv_in = CausalConv3d(in_channels, block_out_channels[0], kernel_size=3, stride=1)
+        self.conv_in = CausalConv3d(in_channels, block_out_channels[0], kernel_size=3, stride=1, tp_split="col")
         self.mid_block = None
         self.down_blocks = nn.CellList([])
 
@@ -72,6 +73,8 @@ class EncoderCausal3D(nn.Cell):
                 resnet_eps=1e-6,
                 resnet_act_fn=act_fn,
                 resnet_groups=norm_num_groups,
+                parallel=(i in [0, 1]),
+                split_downsample_output=(i == 0),
             )
 
             self.down_blocks.append(down_block)
@@ -88,9 +91,7 @@ class EncoderCausal3D(nn.Cell):
         )
 
         # out
-        self.conv_norm_out = mint.nn.GroupNorm(
-            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
-        )
+        self.conv_norm_out = GroupNormTP(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
         self.conv_act = mint.nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -197,14 +198,17 @@ class DecoderCausal3D(nn.Cell):
                 resnet_eps=1e-6,
                 resnet_act_fn=act_fn,
                 resnet_groups=norm_num_groups,
+                parallel=(i > 1),
+                split_upsampler_input=(i == 1),
             )
 
             self.up_blocks.append(up_block)
-            prev_output_channel = output_channel
 
-        self.conv_norm_out = mint.nn.GroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = GroupNormTP(
+            num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6, enable_tp=True
+        )
         self.conv_act = mint.nn.SiLU()
-        self.conv_out = CausalConv3d(block_out_channels[0], out_channels, kernel_size=3)
+        self.conv_out = CausalConv3d(block_out_channels[0], out_channels, kernel_size=3, tp_split="row")
 
     def prepare_attention_mask(self, hidden_states: Tensor) -> Tensor:
         B, C, T, H, W = hidden_states.shape
