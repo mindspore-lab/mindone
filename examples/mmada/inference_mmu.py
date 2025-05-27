@@ -48,13 +48,14 @@ def draw_caption_on_image(
         font = ImageFont.load_default(font_size)
     except Exception:
         font = ImageFont.load_default()
-
+    font_size = 16
     output_paths = []
     for i, (image, caption) in enumerate(zip(images, captions)):
         img = image.copy()
         draw = ImageDraw.Draw(img, "RGBA")
 
-        text_width, text_height = draw.textsize(caption, font=font)
+        text_height = font_size
+        # text_width = draw.textlength(caption, font=font)
         margin = 10
         img_width, img_height = img.size
         bg_position = (0, img_height - text_height - 2 * margin, img_width, img_height)

@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     with open(config.dataset.params.validation_prompts_file, "r") as f:
         validation_prompts = f.read().splitlines()
-
+    output_images, output_responses = [], []
     for step in tqdm(range(0, len(validation_prompts), config.training.batch_size)):
         prompts = validation_prompts[step : step + config.training.batch_size]
 
@@ -148,11 +148,14 @@ if __name__ == "__main__":
 
         gen_token_ids = mint.clamp(gen_token_ids, max=config.model.mmada.codebook_size - 1, min=0)
         images = vq_model.decode_code(gen_token_ids)
+        output_images.append(images)
+        output_responses.extend(prompts)
 
-        images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
-        images *= 255.0
-        images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
-        pil_images = [Image.fromarray(image) for image in images]
-        output_dir = "./inference_t2i_outputs/"
-        os.makedirs(output_dir, exist_ok=True)
-        draw_caption_on_image(pil_images, prompts, output_dir)
+    images = mint.cat(output_images, dim=0)
+    images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
+    images *= 255.0
+    images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
+    pil_images = [Image.fromarray(image) for image in images]
+    output_dir = "./inference_t2i_outputs/"
+    os.makedirs(output_dir, exist_ok=True)
+    draw_caption_on_image(pil_images, output_responses, output_dir)
