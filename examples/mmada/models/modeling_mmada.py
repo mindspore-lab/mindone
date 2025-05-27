@@ -358,7 +358,7 @@ class MMadaModelLM(LLaDAModelLM):
 
         # result = []
         batch_size = idx.shape[0]
-        x = mint.full((batch_size, idx.shape[1] + max_new_tokens), mask_id, dtype=ms.int32)
+        x = mint.full((batch_size, idx.shape[1] + max_new_tokens), mask_id, dtype=ms.int64)
         x[:, : idx.shape[1]] = idx.clone()
         prompt_index = x != mask_id
 
@@ -431,7 +431,7 @@ class MMadaModelLM(LLaDAModelLM):
 
         # result = []
         batch_size = idx.shape[0]
-        x = mint.full((batch_size, idx.shape[1] + max_new_tokens), mask_id, dtype=ms.int32)
+        x = mint.full((batch_size, idx.shape[1] + max_new_tokens), mask_id, dtype=ms.int64)
         x[:, : idx.shape[1]] = idx.clone()
         prompt_index = x != mask_id
 
