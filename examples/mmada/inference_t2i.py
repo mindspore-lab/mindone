@@ -159,3 +159,5 @@ if __name__ == "__main__":
     output_dir = "./inference_t2i_outputs/"
     os.makedirs(output_dir, exist_ok=True)
     draw_caption_on_image(pil_images, output_responses, output_dir)
+
+    print("Generated images are saved in ", output_dir)

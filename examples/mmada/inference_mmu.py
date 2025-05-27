@@ -156,3 +156,5 @@ if __name__ == "__main__":
     output_dir = "./inference_mmu_outputs/"
     os.makedirs(output_dir, exist_ok=True)
     draw_caption_on_image(pil_images, responses, output_dir)
+
+    print("Generated captions are saved in", output_dir)
