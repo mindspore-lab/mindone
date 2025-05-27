@@ -1031,8 +1031,6 @@ class LLaDAModel(nn.Cell):
             and self.config.n_layers % self.config.block_group_size == 0
         ):
             raise Exception("n layers must be divisible by block group size")
-        # torch.backends.cuda.enable_flash_sdp(True)
-        # torch.backends.cuda.enable_mem_efficient_sdp(False)  # this is super slow so make sure torch won't use it
 
         self.transformer = Transformer(config, self.__cache)
         # When `init_device="meta"` FSDP will call `reset_parameters()` to initialize weights.

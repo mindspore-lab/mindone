@@ -36,7 +36,7 @@ class StrEnum(str, Enum):
 class LayerNormType(StrEnum):
     default = "default"
     """
-    The default LayerNorm implementation, equivalent to PyTorch's built-in version.
+    The default LayerNorm implementation.
     """
 
     low_precision = "low_precision"
@@ -46,14 +46,12 @@ class LayerNormType(StrEnum):
 
     rms = "rms"
     """
-    An RMSNorm implementation. When using ``torch.compile`` this is
-    probably the fastest implementation.
+    An RMSNorm implementation.
     """
 
     gemma_rms = "gemma_rms"
     """
-    An RMSNorm implementation by gemmma. When using ``torch.compile`` this is
-    probably the fastest implementation.
+    An RMSNorm implementation by gemmma.
     """
 
     amd_compatible = "amd_compatible"
@@ -321,7 +319,7 @@ class ModelConfig:
 
     init_device: Optional[str] = None
     """
-    The torch device to use when initializing the model parameters, e.g. "cpu", "cuda:0", "meta".
+    The device to use when initializing the model parameters, e.g. "Ascend", "cpu".
     """
 
     init_fn: InitFnType = InitFnType.normal

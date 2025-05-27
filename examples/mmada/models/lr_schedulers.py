@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch optimization for diffusion models."""
 
 import math
 from enum import Enum
@@ -40,13 +39,13 @@ def get_constant_schedule(optimizer: Optimizer, last_epoch: int = -1):
     Create a schedule with a constant learning rate, using the learning rate set in optimizer.
 
     Args:
-        optimizer ([`~torch.optim.Optimizer`]):
+        optimizer ([`~mindspore.experimental.optim.Optimizer`]):
             The optimizer for which to schedule the learning rate.
         last_epoch (`int`, *optional*, defaults to -1):
             The index of the last epoch when resuming training.
 
     Return:
-        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        `mindspore.experimental.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
     """
     return LambdaLR(optimizer, lambda _: 1, last_epoch=last_epoch)
 
@@ -57,7 +56,7 @@ def get_constant_schedule_with_warmup(optimizer: Optimizer, num_warmup_steps: in
     increases linearly between 0 and the initial lr set in the optimizer.
 
     Args:
-        optimizer ([`~torch.optim.Optimizer`]):
+        optimizer ([`~mindspore.experimental.optim.Optimizer`]):
             The optimizer for which to schedule the learning rate.
         num_warmup_steps (`int`):
             The number of steps for the warmup phase.
@@ -65,7 +64,7 @@ def get_constant_schedule_with_warmup(optimizer: Optimizer, num_warmup_steps: in
             The index of the last epoch when resuming training.
 
     Return:
-        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        `mindspore.experimental.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
     """
 
     def lr_lambda(current_step: int):
@@ -82,7 +81,7 @@ def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
     a warmup period during which it increases linearly from 0 to the initial lr set in the optimizer.
 
     Args:
-        optimizer ([`~torch.optim.Optimizer`]):
+        optimizer ([`~mindspore.experimental.optim.Optimizer`]):
             The optimizer for which to schedule the learning rate.
         num_warmup_steps (`int`):
             The number of steps for the warmup phase.
@@ -92,7 +91,7 @@ def get_linear_schedule_with_warmup(optimizer, num_warmup_steps, num_training_st
             The index of the last epoch when resuming training.
 
     Return:
-        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        `mindspore.experimental.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
     """
 
     def lr_lambda(current_step: int):
@@ -117,7 +116,7 @@ def get_cosine_schedule_with_warmup(
     initial lr set in the optimizer.
 
     Args:
-        optimizer ([`~torch.optim.Optimizer`]):
+        optimizer ([`~mindspore.experimental.optim.Optimizer`]):
             The optimizer for which to schedule the learning rate.
         num_warmup_steps (`int`):
             The number of steps for the warmup phase.
@@ -130,7 +129,7 @@ def get_cosine_schedule_with_warmup(
             The index of the last epoch when resuming training.
 
     Return:
-        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        `mindspore.experimental.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
     """
 
     # def lr_lambda(current_step):
@@ -160,7 +159,7 @@ def get_cosine_with_hard_restarts_schedule_with_warmup(
     linearly between 0 and the initial lr set in the optimizer.
 
     Args:
-        optimizer ([`~torch.optim.Optimizer`]):
+        optimizer ([`~mindspore.experimental.optim.Optimizer`]):
             The optimizer for which to schedule the learning rate.
         num_warmup_steps (`int`):
             The number of steps for the warmup phase.
@@ -172,7 +171,7 @@ def get_cosine_with_hard_restarts_schedule_with_warmup(
             The index of the last epoch when resuming training.
 
     Return:
-        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        `mindspore.experimental.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
     """
 
     def lr_lambda(current_step):
@@ -195,7 +194,7 @@ def get_polynomial_decay_schedule_with_warmup(
     initial lr set in the optimizer.
 
     Args:
-        optimizer ([`~torch.optim.Optimizer`]):
+        optimizer ([`~mindspore.experimental.optim.Optimizer`]):
             The optimizer for which to schedule the learning rate.
         num_warmup_steps (`int`):
             The number of steps for the warmup phase.
@@ -213,7 +212,7 @@ def get_polynomial_decay_schedule_with_warmup(
     https://github.com/google-research/bert/blob/f39e881b169b9d53bea03d2d341b31707a6c052b/optimization.py#L37
 
     Return:
-        `torch.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
+        `mindspore.experimental.optim.lr_scheduler.LambdaLR` with the appropriate schedule.
 
     """
 
@@ -261,7 +260,7 @@ def get_scheduler(
     Args:
         name (`str` or `SchedulerType`):
             The name of the scheduler to use.
-        optimizer (`torch.optim.Optimizer`):
+        optimizer (`mindspore.experimental.optim.Optimizer`):
             The optimizer that will be used during training.
         num_warmup_steps (`int`, *optional*):
             The number of warmup steps to do. This is not required by all schedulers (hence the argument being
