@@ -186,7 +186,9 @@ class LFQuantizer(nn.Cell):
         self.entropy_multiplier = entropy_multiplier
 
     def get_indices(self, z_q):
-        return (self.power_vals.reshape(1, -1, 1, 1) * (z_q > 0).to(ms.float32)).sum(1, keepdims=True).to(ms.int32)
+        return mint.sum(self.power_vals.reshape(1, -1, 1, 1) * (z_q > 0).to(ms.float32), dim=1, keepdim=True).to(
+            ms.int32
+        )
 
     def get_codebook_entry(self, indices, shape=None):
         if shape is None:

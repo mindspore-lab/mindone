@@ -37,7 +37,7 @@ def get_num_transfer_tokens(mask_index, steps):
 
     This function is designed to precompute the number of tokens that need to be transitioned at each step.
     """
-    mask_num = mask_index.sum(axis=1, keepdims=True)
+    mask_num = mint.sum(mask_index, dim=1, keepdim=True)
 
     base = mask_num // steps
     remainder = mask_num % steps
