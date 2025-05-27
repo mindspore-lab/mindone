@@ -33,7 +33,7 @@ def top_k(logits, thres=0.9):
 def mask_by_random_topk(mask_len, probs, temperature=1.0, generator=None):
     confidence = log(probs) + temperature * gumbel_noise(probs, generator=generator)
     sorted_confidence = mint.sort(confidence, dim=-1)[0]
-    cut_off = mint.gather(sorted_confidence, 1, mask_len.to(mint.int32))
+    cut_off = mint.gather(sorted_confidence, 1, mask_len.to(ms.int32))
     masking = confidence < cut_off
     return masking
 

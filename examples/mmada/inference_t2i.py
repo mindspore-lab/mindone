@@ -47,13 +47,14 @@ def draw_caption_on_image(
         font = ImageFont.load_default(font_size)
     except Exception:
         font = ImageFont.load_default()
-
+    font_size = 16
     output_paths = []
     for i, (image, caption) in enumerate(zip(images, captions)):
         img = image.copy()
         draw = ImageDraw.Draw(img, "RGBA")
 
-        text_width, text_height = draw.textsize(caption, font=font)
+        text_height = font_size
+        # text_width = draw.textlength(caption, font=font)
         margin = 10
         img_width, img_height = img.size
         bg_position = (0, img_height - text_height - 2 * margin, img_width, img_height)
@@ -115,7 +116,7 @@ if __name__ == "__main__":
     for step in tqdm(range(0, len(validation_prompts), config.training.batch_size)):
         prompts = validation_prompts[step : step + config.training.batch_size]
 
-        image_tokens = mint.ones((len(prompts), config.model.mmada.num_vq_tokens), dtype=ms.int32) * mask_token_id
+        image_tokens = mint.ones((len(prompts), config.model.mmada.num_vq_tokens), dtype=ms.int64) * mask_token_id
         input_ids, attention_mask = uni_prompting((prompts, image_tokens), "t2i_gen")
         if config.training.guidance_scale > 0:
             uncond_input_ids, uncond_attention_mask = uni_prompting(([""] * len(prompts), image_tokens), "t2i_gen")

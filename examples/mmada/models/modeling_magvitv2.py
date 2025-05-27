@@ -345,14 +345,14 @@ class VQGANDecoder(ModelMixin, ConfigMixin):
             if i_level != 0:
                 h = self.up[i_level].upsample(h)
 
-        output["output"] = h
+        output = h
         if self.give_pre_end:
             return output
 
         h = self.norm_out(h)
         h = nonlinearity(h)
         h = self.conv_out(h)
-        output["output"] = h
+        output = h
         return output
 
 
