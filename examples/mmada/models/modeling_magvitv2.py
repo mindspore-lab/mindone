@@ -175,11 +175,11 @@ class LFQuantizer(nn.Cell):
         self.e_dim = codebook_dim
         self.beta = beta
 
-        indices = mint.arange(self.codebook_size)
+        indices = np.arange(self.codebook_size)
 
-        binary = (indices.unsqueeze(1) >> mint.arange(codebook_dim - 1, -1, -1, dtype=ms.int32)) & 1
+        binary = (indices[:, None] >> np.arange(codebook_dim - 1, -1, -1)) & 1
 
-        embedding = binary.to(ms.float32) * 2 - 1
+        embedding = ms.tensor(binary).to(ms.float32) * 2 - 1
         self.embedding = embedding
         self.power_vals = 2 ** mint.arange(codebook_dim - 1, -1, -1)
         self.commit_loss_multiplier = commit_loss_multiplier
