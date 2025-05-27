@@ -100,7 +100,6 @@ class UniversalPrompting:
         self.cond_dropout_prob = cond_dropout_prob
 
     def t2i_prompt(self, text_ids, image_ids, labels):
-        device = image_ids.device
         sequence_ids = []
         attention_masks = []
         label_ids = []
@@ -133,10 +132,10 @@ class UniversalPrompting:
             temp_label_ids = mint.cat(
                 [
                     # should we predict text tokens when doing image reconstruction?
-                    ms.tensor(temp_ids).to(device),
-                    self.sptids_dict["<|soi|>"].to(device),
+                    ms.tensor(temp_ids),
+                    self.sptids_dict["<|soi|>"],
                     labels[i],
-                    self.sptids_dict["<|eoi|>"].to(device),
+                    self.sptids_dict["<|eoi|>"],
                 ],
                 dim=0,
             )
@@ -145,16 +144,16 @@ class UniversalPrompting:
 
             temp_ids = mint.cat(
                 [
-                    ms.tensor(temp_ids).to(device),
-                    self.sptids_dict["<|soi|>"].to(device),
+                    ms.tensor(temp_ids),
+                    self.sptids_dict["<|soi|>"],
                     image_ids[i],
-                    self.sptids_dict["<|eoi|>"].to(device),
+                    self.sptids_dict["<|eoi|>"],
                 ],
                 dim=0,
             )
 
             # sequence_ids: [pad]...[pad] <|t2i|> <bos> text_1 ... text_n <eos> <|soi|> image_1 ... image_m <|eoi|>
-            temp_masks = ms.tensor(temp_masks).to(device)
+            temp_masks = ms.tensor(temp_masks)
             sequence_ids.append(temp_ids.unsqueeze(0))
             attention_masks.append(temp_masks.unsqueeze(0))
             label_ids.append(temp_label_ids.unsqueeze(0))
@@ -162,7 +161,6 @@ class UniversalPrompting:
         return mint.cat(sequence_ids, dim=0), mint.cat(attention_masks, dim=0), mint.cat(label_ids, dim=0)
 
     def t2i_gen_prompt(self, text_ids, image_ids):
-        device = image_ids.device
         sequence_ids = []
         attention_masks = []
         for i in range(len(text_ids)):
@@ -184,15 +182,15 @@ class UniversalPrompting:
             # prompting -- [task token] [sot] [text tokens] [eot] [soi] [image tokens] [eoi]
             temp_ids = mint.cat(
                 [
-                    ms.tensor(temp_ids).to(device),
-                    self.sptids_dict["<|soi|>"].to(device),
+                    ms.tensor(temp_ids),
+                    self.sptids_dict["<|soi|>"],
                     image_ids[i],
-                    self.sptids_dict["<|eoi|>"].to(device),
+                    self.sptids_dict["<|eoi|>"],
                 ],
                 dim=0,
             )
 
-            temp_masks = ms.tensor(temp_masks).to(device)
+            temp_masks = ms.tensor(temp_masks)
             sequence_ids.append(temp_ids.unsqueeze(0))
             attention_masks.append(temp_masks.unsqueeze(0))
 
@@ -280,7 +278,6 @@ class UniversalPrompting:
         return mint.cat(sequence_ids, dim=0), mint.cat(prompt_masks, dim=0), mint.cat(label_ids, dim=0)
 
     def mmu_prompt(self, image_ids, text_ids):
-        device = image_ids.device
         sequence_ids = []
         prompt_masks = []
         label_ids = []
@@ -308,11 +305,11 @@ class UniversalPrompting:
             # prompting -- [task token] [sot] [text tokens] [eot] [soi] [image tokens] [eoi]
             temp_label_ids = mint.cat(
                 [
-                    ms.tensor([self.ignore_id]).to(device),
-                    ms.tensor([self.ignore_id]).to(device),
+                    ms.tensor([self.ignore_id]),
+                    ms.tensor([self.ignore_id]),
                     mint.ones_like(image_ids[i]) * self.ignore_id,
-                    ms.tensor([self.ignore_id]).to(device),
-                    ms.tensor(temp_ids).to(device),
+                    ms.tensor([self.ignore_id]),
+                    ms.tensor(temp_ids),
                 ],
                 dim=0,
             )
@@ -321,11 +318,11 @@ class UniversalPrompting:
 
             return_temp_ids = mint.cat(
                 [
-                    self.sptids_dict["<|mmu|>"].to(device),  # task token
-                    self.sptids_dict["<|soi|>"].to(device),
+                    self.sptids_dict["<|mmu|>"],  # task token
+                    self.sptids_dict["<|soi|>"],
                     image_ids[i],
-                    self.sptids_dict["<|eoi|>"].to(device),
-                    ms.tensor(temp_ids).to(device),
+                    self.sptids_dict["<|eoi|>"],
+                    ms.tensor(temp_ids),
                 ],
                 dim=0,
             )
@@ -341,7 +338,7 @@ class UniversalPrompting:
                 prompt_length = len(return_temp_ids) - len(temp_ids)
             predict_length = len(return_temp_ids) - prompt_length
             prompt_mask = [1] * prompt_length + [0] * predict_length
-            prompt_mask = ms.tensor(prompt_mask).to(device)
+            prompt_mask = ms.tensor(prompt_mask)
             sequence_ids.append(return_temp_ids.unsqueeze(0))
             prompt_masks.append(prompt_mask.unsqueeze(0))
             label_ids.append(temp_label_ids.unsqueeze(0))
@@ -349,7 +346,6 @@ class UniversalPrompting:
         return mint.cat(sequence_ids, dim=0), mint.cat(prompt_masks, dim=0), mint.cat(label_ids, dim=0)
 
     def mmu_gen_prompt(self, image_ids, text_ids):
-        device = image_ids.device
         sequence_ids = []
         prompt_masks = []
         max_text_len = self.max_text_len - 1
@@ -371,11 +367,11 @@ class UniversalPrompting:
             # print(f"mmu temp_ids: {temp_ids}")
             return_temp_ids = mint.cat(
                 [
-                    self.sptids_dict["<|mmu|>"].to(device),  # task token
-                    self.sptids_dict["<|soi|>"].to(device),
+                    self.sptids_dict["<|mmu|>"],  # task token
+                    self.sptids_dict["<|soi|>"],
                     image_ids[i],
-                    self.sptids_dict["<|eoi|>"].to(device),
-                    ms.tensor(temp_ids).to(device),
+                    self.sptids_dict["<|eoi|>"],
+                    ms.tensor(temp_ids),
                 ],
                 dim=0,
             )
@@ -395,13 +391,12 @@ class UniversalPrompting:
                 f"prompt_length: {prompt_length}, predict_length: {predict_length}, all length: {len(return_temp_ids)}, {return_temp_ids[-predict_length:]}"
             )
             prompt_mask = [1] * prompt_length + [0] * predict_length
-            prompt_mask = ms.tensor(prompt_mask).to(device)
+            prompt_mask = ms.tensor(prompt_mask)
             sequence_ids.append(return_temp_ids.unsqueeze(0))
             prompt_masks.append(prompt_mask.unsqueeze(0))
         return mint.cat(sequence_ids, dim=0), mint.cat(prompt_masks, dim=0)
 
     def r2i_prompt(self, image_ids, text_ids):
-        device = image_ids.device
         sequence_ids = []
         prompt_masks = []
         # label_ids = []
@@ -429,11 +424,11 @@ class UniversalPrompting:
             sequence_ids.append(
                 mint.cat(
                     [
-                        ms.tensor([r2i_id]).to(device),  # task token
-                        ms.tensor(text_ids_full_len).to(device),
-                        ms.tensor([soi_id]).to(device),
+                        ms.tensor([r2i_id]),  # task token
+                        ms.tensor(text_ids_full_len),
+                        ms.tensor([soi_id]),
                         image_ids[i],
-                        ms.tensor([eoi_id]).to(device),
+                        ms.tensor([eoi_id]),
                     ],
                     dim=0,
                 ).unsqueeze(0)
@@ -445,7 +440,7 @@ class UniversalPrompting:
                 if text_ids_full_len[pos] == end_header_id:
                     end_header_pos = pos
                     break
-            prompt_mask = mint.zeros(sequence_ids[i].size(1)).to(device)
+            prompt_mask = mint.zeros(sequence_ids[i].size(1))
             prompt_mask[0] = 1  # task_id
             if end_header_pos != -1:
                 prompt_mask[1 : end_header_pos + 2] = 1
