@@ -3,6 +3,8 @@
 import math
 from functools import partial
 
+from mindpsore import ops
+
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
@@ -23,7 +25,7 @@ def gumbel_sample(t, temperature=1.0, dim=-1, generator=None):
 
 def top_k(logits, thres=0.9):
     k = math.ceil((1 - thres) * logits.shape[-1])
-    val, ind = mint.topk(logits, k, dim=-1)
+    val, ind = ops.topk(logits, k, dim=-1)
     probs = mint.full_like(logits, float("-inf"))
     probs = probs.scatter_(2, ind, val)
     return probs
@@ -98,7 +100,7 @@ def top_k_top_p_filtering(
     if top_k > 0:
         top_k = min(max(top_k, min_tokens_to_keep), logits.shape[-1])  # Safety check
         # Remove all tokens with a probability less than the last token of the top-k
-        indices_to_remove = logits < mint.topk(logits, top_k)[0][..., -1, None]
+        indices_to_remove = logits < ops.topk(logits, top_k)[0][..., -1, None]
         logits[indices_to_remove] = filter_value
 
     if top_p < 1.0:

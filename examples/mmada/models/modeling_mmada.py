@@ -5,7 +5,7 @@ from transformers.models.auto import AutoConfig
 
 import mindspore as ms
 import mindspore.mint.nn.functional as F
-from mindspore import mint
+from mindspore import mint, ops
 
 from mindone.transformers.mindspore_adapter.utils import _DTYPE_2_MAX
 from mindone.transformers.models.auto import AutoModel, AutoModelForCausalLM
@@ -403,7 +403,7 @@ class MMadaModelLM(LLaDAModelLM):
 
                 transfer_index = mint.zeros_like(x0, dtype=ms.bool_)
                 for j in range(confidence.shape[0]):
-                    _, select_index = mint.topk(confidence[j], k=num_transfer_tokens[j, i])
+                    _, select_index = ops.topk(confidence[j], k=num_transfer_tokens[j, i])
                     transfer_index[j, select_index] = True
                 x[transfer_index] = x0[transfer_index]
 
@@ -476,7 +476,7 @@ class MMadaModelLM(LLaDAModelLM):
 
                 transfer_index = mint.zeros_like(x0, dtype=ms.bool_)
                 for j in range(confidence.shape[0]):
-                    _, select_index = mint.topk(confidence[j], k=num_transfer_tokens[j, i])
+                    _, select_index = ops.topk(confidence[j], k=num_transfer_tokens[j, i])
                     transfer_index[j, select_index] = True
                 x[transfer_index] = x0[transfer_index]
             if eot_token is not None:

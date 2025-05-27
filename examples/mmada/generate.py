@@ -6,7 +6,7 @@ from tqdm import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import Tensor, mint
+from mindspore import Tensor, mint, ops
 
 ms.set_context(mode=ms.PYNATIVE_MODE)
 
@@ -126,7 +126,7 @@ def generate(
 
                 transfer_index = mint.zeros_like(x0, dtype=ms.bool_)
                 for j in range(confidence.shape[0]):
-                    _, select_index = mint.topk(confidence[j], k=num_transfer_tokens[j, i])
+                    _, select_index = ops.topk(confidence[j], k=num_transfer_tokens[j, i])
                     transfer_index[j, select_index] = True
                 x[transfer_index] = x0[transfer_index]
                 pbar.set_postfix(iteration_time=f"{time() - step_start:.3f}")
