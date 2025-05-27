@@ -17,12 +17,11 @@ import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
 import numpy as np
-import wandb
 from models import MAGVITv2, MMadaModelLM, get_mask_schedule
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 from training.prompting_utils import UniversalPrompting
-from training.utils import flatten_omega_conf, get_config
+from training.utils import get_config
 from transformers import AutoTokenizer
 
 import mindspore as ms
@@ -41,23 +40,38 @@ def get_vq_model_class(model_type):
         raise ValueError(f"model_type {model_type} not supported.")
 
 
+def draw_caption_on_image(
+    images, captions, output_dir=".", font_size=20, text_color=(255, 255, 255), bg_color=(0, 0, 0, 128)
+):
+    try:
+        font = ImageFont.load_default(font_size)
+    except Exception:
+        font = ImageFont.load_default()
+
+    output_paths = []
+    for i, (image, caption) in enumerate(zip(images, captions)):
+        img = image.copy()
+        draw = ImageDraw.Draw(img, "RGBA")
+
+        text_width, text_height = draw.textsize(caption, font=font)
+        margin = 10
+        img_width, img_height = img.size
+        bg_position = (0, img_height - text_height - 2 * margin, img_width, img_height)
+        text_position = (margin, img_height - text_height - margin)
+
+        draw.rectangle(bg_position, fill=bg_color)
+
+        draw.text(text_position, caption, fill=text_color, font=font)
+
+        output_path = f"{output_dir}/image_with_caption_{i}.png"
+        img.save(output_path)
+        output_paths.append(output_path)
+
+    return output_paths
+
+
 if __name__ == "__main__":
     config = get_config()
-
-    resume_wandb_run = config.wandb.resume
-    run_id = config.wandb.get("run_id", None)
-    if run_id is None:
-        resume_wandb_run = False
-        run_id = wandb.util.generate_id()
-        config.wandb.run_id = run_id
-
-    wandb_config = {k: v for k, v in flatten_omega_conf(config, resolve=True)}
-
-    wandb.init(
-        project="demo",
-        name=config.experiment.name + "_t2i",
-        config=wandb_config,
-    )
 
     tokenizer = AutoTokenizer.from_pretrained(config.model.mmada.pretrained_model_path, padding_side="left")
 
@@ -86,8 +100,6 @@ if __name__ == "__main__":
     for param in vq_model.get_parameters():
         param.requires_grad = False
     model = MMadaModelLM.from_pretrained(config.model.mmada.pretrained_model_path, mindspore_dtype=ms.bfloat16)
-
-    model
 
     mask_token_id = model.config.mask_token_id
     if config.get("validation_prompts_file", None) is not None:
@@ -140,6 +152,6 @@ if __name__ == "__main__":
         images *= 255.0
         images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
         pil_images = [Image.fromarray(image) for image in images]
-
-        wandb_images = [wandb.Image(image, caption=prompts[i]) for i, image in enumerate(pil_images)]
-        wandb.log({"generated_images": wandb_images}, step=step)
+        output_dir = "./inference_t2i_outputs/"
+        os.makedirs(output_dir, exist_ok=True)
+        draw_caption_on_image(pil_images, prompts, output_dir)
