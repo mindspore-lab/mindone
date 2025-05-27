@@ -16,13 +16,13 @@
 import os
 
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
+os.environ["SAFETENSORS_WEIGHTS_NAME"] = "pytorch_model.safetensors"  # vq_model
 import numpy as np
-import wandb
 from models import MAGVITv2, MMadaModelLM
 from PIL import Image
 from tqdm import tqdm
 from training.prompting_utils import UniversalPrompting
-from training.utils import flatten_omega_conf, get_config, image_transform
+from training.utils import get_config, image_transform
 from transformers import AutoTokenizer
 
 import mindspore as ms
@@ -43,20 +43,6 @@ def get_vq_model_class(model_type):
 
 if __name__ == "__main__":
     config = get_config()
-    resume_wandb_run = config.wandb.resume
-    run_id = config.wandb.get("run_id", None)
-    if run_id is None:
-        resume_wandb_run = False
-        run_id = wandb.util.generate_id()
-        config.wandb.run_id = run_id
-
-    wandb_config = {k: v for k, v in flatten_omega_conf(config, resolve=True)}
-
-    wandb.init(
-        project="demo",
-        name=config.experiment.name + "_mmu",
-        config=wandb_config,
-    )
 
     tokenizer = AutoTokenizer.from_pretrained(config.model.mmada.pretrained_model_path, padding_side="left")
     uni_prompting = UniversalPrompting(
@@ -136,5 +122,4 @@ if __name__ == "__main__":
     images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in images]
 
-    wandb_images = [wandb.Image(image, caption=responses[i]) for i, image in enumerate(pil_images)]
-    wandb.log({"multimodal understanding": wandb_images}, step=0)
+    wandb_images = [Image(image, caption=responses[i]) for i, image in enumerate(pil_images)]
