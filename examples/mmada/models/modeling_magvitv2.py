@@ -221,7 +221,7 @@ class LFQuantizer(nn.Cell):
         ones = mint.ones_like(z_flattened)
         z_q = ones * ge_zero + -ones * (1 - ge_zero)
 
-        z_q = z_flattened + (z_q - z_flattened).detach()
+        z_q = z_flattened + (z_q - z_flattened)
 
         CatDist = ms.nn.probability.distribution.Categorical
         logit = mint.stack(
@@ -231,12 +231,12 @@ class LFQuantizer(nn.Cell):
             ],
             dim=-1,
         )
-        cat_dist = CatDist(probs=logit)
+        cat_dist = CatDist(probs=mint.softmax(logit, dim=-1))
         entropy = cat_dist.entropy().mean()
         mean_prob = cat_dist.probs.mean(0)
         mean_entropy = CatDist(probs=mean_prob).entropy().mean()
 
-        commit_loss = mint.mean((z_q.detach() - z_flattened) ** 2) + self.beta * mint.mean((z_q - z_flattened) ** 2)
+        commit_loss = mint.mean((z_q - z_flattened) ** 2) + self.beta * mint.mean((z_q - z_flattened) ** 2)
 
         z_q = z_q.view(z.shape)
         z_q = ops.transpose(z_q, (0, 3, 1, 2))

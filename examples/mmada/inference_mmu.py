@@ -113,7 +113,7 @@ if __name__ == "__main__":
         image_path = os.path.join(config.mmu_image_root, file_name)
         image_ori = Image.open(image_path).convert("RGB")
         image = image_transform(image_ori, resolution=config.dataset.params.resolution)
-        image = image.unsqueeze(0)
+        image = ms.tensor(image).unsqueeze(0)
         images.append(image)
         image_tokens = vq_model.get_code(image) + len(uni_prompting.text_tokenizer)
         batch_size = 1
@@ -130,11 +130,11 @@ if __name__ == "__main__":
 
             input_ids = mint.cat(
                 [
-                    (mint.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]),
-                    (mint.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
                     image_tokens,
-                    (mint.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]),
-                    (mint.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|sot|>"]),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]),
                     input_ids,
                 ],
                 dim=1,
