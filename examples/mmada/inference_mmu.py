@@ -130,15 +130,15 @@ if __name__ == "__main__":
 
             input_ids = mint.cat(
                 [
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]),
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]),
-                    image_tokens,
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]),
-                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]),
-                    input_ids,
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|mmu|>"]).to(ms.int32),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|soi|>"]).to(ms.int32),
+                    image_tokens.to(ms.int32),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|eoi|>"]).to(ms.int32),
+                    (mint.ones((input_ids.shape[0], 1)) * uni_prompting.sptids_dict["<|sot|>"]).to(ms.int32),
+                    input_ids.to(ms.int32),
                 ],
                 dim=1,
-            ).to(ms.int32)
+            )
             output_ids = model.mmu_generate(input_ids, max_new_tokens=1024, steps=512, block_length=1024)
             text = uni_prompting.text_tokenizer.batch_decode(
                 output_ids[:, input_ids.shape[1] :], skip_special_tokens=True
