@@ -19,7 +19,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "true"
 os.environ["SAFETENSORS_WEIGHTS_NAME"] = "pytorch_model.safetensors"  # vq_model
 import numpy as np
 from models import MAGVITv2, MMadaModelLM
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 from tqdm import tqdm
 from training.prompting_utils import UniversalPrompting
 from training.utils import get_config, image_transform
@@ -39,6 +39,36 @@ def get_vq_model_class(model_type):
         return MAGVITv2
     else:
         raise ValueError(f"model_type {model_type} not supported.")
+
+
+def draw_caption_on_image(
+    images, captions, output_dir=".", font_size=20, text_color=(255, 255, 255), bg_color=(0, 0, 0, 128)
+):
+    try:
+        font = ImageFont.load_default(font_size)
+    except Exception:
+        font = ImageFont.load_default()
+
+    output_paths = []
+    for i, (image, caption) in enumerate(zip(images, captions)):
+        img = image.copy()
+        draw = ImageDraw.Draw(img, "RGBA")
+
+        text_width, text_height = draw.textsize(caption, font=font)
+        margin = 10
+        img_width, img_height = img.size
+        bg_position = (0, img_height - text_height - 2 * margin, img_width, img_height)
+        text_position = (margin, img_height - text_height - margin)
+
+        draw.rectangle(bg_position, fill=bg_color)
+
+        draw.text(text_position, caption, fill=text_color, font=font)
+
+        output_path = f"{output_dir}/image_with_caption_{i}.png"
+        img.save(output_path)
+        output_paths.append(output_path)
+
+    return output_paths
 
 
 if __name__ == "__main__":
@@ -121,5 +151,6 @@ if __name__ == "__main__":
     images *= 255.0
     images = images.permute(0, 2, 3, 1).asnumpy().astype(np.uint8)
     pil_images = [Image.fromarray(image) for image in images]
-
-    wandb_images = [Image(image, caption=responses[i]) for i, image in enumerate(pil_images)]
+    output_dir = "./inference_mmu_outputs/"
+    os.makedirs(output_dir, exist_ok=True)
+    draw_caption_on_image(pil_images, responses, output_dir)
