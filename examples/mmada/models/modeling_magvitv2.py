@@ -231,7 +231,9 @@ class LFQuantizer(nn.Cell):
             ],
             dim=-1,
         )
-        cat_dist = CatDist(probs=mint.softmax(logit, dim=-1))
+        probs = mint.softmax(logit, dim=-1)
+        probs = mint.where(probs == 1, 1 - 1e-6, probs)  # probs should be less than 1
+        cat_dist = CatDist(probs=probs)
         entropy = cat_dist.entropy().mean()
         mean_prob = cat_dist.probs.mean(0)
         mean_entropy = CatDist(probs=mean_prob).entropy().mean()
