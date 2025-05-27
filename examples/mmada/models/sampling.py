@@ -3,11 +3,10 @@
 import math
 from functools import partial
 
-from mindpsore import ops
-
 import mindspore as ms
 import mindspore.mint as mint
 import mindspore.mint.nn.functional as F
+from mindspore import ops
 
 
 def log(t, eps=1e-20):
