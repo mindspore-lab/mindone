@@ -42,7 +42,13 @@ def get_vq_model_class(model_type):
 
 
 def draw_caption_on_image(
-    images, captions, output_dir=".", font_size=20, text_color=(255, 255, 255), bg_color=(0, 0, 0, 128)
+    images,
+    captions,
+    output_dir=".",
+    font_size=20,
+    text_color=(255, 255, 255),
+    bg_color=(0, 0, 0, 128),
+    file_list=None,
 ):
     try:
         font = ImageFont.load_default(font_size)
@@ -64,8 +70,10 @@ def draw_caption_on_image(
         draw.rectangle(bg_position, fill=bg_color)
 
         draw.text(text_position, caption, fill=text_color, font=font)
-
-        output_path = f"{output_dir}/image_with_caption_{i}.png"
+        if file_list is None:
+            output_path = f"{output_dir}/image_with_caption_{i}.png"
+        else:
+            output_path = f"{output_dir}/{file_list[i]}"
         img.save(output_path)
         output_paths.append(output_path)
 
@@ -145,8 +153,8 @@ if __name__ == "__main__":
             text = uni_prompting.text_tokenizer.batch_decode(
                 output_ids[:, input_ids.shape[1] :], skip_special_tokens=True
             )
-            print(text)
-            responses[i] += "User: " + question + "\n Answer : " + text[0] + "\n"
+            print(text[0])
+            responses[i] += text[0]
 
     images = mint.cat(images, dim=0)
     images = mint.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
@@ -155,6 +163,6 @@ if __name__ == "__main__":
     pil_images = [Image.fromarray(image) for image in images]
     output_dir = "./inference_mmu_outputs/"
     os.makedirs(output_dir, exist_ok=True)
-    draw_caption_on_image(pil_images, responses, output_dir)
+    draw_caption_on_image(pil_images, responses, output_dir, file_list=file_list)
 
     print("Generated captions are saved in", output_dir)

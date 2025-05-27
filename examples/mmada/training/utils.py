@@ -205,11 +205,9 @@ from mindspore.dataset.vision import Inter
 def image_transform(image, resolution=256, normalize=True):
     image = transforms.Resize(resolution, interpolation=Inter.BICUBIC)(image)
     image = transforms.CenterCrop((resolution, resolution))(image)
-    if normalize:
-        image = transforms.Normalize(mean=[0.5 * 225, 0.5 * 225, 0.5 * 225], std=[0.5 * 225, 0.5 * 225, 0.5 * 225])(
-            image
-        )
     image = transforms.ToTensor()(image)
+    if normalize:
+        image = (image - 0.5) / 0.5
     return image
 
 
