@@ -1,4 +1,4 @@
-from . import (
+from . import (  # qwen3,
     auto,
     bert,
     bit,
@@ -23,7 +23,6 @@ from . import (
     qwen2_5_omni,
     qwen2_5_vl,
     qwen2_vl,
-    qwen3,
     speecht5,
     t5,
     umt5,
