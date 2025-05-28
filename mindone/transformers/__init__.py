@@ -192,6 +192,13 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.starcoder2 import (
+    Starcoder2ForCausalLM,
+    Starcoder2Model,
+    Starcoder2PreTrainedModel,
+    Starcoder2ForSequenceClassification,
+    Starcoder2ForTokenClassification,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
