@@ -2,8 +2,8 @@ import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-import numpy as np
-from transformers.models.qwen2_5_vl.configuration_qwen2_5_vl import Qwen2_5_VLConfig, Qwen2_5_VLVisionConfig
+from transformers import Qwen2_5_VLConfig
+from transformers.models.qwen2_5_vl.configuration_qwen2_5_vl import Qwen2_5_VLVisionConfig
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -11,6 +11,7 @@ import mindspore.mint.nn.functional as F
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Parameter, Tensor
+from mindspore.mint.nn import CrossEntropyLoss
 
 from mindone.models.utils import normal_, zeros_
 from mindone.transformers.activations import ACT2FN
@@ -97,22 +98,22 @@ class Qwen2_5_VisionPatchEmbed(nn.Cell):
 class Qwen2_5_VisionRotaryEmbedding(nn.Cell):
     def __init__(self, dim: int, theta: float = 10000.0) -> None:
         super().__init__()
-        inv_freq = 1.0 / (theta ** (np.arange(0, dim, 2, dtype=np.float32) / dim))
-        self.inv_freq = Tensor(inv_freq)
+        inv_freq = 1.0 / (theta ** (mint.arange(0, dim, 2, dtype=ms.float32) / dim))
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
 
-    def construct(self, seqlen: Tensor) -> Tensor:
-        seq = mint.arange(seqlen.item(), dtype=self.inv_freq.dtype)
+    def construct(self, seqlen: int) -> Tensor:
+        seq = mint.arange(seqlen, dtype=self.inv_freq.dtype)
         freqs = mint.outer(seq, self.inv_freq)
         return freqs
 
 
 class Qwen2RMSNorm(nn.Cell):
-    def __init__(self, hidden_size, eps=1e-6) -> None:
+    def __init__(self, hidden_size, eps=1e-6):
         """
         Qwen2RMSNorm is equivalent to T5LayerNorm
         """
         super().__init__()
-        self.weight = Parameter(Tensor(np.ones(hidden_size, dtype=np.float32)))
+        self.weight = Parameter(mint.ones(hidden_size))
         self.variance_epsilon = eps
 
     def construct(self, hidden_states):
@@ -143,8 +144,8 @@ class Qwen2_5_VLPatchMerger(nn.Cell):
 def apply_rotary_pos_emb_flashatt(q: Tensor, k: Tensor, cos: Tensor, sin: Tensor) -> Tuple[Tensor, Tensor]:
     cos = cos.chunk(2, dim=-1)[0].contiguous()
     sin = sin.chunk(2, dim=-1)[0].contiguous()
-    q_embed = apply_rotary_emb_flashatt(q.float(), cos, sin).type_as(q)
-    k_embed = apply_rotary_emb_flashatt(k.float(), cos, sin).type_as(k)
+    q_embed = apply_rotary_emb_flashatt(q.float(), cos.float(), sin.float()).type_as(q)
+    k_embed = apply_rotary_emb_flashatt(k.float(), cos.float(), sin.float()).type_as(k)
     return q_embed, k_embed
 
 
@@ -372,7 +373,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
             wpos_ids = wpos_ids.flatten()
             pos_ids.append(mint.stack([hpos_ids, wpos_ids], dim=-1).repeat(t, 1))
         pos_ids = mint.cat(pos_ids, dim=0)
-        max_grid_size = grid_thw[:, 1:].max()
+        max_grid_size = grid_thw[:, 1:].max().item()
         rotary_pos_emb_full = self.rotary_pos_emb(max_grid_size)
         rotary_pos_emb = rotary_pos_emb_full[pos_ids].flatten(1)
         return rotary_pos_emb
@@ -447,7 +448,7 @@ class Qwen2_5_VisionTransformerPretrainedModel(Qwen2_5_VLPreTrainedModel):
             else:
                 cu_seqlens_now = cu_window_seqlens
             if self.gradient_checkpointing and self.training:
-                raise NotImplementedError()
+                hidden_states = ms.recompute(blk, hidden_states, cu_seqlens_now, None, position_embeddings)
             else:
                 hidden_states = blk(hidden_states, cu_seqlens=cu_seqlens_now, position_embeddings=position_embeddings)
 
@@ -749,11 +750,6 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
             key_states = key_states.to(target_dtype)
             value_states = value_states.to(target_dtype)
 
-        # Reashape to the expected shape for Flash Attention
-        query_states = query_states.transpose(1, 2)
-        key_states = key_states.transpose(1, 2)
-        value_states = value_states.transpose(1, 2)
-
         if (
             self.config.use_sliding_window
             and getattr(self.config, "sliding_window", None) is not None
@@ -765,14 +761,14 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
 
         assert sliding_window is None, "sliding_window is not supported yet."
 
-        if self.is_causal:
-            causal_mask = ~mint.tril(mint.ones((bsz, 1, q_len, q_len), dtype=ms.bool_))
+        if self.is_causal and q_len > 1:
+            causal_mask = mint.triu(mint.ones((bsz, 1, q_len, key_states.shape[2]), dtype=ms.bool_), diagonal=1)
         else:
             causal_mask = None
 
         if attention_mask is not None:
             attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
-            if self.is_causal:
+            if causal_mask is not None:
                 attention_mask = attention_mask | causal_mask
             else:
                 attention_mask = mint.tile(attention_mask, (1, 1, q_len, 1))
@@ -787,10 +783,10 @@ class Qwen2_5_VLFlashAttention2(Qwen2_5_VLAttention):
             attn_mask=attention_mask,
             keep_prob=1 - dropout_rate,
             scalar_value=1 / math.sqrt(query_states.shape[-1]),
-            input_layout="BSND",
+            input_layout="BNSD",
         )
 
-        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
+        attn_output = attn_output.transpose(1, 2).reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
@@ -979,7 +975,17 @@ class Qwen2_5_VLModel(Qwen2_5_VLPreTrainedModel):
                 all_hidden_states += (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
-                raise NotImplementedError()
+                layer_outputs = ms.recompute(
+                    decoder_layer,
+                    hidden_states,
+                    causal_mask,
+                    position_ids,
+                    past_key_values,
+                    output_attentions,
+                    use_cache,
+                    cache_position,
+                    position_embeddings,
+                )
             else:
                 layer_outputs = decoder_layer(
                     hidden_states,
@@ -1535,7 +1541,7 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = mint.nn.CrossEntropyLoss()
+            loss_fct = CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, self.config.vocab_size)
             shift_labels = shift_labels.view(-1)
             loss = loss_fct(shift_logits, shift_labels)
