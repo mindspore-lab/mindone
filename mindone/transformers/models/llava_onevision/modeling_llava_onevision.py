@@ -225,6 +225,8 @@ class LlavaOnevisionPreTrainedModel(PreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_flash_attn_2 = False  # FIXME: since qwen2 does not support flash attention, so it is false
     _supports_cache_class = False  # FIXME: since qwen2 does not support cache class, so it is false
+    _supports_static_cache = False
+    _supports_quantized_cache = False
     _supports_sdpa = True
 
     # Copied from transformers.models.llava_next.modeling_llava_next.LlavaNextPreTrainedModel._init_weights
@@ -602,7 +604,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
-            # logits_to_keep=logits_to_keep,  # FIXME: add logits_to_keep in qwen2
+            # logits_to_keep=logits_to_keep,  # FIXME: add back once qwen2 >= 4.50.0
             **lm_kwargs,
         )
 
@@ -660,7 +662,7 @@ class LlavaOnevisionForConditionalGeneration(LlavaOnevisionPreTrainedModel, Gene
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             cache_position=cache_position,
-            # logits_to_keep=logits_to_keep,  # FIXME: add logits_to_keep in qwen2
+            # logits_to_keep=logits_to_keep,  # FIXME: add back once qwen2 >= 4.50.0
             **kwargs,
         )
 
