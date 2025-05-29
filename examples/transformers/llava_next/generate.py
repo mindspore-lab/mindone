@@ -1,6 +1,7 @@
 import os
 import ssl
 import urllib.request
+from typing import Optional
 
 from PIL import Image
 from transformers import LlavaNextProcessor
@@ -13,6 +14,17 @@ from mindone.transformers import LlavaNextForConditionalGeneration
 MODEL_NAME = "llava-hf/llava-v1.6-mistral-7b-hf"
 
 
+def get_image(url: str, fname: Optional[str] = None) -> Image.Image:
+    if fname is None:
+        fname = os.path.basename(url)
+
+    if not os.path.isfile(fname):
+        ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
+        urllib.request.urlretrieve(url, fname)
+    image = Image.open(fname)
+    return image
+
+
 def main():
     processor = LlavaNextProcessor.from_pretrained(MODEL_NAME)
 
@@ -23,11 +35,7 @@ def main():
 
     # prepare image and text prompt, using the appropriate prompt template
     url = "https://github.com/haotian-liu/LLaVA/blob/1a91fc274d7c35a9b50b3cb29c4247ae5837ce39/images/llava_v1_5_radar.jpg?raw=true"
-    image_path = "demo.jpg"
-    if not os.path.isfile(image_path):
-        ssl._create_default_https_context = ssl._create_unverified_context  # disable ssl verify
-        urllib.request.urlretrieve(url, image_path)
-    image = Image.open(image_path)
+    image = get_image(url, fname="llava_v1_5_radar.jpg")
 
     # Define a chat history and use `apply_chat_template` to get correctly formatted prompt
     # Each value in "content" has to be a list of dicts with types ("text", "image")

@@ -1,6 +1,7 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 from transformers import MistralConfig
+from transformers.utils import LossKwargs
 
 import mindspore as ms
 import mindspore.mint as mint
@@ -14,7 +15,6 @@ from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
 from ...generation import GenerationMixin
 from ...mindspore_adapter import dtype_to_min
-from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
@@ -132,17 +132,27 @@ def flash_attention_2_construct(
     dropout: float = 0.0,
     **kwargs,
 ):
+    is_causal = kwargs.get("is_causal", True)
+    sliding_window = kwargs.get("sliding_window", False)
+    if sliding_window:
+        raise NotImplementedError("sliding_window is not supported for flash_attention_2")
+    bsz, _, q_len, _ = query.shape
     key_states = repeat_kv(key, module.num_key_value_groups)
     value_states = repeat_kv(value, module.num_key_value_groups)
 
-    if attention_mask is not None:
-        attention_mask = attention_mask.to(ms.uint8)
+    if is_causal and q_len > 1:
+        causal_mask = mint.triu(mint.ones((bsz, 1, q_len, key.shape[2]), dtype=ms.bool_), diagonal=1)
     else:
-        q_len = query.shape[2]
-        if q_len > 1:
-            attention_mask = 1 - mint.tril(mint.ones((1, 1, q_len, q_len), dtype=ms.uint8))
+        causal_mask = None
+
+    if attention_mask is not None:
+        attention_mask = ~attention_mask[:, None, None, :].to(ms.bool_)
+        if causal_mask is not None:
+            attention_mask = attention_mask | causal_mask
         else:
-            attention_mask = None
+            attention_mask = mint.tile(attention_mask, (1, 1, q_len, 1))
+    else:
+        attention_mask = causal_mask
 
     attn_output = ops.flash_attention_score(
         query,
@@ -249,6 +259,9 @@ class MistralRMSNorm(nn.Cell):
         )
         return output.to(input_dtype)
 
+    def extra_repr(self):
+        return f"{tuple(self.weight.shape)}, eps={self.variance_epsilon}"
+
 
 class MistralDecoderLayer(nn.Cell):
     def __init__(self, config: MistralConfig, layer_idx: int):
@@ -317,17 +330,39 @@ class MistralRotaryEmbedding(nn.Cell):
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
         inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
-        self.inv_freq = inv_freq
+        self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
+    def _dynamic_frequency_update(self, position_ids):
+        """
+        dynamic RoPE layers should recompute `inv_freq` in the following situations:
+        1 - growing beyond the cached sequence length (allow scaling)
+        2 - the current sequence length is in the original scale (avoid losing precision with small sequences)
+        """
+        seq_len = mint.max(position_ids) + 1
+        if seq_len > self.max_seq_len_cached:  # growth
+            inv_freq, self.attention_scaling = self.rope_init_fn(self.config, seq_len=seq_len)
+            self.register_buffer("inv_freq", inv_freq, persistent=False)  # TODO joao: may break with compilation
+            self.max_seq_len_cached = seq_len
+
+        if seq_len < self.original_max_seq_len and self.max_seq_len_cached > self.original_max_seq_len:  # reset
+            self.register_buffer("inv_freq", self.original_inv_freq, persistent=False)
+            self.max_seq_len_cached = self.original_max_seq_len
+
     def construct(self, x, position_ids):
+        if "dynamic" in self.rope_type:
+            self._dynamic_frequency_update(position_ids)
         inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
 
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)
-        cos = emb.cos() * self.attention_scaling
-        sin = emb.sin() * self.attention_scaling
+        cos = emb.cos()
+        sin = emb.sin()
+
+        # Advanced RoPE types (e.g. yarn) apply a post-processing scaling factor, equivalent to scaling attention
+        cos = cos * self.attention_scaling
+        sin = sin * self.attention_scaling
 
         return cos.to(dtype=x.dtype), sin.to(dtype=x.dtype)
 
@@ -340,7 +375,11 @@ class MistralPreTrainedModel(PreTrainedModel):
     _skip_keys_device_placement = ["past_key_values"]
     _supports_flash_attn_2 = True
     _supports_sdpa = False
+    _supports_flex_attn = False
     _supports_cache_class = True
+    _supports_quantized_cache = False
+    _supports_static_cache = True
+    _supports_attention_backend = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
@@ -394,14 +433,16 @@ class MistralModel(MistralPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
-    ) -> BaseModelOutputWithPast:
+    ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         use_cache = use_cache if use_cache is not None else self.config.use_cache
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         if (input_ids is None) ^ (inputs_embeds is not None):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
@@ -411,10 +452,6 @@ class MistralModel(MistralPreTrainedModel):
                 "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`."
             )
             use_cache = False
-
-        # TODO (joao): remove this exception in v4.56 -- it exists for users that try to pass a legacy cache
-        if not isinstance(past_key_values, (type(None), Cache)):
-            raise ValueError("The `past_key_values` should be either a `Cache` object or `None`.")
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
@@ -482,12 +519,13 @@ class MistralModel(MistralPreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
 
-        return BaseModelOutputWithPast(
+        output = BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values if use_cache else None,
             hidden_states=all_hidden_states,
             attentions=all_self_attns,
         )
+        return output if return_dict else output.to_tuple()
 
     def _update_causal_mask(
         self,
@@ -515,7 +553,6 @@ class MistralModel(MistralPreTrainedModel):
         using_sliding_window_cache = isinstance(past_key_values, SlidingWindowCache)
 
         dtype = input_tensor.dtype
-        min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
         # SlidingWindowCache or StaticCache
         if using_sliding_window_cache or using_static_cache:
@@ -539,12 +576,6 @@ class MistralModel(MistralPreTrainedModel):
             config=self.config,
             past_key_values=past_key_values,
         )
-
-        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
-            # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
-            # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
-            # Details: https://github.com/mindspore/mindspore/issues/110213
-            causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
         return causal_mask
 
@@ -573,7 +604,7 @@ class MistralModel(MistralPreTrainedModel):
                     sliding_attend_mask = mint.arange(target_length) <= (
                         cache_position.reshape(-1, 1) - config.sliding_window
                     )
-                    diagonal_attend_mask = mint.bitwise_or(diagonal_attend_mask, sliding_attend_mask)
+                    diagonal_attend_mask = diagonal_attend_mask.bitwise_or(sliding_attend_mask)
             causal_mask *= diagonal_attend_mask
             causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
@@ -587,6 +618,10 @@ class MistralModel(MistralPreTrainedModel):
                     padding_mask, min_dtype
                 )
         return causal_mask
+
+
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
@@ -632,10 +667,11 @@ class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
         cache_position: Optional[ms.Tensor] = None,
         logits_to_keep: Union[int, ms.Tensor] = 0,
-        **kwargs,
-    ) -> CausalLMOutputWithPast:
+        **kwargs: Unpack[KwargsForCausalLM],
+    ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
             labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
                 Labels for computing the masked language modeling loss. Indices should either be in `[0, ...,
@@ -671,9 +707,10 @@ class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
         output_hidden_states = (
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs: BaseModelOutputWithPast = self.model(
+        outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -682,11 +719,12 @@ class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
             cache_position=cache_position,
             **kwargs,
         )
 
-        hidden_states = outputs.last_hidden_state
+        hidden_states = outputs[0]
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])
@@ -694,6 +732,10 @@ class MistralForCausalLM(MistralPreTrainedModel, GenerationMixin):
         loss = None
         if labels is not None:
             loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
+
+        if not return_dict:
+            output = (logits,) + outputs[1:]
+            return (loss,) + output if loss is not None else output
 
         return CausalLMOutputWithPast(
             loss=loss,
@@ -738,15 +780,17 @@ class MistralForTokenClassification(MistralPreTrainedModel):
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> TokenClassifierOutput:
+        return_dict: Optional[bool] = None,
+    ) -> Union[Tuple, TokenClassifierOutput]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs: BaseModelOutputWithPast = self.model(
+        outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -755,14 +799,19 @@ class MistralForTokenClassification(MistralPreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
-        sequence_output = outputs.last_hidden_state
+        sequence_output = outputs[0]
         sequence_output = self.dropout(sequence_output)
         logits = self.score(sequence_output)
 
         loss = None
         if labels is not None:
             loss = self.loss_function(logits, labels, self.config)
+
+        if not return_dict:
+            output = (logits,) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
 
         return TokenClassifierOutput(
             loss=loss,
@@ -793,21 +842,23 @@ class MistralForSequenceClassification(MistralPreTrainedModel):
         input_ids: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         position_ids: Optional[ms.Tensor] = None,
-        past_key_values: Optional[Cache] = None,
+        past_key_values: Optional[Union[Cache, List[ms.Tensor]]] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
         labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
-    ) -> SequenceClassifierOutputWithPast:
+        return_dict: Optional[bool] = None,
+    ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
         labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
         """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        transformer_outputs: BaseModelOutputWithPast = self.model(
+        transformer_outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -816,8 +867,9 @@ class MistralForSequenceClassification(MistralPreTrainedModel):
             use_cache=use_cache,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
-        hidden_states = transformer_outputs.last_hidden_state
+        hidden_states = transformer_outputs[0]
         logits = self.score(hidden_states)
 
         if input_ids is not None:
@@ -846,6 +898,10 @@ class MistralForSequenceClassification(MistralPreTrainedModel):
         loss = None
         if labels is not None:
             loss = self.loss_function(logits=logits, labels=labels, pooled_logits=pooled_logits, config=self.config)
+
+        if not return_dict:
+            output = (pooled_logits,) + transformer_outputs[1:]
+            return ((loss,) + output) if loss is not None else output
 
         return SequenceClassifierOutputWithPast(
             loss=loss,
@@ -884,8 +940,9 @@ class MistralForQuestionAnswering(MistralPreTrainedModel):
         end_positions: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
         **kwargs,
-    ) -> QuestionAnsweringModelOutput:
+    ) -> Union[Tuple, QuestionAnsweringModelOutput]:
         r"""
         start_positions (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for position (index) of the start of the labelled span for computing the token classification loss.
@@ -896,8 +953,9 @@ class MistralForQuestionAnswering(MistralPreTrainedModel):
             Positions are clamped to the length of the sequence (`sequence_length`). Position outside of the sequence
             are not taken into account for computing the loss.
         """
+        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs: BaseModelOutputWithPast = self.model(
+        outputs = self.model(
             input_ids,
             attention_mask=attention_mask,
             position_ids=position_ids,
@@ -905,9 +963,10 @@ class MistralForQuestionAnswering(MistralPreTrainedModel):
             inputs_embeds=inputs_embeds,
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
+            return_dict=return_dict,
         )
 
-        sequence_output = outputs.last_hidden_state
+        sequence_output = outputs[0]
 
         logits = self.qa_outputs(sequence_output)
         start_logits, end_logits = logits.split(1, dim=-1)
@@ -917,6 +976,10 @@ class MistralForQuestionAnswering(MistralPreTrainedModel):
         loss = None
         if start_positions is not None and end_positions is not None:
             loss = self.loss_function(start_logits, end_logits, start_positions, end_positions, **kwargs)
+
+        if not return_dict:
+            output = (start_logits, end_logits) + outputs[2:]
+            return ((loss,) + output) if loss is not None else output
 
         return QuestionAnsweringModelOutput(
             loss=loss,

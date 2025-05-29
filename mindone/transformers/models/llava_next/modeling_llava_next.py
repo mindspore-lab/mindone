@@ -219,7 +219,9 @@ class LlavaNextPreTrainedModel(PreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_cache_class = True
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
+    _supports_quantized_cache = False
+    _supports_static_cache = True
 
     def _init_weights(self, module):
         # important: this ported version of LlavaNext isn't meant for training from scratch - only
@@ -548,7 +550,7 @@ class LlavaNextForConditionalGeneration(LlavaNextPreTrainedModel, GenerationMixi
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
             cache_position=cache_position,
-            # logits_to_keep=logits_to_keep,  # FIXME: add logits_to_keep in llama
+            # logits_to_keep=logits_to_keep,  # TODO: add back once llama is updated to >=4.50.0
             **lm_kwargs,
         )
 
