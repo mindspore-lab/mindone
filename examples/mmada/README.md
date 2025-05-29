@@ -40,7 +40,7 @@ Here is the development plan of the project:
 
 | MindSpore | Ascend Driver |  Firmware   | CANN toolkit/kernel |
 |:---------:|:-------------:|:-----------:|:-------------------:|
-|   2.5.0   |  24.1.RC2     | 7.5.0.2.220 |  8.0.RC3.beta1      |
+|   2.6.0   |  24.1.RC3     | 7.6.0.1.220 |  8.0.RC3.beta1     |
 
 </div>
 
@@ -51,35 +51,12 @@ Here is the development plan of the project:
     ```shell
     pip install -r requirements.txt
     ```
-    In case `decord` package is not available, try `pip install eva-decord`.
-    For EulerOS, instructions on ffmpeg and decord installation are as follows.
-
-    <details onclose>
-    <summary>How to install ffmpeg and decord</summary>
-
+3. Install mindone
     ```
-    1. install ffmpeg 4, referring to https://ffmpeg.org/releases
-        wget https://ffmpeg.org/releases/ffmpeg-4.0.1.tar.bz2 --no-check-certificate
-        tar -xvf ffmpeg-4.0.1.tar.bz2
-        mv ffmpeg-4.0.1 ffmpeg
-        cd ffmpeg
-        ./configure --enable-shared         # --enable-shared is needed for sharing libavcodec with decord
-        make -j 64
-        make install
-
-    2. install decord, referring to https://github.com/dmlc/decord?tab=readme-ov-file#install-from-source
-        git clone --recursive https://github.com/dmlc/decord
-        cd decord
-        rm build && mkdir build && cd build
-        cmake .. -DUSE_CUDA=0 -DCMAKE_BUILD_TYPE=Release
-        make -j 64
-        make install
-        cd ../python
-        python3 setup.py install --user
+    cd mindone
+    pip install -e .
     ```
-
-    </details>
-
+    Try `python -c "import mindone"`. If no error occurs, the installation is successful.
 
 ## 🚀 Quick Start
 
