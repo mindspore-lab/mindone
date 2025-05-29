@@ -706,6 +706,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         img_mod1_shift, img_mod1_scale, *_ = self.double_blocks[0].img_mod(vec).chunk(6, dim=-1)
         normed_inp = self.double_blocks[0].img_norm1(img)
         modulated_inp = modulate(normed_inp, shift=img_mod1_shift, scale=img_mod1_scale)
+        modulated_inp = self.gather_forward_split_backward(modulated_inp)   # sequence parallel
 
         should_calc = True
         if self._prev_mod_input is not None:  # not step 0
