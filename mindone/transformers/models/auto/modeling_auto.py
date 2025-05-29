@@ -38,6 +38,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2Model"),
         ("gpt2", "GPT2Model"),
         ("llama", "LlamaModel"),
+        ("mamba", "MambaModel"),
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
@@ -49,6 +50,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("mamba", "MambaForCausalLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -60,6 +62,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("bert", "BertForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("mamba", "MambaForCausalLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -75,6 +78,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2ForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("llama", "LlamaForCausalLM"),
+        ("mamba", "MambaForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),

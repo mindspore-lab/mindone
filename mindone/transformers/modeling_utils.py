@@ -2521,6 +2521,15 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
         if state_dict is not None:
             # Whole checkpoint
             state_dict = _convert_state_dict(model, state_dict, prefix)
+            # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
+            # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
+            # This ensures compatibility with checkpoints loaded using the original naming convention.
+            if "Mamba" in model.__class__.__name__:
+                state_dict_tmp = {}
+                for k, v in state_dict.items():
+                    new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
+                    state_dict_tmp[new_k] = v
+                state_dict = state_dict_tmp
 
             mismatched_keys = _find_mismatched_keys(
                 state_dict,
@@ -2548,6 +2557,15 @@ class PreTrainedModel(nn.Cell, ModuleUtilsMixin, GenerationMixin, PushToHubMixin
             for shard_file in resolved_archive_file:
                 state_dict = load_state_dict(shard_file)
                 state_dict = _convert_state_dict(model, state_dict, prefix)
+                # In the original PyTorch implementation, this transformation is done via `_register_load_state_dict_pre_hook(load_hook)`.
+                # Since MindSpore does not support such hooks, we manually apply the same renaming logic here.
+                # This ensures compatibility with checkpoints loaded using the original naming convention.
+                if "Mamba" in model.__class__.__name__:
+                    state_dict_tmp = {}
+                    for k, v in state_dict.items():
+                        new_k = k.replace("embedding.", "embeddings.") if "embedding." in k else k
+                        state_dict_tmp[new_k] = v
+                    state_dict = state_dict_tmp
 
                 # Mismatched keys contains tuples key/shape1/shape2 of weights in the checkpoint that have a shape not
                 # matching the weights in the model.

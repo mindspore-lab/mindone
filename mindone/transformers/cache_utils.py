@@ -807,7 +807,7 @@ class EncoderDecoderCache(Cache):
 
     def get_seq_length(self, layer_idx: Optional[int] = 0) -> int:
         """Returns the sequence length of the cached states. A layer index can be optionally passed."""
-        # check if empty list because in case of static cache it will be a tensors and we can't check `if not torch.Tensor`
+        # check if empty list because in case of static cache it will be a tensors and we can't check `if not ms.Tensor`
         return self.self_attention_cache.get_seq_length(layer_idx)
 
     def reset(self):
@@ -1080,8 +1080,100 @@ class HybridCache(Cache):
 
 
 class MambaCache:
-    def __init__(self):
-        raise NotImplementedError
+    """
+    Cache for mamba model which does not have attention mechanism and key value states.
+
+    Arguments:
+        config (`PretrainedConfig):
+            The configuration file defining the shape-related attributes required to initialize the static cache.
+        batch_size (`int`):
+            The batch size with which the model will be used. Note that a new instance must be instantiated if a
+            smaller batch size is used.
+        dtype (`mindspore.Type`, *optional*, defaults to `ms.float16`):
+            The default `dtype` to use when initializing the layer.
+
+    Example:
+
+        ```python
+        >>> from transformers import AutoTokenizer, MambaForCausalLM, MambaCache
+
+        >>> model = MambaForCausalLM.from_pretrained("state-spaces/mamba-130m-hf")
+        >>> tokenizer = AutoTokenizer.from_pretrained("state-spaces/mamba-130m-hf")
+
+        >>> inputs = tokenizer(text="My name is Mamba", return_tensors="pt")
+
+        >>> # Prepare a cache class and pass it to model's forward
+        >>> past_key_values = MambaCache(config=model.config, batch_size=1, dtype=model.dtype)
+        >>> outputs = model(**inputs, past_key_values=past_key_values, use_cache=True)
+        >>> outputs.past_key_values
+        MambaCache()
+        ```
+    """
+
+    is_compileable = True
+
+    # TODO (joao): remove `=None` in non-optional arguments in v4.46. Remove from `OBJECTS_TO_IGNORE` as well.
+    # TODO (joao): add layer_device_map arg and update code in `generate` accordingly
+    def __init__(
+        self,
+        config: PretrainedConfig,
+        batch_size: int = None,
+        dtype: ms.Type = ms.float16,
+        max_batch_size: Optional[int] = None,
+    ):
+        if batch_size is not None:
+            logger.warning_once(
+                f"The 'batch_size' argument of {self.__class__.__name__} is deprecated and will be removed in "
+                "v4.49. Use the more precisely named 'max_batch_size' argument instead."
+            )
+        self.dtype = dtype
+        self.max_batch_size = batch_size or max_batch_size
+        self.intermediate_size = config.intermediate_size
+        self.ssm_state_size = config.state_size
+        self.conv_kernel_size = config.conv_kernel
+
+        self.conv_states: List[ms.Tensor] = []
+        self.ssm_states: List[ms.Tensor] = []
+        for _ in range(config.num_hidden_layers):
+            conv_state: ms.Tensor = mint.zeros(
+                (self.max_batch_size, self.intermediate_size, self.conv_kernel_size),
+                dtype=dtype,
+            )
+            ssm_state: ms.Tensor = mint.zeros(
+                (self.max_batch_size, self.intermediate_size, self.ssm_state_size),
+                dtype=dtype,
+            )
+
+            self.conv_states.append(conv_state)
+            self.ssm_states.append(ssm_state)
+
+    def update_conv_state(self, layer_idx: int, new_conv_state: ms.Tensor, cache_position: ms.Tensor) -> ms.Tensor:
+        conv_state = self.conv_states[layer_idx]
+        cache_position = cache_position.clamp(0, self.conv_kernel_size - 1)
+
+        conv_state = conv_state.roll(shifts=-1, dims=-1)
+        conv_state[:, :, cache_position] = new_conv_state.to(dtype=conv_state.dtype)
+        self.conv_states[layer_idx].zero_()
+        self.conv_states[layer_idx] += conv_state
+        return self.conv_states[layer_idx]
+
+    def update_ssm_state(self, layer_idx: int, new_ssm_state: ms.Tensor):
+        self.ssm_states[layer_idx] = new_ssm_state
+        return self.ssm_states[layer_idx]
+
+    def reset(self):
+        for layer_idx in range(len(self.conv_states)):
+            # In-place ops prevent breaking the static address
+            self.conv_states[layer_idx].zero_()
+            self.ssm_states[layer_idx].zero_()
+
+    @property
+    def batch_size(self):
+        logger.warning_once(
+            f"The 'batch_size' attribute of {self.__class__.__name__} is deprecated and will be removed in "
+            "v4.49. Use the more precisely named 'self.max_batch_size' attribute instead."
+        )
+        return self.max_batch_size
 
 
 class OffloadedStaticCache(StaticCache):

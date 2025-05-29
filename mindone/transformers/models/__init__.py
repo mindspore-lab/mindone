@@ -17,6 +17,8 @@ from . import (
     levit,
     llama,
     llava,
+    mamba,
+    mamba2,
     phi3,
     qwen2,
     qwen2_5_omni,
