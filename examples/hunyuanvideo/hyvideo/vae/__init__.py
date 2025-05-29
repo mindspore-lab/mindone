@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 import mindspore as ms
+from mindspore.nn import no_init_parameters
 
 from mindone.safetensors.mindspore import load_file
 from mindone.utils.amp import auto_mixed_precision
@@ -48,10 +49,11 @@ def load_vae(
             f"Loading 3D VAE model ({type}) (trainable={trainable}, tiling={tiling}, slicing={slicing}) from: {path}"
         )
     config = AutoencoderKLCausal3D.load_config(path)
-    if sample_size:
-        vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size, **factor_kwargs)
-    else:
-        vae = AutoencoderKLCausal3D.from_config(config, **factor_kwargs)
+    with no_init_parameters():
+        if sample_size:
+            vae = AutoencoderKLCausal3D.from_config(config, sample_size=sample_size, **factor_kwargs)
+        else:
+            vae = AutoencoderKLCausal3D.from_config(config, **factor_kwargs)
 
     if checkpoint is None:
         vae_ckpt = Path(path) / "model.safetensors"
@@ -79,6 +81,9 @@ def load_vae(
             vae.load_state_dict(checkpoint)
         else:
             raise ValueError(f"The provided checkpoint {checkpoint} is not a valid checkpoint!")
+
+    # initialize uninitialized parameters, if any
+    vae.init_parameters_data()
 
     spatial_compression_ratio = vae.config.spatial_compression_ratio
     time_compression_ratio = vae.config.time_compression_ratio

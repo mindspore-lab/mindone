@@ -252,6 +252,8 @@ class Inference(object):
         logger.info(f"Loading checkpoint {model_path}...")
 
         model.load_from_checkpoint(str(model_path))
+        # initialize uninitialized parameters, if any
+        model.init_parameters_data()
 
         return model
 
