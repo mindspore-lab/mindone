@@ -6,7 +6,7 @@ from transformers import Idefics3Processor
 
 import mindspore as ms
 
-from mindone.transformers import Idefic32ForConditionalGeneration
+from mindone.transformers import Idefics3ForConditionalGeneration
 from mindone.transformers.image_utils import load_image
 
 # Note that passing the image urls (instead of the actual pil images) to the processor is also possible
@@ -14,13 +14,16 @@ image1 = load_image("https://cdn.britannica.com/61/93061-050-99147DCE/Statue-of-
 image2 = load_image("https://cdn.britannica.com/59/94459-050-DBA42467/Skyline-Chicago.jpg")
 image3 = load_image("https://cdn.britannica.com/68/170868-050-8DDE8263/Golden-Gate-Bridge-San-Francisco.jpg")
 
+MODEL_HUB = "HuggingFaceM4/Idefics3-8B-Llama3"
 start_time = time.time()
-processor = Idefics3Processor.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3")
+processor = Idefics3Processor.from_pretrained(MODEL_HUB)
 print("Loaded Idefics3Processor, time elapsed: %.4fs" % (time.time() - start_time))
 
 start_time = time.time()
-model = Idefic32ForConditionalGeneration.from_pretrained("HuggingFaceM4/Idefics3-8B-Llama3", torch_dtype=ms.bfloat16)
-print("Loaded IdefiIdefic32ForConditionalGenerationcs3Processor, time elapsed: %.4fs" % (time.time() - start_time))
+model = Idefics3ForConditionalGeneration.from_pretrained(
+    MODEL_HUB, mindspore_dtype=ms.bfloat16, attn_implementation="eager"
+)
+print("Loaded Idefics3ForConditionalGeneration, time elapsed: %.4fs" % (time.time() - start_time))
 
 # Create inputs
 messages = [
