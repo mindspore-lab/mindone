@@ -126,7 +126,9 @@ class LlavaNextVideoPreTrainedModel(PreTrainedModel):
     _skip_keys_device_placement = "past_key_values"
     _supports_cache_class = False  # FIXME: since llama does not support cache_class, so it is false
     _supports_flash_attn_2 = True
-    _supports_sdpa = True
+    _supports_sdpa = False
+    _supports_quantized_cache = False
+    _supports_static_cache = False
 
     def _init_weights(self, module):
         # important: this ported version of LlavaNextVideo isn't meant for training from scratch - only
