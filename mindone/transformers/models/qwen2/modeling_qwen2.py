@@ -30,6 +30,7 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.generation import GenerationMixin
+from mindone.transformers.integrations.flash_attention import flash_attention_forward
 from mindone.transformers.mindspore_adapter import str_to_dtype
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
@@ -43,8 +44,6 @@ from mindone.transformers.modeling_outputs import (
 )
 from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import MSPreTrainedModel
-from ...integrations.flash_attention import flash_attention_forward
-
 
 logger = logging.get_logger(__name__)
 
@@ -362,7 +361,7 @@ class Qwen2Attention(nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
-class Qwen2FlashAttention2(nn.Cell):
+class Qwen2FlashAttention2(Qwen2Attention):
     """
     Multi-headed attention from 'Attention Is All You Need' paper. Modified to use sliding window attention: Longformer
     and "Generating Long Sequences with Sparse Transformers".
@@ -422,7 +421,7 @@ class Qwen2FlashAttention2(nn.Cell):
         #     )
 
         if attention_mask is not None:
-            attention_mask = mint.logical_not(attention_mask.squeeze(0).squeeze(0))
+            attention_mask = attention_mask.squeeze(0).squeeze(0)
 
         attn_output, _ = flash_attention_forward(
             self,
@@ -882,11 +881,6 @@ class Qwen2Model(Qwen2PreTrainedModel):
         # KV cache is used. This is an issue for torch.compile which then recaptures cudagraphs at each decode steps due to the dynamic shapes.
         # (`recording cudagraph tree for symint key 13`, etc.), which is VERY slow. A workaround is `@torch.compiler.disable`, but this prevents using
         # `fullgraph=True`. See more context in https://github.com/huggingface/transformers/pull/29114
-
-        # if self.config._attn_implementation == "flash_attention_2":
-        #     if attention_mask is not None and 0.0 in attention_mask:
-        #         return attention_mask
-        #     return None
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail

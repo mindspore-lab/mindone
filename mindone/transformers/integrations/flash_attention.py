@@ -60,7 +60,7 @@ def flash_attention_forward(
     # For `attn_mask` of ops.flash_attention_score, False indicates retention and True indicates discard, Which is
     # opposite to PyTorch
     if attention_mask is not None:
-        attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else mint.logical_not(attention_mask.bool())
+        attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else attention_mask.bool()
 
     # flash_attention only supports [float16, bfloat16]
     origin_dtype = query.dtype
