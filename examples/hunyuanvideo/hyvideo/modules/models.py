@@ -2,8 +2,6 @@ import logging
 import os
 from typing import List, Optional
 
-from hyvideo.acceleration import GatherFowardSplitBackward, SplitFowardGatherBackward, get_sequence_parallel_group
-
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops, tensor
 from mindspore.communication import get_group_size
@@ -11,6 +9,12 @@ from mindspore.communication import get_group_size
 from mindone.diffusers.configuration_utils import ConfigMixin, register_to_config
 from mindone.diffusers.models import ModelMixin
 
+from ..acceleration import (
+    GatherFowardSplitBackward,
+    SplitFowardGatherBackward,
+    get_sequence_parallel_group,
+    init_alltoall,
+)
 from .activation_layers import get_activation_layer
 from .attention import FlashAttentionVarLen, VanillaAttention  # , parallel_attention, get_cu_seqlens
 from .embed_layers import PatchEmbed, TextProjection, TimestepEmbedder
@@ -110,11 +114,11 @@ class MMDoubleStreamBlock(nn.Cell):
 
         if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
-            self.alltoall = ops.AlltoAll(
-                self.sp_group_size, 2, 1, group=sp_group
+            self.alltoall = init_alltoall(
+                2, 1, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 2 dim and concat at 1 dim
-            self.alltoall_out = ops.AlltoAll(
-                self.sp_group_size, 1, 2, group=sp_group
+            self.alltoall_out = init_alltoall(
+                1, 2, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 1 dim and concat at 2 dim
             if heads_num % self.sp_group_size != 0:
                 raise ValueError(f"heads_num {heads_num} must be divisible by sp_group_size {self.sp_group_size}")
@@ -335,11 +339,11 @@ class MMSingleStreamBlock(nn.Cell):
 
         if (sp_group := get_sequence_parallel_group()) is not None:
             self.sp_group_size = get_group_size(sp_group)
-            self.alltoall = ops.AlltoAll(
-                self.sp_group_size, 2, 1, group=sp_group
+            self.alltoall = init_alltoall(
+                2, 1, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 2 dim and concat at 1 dim
-            self.alltoall_out = ops.AlltoAll(
-                self.sp_group_size, 1, 2, group=sp_group
+            self.alltoall_out = init_alltoall(
+                1, 2, group=sp_group, split_count=self.sp_group_size
             )  # BSND, split at 1 dim and concat at 2 dim
             if heads_num % self.sp_group_size != 0:
                 raise ValueError(f"heads_num {heads_num} must be divisible by sp_group_size {self.sp_group_size}")
@@ -706,7 +710,7 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         img_mod1_shift, img_mod1_scale, *_ = self.double_blocks[0].img_mod(vec).chunk(6, dim=-1)
         normed_inp = self.double_blocks[0].img_norm1(img)
         modulated_inp = modulate(normed_inp, shift=img_mod1_shift, scale=img_mod1_scale)
-        modulated_inp = self.gather_forward_split_backward(modulated_inp)   # sequence parallel
+        modulated_inp = self.gather_forward_split_backward(modulated_inp)  # sequence parallel
 
         should_calc = True
         if self._prev_mod_input is not None:  # not step 0
