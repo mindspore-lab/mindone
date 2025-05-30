@@ -362,7 +362,7 @@ class Qwen2Attention(nn.Cell):
         return attn_output, attn_weights, past_key_value
 
 
-class Qwen2FlashAttention2(nn.Cell):
+class Qwen2FlashAttention2(Qwen2Attention):
     """
     Multi-headed attention from 'Attention Is All You Need' paper. Modified to use sliding window attention: Longformer
     and "Generating Long Sequences with Sparse Transformers".
