@@ -188,6 +188,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5ForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
+        ("gpt_bigcode", "GPTBigCodeForSequenceClassification")
     ]
 )
 
