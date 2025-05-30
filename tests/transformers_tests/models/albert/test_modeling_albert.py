@@ -9,22 +9,17 @@
 # it is necessary to develop distinct, dedicated test cases.
 
 import copy
-import inspect
+import unittest
 
 import numpy as np
 import pytest
-import torch
-from transformers import AlbertConfig
-
 import mindspore as ms
+from transformers import AlbertConfig, AutoTokenizer
+from transformers.testing_utils import slow
+from parameterized import parameterized
 
-from tests.modeling_test_utils import (
-    MS_DTYPE_MAPPING,
-    PT_DTYPE_MAPPING,
-    compute_diffs,
-    generalized_parse_args,
-    get_modules,
-)
+from mindone.transformers import AlbertModel, AlbertForMaskedLM
+from tests.modeling_test_utils import forward_compare
 from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
 
 # CrossEntropyLoss not support bf16
@@ -121,214 +116,228 @@ class AlbertModelTester:
         )
 
 
-model_tester = AlbertModelTester()
-(
-    config,
-    input_ids,
-    token_type_ids,
-    input_mask,
-    sequence_labels,
-    token_labels,
-    choice_labels,
-) = model_tester.prepare_config_and_inputs()
-config_has_num_labels = copy.deepcopy(config)
-config_has_num_labels.num_labels = model_tester.num_labels
-
-ALBERT_CASES = [
-    [
-        "AlbertForMaskedLM",
-        "transformers.AlbertForMaskedLM",
-        "mindone.transformers.AlbertForMaskedLM",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "AlbertForMultipleChoice",
-        "transformers.AlbertForMultipleChoice",
-        "mindone.transformers.AlbertForMultipleChoice",
-        (config,),
-        {},
-        (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
-        {
-            "attention_mask": np.repeat(np.expand_dims(input_mask, 1), model_tester.num_choices, 1),
-            "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), model_tester.num_choices, 1),
-            "labels": choice_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "AlbertForPreTraining",
-        "transformers.AlbertForPreTraining",
-        "mindone.transformers.AlbertForPreTraining",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-            "sentence_order_label": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "prediction_logits": 1,
-            "sop_logits": 2,
-        },
-    ],
-    [
-        "AlbertForQuestionAnswering",
-        "transformers.AlbertForQuestionAnswering",
-        "mindone.transformers.AlbertForQuestionAnswering",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "start_positions": sequence_labels,
-            "end_positions": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "start_logits": 1,
-            "end_logits": 2,
-        },
-    ],
-    [
-        "AlbertForSequenceClassification",
-        "transformers.AlbertForSequenceClassification",
-        "mindone.transformers.AlbertForSequenceClassification",
-        (config_has_num_labels,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": sequence_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "AlbertForTokenClassification",
-        "transformers.AlbertForTokenClassification",
-        "mindone.transformers.AlbertForTokenClassification",
-        (config_has_num_labels,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels,
-        },
-        {
-            "loss": 0,
-            "logits": 1,
-        },
-    ],
-    [
-        "AlbertModel",
-        "transformers.AlbertModel",
-        "mindone.transformers.AlbertModel",
-        (config,),
-        {},
-        (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-        },
-        {
-            "last_hidden_state": 0,
-            "pooler_output": 1,
-        },
-    ],
-]
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case
-        + [
-            dtype,
-        ]
-        + [
-            mode,
-        ]
-        for case in ALBERT_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
-)
-def test_named_modules(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-    outputs_map,
-    dtype,
-    mode,
-):
-    ms.set_context(mode=mode)
-
+class AlbertModelTest(unittest.TestCase):
+    # 初始化用例参数
+    model_tester = AlbertModelTester()
     (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+        config,
+        input_ids,
+        token_type_ids,
+        input_mask,
+        sequence_labels,
+        token_labels,
+        choice_labels,
+    ) = model_tester.prepare_config_and_inputs()
+    num_choices = model_tester.num_choices
+    config_has_num_labels = copy.deepcopy(config)
+    config_has_num_labels.num_labels = model_tester.num_labels
+
+    ALBERT_CASES = [
+        [
+            "AlbertForMaskedLM",
+            "transformers.AlbertForMaskedLM",
+            "mindone.transformers.AlbertForMaskedLM",
+            (config,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+                "token_type_ids": token_type_ids,
+                "labels": token_labels,
+            },
+            {
+                "loss": 0,
+                "logits": 1,
+            },
+        ],
+        [
+            "AlbertForMultipleChoice",
+            "transformers.AlbertForMultipleChoice",
+            "mindone.transformers.AlbertForMultipleChoice",
+            (config,),
+            {},
+            (np.repeat(np.expand_dims(input_ids, 1), num_choices, 1),),
+            {
+                "attention_mask": np.repeat(np.expand_dims(input_mask, 1), num_choices, 1),
+                "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), num_choices, 1),
+                "labels": choice_labels,
+            },
+            {
+                "loss": 0,
+                "logits": 1,
+            },
+        ],
+        [
+            "AlbertForPreTraining",
+            "transformers.AlbertForPreTraining",
+            "mindone.transformers.AlbertForPreTraining",
+            (config,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+                "token_type_ids": token_type_ids,
+                "labels": token_labels,
+                "sentence_order_label": sequence_labels,
+            },
+            {
+                "loss": 0,
+                "prediction_logits": 1,
+                "sop_logits": 2,
+            },
+        ],
+        [
+            "AlbertForQuestionAnswering",
+            "transformers.AlbertForQuestionAnswering",
+            "mindone.transformers.AlbertForQuestionAnswering",
+            (config,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+                "token_type_ids": token_type_ids,
+                "start_positions": sequence_labels,
+                "end_positions": sequence_labels,
+            },
+            {
+                "loss": 0,
+                "start_logits": 1,
+                "end_logits": 2,
+            },
+        ],
+        [
+            "AlbertForSequenceClassification",
+            "transformers.AlbertForSequenceClassification",
+            "mindone.transformers.AlbertForSequenceClassification",
+            (config_has_num_labels,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+                "token_type_ids": token_type_ids,
+                "labels": sequence_labels,
+            },
+            {
+                "loss": 0,
+                "logits": 1,
+            },
+        ],
+        [
+            "AlbertForTokenClassification",
+            "transformers.AlbertForTokenClassification",
+            "mindone.transformers.AlbertForTokenClassification",
+            (config_has_num_labels,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+                "token_type_ids": token_type_ids,
+                "labels": token_labels,
+            },
+            {
+                "loss": 0,
+                "logits": 1,
+            },
+        ],
+        [
+            "AlbertModel",
+            "transformers.AlbertModel",
+            "mindone.transformers.AlbertModel",
+            (config,),
+            {},
+            (input_ids,),
+            {
+                "attention_mask": input_mask,
+                "token_type_ids": token_type_ids,
+            },
+            {
+                "last_hidden_state": 0,
+                "pooler_output": 1,
+            },
+        ],
+    ]
+
+    @parameterized.expand(
+        [
+            case
+            + [
+                dtype,
+            ]
+            + [
+                mode,
+            ]
+            for case in ALBERT_CASES
+            for dtype in DTYPE_AND_THRESHOLDS
+            for mode in MODES
+        ],
     )
+    def test_model_forward(
+            self,
+            name,
+            pt_module,
+            ms_module,
+            init_args,
+            init_kwargs,
+            inputs_args,
+            inputs_kwargs,
+            outputs_map,
+            dtype,
+            mode,
+    ):
+        ms.set_context(mode=mode)
 
-    # set `hidden_dtype` if requiring, for some modules always compute in float
-    # precision and require specific `hidden_dtype` to cast before return
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+        diffs, pt_dtype, ms_dtype = forward_compare(
+            pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
+        )
 
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
-    if outputs_map:
-        pt_outputs_n = []
-        ms_outputs_n = []
-        for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
-            pt_output = getattr(pt_outputs, pt_key)
-            ms_output = ms_outputs[ms_idx]
-            if isinstance(pt_output, (list, tuple)):
-                pt_outputs_n += list(pt_output)
-                ms_outputs_n += list(ms_output)
-            else:
-                pt_outputs_n.append(pt_output)
-                ms_outputs_n.append(ms_output)
-        diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
-    else:
-        diffs = compute_diffs(pt_outputs, ms_outputs)
+        THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+        self.assertTrue(
+            (np.array(diffs) < THRESHOLD).all(),
+            f"For {name} forward test, mode: {mode}, ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
+            f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}")
 
-    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
-    assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
-        f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
-    )
+
+class AlbertIntegrationTest(unittest.TestCase):
+    @parameterized.expand(MODES)
+    @slow
+    def test_inference_no_head_absolute_embedding(self, mode):
+        ms.set_context(mode=mode)
+        input_ids = ms.Tensor([[0, 345, 232, 328, 740, 140, 1695, 69, 6078, 1588, 2]], ms.int32)
+        attention_mask = ms.Tensor([[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]], ms.int32)
+        model_name = "albert/albert-base-v2"
+        model = AlbertModel.from_pretrained(model_name)
+        model.set_train(False)
+        output = model(input_ids, attention_mask=attention_mask)[0]
+        expected_shape = (1, 11, 768)
+        self.assertEqual(output.shape, expected_shape)
+        expected_slice = ms.Tensor([[[-0.6512746, 1.5034751, -0.27662295], [-0.6515419, 1.5046045, -0.27801225],
+                                     [-0.65115345, 1.5049416, -0.27838323]]], ms.float32)
+
+        np.testing.assert_allclose(output[:, 1:4, 1:4], expected_slice, rtol=1e-4, atol=1e-4)
+
+    @parameterized.expand(MODES)
+    @slow
+    def test_model_masked_lm(self, mode):
+        ms.set_context(mode=mode)
+        model_name = "albert/albert-base-v2"
+        attn_implementation = "eager"
+        max_length = 64
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        text = f"Paris is the {tokenizer.mask_token} of France."
+        inputs = tokenizer(
+            text,
+            return_tensors="np",
+            padding="max_length",
+            max_length=max_length,
+        )
+
+        model = AlbertForMaskedLM.from_pretrained(model_name, attn_implementation=attn_implementation)
+        model.set_train(False)
+        for key, value in inputs.items():
+            inputs[key] = ms.Tensor(value)
+        logits = model(**inputs)[0]
+        eg_predicted_mask = tokenizer.decode(logits[0, 4].topk(5)[1])
+        self.assertEqual(
+            eg_predicted_mask.split(),
+            ["capital", "heart", "city", "centre", "seat"],
+        )
