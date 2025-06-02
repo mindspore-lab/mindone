@@ -907,6 +907,10 @@ class HunyuanVideoPipeline(DiffusionPipeline):
 
         print("D--: prompt embed:", prompt_embeds.shape)
 
+        self.transformer.init_teacache(  # (re)initialize TeaCache, if enabled
+            ((latents.shape[0] * 2) if self.do_classifier_free_guidance else latents.shape[0],) + latents.shape[1:]
+        )
+
         # if is_progress_bar:
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):

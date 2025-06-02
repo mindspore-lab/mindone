@@ -2,6 +2,8 @@ import logging
 import os
 from typing import List, Optional
 
+import numpy as np
+
 import mindspore as ms
 from mindspore import Tensor, mint, nn, ops, tensor
 from mindspore.communication import get_group_size
@@ -674,17 +676,9 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         self._teacache = enable_teacache
         if self._teacache:
             self._rel_l1_thresh = teacache_thresh
-            self._accum_rel_l1_distance = tensor(0, dtype=self.param_dtype)
-            self._prev_mod_input = None
-            self._prev_residual = None
-            coef = [7.33226126e02, -4.01131952e02, 6.75869174e01, -3.14987800e00, 9.61237896e-02]
-            self._rescale_func = (
-                lambda x: coef[0] * mint.pow(x, 4)
-                + coef[1] * mint.pow(x, 3)
-                + coef[2] * mint.pow(x, 2)
-                + coef[3] * x
-                + coef[4]
-            )
+            self._coef = [7.33226126e02, -4.01131952e02, 6.75869174e01, -3.14987800e00, 9.61237896e-02]
+            # actual values depend on the execution mode and are initialized in `init_teacache`
+            self._accum_rel_l1_distance = self._prev_mod_input = self._prev_residual = None
 
     def recompute(self, b):
         if not b._has_config_recompute:
@@ -706,21 +700,51 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         for block in self.single_blocks:
             block.disable_deterministic()
 
+    def init_teacache(self, shape: tuple[int, int, int, int, int]):
+        """
+        (Re)initializes the teacache for caching intermediate computation results.
+        Specifically, wraps variables with `Parameter` objects of fixed shape and dtype, as required by MindSpore's Graph mode.
+
+        Args:
+            shape: shape of the input latent tensor, in format [B C T H W].
+        """
+        if self._teacache:
+            if ms.get_context("mode") == ms.GRAPH_MODE:
+                seq_len = shape[2] * (shape[3] // 2) * (shape[4] // 2)
+                self._accum_rel_l1_distance = ms.Parameter(tensor(0, dtype=self.param_dtype))
+                self._prev_mod_input = ms.Parameter(
+                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype)
+                )
+                if (sp_group := get_sequence_parallel_group()) is not None:  # Sequence Parallel case
+                    seq_len //= get_group_size(sp_group)
+                self._prev_residual = ms.Parameter(
+                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype)
+                )
+            else:
+                self._accum_rel_l1_distance = tensor(0, dtype=self.param_dtype)
+                self._prev_mod_input = tensor(0, dtype=self.param_dtype)
+
     def _calc_teacache(self, img: Tensor, vec: Tensor) -> bool:
         img_mod1_shift, img_mod1_scale, *_ = self.double_blocks[0].img_mod(vec).chunk(6, dim=-1)
         normed_inp = self.double_blocks[0].img_norm1(img)
         modulated_inp = modulate(normed_inp, shift=img_mod1_shift, scale=img_mod1_scale)
         modulated_inp = self.gather_forward_split_backward(modulated_inp)  # sequence parallel
 
-        should_calc = True
-        if self._prev_mod_input is not None:  # not step 0
-            self._accum_rel_l1_distance += self._rescale_func(
-                mint.mean(mint.abs(modulated_inp - self._prev_mod_input)) / mint.mean(mint.abs(self._prev_mod_input))
-            )
-            if self._accum_rel_l1_distance < self._rel_l1_thresh:
-                should_calc = False
-            else:
-                self._accum_rel_l1_distance = 0
+        x = mint.mean(mint.abs(modulated_inp - self._prev_mod_input)) / mint.mean(mint.abs(self._prev_mod_input))
+        self._accum_rel_l1_distance += (
+            self._coef[0] * mint.pow(x, 4)
+            + self._coef[1] * mint.pow(x, 3)
+            + self._coef[2] * mint.pow(x, 2)
+            + self._coef[3] * x
+            + self._coef[4]
+        )
+        # the first step will naturally fail as `self._rescale_func` will produce `NaN`
+        if self._accum_rel_l1_distance < self._rel_l1_thresh:
+            should_calc = False
+        else:
+            should_calc = True
+            self._accum_rel_l1_distance = tensor(0, dtype=self.param_dtype)
+
         self._prev_mod_input = modulated_inp
         return should_calc
 
