@@ -31,6 +31,7 @@ logger = logging.get_logger(__name__)
 CONFIG_MAPPING_NAMES = OrderedDict(
     [
         # Add configs here
+        ("albert", "AlbertConfig"),
         ("bert", "BertConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
@@ -38,12 +39,27 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("clip_vision_model", "CLIPVisionConfig"),
         ("dpt", "DPTConfig"),
         ("gemma", "GemmaConfig"),
+        ("gemma2", "Gemma2Config"),
+        ("glm", "GlmConfig"),
+        ("glpn", "GLPNConfig"),
         ("gpt2", "GPT2Config"),
+        ("hiera", "HieraConfig"),
+        ("ijepa", "IJepaConfig"),
+        ("imagegpt", "ImageGPTConfig"),
+        ("levit", "LevitConfig"),
         ("llama", "LlamaConfig"),
         ("llava", "LlavaConfig"),
         ("mt5", "MT5Config"),
+        ("phi3", "Phi3Config"),
         ("qwen2", "Qwen2Config"),
+        ("qwen2_5_vl", "Qwen2_5_VLConfig"),
+        ("qwen2_vl", "Qwen2VLConfig"),
+        ("siglip", "SiglipConfig"),
+        ("speecht5", "SpeechT5Config"),
         ("t5", "T5Config"),
+        ("umt5", "UMT5Config"),
+        ("wav2vec2", "Wav2Vec2Config"),
+        ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
     ]
 )
