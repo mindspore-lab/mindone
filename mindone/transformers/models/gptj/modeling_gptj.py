@@ -18,11 +18,10 @@ import warnings
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-import torch.fx
-import torch.utils.checkpoint
 from mindspore import mint, nn
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
+from ...mindspore_adapter import dtype_to_min
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
@@ -35,14 +34,9 @@ from ...modeling_outputs import (
     SequenceClassifierOutputWithPast,
 )
 from ...modeling_utils import PreTrainedModel
-from ...utils import (
-    is_torch_fx_proxy,
-    logging,
-)
-from ...utils.model_parallel_utils import assert_device_map, get_device_map
+from ...utils import logging
 from .configuration_gptj import GPTJConfig
 
-from mindspore.nn.attention.flex_attention import BlockMask
 from ...integrations.flex_attention import make_flex_block_causal_mask
 
 
@@ -54,26 +48,25 @@ logger = logging.get_logger(__name__)
 
 
 def create_sinusoidal_positions(num_pos: int, dim: int) -> ms.Tensor:
-    inv_freq = 1.0 / (10000 ** (torch.arange(0, dim, 2, dtype=torch.int64) / dim))
-    sinusoid_inp = torch.einsum("i , j -> i j", torch.arange(num_pos, dtype=torch.int64).float(), inv_freq).float()
-    return torch.cat((torch.sin(sinusoid_inp), torch.cos(sinusoid_inp)), dim=1)
+    inv_freq = 1.0 / (10000 ** (ms.arange(0, dim, 2, dtype=ms.int64) / dim))
+    sinusoid_inp = mint.einsum("i , j -> i j", ms.arange(num_pos, dtype=ms.int64).float(), inv_freq).float()
+    return mint.cat((mint.sin(sinusoid_inp), mint.cos(sinusoid_inp)), dim=1)
 
 
-@torch.fx.wrap
 def get_embed_positions(embed_positions, position_ids):
-    return embed_positions.to(position_ids.device).repeat(position_ids.shape[0], 1, 1)
+    return embed_positions.repeat(position_ids.shape[0], 1, 1)
 
 
 def rotate_every_two(x: ms.Tensor) -> ms.Tensor:
     x1 = x[:, :, :, ::2]
     x2 = x[:, :, :, 1::2]
-    x = torch.stack((-x2, x1), dim=-1)
+    x = mint.stack((-x2, x1), dim=-1)
     return x.flatten(-2)  # in einsum notation: rearrange(x, '... d j -> ... (d j)')
 
 
 def apply_rotary_pos_emb(tensor: ms.Tensor, sin: ms.Tensor, cos: ms.Tensor) -> ms.Tensor:
-    sin = torch.repeat_interleave(sin[:, :, None, :], 2, 3)
-    cos = torch.repeat_interleave(cos[:, :, None, :], 2, 3)
+    sin = mint.repeat_interleave(sin[:, :, None, :], 2, 3)
+    cos = mint.repeat_interleave(cos[:, :, None, :], 2, 3)
     return (tensor * cos) + (rotate_every_two(tensor) * sin)
 
 
@@ -89,7 +82,7 @@ class GPTJAttention(nn.Cell):
         self.is_causal = True
         self.layer_idx = layer_idx
         if layer_idx is None:
-            logger.warning_once(
+            logger.warning(
                 f"Instantiating {self.__class__.__name__} without passing a `layer_idx` is not recommended and will "
                 "lead to errors during the forward call if caching is used. Please make sure to provide a `layer_idx` "
                 "when creating this class."
@@ -103,7 +96,7 @@ class GPTJAttention(nn.Cell):
                 f"embed_dim must be divisible by num_attention_heads (got `embed_dim`: {self.embed_dim} and"
                 f" `num_attention_heads`: {self.num_attention_heads})."
             )
-        self.scale_attn = torch.sqrt(torch.tensor(self.head_dim, dtype=torch.float32)).to(torch.get_default_dtype())
+        self.scale_attn = mint.sqrt(ms.tensor(self.head_dim, dtype=ms.float32)).to(mint.get_default_dtype())
 
         self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim, bias=False)
         self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim, bias=False)
@@ -150,10 +143,10 @@ class GPTJAttention(nn.Cell):
         head_mask=None,
     ):
         # Keep the attention weights computation in fp32 to avoid overflow issues
-        query = query.to(torch.float32)
-        key = key.to(torch.float32)
+        query = query.to(ms.float32)
+        key = key.to(ms.float32)
 
-        attn_weights = torch.matmul(query, key.transpose(-1, -2))
+        attn_weights = mint.matmul(query, key.transpose(-1, -2))
         attn_weights = attn_weights / self.scale_attn
 
         if attention_mask is not None:  # no matter the length, we just slice it
@@ -168,27 +161,24 @@ class GPTJAttention(nn.Cell):
         if head_mask is not None:
             attn_weights = attn_weights * head_mask
 
-        attn_output = torch.matmul(attn_weights, value)
+        attn_output = mint.matmul(attn_weights, value)
 
         return attn_output, attn_weights
 
     def _get_embed_positions(self, position_ids):
         embed_positions = self.embed_positions
-        if embed_positions.device != position_ids.device:
-            embed_positions = embed_positions.to(position_ids.device)
-            self.embed_positions = embed_positions
         return embed_positions.repeat(position_ids.shape[0], 1, 1)
 
-    def forward(
+    def construct(
         self,
-        hidden_states: torch.FloatTensor,
+        hidden_states: ms.Tensor,
         layer_past: Optional[Cache] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-        cache_position: Optional[torch.LongTensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[
         Tuple[ms.Tensor, Tuple[ms.Tensor]],
         Optional[Tuple[ms.Tensor, Tuple[ms.Tensor], Tuple[ms.Tensor, ...]]],
@@ -201,16 +191,11 @@ class GPTJAttention(nn.Cell):
         key = self._split_heads(key, self.num_attention_heads, self.head_dim, True)
         value = self._split_heads(value, self.num_attention_heads, self.head_dim, False)
 
-        if is_torch_fx_proxy(position_ids) or torch.jit.is_tracing():
-            # The logic to conditionally copy to GPU could not be traced, so we do this
-            # every time in the torch.fx case
-            embed_positions = get_embed_positions(self.embed_positions, position_ids)
-        else:
-            embed_positions = self._get_embed_positions(position_ids)
+        embed_positions = self._get_embed_positions(position_ids)
 
         repeated_position_ids = position_ids.unsqueeze(-1).repeat(1, 1, embed_positions.shape[-1])
-        sincos = torch.gather(embed_positions, 1, repeated_position_ids)
-        sin, cos = torch.split(sincos, sincos.shape[-1] // 2, dim=-1)
+        sincos = ms.gather(embed_positions, 1, repeated_position_ids)
+        sin, cos = mint.split(sincos, sincos.shape[-1] // 2, dim=-1)
 
         if self.rotary_dim is not None:
             k_rot = key[:, :, :, : self.rotary_dim]
@@ -222,8 +207,8 @@ class GPTJAttention(nn.Cell):
             k_rot = apply_rotary_pos_emb(k_rot, sin, cos)
             q_rot = apply_rotary_pos_emb(q_rot, sin, cos)
 
-            key = torch.cat([k_rot, k_pass], dim=-1)
-            query = torch.cat([q_rot, q_pass], dim=-1)
+            key = mint.cat([k_rot, k_pass], dim=-1)
+            query = mint.cat([q_rot, q_pass], dim=-1)
         else:
             key = apply_rotary_pos_emb(key, sin, cos)
             query = apply_rotary_pos_emb(query, sin, cos)
@@ -272,16 +257,16 @@ class GPTJFlashAttention2(GPTJAttention):
             input_layout="BSND"
         )
 
-    def forward(
+    def construct(
         self,
-        hidden_states: torch.FloatTensor,
+        hidden_states: ms.Tensor,
         layer_past: Optional[Cache] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-        cache_position: Optional[torch.LongTensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[
         Tuple[ms.Tensor, Tuple[ms.Tensor]],
         Optional[Tuple[ms.Tensor, Tuple[ms.Tensor], Tuple[ms.Tensor, ...]]],
@@ -294,16 +279,11 @@ class GPTJFlashAttention2(GPTJAttention):
         key = self._split_heads(key, self.num_attention_heads, self.head_dim, True)
         value = self._split_heads(value, self.num_attention_heads, self.head_dim, False)
 
-        if is_torch_fx_proxy(position_ids) or torch.jit.is_tracing():
-            # The logic to conditionally copy to GPU could not be traced, so we do this
-            # every time in the torch.fx case
-            embed_positions = get_embed_positions(self.embed_positions, position_ids)
-        else:
-            embed_positions = self._get_embed_positions(position_ids)
+        embed_positions = self._get_embed_positions(position_ids)
 
         repeated_position_ids = position_ids.unsqueeze(-1).repeat(1, 1, embed_positions.shape[-1])
-        sincos = torch.gather(embed_positions, 1, repeated_position_ids)
-        sin, cos = torch.split(sincos, sincos.shape[-1] // 2, dim=-1)
+        sincos = ms.gather(embed_positions, 1, repeated_position_ids)
+        sin, cos = mint.split(sincos, sincos.shape[-1] // 2, dim=-1)
 
         if self.rotary_dim is not None:
             k_rot = key[:, :, :, : self.rotary_dim]
@@ -315,8 +295,8 @@ class GPTJFlashAttention2(GPTJAttention):
             k_rot = apply_rotary_pos_emb(k_rot, sin, cos)
             q_rot = apply_rotary_pos_emb(q_rot, sin, cos)
 
-            key = torch.cat([k_rot, k_pass], dim=-1)
-            query = torch.cat([q_rot, q_pass], dim=-1)
+            key = mint.cat([k_rot, k_pass], dim=-1)
+            query = mint.cat([q_rot, q_pass], dim=-1)
         else:
             key = apply_rotary_pos_emb(key, sin, cos)
             query = apply_rotary_pos_emb(query, sin, cos)
@@ -352,7 +332,7 @@ class GPTJFlashAttention2(GPTJAttention):
         # in fp32. (LlamaRMSNorm handles it correctly)
 
         input_dtype = query.dtype
-        if input_dtype == torch.float32:
+        if input_dtype == ms.float32:
             if torch.is_autocast_enabled():
                 target_dtype = torch.get_autocast_gpu_dtype()
             # Handle the case where the model is quantized
@@ -361,7 +341,7 @@ class GPTJFlashAttention2(GPTJAttention):
             else:
                 target_dtype = self.q_proj.weight.dtype
 
-            logger.warning_once(
+            logger.warning(
                 f"The input hidden states seems to be silently casted in float32, this might be related to"
                 f" the fact you have upcasted embedding or layer norm layers in float32. We will cast back the input in"
                 f" {target_dtype}."
@@ -371,20 +351,15 @@ class GPTJFlashAttention2(GPTJAttention):
             key = key.to(target_dtype)
             value = value.to(target_dtype)
 
-        attention_dropout = self.config.attn_pdrop if self.training else 0.0  # attn_pdrop in gptj
-
         query_length = query.shape[1]
 
         # Compute attention
-        attn_weights = _flash_attention_forward(
+        attn_weights = self.flash_attention(
             query,
             key,
             value,
             attention_mask,
-            query_length,
-            dropout=attention_dropout,
-            is_causal=self.is_causal,
-            use_top_left_mask=self._flash_attn_uses_top_left_mask,
+            query_length
         )
 
         # Reshape outputs
@@ -418,7 +393,7 @@ class GPTJMLP(nn.Cell):
         self.act = ACT2FN[config.activation_function]
         self.dropout = mint.nn.Dropout(config.resid_pdrop)
 
-    def forward(self, hidden_states: Optional[torch.FloatTensor]) -> torch.FloatTensor:
+    def construct(self, hidden_states: Optional[ms.Tensor]) -> ms.Tensor:
         hidden_states = self.fc_in(hidden_states)
         hidden_states = self.act(hidden_states)
         hidden_states = self.fc_out(hidden_states)
@@ -434,17 +409,17 @@ class GPTJBlock(nn.Cell):
         self.attn = GPTJ_ATTENTION_CLASSES[config._attn_implementation](config, layer_idx)
         self.mlp = GPTJMLP(inner_dim, config)
 
-    def forward(
+    def construct(
         self,
-        hidden_states: Optional[torch.FloatTensor],
+        hidden_states: Optional[ms.Tensor],
         layer_past: Optional[Cache] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = False,
         output_attentions: Optional[bool] = False,
-        cache_position: Optional[torch.LongTensor] = None,
-    ) -> Union[Tuple[ms.Tensor], Optional[Tuple[ms.Tensor, Tuple[torch.FloatTensor, ...]]]]:
+        cache_position: Optional[ms.Tensor] = None,
+    ) -> Union[Tuple[ms.Tensor], Optional[Tuple[ms.Tensor, Tuple[ms.Tensor, ...]]]]:
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
         attn_outputs = self.attn(
@@ -504,55 +479,6 @@ class GPTJPreTrainedModel(PreTrainedModel):
             module.weight.data.fill_(1.0)
 
 
-PARALLELIZE_DOCSTRING = r"""
-    This is an experimental feature and is a subject to change at a moment's notice. Uses a device map to distribute
-    attention modules of the model across several devices. If no device map is given, it will evenly distribute blocks
-    across all devices.
-
-    Args:
-        device_map (`Dict[int, list]`, *optional*):
-            A dictionary that maps attention modules to devices. Note that the embedding module and LMHead are always
-            automatically mapped to the first device (for esoteric reasons). That means that the first device should
-            have fewer attention modules mapped to it than other devices. For reference, the GPT-J models have the
-            following number of attention modules:
-
-                - gpt-j-6B: 28
-
-    Example:
-
-    ```python
-    # Here is an example of a device map on a machine with 4 GPUs using gpt-j-6B, which has a total of 28 attention modules:
-    model = GPTJForCausalLM.from_pretrained("EleutherAI/gpt-j-6B")
-    device_map = {
-        0: [0, 1, 2, 3, 4, 5, 6],
-        1: [7, 8, 9, 10, 11, 12, 13],
-        2: [14, 15, 16, 17, 18, 19, 20],
-        3: [21, 22, 23, 24, 25, 26, 27],
-    }
-    model.parallelize(device_map)
-    ```
-"""
-
-DEPARALLELIZE_DOCSTRING = r"""
-    Moves the model to CPU from a model parallel state.
-
-    Example:
-
-    ```python
-    # On a 4 GPU machine with gpt-j-6B:
-    model = GPTJForCausalLM.from_pretrained("EleutherAI/gpt-j-6B")
-    device_map = {
-        0: [0, 1, 2, 3, 4, 5, 6],
-        1: [7, 8, 9, 10, 11, 12, 13],
-        2: [14, 15, 16, 17, 18, 19, 20],
-        3: [21, 22, 23, 24, 25, 26, 27],
-    }
-    model.parallelize(device_map)  # Splits the model across several devices
-    model.deparallelize()  # Put the model back on cpu and cleans memory by calling torch.cuda.empty_cache()
-    ```
-"""
-
-
 class GPTJModel(GPTJPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
@@ -574,69 +500,29 @@ class GPTJModel(GPTJPreTrainedModel):
 
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
-    def parallelize(self, device_map=None):
-        warnings.warn(
-            "`GPTJModel.parallelize` is deprecated and will be removed in v5 of Transformers, you should load your"
-            " model with `device_map='balanced'` in the call to `from_pretrained`. You can also provide your own"
-            " `device_map` but it needs to be a dictionary module_name to device, so for instance {'h.0': 0, 'h.1': 1,"
-            " ...}",
-            FutureWarning,
-        )
-        # Check validity of device_map
-        self.device_map = (
-            get_device_map(len(self.h), range(torch.cuda.device_count())) if device_map is None else device_map
-        )
-        assert_device_map(self.device_map, len(self.h))
-        self.model_parallel = True
-        self.first_device = "cpu" if "cpu" in self.device_map.keys() else "cuda:" + str(min(self.device_map.keys()))
-        self.last_device = "cuda:" + str(max(self.device_map.keys()))
-        self.wte = self.wte.to(self.first_device)
-        # Load onto devices
-        for k, v in self.device_map.items():
-            for block in v:
-                cuda_device = "cuda:" + str(k)
-                self.h[block] = self.h[block].to(cuda_device)
-        # ln_f to last
-        self.ln_f = self.ln_f.to(self.last_device)
-
-    def deparallelize(self):
-        warnings.warn(
-            "Like `parallelize`, `deparallelize` is deprecated and will be removed in v5 of Transformers.",
-            FutureWarning,
-        )
-        self.model_parallel = False
-        self.device_map = None
-        self.first_device = "cpu"
-        self.last_device = "cpu"
-        self.wte = self.wte.to("cpu")
-        for index in range(len(self.h)):
-            self.h[index] = self.h[index].to("cpu")
-        self.ln_f = self.ln_f.to("cpu")
-        torch.cuda.empty_cache()
-
     def get_input_embeddings(self):
         return self.wte
 
     def set_input_embeddings(self, new_embeddings):
         self.wte = new_embeddings
 
-    def forward(
+    def construct(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
         past_key_values: Optional[Union[Cache, Tuple[Tuple[ms.Tensor]]]] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        token_type_ids: Optional[torch.LongTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        token_type_ids: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[torch.LongTensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         r"""
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert *input_ids* indices into associated vectors than the
             model's internal embedding lookup matrix.
@@ -653,7 +539,7 @@ class GPTJModel(GPTJPreTrainedModel):
 
         if self.gradient_checkpointing and self.training:
             if use_cache:
-                logger.warning_once(
+                logger.warning(
                     "`use_cache=True` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
                 )
                 use_cache = False
@@ -669,7 +555,7 @@ class GPTJModel(GPTJPreTrainedModel):
                 past_key_values = DynamicCache()
             else:
                 past_key_values = DynamicCache.from_legacy_cache(past_key_values)
-                logger.warning_once(
+                logger.warning(
                     "We detected that you are passing `past_key_values` as a tuple of tuples. This is deprecated and "
                     "will be removed in v4.47. Please convert your cache or use an appropriate `Cache` class "
                     "(https://huggingface.co/docs/transformers/kv_cache#legacy-cache-format)"
@@ -678,8 +564,8 @@ class GPTJModel(GPTJPreTrainedModel):
         seq_length = inputs_embeds.shape[1]
         if cache_position is None:
             past_key_values_length = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = torch.arange(
-                past_key_values_length, past_key_values_length + seq_length, device=inputs_embeds.device
+            cache_position = ms.arange(
+                past_key_values_length, past_key_values_length + seq_length
             )
 
         if position_ids is None:
@@ -708,20 +594,6 @@ class GPTJModel(GPTJPreTrainedModel):
         all_self_attentions = () if output_attentions else None
         all_hidden_states = () if output_hidden_states else None
         for i, block in enumerate(self.h):
-            # Model parallel
-            if self.model_parallel:
-                torch.cuda.set_device(hidden_states.device)
-
-                # Ensure layer_past is on same device as hidden_states (might not be correct)
-                if past_key_values is not None:
-                    past_key_values.key_cache = past_key_values.key_cache.to(hidden_states.device)
-                    past_key_values.value_cache = past_key_values.value_cache.to(hidden_states.device)
-
-                # Ensure that attention_mask is always on the same device as hidden_states
-                if causal_mask is not None:
-                    causal_mask = causal_mask.to(hidden_states.device)
-                if isinstance(head_mask, ms.Tensor):
-                    head_mask = head_mask.to(hidden_states.device)
             if output_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
@@ -787,7 +659,7 @@ class GPTJModel(GPTJPreTrainedModel):
 
     def _update_causal_mask(
         self,
-        attention_mask: Union[ms.Tensor, "BlockMask"],
+        attention_mask: ms.Tensor,
         input_tensor: ms.Tensor,
         cache_position: ms.Tensor,
         past_key_values: Cache,
@@ -798,8 +670,9 @@ class GPTJModel(GPTJPreTrainedModel):
                 return attention_mask
             return None
         if self.config._attn_implementation == "flex_attention":
-            if isinstance(attention_mask, ms.Tensor):
-                attention_mask = make_flex_block_causal_mask(attention_mask)
+            # TODO: need check
+            # if isinstance(attention_mask, ms.Tensor):
+            #     attention_mask = make_flex_block_causal_mask(attention_mask)
             return attention_mask
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
@@ -842,13 +715,12 @@ class GPTJModel(GPTJPreTrainedModel):
         if (
             self.config._attn_implementation == "sdpa"
             and attention_mask is not None
-            and attention_mask.device.type in ["cuda", "xpu", "npu"]
             and not output_attentions
         ):
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
-            min_dtype = torch.finfo(dtype).min
+            min_dtype = dtype_to_min(dtype)
             causal_mask = AttentionMaskConverter._unmask_unattended(causal_mask, min_dtype)
 
         return causal_mask
@@ -858,7 +730,7 @@ class GPTJModel(GPTJPreTrainedModel):
         attention_mask: ms.Tensor,
         sequence_length: int,
         target_length: int,
-        dtype: torch.dtype,
+        dtype: ms.dtype,
         cache_position: ms.Tensor,
         batch_size: int,
         **kwargs,
@@ -876,7 +748,7 @@ class GPTJModel(GPTJPreTrainedModel):
             target_length (`int`):
                 The target length: when generating with static cache, the mask should be as long as the static cache,
                 to account for the 0 padding, the part of the cache that is not filled yet.
-            dtype (`torch.dtype`):
+            dtype (`ms.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
                 Indices depicting the position of the input sequence tokens in the sequence.
@@ -887,20 +759,18 @@ class GPTJModel(GPTJPreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            min_dtype = torch.finfo(dtype).min
-            causal_mask = torch.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype, device=cache_position.device
+            min_dtype = dtype_to_min(dtype)
+            causal_mask = mint.full(
+                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
             )
             if sequence_length != 1:
-                causal_mask = torch.triu(causal_mask, diagonal=1)
-            causal_mask *= torch.arange(target_length, device=cache_position.device) > cache_position.reshape(-1, 1)
+                causal_mask = mint.triu(causal_mask, diagonal=1)
+            causal_mask *= ms.arange(target_length) > cache_position.reshape(-1, 1)
             causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
-                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :].to(
-                    causal_mask.device
-                )
+                padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
                 causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
                     padding_mask, min_dtype
@@ -924,64 +794,35 @@ class GPTJForCausalLM(GPTJPreTrainedModel, GenerationMixin):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def parallelize(self, device_map=None):
-        warnings.warn(
-            "`GPTJForCausalLM.parallelize` is deprecated and will be removed in v5 of Transformers, you should load"
-            " your model with `device_map='balanced'` in the call to `from_pretrained`. You can also provide your own"
-            " `device_map` but it needs to be a dictionary module_name to device, so for instance {'transformer.h.0':"
-            " 0, 'transformer.h.1': 1, ...}",
-            FutureWarning,
-        )
-        self.device_map = (
-            get_device_map(len(self.transformer.h), range(torch.cuda.device_count()))
-            if device_map is None
-            else device_map
-        )
-        assert_device_map(self.device_map, len(self.transformer.h))
-        self.transformer.parallelize(self.device_map)
-        self.lm_head = self.lm_head.to(self.transformer.first_device)
-        self.model_parallel = True
-
-    def deparallelize(self):
-        warnings.warn(
-            "Like `parallelize`, `deparallelize` is deprecated and will be removed in v5 of Transformers.",
-            FutureWarning,
-        )
-        self.transformer.deparallelize()
-        self.transformer = self.transformer.to("cpu")
-        self.lm_head = self.lm_head.to("cpu")
-        self.model_parallel = False
-        torch.cuda.empty_cache()
-
     def get_output_embeddings(self):
         return self.lm_head
 
     def set_output_embeddings(self, new_embeddings):
         self.lm_head = new_embeddings
 
-    def forward(
+    def construct(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
         past_key_values: Optional[Union[Cache, Tuple[Tuple[ms.Tensor]]]] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        token_type_ids: Optional[torch.LongTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        token_type_ids: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
-        cache_position: Optional[torch.LongTensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
         **kwargs,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert *input_ids* indices into associated vectors than the
             model's internal embedding lookup matrix.
-        labels (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size, sequence_length)`, *optional*):
             Labels for language modeling. Note that the labels **are shifted** inside the model, i.e. you can set
             `labels = input_ids` Indices are selected in `[-100, 0, ..., config.vocab_size]` All labels set to `-100`
             are ignored (masked), the loss is only computed for labels in `[0, ..., config.vocab_size]`
@@ -1004,20 +845,13 @@ class GPTJForCausalLM(GPTJPreTrainedModel, GenerationMixin):
         )
         hidden_states = transformer_outputs[0]
 
-        # Set device for model parallelism
-        if self.model_parallel:
-            torch.cuda.set_device(self.transformer.first_device)
-            hidden_states = hidden_states.to(self.lm_head.weight.device)
-
         # make sure sampling in fp16 works correctly and
         # compute loss in fp32 to match with mesh-tf version
         # https://github.com/EleutherAI/gpt-neo/blob/89ce74164da2fb16179106f54e2269b5da8db333/models/gpt2/gpt2.py#L179
-        lm_logits = self.lm_head(hidden_states).to(torch.float32)
+        lm_logits = self.lm_head(hidden_states).to(ms.float32)
 
         loss = None
         if labels is not None:
-            # move labels to correct device to enable model parallelism
-            labels = labels.to(lm_logits.device)
             # Flatten the tokens
             loss = self.loss_function(
                 lm_logits,
@@ -1050,7 +884,7 @@ class GPTJForCausalLM(GPTJPreTrainedModel, GenerationMixin):
         beam_idx at every generation step.
         """
         return tuple(
-            tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past)
+            tuple(past_state.index_select(0, beam_idx) for past_state in layer_past)
             for layer_past in past_key_values
         )
 
@@ -1069,27 +903,27 @@ class GPTJForSequenceClassification(GPTJPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def forward(
+    def construct(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
         past_key_values: Optional[Tuple[Tuple[ms.Tensor]]] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        token_type_ids: Optional[torch.LongTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        token_type_ids: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
         use_cache: Optional[bool] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert *input_ids* indices into associated vectors than the
             model's internal embedding lookup matrix.
-        labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
+        labels (`ms.Tensor` of shape `(batch_size,)`, *optional*):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
@@ -1123,25 +957,24 @@ class GPTJForSequenceClassification(GPTJPreTrainedModel):
             last_non_pad_token = -1
         elif input_ids is not None:
             # To handle both left- and right- padding, we take the rightmost token that is not equal to pad_token_id
-            non_pad_mask = (input_ids != self.config.pad_token_id).to(logits.device, torch.int32)
-            token_indices = torch.arange(input_ids.shape[-1], device=logits.device, dtype=torch.int32)
+            non_pad_mask = (input_ids != self.config.pad_token_id).to( ms.int32)
+            token_indices = ms.arange(input_ids.shape[-1], dtype=ms.int32)
             last_non_pad_token = (token_indices * non_pad_mask).argmax(-1)
         else:
             last_non_pad_token = -1
-            logger.warning_once(
+            logger.warning(
                 f"{self.__class__.__name__} will not detect padding tokens in `inputs_embeds`. Results may be "
                 "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
             )
 
-        pooled_logits = logits[torch.arange(batch_size, device=logits.device), last_non_pad_token]
+        pooled_logits = logits[ms.arange(batch_size), last_non_pad_token]
 
         loss = None
         if labels is not None:
-            labels = labels.to(pooled_logits.device)
             if self.config.problem_type is None:
                 if self.num_labels == 1:
                     self.config.problem_type = "regression"
-                elif self.num_labels > 1 and (labels.dtype == torch.long or labels.dtype == torch.int):
+                elif self.num_labels > 1 and (labels.dtype == ms.long or labels.dtype == ms.int):
                     self.config.problem_type = "single_label_classification"
                 else:
                     self.config.problem_type = "multi_label_classification"
@@ -1185,22 +1018,22 @@ class GPTJForQuestionAnswering(GPTJPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    def forward(
+    def construct(
         self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        token_type_ids: Optional[torch.LongTensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        head_mask: Optional[torch.FloatTensor] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        start_positions: Optional[torch.LongTensor] = None,
-        end_positions: Optional[torch.LongTensor] = None,
+        input_ids: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        token_type_ids: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        head_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        start_positions: Optional[ms.Tensor] = None,
+        end_positions: Optional[ms.Tensor] = None,
         output_attentions: Optional[bool] = None,
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = None,
     ) -> Union[Tuple, QuestionAnsweringModelOutput]:
         r"""
-        inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
+        inputs_embeds (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_dim)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert *input_ids* indices into associated vectors than the
             model's internal embedding lookup matrix.
@@ -1230,9 +1063,9 @@ class GPTJForQuestionAnswering(GPTJPreTrainedModel):
         if start_positions is not None and end_positions is not None:
             # If we are on multi-GPU, split add a dimension
             if len(start_positions.size()) > 1:
-                start_positions = start_positions.squeeze(-1).to(start_logits.device)
+                start_positions = start_positions.squeeze(-1)
             if len(end_positions.size()) > 1:
-                end_positions = end_positions.squeeze(-1).to(end_logits.device)
+                end_positions = end_positions.squeeze(-1)
             # sometimes the start/end positions are outside our model inputs, we ignore these terms
             ignored_index = start_logits.size(1)
             start_positions = start_positions.clamp(0, ignored_index)
