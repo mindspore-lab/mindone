@@ -398,12 +398,8 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
             # query = [batch_size, num_heads, query_length, head_dim]
             # key = [batch_size, 1, past_length, head_dim]
             # value = [batch_size, 1, past_length, head_dim]
-            #
-            # torch==2.1.2 is bugged with non-contiguous inputs with custom attn_mask (https://github.com/pytorch/pytorch/issues/112577), hence the check.
-            # TODO: need check
-            if True:
-                key = key.expand((-1, self.num_heads, -1, -1))
-                value = value.expand((-1, self.num_heads, -1, -1))
+            key = key.expand((-1, self.num_heads, -1, -1))
+            value = value.expand((-1, self.num_heads, -1, -1))
         else:
             query_length = query_shape[-1]
 
@@ -419,7 +415,7 @@ class GPTBigCodeSdpaAttention(GPTBigCodeAttention):
         # create a causal mask in case query_length == 1.
         is_causal = True if self.is_causal and attention_mask is None and query_length > 1 else False
 
-        sdpa_result = scaled_dot_product_attention(query, key, value, attention_mask=attention_mask)
+        sdpa_result = scaled_dot_product_attention(query, key, value, attn_mask=attention_mask)
 
         if self.multi_query:
             # (batch_size, num_heads, seq_len, head_dim) --> (batch_size, seq_len, num_heads, head_dim)
@@ -671,8 +667,9 @@ class GPTBigCodeModel(GPTBigCodePreTrainedModel):
 
         max_positions = config.max_position_embeddings
         # TODO: self.bias
-        bias = mint.tril(mint.ones((max_positions, max_positions), dtype=ms.bool_))
-        self.bias = ms.Parameter(bias, requires_grad=False)
+        # bias = mint.tril(mint.ones((max_positions, max_positions), dtype=ms.bool_))
+        # self.bias = ms.Parameter(bias, requires_grad=False)
+        self.bias = mint.tril(mint.ones((max_positions, max_positions)).bool())
 
         self.gradient_checkpointing = False
 
