@@ -841,7 +841,11 @@ class Qwen3Model(Qwen3PreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+
+            # FIXME: BUG on MindSpore 2.5.0
+            # causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = mint.ones((sequence_length, target_length), dtype=dtype) * min_dtype
+
             diagonal_attend_mask = mint.arange(target_length) > cache_position.reshape(-1, 1)
             if config.sliding_window is not None:
                 # if we have sliding window, we should not attend to tokens beyond sliding window length, so we mask them out also
@@ -860,9 +864,15 @@ class Qwen3Model(Qwen3PreTrainedModel):
                 mask_length = attention_mask.shape[-1]
                 padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
                 padding_mask = padding_mask == 0
+
+                # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
+                # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype)
+                causal_mask = causal_mask.to(ms.float32)
                 causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(
-                    padding_mask, min_dtype
+                    padding_mask, min_dtype.to(ms.float32)
                 )
+                causal_mask = causal_mask.to(dtype)
+
         return causal_mask
 
 
