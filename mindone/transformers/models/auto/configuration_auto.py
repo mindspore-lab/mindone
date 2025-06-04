@@ -43,6 +43,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("llava", "LlavaConfig"),
         ("mt5", "MT5Config"),
         ("qwen2", "Qwen2Config"),
+        ("rembert", "RemBertConfig"),
         ("t5", "T5Config"),
         ("xlm-roberta", "XLMRobertaConfig"),
     ]
@@ -66,6 +67,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("llava", "Llava"),
         ("mt5", "MT5"),
         ("qwen2", "Qwen2"),
+        ("rembert", "RemBERT"),
         ("t5", "T5"),
         ("t5v1.1", "T5v1.1"),
         ("xlm-roberta", "XLM-RoBERTa"),
