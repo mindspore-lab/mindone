@@ -120,7 +120,7 @@ LLAMA_CASES = [
     [
         "ConvBertForMaskedLM",
         "transformers.ConvBertForMaskedLM",
-        "mindway.transformers.ConvBertForMaskedLM",
+        "mindone.transformers.ConvBertForMaskedLM",
         (config,),
         {},
         (input_ids,),
@@ -136,7 +136,7 @@ LLAMA_CASES = [
     [
         "ConvBertForMultipleChoice",
         "transformers.ConvBertForMultipleChoice",
-        "mindway.transformers.ConvBertForMultipleChoice",
+        "mindone.transformers.ConvBertForMultipleChoice",
         (config,),
         {},
         (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
@@ -152,7 +152,7 @@ LLAMA_CASES = [
     [
         "ConvBertForQuestionAnswering",
         "transformers.ConvBertForQuestionAnswering",
-        "mindway.transformers.ConvBertForQuestionAnswering",
+        "mindone.transformers.ConvBertForQuestionAnswering",
         (config,),
         {},
         (input_ids,),
@@ -170,7 +170,7 @@ LLAMA_CASES = [
     [
         "ConvBertForSequenceClassification",
         "transformers.ConvBertForSequenceClassification",
-        "mindway.transformers.ConvBertForSequenceClassification",
+        "mindone.transformers.ConvBertForSequenceClassification",
         (config,),
         {},
         (input_ids,),
@@ -186,7 +186,7 @@ LLAMA_CASES = [
     [
         "ConvBertForTokenClassification",
         "transformers.ConvBertForTokenClassification",
-        "mindway.transformers.ConvBertForTokenClassification",
+        "mindone.transformers.ConvBertForTokenClassification",
         (config,),
         {},
         (input_ids,),
@@ -202,7 +202,7 @@ LLAMA_CASES = [
     [
         "ConvBertModel",
         "transformers.ConvBertModel",
-        "mindway.transformers.ConvBertModel",
+        "mindone.transformers.ConvBertModel",
         (config,),
         {},
         (input_ids,),
