@@ -1483,7 +1483,7 @@ class CanineForTokenClassification(CaninePreTrainedModel):
 
         ```python
         >>> from transformers import AutoTokenizer
-        >>> from mindway.transformers import CanineForTokenClassification
+        >>> from mindone.transformers import CanineForTokenClassification
         >>> import mindspore as ms
 
         >>> tokenizer = AutoTokenizer.from_pretrained("google/canine-s")

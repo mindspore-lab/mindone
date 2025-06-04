@@ -124,7 +124,7 @@ LLAMA_CASES = [
     [
         "CanineForMultipleChoice",
         "transformers.CanineForMultipleChoice",
-        "mindway.transformers.CanineForMultipleChoice",
+        "mindone.transformers.CanineForMultipleChoice",
         (config,),
         {},
         (),
@@ -141,7 +141,7 @@ LLAMA_CASES = [
     [
         "CanineForQuestionAnswering",
         "transformers.CanineForQuestionAnswering",
-        "mindway.transformers.CanineForQuestionAnswering",
+        "mindone.transformers.CanineForQuestionAnswering",
         (config,),
         {},
         (input_ids,),
@@ -159,7 +159,7 @@ LLAMA_CASES = [
     [
         "CanineForSequenceClassification",
         "transformers.CanineForSequenceClassification",
-        "mindway.transformers.CanineForSequenceClassification",
+        "mindone.transformers.CanineForSequenceClassification",
         (config,),
         {},
         (input_ids,),
@@ -175,7 +175,7 @@ LLAMA_CASES = [
     [
         "CanineForTokenClassification",
         "transformers.CanineForTokenClassification",
-        "mindway.transformers.CanineForTokenClassification",
+        "mindone.transformers.CanineForTokenClassification",
         (config,),
         {},
         (input_ids,),
