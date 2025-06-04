@@ -162,7 +162,7 @@ BERT_CASES = [
         {},
         (input_ids,),
         {
-            "attention_mask": np.not_equal(input_ids, 1),
+            "attention_mask": input_mask,
             "labels": sequence_labels,
         },
         {
@@ -178,7 +178,7 @@ BERT_CASES = [
         {},
         (input_ids,),
         {
-            "attention_mask": np.not_equal(input_ids, 1),
+            "attention_mask": input_mask,
             "labels": token_labels,
         },
         {
@@ -193,6 +193,7 @@ BERT_CASES = [
         {},
         (input_ids,),
         {
+            "attention_mask": input_mask,
         },
         {
             "last_hidden_state": 0,

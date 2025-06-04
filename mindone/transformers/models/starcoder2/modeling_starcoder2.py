@@ -145,13 +145,8 @@ def eager_attention_forward(
     attn_weights = mint.matmul(query, key_states.transpose(2, 3)) * scaling
     if attention_mask is not None:
         causal_mask = attention_mask[:, :, :, : key_states.shape[-2]]
-    elif is_causal and query.shape[-2] > 1 :
-        L, S = query.shape[-2], key.shape[-2]
-        causal_mask = mint.zeros((L, S), dtype=query.dtype)
-        temp_mask = mint.ones((L, S), dtype=ms.bool_).tril(diagonal=0)
-        causal_mask = ops.masked_fill(causal_mask, mint.logical_not(temp_mask), DTYPE_FP16_MIN)
-        causal_mask = causal_mask.to(query.dtype)
-    attn_weights = attn_weights + causal_mask
+        attn_weights = attn_weights + causal_mask
+
     attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
     attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value_states)
@@ -333,15 +328,16 @@ class Starcoder2SdpaAttention(Starcoder2Attention):
 
         is_causal = True if attention_mask is None and q_len > 1 else False
 
-        if attention_mask is not None:  # Todo: Sdpa & eager needn't logical_not
+        if attention_mask is not None:
             attention_mask = mint.logical_not(attention_mask)
+        elif is_causal:
+            attention_mask = mint.ones((query_states.shape[-2], key_states.shape[-2]), dtype=ms.bool_).tril(diagonal=0)
 
         attn_output = scaled_dot_product_attention(
             query_states,
             key_states,
             value_states,
             attn_mask=attention_mask,
-            is_causal=is_causal
         )
 
         attn_output = attn_output.transpose(1, 2)
