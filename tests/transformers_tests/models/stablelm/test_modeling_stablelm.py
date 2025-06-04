@@ -192,6 +192,7 @@ BERT_CASES = [
         {},
         (input_ids,),
         {
+            "attention_mask": input_mask,
         },
         {
             "last_hidden_state": 0,
