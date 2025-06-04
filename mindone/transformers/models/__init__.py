@@ -3,6 +3,7 @@ from . import (
     bert,
     bit,
     blip_2,
+    canine,
     clap,
     clip,
     dpt,
