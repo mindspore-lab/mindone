@@ -60,7 +60,7 @@ def flash_attention_forward(
     # For `attn_mask` of ops.flash_attention_score, False indicates retention and True indicates discard, Which is
     # opposite to PyTorch
     if attention_mask is not None:
-        attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else attention_mask.bool()
+        attention_mask = mint.logical_not(attention_mask) if attention_mask.dtype == ms.bool_ else mint.logical_not(attention_mask.bool())
 
     # flash_attention only supports [float16, bfloat16]
     origin_dtype = query.dtype
@@ -82,3 +82,79 @@ def flash_attention_forward(
     attn_output = attn_output.to(origin_dtype)
 
     return attn_output, None
+
+
+def _flash_attention_forward(
+    query_states: ms.tensor,
+    key_states: ms.tensor,
+    value_states: ms.tensor,
+    attention_mask: ms.tensor,
+    query_length: int,
+    is_causal: bool,
+    dropout: float = 0.0,
+    position_ids: Optional[ms.tensor] = None,
+    softmax_scale: Optional[float] = None,
+    sliding_window: Optional[int] = None,
+    use_top_left_mask: bool = False,
+    softcap: Optional[float] = None,
+    deterministic: bool = None,
+    cu_seq_lens_q: Optional[ms.tensor] = None,
+    cu_seq_lens_k: Optional[ms.tensor] = None,
+    max_length_q: Optional[int] = None,
+    max_length_k: Optional[int] = None,
+    target_dtype: Optional[ms.dtype] = None,
+    **kwargs,
+):
+    """
+    Calls the forward method of Flash Attention - if the input hidden states contain at least one padding token
+    first unpad the input, then computes the attention scores and pad the final attention scores.
+
+    Args:
+        query_states (`ms.tensor`):
+            Input query states to be passed to Flash Attention API
+        key_states (`ms.tensor`):
+            Input key states to be passed to Flash Attention API
+        value_states (`ms.tensor`):
+            Input value states to be passed to Flash Attention API
+        attention_mask (`ms.tensor`):
+            The padding mask - corresponds to a tensor of size `(batch_size, seq_len)` where 0 stands for the
+            position of padding tokens and 1 for the position of non-padding tokens.
+        dropout (`float`):
+            Attention dropout
+        softmax_scale (`float`, *optional*):
+            The scaling of QK^T before applying softmax. Default to 1 / sqrt(head_dim)
+        use_top_left_mask (`bool`, defaults to `False`):
+            flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignment, that was made default for flash_attn>=2.1. This attribute is used to handle this difference.
+        softcap (`float`, *optional*):
+            Softcap for the attention logits, used e.g. in gemma2.
+        deterministic (`bool`, *optional*):
+            Determines if the deterministic option introduced in flash_attn>=2.4.1 is enabled.
+    """
+    if not use_top_left_mask:
+        causal = is_causal
+    else:
+        causal = is_causal and query_length != 1
+
+    if attention_mask is not None:
+        pass
+    elif position_ids is not None and (
+        max_length_q is not None or (query_length != 1 and not (mint.diff(position_ids, dim=-1) >= 0).all())
+    ):
+        pass
+    else:
+        if causal:
+            attention_mask = mint.tril(mint.ones((query_states.shape[-2], key_states.shape[-2])))
+
+        attn_output = flash_attention_forward(
+            query_states,
+            key_states,
+            value_states,
+            attention_mask,
+            dropout,
+            softmax_scale,
+            sliding_window,
+            softcap,
+            **kwargs
+        )
+
+    return attn_output
