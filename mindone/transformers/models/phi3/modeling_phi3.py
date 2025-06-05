@@ -595,9 +595,9 @@ class Phi3Model(Phi3PreTrainedModel):
         position_ids: Optional[ms.Tensor] = None,
         past_key_values: Optional[List[ms.Tensor]] = None,
         inputs_embeds: Optional[ms.Tensor] = None,
-        use_cache: Optional[bool] = False,              # zhy_test
-        output_attentions: Optional[bool] = False,      # zhy_test
-        output_hidden_states: Optional[bool] = False,   # zhy_test
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
