@@ -11,7 +11,7 @@ msrun --bind_core=True --worker_num=${NPUS} --local_worker_num=${NPUS} --master_
 python emu3/train/train_seq_parallel.py \
     --model_name_or_path BAAI/Emu3-Stage1 \
     --mode 1 \
-    --debug False \
+    --pynative_debug False \
     --fp16 True \
     --sequence_parallel_shards ${NPUS} \
     --ms_zero_stage 3 \

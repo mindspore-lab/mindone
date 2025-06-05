@@ -40,13 +40,6 @@ hide:
 
     [:octicons-arrow-right-24: Using it!](tools/zero.md)
 
--   > :rocket: __Accelerate__
-
-    > ---
-
-    > Accelerate is a library that enables the same MindSpore code to be run across any distributed configuration by adding just four lines of code.
-
-    > [:octicons-arrow-right-24: Launch! Launch! Launch!!!](accelerate/index.md)
 
 </div>
 
