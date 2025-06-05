@@ -69,7 +69,12 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
             mask_length = attention_mask.shape[-1]
             padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
             padding_mask = padding_mask == 0
-            causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype)
+            
+            # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
+            # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype)
+            causal_mask = causal_mask.to(ms.float32)
+            causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype.to(ms.float32))
+            causal_mask = causal_mask.to(dtype)
 
     return causal_mask
 
