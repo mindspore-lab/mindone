@@ -136,8 +136,9 @@ def generate(
 
 
 def main():
-    model = MMadaModelLM.from_pretrained("Gen-Verse/MMaDA-8B-Base", mindspore_dtype=ms.bfloat16)
-    tokenizer = AutoTokenizer.from_pretrained("Gen-Verse/MMaDA-8B-Base", trust_remote_code=True)
+    model_id = "Gen-Verse/MMaDA-8B-Base"  # "Gen-Verse/MMaDA-8B-MixCoT"
+    model = MMadaModelLM.from_pretrained(model_id, mindspore_dtype=ms.bfloat16)
+    tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
     tokenizer.chat_template = "{% set loop_messages = messages %}{% for message in loop_messages %}{% set content = '<|start_header_id|>' \
         + message['role'] + '<|end_header_id|>\n'+message['content'] | trim + '<|eot_id|>' %}{% if loop.index0 == 0 %}{% set content = \
             bos_token + content %}{% endif %}{{ content }}{% endfor %}{{ '<|start_header_id|>assistant<|end_header_id|>\n' }}"

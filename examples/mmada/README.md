@@ -67,7 +67,13 @@ You can download `MMaDA-8B-Base` at [Huggingface](https://huggingface.co/Gen-Ver
 huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-Base
 ```
 
-`MMaDA-8B-MixCoT` and `MMaDA-8B-Max` are commining soon. See latest updates from [HERE](https://github.com/Gen-Verse/MMaDA/blob/main/README.md#-mmada-series-overview).
+And download `MMaDA-8B-MixCoT` from [Huggingface](https://huggingface.co/Gen-Verse/MMaDA-8B-MixCoT) like this:
+
+```bash
+huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-MixCoT
+```
+
+`MMaDA-8B-Max` is comining soon. See latest updates from [HERE](https://github.com/Gen-Verse/MMaDA/blob/main/README.md#-mmada-series-overview).
 
 ### 1. Text Generation
 
