@@ -214,6 +214,7 @@ def image_transform(image, resolution=256, normalize=True):
 def image_transform_squash(image, resolution=256, normalize=True):
     image = transforms.Resize((resolution, resolution), interpolation=Inter.BICUBIC)(image)
     image = transforms.ToTensor()(image)
+
     if normalize:
-        image = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])(image)
+        image = (image - 0.5) / 0.5
     return image
