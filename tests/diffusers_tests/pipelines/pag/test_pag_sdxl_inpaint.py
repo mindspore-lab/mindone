@@ -1,5 +1,5 @@
-import sys
 import random
+import sys
 import unittest
 
 import numpy as np

@@ -12,7 +12,7 @@ from datasets import disable_caching, load_dataset
 from tqdm.auto import tqdm
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
