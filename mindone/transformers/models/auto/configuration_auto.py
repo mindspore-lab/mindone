@@ -54,6 +54,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2Config"),
         ("qwen2_5_vl", "Qwen2_5_VLConfig"),
         ("qwen2_vl", "Qwen2VLConfig"),
+        ("qwen3", "Qwen3Config"),
         ("siglip", "SiglipConfig"),
         ("speecht5", "SpeechT5Config"),
         ("t5", "T5Config"),
