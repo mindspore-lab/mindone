@@ -585,6 +585,7 @@ class LlamaPreTrainedModel(PreTrainedModel):
     _supports_cache_class = False
     _supports_quantized_cache = False
     _supports_static_cache = False
+    _supports_attention_backend = True
 
     def _init_weights(self, cell):
         std = self.config.initializer_range
