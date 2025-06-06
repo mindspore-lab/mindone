@@ -51,6 +51,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("phi3", "Phi3Model"),
         ("qwen2", "Qwen2Model"),
         ("qwen2_5_vl", "Qwen2_5_VLModel"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("qwen2_vl", "Qwen2VLModel"),
         ("qwen3", "Qwen3Model"),
         ("siglip", "SiglipModel"),
@@ -71,6 +72,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2LMHeadModel"),
         ("hiera", "HieraForPreTraining"),
         ("llava", "LlavaForConditionalGeneration"),
+        ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
@@ -228,6 +230,7 @@ MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Seq2Seq Causal LM mapping
         ("mt5", "MT5ForConditionalGeneration"),
+        ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("umt5", "UMT5ForConditionalGeneration"),
     ]
