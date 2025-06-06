@@ -62,6 +62,7 @@ from .models.clip import (
     CLIPVisionModelWithProjection,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
     GemmaForSequenceClassification,
@@ -124,6 +125,13 @@ from .models.mt5 import (
     MT5ForConditionalGeneration,
     MT5Model,
     MT5PreTrainedModel,
+)
+from .models.persimmon import (
+    PersimmonModel,
+    PersimmonForSequenceClassification,
+    PersimmonPreTrainedModel,
+    PersimmonForTokenClassification,
+    PersimmonForCausalLM,
 )
 from .models.phi3 import (
     Phi3ForCausalLM,
