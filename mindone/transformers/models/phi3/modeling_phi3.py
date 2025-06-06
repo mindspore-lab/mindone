@@ -5,7 +5,7 @@ from transformers.models.phi3.configuration_phi3 import Phi3Config
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, nn, ops
+from mindspore import nn, ops
 from mindspore.common.initializer import Normal, Zero, initializer
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
@@ -59,10 +59,7 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
         # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
         causal_mask = attention_mask
     else:
-        # FIXME: BUG on MindSpore 2.5.0
-        # causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
-        causal_mask = mint.ones((sequence_length, target_length), dtype=dtype) * min_dtype
-        
+        causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
         if sequence_length != 1:
             causal_mask = ops.triu(causal_mask, diagonal=1)
         causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
@@ -72,12 +69,7 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
             mask_length = attention_mask.shape[-1]
             padding_mask = causal_mask[:, :, :, :mask_length] + attention_mask[:, None, None, :]
             padding_mask = padding_mask == 0
-            
-            # FIXME: not support masked_fill with bf16 & @jit on MindSpore 2.5.0
-            # causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype)
-            causal_mask = causal_mask.to(ms.float32)
-            causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype.to(ms.float32))
-            causal_mask = causal_mask.to(dtype)
+            causal_mask[:, :, :, :mask_length] = causal_mask[:, :, :, :mask_length].masked_fill(padding_mask, min_dtype)
 
     return causal_mask
 
@@ -548,7 +540,6 @@ class Phi3PreTrainedModel(MSPreTrainedModel):
     # _supports_flash_attn_2 = True
     # _supports_sdpa = True
     _supports_cache_class = True
-    _supports_attention_backend = True
 
     def _init_weights(self, module):
         std = self.config.initializer_range
