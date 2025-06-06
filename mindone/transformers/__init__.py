@@ -146,6 +146,7 @@ from .models.qwen2_5_omni import (
     Qwen2_5OmniToken2WavModel,
 )
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
+from .models.qwen2_audio import Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel, Qwen2AudioEncoder
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
