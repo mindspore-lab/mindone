@@ -146,6 +146,7 @@ from .models.qwen2_5_omni import (
     Qwen2_5OmniToken2WavModel,
 )
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
+from .models.qwen2_audio import Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel, Qwen2AudioEncoder
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
@@ -156,6 +157,14 @@ from .models.speecht5 import (
     SpeechT5HifiGan,
     SpeechT5Model,
     SpeechT5PreTrainedModel,
+)
+from .models.switch_transformers import (
+    SwitchTransformersEncoderModel,
+    SwitchTransformersForConditionalGeneration,
+    SwitchTransformersModel,
+    SwitchTransformersPreTrainedModel,
+    SwitchTransformersSparseMLP,
+    SwitchTransformersTop1Router,
 )
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,

@@ -43,6 +43,8 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("llava", "LlavaConfig"),
         ("mt5", "MT5Config"),
         ("qwen2", "Qwen2Config"),
+        ("qwen2_audio", "Qwen2AudioConfig"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoderConfig"),
         ("t5", "T5Config"),
         ("xlm-roberta", "XLMRobertaConfig"),
     ]
@@ -60,6 +62,8 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("dpt", "DPT"),
         ("gemma", "Gemma"),
         ("gpt2", "OpenAI GPT-2"),
+        ("qwen2_audio", "Qwen2Audio"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("llama", "LLaMA"),
         ("llama2", "Llama2"),
         ("llama3", "Llama3"),
