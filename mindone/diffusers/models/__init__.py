@@ -26,6 +26,7 @@ _import_structure = {
     "autoencoders.autoencoder_kl_hunyuan_video": ["AutoencoderKLHunyuanVideo"],
     "autoencoders.autoencoder_kl_ltx": ["AutoencoderKLLTXVideo"],
     "autoencoders.autoencoder_kl_temporal_decoder": ["AutoencoderKLTemporalDecoder"],
+    "autoencoders.autoencoder_kl_wan": ["AutoencoderKLWan"],
     "autoencoders.autoencoder_oobleck": ["AutoencoderOobleck"],
     "autoencoders.autoencoder_tiny": ["AutoencoderTiny"],
     "autoencoders.consistency_decoder_vae": ["ConsistencyDecoderVAE"],
@@ -66,6 +67,7 @@ _import_structure = {
     "transformers.transformer_ltx": ["LTXVideoTransformer3DModel"],
     "transformers.transformer_sd3": ["SD3Transformer2DModel"],
     "transformers.transformer_temporal": ["TransformerTemporalModel"],
+    "transformers.transformer_wan": ["WanTransformer3DModel"],
     "transformers.transformer_mochi": ["MochiTransformer3DModel"],
     "unets.unet_1d": ["UNet1DModel"],
     "unets.unet_2d": ["UNet2DModel"],
@@ -91,6 +93,7 @@ if TYPE_CHECKING:
         AutoencoderKLLTXVideo,
         AutoencoderKLMochi,
         AutoencoderKLTemporalDecoder,
+        AutoencoderKLWan,
         AutoencoderOobleck,
         AutoencoderTiny,
         ConsistencyDecoderVAE,
@@ -135,6 +138,7 @@ if TYPE_CHECKING:
         T5FilmDecoder,
         Transformer2DModel,
         TransformerTemporalModel,
+        WanTransformer3DModel,
     )
     from .unets import (
         I2VGenXLUNet,
