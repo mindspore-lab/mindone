@@ -10,7 +10,7 @@ from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from mindone.transformers.activations import ACT2FN
-from mindone.transformers.cache_utils import Cache, DynamicCache, get_max_length, get_seq_length, init_static_cache, update
+from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.mindspore_adapter import str_to_dtype
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
@@ -26,7 +26,7 @@ from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, Causa
 from mindone.transformers.modeling_utils import PreTrainedModel
 from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
-from configuration_minicpm import MiniCPMConfig
+from .configuration_minicpm import MiniCPMConfig
 import re
 
 logger = logging.get_logger(__name__)
@@ -1170,7 +1170,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
     def enable_dynamic_shape(self):
         input_ids = Tensor(shape=[None, None], dtype=ms.int32)
         position_ids = Tensor(shape=[None, None], dtype=ms.int32)
-        attention_mask = Tensor(shape=[None, None], dtype=ms.int32)
+        attention_mask = None
         past_key_values = None
         inputs_embeds = None
         labels = None
@@ -1178,7 +1178,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         output_attentions = False
         output_hidden_states = False
         return_dict = False
-        cache_position = Tensor(shape=[None], dtype=ms.int64)
+        cache_position = Tensor(shape=[None], dtype=ms.int32)
         block_tables = Tensor(shape=[None, None], dtype=ms.int32)
         slot_mapping = Tensor(shape=[None], dtype=ms.int32)
         batch_valid_length = ms.mutable(Tensor(shape=[None], dtype=ms.int32))
@@ -1435,6 +1435,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
             block_tables = ms.tensor(block_tables)
             model_inputs.update(
                 {
+                    "attention_mask": None,
                     "block_tables": block_tables,
                     "slot_mapping": slot_mapping,
                     "batch_valid_length": self.batch_valid_length,

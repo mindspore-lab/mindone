@@ -27,12 +27,12 @@ ArkInfer - Cross-platform Deployment System: Supports one-click deployment in mu
 ```
 git clone https://github.com/mindspore-lab/mindone.git
 cd mindone
-cd examples/minicpm4
+cd examples/minicpm
 ```
 
 ## Quick Start
 
-Here is a usage example. you can use the following command:
+Here is a usage example of MiniCPM-8B. you can use the following command:
 
 ```bash
 # for MiniCPM4-8B inference
@@ -48,5 +48,5 @@ python chat.py
 ## Inference Speed
 |      model name	      | precision* | cards | page attn | 	tokens/s	 |
 |:---------------------:| :---:  |:---:  | :---:  |:----------:|
-| openbmb/MiniCPM4-0.5B |  bf16 | 1 | ✅  |            |
-|  openbmb/MiniCPM4-8B  |  bf16 | 1 | ✅  |            |
+| openbmb/MiniCPM4-0.5B |  bf16 | 1 | ✅  |   11.57    |
+|  openbmb/MiniCPM4-8B  |  bf16 | 1 | ✅  |    8.93    |

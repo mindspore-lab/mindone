@@ -4,11 +4,11 @@ import os
 import sys
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
+mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from transformers import AutoTokenizer
-from modeling_minicpm import MiniCPMForCausalLM
+from mindone.transformers.models.minicpm4.modeling_minicpm import MiniCPMForCausalLM
 import mindspore as ms
 
 def generate(args):
