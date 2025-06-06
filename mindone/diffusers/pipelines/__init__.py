@@ -149,7 +149,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
-    "sana": ["SanaPipeline"],
+    "sana": ["SanaPipeline", "SanaSprintPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
@@ -352,7 +352,7 @@ if TYPE_CHECKING:
     from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
-    from .sana import SanaPipeline
+    from .sana import SanaPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel

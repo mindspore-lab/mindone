@@ -46,6 +46,7 @@ _import_structure = {
     "scheduling_pndm": ["PNDMScheduler"],
     "scheduling_repaint": ["RePaintScheduler"],
     "scheduling_sasolver": ["SASolverScheduler"],
+    "scheduling_scm": ["SCMScheduler"],
     "scheduling_sde_ve": ["ScoreSdeVeScheduler"],
     "scheduling_tcd": ["TCDScheduler"],
     "scheduling_unclip": ["UnCLIPScheduler"],
@@ -89,6 +90,7 @@ if TYPE_CHECKING:
     from .scheduling_pndm import PNDMScheduler
     from .scheduling_repaint import RePaintScheduler
     from .scheduling_sasolver import SASolverScheduler
+    from .scheduling_scm import SCMScheduler
     from .scheduling_sde_ve import ScoreSdeVeScheduler
     from .scheduling_tcd import TCDScheduler
     from .scheduling_unclip import UnCLIPScheduler
