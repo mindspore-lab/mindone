@@ -28,6 +28,7 @@ from . import (
     switch_transformers,
     t5,
     umt5,
+    vits,
     wav2vec2,
     xlm_roberta,
 )
