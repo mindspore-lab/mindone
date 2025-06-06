@@ -1,7 +1,7 @@
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...utils import is_invisible_watermark_available
 
@@ -40,5 +40,5 @@ class StableDiffusionXLWatermarker:
 
         images = ms.Tensor.from_numpy(images).permute(0, 3, 1, 2)
 
-        images = ops.clamp(2 * (images / 255 - 0.5), min=-1.0, max=1.0)
+        images = mint.clamp(2 * (images / 255 - 0.5), min=-1.0, max=1.0)
         return images

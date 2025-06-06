@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
@@ -95,7 +95,7 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
         self.in_channels = in_channels
 
         self.norm = GroupNorm(num_groups=norm_num_groups, num_channels=in_channels, eps=1e-6, affine=True)
-        self.proj_in = nn.Dense(in_channels, inner_dim)
+        self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
         self.transformer_blocks = nn.CellList(
@@ -117,7 +117,7 @@ class TransformerTemporalModel(ModelMixin, ConfigMixin):
             ]
         )
 
-        self.proj_out = nn.Dense(inner_dim, in_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, in_channels)
 
     def construct(
         self,
@@ -233,7 +233,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
         # 2. Define input layers
         self.in_channels = in_channels
         self.norm = GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6)
-        self.proj_in = nn.Dense(in_channels, inner_dim)
+        self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
         # 3. Define transformers blocks
         self.transformer_blocks = nn.CellList(
@@ -270,7 +270,7 @@ class TransformerSpatioTemporalModel(nn.Cell):
         # 4. Define output layers
         self.out_channels = in_channels if out_channels is None else out_channels
         # TODO: should use out_channels for continuous projections
-        self.proj_out = nn.Dense(inner_dim, in_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, in_channels)
 
         self.gradient_checkpointing = False
 
@@ -309,22 +309,24 @@ class TransformerSpatioTemporalModel(nn.Cell):
         batch_size = batch_frames // num_frames
 
         time_context = encoder_hidden_states
-        time_context_first_timestep = time_context[None, :].reshape(batch_size, num_frames, -1, time_context.shape[-1])[
-            :, 0
-        ]
-        time_context = time_context_first_timestep[:, None].broadcast_to(
-            (batch_size, height * width, time_context.shape[-2], time_context.shape[-1])
+        time_context_first_timestep = mint.reshape(
+            time_context[None, :], (batch_size, num_frames, -1, time_context.shape[-1])
+        )[:, 0]
+        time_context = mint.broadcast_to(
+            time_context_first_timestep[:, None],
+            (batch_size, height * width, time_context.shape[-2], time_context.shape[-1]),
         )
-        time_context = time_context.reshape(batch_size * height * width, -1, time_context.shape[-1])
+        time_context = mint.reshape(time_context, (batch_size * height * width, -1, time_context.shape[-1]))
 
         residual = hidden_states
 
         hidden_states = self.norm(hidden_states)
         inner_dim = hidden_states.shape[1]
         hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch_frames, height * width, inner_dim)
+
         hidden_states = self.proj_in(hidden_states)
 
-        num_frames_emb = ops.arange(num_frames)
+        num_frames_emb = mint.arange(num_frames)
         num_frames_emb = num_frames_emb.tile((batch_size, 1))
         num_frames_emb = num_frames_emb.reshape(-1)
         t_emb = self.time_proj(num_frames_emb)

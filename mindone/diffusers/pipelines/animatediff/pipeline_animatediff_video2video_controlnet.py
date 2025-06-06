@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, CLIPVisionModelWithProjection
 
@@ -464,7 +464,9 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -472,7 +474,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -512,10 +514,10 @@ class AnimateDiffVideoToVideoControlNetPipeline(
 
         ip_adapter_image_embeds = []
         for i, single_image_embeds in enumerate(image_embeds):
-            single_image_embeds = ops.cat([single_image_embeds] * num_images_per_prompt, axis=0)
+            single_image_embeds = mint.cat([single_image_embeds] * num_images_per_prompt, dim=0)
             if do_classifier_free_guidance:
-                single_negative_image_embeds = ops.cat([negative_image_embeds[i]] * num_images_per_prompt, axis=0)
-                single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds], axis=0)
+                single_negative_image_embeds = mint.cat([negative_image_embeds[i]] * num_images_per_prompt, dim=0)
+                single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds], dim=0)
 
             ip_adapter_image_embeds.append(single_image_embeds)
 
@@ -528,7 +530,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             batch_video = video[i : i + decode_chunk_size]
             batch_video = retrieve_latents(self.vae, self.vae.encode(batch_video)[0], generator=generator)
             latents.append(batch_video)
-        return ops.cat(latents)
+        return mint.cat(latents)
 
     # Copied from diffusers.pipelines.animatediff.pipeline_animatediff.AnimateDiffPipeline.decode_latents
     def decode_latents(self, latents, decode_chunk_size: int = 16):
@@ -543,8 +545,9 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             batch_latents = self.vae.decode(batch_latents)[0]
             video.append(batch_latents)
 
-        video = ops.cat(video)
+        video = mint.cat(video)
         video = video[None, :].reshape((batch_size, num_frames, -1) + video.shape[2:]).permute(0, 2, 1, 3, 4)
+
         # we always cast to float32 as this does not cause significant overhead and is compatible with bfloat16
         video = video.float()
         return video
@@ -774,7 +777,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             else:
                 init_latents = [self.encode_video(vid, generator, decode_chunk_size).unsqueeze(0) for vid in video]
 
-            init_latents = ops.cat(init_latents, axis=0)
+            init_latents = mint.cat(init_latents, dim=0)
 
             # restore vae to original dtype
             if self.vae.config.force_upcast:
@@ -795,7 +798,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                     f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
                 )
             else:
-                init_latents = ops.cat([init_latents], axis=0)
+                init_latents = mint.cat([init_latents], dim=0)
 
             noise = randn_tensor(init_latents.shape, generator=generator, dtype=dtype)
             latents = self.scheduler.add_noise(init_latents, noise, timestep).permute(0, 2, 1, 3, 4)
@@ -825,7 +828,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         guess_mode=False,
     ):
         video = self.control_video_processor.preprocess_video(video, height=height, width=width).to(dtype=ms.float32)
-        video = video.permute(0, 2, 1, 3, 4).flatten(start_dim=0, end_dim=1)
+        video = mint.flatten(mint.permute(video, (0, 2, 1, 3, 4)), start_dim=0, end_dim=1)
         video_batch_size = video.shape[0]
 
         if video_batch_size == 1:
@@ -838,7 +841,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
         video = video.to(dtype=dtype)
 
         if do_classifier_free_guidance and not guess_mode:
-            video = ops.cat([video] * 2)
+            video = mint.cat([video] * 2)
 
         return video
 
@@ -1126,7 +1129,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
             if self.do_classifier_free_guidance:
-                prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+                prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
             prompt_embeds = prompt_embeds.repeat_interleave(repeats=num_frames, dim=0)
 
@@ -1209,7 +1212,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 if guess_mode and self.do_classifier_free_guidance:
@@ -1229,7 +1232,7 @@ class AnimateDiffVideoToVideoControlNetPipeline(
                         controlnet_cond_scale = controlnet_cond_scale[0]
                     cond_scale = controlnet_cond_scale * controlnet_keep[i]
 
-                control_model_input = ops.swapaxes(control_model_input, 1, 2)
+                control_model_input = mint.swapaxes(control_model_input, 1, 2)
                 control_model_input = control_model_input.reshape(
                     (-1, control_model_input.shape[2], control_model_input.shape[3], control_model_input.shape[4])
                 )

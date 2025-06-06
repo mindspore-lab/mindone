@@ -13,7 +13,7 @@
 # limitations under the License.
 from transformers import CLIPConfig
 
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, ops
 
 from mindone.transformers import CLIPVisionModel, MSPreTrainedModel
 
@@ -23,9 +23,9 @@ logger = logging.get_logger(__name__)
 
 
 def cosine_distance(image_embeds, text_embeds):
-    normalized_image_embeds = ops.L2Normalize(axis=1, epsilon=1e-12)(image_embeds)
-    normalized_text_embeds = ops.L2Normalize(axis=1, epsilon=1e-12)(text_embeds)
-    return ops.mm(normalized_image_embeds, normalized_text_embeds.t())
+    normalized_image_embeds = mint.nn.functional.normalize(image_embeds)
+    normalized_text_embeds = mint.nn.functional.normalize(text_embeds)
+    return mint.mm(normalized_image_embeds, normalized_text_embeds.t())
 
 
 class StableDiffusionSafetyChecker(MSPreTrainedModel):
@@ -39,13 +39,13 @@ class StableDiffusionSafetyChecker(MSPreTrainedModel):
         super().__init__(config)
 
         self.vision_model = CLIPVisionModel(config.vision_config)
-        self.visual_projection = nn.Dense(config.vision_config.hidden_size, config.projection_dim, has_bias=False)
+        self.visual_projection = mint.nn.Linear(config.vision_config.hidden_size, config.projection_dim, bias=False)
 
-        self.concept_embeds = Parameter(ops.ones((17, config.projection_dim)), requires_grad=False)
-        self.special_care_embeds = Parameter(ops.ones((3, config.projection_dim)), requires_grad=False)
+        self.concept_embeds = Parameter(mint.ones((17, config.projection_dim)), requires_grad=False)
+        self.special_care_embeds = Parameter(mint.ones((3, config.projection_dim)), requires_grad=False)
 
-        self.concept_embeds_weights = Parameter(ops.ones(17), requires_grad=False)
-        self.special_care_embeds_weights = Parameter(ops.ones(3), requires_grad=False)
+        self.concept_embeds_weights = Parameter(mint.ones(17), requires_grad=False)
+        self.special_care_embeds_weights = Parameter(mint.ones(3), requires_grad=False)
 
     # TODO: this is the onnx version of pytorch implementation, which works well in the graph.
     def construct(self, clip_input: Tensor, images: Tensor):
@@ -60,14 +60,16 @@ class StableDiffusionSafetyChecker(MSPreTrainedModel):
         adjustment = 0.0
 
         special_scores = special_cos_dist - self.special_care_embeds_weights + adjustment
-        special_scores = ops.round(special_scores, decimals=3)
-        special_care = ops.any(special_scores > 0, axis=1)
+        # special_scores = special_scores.round(decimals=3)
+        special_scores = mint.round(special_scores, decimals=3)
+        special_care = mint.any(special_scores > 0, dim=1)
         special_adjustment = special_care * 0.01
         special_adjustment = special_adjustment.unsqueeze(1).tile((1, cos_dist.shape[1]))
 
         concept_scores = (cos_dist - self.concept_embeds_weights) + special_adjustment
-        concept_scores = ops.round(concept_scores, decimals=3)
-        has_nsfw_concepts = ops.any(concept_scores > 0, axis=1)
+        # concept_scores = concept_scores.round(decimals=3)
+        concept_scores = mint.round(concept_scores, decimals=3)
+        has_nsfw_concepts = mint.any(concept_scores > 0, dim=1)
 
         if ops.is_tensor(images):
             images[has_nsfw_concepts] = 0.0  # black image

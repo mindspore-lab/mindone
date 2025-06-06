@@ -19,7 +19,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import Constant, Normal, XavierNormal, initializer
 
 from ...configuration_utils import ConfigMixin, register_to_config
@@ -45,16 +45,16 @@ class SDCascadeTimestepBlock(nn.Cell):
     def __init__(self, c, c_timestep, conds=[]):
         super().__init__()
 
-        self.mapper = nn.Dense(c_timestep, c * 2)
+        self.mapper = mint.nn.Linear(c_timestep, c * 2)
         self.conds = conds
         for cname in conds:
-            setattr(self, f"mapper_{cname}", nn.Dense(c_timestep, c * 2))
+            setattr(self, f"mapper_{cname}", mint.nn.Linear(c_timestep, c * 2))
 
     def construct(self, x, t):
-        t = t.chunk(len(self.conds) + 1, axis=1)
-        a, b = self.mapper(t[0])[:, :, None, None].chunk(2, axis=1)
+        t = t.chunk(len(self.conds) + 1, dim=1)
+        a, b = self.mapper(t[0])[:, :, None, None].chunk(2, dim=1)
         for i, c in enumerate(self.conds):
-            ac, bc = getattr(self, f"mapper_{c}")(t[i + 1])[:, :, None, None].chunk(2, axis=1)
+            ac, bc = getattr(self, f"mapper_{c}")(t[i + 1])[:, :, None, None].chunk(2, dim=1)
             a, b = a + ac, b + bc
         return x * (1 + a) + b
 
@@ -62,23 +62,21 @@ class SDCascadeTimestepBlock(nn.Cell):
 class SDCascadeResBlock(nn.Cell):
     def __init__(self, c, c_skip=0, kernel_size=3, dropout=0.0):
         super().__init__()
-        self.depthwise = nn.Conv2d(
-            c, c, kernel_size=kernel_size, padding=kernel_size // 2, group=c, pad_mode="pad", has_bias=True
-        )
+        self.depthwise = mint.nn.Conv2d(c, c, kernel_size=kernel_size, padding=kernel_size // 2, groups=c)
         self.norm = SDCascadeLayerNorm(c, elementwise_affine=False, eps=1e-6)
         self.channelwise = nn.SequentialCell(
-            nn.Dense(c + c_skip, c * 4),
-            nn.GELU(),
+            mint.nn.Linear(c + c_skip, c * 4),
+            mint.nn.GELU(),
             GlobalResponseNorm(c * 4),
-            nn.Dropout(p=dropout),
-            nn.Dense(c * 4, c),
+            mint.nn.Dropout(p=dropout),
+            mint.nn.Linear(c * 4, c),
         )
 
     def construct(self, x, x_skip=None):
         x_res = x
         x = self.norm(self.depthwise(x))
         if x_skip is not None:
-            x = ops.cat([x, x_skip], axis=1)
+            x = mint.cat([x, x_skip], dim=1)
         x = self.channelwise(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
         return x + x_res
 
@@ -87,12 +85,12 @@ class SDCascadeResBlock(nn.Cell):
 class GlobalResponseNorm(nn.Cell):
     def __init__(self, dim):
         super().__init__()
-        self.gamma = ms.Parameter(ops.zeros((1, 1, 1, dim)), name="gamma")
-        self.beta = ms.Parameter(ops.zeros((1, 1, 1, dim)), name="beta")
+        self.gamma = ms.Parameter(mint.zeros((1, 1, 1, dim)), name="gamma")
+        self.beta = ms.Parameter(mint.zeros((1, 1, 1, dim)), name="beta")
 
     def construct(self, x):
-        agg_norm = ops.norm(x, ord="fro", dim=(1, 2), keepdim=True).to(x.dtype)
-        stand_div_norm = agg_norm / (agg_norm.mean(axis=-1, keep_dims=True) + 1e-6)
+        agg_norm = mint.norm(x, p="fro", dim=(1, 2), keepdim=True).to(x.dtype)
+        stand_div_norm = agg_norm / (agg_norm.mean(dim=-1, keepdim=True) + 1e-6)
         return self.gamma * (x * stand_div_norm) + self.beta + x
 
 
@@ -103,14 +101,14 @@ class SDCascadeAttnBlock(nn.Cell):
         self.self_attn = self_attn
         self.norm = SDCascadeLayerNorm(c, elementwise_affine=False, eps=1e-6)
         self.attention = Attention(query_dim=c, heads=nhead, dim_head=c // nhead, dropout=dropout, bias=True)
-        self.kv_mapper = nn.SequentialCell(nn.SiLU(), nn.Dense(c_cond, c))
+        self.kv_mapper = nn.SequentialCell(mint.nn.SiLU(), mint.nn.Linear(c_cond, c))
 
     def construct(self, x, kv):
         kv = self.kv_mapper(kv)
         norm_x = self.norm(x)
         if self.self_attn:
             batch_size, channel, _, _ = x.shape
-            kv = ops.cat([norm_x.view(batch_size, channel, -1).swapaxes(1, 2), kv], axis=1)
+            kv = mint.cat([norm_x.view(batch_size, channel, -1).swapaxes(1, 2), kv], dim=1)
         x = x + self.attention(norm_x, encoder_hidden_states=kv)
         return x
 
@@ -121,11 +119,11 @@ class UpDownBlock2d(nn.Cell):
         if mode not in ["up", "down"]:
             raise ValueError(f"{mode} not supported")
         interpolation = (
-            nn.Upsample(scale_factor=2 if mode == "up" else 0.5, mode="bilinear", align_corners=True)
+            mint.nn.Upsample(scale_factor=2 if mode == "up" else 0.5, mode="bilinear", align_corners=True)
             if enabled
-            else nn.Identity()
+            else mint.nn.Identity()
         )
-        mapping = nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=True, pad_mode="valid")
+        mapping = mint.nn.Conv2d(in_channels, out_channels, kernel_size=1)
         self.blocks = nn.CellList([interpolation, mapping] if mode == "up" else [mapping, interpolation])
 
     def construct(self, x):
@@ -264,43 +262,34 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # CONDITIONING
         if effnet_in_channels is not None:
             self.effnet_mapper = nn.SequentialCell(
-                nn.Conv2d(
-                    effnet_in_channels, block_out_channels[0] * 4, kernel_size=1, has_bias=True, pad_mode="valid"
-                ),
-                nn.GELU(),
-                nn.Conv2d(
-                    block_out_channels[0] * 4, block_out_channels[0], kernel_size=1, has_bias=True, pad_mode="valid"
-                ),
+                mint.nn.Conv2d(effnet_in_channels, block_out_channels[0] * 4, kernel_size=1),
+                mint.nn.GELU(),
+                mint.nn.Conv2d(block_out_channels[0] * 4, block_out_channels[0], kernel_size=1),
                 SDCascadeLayerNorm(block_out_channels[0], elementwise_affine=False, eps=1e-6),
             )
         else:
             self.effnet_mapper = None
         if pixel_mapper_in_channels is not None:
             self.pixels_mapper = nn.SequentialCell(
-                nn.Conv2d(
-                    pixel_mapper_in_channels, block_out_channels[0] * 4, kernel_size=1, has_bias=True, pad_mode="valid"
-                ),
-                nn.GELU(),
-                nn.Conv2d(
-                    block_out_channels[0] * 4, block_out_channels[0], kernel_size=1, has_bias=True, pad_mode="valid"
-                ),
+                mint.nn.Conv2d(pixel_mapper_in_channels, block_out_channels[0] * 4, kernel_size=1),
+                mint.nn.GELU(),
+                mint.nn.Conv2d(block_out_channels[0] * 4, block_out_channels[0], kernel_size=1),
                 SDCascadeLayerNorm(block_out_channels[0], elementwise_affine=False, eps=1e-6),
             )
         else:
             self.pixels_mapper = None
 
-        self.clip_txt_pooled_mapper = nn.Dense(clip_text_pooled_in_channels, conditioning_dim * clip_seq)
+        self.clip_txt_pooled_mapper = mint.nn.Linear(clip_text_pooled_in_channels, conditioning_dim * clip_seq)
         if clip_text_in_channels is not None:
-            self.clip_txt_mapper = nn.Dense(clip_text_in_channels, conditioning_dim)
+            self.clip_txt_mapper = mint.nn.Linear(clip_text_in_channels, conditioning_dim)
         if clip_image_in_channels is not None:
-            self.clip_img_mapper = nn.Dense(clip_image_in_channels, conditioning_dim * clip_seq)
+            self.clip_img_mapper = mint.nn.Linear(clip_image_in_channels, conditioning_dim * clip_seq)
         self.clip_norm = LayerNorm(conditioning_dim, elementwise_affine=False, eps=1e-6)
 
         self.embedding = nn.SequentialCell(
+            # todo: unavailable mint interface
             nn.PixelUnshuffle(patch_size),
-            nn.Conv2d(
-                in_channels * (patch_size**2), block_out_channels[0], kernel_size=1, has_bias=True, pad_mode="valid"
-            ),
+            mint.nn.Conv2d(in_channels * (patch_size**2), block_out_channels[0], kernel_size=1),
             SDCascadeLayerNorm(block_out_channels[0], elementwise_affine=False, eps=1e-6),
         )
 
@@ -330,18 +319,16 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                             block_out_channels[i - 1], block_out_channels[i], mode="down", enabled=switch_level[i - 1]
                         )
                         if switch_level is not None
-                        else nn.Conv2d(
+                        else mint.nn.Conv2d(
                             block_out_channels[i - 1],
                             block_out_channels[i],
                             kernel_size=2,
                             stride=2,
-                            has_bias=True,
-                            pad_mode="valid",
                         ),
                     )
                 )
             else:
-                down_downscalers.append(nn.Identity())
+                down_downscalers.append(mint.nn.Identity())
 
             down_block = []
             for _ in range(down_num_layers_per_block[i]):
@@ -360,9 +347,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 block_repeat_mappers = []
                 for _ in range(down_blocks_repeat_mappers[i] - 1):
                     block_repeat_mappers.append(
-                        nn.Conv2d(
-                            block_out_channels[i], block_out_channels[i], kernel_size=1, has_bias=True, pad_mode="valid"
-                        )
+                        mint.nn.Conv2d(block_out_channels[i], block_out_channels[i], kernel_size=1)
                     )
                 down_repeat_mappers.append(nn.CellList(block_repeat_mappers))
 
@@ -383,18 +368,13 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                             block_out_channels[i], block_out_channels[i - 1], mode="up", enabled=switch_level[i - 1]
                         )
                         if switch_level is not None
-                        else nn.Conv2dTranspose(
-                            block_out_channels[i],
-                            block_out_channels[i - 1],
-                            kernel_size=2,
-                            stride=2,
-                            has_bias=True,
-                            pad_mode="valid",
+                        else mint.nn.ConvTranspose2d(
+                            block_out_channels[i], block_out_channels[i - 1], kernel_size=2, stride=2
                         ),
                     )
                 )
             else:
-                up_upscalers.append(nn.Identity())
+                up_upscalers.append(mint.nn.Identity())
 
             up_block = []
             for j in range(up_num_layers_per_block[::-1][i]):
@@ -415,7 +395,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 block_repeat_mappers = []
                 for _ in range(up_blocks_repeat_mappers[::-1][i] - 1):
                     block_repeat_mappers.append(
-                        nn.Conv2d(block_out_channels[i], block_out_channels[i], kernel_size=1, has_bias=True)
+                        mint.nn.Conv2d(block_out_channels[i], block_out_channels[i], kernel_size=1)
                     )
                 up_repeat_mappers.append(nn.CellList(block_repeat_mappers))
 
@@ -426,9 +406,8 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # OUTPUT
         self.clf = nn.SequentialCell(
             SDCascadeLayerNorm(block_out_channels[0], elementwise_affine=False, eps=1e-6),
-            nn.Conv2d(
-                block_out_channels[0], out_channels * (patch_size**2), kernel_size=1, has_bias=True, pad_mode="valid"
-            ),
+            mint.nn.Conv2d(block_out_channels[0], out_channels * (patch_size**2), kernel_size=1),
+            # todo: unavailable mint interface
             nn.PixelShuffle(patch_size),
         )
 
@@ -438,7 +417,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     #     self._gradient_checkpointing = value
 
     def _init_weights(self, m):
-        if isinstance(m, (nn.Conv2d, nn.Dense)):
+        if isinstance(m, (mint.nn.Conv2d, mint.nn.Linear)):
             m.weight.set_data(initializer(XavierNormal(), m.weight.shape, m.weight.dtype))
             if m.bias is not None:
                 m.bias.set_data(initializer(Constant(0), m.bias.shape, m.bias.dtype))
@@ -489,12 +468,12 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         half_dim = self.config["timestep_ratio_embedding_dim"] // 2
 
         emb = math.log(max_positions) / (half_dim - 1)
-        emb = ops.arange(half_dim).float().mul(-emb).exp()
+        emb = mint.exp(mint.mul(mint.arange(half_dim).float(), -emb))
         emb = r[:, None] * emb[None, :]
-        emb = ops.cat([emb.sin(), emb.cos()], axis=1)
+        emb = mint.cat([emb.sin(), emb.cos()], dim=1)
 
         if self.config["timestep_ratio_embedding_dim"] % 2 == 1:  # zero pad
-            emb = ops.pad(emb, (0, 1), mode="constant")
+            emb = mint.nn.functional.pad(emb, (0, 1), mode="constant")
 
         return emb.to(dtype=r.dtype)
 
@@ -511,7 +490,7 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             clip_img = self.clip_img_mapper(clip_img).view(
                 clip_img.shape[0], clip_img.shape[1] * self.config["clip_seq"], -1
             )
-            clip = ops.cat([clip_txt, clip_txt_pool, clip_img], axis=1)
+            clip = mint.cat([clip_txt, clip_txt_pool, clip_img], dim=1)
         else:
             clip = clip_txt_pool
         return self.clip_norm(clip)
@@ -561,7 +540,9 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                         skip = level_outputs[i] if k == 0 and i > 0 else None
                         if skip is not None and (x.shape[-1] != skip.shape[-1] or x.shape[-2] != skip.shape[-2]):
                             orig_type = x.dtype
-                            x = ops.interpolate(x.float(), skip.shape[-2:], mode="bilinear", align_corners=True)
+                            x = mint.nn.functional.interpolate(
+                                x.float(), skip.shape[-2:], mode="bilinear", align_corners=True
+                            )
                             x = x.to(orig_type)
                         x = block(x, skip)
                     elif isinstance(block, SDCascadeAttnBlock):
@@ -600,16 +581,20 @@ class StableCascadeUNet(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 cond = crp
             else:
                 cond = None
-            t_cond = cond or ops.zeros_like(timestep_ratio)
-            timestep_ratio_embed = ops.cat([timestep_ratio_embed, self.get_timestep_ratio_embedding(t_cond)], axis=1)
+            t_cond = cond or mint.zeros_like(timestep_ratio)
+            timestep_ratio_embed = mint.cat([timestep_ratio_embed, self.get_timestep_ratio_embedding(t_cond)], dim=1)
         clip = self.get_clip_embeddings(clip_txt_pooled=clip_text_pooled, clip_txt=clip_text, clip_img=clip_img)
 
         # Model Blocks
         x = self.embedding(sample)
         if self.effnet_mapper is not None and effnet is not None:
-            x = x + self.effnet_mapper(ops.interpolate(effnet, size=x.shape[-2:], mode="bilinear", align_corners=True))
+            x = x + self.effnet_mapper(
+                mint.nn.functional.interpolate(effnet, size=x.shape[-2:], mode="bilinear", align_corners=True)
+            )
         if self.pixels_mapper is not None:
-            x = x + ops.interpolate(self.pixels_mapper(pixels), size=x.shape[-2:], mode="bilinear", align_corners=True)
+            x = x + mint.nn.functional.interpolate(
+                self.pixels_mapper(pixels), size=x.shape[-2:], mode="bilinear", align_corners=True
+            )
         level_outputs = self._down_encode(x, timestep_ratio_embed, clip)
         x = self._up_decode(level_outputs, timestep_ratio_embed, clip)
         sample = self.clf(x)

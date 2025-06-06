@@ -35,7 +35,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -851,7 +851,7 @@ def encode_prompt(text_encoder_1, text_encoder_2, text_input_ids_1, text_input_i
     bs_embed, seq_len, _ = prompt_embeds_2.shape
     prompt_embeds_2 = prompt_embeds_2.view(bs_embed, seq_len, -1)
 
-    prompt_embeds = ops.concat([prompt_embeds_1, prompt_embeds_2], axis=-1)
+    prompt_embeds = mint.concat([prompt_embeds_1, prompt_embeds_2], dim=-1)
     pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
     return prompt_embeds, pooled_prompt_embeds
 
@@ -860,7 +860,7 @@ def get_sigmas(noise_scheduler, timesteps, n_dim=4, dtype=ms.float32):
     sigmas = noise_scheduler.sigmas.to(dtype=dtype)
     schedule_timesteps = noise_scheduler.timesteps
 
-    step_indices = [(schedule_timesteps == t).nonzero().item(0) for t in timesteps]
+    step_indices = [(schedule_timesteps == t).nonzero()[0][0].item(0) for t in timesteps]
 
     sigma = sigmas[step_indices].flatten()
     while len(sigma.shape) < n_dim:
@@ -1194,8 +1194,8 @@ def main():
         if args.with_prior_preservation:
             class_tokens_one = ms.Tensor(tokenize_prompt(tokenizer_one, args.class_prompt))
             class_tokens_two = ms.Tensor(tokenize_prompt(tokenizer_two, args.class_prompt))
-            tokens_one = ops.cat([tokens_one, class_tokens_one], axis=0)
-            tokens_two = ops.cat([tokens_two, class_tokens_two], axis=0)
+            tokens_one = mint.cat([tokens_one, class_tokens_one], dim=0)
+            tokens_two = mint.cat([tokens_two, class_tokens_two], dim=0)
         # If no type of tuning is done on the text_encoder and custom instance prompts are NOT
         # provided (i.e. the --instance_prompt is used for all images), we encode the instance prompt once to avoid
         # the redundant encoding.
@@ -1582,18 +1582,18 @@ class TrainStepForDB(TrainStep):
         model_input = model_input.to(dtype=self.weight_dtype)
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = mint.randn_like(model_input, dtype=model_input.dtype)
         bsz = model_input.shape[0]
 
         # Sample a random timestep for each image
         if not self.args.do_edm_style_training:
-            timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+            timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
             timesteps = timesteps.long()
         else:
             # in EDM formulation, the model is conditioned on the pre-conditioned noise levels
             # instead of discrete timesteps, so here we sample indices to get the noise levels
             # from `scheduler.timesteps`
-            indices = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+            indices = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
             timesteps = self.noise_scheduler.timesteps[indices]
 
         # Add noise to the model input according to the noise magnitude at each timestep
@@ -1678,12 +1678,12 @@ class TrainStepForDB(TrainStep):
 
         if self.args.with_prior_preservation:
             # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
-            model_pred, model_pred_prior = ops.chunk(model_pred, 2, axis=0)
-            target, target_prior = ops.chunk(target, 2, axis=0)
+            model_pred, model_pred_prior = mint.chunk(model_pred, 2, dim=0)
+            target, target_prior = mint.chunk(target, 2, dim=0)
 
             # Compute prior loss
             if weighting is not None:
-                prior_loss = ops.mean(
+                prior_loss = mint.mean(
                     (weighting.float() * (model_pred_prior.float() - target_prior.float()) ** 2).reshape(
                         target_prior.shape[0], -1
                     ),
@@ -1691,25 +1691,27 @@ class TrainStepForDB(TrainStep):
                 )
                 prior_loss = prior_loss.mean()
             else:
-                prior_loss = ops.mse_loss(model_pred_prior.float(), target_prior.float(), reduction="mean")
+                prior_loss = mint.nn.functional.mse_loss(
+                    model_pred_prior.float(), target_prior.float(), reduction="mean"
+                )
         else:
             prior_loss = None
 
         if self.args.snr_gamma is None:
             if weighting is not None:
-                loss = ops.mean(
+                loss = mint.mean(
                     (weighting.float() * (model_pred.float() - target.float()) ** 2).reshape(target.shape[0], -1),
                     1,
                 )
                 loss = loss.mean()
             else:
-                loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
         else:
             # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
             # Since we predict the noise instead of x_0, the original formulation is slightly changed.
             # This is discussed in Section 4.2 of the same paper.
             snr = compute_snr(self.noise_scheduler, timesteps)
-            base_weight = ops.stack([snr, self.args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(dim=1)[0] / snr
+            base_weight = mint.stack([snr, self.args.snr_gamma * mint.ones_like(timesteps)], dim=1).min(dim=1)[0] / snr
 
             if self.noise_scheduler_prediction_type == "v_prediction":
                 # Velocity objective needs to be floored to an SNR weight of one.
@@ -1718,7 +1720,7 @@ class TrainStepForDB(TrainStep):
                 # Epsilon and sample both use the same loss weights.
                 mse_loss_weights = base_weight
 
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="none")
             loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
             loss = loss.mean()
 

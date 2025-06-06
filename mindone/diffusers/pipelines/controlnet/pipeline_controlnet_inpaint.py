@@ -22,7 +22,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -379,7 +379,7 @@ class StableDiffusionControlNetInpaintPipeline(
         )
 
         # concatenate for backwards comp
-        prompt_embeds = ops.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
+        prompt_embeds = mint.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
 
         return prompt_embeds
 
@@ -570,7 +570,9 @@ class StableDiffusionControlNetInpaintPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -578,7 +580,7 @@ class StableDiffusionControlNetInpaintPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -603,11 +605,11 @@ class StableDiffusionControlNetInpaintPipeline(
                 single_image_embeds, single_negative_image_embeds = self.encode_image(
                     single_ip_adapter_image, 1, output_hidden_state
                 )
-                single_image_embeds = ops.stack([single_image_embeds] * num_images_per_prompt, axis=0)
-                single_negative_image_embeds = ops.stack([single_negative_image_embeds] * num_images_per_prompt, axis=0)
+                single_image_embeds = mint.stack([single_image_embeds] * num_images_per_prompt, dim=0)
+                single_negative_image_embeds = mint.stack([single_negative_image_embeds] * num_images_per_prompt, dim=0)
 
                 if do_classifier_free_guidance:
-                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+                    single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
 
                 image_embeds.append(single_image_embeds)
         else:
@@ -622,7 +624,7 @@ class StableDiffusionControlNetInpaintPipeline(
                     single_negative_image_embeds = single_negative_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
-                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+                    single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
                     single_image_embeds = single_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
@@ -636,6 +638,7 @@ class StableDiffusionControlNetInpaintPipeline(
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
@@ -646,7 +649,7 @@ class StableDiffusionControlNetInpaintPipeline(
             )
 
             # Warning for safety checker operations here as it couldn't been done in construct()
-            if ops.any(has_nsfw_concept):
+            if mint.any(has_nsfw_concept):
                 logger.warning(
                     "Potential NSFW content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -921,7 +924,7 @@ class StableDiffusionControlNetInpaintPipeline(
         image = image.to(dtype=dtype)
 
         if do_classifier_free_guidance and not guess_mode:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 
@@ -995,7 +998,9 @@ class StableDiffusionControlNetInpaintPipeline(
         # resize the mask to latents shape as we concatenate the mask to the latents
         # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
         # and half precision
-        mask = ops.interpolate(mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor))
+        mask = mint.nn.functional.interpolate(
+            mask, size=(height // self.vae_scale_factor, width // self.vae_scale_factor)
+        )
         mask = mask.to(dtype=dtype)
 
         masked_image = masked_image.to(dtype=dtype)
@@ -1023,9 +1028,9 @@ class StableDiffusionControlNetInpaintPipeline(
                 )
             masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
-        mask = ops.cat([mask] * 2) if do_classifier_free_guidance else mask
+        mask = mint.cat([mask] * 2) if do_classifier_free_guidance else mask
         masked_image_latents = (
-            ops.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
+            mint.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
         )
 
         # aligning device to prevent device errors when concating it with the latent model input
@@ -1039,7 +1044,7 @@ class StableDiffusionControlNetInpaintPipeline(
                 retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
                 for i in range(image.shape[0])
             ]
-            image_latents = ops.cat(image_latents, axis=0)
+            image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
@@ -1328,7 +1333,7 @@ class StableDiffusionControlNetInpaintPipeline(
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
@@ -1465,7 +1470,7 @@ class StableDiffusionControlNetInpaintPipeline(
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = latent_model_input.dtype
@@ -1504,12 +1509,12 @@ class StableDiffusionControlNetInpaintPipeline(
                     # Infered ControlNet only for the conditional batch.
                     # To apply the output of ControlNet to both the unconditional and conditional batches,
                     # add 0 to the unconditional batch to keep it unchanged.
-                    down_block_res_samples = [ops.cat([ops.zeros_like(d), d]) for d in down_block_res_samples]
-                    mid_block_res_sample = ops.cat([ops.zeros_like(mid_block_res_sample), mid_block_res_sample])
+                    down_block_res_samples = [mint.cat([mint.zeros_like(d), d]) for d in down_block_res_samples]
+                    mid_block_res_sample = mint.cat([mint.zeros_like(mid_block_res_sample), mid_block_res_sample])
 
                 # predict the noise residual
                 if num_channels_unet == 9:
-                    latent_model_input = ops.cat([latent_model_input, mask, masked_image_latents], axis=1)
+                    latent_model_input = mint.cat([latent_model_input, mask, masked_image_latents], dim=1)
 
                 noise_pred = self.unet(
                     latent_model_input,

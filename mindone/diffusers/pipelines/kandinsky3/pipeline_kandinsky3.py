@@ -4,7 +4,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -70,8 +70,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
 
     def process_embeds(self, embeddings, attention_mask, cut_context):
         if cut_context:
-            embeddings[attention_mask == 0] = ops.zeros_like(embeddings[attention_mask == 0])
-            max_seq_length = attention_mask.sum(axis=-1).max() + 1
+            embeddings[attention_mask == 0] = mint.zeros_like(embeddings[attention_mask == 0])
+            max_seq_length = attention_mask.sum(dim=-1).max() + 1
             embeddings = embeddings[:, :max_seq_length]
             attention_mask = attention_mask[:, :max_seq_length]
         return embeddings, attention_mask
@@ -198,8 +198,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
                 negative_prompt_embeds = negative_prompt_embeds * negative_attention_mask.unsqueeze(2)
 
             else:
-                negative_prompt_embeds = ops.zeros_like(prompt_embeds)
-                negative_attention_mask = ops.zeros_like(attention_mask)
+                negative_prompt_embeds = mint.zeros_like(prompt_embeds)
+                negative_attention_mask = mint.zeros_like(attention_mask)
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -467,8 +467,8 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            attention_mask = ops.cat([negative_attention_mask, attention_mask])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            attention_mask = mint.cat([negative_attention_mask, attention_mask])
         # 4. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps = self.scheduler.timesteps
@@ -489,7 +489,7 @@ class Kandinsky3Pipeline(DiffusionPipeline, LoraLoaderMixin):
         self._num_timesteps = len(timesteps)
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
                 # predict the noise residual
                 noise_pred = self.unet(

@@ -20,7 +20,7 @@ import numpy as np
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import GlmModel
 
@@ -201,12 +201,12 @@ class CogView4Pipeline(DiffusionPipeline):
         current_length = text_input_ids.shape[1]
         pad_length = (16 - (current_length % 16)) % 16
         if pad_length > 0:
-            pad_ids = ops.full(
+            pad_ids = mint.full(
                 (text_input_ids.shape[0], pad_length),
                 fill_value=self.tokenizer.pad_token_id,
                 dtype=text_input_ids.dtype,
             )
-            text_input_ids = ops.cat([pad_ids, text_input_ids], axis=1)
+            text_input_ids = mint.cat([pad_ids, text_input_ids], dim=1)
         prompt_embeds = self.text_encoder(text_input_ids, output_hidden_states=True)[1][-2]
 
         prompt_embeds = prompt_embeds.to(dtype=dtype)

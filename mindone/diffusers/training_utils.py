@@ -12,7 +12,7 @@ import numpy as np
 from tqdm.auto import tqdm
 
 import mindspore as ms
-from mindspore import context, nn, ops
+from mindspore import context, mint, nn, ops
 from mindspore.amp import DynamicLossScaler, StaticLossScaler, all_finite
 from mindspore.common import dtype as mstype
 from mindspore.common.api import _pynative_executor
@@ -167,13 +167,13 @@ def compute_density_for_timestep_sampling(
     """
     if weighting_scheme == "logit_normal":
         # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-        u = ops.normal(mean=logit_mean, stddev=logit_std, shape=(batch_size,))
-        u = ops.sigmoid(u)
+        u = mint.normal(mean=logit_mean, std=logit_std, size=(batch_size,))
+        u = mint.sigmoid(u)
     elif weighting_scheme == "mode":
-        u = ops.rand(batch_size)
-        u = 1 - u - mode_scale * (ops.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
+        u = mint.rand(batch_size)
+        u = 1 - u - mode_scale * (mint.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
     else:
-        u = ops.rand(batch_size)
+        u = mint.rand(batch_size)
     return u
 
 
@@ -191,7 +191,7 @@ def compute_loss_weighting_for_sd3(weighting_scheme: str, sigmas=None):
         bot = 1 - 2 * sigmas + 2 * sigmas**2
         weighting = 2 / (ms.numpy.pi * bot)
     else:
-        weighting = ops.ones_like(sigmas)
+        weighting = mint.ones_like(sigmas)
     return weighting
 
 
@@ -506,7 +506,7 @@ def _grad_accum(cumulative_grad, grad):
 
 
 def _grad_clear(cumulative_grad):
-    return ops.assign(cumulative_grad, ops.zeros_like(cumulative_grad))
+    return ops.assign(cumulative_grad, mint.zeros_like(cumulative_grad))
 
 
 @ms.jit_class

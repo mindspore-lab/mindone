@@ -18,7 +18,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -155,18 +155,18 @@ class FlowMatchHeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigmas = ms.Tensor.from_numpy(sigmas).to(dtype=ms.float32)
 
         timesteps = sigmas * self.config.num_train_timesteps
-        timesteps = ops.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
+        timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
         self.timesteps = timesteps
 
-        sigmas = ops.cat(
+        sigmas = mint.cat(
             [
                 sigmas,
-                ops.zeros(
+                mint.zeros(
                     1,
                 ),
             ]
         )
-        self.sigmas = ops.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
+        self.sigmas = mint.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
         # empty dt and derivative
         self.prev_derivative = None

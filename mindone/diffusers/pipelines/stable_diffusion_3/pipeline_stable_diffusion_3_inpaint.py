@@ -19,7 +19,7 @@ import numpy as np
 from transformers import CLIPTokenizer, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPTextModelWithProjection, T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -237,7 +237,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         batch_size = len(prompt)
 
         if self.text_encoder_3 is None:
-            return ops.zeros(
+            return mint.zeros(
                 (
                     batch_size * num_images_per_prompt,
                     self.tokenizer_max_length,
@@ -434,7 +434,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 clip_skip=clip_skip,
                 clip_model_index=1,
             )
-            clip_prompt_embeds = ops.cat([prompt_embed, prompt_2_embed], axis=-1)
+            clip_prompt_embeds = mint.cat([prompt_embed, prompt_2_embed], dim=-1)
 
             t5_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=prompt_3,
@@ -444,8 +444,8 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
 
             clip_prompt_embeds = pad(clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
 
-            prompt_embeds = ops.cat([clip_prompt_embeds, t5_prompt_embed], axis=-2)
-            pooled_prompt_embeds = ops.cat([pooled_prompt_embed, pooled_prompt_2_embed], axis=-1)
+            prompt_embeds = mint.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
+            pooled_prompt_embeds = mint.cat([pooled_prompt_embed, pooled_prompt_2_embed], dim=-1)
 
         if do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = negative_prompt or ""
@@ -485,7 +485,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 clip_skip=None,
                 clip_model_index=1,
             )
-            negative_clip_prompt_embeds = ops.cat([negative_prompt_embed, negative_prompt_2_embed], axis=-1)
+            negative_clip_prompt_embeds = mint.cat([negative_prompt_embed, negative_prompt_2_embed], dim=-1)
 
             t5_negative_prompt_embed = self._get_t5_prompt_embeds(
                 prompt=negative_prompt_3,
@@ -498,9 +498,9 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 (0, t5_negative_prompt_embed.shape[-1] - negative_clip_prompt_embeds.shape[-1]),
             )
 
-            negative_prompt_embeds = ops.cat([negative_clip_prompt_embeds, t5_negative_prompt_embed], axis=-2)
-            negative_pooled_prompt_embeds = ops.cat(
-                [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], axis=-1
+            negative_prompt_embeds = mint.cat([negative_clip_prompt_embeds, t5_negative_prompt_embed], dim=-2)
+            negative_pooled_prompt_embeds = mint.cat(
+                [negative_pooled_prompt_embed, negative_pooled_prompt_2_embed], dim=-1
             )
 
         if self.text_encoder is not None:
@@ -691,7 +691,7 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator=generator[i])
                 for i in range(image.shape[0])
             ]
-            image_latents = ops.cat(image_latents, axis=0)
+            image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator=generator)
 
@@ -748,9 +748,9 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                 )
             masked_image_latents = masked_image_latents.tile((batch_size // masked_image_latents.shape[0], 1, 1, 1))
 
-        mask = ops.cat([mask] * 2) if do_classifier_free_guidance else mask
+        mask = mint.cat([mask] * 2) if do_classifier_free_guidance else mask
         masked_image_latents = (
-            ops.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
+            mint.cat([masked_image_latents] * 2) if do_classifier_free_guidance else masked_image_latents
         )
 
         # aligning device to prevent device errors when concating it with the latent model input
@@ -991,8 +991,8 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
         )
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            pooled_prompt_embeds = ops.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            pooled_prompt_embeds = mint.cat([negative_pooled_prompt_embeds, pooled_prompt_embeds], dim=0)
 
         # 3. Prepare timesteps
         scheduler_kwargs = {}
@@ -1116,12 +1116,12 @@ class StableDiffusion3InpaintPipeline(DiffusionPipeline, SD3LoraLoaderMixin, Fro
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))
 
                 if num_channels_transformer == 33:
-                    latent_model_input = ops.cat([latent_model_input, mask, masked_image_latents], axis=1)
+                    latent_model_input = mint.cat([latent_model_input, mask, masked_image_latents], dim=1)
 
                 noise_pred = self.transformer(
                     hidden_states=latent_model_input,

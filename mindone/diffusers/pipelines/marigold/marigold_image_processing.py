@@ -5,7 +5,7 @@ import PIL
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ... import ConfigMixin
 from ...configuration_utils import register_to_config
@@ -81,7 +81,7 @@ class MarigoldImageProcessor(ConfigMixin):
 
         antialias = is_aa and mode in ("bilinear", "bicubic")  # noqa
         # abandone argument `antialias=antialias` as MindSpore doesn't support
-        image = ops.interpolate(image, size, mode=mode)
+        image = mint.nn.functional.interpolate(image, size, mode=mode)
 
         return image
 
@@ -119,7 +119,7 @@ class MarigoldImageProcessor(ConfigMixin):
         ph, pw = -h % align, -w % align
 
         # FIXME: replace with layers_compat.pad (PR#608)
-        image = ops.pad(image, (0, pw, 0, ph), mode="replicate")
+        image = mint.nn.functional.pad(image, (0, pw, 0, ph), mode="replicate")
 
         return image, (ph, pw)
 
@@ -213,7 +213,7 @@ class MarigoldImageProcessor(ConfigMixin):
                             f"Input image[{i}] has incompatible dimensions {img.shape[2:]} with the previous images "
                             f"{images.shape[2:]}"
                         )
-                    images = ops.cat((images, img), axis=0)
+                    images = mint.cat((images, img), dim=0)
             image = images
             del images
         else:

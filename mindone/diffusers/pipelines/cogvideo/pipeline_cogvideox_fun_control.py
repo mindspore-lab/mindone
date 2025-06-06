@@ -22,7 +22,7 @@ from PIL import Image
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import T5EncoderModel
 
@@ -355,7 +355,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                 current_mask = self.vae.encode(current_mask)[0]
                 current_mask = self.vae.diag_gauss_dist.mode(current_mask)
                 masks.append(current_mask)
-            mask = ops.cat(masks, axis=0)
+            mask = mint.cat(masks, dim=0)
             mask = mask * self.vae.config.scaling_factor
 
         if masked_image is not None:
@@ -365,7 +365,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                 mask_pixel_value = self.vae.encode(mask_pixel_value)[0]
                 mask_pixel_value = self.vae.diag_gauss_dist.mode(mask_pixel_value)
                 mask_pixel_values.append(mask_pixel_value)
-            masked_image_latents = ops.cat(mask_pixel_values, axis=0)
+            masked_image_latents = mint.cat(mask_pixel_values, dim=0)
             masked_image_latents = masked_image_latents * self.vae.config.scaling_factor
         else:
             masked_image_latents = None
@@ -688,7 +688,7 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -744,13 +744,13 @@ class CogVideoXFunControlPipeline(DiffusionPipeline, CogVideoXLoraLoaderMixin):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 latent_control_input = (
-                    ops.cat([control_video_latents] * 2) if do_classifier_free_guidance else control_video_latents
+                    mint.cat([control_video_latents] * 2) if do_classifier_free_guidance else control_video_latents
                 )
-                latent_model_input = ops.cat([latent_model_input, latent_control_input], axis=2)
+                latent_model_input = mint.cat([latent_model_input, latent_control_input], dim=2)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
                 timestep = t.broadcast_to((latent_model_input.shape[0],))

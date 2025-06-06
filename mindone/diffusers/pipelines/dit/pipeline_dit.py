@@ -23,7 +23,7 @@ from typing import Dict, List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ...models import AutoencoderKL, DiTTransformer2DModel
 from ...schedulers import KarrasDiffusionSchedulers
@@ -161,21 +161,22 @@ class DiTPipeline(DiffusionPipeline):
             generator=generator,
             dtype=self.transformer.dtype,
         )
-        latent_model_input = ops.cat([latents] * 2) if guidance_scale > 1 else latents
+        latent_model_input = mint.cat([latents] * 2) if guidance_scale > 1 else latents
 
-        class_labels = ms.Tensor(class_labels).reshape(-1)
+        class_labels = mint.reshape(ms.Tensor(class_labels), (-1,))
         class_null = ms.Tensor([1000] * batch_size)
-        class_labels_input = ops.cat([class_labels, class_null], 0) if guidance_scale > 1 else class_labels
+        class_labels_input = mint.cat([class_labels, class_null], 0) if guidance_scale > 1 else class_labels
 
         # set step values
         self.scheduler.set_timesteps(num_inference_steps)
         for t in self.progress_bar(self.scheduler.timesteps):
             if guidance_scale > 1:
                 half = latent_model_input[: len(latent_model_input) // 2]
-                latent_model_input = ops.cat([half, half], axis=0)
+                latent_model_input = mint.cat([half, half], dim=0)
             latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
             timesteps = t
+            # todo: unavailable mint interface
             if not ops.is_tensor(timesteps):
                 # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
                 # This would be a good case for the `match` statement (Python 3.10+)
@@ -195,16 +196,16 @@ class DiTPipeline(DiffusionPipeline):
             # perform guidance
             if guidance_scale > 1:
                 eps, rest = noise_pred[:, :latent_channels], noise_pred[:, latent_channels:]
-                cond_eps, uncond_eps = ops.split(eps, len(eps) // 2, axis=0)
+                cond_eps, uncond_eps = mint.split(eps, len(eps) // 2, dim=0)
 
                 half_eps = uncond_eps + guidance_scale * (cond_eps - uncond_eps)
-                eps = ops.cat([half_eps, half_eps], axis=0)
+                eps = mint.cat([half_eps, half_eps], dim=0)
 
-                noise_pred = ops.cat([eps, rest], axis=1)
+                noise_pred = mint.cat([eps, rest], dim=1)
 
             # learned sigma
             if self.transformer.config.out_channels // 2 == latent_channels:
-                model_output, _ = ops.split(noise_pred, latent_channels, axis=1)
+                model_output, _ = mint.split(noise_pred, latent_channels, dim=1)
             else:
                 model_output = noise_pred
 
@@ -212,7 +213,7 @@ class DiTPipeline(DiffusionPipeline):
             latent_model_input = self.scheduler.step(model_output, t, latent_model_input)[0]
 
         if guidance_scale > 1:
-            latents, _ = latent_model_input.chunk(2, axis=0)
+            latents, _ = latent_model_input.chunk(2, dim=0)
         else:
             latents = latent_model_input
 

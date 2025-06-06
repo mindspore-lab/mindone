@@ -18,7 +18,7 @@ from typing import Dict, Optional, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, nn, ops
+from mindspore import Parameter, mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.attention import FeedForward
@@ -38,27 +38,27 @@ class StableAudioGaussianFourierProjection(nn.Cell):
         self, embedding_size: int = 256, scale: float = 1.0, set_W_to_weight=True, log=True, flip_sin_to_cos=False
     ):
         super().__init__()
-        self.weight = Parameter(ops.randn(embedding_size) * scale, requires_grad=False)
+        self.weight = Parameter(mint.randn(embedding_size) * scale, requires_grad=False)
         self.log = log
         self.flip_sin_to_cos = flip_sin_to_cos
 
         if set_W_to_weight:
             # to delete later
             del self.weight
-            self.W = Parameter(ops.randn(embedding_size) * scale, requires_grad=False)
+            self.W = Parameter(mint.randn(embedding_size) * scale, requires_grad=False)
             self.weight = self.W
             del self.W
 
     def construct(self, x):
         if self.log:
-            x = ops.log(x)
+            x = mint.log(x)
 
         x_proj = 2 * np.pi * x[:, None] @ self.weight[None, :]
 
         if self.flip_sin_to_cos:
-            out = ops.cat([ops.cos(x_proj), ops.sin(x_proj)], axis=-1)
+            out = mint.cat([mint.cos(x_proj), mint.sin(x_proj)], dim=-1)
         else:
-            out = ops.cat([ops.sin(x_proj), ops.cos(x_proj)], axis=-1)
+            out = mint.cat([mint.sin(x_proj), mint.cos(x_proj)], dim=-1)
         return out
 
 
@@ -93,7 +93,7 @@ class StableAudioDiTBlock(nn.Cell):
         super().__init__()
         # Define 3 blocks. Each block has its own normalization layer.
         # 1. Self-Attn
-        self.norm1 = nn.LayerNorm((dim,), epsilon=norm_eps)
+        self.norm1 = mint.nn.LayerNorm(dim, eps=norm_eps)
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
@@ -106,7 +106,7 @@ class StableAudioDiTBlock(nn.Cell):
         )
 
         # 2. Cross-Attn
-        self.norm2 = nn.LayerNorm((dim,), epsilon=norm_eps)
+        self.norm2 = mint.nn.LayerNorm(dim, eps=norm_eps)
 
         self.attn2 = Attention(
             query_dim=dim,
@@ -122,7 +122,7 @@ class StableAudioDiTBlock(nn.Cell):
         )  # is self-attn if encoder_hidden_states is none
 
         # 3. Feed-forward
-        self.norm3 = nn.LayerNorm((dim,), epsilon=norm_eps)
+        self.norm3 = mint.nn.LayerNorm(dim, eps=norm_eps)
         self.ff = FeedForward(
             dim,
             dropout=dropout,
@@ -233,25 +233,26 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
         )
 
         self.timestep_proj = nn.SequentialCell(
-            nn.Dense(time_proj_dim, self.inner_dim, has_bias=True),
-            nn.SiLU(),
-            nn.Dense(self.inner_dim, self.inner_dim, has_bias=True),
+            mint.nn.Linear(time_proj_dim, self.inner_dim, bias=True),
+            mint.nn.SiLU(),
+            mint.nn.Linear(self.inner_dim, self.inner_dim, bias=True),
         )
 
         self.global_proj = nn.SequentialCell(
-            nn.Dense(global_states_input_dim, self.inner_dim, has_bias=False),
-            nn.SiLU(),
-            nn.Dense(self.inner_dim, self.inner_dim, has_bias=False),
+            mint.nn.Linear(global_states_input_dim, self.inner_dim, bias=False),
+            mint.nn.SiLU(),
+            mint.nn.Linear(self.inner_dim, self.inner_dim, bias=False),
         )
 
         self.cross_attention_proj = nn.SequentialCell(
-            nn.Dense(cross_attention_input_dim, cross_attention_dim, has_bias=False),
-            nn.SiLU(),
-            nn.Dense(cross_attention_dim, cross_attention_dim, has_bias=False),
+            mint.nn.Linear(cross_attention_input_dim, cross_attention_dim, bias=False),
+            mint.nn.SiLU(),
+            mint.nn.Linear(cross_attention_dim, cross_attention_dim, bias=False),
         )
 
+        # todo: unavailable mint interface
         self.preprocess_conv = nn.Conv1d(in_channels, in_channels, 1, has_bias=False)
-        self.proj_in = nn.Dense(in_channels, self.inner_dim, has_bias=False)
+        self.proj_in = mint.nn.Linear(in_channels, self.inner_dim, bias=False)
 
         self.transformer_blocks = nn.CellList(
             [
@@ -266,7 +267,8 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
             ]
         )
 
-        self.proj_out = nn.Dense(self.inner_dim, self.out_channels, has_bias=False)
+        self.proj_out = mint.nn.Linear(self.inner_dim, self.out_channels, bias=False)
+        # todo: unavailable mint interface
         self.postprocess_conv = nn.Conv1d(self.out_channels, self.out_channels, 1, has_bias=False)
 
         self.gradient_checkpointing = False
@@ -397,14 +399,14 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
         hidden_states = self.preprocess_conv(hidden_states) + hidden_states
         # (batch_size, dim, sequence_length) -> (batch_size, sequence_length, dim)
 
-        hidden_states = hidden_states.transpose(0, 2, 1)
+        hidden_states = hidden_states.swapaxes(1, 2)
         hidden_states = self.proj_in(hidden_states)
 
         # prepend global states to hidden states
-        hidden_states = ops.cat([global_hidden_states, hidden_states], axis=-2)
+        hidden_states = mint.cat([global_hidden_states, hidden_states], dim=-2)
         if attention_mask is not None:
-            prepend_mask = ops.ones((hidden_states.shape[0], 1), dtype=ms.bool)
-            attention_mask = ops.cat([prepend_mask, attention_mask], axis=-1)
+            prepend_mask = mint.ones((hidden_states.shape[0], 1), dtype=ms.bool_)
+            attention_mask = mint.cat([prepend_mask, attention_mask], dim=-1)
 
         for block in self.transformer_blocks:
             # todo:add recompute
@@ -420,7 +422,7 @@ class StableAudioDiTModel(ModelMixin, ConfigMixin):
 
         # (batch_size, sequence_length, dim) -> (batch_size, dim, sequence_length)
         # remove prepend length that has been added by global hidden states
-        hidden_states = hidden_states.transpose(0, 2, 1)[:, :, 1:]
+        hidden_states = hidden_states.swapaxes(1, 2)[:, :, 1:]
         hidden_states = self.postprocess_conv(hidden_states) + hidden_states
 
         if not return_dict:

@@ -17,7 +17,7 @@ from typing import Callable, List, Optional, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import UNet2DConditionModel, VQModel
 from ...schedulers import DDPMScheduler
@@ -224,11 +224,11 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
         do_classifier_free_guidance = guidance_scale > 1.0
 
         if isinstance(image_embeds, list):
-            image_embeds = ops.cat(image_embeds, axis=0)
+            image_embeds = mint.cat(image_embeds, dim=0)
         if isinstance(negative_image_embeds, list):
-            negative_image_embeds = ops.cat(negative_image_embeds, axis=0)
+            negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
         if isinstance(hint, list):
-            hint = ops.cat(hint, axis=0)
+            hint = mint.cat(hint, dim=0)
 
         batch_size = image_embeds.shape[0] * num_images_per_prompt
 
@@ -237,8 +237,8 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
             negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             hint = hint.repeat_interleave(num_images_per_prompt, dim=0)
 
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0).to(dtype=self.unet.dtype)
-            hint = ops.cat([hint, hint], axis=0).to(dtype=self.unet.dtype)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
+            hint = mint.cat([hint, hint], dim=0).to(dtype=self.unet.dtype)
 
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps_tensor = self.scheduler.timesteps
@@ -258,7 +258,7 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             added_cond_kwargs = {"image_embeds": image_embeds, "hint": hint}
             noise_pred = self.unet(
@@ -270,17 +270,17 @@ class KandinskyV22ControlnetPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], dim=1)
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, variance_pred_text], axis=1)
+                noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
             if not (
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], dim=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(
