@@ -5,7 +5,7 @@ from transformers.models.phi3.configuration_phi3 import Phi3Config
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, Zero, initializer
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttention
 
@@ -59,7 +59,10 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
         # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
         causal_mask = attention_mask
     else:
-        causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+        # FIXME: BUG on MindSpore 2.5.0
+        # causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+        causal_mask = mint.ones((sequence_length, target_length), dtype=dtype) * min_dtype
+        
         if sequence_length != 1:
             causal_mask = ops.triu(causal_mask, diagonal=1)
         causal_mask *= ops.arange(target_length) > cache_position.reshape(-1, 1)
