@@ -1,6 +1,8 @@
 from . import (
     auto,
     bert,
+    big_bird,
+    bigbird_pegasus,
     bit,
     blip_2,
     clap,
