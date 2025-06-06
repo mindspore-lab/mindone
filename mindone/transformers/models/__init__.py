@@ -1,3 +1,4 @@
+from examples.opensora_pku.tools.model_conversion.convert_vae import convert
 from . import (
     auto,
     bert,
@@ -30,4 +31,5 @@ from . import (
     umt5,
     wav2vec2,
     xlm_roberta,
+    convbert
 )
