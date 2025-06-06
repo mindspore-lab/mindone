@@ -1,0 +1,116 @@
+[
+    {
+        "file_name": "clevr.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "You should first think about the reasoning process in the mind and then provide the user with the answer. The reasoning process is enclosed within <think> </think> tags, i.e. <think> reasoning process here </think> answer here\nHow many objects are there in total in this picture?"
+            }
+        ]
+    },
+    {
+        "file_name": "geo.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "You should first think about the reasoning process in the mind and then provide the user with the answer. The reasoning process is enclosed within <think> </think> tags, i.e. <think> reasoning process here </think> answer here\nAs shown in the figure, in ABCD, angle ADC = 135° and angle CAD = 23°, then angle CAB is equal to ()."
+            }
+        ]
+    },
+    {
+        "file_name": "docvqa.png",
+        "messages": [
+            {
+                "role": "user",
+                "content": "You should first think about the reasoning process in the mind and then provide the user with the answer. The reasoning process is enclosed within <think> </think> tags, i.e. <think> reasoning process here </think> answer here\nWhat is written in first rectangle at the top of the page?."
+            }
+        ]
+    },
+    {
+        "file_name": "ai2d.png",
+        "messages": [
+            {
+                "role": "user",
+                "content": "You should first think about the reasoning process in the mind and then provide the user with the answer. The reasoning process is enclosed within <think> </think> tags, i.e. <think> reasoning process here </think> answer here\nAccording to the given food web, what will be the result of decrease in phytoplanktons?\nOptions:\n0: The planktivores will increase\n1: Decrease in zooplankton\n2: Increase in adult game fish\n3: The detritivores will lose its energy.\nPlease choose and answer with only the index number (0, 1, 2, or 3)."
+            }
+        ]
+    },
+    {
+        "file_name": "dog.png",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Please describe this image in detail."
+            }
+        ]
+    },
+    {
+        "file_name": "sofa_under_water.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Please describe this image in detail."
+            }
+        ]
+    },
+    {
+        "file_name": "sunflower.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Please describe this image in detail."
+            }
+        ]
+    },
+    {
+        "file_name": "woman.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Please describe this image in detail."
+            }
+        ]
+    },
+    {
+        "file_name": "llava1.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "What are the colors of the bus in the image?"
+            },
+            {
+                "role": "assistant",
+                "content": "The bus in the image is white and red."
+            },
+            {
+                "role": "user",
+                "content": "What feature can be seen on the back of the bus?"
+            }
+        ]
+    },
+    {
+        "file_name": "llava2.jpg",
+        "messages": [
+            {
+                "role": "user",
+                "content": "Who wrote this book?\nAnswer the question using a single word or phrase."
+            },
+            {
+                "role": "assistant",
+                "content": "Clear Englebert"
+            },
+            {
+                "role": "user",
+                "content": "What is the title of this book?"
+            },
+            {
+                "role": "assistant",
+                "content": "Feng Shui for Love & Money"
+            },
+            {
+                "role": "user",
+                "content": "What type of book is this?"
+            }
+        ]
+    }
+]

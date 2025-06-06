@@ -1,0 +1,5 @@
+<|start_header_id|>user<|end_header_id|>
+From the following items, select the one that belongs to animals:
+1. Apple
+2. Sun
+3. Dog<eot_id><|start_header_id|>assistant<|end_header_id|>
