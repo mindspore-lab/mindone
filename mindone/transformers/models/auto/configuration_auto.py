@@ -74,6 +74,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("t5v1.1", "T5v1.1"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("codegen", "CodeGenConfig"),
     ]
 )
 
