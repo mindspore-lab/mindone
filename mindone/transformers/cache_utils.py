@@ -23,8 +23,6 @@ def init_static_cache(config: PretrainedConfig, max_batch_size: int, max_cache_l
         logger.info("Using text_config for static cache")
 
     max_cache_len = config.max_position_embeddings if max_cache_len is None else max_cache_len
-    # TODO: a temp patch for llava
-    config = getattr(config, "text_config", config)
     # Some model define a custom `head_dim` != config.hidden_size // config.num_attention_heads
     head_dim = config.head_dim if hasattr(config, "head_dim") else config.hidden_size // config.num_attention_heads
 
