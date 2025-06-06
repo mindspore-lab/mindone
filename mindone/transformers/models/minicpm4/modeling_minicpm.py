@@ -1,33 +1,43 @@
 """ MindSpore MiniCPM model."""
 import math
-import numpy as np
+import re
 import warnings
-from typing import List, Optional, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
+
+import numpy as np
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
 
 import mindspore as ms
-from mindspore import mint, nn, ops, Tensor, Parameter
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore
 
 from mindone.transformers.activations import ACT2FN
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
 from mindone.transformers.mindspore_adapter import str_to_dtype
+from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
 from mindone.transformers.mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
-from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
+from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
 from mindone.transformers.modeling_attn_mask_utils import (
     AttentionMaskConverter,
     _prepare_4d_attention_mask,
     _prepare_4d_causal_attention_mask,
 )
-from mindone.transformers.modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, \
-    SequenceClassifierOutputWithPast
+from mindone.transformers.modeling_outputs import (
+    BaseModelOutputWithPast,
+    CausalLMOutputWithPast,
+    SequenceClassifierOutputWithPast,
+)
 from mindone.transformers.modeling_utils import PreTrainedModel
-from mindone.transformers.mindspore_utils import ALL_LAYERNORM_LAYERS
-from transformers.utils import add_start_docstrings, add_start_docstrings_to_model_forward, logging, replace_return_docstrings
+
 from .configuration_minicpm import MiniCPMConfig
-import re
 
 logger = logging.get_logger(__name__)
 
@@ -48,16 +58,16 @@ def _get_unpad_data(attention_mask):
 
 def _expand_mask(mask: ms.Tensor, dtype: ms.Type, tgt_len: Optional[int] = None):
     warnings.warn(
-        "Calling `transformers.models.minicpm.modeling_minicpm._prepare_4d_attention_mask` is deprecated and will be removed in v4.37. Use `transformers.modeling_attn_mask_utils._prepare_4d_attention_mask"
+        "Calling `transformers.models.minicpm.modeling_minicpm._prepare_4d_attention_mask` is deprecated and will be removed in v4.37. "
+        "Use `transformers.modeling_attn_mask_utils._prepare_4d_attention_mask"
     )
     return _prepare_4d_attention_mask(mask=mask, dtype=dtype, tgt_len=tgt_len)
 
 
-def _make_causal_mask(
-        input_ids_shape, dtype: ms.Type, past_key_values_length: int = 0
-):
+def _make_causal_mask(input_ids_shape, dtype: ms.Type, past_key_values_length: int = 0):
     warnings.warn(
-        "Calling `transformers.models.minicpm.modeling_minicpm._make_causal_mask` is deprecated and will be removed in v4.37. Use `transformers.models.minicpm.modeling_minicpm.AttentionMaskConverter._make_causal_mask"
+        "Calling `transformers.models.minicpm.modeling_minicpm._make_causal_mask` is deprecated and will be removed in v4.37. "
+        "Use `transformers.models.minicpm.modeling_minicpm.AttentionMaskConverter._make_causal_mask"
     )
     return AttentionMaskConverter._make_causal_mask(
         input_ids_shape=input_ids_shape, dtype=dtype, past_key_values_length=past_key_values_length
@@ -99,9 +109,7 @@ class MiniCPMRotaryEmbedding(nn.Cell):
         self.inv_freq = inv_freq
 
         # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(
-            seq_len=max_position_embeddings, dtype=ms.float32
-        )
+        self._set_cos_sin_cache(seq_len=max_position_embeddings, dtype=ms.float32)
 
     def _set_cos_sin_cache(self, seq_len, dtype):
         self.max_seq_len_cached = seq_len
@@ -155,7 +163,7 @@ class MiniCPMDynamicNTKScalingRotaryEmbedding(MiniCPMRotaryEmbedding):
 
         if seq_len > self.max_position_embeddings:
             base = self.base * (
-                    (self.scaling_factor * seq_len / self.max_position_embeddings) - (self.scaling_factor - 1)
+                (self.scaling_factor * seq_len / self.max_position_embeddings) - (self.scaling_factor - 1)
             ) ** (self.dim / (self.dim - 2))
             inv_freq = 1.0 / (base ** (ops.arange(0, self.dim, 2).float() / self.dim))
             self.inv_freq = inv_freq
@@ -173,16 +181,21 @@ class MiniCPMDynamicNTKScalingRotaryEmbedding(MiniCPMRotaryEmbedding):
 class MiniCPMLongRoPE(MiniCPMRotaryEmbedding):
     """MiniCPMRotaryEmbedding extended with Dynamic NTK scaling. Credits to the Reddit users /u/bloc97 and /u/emozilla"""
 
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None, short_factor=None, long_factor=None,
-                 original_max_position_embeddings=None):
+    def __init__(
+        self,
+        dim,
+        max_position_embeddings=2048,
+        base=10000,
+        device=None,
+        short_factor=None,
+        long_factor=None,
+        original_max_position_embeddings=None,
+    ):
         self.short_factor = short_factor
         self.long_factor = long_factor
         self.original_max_position_embeddings = original_max_position_embeddings
-        scale = (max_position_embeddings /
-                 self.original_max_position_embeddings)
-        self.scaling_factor = math.sqrt(
-            1 + math.log(scale) /
-            math.log(self.original_max_position_embeddings))
+        scale = max_position_embeddings / self.original_max_position_embeddings
+        self.scaling_factor = math.sqrt(1 + math.log(scale) / math.log(self.original_max_position_embeddings))
         super().__init__(dim, max_position_embeddings, base, device)
 
     def _set_cos_sin_cache(self, seq_len, dtype):
@@ -193,10 +206,7 @@ class MiniCPMLongRoPE(MiniCPMRotaryEmbedding):
         else:
             ext_factors = ms.tensor(self.short_factor, dtype=ms.float32)
 
-        freqs = mint.mul(
-            ops.outer(t, 1.0 / ext_factors),
-            self.inv_freq.to(dtype)
-        )
+        freqs = mint.mul(ops.outer(t, 1.0 / ext_factors), self.inv_freq.to(dtype))
         # Different from paper, but it uses a different permutation in order to obtain the same calculation
         emb = ops.cat((freqs, freqs), axis=-1)
         self.cos_cached = emb.cos().to(dtype) * self.scaling_factor
@@ -206,7 +216,7 @@ class MiniCPMLongRoPE(MiniCPMRotaryEmbedding):
 def rotate_half(x):
     """Rotates half the hidden dims of the input."""
     x1 = x[..., : x.shape[-1] // 2]
-    x2 = x[..., x.shape[-1] // 2:]
+    x2 = x[..., x.shape[-1] // 2 :]
     return ops.cat((-x2, x1), axis=-1)
 
 
@@ -375,7 +385,7 @@ class MiniCPMAttention(nn.Cell):
                     short_factor=self.config.rope_scaling["short_factor"],
                     long_factor=self.config.rope_scaling["long_factor"],
                     base=self.rope_theta,
-                    original_max_position_embeddings=self.config.rope_scaling["original_max_position_embeddings"]
+                    original_max_position_embeddings=self.config.rope_scaling["original_max_position_embeddings"],
                 )
             else:
                 raise ValueError(f"Unknown RoPE scaling type {scaling_type}")
@@ -384,15 +394,15 @@ class MiniCPMAttention(nn.Cell):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).swapaxes(1, 2).contiguous()
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[Cache] = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
-            cache_position: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Cache] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         if "padding_mask" in kwargs:
             warnings.warn(
@@ -403,7 +413,9 @@ class MiniCPMAttention(nn.Cell):
 
         if self.config.pretraining_tp > 1:
             key_value_slicing = (self.num_key_value_heads * self.head_dim) // self.config.pretraining_tp
-            query_slices = self.q_proj.weight.split((self.num_heads * self.head_dim) // self.config.pretraining_tp, axis=0)
+            query_slices = self.q_proj.weight.split(
+                (self.num_heads * self.head_dim) // self.config.pretraining_tp, axis=0
+            )
             key_slices = self.k_proj.weight.split(key_value_slicing, axis=0)
             value_slices = self.v_proj.weight.split(key_value_slicing, axis=0)
 
@@ -446,9 +458,7 @@ class MiniCPMAttention(nn.Cell):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        attn_weights = (
-                mint.matmul(query_states, key_states.swapaxes(2, 3)) / (self.head_dim**0.5)
-        )
+        attn_weights = mint.matmul(query_states, key_states.swapaxes(2, 3)) / (self.head_dim**0.5)
 
         if attn_weights.shape != (bsz, self.num_heads, q_len, kv_seq_len):
             raise ValueError(
@@ -464,12 +474,8 @@ class MiniCPMAttention(nn.Cell):
             attn_weights = attn_weights + attention_mask
 
         # upcast attention to fp32
-        attn_weights = mint.softmax(
-            attn_weights, dim=-1, dtype=ms.float32
-        ).to(query_states.dtype)
-        attn_weights = ops.dropout(
-            attn_weights, p=self.attention_dropout, training=self.training
-        )
+        attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query_states.dtype)
+        attn_weights = ops.dropout(attn_weights, p=self.attention_dropout, training=self.training)
         attn_output = mint.matmul(attn_weights, value_states)
 
         if attn_output.shape != (bsz, self.num_heads, q_len, self.head_dim):
@@ -505,26 +511,21 @@ class MiniCPMFlashAttention2(MiniCPMAttention):
     def __init__(self, config: MiniCPMConfig, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
 
-        # # TODO: Should be removed once Flash Attention for RoCm is bumped to 2.1.
-        # # flash_attn<2.1 generates top-left aligned causal mask, while what is needed here is bottom-right alignement, that was made default for flash_attn>=2.1. This attribute is used to handle this difference. Reference: https://github.com/Dao-AILab/flash-attention/releases/tag/v2.1.0.
-        # # Beware that with flash_attn<2.1, using q_seqlen != k_seqlen (except for the case q_seqlen == 1) produces a wrong mask (top-left).
-        # self._flash_attn_uses_top_left_mask = not is_flash_attn_greater_or_equal_2_10()
-
         scale_factor = 1 / math.sqrt(self.head_dim)
         self.flash_attention = FlashAttentionScore(
             self.num_heads, keep_prob=1 - self.attention_dropout, scale_value=scale_factor, input_layout="BNSD"
         )
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[Cache] = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
-            cache_position: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Cache] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         # MiniCPMFlashAttention2 attention does not support output_attentions
         if "padding_mask" in kwargs:
@@ -562,12 +563,6 @@ class MiniCPMFlashAttention2(MiniCPMAttention):
         key_states = repeat_kv(key_states, self.num_key_value_groups)
         value_states = repeat_kv(value_states, self.num_key_value_groups)
 
-        # # TODO: These transpose are quite inefficient but Flash Attention requires the layout [batch_size, sequence_length, num_heads, head_dim]. We would need to refactor the KV cache
-        # # to be able to avoid many of these transpose/reshape/view.
-        # query_states = query_states.swapaxes(1, 2)
-        # key_states = key_states.swapaxes(1, 2)
-        # value_states = value_states.swapaxes(1, 2)
-
         dropout_rate = self.attention_dropout if self.training else 0.0
 
         input_dtype = query_states.dtype
@@ -595,13 +590,11 @@ class MiniCPMFlashAttention2(MiniCPMAttention):
             attention_mask,
             q_len,
             dropout=dropout_rate,
-            softmax_scale=self.head_dim**(-0.5),
+            softmax_scale=self.head_dim ** (-0.5),
         )
 
         attn_output = attn_output.swapaxes(1, 2)
-        attn_output = attn_output.reshape(
-            bsz, q_len, self.hidden_size
-        ).contiguous()
+        attn_output = attn_output.reshape(bsz, q_len, self.hidden_size).contiguous()
         attn_output = self.o_proj(attn_output)
 
         if not output_attentions:
@@ -610,7 +603,7 @@ class MiniCPMFlashAttention2(MiniCPMAttention):
         return attn_output, attn_weights, past_key_value
 
     def _flash_attention_forward(
-            self, query_states, key_states, value_states, attention_mask, query_length, dropout=0.0, softmax_scale=None
+        self, query_states, key_states, value_states, attention_mask, query_length, dropout=0.0, softmax_scale=None
     ):
         """
         Calls the forward method of Flash Attention - if the input hidden states contain at least one padding token
@@ -644,6 +637,7 @@ class MiniCPMFlashAttention2(MiniCPMAttention):
 
 class MiniCPMPagedAttention(MiniCPMAttention):
     """Paged Attention"""
+
     def __init__(self, config: MiniCPMConfig, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
         compute_dtype = str_to_dtype(config.mindspore_dtype)
@@ -669,24 +663,25 @@ class MiniCPMPagedAttention(MiniCPMAttention):
         self.is_first_iteration = True
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[Cache] = None,
-            output_attentions: bool = False,
-            use_cache: bool = False,
-            cache_position: Optional[ms.Tensor] = None,
-            block_tables: Optional[ms.Tensor] = None,
-            slot_mapping: Optional[ms.Tensor] = None,
-            freqs_cis: Optional[ms.Tensor] = None,
-            mask: Optional[ms.Tensor] = None,
-            batch_valid_length: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Cache] = None,
+        output_attentions: bool = False,
+        use_cache: bool = False,
+        cache_position: Optional[ms.Tensor] = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[ms.Tensor] = None,
+        mask: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
         if "padding_mask" in kwargs:
             warnings.warn(
-                "Passing `padding_mask` is deprecated and will be removed in v4.37. Please make sure use `attention_mask` instead.`"
+                "Passing `padding_mask` is deprecated and will be removed in v4.37. "
+                "Please make sure use `attention_mask` instead.`"
             )
 
         bsz, q_len, _ = hidden_states.shape
@@ -705,7 +700,7 @@ class MiniCPMPagedAttention(MiniCPMAttention):
 
         if not self.is_first_iteration:
             length = position_ids.shape[1]
-            position_ids = position_ids[:, length-1:length]
+            position_ids = position_ids[:, length - 1 : length]
 
         query_states, key_states = apply_rotary_pos_emb(query_states, key_states, cos, sin, position_ids)
 
@@ -731,9 +726,6 @@ class MiniCPMPagedAttention(MiniCPMAttention):
         )
 
         attn_output = self.o_proj(attn_output)
-
-        if not output_attentions:
-            attn_weights = None
 
         return attn_output, None, past_key_value
 
@@ -762,20 +754,20 @@ class MiniCPMDecoderLayer(nn.Cell):
             self.is_first_iteration = True
 
     def construct(
-            self,
-            hidden_states: ms.Tensor,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_value: Optional[Tuple[ms.Tensor]] = None,
-            output_attentions: Optional[bool] = False,
-            use_cache: Optional[bool] = False,
-            cache_position: Optional[ms.Tensor] = None,
-            block_tables: Optional[ms.Tensor] = None,
-            slot_mapping: Optional[ms.Tensor] = None,
-            freqs_cis: Optional[ms.Tensor] = None,
-            mask: Optional[ms.Tensor] = None,
-            batch_valid_length: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        hidden_states: ms.Tensor,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_value: Optional[Tuple[ms.Tensor]] = None,
+        output_attentions: Optional[bool] = False,
+        use_cache: Optional[bool] = False,
+        cache_position: Optional[ms.Tensor] = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[ms.Tensor] = None,
+        mask: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
+        **kwargs,
     ) -> Tuple[ms.Tensor, Optional[Tuple[ms.Tensor, ms.Tensor]]]:
         """
         Args:
@@ -966,22 +958,22 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
 
     @add_start_docstrings_to_model_forward(MINICPM_INPUTS_DOCSTRING)
     def construct(
-            self,
-            input_ids: ms.Tensor = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_values: Optional[List[ms.Tensor]] = None,
-            inputs_embeds: Optional[ms.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
-            cache_position: Optional[ms.Tensor] = None,
-            block_tables: Optional[ms.Tensor] = None,
-            slot_mapping: Optional[ms.Tensor] = None,
-            freqs_cis: Optional[ms.Tensor] = None,
-            mask: Optional[ms.Tensor] = None,
-            batch_valid_length: Optional[ms.Tensor] = None,
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        freqs_cis: Optional[ms.Tensor] = None,
+        mask: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -1018,9 +1010,7 @@ class MiniCPMModel(MiniCPMPreTrainedModel):
 
         if position_ids is None:
             if block_tables is None:
-                position_ids = ops.arange(
-                    past_key_values_length, seq_length + past_key_values_length, dtype=ms.int64
-                )
+                position_ids = ops.arange(past_key_values_length, seq_length + past_key_values_length, dtype=ms.int64)
                 position_ids = position_ids.unsqueeze(0)
             else:
                 position_ids = ops.arange(
@@ -1203,21 +1193,21 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
     @add_start_docstrings_to_model_forward(MINICPM_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
     def construct(
-            self,
-            input_ids: ms.Tensor = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_values: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
-            inputs_embeds: Optional[ms.Tensor] = None,
-            labels: Optional[ms.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
-            cache_position: Optional[ms.Tensor] = None,
-            block_tables: Optional[ms.Tensor] = None,
-            slot_mapping: Optional[ms.Tensor] = None,
-            batch_valid_length: Optional[ms.Tensor] = None,
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[Tuple[Tuple[ms.Tensor, ms.Tensor]]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        block_tables: Optional[ms.Tensor] = None,
+        slot_mapping: Optional[ms.Tensor] = None,
+        batch_valid_length: Optional[ms.Tensor] = None,
     ) -> Union[Tuple, CausalLMOutputWithPast]:
         r"""
         Args:
@@ -1310,14 +1300,14 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
         )
 
     def prepare_inputs_for_generation(
-            self,
-            input_ids,
-            past_key_values=None,
-            attention_mask=None,
-            inputs_embeds=None,
-            cache_position=None,
-            use_cache=False,
-            **kwargs,
+        self,
+        input_ids,
+        past_key_values=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        cache_position=None,
+        use_cache=False,
+        **kwargs,
     ):
         past_length = 0
         if past_key_values is not None:
@@ -1331,18 +1321,18 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
             # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as input)
 
             if attention_mask is not None and int(attention_mask.sum(-1).max()) > input_ids.shape[1]:
-                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)):]
+                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)) :]
             # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
             # input_ids based on the past_length.
             elif past_length < input_ids.shape[1]:
-                input_ids = input_ids[:, int(past_length):]
+                input_ids = input_ids[:, int(past_length) :]
             # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
 
             # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
             if (
-                    max_cache_length is not None
-                    and attention_mask is not None
-                    and cache_length + input_ids.shape[1] > max_cache_length
+                max_cache_length is not None
+                and attention_mask is not None
+                and cache_length + input_ids.shape[1] > max_cache_length
             ):
                 attention_mask = attention_mask[:, -max_cache_length:]
 
@@ -1353,7 +1343,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
             position_ids = position_ids.masked_fill(attention_mask == 0, 1)
             if past_key_values and past_length > 0:
                 cur_len = attention_mask.sum(-1).max()
-                position_ids = position_ids[:, cur_len - input_ids.shape[1]: cur_len]
+                position_ids = position_ids[:, cur_len - input_ids.shape[1] : cur_len]
 
         # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
         if inputs_embeds is not None and past_length == 0:
@@ -1378,7 +1368,7 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
             if input_length < cache_position.shape[0]:
                 assert cache_position.shape[0] == attention_mask.shape[-1]
                 cur_len = int(attention_mask.sum(-1).max())
-                cache_position = cache_position[cur_len - input_length: cur_len]
+                cache_position = cache_position[cur_len - input_length : cur_len]
             else:
                 cache_position = cache_position[-input_length:]
 
@@ -1448,31 +1438,53 @@ class MiniCPMForCausalLM(MiniCPMPreTrainedModel):
     def _reorder_cache(past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
-
-    def chat(self, tokenizer, query: str, history: List[Dict] = None, role: str = "user",
-             max_length: int = 4096, num_beams=1, do_sample=True, top_p=0.8, temperature=0.3, logits_processor=None,
-             **kwargs):
+    def chat(
+        self,
+        tokenizer,
+        query: str,
+        history: List[Dict] = None,
+        role: str = "user",
+        max_length: int = 4096,
+        num_beams=1,
+        do_sample=True,
+        top_p=0.8,
+        temperature=0.3,
+        logits_processor=None,
+        **kwargs,
+    ):
         if history is None:
             history = []
         if logits_processor:
-            gen_kwargs = {"max_length": max_length, "num_beams": num_beams, "do_sample": do_sample, "top_p": top_p,
-                          "temperature": temperature, "logits_processor": logits_processor, **kwargs}
+            gen_kwargs = {
+                "max_length": max_length,
+                "num_beams": num_beams,
+                "do_sample": do_sample,
+                "top_p": top_p,
+                "temperature": temperature,
+                "logits_processor": logits_processor,
+                **kwargs,
+            }
         else:
-            gen_kwargs = {"max_length": max_length, "num_beams": num_beams, "do_sample": do_sample, "top_p": top_p,
-                          "temperature": temperature, "logits_processor": logits_processor, **kwargs}
+            gen_kwargs = {
+                "max_length": max_length,
+                "num_beams": num_beams,
+                "do_sample": do_sample,
+                "top_p": top_p,
+                "temperature": temperature,
+                "logits_processor": logits_processor,
+                **kwargs,
+            }
 
         history.append({"role": role, "content": query})
         history_str = tokenizer.apply_chat_template(history, tokenize=False, add_generation_prompt=True)
-        inputs = tokenizer(history_str, return_tensors='np')
+        inputs = tokenizer(history_str, return_tensors="np")
         for key in inputs.keys():
             inputs[key] = ms.tensor(inputs[key])
         outputs = self.generate(**inputs, **gen_kwargs)
-        outputs = outputs.tolist()[0][len(inputs["input_ids"][0]):-1]
+        outputs = outputs.tolist()[0][len(inputs["input_ids"][0]) : -1]
         response = tokenizer.decode(outputs)
         pattern = re.compile(r".*?(?=<AI>|<用户>)", re.DOTALL)
         matches = pattern.findall(response)
@@ -1513,17 +1525,17 @@ class MiniCPMForSequenceClassification(MiniCPMPreTrainedModel):
 
     @add_start_docstrings_to_model_forward(MINICPM_INPUTS_DOCSTRING)
     def construct(
-            self,
-            input_ids: ms.Tensor = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            position_ids: Optional[ms.Tensor] = None,
-            past_key_values: Optional[List[ms.Tensor]] = None,
-            inputs_embeds: Optional[ms.Tensor] = None,
-            labels: Optional[ms.Tensor] = None,
-            use_cache: Optional[bool] = None,
-            output_attentions: Optional[bool] = None,
-            output_hidden_states: Optional[bool] = None,
-            return_dict: Optional[bool] = None,
+        self,
+        input_ids: ms.Tensor = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        position_ids: Optional[ms.Tensor] = None,
+        past_key_values: Optional[List[ms.Tensor]] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        labels: Optional[ms.Tensor] = None,
+        use_cache: Optional[bool] = None,
+        output_attentions: Optional[bool] = None,
+        output_hidden_states: Optional[bool] = None,
+        return_dict: Optional[bool] = None,
     ) -> Union[Tuple, SequenceClassifierOutputWithPast]:
         r"""
         labels (`torch.LongTensor` of shape `(batch_size,)`, *optional*):
@@ -1558,9 +1570,7 @@ class MiniCPMForSequenceClassification(MiniCPMPreTrainedModel):
             sequence_lengths = -1
         else:
             if input_ids is not None:
-                sequence_lengths = (mint.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1).to(
-                    logits.device
-                )
+                sequence_lengths = (mint.eq(input_ids, self.config.pad_token_id).int().argmax(-1) - 1).to(logits.device)
             else:
                 sequence_lengths = -1
 

@@ -8,15 +8,19 @@ mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../"))
 sys.path.insert(0, mindone_lib_path)
 
 from transformers import AutoTokenizer
-from mindone.transformers.models.minicpm4.modeling_minicpm import MiniCPMForCausalLM
+
 import mindspore as ms
+
+from mindone.transformers.models.minicpm4.modeling_minicpm import MiniCPMForCausalLM
+
 
 def generate(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, trust_remote_code=True)
     model = MiniCPMForCausalLM.from_pretrained(
         args.model_name,
         mindspore_dtype=ms.bfloat16,
-        _attn_implementation=args.attn_implementation,)
+        _attn_implementation=args.attn_implementation,
+    )
 
     if args.attn_implementation == "paged_attention":
         # infer boost
@@ -41,12 +45,11 @@ def generate(args):
         do_sample=args.do_sample,
     )
 
-    output_token_ids = [
-        model_outputs[i][len(model_inputs[i]):] for i in range(len(model_inputs))
-    ]
+    output_token_ids = [model_outputs[i][len(model_inputs[i]) :] for i in range(len(model_inputs))]
 
     responses = tokenizer.batch_decode(output_token_ids, skip_special_tokens=True)[0]
     print(responses)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MiniCPM4 demo.")

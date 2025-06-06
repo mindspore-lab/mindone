@@ -1,1 +1,1 @@
-from .modeling_minicpm import MiniCPMForCausalLM, MiniCPMModel, MiniCPMForSequenceClassification
+from .modeling_minicpm import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
