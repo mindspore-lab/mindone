@@ -36,6 +36,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("dpt", "DPTModel"),
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
+        ("roberta", "RobertaModel"),
         ("gpt2", "GPT2Model"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("llama", "LlamaModel"),
@@ -50,6 +51,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("roberta", "RobertaForMaskedLM"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
@@ -62,6 +64,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("bert", "BertForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("roberta", "RobertaForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -75,6 +78,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
+        ("roberta", "RobertaForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("llama", "LlamaForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
@@ -132,6 +136,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Masked LM mapping
         ("bert", "BertForMaskedLM"),
+        ("roberta", "RobertaForMaskedLM"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
     ]
@@ -185,6 +190,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Sequence Classification mapping
         ("bert", "BertForSequenceClassification"),
+        ("roberta", "RobertaForSequenceClassification"),
         ("gemma", "GemmaForSequenceClassification"),
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
@@ -198,6 +204,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     [
         # Model for Question Answering mapping
         ("bert", "BertForQuestionAnswering"),
+        ("roberta", "RobertaForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),
         ("t5", "T5ForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
@@ -215,6 +222,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Token Classification mapping
         ("bert", "BertForTokenClassification"),
+        ("roberta", "RobertaForTokenClassification"),
         ("mt5", "MT5ForTokenClassification"),
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
@@ -226,6 +234,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Multiple Choice mapping
         ("bert", "BertForMultipleChoice"),
+        ("roberta", "RobertaForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
     ]
 )
@@ -261,6 +270,7 @@ MODEL_FOR_KEYPOINT_DETECTION_MAPPING_NAMES = OrderedDict()
 MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
     [
         ("bert", "BertModel"),
+        ("roberta", "RobertaModel"),
         ("mt5", "MT5EncoderModel"),
         ("t5", "T5EncoderModel"),
         ("umt5", "UMT5EncoderModel"),
