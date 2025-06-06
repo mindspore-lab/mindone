@@ -538,7 +538,7 @@ class STDiT2(nn.Cell):
         w_flatted = w.reshape(w.shape[0], -1)
         # FIXME: incompatible in optim parallel mode
         # FIXME: impl in torch can be incorrect. can be reshape order mismatch
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
 
         # Initialize timestep embedding MLP:
         normal_(self.t_embedder.mlp[0].weight, std=0.02)
