@@ -201,6 +201,15 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.canine import (
+    CanineForMultipleChoice,
+    CanineForQuestionAnswering,
+    CanineForSequenceClassification,
+    CanineForTokenClassification,
+    CanineLayer,
+    CanineModel,
+    CaninePreTrainedModel
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
