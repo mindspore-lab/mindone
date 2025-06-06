@@ -252,7 +252,7 @@ class OpenSoraPipeline(DiffusionPipeline):
             if text_encoder_index == 1:
                 prompt_embeds = prompt_embeds.unsqueeze(1)  # b d -> b 1 d for clip
 
-            prompt_attention_mask = prompt_attention_mask.repeat(num_samples_per_prompt, axis=0)
+            prompt_attention_mask = prompt_attention_mask.repeat_interleave(num_samples_per_prompt, dim=0)
         else:
             prompt_attention_mask = ops.ones_like(prompt_embeds)
 
@@ -260,7 +260,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings for each generation per prompt, using mps friendly method
-        prompt_embeds = prompt_embeds.repeat(num_samples_per_prompt, axis=1)
+        prompt_embeds = prompt_embeds.repeat_interleave(num_samples_per_prompt, dim=1)
         prompt_embeds = prompt_embeds.view((bs_embed * num_samples_per_prompt, seq_len, -1))
 
         # get unconditional embeddings for classifier free guidance
@@ -306,7 +306,9 @@ class OpenSoraPipeline(DiffusionPipeline):
 
             if text_encoder_index == 1:
                 negative_prompt_embeds = negative_prompt_embeds.unsqueeze(1)  # b d -> b 1 d for clip
-            negative_prompt_attention_mask = negative_prompt_attention_mask.repeat(num_samples_per_prompt, axis=0)
+            negative_prompt_attention_mask = negative_prompt_attention_mask.repeat_interleave(
+                num_samples_per_prompt, dim=0
+            )
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -314,7 +316,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=dtype)
 
-            negative_prompt_embeds = negative_prompt_embeds.repeat(num_samples_per_prompt, axis=1)
+            negative_prompt_embeds = negative_prompt_embeds.repeat_interleave(num_samples_per_prompt, dim=1)
             negative_prompt_embeds = negative_prompt_embeds.view((batch_size * num_samples_per_prompt, seq_len, -1))
         else:
             negative_prompt_embeds = None
@@ -680,7 +682,7 @@ class OpenSoraPipeline(DiffusionPipeline):
 
                 attention_mask = ops.ones_like(latent_model_input)[:, 0].to(ms.int32)
                 if get_sequence_parallel_state():
-                    attention_mask = attention_mask.repeat(world_size, axis=1)
+                    attention_mask = attention_mask.repeat_interleave(world_size, dim=1)
                 attention_mask = attention_mask.to(ms.bool_)
                 # ==================make sp=====================================
 
