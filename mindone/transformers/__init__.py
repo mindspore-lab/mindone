@@ -193,6 +193,16 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.bart import (
+    BartModel,
+    BartPretrainedModel,
+    BartForCausalLM,
+    BartForQuestionAnswering,
+    BartForConditionalGeneration,
+    BartForSequenceClassification,
+    PretrainedBartModel,
+    BartPreTrainedModel,
+)
 from .models.whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,
