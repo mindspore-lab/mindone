@@ -159,6 +159,14 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.mixtral import (
+    MixtralModel,
+    MixtralForCausalLM,
+    MixtralForQuestionAnswering,
+    MixtralForSequenceClassification,
+    MixtralForTokenClassification,
+    MixtralPreTrainedModel,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
