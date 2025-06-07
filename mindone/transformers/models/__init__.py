@@ -17,6 +17,7 @@ from . import (
     levit,
     llama,
     llava,
+    mixtral,
     phi3,
     qwen2,
     qwen2_5_omni,
