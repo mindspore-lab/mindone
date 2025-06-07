@@ -38,6 +38,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2Model"),
         ("gpt2", "GPT2Model"),
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("gemma3_text", "Gemma3TextModel"),
+        ("siglip", "SiglipModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
@@ -50,6 +53,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         # Model for pre-training mapping
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("gemma3", "Gemma3ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
@@ -75,6 +79,8 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
+        ("gemma3", "Gemma3ForCausalLM"),
+        ("gemma3_text", "Gemma3ForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("llama", "LlamaForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
@@ -87,6 +93,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Image mapping
         ("bit", "BitModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
         ("dpt", "DPTModel"),
     ]
 )
@@ -125,6 +132,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("gemma3", "Gemma3ForConditionalGeneration"),
     ]
 )
 
@@ -244,7 +252,11 @@ MODEL_FOR_AUDIO_FRAME_CLASSIFICATION_MAPPING_NAMES = OrderedDict()
 
 MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict()
 
-MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict()
+MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
+    [
+        ("siglip", "SiglipModel"),
+    ]
+)
 
 MODEL_FOR_TEXT_TO_WAVEFORM_MAPPING_NAMES = OrderedDict()
 
