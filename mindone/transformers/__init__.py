@@ -166,6 +166,18 @@ from .models.switch_transformers import (
     SwitchTransformersSparseMLP,
     SwitchTransformersTop1Router,
 )
+from .models.megatron_bert import (
+    MegatronBertModel,
+    MegatronBertForCausalLM,
+    MegatronBertForMaskedLM,
+    MegatronBertForMultipleChoice,
+    MegatronBertForNextSentencePrediction,
+    MegatronBertForPreTraining,
+    MegatronBertForQuestionAnswering,
+    MegatronBertForSequenceClassification,
+    MegatronBertForTokenClassification,
+    MegatronBertPreTrainedModel,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,
