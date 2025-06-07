@@ -193,6 +193,11 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.granite import (
+    GraniteModel,
+    GraniteForCausalLM,
+    GranitePreTrainedModel,
+)
 from .models.whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,
