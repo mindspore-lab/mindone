@@ -72,7 +72,13 @@ from mindone.transformers.generation.stopping_criteria import (
 )
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.select_operator import get_multinomial_op
-
+from ..cache_utils import (
+        HybridCache,
+        MambaCache,
+        OffloadedStaticCache,
+        SlidingWindowCache,
+        StaticCache,
+    )
 if TYPE_CHECKING:
     from transformers.generation.streamers import BaseStreamer
     from transformers.tokenization_utils_base import PreTrainedTokenizerBase
@@ -82,7 +88,13 @@ if TYPE_CHECKING:
 logger = logging.get_logger(__name__)
 
 
-NEED_SETUP_CACHE_CLASSES_MAPPING = {}
+NEED_SETUP_CACHE_CLASSES_MAPPING = {
+        "static": StaticCache,
+        "offloaded_static": OffloadedStaticCache,
+        "sliding_window": SlidingWindowCache,
+        "hybrid": HybridCache,
+        "mamba": MambaCache,
+    }
 QUANT_BACKEND_CLASSES_MAPPING = {}
 
 # Variable names used to hold the cache at generation time

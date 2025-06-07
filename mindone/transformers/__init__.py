@@ -193,6 +193,12 @@ from .models.wav2vec2 import (
     Wav2Vec2PreTrainedModel,
     Wav2Vec2Processor,
 )
+from .models.gemma3 import (
+    Gemma3TextModel,
+    Gemma3PreTrainedModel,
+    Gemma3ForConditionalGeneration,
+    Gemma3ForCausalLM,
+)
 from .models.whisper import (
     WhisperForAudioClassification,
     WhisperForCausalLM,
