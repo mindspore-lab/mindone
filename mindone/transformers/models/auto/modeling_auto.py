@@ -40,6 +40,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
+        ("megatron-bert", "MegatronBertModel"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
     ]
@@ -51,6 +52,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
+        ("megatron-bert", "MegatronBertForPreTraining"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -62,6 +64,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         # Model with LM heads mapping
         ("bert", "BertForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("megatron-bert", "MegatronBertForCausalLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -77,6 +80,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2ForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("llama", "LlamaForCausalLM"),
+        ("megatron-bert", "MegatronBertForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
@@ -189,6 +193,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
         ("mt5", "MT5ForSequenceClassification"),
+        ("megatron-bert", "MegatronBertForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
     ]
@@ -198,6 +203,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     [
         # Model for Question Answering mapping
         ("bert", "BertForQuestionAnswering"),
+        ("megatron-bert", "MegatronBertForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),
         ("t5", "T5ForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
@@ -216,6 +222,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         # Model for Token Classification mapping
         ("bert", "BertForTokenClassification"),
         ("mt5", "MT5ForTokenClassification"),
+        ("megatron-bert", "MegatronBertForTokenClassification"),
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
@@ -226,6 +233,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Multiple Choice mapping
         ("bert", "BertForMultipleChoice"),
+        ("megatron-bert", "MegatronBertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
     ]
 )
@@ -233,6 +241,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_NEXT_SENTENCE_PREDICTION_MAPPING_NAMES = OrderedDict(
     [
         ("bert", "BertForNextSentencePrediction"),
+        ("megatron-bert", "MegatronBertForNextSentencePrediction"),
     ]
 )
 
