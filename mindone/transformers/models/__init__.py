@@ -1,4 +1,5 @@
 from . import (
+    albert,
     auto,
     bert,
     bit,
@@ -18,6 +19,7 @@ from . import (
     llama,
     llava,
     minicpm4,
+    mobilebert,
     phi3,
     qwen2,
     qwen2_5_omni,
