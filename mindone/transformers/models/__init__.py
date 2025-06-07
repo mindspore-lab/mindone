@@ -1,5 +1,6 @@
 from . import (
     auto,
+    bart,
     bert,
     bit,
     blip_2,
