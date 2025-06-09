@@ -107,13 +107,13 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = nn.functional.softmax(attn_weights, dim=-1, dtype=mint.float32).to(query.dtype)
+    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
 
     # Mask heads if we want to
     if head_mask is not None:
         attn_weights = attn_weights * head_mask
 
-    attn_weights = nn.functional.dropout(attn_weights, p=dropout, training=module.training)
+    attn_weights = mint.nn.functional.dropout(attn_weights, p=dropout, training=module.training)
     attn_output = mint.matmul(attn_weights, value)
 
     # Reshape outputs
@@ -194,10 +194,10 @@ class GPTNeoXLayer(nn.Cell):
     def __init__(self, config, layer_idx):
         super().__init__()
         self.use_parallel_residual = config.use_parallel_residual
-        self.input_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.post_attention_layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
-        self.post_attention_dropout = nn.Dropout(config.hidden_dropout)
-        self.post_mlp_dropout = nn.Dropout(config.hidden_dropout)
+        self.input_layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.post_attention_layernorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.post_attention_dropout = mint.nn.Dropout(config.hidden_dropout)
+        self.post_mlp_dropout = mint.nn.Dropout(config.hidden_dropout)
         self.attention = GPTNeoXAttention(config, layer_idx)
         self.mlp = GPTNeoXMLP(config)
 
@@ -303,11 +303,11 @@ class GPTNeoXPreTrainedModel(PreTrainedModel):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.bias is not None:
                 module.bias.data.zero_()
-        elif isinstance(module, nn.Embedding):
+        elif isinstance(module, mint.nn.Embedding):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
-        elif isinstance(module, nn.LayerNorm):
+        elif isinstance(module, mint.nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
 
@@ -317,10 +317,10 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         super().__init__(config)
         self.config = config
 
-        self.embed_in = nn.Embedding(config.vocab_size, config.hidden_size)
-        self.emb_dropout = nn.Dropout(config.hidden_dropout)
+        self.embed_in = mint.nn.Embedding(config.vocab_size, config.hidden_size)
+        self.emb_dropout = mint.nn.Dropout(config.hidden_dropout)
         self.layers = nn.ModuleList([GPTNeoXLayer(config, i) for i in range(config.num_hidden_layers)])
-        self.final_layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.final_layer_norm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.rotary_emb = GPTNeoXRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
 
@@ -626,7 +626,7 @@ class GPTNeoXForTokenClassification(GPTNeoXPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.gpt_neox = GPTNeoXModel(config)
-        self.dropout = nn.Dropout(config.classifier_dropout)
+        self.dropout = mint.nn.Dropout(config.classifier_dropout)
         self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
