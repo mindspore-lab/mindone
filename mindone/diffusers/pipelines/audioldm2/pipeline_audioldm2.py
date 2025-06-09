@@ -241,6 +241,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             `inputs_embeds (`mindspore.tensor` of shape `(batch_size, sequence_length, hidden_size)`):
                 The sequence of generated hidden-states.
         """
+        self.language_model._support_dynamic_input = True
         max_new_tokens = max_new_tokens if max_new_tokens is not None else self.language_model.config.max_new_tokens
         model_kwargs = self.language_model._get_initial_cache_position(inputs_embeds, model_kwargs)
         for _ in range(max_new_tokens):
