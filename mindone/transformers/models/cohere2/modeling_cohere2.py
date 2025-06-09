@@ -78,7 +78,7 @@ class Cohere2RotaryEmbedding(nn.Cell):
             self._dynamic_frequency_update(position_ids)
 
         # Core RoPE block
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
         # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
         freqs = mint.matmul(inv_freq_expanded.float(), position_ids_expanded.float()).swapaxes(1, 2)
@@ -118,7 +118,7 @@ def repeat_kv(hidden_states: mint.Tensor, n_rep: int) -> mint.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand(batch, num_key_value_heads, n_rep, slen, head_dim)
+    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -348,7 +348,7 @@ class Cohere2DecoderLayer(nn.Cell):
             else:
                 min_dtype = _DTYPE_2_MIN[hidden_states.dtype]
                 sliding_window_mask = mint.tril(
-                    mint.ones_like(attention_mask, dtype=mint.bool), diagonal=-self.sliding_window
+                    mint.ones_like(attention_mask, dtype=ms.bool_), diagonal=-self.sliding_window
                 )
                 attention_mask = mint.where(sliding_window_mask, min_dtype, attention_mask)
                 # In case we are beyond the sliding window, we need to correctly offset the mask slicing
@@ -432,7 +432,7 @@ class Cohere2PreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.Embedding):
             normal_(module.weight, mean=0.0, std=std)
             if module.padding_idx is not None:
-                constant_(module.weight[module.padding_idx], 0.0)
+                module.weight[module.padding_idx] = 0.0
 
 
 COHERE2_INPUTS_DOCSTRING = r"""
@@ -527,7 +527,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, self.padding_idx)
-        self.layers = nn.CellList(
+        self.layers = ms.nn.CellList(
             [Cohere2DecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
         self.norm = Cohere2LayerNorm(hidden_size=(config.hidden_size), eps=config.layer_norm_eps)
@@ -683,7 +683,10 @@ class Cohere2Model(Cohere2PreTrainedModel):
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
         if isinstance(past_key_values, (HybridCache, StaticCache)):
-            target_length = past_key_values.get_max_cache_shape()
+            try:
+                target_length = past_key_values.get_max_cache_shape()
+            except AttributeError:
+                target_length = past_key_values.get_max_length()
         else:
             target_length = attention_mask.shape[-1] if attention_mask is not None else input_tensor.shape[1]
 
@@ -703,7 +706,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
         attention_mask: mint.Tensor,
         sequence_length: int,
         target_length: int,
-        dtype: mint.dtype,
+        dtype: ms.dtype,
         cache_position: mint.Tensor,
         batch_size: int,
         **kwargs,
@@ -721,7 +724,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
             target_length (`int`):
                 The target length: when generating with static cache, the mask should be as long as the static cache,
                 to account for the 0 padding, the part of the cache that is not filled yet.
-            dtype (`mint.dtype`):
+            dtype (`ms.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`mint.Tensor`):
                 Indices depicting the position of the input sequence tokens in the sequence.
@@ -737,7 +740,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand(batch_size, 1, -1, -1)
+            causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -791,7 +794,7 @@ class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
     @deprecate_kwarg("num_logits_to_keep", version="4.50", new_name="logits_to_keep")
     @add_start_docstrings_to_model_forward(COHERE2_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=CausalLMOutputWithPast, config_class=_CONFIG_FOR_DOC)
-    def forward(
+    def construct(
         self,
         input_ids: mint.Tensor = None,
         attention_mask: Optional[mint.Tensor] = None,
@@ -938,11 +941,14 @@ class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
                 batch_size, sequence_length, _ = model_inputs["inputs_embeds"].shape
             else:
                 batch_size, sequence_length = model_inputs["input_ids"].shape
-
+            try:
+                target_length = past_key_values.get_max_cache_shape()
+            except AttributeError:
+                target_length = past_key_values.get_max_length()
             attention_mask = self.model._prepare_4d_causal_attention_mask_with_cache_position(
                 attention_mask,
                 sequence_length=sequence_length,
-                target_length=past_key_values.get_max_cache_shape(),
+                target_length=target_length,
                 dtype=self.lm_head.weight.dtype,
                 cache_position=cache_position,
                 batch_size=batch_size,
