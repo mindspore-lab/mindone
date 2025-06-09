@@ -21,18 +21,7 @@
 # limitations under the License.
 from typing import Callable, List, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import nn, mint, ops
-
-from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, StaticCache
-from ...generation import GenerationMixin
-from ...modeling_attn_mask_utils import AttentionMaskConverter
-from ...modeling_flash_attention_utils import FlashAttentionKwargs
-from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
-from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...processing_utils import Unpack
+from transformers.models.granite.configuration_granite import GraniteConfig
 from transformers.utils import (
     LossKwargs,
     add_start_docstrings,
@@ -40,10 +29,20 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers.models.granite.configuration_granite import GraniteConfig
-from ...modeling_attn_mask_utils import dtype_to_min
+
+import mindspore as ms
+from mindspore import mint, nn, ops
 from mindspore.common.initializer import Normal, initializer
 
+from ...activations import ACT2FN
+from ...cache_utils import Cache, DynamicCache, StaticCache
+from ...generation import GenerationMixin
+from ...modeling_attn_mask_utils import AttentionMaskConverter, dtype_to_min
+from ...modeling_flash_attention_utils import FlashAttentionKwargs
+from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast
+from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
+from ...processing_utils import Unpack
 
 logger = logging.get_logger(__name__)
 _CONFIG_FOR_DOC = "GraniteConfig"
@@ -134,17 +133,17 @@ class GraniteAttention(nn.Cell):
         self.attention_dropout = config.attention_dropout
         self.is_causal = True
 
-        self.q_proj = nn.Dense(
-            config.hidden_size, config.num_attention_heads * self.head_dim, has_bias=config.attention_bias
+        self.q_proj = mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.attention_bias
         )
-        self.k_proj = nn.Dense(
-            config.hidden_size, config.num_key_value_heads * self.head_dim, has_bias=config.attention_bias
+        self.k_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias
         )
-        self.v_proj = nn.Dense(
-            config.hidden_size, config.num_key_value_heads * self.head_dim, has_bias=config.attention_bias
+        self.v_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias
         )
-        self.o_proj = nn.Dense(
-            config.num_attention_heads * self.head_dim, config.hidden_size, has_bias=config.attention_bias
+        self.o_proj = mint.nn.Linear(
+            config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.attention_bias
         )
 
     def construct(
@@ -223,9 +222,9 @@ class GraniteMLP(nn.Cell):
         self.config = config
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
-        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=config.mlp_bias)
-        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=config.mlp_bias)
-        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=config.mlp_bias)
+        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=config.mlp_bias)
+        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=config.mlp_bias)
+        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=config.mlp_bias)
         self.act_fn = ACT2FN[config.hidden_act]
 
     def construct(self, x):
@@ -400,16 +399,14 @@ class GranitePreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         std = self.config.initializer_range
-        if isinstance(module, nn.Dense):
+        if isinstance(module, mint.nn.Linear):
             module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
                 module.bias.set_data(initializer("zeros", module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(
-                initializer(Normal(sigma=std, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
-            )
+        elif isinstance(module, mint.nn.Embedding):
+            module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
 
 
 GRANITE_INPUTS_DOCSTRING = r"""
@@ -504,7 +501,7 @@ class GraniteModel(GranitePreTrainedModel):
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
-        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
+        self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
         self.layers = nn.CellList(
             [GraniteDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
@@ -563,9 +560,7 @@ class GraniteModel(GranitePreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -623,7 +618,9 @@ class GraniteModel(GranitePreTrainedModel):
         if output_hidden_states:
             all_hidden_states += (hidden_states,)
         if not return_dict:
-            return tuple(v for v in [hidden_states, past_key_values, all_hidden_states, all_self_attns] if v is not None)
+            return tuple(
+                v for v in [hidden_states, past_key_values, all_hidden_states, all_self_attns] if v is not None
+            )
         output = BaseModelOutputWithPast(
             last_hidden_state=hidden_states,
             past_key_values=past_key_values if use_cache else None,
@@ -649,7 +646,7 @@ class GraniteModel(GranitePreTrainedModel):
             #     attention_mask = make_flex_block_causal_mask(attention_mask)
             # if isinstance(attention_mask, BlockMask):
             #     return attention_mask
-            pass # Mindspore dose not support flex_attention yet
+            pass  # Mindspore dose not support flex_attention yet
 
         # For SDPA, when possible, we will rely on its `is_causal` argument instead of its `attn_mask` argument, in
         # order to dispatch on Flash Attention 2. This feature is not compatible with static cache, as SDPA will fail
@@ -688,11 +685,7 @@ class GraniteModel(GranitePreTrainedModel):
             batch_size=input_tensor.shape[0],
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             min_dtype = dtype_to_min(dtype)
@@ -735,9 +728,7 @@ class GraniteModel(GranitePreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
-            )
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -755,7 +746,8 @@ class GraniteModel(GranitePreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 class GraniteForCausalLM(GranitePreTrainedModel, GenerationMixin):
@@ -767,7 +759,7 @@ class GraniteForCausalLM(GranitePreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = GraniteModel(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
