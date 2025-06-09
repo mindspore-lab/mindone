@@ -50,3 +50,7 @@ img2dataset --url_list laion-aesthetics-12m --input_format "parquet"\
              --save_additional_columns "['similarity','hash','punsafe','pwatermark']"
 
 ```
+
+## ImageNet-1K
+
+ImageNet-1K is available at [Huggingface](https://huggingface.co/datasets/imagenet-1k).
