@@ -47,6 +47,6 @@ img2dataset --url_list laion-aesthetics-12m --input_format "parquet"\
          --url_col "URL" --caption_col "TEXT" --output_format webdataset\
            --output_folder laion-aesthetics-12m-data --processes_count 16 --thread_count 64 --image_size 384\
             --resize_only_if_bigger=True --resize_mode="keep_ratio" --skip_reencode=True \
-             --save_additional_columns '["similarity","hash","punsafe","pwatermark","aesthetic"]'
+             --save_additional_columns "['similarity','hash','punsafe','pwatermark']"
 
 ```
