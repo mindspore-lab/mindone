@@ -16,17 +16,27 @@
 """Mindspore MegatronBERT model."""
 
 import math
-import os
 import warnings
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
+from transformers.models.megatron_bert.configuration_megatron_bert import MegatronBertConfig
+from transformers.utils import (
+    ModelOutput,
+    add_code_sample_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
-from mindspore import nn, mint, ops
+from mindspore import mint, nn
+from mindspore.common.initializer import Normal, One, Zero, initializer
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -39,17 +49,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.models.megatron_bert.configuration_megatron_bert import MegatronBertConfig
-from mindspore.common.initializer import Normal, Zero, initializer, One
 
 logger = logging.get_logger(__name__)
 
@@ -57,16 +56,14 @@ _CONFIG_FOR_DOC = "MegatronBertConfig"
 _CHECKPOINT_FOR_DOC = "nvidia/megatron-bert-cased-345m"
 
 
-
-
 class MegatronBertEmbeddings(nn.Cell):
     """Construct the embeddings from word, position and token_type embeddings."""
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
-        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        self.word_embeddings = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = mint.nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.token_type_embeddings = mint.nn.Embedding(config.type_vocab_size, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -131,17 +128,17 @@ class MegatronBertSelfAttention(nn.Cell):
         self.attention_head_size = int(config.hidden_size / config.num_attention_heads)
         self.all_head_size = self.num_attention_heads * self.attention_head_size
 
-        self.query = nn.Dense(config.hidden_size, self.all_head_size)
-        self.key = nn.Dense(config.hidden_size, self.all_head_size)
-        self.value = nn.Dense(config.hidden_size, self.all_head_size)
+        self.query = mint.nn.Linear(config.hidden_size, self.all_head_size)
+        self.key = mint.nn.Linear(config.hidden_size, self.all_head_size)
+        self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = nn.Dropout(p=config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -204,9 +201,7 @@ class MegatronBertSelfAttention(nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int32).view(
-                    -1, 1
-                )
+                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int32).view(-1, 1)
             else:
                 position_ids_l = mint.arange(query_length, dtype=ms.int32).view(-1, 1)
             position_ids_r = mint.arange(key_length, dtype=ms.int32).view(1, -1)
@@ -256,7 +251,7 @@ class MegatronBertSelfAttention(nn.Cell):
 class MegatronBertSelfOutput(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
 
     def construct(self, hidden_states: ms.Tensor, residual: ms.Tensor) -> ms.Tensor:
@@ -321,7 +316,7 @@ class MegatronBertAttention(nn.Cell):
 class MegatronBertIntermediate(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.intermediate_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.intermediate_size)
         if isinstance(config.hidden_act, str):
             self.intermediate_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -337,7 +332,7 @@ class MegatronBertIntermediate(nn.Cell):
 class MegatronBertOutput(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.intermediate_size, config.hidden_size)
+        self.dense = mint.nn.Linear(config.intermediate_size, config.hidden_size)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
 
     def construct(self, hidden_states: ms.Tensor, input_tensor: ms.Tensor) -> ms.Tensor:
@@ -541,7 +536,7 @@ class MegatronBertEncoder(nn.Cell):
 class MegatronBertPooler(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = mint.tanh
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -557,7 +552,7 @@ class MegatronBertPooler(nn.Cell):
 class MegatronBertPredictionHeadTransform(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.dense = nn.Dense(config.hidden_size, config.hidden_size)
+        self.dense = mint.nn.Linear(config.hidden_size, config.hidden_size)
         if isinstance(config.hidden_act, str):
             self.transform_act_fn = ACT2FN[config.hidden_act]
         else:
@@ -579,7 +574,7 @@ class MegatronBertLMPredictionHead(nn.Cell):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.decoder = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         self.bias = ms.Parameter(mint.zeros(config.vocab_size))
 
@@ -610,7 +605,7 @@ class MegatronBertOnlyMLMHead(nn.Cell):
 class MegatronBertOnlyNSPHead(nn.Cell):
     def __init__(self, config):
         super().__init__()
-        self.seq_relationship = nn.Dense(config.hidden_size, 2)
+        self.seq_relationship = mint.nn.Linear(config.hidden_size, 2)
 
     def construct(self, pooled_output):
         seq_relationship_score = self.seq_relationship(pooled_output)
@@ -622,7 +617,7 @@ class MegatronBertPreTrainingHeads(nn.Cell):
     def __init__(self, config):
         super().__init__()
         self.predictions = MegatronBertLMPredictionHead(config)
-        self.seq_relationship = nn.Dense(config.hidden_size, 2)
+        self.seq_relationship = mint.nn.Linear(config.hidden_size, 2)
 
     def construct(self, sequence_output, pooled_output):
         prediction_scores = self.predictions(sequence_output)
@@ -642,17 +637,23 @@ class MegatronBertPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         """Initialize the weights"""
-        if isinstance(module, (nn.Dense)):
+        if isinstance(module, (mint.nn.Linear)):
             # Slightly different from the TF version which uses truncated_normal for initialization
-            module.weight.set_data(initializer(Normal(sigma=self.config.initializer_range, mean=0.0), module.weight.shape, module.weight.dtype))
+            module.weight.set_data(
+                initializer(
+                    Normal(sigma=self.config.initializer_range, mean=0.0), module.weight.shape, module.weight.dtype
+                )
+            )
             if module.bias is not None:
                 module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(
-                initializer(Normal(sigma=self.config.initializer_range, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
+        elif isinstance(module, mint.nn.Embedding):
+            module.weight.set_data(
+                initializer(
+                    Normal(sigma=self.config.initializer_range, mean=0.0), module.weight.shape, module.weight.dtype
+                )
             )
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
         elif isinstance(module, mint.nn.LayerNorm):
             module.bias.set_data(initializer(Zero(), module.bias.shape, module.bias.dtype))
             module.weight.set_data(initializer(One(), module.weight.shape, module.weight.dtype))
@@ -691,7 +692,6 @@ class MegatronBertForPreTrainingOutput(ModelOutput):
     seq_relationship_logits: ms.Tensor = None
     hidden_states: Optional[Tuple[ms.Tensor]] = None
     attentions: Optional[Tuple[ms.Tensor]] = None
-
 
 
 MEGATRON_BERT_INPUTS_DOCSTRING = r"""
@@ -815,7 +815,8 @@ class MegatronBertModel(MegatronBertPreTrainedModel):
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+        `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -1072,7 +1073,8 @@ class MegatronBertForCausalLM(MegatronBertPreTrainedModel, GenerationMixin):
             Labels for computing the left-to-right language modeling loss (next word prediction). Indices should be in
             `[-100, 0, ..., config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are
             ignored (masked), the loss is only computed for the tokens with labels n `[0, ..., config.vocab_size]`
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+        `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -1146,9 +1148,7 @@ class MegatronBertForCausalLM(MegatronBertPreTrainedModel, GenerationMixin):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 
@@ -1248,9 +1248,7 @@ class MegatronBertForMaskedLM(MegatronBertPreTrainedModel):
         if self.config.pad_token_id is None:
             raise ValueError("The PAD token should be defined for generation")
         attention_mask = mint.cat([attention_mask, attention_mask.new_zeros((attention_mask.shape[0], 1))], dim=-1)
-        dummy_token = mint.full(
-            (effective_batch_size, 1), self.config.pad_token_id, dtype=ms.int32
-        )
+        dummy_token = mint.full((effective_batch_size, 1), self.config.pad_token_id, dtype=ms.int32)
         input_ids = mint.cat([input_ids, dummy_token], dim=1)
 
         return {"input_ids": input_ids, "attention_mask": attention_mask}
@@ -1360,7 +1358,7 @@ class MegatronBertForSequenceClassification(MegatronBertPreTrainedModel):
 
         self.bert = MegatronBertModel(config)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
-        self.classifier = nn.Dense(config.hidden_size, config.num_labels)
+        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1449,7 +1447,7 @@ class MegatronBertForMultipleChoice(MegatronBertPreTrainedModel):
 
         self.bert = MegatronBertModel(config)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
-        self.classifier = nn.Dense(config.hidden_size, 1)
+        self.classifier = mint.nn.Linear(config.hidden_size, 1)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1536,7 +1534,7 @@ class MegatronBertForTokenClassification(MegatronBertPreTrainedModel):
 
         self.bert = MegatronBertModel(config, add_pooling_layer=False)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
-        self.classifier = nn.Dense(config.hidden_size, config.num_labels)
+        self.classifier = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1606,7 +1604,7 @@ class MegatronBertForQuestionAnswering(MegatronBertPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.bert = MegatronBertModel(config, add_pooling_layer=False)
-        self.qa_outputs = nn.Dense(config.hidden_size, config.num_labels)
+        self.qa_outputs = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
