@@ -684,12 +684,13 @@ def main(args):
         total_steps=total_train_steps,
     )
 
-    set_all_reduce_fusion(
-        latent_diffusion_with_loss.trainable_params(),
-        split_num=7,
-        distributed=args.use_parallel,
-        parallel_mode=args.parallel_mode,
-    )
+    if args.bucket_config is None:
+        set_all_reduce_fusion(
+            latent_diffusion_with_loss.trainable_params(),
+            split_num=7,
+            distributed=args.use_parallel,
+            parallel_mode=args.parallel_mode,
+        )
 
     # build optimizer
     optimizer = create_optimizer(
