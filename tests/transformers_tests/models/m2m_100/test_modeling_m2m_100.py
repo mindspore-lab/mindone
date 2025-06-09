@@ -42,6 +42,7 @@ def prepare_m2m_100_inputs_dict(
     decoder_head_mask=None,
     cross_attn_head_mask=None,
 ):
+    print(input_ids)
     if attention_mask is None:
         attention_mask = np.tril(np.ones_like(input_ids))
     if head_mask is None:

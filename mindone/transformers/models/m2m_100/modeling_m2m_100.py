@@ -156,7 +156,7 @@ class M2M100SinusoidalPositionalEmbedding(nn.Cell):
         if max_pos > self.weights.shape[0]:
             self.make_weights(max_pos + self.offset, self.embedding_dim, self.padding_idx)
 
-        return self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1]).detach()
+        return self.weights.index_select(0, position_ids.view(-1)).view(bsz, seq_len, self.weights.shape[-1])
 
     def create_position_ids_from_inputs_embeds(self, inputs_embeds, past_key_values_length):
         """
