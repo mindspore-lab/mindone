@@ -45,11 +45,11 @@ def prepare_m2m_100_inputs_dict(
     if attention_mask is None:
         attention_mask = np.tril(np.ones_like(input_ids))
     if head_mask is None:
-        head_mask = np.ones(config.encoder_layers, config.encoder_attention_heads)
+        head_mask = np.ones((config.encoder_layers, config.encoder_attention_heads))
     if decoder_head_mask is None:
-        decoder_head_mask = np.ones(config.decoder_layers, config.decoder_attention_heads)
+        decoder_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     if cross_attn_head_mask is None:
-        cross_attn_head_mask = np.ones(config.decoder_layers, config.decoder_attention_heads)
+        cross_attn_head_mask = np.ones((config.decoder_layers, config.decoder_attention_heads))
     return {
         "input_ids": input_ids,
         "decoder_input_ids": decoder_input_ids,
