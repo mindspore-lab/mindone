@@ -115,7 +115,8 @@ class M2M100SinusoidalPositionalEmbedding(nn.Cell):
             # in forward put the weights on the correct dtype and device of the param
             emb_weights = emb_weights.to(dtype=self.weights.dtype, )
 
-        self.register_buffer("weights", emb_weights, persistent=False)
+        # self.register_buffer("weights", emb_weights, persistent=False)
+        self.weights = emb_weights
 
     @staticmethod
     def get_embedding(num_embeddings: int, embedding_dim: int, padding_idx: Optional[int] = None):
