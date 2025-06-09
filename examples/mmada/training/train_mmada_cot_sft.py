@@ -127,11 +127,11 @@ def main():
     # VQ model for processing image into discrete tokens
     vq_model = get_vq_model_class(config.model.vq_model.type)
     if config.model.vq_model.get("pretrained_model_path", None):
-        vq_model = vq_model().to(device)
+        vq_model = vq_model()
         state_dict = torch.load(config.model.vq_model.pretrained_model_path)["model"]
         vq_model.load_state_dict(state_dict)
     else:
-        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name).to(device)
+        vq_model = vq_model.from_pretrained(config.model.vq_model.vq_model_name)
     vq_model.eval()
     vq_model.requires_grad_(False)
 
@@ -251,15 +251,6 @@ def main():
         dataset_imagenet = ImageNetDataset(
             dataset_config.train_t2i_shards_path_or_url,
             image_size=preproc_config.resolution,
-        )
-
-        print(
-            "process index : ",
-            accelerator.process_index,
-            ", ",
-            accelerator.num_processes,
-            "Length: ",
-            len(dataset_imagenet),
         )
 
         if accelerator.num_processes > 1:
@@ -405,7 +396,7 @@ def main():
     #         Prepare model          #
     #################################
     logger.info("Preparing model, optimizer and dataloaders")
-    model = model.to(device)
+    model = model
     vq_model.to(device=device)
 
     mask_dtype = model.get_input_embeddings().weight.dtype
@@ -548,10 +539,10 @@ def main():
 
                 input_ids_mmu = torch.cat(
                     [
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]).to(device),
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]).to(device),
+                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]),
+                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]),
                         image_tokens_mmu,
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]).to(device),
+                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]),
                         input_ids_mmu,
                     ],
                     dim=1,
@@ -559,11 +550,11 @@ def main():
 
                 labels_mmu = torch.cat(
                     [
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id).to(device),
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id).to(device),
+                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id),
+                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id),
                         torch.ones_like(image_tokens_mmu) * uni_prompting.ignore_id,
-                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id).to(device),
-                        labels_mmu.to(device),
+                        (torch.ones(input_ids_mmu.shape[0], 1) * uni_prompting.ignore_id),
+                        labels_mmu,
                     ],
                     dim=1,
                 ).long()
@@ -625,7 +616,6 @@ def main():
                     log_grad_norm(model, None, global_step + 1)
 
                 optimizer.zero_grad(set_to_none=True)
-                # Checks if the accelerator has performed an optimization step behind the scenes
                 # Log metrics after each step
 
                 batch_time_m.update(time.time() - end)
@@ -669,7 +659,6 @@ def main():
                         model,
                         vq_model,
                         uni_prompting,
-                        accelerator,
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
@@ -680,7 +669,6 @@ def main():
                         model,
                         vq_model,
                         uni_prompting,
-                        accelerator,
                         config,
                         global_step + 1,
                         mask_schedule=mask_schedule,
@@ -698,14 +686,12 @@ def main():
                         batch["t2i_flow"]["images"],
                         texts,
                         logits,
-                        accelerator,
                     )
 
                     understanding_images(
                         model,
                         vq_model,
                         uni_prompting,
-                        accelerator,
                         config,
                         global_step + 1,
                     )
@@ -713,7 +699,6 @@ def main():
                     generate_chat_text(
                         model,
                         uni_prompting,
-                        accelerator,
                         config,
                         global_step + 1,
                     )
@@ -741,7 +726,6 @@ def visualize_predictions(
     ori_images,
     texts,
     logits,
-    accelerator,
 ):
     logger.info("Visualizing predictions...")
     model.eval()
@@ -787,9 +771,7 @@ def visualize_predictions(
 
 
 @torch.no_grad()
-def generate_images(
-    model, vq_model, uni_prompting, accelerator, config, global_step, mask_schedule, force_no_cfg=False
-):
+def generate_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
     logger.info("Generating images...")
     model.eval()
 
@@ -800,10 +782,7 @@ def generate_images(
     mask_dtype = model.get_input_embeddings().weight.dtype
     mask_token_id = model.config.mask_token_id
     image_tokens = (
-        torch.ones(
-            (len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=torch.long, device=accelerator.device
-        )
-        * mask_token_id
+        torch.ones((len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=torch.long) * mask_token_id
     )
     input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
     if not force_no_cfg and config.training.guidance_scale > 0:
@@ -815,14 +794,17 @@ def generate_images(
         uncond_input_ids = None
         uncond_attention_mask = None
         cfg_scale = 0
-    if accelerator.mixed_precision == "fp16":
+    if config.training.mixed_precision == "fp16":
         weight_dtype = torch.float16
-    elif accelerator.mixed_precision == "bf16":
+    elif config.training.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
     else:
         weight_dtype = torch.float32
 
-    with torch.autocast("cuda", dtype=weight_dtype, enabled=accelerator.mixed_precision != "no"):
+    with torch.autocast(
+        "cuda",
+        dtype=weight_dtype,
+    ):
         # Generate images
         gen_token_ids = model.t2i_generate(
             input_ids=input_ids,
@@ -841,7 +823,7 @@ def generate_images(
         )
     # In the beginning of training, the model is not fully trained and the generated token ids can be out of range
     # so we clamp them to the correct range.
-    gen_token_ids = torch.clamp(gen_token_ids, max=accelerator.unwrap_model(model).config.codebook_size - 1, min=0)
+    gen_token_ids = torch.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
     images = vq_model.decode_code(gen_token_ids)
 
     model.train()
@@ -860,9 +842,7 @@ def generate_images(
 
 
 @torch.no_grad()
-def quantative_images(
-    model, vq_model, uni_prompting, accelerator, config, global_step, mask_schedule, force_no_cfg=False
-):
+def quantative_images(model, vq_model, uni_prompting, config, global_step, mask_schedule, force_no_cfg=False):
     logger.info("Quantative images...")
     model.eval()
     clip_score_fn = partial(clip_score, model_name_or_path="/data_storage/shared/pretrained_models/")
@@ -874,10 +854,7 @@ def quantative_images(
     mask_dtype = model.get_input_embeddings().weight.dtype
     mask_token_id = model.config.mask_token_id
     image_tokens = (
-        torch.ones(
-            (len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=torch.long, device=accelerator.device
-        )
-        * mask_token_id
+        torch.ones((len(validation_prompts), config.model.mmada.num_vq_tokens), dtype=torch.long) * mask_token_id
     )
     input_ids, attention_mask = uni_prompting((validation_prompts, image_tokens), "t2i_gen")
     if not force_no_cfg and config.training.guidance_scale > 0:
@@ -889,9 +866,9 @@ def quantative_images(
         uncond_input_ids = None
         uncond_attention_mask = None
         cfg_scale = 0
-    if accelerator.mixed_precision == "fp16":
+    if config.training.mixed_precision == "fp16":
         weight_dtype = torch.float16
-    elif accelerator.mixed_precision == "bf16":
+    elif config.training.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
     else:
         weight_dtype = torch.float32
@@ -906,7 +883,7 @@ def quantative_images(
         batch_attention_mask = attention_mask[i : i + validation_batch_size]
         batch_uncond_input_ids = uncond_input_ids[i : i + validation_batch_size]
         batch_uncond_attention_mask = uncond_attention_mask[i : i + validation_batch_size]
-        with torch.autocast("cuda", dtype=weight_dtype, enabled=accelerator.mixed_precision != "no"):
+        with torch.autocast("cuda", dtype=weight_dtype):
             # Generate images
             gen_token_ids = model.t2i_generate(
                 input_ids=batch_input_ids,
@@ -925,7 +902,7 @@ def quantative_images(
             )
         # In the beginning of training, the model is not fully trained and the generated token ids can be out of range
         # so we clamp them to the correct range.
-        gen_token_ids = torch.clamp(gen_token_ids, max=accelerator.unwrap_model(model).config.codebook_size - 1, min=0)
+        gen_token_ids = torch.clamp(gen_token_ids, max=model.config.codebook_size - 1, min=0)
         images = vq_model.decode_code(gen_token_ids)
         images = torch.clamp((images + 1.0) / 2.0, min=0.0, max=1.0)
         images *= 255.0
@@ -963,7 +940,6 @@ def understanding_images(
     model,
     vq_model,
     uni_prompting,
-    accelerator,
     config,
     global_step,
 ):
@@ -992,11 +968,9 @@ def understanding_images(
     questions = ["" for i in range(len(file_list))]
     images = []
 
-    device = accelerator.device
-
-    if accelerator.mixed_precision == "fp16":
+    if config.training.mixed_precision == "fp16":
         weight_dtype = torch.float16
-    elif accelerator.mixed_precision == "bf16":
+    elif config.training.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
     else:
         weight_dtype = torch.float32
@@ -1005,9 +979,9 @@ def understanding_images(
         image_path = os.path.join(config.dataset.params.mmu_image_root, file_name)
         image_ori = Image.open(image_path).convert("RGB")
         if "ai2d" in file_name or "clevr" in file_name or "docvqa" in file_name or "geo" in file_name:
-            image = image_transform_squash(image_ori, resolution=config.dataset.params.resolution).to(device)
+            image = image_transform_squash(image_ori, resolution=config.dataset.params.resolution)
         else:
-            image = image_transform(image_ori, resolution=config.dataset.params.resolution).to(device)
+            image = image_transform(image_ori, resolution=config.dataset.params.resolution)
         image = image.unsqueeze(0)
         images.append(image)
         image_tokens = vq_model.get_code(image) + len(uni_prompting.text_tokenizer)
@@ -1025,20 +999,20 @@ def understanding_images(
                 default_prompt_for_missing if prompts_dict else default_prompt
             )  # 如果 prompts_dict 为空（加载失败），则使用加载失败时的默认值
         input_ids = uni_prompting.text_tokenizer([current_prompt])["input_ids"]
-        input_ids = torch.tensor(input_ids).to(device)
+        input_ids = torch.tensor(input_ids)
 
         input_ids = torch.cat(
             [
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]).to(device),
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]).to(device),
+                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|mmu|>"]),
+                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|soi|>"]),
                 image_tokens,
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]).to(device),
-                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|sot|>"]).to(device),
+                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|eoi|>"]),
+                (torch.ones(input_ids.shape[0], 1) * uni_prompting.sptids_dict["<|sot|>"]),
                 input_ids,
             ],
             dim=1,
         ).long()
-        with torch.autocast("cuda", dtype=weight_dtype, enabled=accelerator.mixed_precision != "no"):
+        with torch.autocast("cuda", dtype=weight_dtype):
             output_ids = model.mmu_generate(
                 input_ids,
                 max_new_tokens=config.dataset.preprocessing.max_seq_length,
@@ -1070,7 +1044,6 @@ def understanding_images(
 def generate_chat_text(
     model,
     uni_prompting,
-    accelerator,
     config,
     global_step,
 ):
@@ -1081,11 +1054,9 @@ def generate_chat_text(
     prompts = df["question"].tolist()
     responses = [""] * len(prompts)
 
-    device = accelerator.device
-
-    if accelerator.mixed_precision == "fp16":
+    if config.training.mixed_precision == "fp16":
         weight_dtype = torch.float16
-    elif accelerator.mixed_precision == "bf16":
+    elif config.training.mixed_precision == "bf16":
         weight_dtype = torch.bfloat16
     else:
         weight_dtype = torch.float32
@@ -1103,9 +1074,9 @@ def generate_chat_text(
         )
         token_ids = uni_prompting.text_tokenizer([prompt_with_tags])["input_ids"][0]
         token_ids = [uni_prompting.text_tokenizer.bos_token_id] + token_ids
-        input_ids = torch.tensor(token_ids).unsqueeze(0).to(device)
+        input_ids = torch.tensor(token_ids).unsqueeze(0)
 
-        with torch.autocast("cuda", dtype=weight_dtype, enabled=accelerator.mixed_precision != "no"):
+        with torch.autocast("cuda", dtype=weight_dtype):
             output_ids = model.mmu_generate(
                 input_ids,
                 max_new_tokens=config.dataset.preprocessing.max_seq_length,
@@ -1131,7 +1102,7 @@ def generate_chat_text(
     model.train()
 
 
-def save_checkpoint(model, config, accelerator, global_step, uni_prompting):
+def save_checkpoint(model, config, global_step, uni_prompting):
     output_dir = config.experiment.output_dir
     checkpoints_total_limit = config.experiment.get("checkpoints_total_limit", None)
 
