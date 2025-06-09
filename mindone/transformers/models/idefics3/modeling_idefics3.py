@@ -16,6 +16,7 @@
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
+
 import numpy as np
 from transformers import Idefics3Config, Idefics3VisionConfig
 from transformers.utils import (
@@ -34,9 +35,10 @@ from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
-from ...modeling_outputs import BaseModelOutput, ModelOutput, CausalLMOutputWithPast
+from ...modeling_outputs import BaseModelOutput, CausalLMOutputWithPast, ModelOutput
 from ...modeling_utils import MSPreTrainedModel
 from ...utils import is_flash_attn_2_available
+
 # from ..auto import AutoModel
 
 if is_flash_attn_2_available():
@@ -44,6 +46,7 @@ if is_flash_attn_2_available():
     from ...integrations.flash_attention import flash_attention_forward
 
 from mindone.models.utils import normal_, zeros_
+
 from ..llama import LlamaModel
 
 logger = logging.get_logger(__name__)
@@ -847,7 +850,7 @@ class Idefics3Model(Idefics3PreTrainedModel):
         self.vision_model = Idefics3VisionTransformer._from_config(config.vision_config)
         self.connector = Idefics3Connector(config)
 
-        config.text_config.torch_dtype = str(config.text_config.torch_dtype).replace("torch.", "") # TODO: how to fix?
+        config.text_config.torch_dtype = str(config.text_config.torch_dtype).replace("torch.", "")  # TODO: how to fix?
         # self.text_model = AutoModel.from_config(config.text_config) # LlamaModel
         self.text_model = LlamaModel._from_config(config.text_config)
 
@@ -1024,7 +1027,9 @@ class Idefics3Model(Idefics3PreTrainedModel):
             # patches_subgrid = patches_subgrid.unfold(dimension=2, size=patch_size, step=patch_size)
 
             # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
-            patches_subgrid = F.unfold(pixel_attention_mask[:, None, ...].float(), kernel_size=patch_size, stride=patch_size)
+            patches_subgrid = F.unfold(
+                pixel_attention_mask[:, None, ...].float(), kernel_size=patch_size, stride=patch_size
+            )
             h = pixel_attention_mask.shape[1] // patch_size
             w = pixel_attention_mask.shape[2] // patch_size
             patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(

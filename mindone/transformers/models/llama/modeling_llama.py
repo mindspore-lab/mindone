@@ -28,7 +28,7 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common import initializer as init
 
 from ...activations import ACT2FN
-from ...cache_utils import Cache, DynamicCache, get_max_length, get_seq_length, init_static_cache, update
+from ...cache_utils import Cache, get_max_length, get_seq_length, init_static_cache, update
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.utils import _MIN_FP16
