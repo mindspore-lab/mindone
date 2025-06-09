@@ -547,9 +547,6 @@ class M2M100SdpaAttention(M2M100Attention):
                 f"`attn_output` should be of size {(bsz, self.num_heads, tgt_len, self.head_dim)}, but is"
                 f" {attn_output.shape}"
             )
-
-        attn_output = attn_output.transpose(1, 2)
-
         # Use the `embed_dim` from the config (stored in the class) rather than `hidden_state` because `attn_output` can be
         # partitioned across GPUs when using tensor-parallelism.
         attn_output = attn_output.reshape(bsz, tgt_len, self.embed_dim)
