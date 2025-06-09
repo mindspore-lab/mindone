@@ -26,3 +26,27 @@ Similarly, you can download this single file via Command Line Interface (CLI):
 ```bash
 huggingface-cli download tiiuae/falcon-refinedweb data/train-00000-of-*.parquet --local-dir ./falcon-refinedweb --repo-type dataset
 ```
+
+## Laion-Aesthetics-12M
+
+Laion-Aesthetics-12M is available at [Huggingface](https://huggingface.co/datasets/laion/laion-aesthetics-12m).
+
+To download this dataset, please install [`img2dataset`](https://github.com/rom1504/img2dataset) via:
+
+```bash
+pip install img2dataset
+```
+
+An example tutorial on how to download Laion-Aesthetics dataset can be found [here](https://github.com/rom1504/img2dataset/blob/main/tutorials/laion_aesthetics_12m.md). We recommend you to run:
+```bash
+mkdir laion-aesthetics-12m && cd laion-aesthetics-12m
+wget https://huggingface.co/datasets/dclure/laion-aesthetics-12m-umap/resolve/main/train.parquet
+
+cd ..
+img2dataset --url_list laion-aesthetics-12m --input_format "parquet"\
+         --url_col "URL" --caption_col "TEXT" --output_format webdataset\
+           --output_folder laion-aesthetics-12m-data --processes_count 16 --thread_count 64 --image_size 384\
+            --resize_only_if_bigger=True --resize_mode="keep_ratio" --skip_reencode=True \
+             --save_additional_columns '["similarity","hash","punsafe","pwatermark","aesthetic"]'
+
+```
