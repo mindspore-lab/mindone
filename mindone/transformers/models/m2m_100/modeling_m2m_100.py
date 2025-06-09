@@ -40,13 +40,12 @@ from transformers.utils import (
     add_end_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
-    is_flash_attn_2_available,
     is_flash_attn_greater_or_equal_2_10,
     logging,
     replace_return_docstrings,
 )
 from transformers.models.m2m_100.configuration_m2m_100 import M2M100Config
-
+from ...utils import is_flash_attn_2_available
 
 if is_flash_attn_2_available():
     from ...integrations.flash_attention import flash_attention_forward
