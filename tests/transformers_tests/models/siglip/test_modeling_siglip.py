@@ -12,13 +12,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Testing suite for the PyTorch SigLIP model."""
+"""Testing suite for the Mindspore SigLIP model."""
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
+from transformers import SiglipConfig, SiglipTextConfig, SiglipVisionConfig
 
 import mindspore as ms
 
@@ -29,11 +30,11 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from transformers import SiglipConfig, SiglipTextConfig, SiglipVisionConfig
+
 from ..modeling_common import floats_numpy, ids_numpy, random_attention_mask
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4}
-MODES = [0,1]
+MODES = [0, 1]
 
 
 class SiglipVisionModelTester:
@@ -80,7 +81,7 @@ class SiglipVisionModelTester:
 
     def get_config(self):
         return SiglipVisionConfig(
-            attn_implementation='eager',
+            attn_implementation="eager",
             image_size=self.image_size,
             patch_size=self.patch_size,
             num_channels=self.num_channels,
@@ -99,7 +100,6 @@ class SiglipVisionModelTester:
         config, pixel_values = config_and_inputs
         inputs_dict = {"pixel_values": pixel_values}
         return config, inputs_dict
-
 
 
 class SiglipTextModelTester:
@@ -158,7 +158,7 @@ class SiglipTextModelTester:
 
     def get_config(self):
         return SiglipTextConfig(
-            attn_implementation='eager',
+            attn_implementation="eager",
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
@@ -202,19 +202,14 @@ class SiglipModelTester:
         return SiglipConfig.from_text_vision_configs(
             self.text_model_tester.get_config(),
             self.vision_model_tester.get_config(),
-            attn_implementation='eager',
+            attn_implementation="eager",
         )
 
     def prepare_config_and_inputs_for_common(self):
         config_and_inputs = self.prepare_config_and_inputs()
         config, input_ids, attention_mask, pixel_values = config_and_inputs
-        inputs_dict = {
-            "input_ids": input_ids,
-            "attention_mask": attention_mask,
-            "pixel_values": pixel_values,
-            "return_loss": False,
-        }
         return config, input_ids, attention_mask, pixel_values, False
+
 
 model_tester = SiglipModelTester()
 (
@@ -293,7 +288,8 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-
+    if mode == 0:
+        ms_inputs_kwargs.update({"return_dict": False})
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)

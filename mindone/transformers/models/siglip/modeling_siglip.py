@@ -18,14 +18,7 @@ import math
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple, Union
 
-import mindspore as ms
-from mindspore import nn, ops, mint
-from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-
-from ...activations import ACT2FN
-from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
-from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
-from ...modeling_utils import PreTrainedModel
+from transformers.models.siglip.configuration_siglip import SiglipConfig, SiglipTextConfig, SiglipVisionConfig
 from transformers.utils import (
     ModelOutput,
     add_start_docstrings,
@@ -33,14 +26,23 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
-from transformers.models.siglip.configuration_siglip import SiglipConfig, SiglipTextConfig, SiglipVisionConfig
+
+import mindspore as ms
+from mindspore import mint, nn
+from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
+
+from ...activations import ACT2FN
+from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
+from ...modeling_outputs import BaseModelOutput, BaseModelOutputWithPooling, ImageClassifierOutput
+from ...modeling_utils import PreTrainedModel
 
 logger = logging.get_logger(__name__)
 
 # General docstring
 _CONFIG_FOR_DOC = "SiglipConfig"
 _CHECKPOINT_FOR_DOC = "google/siglip-base-patch16-224"
+
 
 @dataclass
 # Copied from transformers.models.clip.modeling_clip.CLIPVisionModelOutput with CLIP->Siglip
@@ -159,7 +161,7 @@ class SiglipVisionEmbeddings(nn.Cell):
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches
-        self.position_embedding = nn.Embedding(self.num_positions, self.embed_dim)
+        self.position_embedding = mint.nn.Embedding(self.num_positions, self.embed_dim)
         self.register_buffer("position_ids", mint.arange(self.num_positions).broadcast_to((1, -1)), persistent=False)
 
     def interpolate_pos_encoding(self, embeddings: ms.Tensor, height: int, width: int) -> ms.Tensor:
@@ -190,7 +192,7 @@ class SiglipVisionEmbeddings(nn.Cell):
         patch_pos_embed = patch_pos_embed.reshape(1, sqrt_num_positions, sqrt_num_positions, dim)
         patch_pos_embed = patch_pos_embed.permute(0, 3, 1, 2)
 
-        patch_pos_embed = ops.interpolate(
+        patch_pos_embed = mint.nn.functional.interpolate(
             patch_pos_embed,
             scale_factor=(new_height / math.sqrt(num_positions), new_width / math.sqrt(num_positions)),
             mode="bicubic",
@@ -220,8 +222,8 @@ class SiglipTextEmbeddings(nn.Cell):
         super().__init__()
         embed_dim = config.hidden_size
 
-        self.token_embedding = nn.Embedding(config.vocab_size, embed_dim)
-        self.position_embedding = nn.Embedding(config.max_position_embeddings, embed_dim)
+        self.token_embedding = mint.nn.Embedding(config.vocab_size, embed_dim)
+        self.position_embedding = mint.nn.Embedding(config.max_position_embeddings, embed_dim)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.register_buffer(
@@ -235,7 +237,7 @@ class SiglipTextEmbeddings(nn.Cell):
         inputs_embeds: Optional[ms.Tensor] = None,
     ) -> ms.Tensor:
         seq_length = input_ids.shape[-1] if input_ids is not None else inputs_embeds.shape[-2]
-        max_position_embedding = self.position_embedding.embedding_table.shape[0]
+        max_position_embedding = self.position_embedding.weight.shape[0]
 
         if seq_length > max_position_embedding:
             raise ValueError(
@@ -273,10 +275,10 @@ class SiglipAttention(nn.Cell):
         self.scale = self.head_dim**-0.5
         self.dropout = config.attention_dropout
 
-        self.k_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.v_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.q_proj = nn.Dense(self.embed_dim, self.embed_dim)
-        self.out_proj = nn.Dense(self.embed_dim, self.embed_dim)
+        self.k_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.v_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.q_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
+        self.out_proj = mint.nn.Linear(self.embed_dim, self.embed_dim)
 
     def construct(
         self,
@@ -347,9 +349,9 @@ class SiglipFlashAttention2(SiglipAttention):
         else:
             self.dropout_rate = 0.0
         self.flash_attention = MSFlashAttention(
-            scale_value=self.head_dim ** -0.5,
+            scale_value=self.head_dim**-0.5,
             head_num=self.num_heads,
-            keep_prob=1-self.dropout_rate,
+            keep_prob=1 - self.dropout_rate,
             input_layout="BSND",
         )
 
@@ -374,8 +376,6 @@ class SiglipFlashAttention2(SiglipAttention):
         query_states = query_states.view(batch_size, q_len, self.num_heads, self.head_dim)
         key_states = key_states.view(batch_size, q_len, self.num_heads, self.head_dim)
         value_states = value_states.view(batch_size, q_len, self.num_heads, self.head_dim)
-
-        dropout_rate = self.dropout if self.training else 0.0
 
         # In PEFT, usually we cast the layer norms in float32 for training stability reasons
         # therefore the input hidden states gets silently casted in float32. Hence, we need
@@ -405,7 +405,9 @@ class SiglipFlashAttention2(SiglipAttention):
             query_states,
             key_states,
             value_states,
-            None,None,None,
+            None,
+            None,
+            None,
             attention_mask,
         )[3]
 
@@ -416,8 +418,6 @@ class SiglipFlashAttention2(SiglipAttention):
             attn_weights = None
 
         return attn_output, attn_weights
-
-
 
 
 SIGLIP_ATTENTION_CLASSES = {
@@ -433,8 +433,8 @@ class SiglipMLP(nn.Cell):
         super().__init__()
         self.config = config
         self.activation_fn = ACT2FN[config.hidden_act]
-        self.fc1 = nn.Dense(config.hidden_size, config.intermediate_size)
-        self.fc2 = nn.Dense(config.intermediate_size, config.hidden_size)
+        self.fc1 = mint.nn.Linear(config.hidden_size, config.intermediate_size)
+        self.fc2 = mint.nn.Linear(config.intermediate_size, config.hidden_size)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.fc1(hidden_states)
@@ -702,9 +702,7 @@ class SiglipEncoder(nn.Cell):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
 
 class SiglipTextTransformer(nn.Cell):
@@ -716,7 +714,7 @@ class SiglipTextTransformer(nn.Cell):
         self.encoder = SiglipEncoder(config)
         self.final_layer_norm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
-        self.head = nn.Dense(embed_dim, config.projection_size)
+        self.head = mint.nn.Linear(embed_dim, config.projection_size)
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
     @add_start_docstrings_to_model_forward(SIGLIP_TEXT_INPUTS_DOCSTRING)
@@ -1207,7 +1205,6 @@ class SiglipModel(SiglipPreTrainedModel):
 
         loss = None
         if return_loss:
-            # Adapted from https://github.com/google-research/big_vision/blob/01edb81a4716f93a48be43b3a4af14e29cdb3a7f/big_vision/trainers/proj/image_text/siglip.py#L287
             eye = mint.eye(logits_per_text.size(0))
             m1_diag1 = -mint.ones_like(logits_per_text) + 2 * eye
             loglik = mint.nn.functional.logsigmoid(m1_diag1 * logits_per_text)
@@ -1251,7 +1248,9 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
 
         # Classifier head
         self.classifier = (
-            nn.Dense(config.vision_config.hidden_size, config.num_labels) if config.num_labels > 0 else nn.Identity()
+            mint.nn.Linear(config.vision_config.hidden_size, config.num_labels)
+            if config.num_labels > 0
+            else nn.Identity()
         )
 
         # Initialize weights and apply final processing
