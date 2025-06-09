@@ -87,9 +87,9 @@ class Gemma3CausalLMOutputWithPast(ModelOutput):
     image_hidden_states: Optional[ms.Tensor] = None
 
 
-class Gemma3TextScaledWordEmbedding(nn.Embedding):
+class Gemma3TextScaledWordEmbedding(mint.nn.Embedding):
     """
-    This module overrides nn.Embeddings' forward by multiplying with embeddings scale.
+    This module overrides mint.nn.Embeddings' forward by multiplying with embeddings scale.
     """
 
     def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: int, embed_scale: Optional[float] = 1.0):
@@ -106,9 +106,9 @@ class Gemma3MLP(nn.Cell):
         self.config = config
         self.hidden_size = config.hidden_size
         self.intermediate_size = config.intermediate_size
-        self.gate_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
-        self.up_proj = nn.Dense(self.hidden_size, self.intermediate_size, has_bias=False)
-        self.down_proj = nn.Dense(self.intermediate_size, self.hidden_size, has_bias=False)
+        self.gate_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.up_proj = mint.nn.Linear(self.hidden_size, self.intermediate_size, bias=False)
+        self.down_proj = mint.nn.Linear(self.intermediate_size, self.hidden_size, bias=False)
         self.act_fn = ACT2FN[config.hidden_activation]
 
     def construct(self, x):
@@ -288,17 +288,17 @@ class Gemma3Attention(nn.Cell):
         self.attention_dropout = self.config.attention_dropout
         self.is_causal = True
 
-        self.q_proj = nn.Dense(
-            config.hidden_size, config.num_attention_heads * self.head_dim, has_bias=config.attention_bias
+        self.q_proj = mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.attention_bias
         )
-        self.k_proj = nn.Dense(
-            config.hidden_size, config.num_key_value_heads * self.head_dim, has_bias=config.attention_bias
+        self.k_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias
         )
-        self.v_proj = nn.Dense(
-            config.hidden_size, config.num_key_value_heads * self.head_dim, has_bias=config.attention_bias
+        self.v_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.attention_bias
         )
-        self.o_proj = nn.Dense(
-            config.num_attention_heads * self.head_dim, config.hidden_size, has_bias=config.attention_bias
+        self.o_proj = mint.nn.Linear(
+            config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.attention_bias
         )
         self.attn_logit_softcapping = self.config.attn_logit_softcapping
         # self.sliding_window = config.sliding_window if self.is_sliding else None
@@ -315,8 +315,8 @@ class Gemma3Attention(nn.Cell):
         cache_position: Optional[ms.Tensor] = None,
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[ms.Tensor, Optional[ms.Tensor], Optional[Tuple[ms.Tensor]]]:
-        bsz, seq_len = hidden_states.shape[:-1]
-        hidden_shape = (bsz, seq_len, -1, self.head_dim)
+        bsz, seq = hidden_states.shape[:-1]
+        hidden_shape = (bsz, seq, -1, self.head_dim)
 
         query_states = self.q_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
         key_states = self.k_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
@@ -361,7 +361,7 @@ class Gemma3Attention(nn.Cell):
             **kwargs,
         )
 
-        attn_output = attn_output.reshape(bsz, seq_len, -1).contiguous()
+        attn_output = attn_output.reshape(bsz, seq, -1).contiguous()
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -490,16 +490,14 @@ class Gemma3PreTrainedModel(PreTrainedModel):
             else self.config.text_config.initializer_range
         )
 
-        if isinstance(module, (nn.Dense, nn.Conv2d)):
+        if isinstance(module, (mint.nn.Linear, nn.Conv2d)):
             module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
                 module.bias.set_data(initializer("zeros", module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(
-                initializer(Normal(sigma=std, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
-            )
+        elif isinstance(module, mint.nn.Embedding):
+            module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
 
 
 GEMMA3_INPUTS_DOCSTRING = r"""
@@ -854,7 +852,7 @@ class Gemma3ForCausalLM(Gemma3PreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = Gemma3TextModel(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()

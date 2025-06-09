@@ -19,11 +19,11 @@ from mindspore import mint, ops
 from mindone.transformers.cache_utils import (
     Cache,
     DynamicCache,
+    EncoderDecoderCache,
     HybridCache,
     MambaCache,
     OffloadedStaticCache,
     SlidingWindowCache,
-    EncoderDecoderCache,
     StaticCache,
     get_seq_length,
     init_static_cache,
