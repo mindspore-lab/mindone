@@ -114,8 +114,8 @@ class M2M100ModelTester:
         # but when using past, there is no way of knowing if the past input ids had
         # pad tokens in them, which results in incorrect seq_lenth and which in turn results in
         # position_ids being off by num_pad_tokens in past input
-        input_ids = np.clip(input_ids, self.pad_token_id + 1)
-        decoder_input_ids = np.clip(decoder_input_ids, self.pad_token_id + 1)
+        input_ids = input_ids.clip(self.pad_token_id + 1)
+        decoder_input_ids = decoder_input_ids.clip(self.pad_token_id + 1)
 
         config = self.get_config()
         inputs_dict = prepare_m2m_100_inputs_dict(config, input_ids, decoder_input_ids)
