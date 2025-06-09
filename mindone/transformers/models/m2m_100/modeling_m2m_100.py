@@ -532,6 +532,9 @@ class M2M100SdpaAttention(M2M100Attention):
         key_states = key_states.swapaxes(1, 2)
         value_states = value_states.swapaxes(1, 2)
 
+        if attention_mask is not None:  # Todo: Sdpa & eager needn't logical_not
+            attention_mask = mint.logical_not(attention_mask)
+
         attn_output = scaled_dot_product_attention(
             query_states,
             key_states,
