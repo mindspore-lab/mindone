@@ -7,6 +7,7 @@ from . import (
     blip_2,
     clap,
     clip,
+    convbert,
     dpt,
     gemma,
     gemma2,
