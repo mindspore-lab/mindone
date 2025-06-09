@@ -16,38 +16,37 @@
 import math
 from dataclasses import dataclass
 from typing import Optional, Tuple, Union
-from mindspore import Tensor,Parameter, mint, nn, ops
-import mindspore as ms
+
 import numpy as np
-from mindspore import nn, mint, ops
-from mindspore.common.initializer import (
-    Normal,
-    initializer,
+from transformers import Qwen2AudioConfig, Qwen2AudioEncoderConfig
+from transformers.utils import (
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
 )
+
+import mindspore as ms
+from mindspore import Tensor, mint, nn, ops
+from mindspore.common.initializer import Normal, initializer
+
 from ...activations import ACT2FN
 from ...cache_utils import Cache, StaticCache, get_seq_length
 from ...generation import GenerationMixin
 from ...modeling_outputs import BaseModelOutput, ModelOutput
 from ...modeling_utils import MSPreTrainedModel
-
-from transformers.utils import (
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    replace_return_docstrings,
-    logging
-)
-from transformers import Qwen2AudioConfig, Qwen2AudioEncoderConfig
-
 from ...utils import is_flash_attn_2_available
+
 if is_flash_attn_2_available:
     from mindspore.ops.operations.nn_ops import FlashAttentionScore as MSFlashAttention
 
-from mindone.transformers.mindspore_adapter.utils import dtype_to_min, _MIN_FP16, _MIN_FP32
-from ..qwen2 import Qwen2ForCausalLM, modeling_qwen2
-
 import inspect
+
 from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
+from mindone.transformers.mindspore_adapter.utils import _MIN_FP16, dtype_to_min
+
 from ...mindspore_adapter import dtype_to_max
+from ..qwen2 import Qwen2ForCausalLM, modeling_qwen2
 
 logger = logging.get_logger(__name__)
 
@@ -141,7 +140,6 @@ class Qwen2AudioAttention(nn.Cell):
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view((bsz, seq_len, self.num_heads, self.head_dim)).swapaxes(1, 2).contiguous()
 
-
     def construct(
         self,
         hidden_states: ms.Tensor,
@@ -204,15 +202,15 @@ class Qwen2AudioFlashAttention2(Qwen2AudioAttention):
     """
 
     # Copied from transformers.models.whisper.modeling_whisper.WhisperFlashAttention2.__init__ with Whisper->Qwen2Audio
-    def __init__(self, config: Qwen2AudioConfig, layer_idx: Optional[int]=None):
+    def __init__(self, config: Qwen2AudioConfig, layer_idx: Optional[int] = None):
         super().__init__(config, layer_idx)
 
         self.fa_dtype = ms.float16
         dropout_rate = 0.0 if not self.training else self.dropout
         self.flash_attention = MSFlashAttention(
-            scale_value=self.head_dim ** -0.5,
+            scale_value=self.head_dim**-0.5,
             head_num=self.num_heads,
-            keep_prob=1-dropout_rate,
+            keep_prob=1 - dropout_rate,
             input_layout="BNSD",
         )
 
@@ -255,9 +253,9 @@ class Qwen2AudioFlashAttention2(Qwen2AudioAttention):
         value_states = self.v_proj(hidden_states)
         value_states = value_states.reshape((tgt_len, self.num_heads, -1))
 
-        query_states = query_states.unsqueeze(0).swapaxes(1,2)
-        value_states = value_states.unsqueeze(0).swapaxes(1,2)
-        key_states = key_states.unsqueeze(0).swapaxes(1,2)
+        query_states = query_states.unsqueeze(0).swapaxes(1, 2)
+        value_states = value_states.unsqueeze(0).swapaxes(1, 2)
+        key_states = key_states.unsqueeze(0).swapaxes(1, 2)
 
         causal_mask = attention_mask
         if attention_mask is not None:  # no matter the length, we just slice it
@@ -268,8 +266,10 @@ class Qwen2AudioFlashAttention2(Qwen2AudioAttention):
             query_states.to(self.fa_dtype),
             key_states.to(self.fa_dtype),
             value_states.to(self.fa_dtype),
-            attn_mask=causal_mask
-        )[3]  # BNSD (bsz, self.num_heads, q_len, self.head_dim)
+            attn_mask=causal_mask,
+        )[
+            3
+        ]  # BNSD (bsz, self.num_heads, q_len, self.head_dim)
 
         attn_output = attn_output.swapaxes(1, 2).reshape(bsz, tgt_len, -1)
         attn_output = self.out_proj(attn_output.to(hidden_states.dtype))
@@ -278,8 +278,6 @@ class Qwen2AudioFlashAttention2(Qwen2AudioAttention):
             attn_weights = None
 
         return attn_output, attn_weights, None
-
-
 
 
 QWEN2AUDIO_ATTENTION_CLASSES = {
@@ -293,8 +291,7 @@ class Qwen2AudioEncoderLayer(nn.Cell):
     def __init__(self, config: Qwen2AudioConfig, layer_idx: int):
         super().__init__()
         self.embed_dim = config.d_model
-
-        self.self_attn = QWEN2AUDIO_ATTENTION_CLASSES[config._attn_implementation](config=config,layer_idx=layer_idx)
+        self.self_attn = QWEN2AUDIO_ATTENTION_CLASSES[config._attn_implementation](config=config, layer_idx=layer_idx)
         self.self_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
@@ -340,9 +337,7 @@ class Qwen2AudioEncoderLayer(nn.Cell):
         hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
 
-        if hidden_states.dtype == ms.float16 and (
-            ops.isinf(hidden_states).any() or ops.isnan(hidden_states).any()
-        ):
+        if hidden_states.dtype == ms.float16 and (ops.isinf(hidden_states).any() or ops.isnan(hidden_states).any()):
             clamp_value = dtype_to_max(hidden_states.dtype) - 1000
             hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
@@ -456,13 +451,15 @@ class Qwen2AudioEncoder(Qwen2AudioPreTrainedModel):
         self.max_source_positions = config.max_source_positions
         self.embed_scale = math.sqrt(embed_dim) if config.scale_embedding else 1.0
 
-        self.conv1 = nn.Conv1d(self.num_mel_bins, embed_dim, kernel_size=3, padding=1, pad_mode='pad', has_bias=True)
-        self.conv2 = nn.Conv1d(embed_dim, embed_dim, kernel_size=3, stride=2, padding=1, pad_mode='pad', has_bias=True)
+        self.conv1 = nn.Conv1d(self.num_mel_bins, embed_dim, kernel_size=3, padding=1, pad_mode="pad", has_bias=True)
+        self.conv2 = nn.Conv1d(embed_dim, embed_dim, kernel_size=3, stride=2, padding=1, pad_mode="pad", has_bias=True)
 
         self.embed_positions = mint.nn.Embedding(self.max_source_positions, embed_dim, _freeze=True)
         self.embed_positions.requires_grad = False
 
-        self.layers = nn.CellList([Qwen2AudioEncoderLayer(config,layer_idx) for layer_idx in range(config.encoder_layers)])
+        self.layers = nn.CellList(
+            [Qwen2AudioEncoderLayer(config, layer_idx) for layer_idx in range(config.encoder_layers)]
+        )
         self.layer_norm = mint.nn.LayerNorm(config.d_model)
         # Ignore copy
         self.avg_pooler = nn.AvgPool1d(2, stride=2)
@@ -520,7 +517,9 @@ class Qwen2AudioEncoder(Qwen2AudioPreTrainedModel):
         expected_seq_length = self.config.max_source_positions * self.conv1.stride[1] * self.conv2.stride[1]
         if input_features.shape[-1] != expected_seq_length:
             raise ValueError(
-                f"Qwen2Audio expects the mel input features to be of length {expected_seq_length}, but found {input_features.shape[-1]}. Make sure to pad the input mel features to {expected_seq_length}."
+                f"Qwen2Audio expects the mel input features to be of "
+                f"length {expected_seq_length}, but found {input_features.shape[-1]}. "
+                f"Make sure to pad the input mel features to {expected_seq_length}."
             )
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
@@ -586,9 +585,8 @@ class Qwen2AudioEncoder(Qwen2AudioPreTrainedModel):
 
         if not return_dict:
             return tuple(v for v in [hidden_states, encoder_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions
-        )
+
+        return BaseModelOutput(last_hidden_state=hidden_states, hidden_states=encoder_states, attentions=all_attentions)
 
     # Ignore copy
     def _get_feat_extract_output_lengths(self, input_lengths: ms.Tensor):
@@ -686,7 +684,6 @@ QWEN2AUDIO_INPUTS_DOCSTRING = r"""
     """The QWEN2AUDIO model which consists of a audio backbone and a language model.""",
     QWEN2AUDIO_START_DOCSTRING,
 )
-
 def _prepare_4d_causal_attention_mask_with_cache_position(
     attention_mask: ms.Tensor,
     sequence_length: int,
@@ -751,22 +748,23 @@ def _prepare_4d_causal_attention_mask_with_cache_position(
 
     return causal_mask
 
+
 class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMixin):
     def __init__(self, config: Qwen2AudioConfig):
         super().__init__(config)
-        print("Qwen2AudoConfig:",config._attn_implementation)
+        print("Qwen2AudoConfig:", config._attn_implementation)
         if config._attn_implementation in modeling_qwen2.QWEN2_ATTENTION_CLASSES:
             config.text_config._attn_implementation = config._attn_implementation
         if config._attn_implementation in QWEN2AUDIO_ATTENTION_CLASSES:
             config.audio_config._attn_implementation = config._attn_implementation
         else:
-            config.audio_config._attn_implementation = 'flash_attention_2'
-        print("audio_config_attention:",config.audio_config._attn_implementation)
-        print("text_config_attention:",config.text_config._attn_implementation)
+            config.audio_config._attn_implementation = "flash_attention_2"
+        print("audio_config_attention:", config.audio_config._attn_implementation)
+        print("text_config_attention:", config.text_config._attn_implementation)
         self.audio_tower = Qwen2AudioEncoder(config.audio_config)  # Usually a `Qwen2AudioEncoder` instance
         self.multi_modal_projector = Qwen2AudioMultiModalProjector(config)
         self.vocab_size = config.text_config.vocab_size
-        self.language_model = Qwen2ForCausalLM(config.text_config) # e.g. Qwen2Model` instance
+        self.language_model = Qwen2ForCausalLM(config.text_config)  # e.g. Qwen2Model` instance
         if self.language_model._tied_weights_keys is not None:
             self._tied_weights_keys = [f"language_model.{k}" for k in self.language_model._tied_weights_keys]
 
@@ -889,7 +887,9 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                     ]
         """
         num_audios, max_audio_tokens, embed_dim = audio_features.shape
-        audio_features_mask = mint.arange(max_audio_tokens).broadcast_to((num_audios, max_audio_tokens)) < num_audio_tokens.unsqueeze(1)
+        audio_features_mask = mint.arange(max_audio_tokens).broadcast_to(
+            (num_audios, max_audio_tokens)
+        ) < num_audio_tokens.unsqueeze(1)
         masked_audio_features = audio_features[audio_features_mask].view((-1, embed_dim))
         batch_size, sequence_length = input_ids.shape
         _left_padding = mint.any(attention_mask[:, 0] == 0)
@@ -931,15 +931,9 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
         text_to_overwrite = new_token_positions[batch_indices, non_audio_indices]
 
         # 3. Create the full embedding, already padded to the maximum position
-        final_embedding = mint.zeros(
-            batch_size, max_token_num, embed_dim, dtype=inputs_embeds.dtype
-        )
-        final_attention_mask = mint.zeros(
-            batch_size, max_token_num, dtype=attention_mask.dtype
-        )
-        final_input_ids = mint.full(
-            (batch_size, max_token_num), self.pad_token_id, dtype=input_ids.dtype
-        )
+        final_embedding = mint.zeros(batch_size, max_token_num, embed_dim, dtype=inputs_embeds.dtype)
+        final_attention_mask = mint.zeros(batch_size, max_token_num, dtype=attention_mask.dtype)
+        final_input_ids = mint.full((batch_size, max_token_num), self.pad_token_id, dtype=input_ids.dtype)
 
         # 4. Fill the embeddings based on the mask. If we have ["hey" "<audio>", "how", "are"]
         # we need to index copy on [0, 577, 578, 579] for the text and [1:576] for the audio features
@@ -952,9 +946,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
             final_labels[batch_indices, text_to_overwrite] = labels[batch_indices, non_audio_indices]
 
         # 5. Fill the embeddings corresponding to the audios. Anything that is still zeros needs filling
-        audio_to_overwrite = mint.full(
-            (batch_size, max_token_num), True, dtype=ms.bool_
-        )
+        audio_to_overwrite = mint.full((batch_size, max_token_num), True, dtype=ms.bool_)
         audio_to_overwrite[batch_indices, text_to_overwrite] = False
         seq_indices = mint.arange(max_token_num).unsqueeze(0)
         seq_indices = seq_indices.broadcast_to((batch_size, max_token_num))
@@ -977,22 +969,20 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                 f" the number of audio given to the model is {num_audios}. This prevents correct indexing and breaks batch generation."
             )
 
-        final_embedding[audio_to_overwrite] = (
-            masked_audio_features.contiguous().reshape(-1, embed_dim)
-        )
+        final_embedding[audio_to_overwrite] = masked_audio_features.contiguous().reshape(-1, embed_dim)
         final_attention_mask |= audio_to_overwrite
         position_ids = (final_attention_mask.cumsum(-1) - 1).masked_fill_((final_attention_mask == 0), 1)
 
         return final_embedding, final_attention_mask, final_labels, position_ids, final_input_ids
 
     def prepare_inputs_for_generation(
-            self,
-            input_ids,
-            past_key_values: Union[Cache, Tuple] = None,
-            attention_mask: Optional[ms.Tensor] = None,
-            inputs_embeds: Optional[ms.Tensor] = None,
-            cache_position: Optional[ms.Tensor] = None,
-            **kwargs,
+        self,
+        input_ids,
+        past_key_values: Union[Cache, Tuple] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+        inputs_embeds: Optional[ms.Tensor] = None,
+        cache_position: Optional[ms.Tensor] = None,
+        **kwargs,
     ):
         """
         Prepare the model inputs for generation. In includes operations like computing the 4D attention mask or
@@ -1030,9 +1020,9 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                 ms.mutable(past_key_values) if isinstance(past_key_values, tuple) else past_key_values
             )
             if inputs_embeds is not None and input_ids.shape[1] == 0:  # Exception 4
-                inputs_embeds = inputs_embeds[:, -cache_position.shape[0]:]
+                inputs_embeds = inputs_embeds[:, -cache_position.shape[0] :]
             elif inputs_embeds is not None or cache_position[-1] >= input_ids.shape[1]:  # Exception 1  # Exception 3
-                input_ids = input_ids[:, -cache_position.shape[0]:]
+                input_ids = input_ids[:, -cache_position.shape[0] :]
             elif input_ids.shape[1] != cache_position.shape[0]:  # Default case (the "else", a no op, is Exception 2)
                 input_ids = input_ids[:, cache_position]
 
@@ -1061,9 +1051,9 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
         attention_mask_key = "decoder_attention_mask" if self.config.is_encoder_decoder else "attention_mask"
         position_ids_key = "decoder_position_ids" if self.config.is_encoder_decoder else "position_ids"
         if (
-                attention_mask is not None
-                and kwargs.get(position_ids_key) is None
-                and position_ids_key in set(inspect.signature(self.construct).parameters.keys())
+            attention_mask is not None
+            and kwargs.get(position_ids_key) is None
+            and position_ids_key in set(inspect.signature(self.construct).parameters.keys())
         ):
             position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
             position_ids.masked_fill_(attention_mask == 0, 1)
@@ -1087,7 +1077,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                         # since attention_mask maybe padded,
                         # it's safer to use the valid length instead of the total length
                         cur_len = attention_mask.sum(-1).max()
-                        model_input = model_input[:, cur_len - current_input_length: cur_len]
+                        model_input = model_input[:, cur_len - current_input_length : cur_len]
                     else:
                         model_input = model_input[:, -current_input_length:]
                     model_input = model_input.clone()
@@ -1275,7 +1265,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
         >>> import librosa
         >>> from mindspore import Tensor
         >>> from transformers import AutoProcessor
-        >>> from mindway.transformers import Qwen2AudioForConditionalGeneration
+        >>> from mindone.transformers import Qwen2AudioForConditionalGeneration
 
         >>> model = Qwen2AudioForConditionalGeneration.from_pretrained("Qwen/Qwen2-Audio-7B")
         >>> processor = AutoProcessor.from_pretrained("Qwen/Qwen2-Audio-7B")
@@ -1297,7 +1287,6 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
             output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
 
         if input_features is not None:
             input_features = input_features
@@ -1339,9 +1328,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                 legacy_processing = (audio_tokens[:, :-1] & audio_tokens[:, 1:]).sum() == 0
 
                 if legacy_processing:
-                    logger.warning_once(
-                        "Expanding inputs for audio tokens in Qwen2Audio should be done in processing."
-                    )
+                    logger.warning_once("Expanding inputs for audio tokens in Qwen2Audio should be done in processing.")
                     inputs_embeds, attention_mask, labels, position_ids, _ = self._merge_input_ids_with_audio_features(
                         audio_features, audio_output_lengths, inputs_embeds, input_ids, attention_mask, labels
                     )
@@ -1358,7 +1345,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                         raise ValueError(
                             f"Audio features and audio tokens do not match: tokens: {n_audio_tokens}, features {n_audio_features}"
                         )
-                    special_audio_mask = (input_ids == self.config.audio_token_index)
+                    special_audio_mask = input_ids == self.config.audio_token_index
                     special_audio_mask = special_audio_mask.unsqueeze(-1).expand_as(inputs_embeds)
                     audio_features = audio_features.to(inputs_embeds.dtype)
                     inputs_embeds = inputs_embeds.float()
@@ -1394,9 +1381,7 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
                 shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
             loss_fct = nn.CrossEntropyLoss()
-            loss = loss_fct(
-                shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1)
-            )
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
         if not return_dict:
             output = (logits,) + outputs[1:]
@@ -1413,4 +1398,3 @@ class Qwen2AudioForConditionalGeneration(Qwen2AudioPreTrainedModel, GenerationMi
 
 
 __all__ = ["Qwen2AudioForConditionalGeneration", "Qwen2AudioPreTrainedModel", "Qwen2AudioEncoder"]
-

@@ -1,25 +1,19 @@
-# coding=utf-8
-# Copyright 2023 The HuggingFace Inc. team. All rights reserved.
+# This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
+#     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Each defined case corresponds to a pair consisting of PyTorch and MindSpore modules, including their respective
+# initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
+# parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Testing suite for the Mindspore Persimmon model."""
+# In cases where models have unique initialization procedures or require testing with specialized output formats,
+# it is necessary to develop distinct, dedicated test cases.
 
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers.models.persimmon.configuration_persimmon import PersimmonConfig
+from transformers import BigBirdConfig
 
 import mindspore as ms
 
@@ -30,37 +24,42 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-from tests.transformers_tests.models.modeling_common import ids_numpy
+from tests.transformers_tests.models.modeling_common import ids_numpy, random_attention_mask
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
-MODES = [0, 1]
+# CrossEntropyLoss not support bf16
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
+MODES = [1]
 
 
-# Copied from tests.models.llama.test_modeling_llama.LlamaModelTester with Llama->Persimmon
-class PersimmonModelTester:
+class BigBirdModelTester:
     def __init__(
         self,
-        batch_size=13,
-        seq_length=7,
+        batch_size=7,
+        seq_length=128,
         is_training=True,
         use_input_mask=True,
-        use_token_type_ids=False,
+        use_token_type_ids=True,
         use_labels=True,
         vocab_size=99,
         hidden_size=32,
         num_hidden_layers=2,
         num_attention_heads=4,
         intermediate_size=37,
-        hidden_act="gelu",
+        hidden_act="gelu_new",
         hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
-        max_position_embeddings=512,
+        max_position_embeddings=256,
         type_vocab_size=16,
         type_sequence_label_size=2,
         initializer_range=0.02,
         num_labels=3,
         num_choices=4,
-        pad_token_id=0,
+        attention_type="block_sparse",
+        use_bias=True,
+        rescale_embeddings=False,
+        block_size=8,
+        num_rand_blocks=3,
+        position_embedding_type="absolute",
         scope=None,
     ):
         self.batch_size = batch_size
@@ -83,23 +82,31 @@ class PersimmonModelTester:
         self.initializer_range = initializer_range
         self.num_labels = num_labels
         self.num_choices = num_choices
-        self.pad_token_id = pad_token_id
         self.scope = scope
+
+        self.attention_type = attention_type
+        self.use_bias = use_bias
+        self.rescale_embeddings = rescale_embeddings
+        self.block_size = block_size
+        self.num_rand_blocks = num_rand_blocks
+        self.position_embedding_type = position_embedding_type
 
     def prepare_config_and_inputs(self):
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         input_mask = None
         if self.use_input_mask:
-            input_mask = np.tril(np.ones_like(input_ids))
+            input_mask = random_attention_mask([self.batch_size, self.seq_length])
 
         token_type_ids = None
+        num_choices = self.num_choices
         if self.use_token_type_ids:
             token_type_ids = ids_numpy([self.batch_size, self.seq_length], self.type_vocab_size)
 
         sequence_labels = None
         token_labels = None
         choice_labels = None
+
         if self.use_labels:
             sequence_labels = ids_numpy([self.batch_size], self.type_sequence_label_size)
             token_labels = ids_numpy([self.batch_size, self.seq_length], self.num_labels)
@@ -107,10 +114,10 @@ class PersimmonModelTester:
 
         config = self.get_config()
 
-        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels
+        return config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels, num_choices
 
     def get_config(self):
-        return PersimmonConfig(
+        return BigBirdConfig(
             vocab_size=self.vocab_size,
             hidden_size=self.hidden_size,
             num_hidden_layers=self.num_hidden_layers,
@@ -121,45 +128,126 @@ class PersimmonModelTester:
             attention_probs_dropout_prob=self.attention_probs_dropout_prob,
             max_position_embeddings=self.max_position_embeddings,
             type_vocab_size=self.type_vocab_size,
-            is_decoder=False,
+            is_encoder_decoder=False,
             initializer_range=self.initializer_range,
-            pad_token_id=self.pad_token_id,
+            attention_type=self.attention_type,
+            use_bias=self.use_bias,
+            rescale_embeddings=self.rescale_embeddings,
+            block_size=self.block_size,
+            num_random_blocks=self.num_rand_blocks,
+            position_embedding_type=self.position_embedding_type,
         )
 
-    def prepare_config_and_inputs_for_common(self):
-        config_and_inputs = self.prepare_config_and_inputs()
-        (
-            config,
-            input_ids,
-            token_type_ids,
-            input_mask,
-            sequence_labels,
-            token_labels,
-            choice_labels,
-        ) = config_and_inputs
-        return config, input_ids, input_mask
 
-
-model_tester = PersimmonModelTester()
+model_tester = BigBirdModelTester()
 (
     config,
     input_ids,
+    token_type_ids,
     input_mask,
-) = model_tester.prepare_config_and_inputs_for_common()
+    sequence_labels,
+    token_labels,
+    choice_labels,
+    num_choices,
+) = model_tester.prepare_config_and_inputs()
 
 
-PERSIMMON_CASES = [
+BERT_CASES = [
     [
-        "PersimmonModel",
-        "transformers.PersimmonModel",
-        "mindone.transformers.PersimmonModel",
+        "BigBirdForCausalLM",
+        "transformers.BigBirdForCausalLM",
+        "mindone.transformers.BigBirdForCausalLM",
         (config,),
         {},
-        (),
+        (input_ids,),
         {
-            "input_ids": input_ids,
             "attention_mask": input_mask,
+            "token_type_ids": token_type_ids,
+            "labels": token_labels,
         },
+        {
+            "loss": 0,
+            "logits": 1,
+        },
+    ],
+    [
+        "BigBirdForMaskedLM",
+        "transformers.BigBirdForMaskedLM",
+        "mindone.transformers.BigBirdForMaskedLM",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+            "token_type_ids": token_type_ids,
+            "labels": token_labels,
+        },
+        {
+            "loss": 0,
+            "logits": 1,
+        },
+    ],
+    [
+        "BigBirdForMultipleChoice",
+        "transformers.BigBirdForMultipleChoice",
+        "mindone.transformers.BigBirdForMultipleChoice",
+        (config,),
+        {},
+        (np.repeat(np.expand_dims(input_ids, 1), model_tester.num_choices, 1),),
+        {
+            "attention_mask": np.repeat(np.expand_dims(input_mask, 1), model_tester.num_choices, 1),
+            "token_type_ids": np.repeat(np.expand_dims(token_type_ids, 1), model_tester.num_choices, 1),
+            "labels": choice_labels,
+        },
+        {
+            "loss": 0,
+            "logits": 1,
+        },
+    ],
+    [
+        "BigBirdForQuestionAnswering",
+        "transformers.BigBirdForQuestionAnswering",
+        "mindone.transformers.BigBirdForQuestionAnswering",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+            "token_type_ids": token_type_ids,
+            "start_positions": sequence_labels,
+            "end_positions": sequence_labels,
+        },
+        {
+            "loss": 0,
+            "start_logits": 1,
+            "end_logits": 2,
+        },
+    ],
+    [
+        "BigBirdForSequenceClassification",
+        "transformers.BigBirdForSequenceClassification",
+        "mindone.transformers.BigBirdForSequenceClassification",
+        (config,),
+        {},
+        (input_ids,),
+        {
+            "attention_mask": input_mask,
+            "token_type_ids": token_type_ids,
+            "labels": sequence_labels,
+        },
+        {
+            "loss": 0,
+            "logits": 1,
+        },
+    ],
+    [
+        "BigBirdModel",
+        "transformers.BigBirdModel",
+        "mindone.transformers.BigBirdModel",
+        (config,),
+        {},
+        (input_ids,),
+        {},
         {
             "last_hidden_state": 0,
         },
@@ -167,7 +255,6 @@ PERSIMMON_CASES = [
 ]
 
 
-# transformers need >= 4.41.2
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [
@@ -178,7 +265,7 @@ PERSIMMON_CASES = [
         + [
             mode,
         ]
-        for case in PERSIMMON_CASES
+        for case in BERT_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -212,8 +299,7 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-    if mode == 0:
-        ms_inputs_kwargs.update({"return_dict": False, "use_cache": False})
+
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
@@ -225,7 +311,7 @@ def test_named_modules(
         for pt_key, ms_idx in outputs_map.items():
             # print("===map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
-            ms_output = ms_outputs[ms_idx]
+            ms_output = ms_outputs[pt_key]
             if isinstance(pt_output, (list, tuple)):
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)

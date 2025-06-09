@@ -12,11 +12,9 @@ import inspect
 
 import numpy as np
 import pytest
-from transformers import (
-    Qwen2AudioConfig,
-    Qwen2AudioForConditionalGeneration,
-)
 import torch
+from transformers import Qwen2AudioConfig
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -26,11 +24,11 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
-
-from tests.transformers_tests.models.modeling_common import ids_numpy, floats_numpy
+from tests.transformers_tests.models.modeling_common import floats_numpy, ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
+
 
 class Qwen2AudioModelTester:
     def __init__(
@@ -114,6 +112,7 @@ class Qwen2AudioModelTester:
 
         return config, input_features_values, feature_attention_mask, input_ids, attention_mask
 
+
 model_tester = Qwen2AudioModelTester()
 
 (
@@ -136,7 +135,7 @@ Qwen2Audio_CASES = [
             "input_ids": input_ids,
             "input_features": input_features,
             "feature_attention_mask": feature_attention_mask,
-            "attention_mask": attention_mask
+            "attention_mask": attention_mask,
         },
         {
             "logits": 0,

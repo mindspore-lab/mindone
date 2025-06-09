@@ -20,7 +20,7 @@ from transformers.models.fuyu.configuration_fuyu import FuyuConfig
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint
 from mindspore.common.initializer import Normal, initializer
 
 from ...generation import GenerationMixin
@@ -85,7 +85,7 @@ FUYU_INPUTS_DOCSTRING = r"""
         image_patches (`ms.Tensor` of shape `(batch_size, num_total_patches, patch_size_ x patch_size x num_channels)`, *optional*):
             Image patches to be used as continuous embeddings. The patches are flattened and then projected to the
             hidden size of the model.
-        image_patches_indices (`mindspore.LongTensor` of shape 
+        image_patches_indices (`mindspore.LongTensor` of shape
         `(batch_size, num_total_patches + number_of_newline_tokens + number_of_text_tokens, patch_size_ x patch_size x num_channels )`, *optional*):
             Indices indicating at which position the image_patches have to be inserted in input_embeds.
         position_ids (`mindspore.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):

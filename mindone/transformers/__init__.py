@@ -29,6 +29,26 @@ from .models.bert import (
     BertModel,
     BertPreTrainedModel,
 )
+from .models.big_bird import (
+    BigBirdForCausalLM,
+    BigBirdForMaskedLM,
+    BigBirdForMultipleChoice,
+    BigBirdForPreTraining,
+    BigBirdForQuestionAnswering,
+    BigBirdForSequenceClassification,
+    BigBirdForTokenClassification,
+    BigBirdLayer,
+    BigBirdModel,
+    BigBirdPreTrainedModel,
+)
+from .models.bigbird_pegasus import (
+    BigBirdPegasusForCausalLM,
+    BigBirdPegasusForConditionalGeneration,
+    BigBirdPegasusForQuestionAnswering,
+    BigBirdPegasusForSequenceClassification,
+    BigBirdPegasusModel,
+    BigBirdPegasusPreTrainedModel,
+)
 from .models.bit import BitBackbone
 from .models.blip_2 import (
     Blip2ForConditionalGeneration,
@@ -119,6 +139,7 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,
@@ -127,11 +148,11 @@ from .models.mt5 import (
     MT5PreTrainedModel,
 )
 from .models.persimmon import (
-    PersimmonModel,
-    PersimmonForSequenceClassification,
-    PersimmonPreTrainedModel,
-    PersimmonForTokenClassification,
     PersimmonForCausalLM,
+    PersimmonForSequenceClassification,
+    PersimmonForTokenClassification,
+    PersimmonModel,
+    PersimmonPreTrainedModel,
 )
 from .models.phi3 import (
     Phi3ForCausalLM,
@@ -154,7 +175,7 @@ from .models.qwen2_5_omni import (
     Qwen2_5OmniToken2WavModel,
 )
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
-from .models.qwen2_audio import Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel, Qwen2AudioEncoder
+from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
