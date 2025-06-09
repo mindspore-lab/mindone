@@ -31,7 +31,7 @@ pipe = OmniGenPipeline.from_pretrained("Shitao/OmniGen-v1-diffusers", mindspore_
 
 ## Text-to-image
 
-For text-to-image, pass a text prompt. By default, OmniGen generates a 1024x1024 image. 
+For text-to-image, pass a text prompt. By default, OmniGen generates a 1024x1024 image.
 You can try setting the `height` and `width` parameters to generate images with different size.
 
 ```python
@@ -57,14 +57,14 @@ image.save("output.png")
 
 ## Image edit
 
-OmniGen supports multimodal inputs. 
-When the input includes an image, you need to add a placeholder `<img><|image_1|></img>` in the text prompt to represent the image. 
+OmniGen supports multimodal inputs.
+When the input includes an image, you need to add a placeholder `<img><|image_1|></img>` in the text prompt to represent the image.
 It is recommended to enable `use_input_image_size_as_output` to keep the edited image the same size as the original image.
 
 ```python
 import mindspore
 from mindone.diffusers import OmniGenPipeline
-from mindone.diffusers.utils import load_image 
+from mindone.diffusers.utils import load_image
 
 pipe = OmniGenPipeline.from_pretrained(
     "Shitao/OmniGen-v1-diffusers",
@@ -74,12 +74,11 @@ pipe = OmniGenPipeline.from_pretrained(
 prompt="<img><|image_1|></img> Remove the woman's earrings. Replace the mug with a clear glass filled with sparkling iced cola."
 input_images=[load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/t2i_woman_with_book.png")]
 image = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
-    guidance_scale=2, 
+    prompt=prompt,
+    input_images=input_images,
+    guidance_scale=2,
     img_guidance_scale=1.6,
     use_input_image_size_as_output=True,
-    generator = np.random.Generator(np.random.PCG64(222)),
 )[0][0]
 image.save("output.png")
 ```
@@ -91,9 +90,9 @@ OmniGen has some interesting features, such as visual reasoning, as shown in the
 prompt="If the woman is thirsty, what should she take? Find it in the image and highlight it in blue. <img><|image_1|></img>"
 input_images=[load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/edit.png")]
 image = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
-    guidance_scale=2, 
+    prompt=prompt,
+    input_images=input_images,
+    guidance_scale=2,
     img_guidance_scale=1.6,
     use_input_image_size_as_output=True,
     generator = np.random.Generator(np.random.PCG64(0)),
@@ -109,7 +108,7 @@ OmniGen can handle several classic computer vision tasks. As shown below, OmniGe
 ```python
 import mindspore
 from mindone.diffusers import OmniGenPipeline
-from mindone.diffusers.utils import load_image 
+from mindone.diffusers.utils import load_image
 
 pipe = OmniGenPipeline.from_pretrained(
     "Shitao/OmniGen-v1-diffusers",
@@ -119,21 +118,20 @@ pipe = OmniGenPipeline.from_pretrained(
 prompt="Detect the skeleton of human in this image: <img><|image_1|></img>"
 input_images=[load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/edit.png")]
 image1 = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
-    guidance_scale=2, 
+    prompt=prompt,
+    input_images=input_images,
+    guidance_scale=2,
     img_guidance_scale=1.6,
     use_input_image_size_as_output=True,
-    generator = np.random.Generator(np.random.PCG64(333)),
 )[0][0]
 image1.save("image1.png")
 
 prompt="Generate a new photo using the following picture and text as conditions: <img><|image_1|></img>\n A young boy is sitting on a sofa in the library, holding a book. His hair is neatly combed, and a faint smile plays on his lips, with a few freckles scattered across his cheeks. The library is quiet, with rows of shelves filled with books stretching out behind him."
 input_images=[load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/skeletal.png")]
 image2 = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
-    guidance_scale=2, 
+    prompt=prompt,
+    input_images=input_images,
+    guidance_scale=2,
     img_guidance_scale=1.6,
     use_input_image_size_as_output=True,
     generator = np.random.Generator(np.random.PCG64(333)),
@@ -147,7 +145,7 @@ OmniGen can also directly use relevant information from input images to generate
 ```python
 import mindspore
 from mindone.diffusers import OmniGenPipeline
-from mindone.diffusers.utils import load_image 
+from mindone.diffusers.utils import load_image
 
 pipe = OmniGenPipeline.from_pretrained(
     "Shitao/OmniGen-v1-diffusers",
@@ -157,12 +155,11 @@ pipe = OmniGenPipeline.from_pretrained(
 prompt="Following the pose of this image <img><|image_1|></img>, generate a new photo: A young boy is sitting on a sofa in the library, holding a book. His hair is neatly combed, and a faint smile plays on his lips, with a few freckles scattered across his cheeks. The library is quiet, with rows of shelves filled with books stretching out behind him."
 input_images=[load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/edit.png")]
 image = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
-    guidance_scale=2, 
+    prompt=prompt,
+    input_images=input_images,
+    guidance_scale=2,
     img_guidance_scale=1.6,
     use_input_image_size_as_output=True,
-    generator = np.random.Generator(np.random.PCG64(0)),
 )[0][0]
 image.save("output.png")
 ```
@@ -170,13 +167,13 @@ image.save("output.png")
 
 ## ID and object preserving
 
-OmniGen can generate multiple images based on the people and objects in the input image and supports inputting multiple images simultaneously. 
+OmniGen can generate multiple images based on the people and objects in the input image and supports inputting multiple images simultaneously.
 Additionally, OmniGen can extract desired objects from an image containing multiple objects based on instructions.
 
 ```python
 import mindspore
 from mindone.diffusers import OmniGenPipeline
-from mindone.diffusers.utils import load_image 
+from mindone.diffusers.utils import load_image
 
 pipe = OmniGenPipeline.from_pretrained(
     "Shitao/OmniGen-v1-diffusers",
@@ -188,11 +185,11 @@ input_image_1 = load_image("https://raw.githubusercontent.com/VectorSpaceLab/Omn
 input_image_2 = load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/4.png")
 input_images=[input_image_1, input_image_2]
 image = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
+    prompt=prompt,
+    input_images=input_images,
     height=1024,
     width=1024,
-    guidance_scale=2.5, 
+    guidance_scale=2.5,
     img_guidance_scale=1.6,
     generator = np.random.Generator(np.random.PCG64(666)),
 )[0][0]
@@ -203,7 +200,7 @@ image.save("output.png")
 ```py
 import mindspore
 from mindone.diffusers import OmniGenPipeline
-from mindone.diffusers.utils import load_image 
+from mindone.diffusers.utils import load_image
 
 pipe = OmniGenPipeline.from_pretrained(
     "Shitao/OmniGen-v1-diffusers",
@@ -215,13 +212,12 @@ input_image_1 = load_image("https://raw.githubusercontent.com/VectorSpaceLab/Omn
 input_image_2 = load_image("https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/dress.jpg")
 input_images=[input_image_1, input_image_2]
 image = pipe(
-    prompt=prompt, 
-    input_images=input_images, 
+    prompt=prompt,
+    input_images=input_images,
     height=1024,
     width=1024,
-    guidance_scale=2.5, 
+    guidance_scale=2.5,
     img_guidance_scale=1.6,
-    generator = np.random.Generator(np.random.PCG64(666)),
 )[0][0]
 image.save("output.png")
 ```

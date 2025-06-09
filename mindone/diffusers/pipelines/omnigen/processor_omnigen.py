@@ -59,7 +59,7 @@ class OmniGenMultiModalProcessor:
             [
                 lambda pil_image: crop_image(pil_image, max_image_size),
                 vision.ToTensor(),
-                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
             ]
         )
 
@@ -71,7 +71,7 @@ class OmniGenMultiModalProcessor:
             [
                 lambda pil_image: crop_image(pil_image, max_image_size),
                 vision.ToTensor(),
-                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                vision.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], is_hwc=False),
             ]
         )
 
@@ -148,7 +148,7 @@ class OmniGenMultiModalProcessor:
             cur_instruction = instructions[i]
             cur_input_images = None if input_images is None else input_images[i]
             if cur_input_images is not None and len(cur_input_images) > 0:
-                cur_input_images = [self.process_image(x) for x in cur_input_images]
+                cur_input_images = [ms.Tensor(self.process_image(x)[0]) for x in cur_input_images]
             else:
                 cur_input_images = None
                 assert "<img><|image_1|></img>" not in cur_instruction

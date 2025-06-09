@@ -411,7 +411,7 @@ class OmniGenTransformer2DModel(ModelMixin, ConfigMixin):
         for b_inx in input_image_sizes.keys():
             for start_inx, end_inx in input_image_sizes[b_inx]:
                 # replace the placeholder in text tokens with the image embedding.
-                condition_tokens[b_inx, start_inx:end_inx] = input_image_tokens[input_img_inx].to(
+                condition_tokens[b_inx, start_inx:end_inx] = input_image_tokens[input_img_inx][0].to(
                     condition_tokens.dtype
                 )
                 input_img_inx += 1
