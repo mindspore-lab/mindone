@@ -37,6 +37,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("gemma", "GemmaModel"),
         ("gemma2", "Gemma2Model"),
         ("gpt2", "GPT2Model"),
+        ("recurrent_gemma", "RecurrentGemmaModel"),
         ("llama", "LlamaModel"),
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
@@ -76,6 +77,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2LMHeadModel"),
         ("llama", "LlamaForCausalLM"),
         ("qwen2", "Qwen2ForCausalLM"),
+        ("recurrent_gemma", "RecurrentGemmaForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
     ]
