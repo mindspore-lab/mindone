@@ -99,7 +99,7 @@ LLAMA_CASES = [
     [
         "GPTNeoXModel",
         "transformers.GPTNeoXModel",
-        "mindone.transformers.GPTNeoXModel",
+        "mindone.transformers.models.gpt_neox.GPTNeoXModel",
         (config,),
         {},
         (input_ids,),

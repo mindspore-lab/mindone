@@ -12,7 +12,7 @@ from mindspore import mint, nn
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
-from ...masking_utils import create_causal_mask
+from ...modeling_attn_mask_utils import dtype_to_min
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
@@ -21,15 +21,21 @@ from ...modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
+from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import logging
 from .configuration_gpt_neox import GPTNeoXConfig
 
+from transformers.utils import LossKwargs
 
 logger = logging.get_logger(__name__)
 
+class HybridCache(object):
+    "This class do nothing and will be never used in our implement."
+
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 class GPTNeoXMLP(nn.Cell):
     def __init__(self, config):
@@ -107,7 +113,7 @@ def eager_attention_forward(
         causal_mask = attention_mask[:, :, :, : key.shape[-2]]
         attn_weights = attn_weights + causal_mask
 
-    attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
+    attn_weights = mint.softmax(attn_weights, dim=-1, dtype=ms.float32).to(query.dtype)
 
     # Mask heads if we want to
     if head_mask is not None:

@@ -18,7 +18,7 @@ from typing import List, Optional, Tuple
 
 from tokenizers import processors
 
-from ...tokenization_utils_fast import PreTrainedTokenizerFast
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 
 
