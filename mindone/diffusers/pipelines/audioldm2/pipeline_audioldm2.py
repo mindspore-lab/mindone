@@ -256,9 +256,7 @@ class AudioLDM2Pipeline(DiffusionPipeline):
             inputs_embeds = mint.cat([inputs_embeds, next_hidden_states[:, -1:, :]], dim=1)
 
             # Update generated hidden states, model inputs, and length for next step
-            model_kwargs = self.language_model._update_model_kwargs_for_generation(
-                output, model_kwargs
-            )
+            model_kwargs = self.language_model._update_model_kwargs_for_generation(output, model_kwargs)
 
         return inputs_embeds[:, -max_new_tokens:, :]
 
