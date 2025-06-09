@@ -153,7 +153,11 @@ BERT_CASES = [
         (config,),
         {},
         (inputs_dict["input_ids"],),
-        {},
+        {
+            "attention_mask": inputs_dict["attention_mask"],
+            "head_mask": inputs_dict["head_mask"],
+            "use_cache": True,
+        },
         {
             "last_hidden_state": 0,
         },
