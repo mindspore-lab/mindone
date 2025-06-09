@@ -70,9 +70,9 @@ class MixtralBlockSparseTop2MLP(nn.Cell):
         self.ffn_dim = config.intermediate_size
         self.hidden_dim = config.hidden_size
 
-        self.w1 = nn.Dense(self.hidden_dim, self.ffn_dim, has_bias=False)
-        self.w2 = nn.Dense(self.ffn_dim, self.hidden_dim, has_bias=False)
-        self.w3 = nn.Dense(self.hidden_dim, self.ffn_dim, has_bias=False)
+        self.w1 = mint.nn.Linear(self.hidden_dim, self.ffn_dim, bias=False)
+        self.w2 = mint.nn.Linear(self.ffn_dim, self.hidden_dim, bias=False)
+        self.w3 = mint.nn.Linear(self.hidden_dim, self.ffn_dim, bias=False)
 
         self.act_fn = ACT2FN[config.hidden_act]
 
@@ -102,7 +102,7 @@ class MixtralSparseMoeBlock(nn.Cell):
         self.top_k = config.num_experts_per_tok
 
         # gating
-        self.gate = nn.Dense(self.hidden_dim, self.num_experts, has_bias=False)
+        self.gate = mint.nn.Linear(self.hidden_dim, self.num_experts, bias=False)
 
         self.experts = nn.CellList([MixtralBlockSparseTop2MLP(config) for _ in range(self.num_experts)])
 
@@ -252,10 +252,10 @@ class MixtralAttention(nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.attention_dropout = config.attention_dropout
         self.is_causal = True
-        self.q_proj = nn.Dense(config.hidden_size, config.num_attention_heads * self.head_dim, has_bias=False)
-        self.k_proj = nn.Dense(config.hidden_size, config.num_key_value_heads * self.head_dim, has_bias=False)
-        self.v_proj = nn.Dense(config.hidden_size, config.num_key_value_heads * self.head_dim, has_bias=False)
-        self.o_proj = nn.Dense(config.num_attention_heads * self.head_dim, config.hidden_size, has_bias=False)
+        self.q_proj = mint.nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, bias=False)
+        self.k_proj = mint.nn.Linear(config.hidden_size, config.num_key_value_heads * self.head_dim, bias=False)
+        self.v_proj = mint.nn.Linear(config.hidden_size, config.num_key_value_heads * self.head_dim, bias=False)
+        self.o_proj = mint.nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, bias=False)
 
     def construct(
         self,
@@ -483,16 +483,14 @@ class MixtralPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         std = self.config.initializer_range
-        if isinstance(module, nn.Dense):
+        if isinstance(module, mint.nn.Linear):
             module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
                 module.bias.set_data(initializer("zeros", module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(
-                initializer(Normal(sigma=std, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
-            )
+        elif isinstance(module, mint.nn.Embedding):
+            module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
 
 
 MIXTRAL_INPUTS_DOCSTRING = r"""
@@ -587,7 +585,7 @@ class MixtralModel(MixtralPreTrainedModel):
         self.padding_idx = config.pad_token_id
         self.vocab_size = config.vocab_size
 
-        self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
+        self.embed_tokens = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
         self.layers = nn.CellList(
             [MixtralDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
         )
@@ -819,7 +817,8 @@ class MixtralModel(MixtralPreTrainedModel):
             sequence_length (`int`):
                 The sequence length being processed.
             target_length (`int`):
-                The target length: when generating with static cache, the mask should be as long as the static cache, to account for the 0 padding, the part of the cache that is not filled yet.
+                The target length: when generating with static cache, the mask should be as long as the static cache,
+                to account for the 0 padding, the part of the cache that is not filled yet.
             dtype (`torch.dtype`):
                 The dtype to use for the 4D attention mask.
             cache_position (`ms.Tensor`):
@@ -863,6 +862,7 @@ class MixtralModel(MixtralPreTrainedModel):
 
 class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
     ...
+
 
 def load_balancing_loss_func(
     gate_logits: Union[ms.Tensor, Tuple[ms.Tensor], None],
@@ -952,7 +952,7 @@ class MixtralForCausalLM(MixtralPreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = MixtralModel(config)
         self.vocab_size = config.vocab_size
-        self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         self.router_aux_loss_coef = config.router_aux_loss_coef
         self.num_experts = config.num_local_experts
         self.num_experts_per_tok = config.num_experts_per_tok
@@ -1112,7 +1112,7 @@ class MixtralForSequenceClassification(MixtralPreTrainedModel):
         super().__init__(config)
         self.num_labels = config.num_labels
         self.model = MixtralModel(config)
-        self.score = nn.Dense(config.hidden_size, self.num_labels, has_bias=False)
+        self.score = mint.nn.Linear(config.hidden_size, self.num_labels, bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1217,7 +1217,7 @@ class MixtralForTokenClassification(MixtralPreTrainedModel):
         else:
             classifier_dropout = 0.1
         self.dropout = nn.Dropout(classifier_dropout)
-        self.score = nn.Dense(config.hidden_size, config.num_labels)
+        self.score = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1298,7 +1298,7 @@ class MixtralForQuestionAnswering(MixtralPreTrainedModel):
 
     def __init__(self, config):
         super().__init__(config)
-        self.qa_outputs = nn.Dense(config.hidden_size, 2)
+        self.qa_outputs = mint.nn.Linear(config.hidden_size, 2)
         self.model = MixtralModel(config)  # diff with Llama: transformer->model
 
         # Initialize weights and apply final processing

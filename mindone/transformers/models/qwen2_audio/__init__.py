@@ -1,1 +1,1 @@
-from .modeling_qwen2_audio import Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel, Qwen2AudioEncoder
+from .modeling_qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
