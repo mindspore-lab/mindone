@@ -538,7 +538,7 @@ class M2M100SdpaAttention(M2M100Attention):
             value_states,
             attn_mask=attention_mask,
         )
-
+        attn_output = attn_output.swapaxes(1, 2).contiguous()
         if attn_output.shape != (bsz, self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
                 f"`attn_output` should be of size {(bsz, self.num_heads, tgt_len, self.head_dim)}, but is"
