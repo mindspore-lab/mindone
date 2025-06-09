@@ -329,9 +329,6 @@ def _make_causal_mask(
 
     mask = mask.to(dtype)
 
-    if past_key_values_length > 0:
-        mask = ops.cat([ops.zeros((tgt_len, past_key_values_length), dtype=dtype), mask], axis=-1)
-
     # add lower triangular sliding window mask if necessary
     if sliding_window is not None:
         diagonal = past_key_values_length - sliding_window + 1

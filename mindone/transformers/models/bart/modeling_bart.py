@@ -28,9 +28,10 @@ from transformers.utils import (
     logging,
     replace_return_docstrings,
 )
+
 import mindspore as ms
 from mindspore import mint, nn, ops
-from mindspore.common.initializer import Normal, Zero, initializer
+from mindspore.common.initializer import Normal, initializer
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -93,7 +94,7 @@ def shift_tokens_right(input_ids: ms.Tensor, pad_token_id: int, decoder_start_to
     return shifted_input_ids
 
 
-class BartLearnedPositionalEmbedding(nn.Embedding):
+class BartLearnedPositionalEmbedding(mint.nn.Embedding):
     """
     This module learns positional embeddings up to a fixed maximum size.
     """
@@ -114,9 +115,9 @@ class BartLearnedPositionalEmbedding(nn.Embedding):
         return super().construct(positions + self.offset)
 
 
-class BartScaledWordEmbedding(nn.Embedding):
+class BartScaledWordEmbedding(mint.nn.Embedding):
     """
-    This module overrides nn.Embeddings' construct by multiplying with embeddings scale.
+    This module overrides mint.nn.Embeddings' construct by multiplying with embeddings scale.
     """
 
     def __init__(self, num_embeddings: int, embedding_dim: int, padding_idx: int, embed_scale: Optional[float] = 1.0):
@@ -156,10 +157,10 @@ class BartAttention(nn.Cell):
         self.is_decoder = is_decoder
         self.is_causal = is_causal
 
-        self.k_proj = nn.Dense(embed_dim, embed_dim, has_bias=bias)
-        self.v_proj = nn.Dense(embed_dim, embed_dim, has_bias=bias)
-        self.q_proj = nn.Dense(embed_dim, embed_dim, has_bias=bias)
-        self.out_proj = nn.Dense(embed_dim, embed_dim, has_bias=bias)
+        self.k_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.v_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.q_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
+        self.out_proj = mint.nn.Linear(embed_dim, embed_dim, bias=bias)
 
     def _shape(self, tensor: ms.Tensor, seq_len: int, bsz: int):
         return tensor.view(bsz, seq_len, self.num_heads, self.head_dim).permute(0, 2, 1, 3).contiguous()
@@ -455,8 +456,8 @@ class BartEncoderLayer(nn.Cell):
         self.dropout = config.dropout
         self.activation_fn = ACT2FN[config.activation_function]
         self.activation_dropout = config.activation_dropout
-        self.fc1 = nn.Dense(self.embed_dim, config.encoder_ffn_dim)
-        self.fc2 = nn.Dense(config.encoder_ffn_dim, self.embed_dim)
+        self.fc1 = mint.nn.Linear(self.embed_dim, config.encoder_ffn_dim)
+        self.fc2 = mint.nn.Linear(config.encoder_ffn_dim, self.embed_dim)
         self.final_layer_norm = mint.nn.LayerNorm(self.embed_dim)
 
     def construct(
@@ -534,8 +535,8 @@ class BartDecoderLayer(nn.Cell):
             config=config,
         )
         self.encoder_attn_layer_norm = mint.nn.LayerNorm(self.embed_dim)
-        self.fc1 = nn.Dense(self.embed_dim, config.decoder_ffn_dim)
-        self.fc2 = nn.Dense(config.decoder_ffn_dim, self.embed_dim)
+        self.fc1 = mint.nn.Linear(self.embed_dim, config.decoder_ffn_dim)
+        self.fc2 = mint.nn.Linear(config.decoder_ffn_dim, self.embed_dim)
         self.final_layer_norm = mint.nn.LayerNorm(self.embed_dim)
 
     def construct(
@@ -639,9 +640,9 @@ class BartClassificationHead(nn.Cell):
         pooler_dropout: float,
     ):
         super().__init__()
-        self.dense = nn.Dense(input_dim, inner_dim)
+        self.dense = mint.nn.Linear(input_dim, inner_dim)
         self.dropout = nn.Dropout(p=pooler_dropout)
-        self.out_proj = nn.Dense(inner_dim, num_classes)
+        self.out_proj = mint.nn.Linear(inner_dim, num_classes)
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
         hidden_states = self.dropout(hidden_states)
@@ -664,16 +665,14 @@ class BartPreTrainedModel(PreTrainedModel):
 
     def _init_weights(self, module):
         std = self.config.init_std
-        if isinstance(module, nn.Dense):
+        if isinstance(module, mint.nn.Linear):
             module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.bias is not None:
                 module.bias.set_data(initializer("zeros", module.bias.shape, module.bias.dtype))
-        elif isinstance(module, nn.Embedding):
-            module.embedding_table.set_data(
-                initializer(Normal(sigma=std, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
-            )
+        elif isinstance(module, mint.nn.Embedding):
+            module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx] = 0
+                module.weight[module.padding_idx] = 0
 
     @property
     def dummy_inputs(self):
@@ -850,10 +849,10 @@ class BartEncoder(BartPreTrainedModel):
 
     Args:
         config: BartConfig
-        embed_tokens (nn.Embedding): output embedding
+        embed_tokens (mint.nn.Embedding): output embedding
     """
 
-    def __init__(self, config: BartConfig, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(self, config: BartConfig, embed_tokens: Optional[mint.nn.Embedding] = None):
         super().__init__(config)
 
         self.dropout = config.dropout
@@ -869,7 +868,7 @@ class BartEncoder(BartPreTrainedModel):
         )
 
         if embed_tokens is not None:
-            self.embed_tokens.embedding_table = embed_tokens.embedding_table
+            self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = BartLearnedPositionalEmbedding(
             config.max_position_embeddings,
@@ -1033,10 +1032,10 @@ class BartDecoder(BartPreTrainedModel):
 
     Args:
         config: BartConfig
-        embed_tokens (nn.Embedding): output embedding
+        embed_tokens (mint.nn.Embedding): output embedding
     """
 
-    def __init__(self, config: BartConfig, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(self, config: BartConfig, embed_tokens: Optional[mint.nn.Embedding] = None):
         super().__init__(config)
         self.dropout = config.dropout
         self.layerdrop = config.decoder_layerdrop
@@ -1049,7 +1048,7 @@ class BartDecoder(BartPreTrainedModel):
         )
 
         if embed_tokens is not None:
-            self.embed_tokens.embedding_table = embed_tokens.embedding_table
+            self.embed_tokens.weight = embed_tokens.weight
 
         self.embed_positions = BartLearnedPositionalEmbedding(
             config.max_position_embeddings,
@@ -1309,7 +1308,7 @@ class BartDecoder(BartPreTrainedModel):
 
 
 class BartModel(BartPreTrainedModel):
-    _tied_weights_keys = ["encoder.embed_tokens.embedding_table", "decoder.embed_tokens.embedding_table"]
+    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
 
     def __init__(self, config: BartConfig):
         super().__init__(config)
@@ -1329,10 +1328,7 @@ class BartModel(BartPreTrainedModel):
     def _tie_weights(self):
         if self.config.tie_word_embeddings:
             # Some model checkpoints like "facebook/bart-large-cnn"'s embedding weight is in decoder.embed_tokens, need check here, see issue #36247
-            if (
-                self.shared.embedding_table.device == "meta"
-                and self.decoder.embed_tokens.embedding_table.device != "meta"
-            ):
+            if self.shared.weight.device == "meta" and self.decoder.embed_tokens.weight.device != "meta":
                 self._tie_or_clone_weights(self.encoder.embed_tokens, self.decoder.embed_tokens)
                 self._tie_or_clone_weights(self.shared, self.decoder.embed_tokens)
             else:
@@ -1451,8 +1447,8 @@ class BartModel(BartPreTrainedModel):
 class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
     base_model_prefix = "model"
     _tied_weights_keys = [
-        "encoder.embed_tokens.embedding_table",
-        "decoder.embed_tokens.embedding_table",
+        "encoder.embed_tokens.weight",
+        "decoder.embed_tokens.weight",
         "lm_head.weight",
     ]
     _keys_to_ignore_on_load_missing = ["final_logits_bias"]
@@ -1460,8 +1456,8 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
     def __init__(self, config: BartConfig):
         super().__init__(config)
         self.model = BartModel(config)
-        self.register_buffer("final_logits_bias", mint.zeros((1, self.model.shared.embedding_table.shape[0])))
-        self.lm_head = nn.Dense(config.d_model, self.model.shared.embedding_table.shape[0], has_bias=False)
+        self.register_buffer("final_logits_bias", mint.zeros((1, self.model.shared.weight.shape[0])))
+        self.lm_head = mint.nn.Linear(config.d_model, self.model.shared.weight.shape[0], has_bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1474,7 +1470,7 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
 
     def resize_token_embeddings(
         self, new_num_tokens: int, pad_to_multiple_of: Optional[int] = None, mean_resizing: bool = True
-    ) -> nn.Embedding:
+    ) -> mint.nn.Embedding:
         new_embeddings = super().resize_token_embeddings(new_num_tokens, pad_to_multiple_of, mean_resizing)
         self._resize_final_logits_bias(new_embeddings.weight.shape[0])
         return new_embeddings
@@ -1598,7 +1594,7 @@ class BartForConditionalGeneration(BartPreTrainedModel, GenerationMixin):
 
 
 class BartForSequenceClassification(BartPreTrainedModel):
-    _tied_weights_keys = ["encoder.embed_tokens.embedding_table", "decoder.embed_tokens.embedding_table"]
+    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
 
     def __init__(self, config: BartConfig, **kwargs):
         super().__init__(config, **kwargs)
@@ -1721,7 +1717,7 @@ class BartForSequenceClassification(BartPreTrainedModel):
 
 
 class BartForQuestionAnswering(BartPreTrainedModel):
-    _tied_weights_keys = ["encoder.embed_tokens.embedding_table", "decoder.embed_tokens.embedding_table"]
+    _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
 
     def __init__(self, config):
         super().__init__(config)
@@ -1730,7 +1726,7 @@ class BartForQuestionAnswering(BartPreTrainedModel):
         self.num_labels = config.num_labels
 
         self.model = BartModel(config)
-        self.qa_outputs = nn.Dense(config.hidden_size, config.num_labels)
+        self.qa_outputs = mint.nn.Linear(config.hidden_size, config.num_labels)
 
         # Initialize weights and apply final processing
         self.post_init()
@@ -1862,7 +1858,7 @@ class BartForCausalLM(BartPreTrainedModel, GenerationMixin):
         super().__init__(config)
         self.model = BartDecoderWrapper(config)
 
-        self.lm_head = nn.Dense(config.hidden_size, config.vocab_size, has_bias=False)
+        self.lm_head = mint.nn.Linear(config.hidden_size, config.vocab_size, has_bias=False)
 
         # Initialize weights and apply final processing
         self.post_init()

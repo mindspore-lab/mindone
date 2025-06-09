@@ -1,23 +1,19 @@
-# Copyright 2021, The HuggingFace Inc. team. All rights reserved.
+# This module contains test cases that are defined in the `.test_cases.py` file, structured as lists or tuples like
+#     [name, pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map].
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Each defined case corresponds to a pair consisting of PyTorch and MindSpore modules, including their respective
+# initialization parameters and inputs for the forward. The testing framework adopted here is designed to generically
+# parse these parameters to assess and compare the precision of forward outcomes between the two frameworks.
 #
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""Testing suite for the Mindspore BART model."""
+# In cases where models have unique initialization procedures or require testing with specialized output formats,
+# it is necessary to develop distinct, dedicated test cases.
+
 import inspect
 
 import numpy as np
 import pytest
 import torch
-from transformers import BartConfig
+from transformers import BigBirdPegasusConfig
 
 import mindspore as ms
 
@@ -28,17 +24,17 @@ from tests.modeling_test_utils import (
     generalized_parse_args,
     get_modules,
 )
+from tests.transformers_tests.models.modeling_common import ids_numpy
 
-from ..modeling_common import ids_numpy
+# CrossEntropyLoss not support bf16
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 1e-2}
+MODES = [1]
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 6e-3}
-MODES = [0, 1]
 
-
-def prepare_bart_inputs_dict(
+def prepare_bigbird_pegasus_inputs_dict(
     config,
     input_ids,
-    decoder_input_ids=None,
+    decoder_input_ids,
     attention_mask=None,
     decoder_attention_mask=None,
 ):
@@ -46,33 +42,41 @@ def prepare_bart_inputs_dict(
         attention_mask = np.not_equal(input_ids, config.pad_token_id)
     if decoder_attention_mask is None:
         decoder_attention_mask = np.not_equal(decoder_input_ids, config.pad_token_id)
-    return {
+
+    input_dict = {
         "input_ids": input_ids,
         "decoder_input_ids": decoder_input_ids,
         "attention_mask": attention_mask,
         "decoder_attention_mask": decoder_attention_mask,
     }
+    input_dict = {k: input_dict[k] for k in input_dict}
+    return input_dict
 
 
-class BartModelTester:
+class BigBirdPegasusModelTester:
     def __init__(
         self,
-        batch_size=13,
-        seq_length=7,
+        batch_size=7,
+        seq_length=256,
         is_training=True,
         use_labels=False,
         vocab_size=99,
-        hidden_size=16,
+        hidden_size=32,
         num_hidden_layers=2,
         num_attention_heads=4,
-        intermediate_size=4,
-        hidden_act="gelu",
+        intermediate_size=31,
+        hidden_act="gelu_fast",
         hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
-        max_position_embeddings=50,
-        eos_token_id=2,
-        pad_token_id=1,
-        bos_token_id=0,
+        max_position_embeddings=260,
+        eos_token_id=1,
+        pad_token_id=0,
+        bos_token_id=2,
+        attention_type="block_sparse",
+        use_bias=False,
+        block_size=16,
+        num_random_blocks=3,
+        scale_embedding=True,
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -91,8 +95,13 @@ class BartModelTester:
         self.pad_token_id = pad_token_id
         self.bos_token_id = bos_token_id
 
+        self.attention_type = attention_type
+        self.use_bias = use_bias
+        self.block_size = block_size
+        self.num_random_blocks = num_random_blocks
+        self.scale_embedding = scale_embedding
+
     def prepare_config_and_inputs(self):
-        input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
         input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size).clip(
             3,
         )
@@ -101,12 +110,11 @@ class BartModelTester:
         decoder_input_ids = ids_numpy([self.batch_size, self.seq_length], self.vocab_size)
 
         config = self.get_config()
-        inputs_dict = prepare_bart_inputs_dict(config, input_ids, decoder_input_ids)
+        inputs_dict = prepare_bigbird_pegasus_inputs_dict(config, input_ids, decoder_input_ids)
         return config, inputs_dict
 
     def get_config(self):
-        return BartConfig(
-            attn_implementation="eager",
+        return BigBirdPegasusConfig(
             vocab_size=self.vocab_size,
             d_model=self.hidden_size,
             encoder_layers=self.num_hidden_layers,
@@ -121,57 +129,49 @@ class BartModelTester:
             eos_token_id=self.eos_token_id,
             bos_token_id=self.bos_token_id,
             pad_token_id=self.pad_token_id,
-        )
-
-    def get_pipeline_config(self):
-        config = self.get_config()
-        config.max_position_embeddings = 100
-        config.vocab_size = 300
-        return config
-
-    def prepare_config_and_inputs_for_common(self):
-        config, inputs_dict = self.prepare_config_and_inputs()
-        return (
-            config,
-            inputs_dict["input_ids"],
-            inputs_dict["decoder_input_ids"],
-            inputs_dict["attention_mask"],
-            inputs_dict["decoder_attention_mask"],
+            attention_type=self.attention_type,
+            use_bias=self.use_bias,
+            block_size=self.block_size,
+            num_random_blocks=self.num_random_blocks,
+            scale_embedding=self.scale_embedding,
         )
 
 
-model_tester = BartModelTester()
-(
-    config,
-    input_ids,
-    decoder_input_ids,
-    attention_mask,
-    decoder_attention_mask,
-) = model_tester.prepare_config_and_inputs_for_common()
+model_tester = BigBirdPegasusModelTester()
+(config, inputs_dict) = model_tester.prepare_config_and_inputs()
 
 
-Bart_CASES = [
+BERT_CASES = [
     [
-        "BartModel",
-        "transformers.BartModel",
-        "mindone.transformers.BartModel",
+        "BigBirdPegasusModel",
+        "transformers.BigBirdPegasusModel",
+        "mindone.transformers.BigBirdPegasusModel",
+        (config,),
+        {},
+        (inputs_dict["input_ids"],),
+        {"decoder_input_ids": inputs_dict["decoder_input_ids"], "use_cache": True},
+        {
+            "last_hidden_state": 0,
+        },
+    ],
+    [
+        "BigBirdPegasusForConditionalGeneration",
+        "transformers.BigBirdPegasusForConditionalGeneration",
+        "mindone.transformers.BigBirdPegasusForConditionalGeneration",
         (config,),
         {},
         (),
         {
-            "input_ids": input_ids,
-            "decoder_input_ids": decoder_input_ids,
-            "attention_mask": attention_mask,
-            "decoder_attention_mask": decoder_attention_mask,
+            "input_ids": inputs_dict["input_ids"],
+            "attention_mask": inputs_dict["attention_mask"],
         },
         {
-            "last_hidden_state": 0,
+            "logits": 1,
         },
     ],
 ]
 
 
-# transformers need >= 4.41.2
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
     [
@@ -182,7 +182,7 @@ Bart_CASES = [
         + [
             mode,
         ]
-        for case in Bart_CASES
+        for case in BERT_CASES
         for dtype in DTYPE_AND_THRESHOLDS.keys()
         for mode in MODES
     ],
@@ -216,8 +216,7 @@ def test_named_modules(
     if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
-    if mode == 0:
-        ms_inputs_kwargs.update({"return_dict": False})
+
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
@@ -227,9 +226,9 @@ def test_named_modules(
         pt_outputs_n = []
         ms_outputs_n = []
         for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
+            # print(": ==map", pt_key, ms_idx)
             pt_output = getattr(pt_outputs, pt_key)
-            ms_output = ms_outputs[ms_idx]
+            ms_output = ms_outputs[pt_key]
             if isinstance(pt_output, (list, tuple)):
                 pt_outputs_n += list(pt_output)
                 ms_outputs_n += list(ms_output)
