@@ -257,7 +257,7 @@ class GPTNeoXLayer(nn.Cell):
 
 
 class GPTNeoXRotaryEmbedding(nn.Cell):
-    def __init__(self, config: GPTNeoXConfig, device=None):
+    def __init__(self, config: GPTNeoXConfig):
         super().__init__()
         # BC: "rope_type" was originally "type"
         if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
@@ -270,16 +270,15 @@ class GPTNeoXRotaryEmbedding(nn.Cell):
         self.config = config
         self.rope_init_fn = ROPE_INIT_FUNCTIONS[self.rope_type]
 
-        inv_freq, self.attention_scaling = self.rope_init_fn(self.config, device)
+        inv_freq, self.attention_scaling = self.rope_init_fn(self.config)
         self.register_buffer("inv_freq", inv_freq, persistent=False)
         self.original_inv_freq = self.inv_freq
 
     def construct(self, x, position_ids):
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1).to(x.device)
+        inv_freq_expanded = self.inv_freq[None, :, None].float().expand(position_ids.shape[0], -1, 1)
         position_ids_expanded = position_ids[:, None, :].float()
 
-        device_type = x.device.type if isinstance(x.device.type, str) and x.device.type != "mps" else "cpu"
-        with mint.autocast(device_type=device_type, enabled=False):  # Force float32
+        with mint.autocast( enabled=False):  # Force float32
             freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
             emb = mint.cat((freqs, freqs), dim=-1)
             cos = emb.cos() * self.attention_scaling
@@ -325,7 +324,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
 
         self.embed_in = mint.nn.Embedding(config.vocab_size, config.hidden_size)
         self.emb_dropout = mint.nn.Dropout(config.hidden_dropout)
-        self.layers = nn.ModuleList([GPTNeoXLayer(config, i) for i in range(config.num_hidden_layers)])
+        self.layers = nn.CellList([GPTNeoXLayer(config, i) for i in range(config.num_hidden_layers)])
         self.final_layer_norm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.rotary_emb = GPTNeoXRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
@@ -378,7 +377,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
             cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], device=inputs_embeds.device
+                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
             )
 
         if position_ids is None:
@@ -401,7 +400,7 @@ class GPTNeoXModel(GPTNeoXPreTrainedModel):
         # Flex Attention converts it to a separate mask
         if head_mask is not None:
             converted_head_mask = ~converted_head_mask.bool() * mint.finfo(inputs_embeds.dtype).min
-            converted_head_mask = converted_head_mask.to(dtype=self.dtype, device=self.device)
+            converted_head_mask = converted_head_mask.to(dtype=self.dtype)
         head_mask = converted_head_mask
 
         hidden_states = self.emb_dropout(inputs_embeds)
@@ -601,8 +600,8 @@ class GPTNeoXForSequenceClassification(GPTNeoXPreTrainedModel):
             last_non_pad_token = -1
         elif input_ids is not None:
             # To handle both left- and right- padding, we take the rightmost token that is not equal to pad_token_id
-            non_pad_mask = (input_ids != self.config.pad_token_id).to(logits.device, mint.int32)
-            token_indices = mint.arange(input_ids.shape[-1], device=logits.device, dtype=mint.int32)
+            non_pad_mask = (input_ids != self.config.pad_token_id).to(ms.int32)
+            token_indices = mint.arange(input_ids.shape[-1], dtype=mint.int32)
             last_non_pad_token = (token_indices * non_pad_mask).argmax(-1)
         else:
             last_non_pad_token = -1
@@ -611,7 +610,7 @@ class GPTNeoXForSequenceClassification(GPTNeoXPreTrainedModel):
                 "unexpected if using padding tokens in conjunction with `inputs_embeds.`"
             )
 
-        pooled_logits = logits[mint.arange(batch_size, device=logits.device), last_non_pad_token]
+        pooled_logits = logits[mint.arange(batch_size), last_non_pad_token]
 
         loss = None
         if labels is not None:
