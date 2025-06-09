@@ -146,6 +146,11 @@ from .models.mt5 import (
     MT5Model,
     MT5PreTrainedModel,
 )
+from .models.m2m_100 import (
+    M2M100ForConditionalGeneration,
+    M2M100Model,
+    M2M100PreTrainedModel
+)
 from .models.phi3 import (
     Phi3ForCausalLM,
     Phi3ForSequenceClassification,
