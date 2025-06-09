@@ -416,6 +416,9 @@ class M2M100FlashAttention2(M2M100Attention):
         # cast them back in the correct dtype just to be sure everything works as expected.
         # This might slowdown training & inference so it is recommended to not cast the LayerNorms
         # in fp32. (LlamaRMSNorm handles it correctly)
+        key_states = key_states.transpose(1,2)
+        query_states = query_states.transpose(1, 2)
+        value_states = value_states.transpose(1, 2)
         if attention_mask is None and self.is_causal and query_states.shape[-2] > 1:
             attention_mask = mint.tril(mint.ones((query_states.shape[-2], key_states.shape[-2])))
 
