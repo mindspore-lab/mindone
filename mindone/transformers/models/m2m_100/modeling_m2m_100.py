@@ -418,10 +418,6 @@ class M2M100FlashAttention2(M2M100Attention):
         # cast them back in the correct dtype just to be sure everything works as expected.
         # This might slowdown training & inference so it is recommended to not cast the LayerNorms
         # in fp32. (LlamaRMSNorm handles it correctly)
-        query_states = query_states.swapaxes(1, 2)
-        key_states = key_states.swapaxes(1, 2)
-        value_states = value_states.swapaxes(1, 2)
-
         if attention_mask is None and self.is_causal and query_states.shape[-2] > 1:
             attention_mask = mint.tril(mint.ones((query_states.shape[-2], key_states.shape[-2])))
 
@@ -528,10 +524,6 @@ class M2M100SdpaAttention(M2M100Attention):
 
         # NOTE: SDPA with memory-efficient backend is currently (torch==2.1.2) bugged when using non-contiguous inputs and a custom attn_mask,
         # but we are fine here as `_shape` do call `.contiguous()`. Reference: https://github.com/pytorch/pytorch/issues/112577
-        query_states = query_states.swapaxes(1, 2)
-        key_states = key_states.swapaxes(1, 2)
-        value_states = value_states.swapaxes(1, 2)
-
         if attention_mask is not None:  # Todo: Sdpa & eager needn't logical_not
             attention_mask = mint.logical_not(attention_mask)
 
