@@ -19,7 +19,7 @@ from typing import List, Optional, Tuple, Union
 import mindspore as ms
 from mindspore import mint, nn
 from mindspore.mint.nn import CrossEntropyLoss
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention
+from ...mindspore_adapter import dtype_to_max, scaled_dot_product_attention
 from ...activations import ACT2FN
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import (
@@ -139,7 +139,6 @@ class M2M100SinusoidalPositionalEmbedding(nn.Cell):
 
         return emb
 
-    @ms._no_grad()
     def construct(
         self, input_ids: ms.Tensor = None, inputs_embeds: ms.Tensor = None, past_key_values_length: int = 0
     ):
@@ -513,10 +512,6 @@ class M2M100SdpaAttention(M2M100Attention):
             past_key_value = (key_states, value_states)
 
         query_states = self._shape(query_states, tgt_len, bsz)
-
-        # We dispatch to SDPA's Flash Attention or Efficient kernels via this `is_causal` if statement instead of an inline conditional assignment
-        # in SDPA to support both torch.compile's dynamic shapes and full graph options. An inline conditional prevents dynamic shapes from compiling.
-        # The tgt_len > 1 is necessary to match with AttentionMaskConverter.to_causal_4d that does not create a causal mask in case tgt_len == 1.
 
         if attention_mask is not None:  # Todo: Sdpa & eager needn't logical_not
             attention_mask = mint.logical_not(attention_mask)
