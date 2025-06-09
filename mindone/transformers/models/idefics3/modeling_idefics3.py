@@ -16,7 +16,7 @@
 
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
-
+import numpy as np
 from transformers import Idefics3Config, Idefics3VisionConfig
 from transformers.utils import (
     add_start_docstrings,
@@ -34,16 +34,17 @@ from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
 from ...generation import GenerationMixin
 from ...modeling_attn_mask_utils import _prepare_4d_attention_mask
-from ...modeling_outputs import BaseModelOutput, ModelOutput
+from ...modeling_outputs import BaseModelOutput, ModelOutput, CausalLMOutputWithPast
 from ...modeling_utils import MSPreTrainedModel
 from ...utils import is_flash_attn_2_available
-from ..auto import AutoModel
+# from ..auto import AutoModel
 
 if is_flash_attn_2_available():
     # from ...modeling_flash_attention_utils import _flash_attention_forward
     from ...integrations.flash_attention import flash_attention_forward
 
 from mindone.models.utils import normal_, zeros_
+from ..llama import LlamaModel
 
 logger = logging.get_logger(__name__)
 
@@ -121,7 +122,7 @@ class Idefics3BaseModelOutputWithPast(ModelOutput):
 
 
 @dataclass
-class Idefics3CausalLMOutputWithPast(ModelOutput):
+class Idefics3CausalLMOutputWithPast(CausalLMOutputWithPast):
     """
     Base class for Idefics causal language model (or autoregressive) outputs.
 
@@ -196,21 +197,21 @@ class Idefics3VisionEmbeddings(nn.Cell):
         embeddings = patch_embeds.flatten(2).swapaxes(1, 2)
 
         max_nb_patches_h, max_nb_patches_w = max_im_h // self.patch_size, max_im_w // self.patch_size
-        boundaries = mint.arange(1 / self.num_patches_per_side, 1.0, 1 / self.num_patches_per_side)
-        position_ids = mint.full(size=(batch_size, max_nb_patches_h * max_nb_patches_w), fill_value=0)
+        boundaries = list(np.arange(1 / self.num_patches_per_side, 1.0, 1 / self.num_patches_per_side))
+        position_ids = mint.full(size=(batch_size, max_nb_patches_h * max_nb_patches_w), fill_value=0, dtype=ms.int32)
 
         for batch_idx, p_attn_mask in enumerate(patch_attention_mask):
             nb_patches_h = p_attn_mask[:, 0].sum()
             nb_patches_w = p_attn_mask[0].sum()
 
-            fractional_coords_h = mint.arange(0, 1 - 1e-6, 1 / nb_patches_h)
-            fractional_coords_w = mint.arange(0, 1 - 1e-6, 1 / nb_patches_w)
+            fractional_coords_h = mint.arange(0, 1 - 1e-6, 1 / nb_patches_h.item(), dtype=ms.int32)
+            fractional_coords_w = mint.arange(0, 1 - 1e-6, 1 / nb_patches_w.item(), dtype=ms.int32)
 
             bucket_coords_h = ops.bucketize(fractional_coords_h, boundaries, right=True)
             bucket_coords_w = ops.bucketize(fractional_coords_w, boundaries, right=True)
 
             pos_ids = (bucket_coords_h[:, None] * self.num_patches_per_side + bucket_coords_w).flatten(start_dim=0)
-            position_ids[batch_idx][p_attn_mask.view(-1).cpu()] = pos_ids
+            position_ids[batch_idx][p_attn_mask.view(-1)] = pos_ids
 
         embeddings = embeddings + self.position_embedding(position_ids)
         return embeddings
@@ -725,7 +726,7 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
                     pixel_values.shape[3] // patch_size,
                 )
             )
-            patch_attention_mask = patch_attention_mask.to(dtype=ms.bool_)
+        patch_attention_mask = patch_attention_mask.to(dtype=ms.bool_)
 
         hidden_states = self.embeddings(pixel_values=pixel_values, patch_attention_mask=patch_attention_mask)
 
@@ -845,7 +846,10 @@ class Idefics3Model(Idefics3PreTrainedModel):
 
         self.vision_model = Idefics3VisionTransformer._from_config(config.vision_config)
         self.connector = Idefics3Connector(config)
-        self.text_model = AutoModel.from_config(config.text_config)
+
+        config.text_config.torch_dtype = str(config.text_config.torch_dtype).replace("torch.", "") # TODO: how to fix?
+        # self.text_model = AutoModel.from_config(config.text_config) # LlamaModel
+        self.text_model = LlamaModel._from_config(config.text_config)
 
         self.image_seq_len = int(
             ((config.vision_config.image_size // config.vision_config.patch_size) ** 2) / (config.scale_factor**2)
@@ -996,7 +1000,7 @@ class Idefics3Model(Idefics3PreTrainedModel):
             pixel_values = pixel_values.view(batch_size * num_images, *pixel_values.shape[2:])
 
             # Remove padding images - padding images are full 0.
-            nb_values_per_image = pixel_values.shape[1:].numel()
+            nb_values_per_image = len(pixel_values.shape[1:])
             real_images_inds = (pixel_values == 0.0).sum(dim=(-1, -2, -3)) != nb_values_per_image
             pixel_values = pixel_values[real_images_inds].contiguous()
 
@@ -1014,15 +1018,15 @@ class Idefics3Model(Idefics3PreTrainedModel):
                 pixel_attention_mask = pixel_attention_mask[real_images_inds].contiguous()
 
             patch_size = self.config.vision_config.patch_size
-            print("pixel_attention_mask", pixel_attention_mask.shape)
 
             # torch.tensor.unfold x 2: (B, H, W) => (B, H', W', K, K)
             # patches_subgrid = pixel_attention_mask.unfold(dimension=1, size=patch_size, step=patch_size)
             # patches_subgrid = patches_subgrid.unfold(dimension=2, size=patch_size, step=patch_size)
 
             # (B, C=1, H, W) => (B, Cx(KxK), L=H'xW')
-            patches_subgrid = F.unfold(pixel_attention_mask[:, None, ...], kernel_size=patch_size, stride=patch_size)
-            h, w = pixel_attention_mask.shape[1:] // patch_size
+            patches_subgrid = F.unfold(pixel_attention_mask[:, None, ...].float(), kernel_size=patch_size, stride=patch_size)
+            h = pixel_attention_mask.shape[1] // patch_size
+            w = pixel_attention_mask.shape[2] // patch_size
             patches_subgrid = patches_subgrid.swapaxes(1, 2).reshape(
                 pixel_attention_mask.shape[0], h, w, patch_size, patch_size
             )
@@ -1243,6 +1247,8 @@ class Idefics3ForConditionalGeneration(Idefics3PreTrainedModel, GenerationMixin)
         )
 
         hidden_states = outputs[0]
+        if logits_to_keep is None:
+            logits_to_keep = 0
         # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
         slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
         logits = self.lm_head(hidden_states[:, slice_indices, :])

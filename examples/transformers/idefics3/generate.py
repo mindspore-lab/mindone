@@ -21,7 +21,10 @@ print("Loaded Idefics3Processor, time elapsed: %.4fs" % (time.time() - start_tim
 
 start_time = time.time()
 model = Idefics3ForConditionalGeneration.from_pretrained(
-    MODEL_HUB, mindspore_dtype=ms.bfloat16, attn_implementation="eager"
+    MODEL_HUB,
+    mindspore_dtype=ms.bfloat16,
+    # attn_implementation="eager",
+    attn_implementation="flash_attention_2",
 )
 print("Loaded Idefics3ForConditionalGeneration, time elapsed: %.4fs" % (time.time() - start_time))
 
@@ -59,7 +62,7 @@ for k, v in inputs.items():
         inputs[k] = inputs[k].to(ms.int32)
     else:
         inputs[k] = inputs[k].to(model.dtype)
-print(inputs)
+# print(inputs)
 
 # Generate
 generated_ids = model.generate(**inputs, max_new_tokens=500)

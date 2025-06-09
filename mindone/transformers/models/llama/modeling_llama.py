@@ -571,7 +571,7 @@ class LlamaModel(LlamaPreTrainedModel):
         output_hidden_states: Optional[bool] = None,
         return_dict: Optional[bool] = False,
         cache_position: Optional[ms.Tensor] = None,
-        *flash_attn_kwargs: Unpack[FlashAttentionKwargs],
+        **flash_attn_kwargs: Unpack[FlashAttentionKwargs],
     ) -> Union[Tuple, BaseModelOutputWithPast]:
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -586,9 +586,6 @@ class LlamaModel(LlamaPreTrainedModel):
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
-
-        if use_cache and past_key_values is None:
-            past_key_values = DynamicCache()
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
@@ -659,6 +656,7 @@ class LlamaModel(LlamaPreTrainedModel):
         past_key_values: Optional[Cache],
         output_attentions: bool = False,
     ):
+        past_seen_tokens = 0
         if isinstance(past_key_values, Cache):  # DynamicCache
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
         elif isinstance(past_key_values, tuple):  # static tuple cache
@@ -878,93 +876,93 @@ class LlamaForCausalLM(LlamaPreTrainedModel, GenerationMixin):
             attentions=outputs.attentions,
         )
 
-    # def prepare_inputs_for_generation(
-    #     self,
-    #     input_ids,
-    #     past_key_values=None,
-    #     attention_mask=None,
-    #     inputs_embeds=None,
-    #     cache_position=None,
-    #     use_cache=False,
-    #     **kwargs,
-    # ):
-    #     past_length = 0
-    #     if past_key_values is not None:
-    #         # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
-    #         past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
-    #         max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
-    #         cache_length = past_length if max_cache_length is None else ops.minimum(max_cache_length, past_length)
+    def prepare_inputs_for_generation(
+        self,
+        input_ids,
+        past_key_values=None,
+        attention_mask=None,
+        inputs_embeds=None,
+        cache_position=None,
+        use_cache=False,
+        **kwargs,
+    ):
+        past_length = 0
+        if past_key_values is not None:
+            # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
+            past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
+            max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
+            cache_length = past_length if max_cache_length is None else ops.minimum(max_cache_length, past_length)
 
-    #         # Keep only the unprocessed tokens:
-    #         # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
-    #         # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as input)
+            # Keep only the unprocessed tokens:
+            # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
+            # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as input)
 
-    #         if attention_mask is not None and int(attention_mask.sum(-1).max()) > input_ids.shape[1]:
-    #             input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)) :]
-    #         # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
-    #         # input_ids based on the past_length.
-    #         elif past_length < input_ids.shape[1]:
-    #             input_ids = input_ids[:, int(past_length) :]
-    #         # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
+            if attention_mask is not None and int(attention_mask.sum(-1).max()) > input_ids.shape[1]:
+                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)) :]
+            # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
+            # input_ids based on the past_length.
+            elif past_length < input_ids.shape[1]:
+                input_ids = input_ids[:, int(past_length) :]
+            # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
 
-    #         # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
-    #         if (
-    #             max_cache_length is not None
-    #             and attention_mask is not None
-    #             and cache_length + input_ids.shape[1] > max_cache_length
-    #         ):
-    #             attention_mask = attention_mask[:, -max_cache_length:]
+            # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
+            if (
+                max_cache_length is not None
+                and attention_mask is not None
+                and cache_length + input_ids.shape[1] > max_cache_length
+            ):
+                attention_mask = attention_mask[:, -max_cache_length:]
 
-    #     position_ids = kwargs.get("position_ids", None)
-    #     if attention_mask is not None and position_ids is None:
-    #         # create position_ids on the fly for batch generation
-    #         position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
-    #         position_ids = position_ids.masked_fill(attention_mask == 0, 1)
-    #         if past_key_values and past_length > 0:
-    #             cur_len = attention_mask.sum(-1).max()
-    #             position_ids = position_ids[:, cur_len - input_ids.shape[1] : cur_len]
+        position_ids = kwargs.get("position_ids", None)
+        if attention_mask is not None and position_ids is None:
+            # create position_ids on the fly for batch generation
+            position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
+            position_ids = position_ids.masked_fill(attention_mask == 0, 1)
+            if past_key_values and past_length > 0:
+                cur_len = attention_mask.sum(-1).max()
+                position_ids = position_ids[:, cur_len - input_ids.shape[1] : cur_len]
 
-    #     # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
-    #     if inputs_embeds is not None and past_length == 0:
-    #         model_inputs = {"inputs_embeds": inputs_embeds}
-    #     else:
-    #         # TODO: use `next_tokens` directly instead.
-    #         if not isinstance(input_ids, Tensor):
-    #             input_ids = Tensor(input_ids, dtype=ms.int32)
+        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
+        if inputs_embeds is not None and past_length == 0:
+            model_inputs = {"inputs_embeds": inputs_embeds}
+        else:
+            # TODO: use `next_tokens` directly instead.
+            if not isinstance(input_ids, Tensor):
+                input_ids = Tensor(input_ids, dtype=ms.int32)
 
-    #         # Padding to max_len when no cache
-    #         if past_key_values is None:
-    #             pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
-    #             input_ids = ops.pad(input_ids, (0, pad_len), value=0)
+            # Padding to max_len when no cache
+            if past_key_values is None:
+                pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
+                input_ids = ops.pad(input_ids, (0, pad_len), value=0)
 
-    #         model_inputs = {"input_ids": input_ids}
+            model_inputs = {"input_ids": input_ids}
 
-    #     input_length = position_ids.shape[-1] if position_ids is not None else input_ids.shape[-1]
+        input_length = position_ids.shape[-1] if position_ids is not None else input_ids.shape[-1]
 
-    #     if cache_position is None:
-    #         cache_position = ops.arange(past_length, past_length + input_length)
-    #     elif use_cache:
-    #         if input_length < cache_position.shape[0]:
-    #             assert cache_position.shape[0] == attention_mask.shape[-1]
-    #             cur_len = int(attention_mask.sum(-1).max())
-    #             cache_position = cache_position[cur_len - input_length : cur_len]
-    #         else:
-    #             cache_position = cache_position[-input_length:]
+        if cache_position is None:
+            cache_position = ops.arange(past_length, past_length + input_length)
+        elif use_cache:
+            if input_length < cache_position.shape[0]:
+                assert cache_position.shape[0] == attention_mask.shape[-1]
+                cur_len = int(attention_mask.sum(-1).max())
+                cache_position = cache_position[cur_len - input_length : cur_len]
+            else:
+                cache_position = cache_position[-input_length:]
 
-    #     model_inputs.update(
-    #         {
-    #             "position_ids": position_ids,
-    #             "cache_position": cache_position,
-    #             "past_key_values": ms.mutable(past_key_values) if past_key_values is not None else None,
-    #             "use_cache": use_cache,
-    #             "attention_mask": attention_mask,
-    #         }
-    #     )
-    #     return model_inputs
+        model_inputs.update(
+            {
+                "position_ids": position_ids,
+                "cache_position": cache_position,
+                "past_key_values": ms.mutable(past_key_values) if past_key_values is not None else None,
+                "use_cache": use_cache,
+                "attention_mask": attention_mask,
+            }
+        )
+        return model_inputs
 
-    # @staticmethod
-    # def _reorder_cache(past_key_values, beam_idx):
-    #     raise NotImplementedError
+    @staticmethod
+    def _reorder_cache(past_key_values, beam_idx):
+        raise NotImplementedError
 
 
 @add_start_docstrings(
