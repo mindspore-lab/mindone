@@ -18,15 +18,17 @@
 import math
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.roberta.configuration_roberta import RobertaConfig
+from transformers.utils import logging
+
 import mindspore as ms
-from packaging import version
-from mindspore import nn, mint, ops
+from mindspore import mint, nn
+from mindspore.common.initializer import Normal, initializer
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from mindone.transformers.mindspore_adapter.attention import scaled_dot_product_attention
-from mindspore.common.initializer import initializer, Normal
+
 from ...activations import ACT2FN, get_activation
 from ...generation import GenerationMixin
-
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     BaseModelOutputWithPoolingAndCrossAttentions,
@@ -38,10 +40,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import logging
-from transformers.models.roberta.configuration_roberta import RobertaConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -70,9 +68,7 @@ class RobertaEmbeddings(nn.Cell):
         self.register_buffer(
             "position_ids", mint.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
         )
-        self.register_buffer(
-            "token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int32), persistent=False
-        )
+        self.register_buffer("token_type_ids", mint.zeros(self.position_ids.shape, dtype=ms.int32), persistent=False)
 
         # End copy
         self.padding_idx = config.pad_token_id
@@ -132,9 +128,7 @@ class RobertaEmbeddings(nn.Cell):
         input_shape = inputs_embeds.shape[:-1]
         sequence_length = input_shape[1]
 
-        position_ids = mint.arange(
-            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int32
-        )
+        position_ids = mint.arange(self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=ms.int32)
         return position_ids.unsqueeze(0).expand(input_shape)
 
 
@@ -157,12 +151,12 @@ class RobertaSelfAttention(nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = nn.Dropout(p=config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -225,9 +219,7 @@ class RobertaSelfAttention(nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int32).view(
-                    -1, 1
-                )
+                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int32).view(-1, 1)
             else:
                 position_ids_l = mint.arange(query_length, dtype=ms.int32).view(-1, 1)
             position_ids_r = mint.arange(key_length, dtype=ms.int32).view(1, -1)
@@ -271,7 +263,6 @@ class RobertaSelfAttention(nn.Cell):
         if self.is_decoder:
             outputs = outputs + (past_key_value,)
         return outputs
-
 
 
 # Copied from transformers.models.bert.modeling_bert.BertSelfOutput
@@ -595,9 +586,7 @@ class RobertaPreTrainedModel(PreTrainedModel):
             if module.bias is not None:
                 module.bias.set_data(initializer("zeros", module.bias.shape, module.bias.dtype))
         elif isinstance(module, mint.nn.Embedding):
-            module.weight.set_data(
-                initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype)
-            )
+            module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
             if module.padding_idx is not None:
                 module.weight[module.padding_idx] = 0
         elif isinstance(module, mint.nn.LayerNorm):
@@ -721,13 +710,15 @@ class RobertaModel(RobertaPreTrainedModel):
         encoder_hidden_states  (`ms.Tensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Sequence of hidden-states at the output of the last layer of the encoder. Used in the cross-attention if
             the model is configured as a decoder.
-        encoder_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)` or `(batch_size, sequence_length, target_length)`, *optional*):
+        encoder_attention_mask (`ms.Tensor` of shape `(batch_size, sequence_length)`
+        or `(batch_size, sequence_length, target_length)`, *optional*):
             Mask to avoid performing attention on the padding token indices of the encoder input. This mask is used in
             the cross-attention if the model is configured as a decoder. Mask values selected in `[0, 1]`:
 
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+        `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -886,7 +877,8 @@ class RobertaForCausalLM(RobertaPreTrainedModel, GenerationMixin):
             Labels for computing the left-to-right language modeling loss (next word prediction). Indices should be in
             `[-100, 0, ..., config.vocab_size]` (see `input_ids` docstring) Tokens with indices set to `-100` are
             ignored (masked), the loss is only computed for the tokens with labels in `[0, ..., config.vocab_size]`
-        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
+        past_key_values (`tuple(tuple(ms.Tensor))` of length `config.n_layers` with each tuple having 4 tensors of shape
+        `(batch_size, num_heads, sequence_length - 1, embed_size_per_head)`):
             Contains precomputed key and value hidden states of the attention blocks. Can be used to speed up decoding.
 
             If `past_key_values` are used, the user can optionally input only the last `decoder_input_ids` (those that
@@ -964,9 +956,7 @@ class RobertaForCausalLM(RobertaPreTrainedModel, GenerationMixin):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 
