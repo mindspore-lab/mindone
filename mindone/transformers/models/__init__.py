@@ -22,6 +22,7 @@ from . import (
     llava,
     minicpm4,
     mobilebert,
+    paligemma,
     phi3,
     qwen2,
     qwen2_5_omni,
