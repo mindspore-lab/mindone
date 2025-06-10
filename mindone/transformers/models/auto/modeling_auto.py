@@ -44,6 +44,9 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("glm", "GlmModel"),
         ("glpn", "GLPNModel"),
         ("gpt2", "GPT2Model"),
+        ("qwen2_audio_encoder", "Qwen2AudioEncoder"),
+        ("gemma3_text", "Gemma3TextModel"),
+        ("siglip", "SiglipModel"),
         ("hiera", "HieraModel"),
         ("ijepa", "IJepaModel"),
         ("imagegpt", "ImageGPTModel"),
@@ -59,6 +62,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("qwen2_vl", "Qwen2VLModel"),
         ("qwen3", "Qwen3Model"),
         ("siglip", "SiglipModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
         ("speecht5", "SpeechT5Model"),
         ("t5", "T5Model"),
         ("umt5", "UMT5Model"),
@@ -75,6 +79,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("gemma3", "Gemma3ForConditionalGeneration"),
         ("hiera", "HieraForPreTraining"),
         ("llava", "LlavaForConditionalGeneration"),
         ("mobilebert", "MobileBertForPreTraining"),
@@ -111,6 +116,8 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
         ("gemma2", "Gemma2ForCausalLM"),
+        ("gemma3", "Gemma3ForCausalLM"),
+        ("gemma3_text", "Gemma3ForCausalLM"),
         ("glm", "GlmForCausalLM"),
         ("gpt2", "GPT2LMHeadModel"),
         ("llama", "LlamaForCausalLM"),
@@ -128,6 +135,7 @@ MODEL_FOR_IMAGE_MAPPING_NAMES = OrderedDict(
     [
         # Model for Image mapping
         ("bit", "BitModel"),
+        ("siglip_vision_model", "SiglipVisionModel"),
         ("dpt", "DPTModel"),
         ("glpn", "GLPNModel"),
         ("hiera", "HieraModel"),
@@ -187,6 +195,7 @@ MODEL_FOR_IMAGE_TEXT_TO_TEXT_MAPPING_NAMES = OrderedDict(
     [
         ("blip", "BlipForConditionalGeneration"),
         ("blip-2", "Blip2ForConditionalGeneration"),
+        ("gemma3", "Gemma3ForConditionalGeneration"),
         ("chameleon", "ChameleonForConditionalGeneration"),
         ("llava", "LlavaForConditionalGeneration"),
         ("qwen2_5_vl", "Qwen2_5_VLForConditionalGeneration"),
@@ -368,6 +377,7 @@ MODEL_FOR_AUDIO_XVECTOR_MAPPING_NAMES = OrderedDict(
 
 MODEL_FOR_TEXT_TO_SPECTROGRAM_MAPPING_NAMES = OrderedDict(
     [
+        ("siglip", "SiglipModel"),
         ("speecht5", "SpeechT5ForTextToSpeech"),
     ]
 )
