@@ -112,7 +112,7 @@ class M2M100SinusoidalPositionalEmbedding(nn.Cell):
         emb_weights = self.get_embedding(num_embeddings, embedding_dim, padding_idx)
         if hasattr(self, "weights"):
             # in forward put the weights on the correct dtype and device of the param
-            emb_weights = emb_weights.to(dtype=self.weights.dtype, )
+            emb_weights = emb_weights.to(dtype=self.weights.dtype)
 
         # self.register_buffer("weights", emb_weights, persistent=False)
         self.weights = emb_weights
@@ -571,6 +571,7 @@ class M2M100EncoderLayer(nn.Cell):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
         """
+        hidden_states = hidden_states.to(self.self_attn_layer_norm.weight)  # Todo: remove cast
         residual = hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
         hidden_states, attn_weights, _ = self.self_attn(
@@ -671,6 +672,7 @@ class M2M100DecoderLayer(nn.Cell):
                 Whether or not to return the attentions tensors of all attention layers. See `attentions` under
                 returned tensors for more detail.
         """
+        hidden_states = hidden_states.to(self.self_attn_layer_norm.weight)  # Todo: remove cast
         residual = hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
 
@@ -985,7 +987,6 @@ class M2M100Encoder(M2M100PreTrainedModel):
             inputs_embeds = self.embed_tokens(input_ids)
 
         embed_pos = self.embed_positions(input_ids, inputs_embeds)
-        embed_pos = embed_pos
 
         hidden_states = inputs_embeds + embed_pos
         hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
@@ -1242,7 +1243,6 @@ class M2M100Decoder(M2M100PreTrainedModel):
 
         # embed positions
         positions = self.embed_positions(input_ids, inputs_embeds, past_key_values_length)
-        positions = positions
 
         hidden_states = inputs_embeds + positions
 
