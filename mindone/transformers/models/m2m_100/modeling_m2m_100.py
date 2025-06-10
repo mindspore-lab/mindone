@@ -738,6 +738,7 @@ class M2M100PreTrainedModel(PreTrainedModel):
     _no_split_modules = ["M2M100EncoderLayer", "M2M100DecoderLayer"]
     _supports_flash_attn_2 = True
     _supports_sdpa = True
+    _supports_dynamic_input = True
 
     def _init_weights(self, module):
         std = self.config.init_std
