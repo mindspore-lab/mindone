@@ -18,7 +18,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import UMT5EncoderModel
 
@@ -302,7 +302,7 @@ class AuraFlowPipeline(DiffusionPipeline):
             uncond_input = {k: ms.Tensor(v) for k, v in uncond_input.items()}
             negative_prompt_embeds = self.text_encoder(**uncond_input)[0]
             negative_prompt_attention_mask = (
-                uncond_input["attention_mask"].unsqueeze(-1).expand(negative_prompt_embeds.shape)
+                uncond_input["attention_mask"].unsqueeze(-1).broadcast_to(negative_prompt_embeds.shape)
             )
             negative_prompt_embeds = negative_prompt_embeds * negative_prompt_attention_mask
 
@@ -485,7 +485,7 @@ class AuraFlowPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
 
@@ -509,7 +509,7 @@ class AuraFlowPipeline(DiffusionPipeline):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
                 # aura use timestep value between 0 and 1, with t=1 as noise and t=0 as the image
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

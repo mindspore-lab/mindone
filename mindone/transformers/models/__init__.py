@@ -1,6 +1,7 @@
 from . import (
     albert,
     auto,
+    bart,
     bert,
     big_bird,
     bigbird_pegasus,
@@ -11,6 +12,7 @@ from . import (
     dpt,
     gemma,
     gemma2,
+    gemma3,
     glm,
     glpn,
     gpt2,
@@ -22,6 +24,7 @@ from . import (
     llava,
     megatron_bert,
     minicpm4,
+    mixtral,
     mobilebert,
     phi3,
     qwen2,
