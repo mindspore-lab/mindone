@@ -47,9 +47,12 @@ img2dataset --url_list laion-aesthetics-12m --input_format "parquet"\
          --url_col "URL" --caption_col "TEXT" --output_format webdataset\
            --output_folder laion-aesthetics-12m-data --processes_count 16 --thread_count 64 --image_size 384\
             --resize_only_if_bigger=True --resize_mode="keep_ratio" --skip_reencode=True \
-             --save_additional_columns "['similarity','hash','punsafe','pwatermark']"
+             --save_additional_columns "['similarity','hash','punsafe','pwatermark','AESTHETIC_SCORE']"
 
 ```
+
+> Note:
+If a first download got interrupted for any reason, you can run again with `--incremental` "incremental" (this is the default) and using the same output folder , the same number_sample_per_shard and the same input urls, and img2dataset will complete the download.
 
 ## ImageNet-1K
 
