@@ -122,6 +122,8 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.granitemoe import GraniteMoeForCausalLM, GraniteMoeModel, GraniteMoePreTrainedModel
+from .models.granitemoeshared import GraniteMoeSharedForCausalLM, GraniteMoeSharedModel, GraniteMoeSharedPreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,

@@ -14,6 +14,8 @@ from . import (
     glm,
     glpn,
     gpt2,
+    granitemoe,
+    granitemoeshared,
     hiera,
     ijepa,
     imagegpt,
