@@ -9,6 +9,7 @@ from . import (
     clap,
     clip,
     dpt,
+    electra,
     gemma,
     gemma2,
     glm,
