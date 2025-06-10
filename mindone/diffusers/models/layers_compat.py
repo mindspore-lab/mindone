@@ -20,7 +20,7 @@ Key Features:
         - **conv_transpose1d**: Always custom due to framework limitations.
         - **conv_transpose2d**: Native post 2.3.0; custom for earlier versions.
         - **group_norm**: Native post 2.3.0; custom for earlier versions.
-        - **multinomial**: Native post 2.3.0; custom for earlier versions.
+        - **multinomial**: Native post 2.4.1; custom for earlier versions.
         - **pad**: Native post 2.3.0; custom for earlier versions.
 
         [2025/01/14]
@@ -40,7 +40,7 @@ Todo:
 from packaging.version import parse
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 from mindspore.common.api import _function_forbid_reuse
 from mindspore.ops.function.nn_func import _interploate_ext_make_tuple, _interpolate_ext_scale_factor_convert_size
 
@@ -94,6 +94,7 @@ def _conv_transpose1d(input, weight, bias=None, stride=1, padding=0, output_padd
     outH = (iH - 1) * stride[0] - (padding[0] + padding[1]) + dilation[0] * (kH - 1) + 1
     outW = (iW - 1) * stride[1] - (padding[2] + padding[3]) + dilation[1] * (kW - 1) + 1
 
+    # todo: unavailable mint interface
     op_conv_transpose2d = ops.Conv2DTranspose(
         out_channel=out_channels,
         kernel_size=(kH, kW),
@@ -202,7 +203,7 @@ else:
 # interpolate
 # ================================================================================
 if MINDSPORE_VERSION >= parse("2.3.0"):
-    interpolate = ms.mint.nn.functional.interpolate
+    interpolate = mint.nn.functional.interpolate
 else:
     interpolate = ops.interpolate
 
@@ -394,8 +395,8 @@ def _multinomial(input, num_samples, replacement=True, **kwargs):
     return result.long()
 
 
-if MINDSPORE_VERSION >= parse("2.3.0"):
-    multinomial = ops.multinomial
+if MINDSPORE_VERSION >= parse("2.4.1"):
+    multinomial = mint.multinomial
 else:
     multinomial = _multinomial
 
@@ -502,7 +503,8 @@ def _view_as_complex(input: ms.Tensor) -> ms.Tensor:
         [1.6116-0.5772j   -1.4606-0.9120j   0.0786-1.7497j   -0.6561-1.6623j]
     """
     assert input.shape[-1] == 2, "Tensor must have a last dimension of size 2"
-    real_part, imag_part = input.chunk(2, axis=-1)
+    real_part, imag_part = input.chunk(2, dim=-1)
+    # todo: unavailable mint interface ops.Complex
     output = ops.Complex()(real_part, imag_part).squeeze(axis=-1)
     return output
 

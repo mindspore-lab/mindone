@@ -18,7 +18,7 @@ import numpy as np
 from transformers import XLMRobertaTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import UNet2DConditionModel, VQModel
 from ...schedulers import DDIMScheduler, DDPMScheduler
@@ -215,10 +215,10 @@ class KandinskyPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_encoder_hidden_states = ops.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_encoder_hidden_states = mint.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_encoder_hidden_states, text_mask
 
@@ -308,15 +308,15 @@ class KandinskyPipeline(DiffusionPipeline):
         )
 
         if isinstance(image_embeds, list):
-            image_embeds = ops.cat(image_embeds, axis=0)
+            image_embeds = mint.cat(image_embeds, dim=0)
         if isinstance(negative_image_embeds, list):
-            negative_image_embeds = ops.cat(negative_image_embeds, axis=0)
+            negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if do_classifier_free_guidance:
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0).to(dtype=prompt_embeds.dtype)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=prompt_embeds.dtype)
 
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps_tensor = self.scheduler.timesteps
@@ -336,7 +336,7 @@ class KandinskyPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
             added_cond_kwargs = {"text_embeds": prompt_embeds, "image_embeds": image_embeds}
             noise_pred = self.unet(
@@ -348,17 +348,17 @@ class KandinskyPipeline(DiffusionPipeline):
             )[0]
 
             if do_classifier_free_guidance:
-                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], dim=1)
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, variance_pred_text], axis=1)
+                noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
             if not (
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], dim=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(

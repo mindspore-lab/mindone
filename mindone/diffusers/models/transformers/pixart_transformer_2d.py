@@ -14,7 +14,7 @@
 from typing import Any, Dict, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -171,9 +171,11 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
         # 3. Output blocks.
         self.norm_out = LayerNorm(self.inner_dim, elementwise_affine=False, eps=1e-6)
         self.scale_shift_table = ms.Parameter(
-            ops.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
+            mint.randn(2, self.inner_dim) / self.inner_dim**0.5, name="scale_shift_table"
         )
-        self.proj_out = nn.Dense(self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels)
+        self.proj_out = mint.nn.Linear(
+            self.inner_dim, self.config.patch_size * self.config.patch_size * self.out_channels
+        )
 
         self.adaln_single = AdaLayerNormSingle(self.inner_dim, use_additional_conditions=self.use_additional_conditions)
         self.caption_projection = None
@@ -354,7 +356,7 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
             )
 
         # 3. Output
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
+        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, dim=1)
         hidden_states = self.norm_out(hidden_states)
         # Modulation
         hidden_states = hidden_states * (1 + scale) + shift
@@ -366,8 +368,7 @@ class PixArtTransformer2DModel(ModelMixin, ConfigMixin):
         hidden_states = hidden_states.reshape(
             -1, height, width, self.config["patch_size"], self.config["patch_size"], self.out_channels
         )
-        # hidden_states = ops.einsum("nhwpqc->nchpwq", hidden_states)
-        hidden_states = hidden_states.transpose(0, 5, 1, 3, 2, 4)
+        hidden_states = mint.einsum("nhwpqc->nchpwq", hidden_states)
         output = hidden_states.reshape(
             -1, self.out_channels, height * self.config["patch_size"], width * self.config["patch_size"]
         )

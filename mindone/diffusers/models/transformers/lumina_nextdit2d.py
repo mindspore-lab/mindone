@@ -15,7 +15,7 @@
 from typing import Any, Dict, Optional
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import logging
@@ -61,7 +61,7 @@ class LuminaNextDiTBlock(nn.Cell):
         super().__init__()
         self.head_dim = dim // num_attention_heads
 
-        self.gate = ms.Parameter(ops.zeros([num_attention_heads]))
+        self.gate = ms.Parameter(mint.zeros([num_attention_heads]))
 
         # Self-attention
         self.attn1 = Attention(
@@ -76,7 +76,7 @@ class LuminaNextDiTBlock(nn.Cell):
             out_bias=False,
             processor=LuminaAttnProcessor2_0(),
         )
-        self.attn1.to_out = nn.Identity()
+        self.attn1.to_out = mint.nn.Identity()
 
         # Cross-attention
         self.attn2 = Attention(
@@ -249,7 +249,7 @@ class LuminaNextDiT2DModel(ModelMixin, ConfigMixin):
             patch_size=patch_size, in_channels=in_channels, embed_dim=hidden_size, bias=True
         )
 
-        self.pad_token = ms.Parameter(ops.zeros((hidden_size,)))
+        self.pad_token = ms.Parameter(mint.zeros((hidden_size,)))
 
         self.time_caption_embed = LuminaCombinedTimestepCaptionEmbedding(
             hidden_size=min(hidden_size, 1024), cross_attention_dim=cross_attention_dim
