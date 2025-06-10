@@ -8,6 +8,7 @@ from . import (
     blip_2,
     clap,
     clip,
+    codegen,
     dpt,
     gemma,
     gemma2,

@@ -112,6 +112,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("whisper", "Whisper"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("codegen", "CodeGenConfig"),
     ]
 )
 

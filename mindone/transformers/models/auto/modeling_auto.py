@@ -62,6 +62,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2Model"),
         ("whisper", "WhisperModel"),
         ("xlm-roberta", "XLMRobertaModel"),
+        ("codegen", "CodeGenModel"),
     ]
 )
 
@@ -113,6 +114,7 @@ MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
         ("whisper", "WhisperForCausalLM"),
         ("xlm-roberta", "XLMRobertaForCausalLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForCausalLM"),
+        ("codegen", "CodeGenForCausalLM"),
     ]
 )
 
