@@ -48,6 +48,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("imagegpt", "ImageGPTModel"),
         ("levit", "LevitModel"),
         ("llama", "LlamaModel"),
+        ("mobilebert", "MobileBertModel"),
         ("mt5", "MT5Model"),
         ("phi3", "Phi3Model"),
         ("qwen2", "Qwen2Model"),
@@ -73,6 +74,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
         ("gpt2", "GPT2LMHeadModel"),
         ("hiera", "HieraForPreTraining"),
         ("llava", "LlavaForConditionalGeneration"),
+        ("mobilebert", "MobileBertForPreTraining"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForPreTraining"),
@@ -88,6 +90,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
         ("bert", "BertForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
+        ("mobilebert", "MobileBertForMaskedLM"),
         ("t5", "T5ForConditionalGeneration"),
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
         ("whisper", "WhisperForConditionalGeneration"),
@@ -191,6 +194,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForMaskedLM"),
         ("bert", "BertForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
+        ("mobilebert", "MobileBertForMaskedLM"),
         ("wav2vec2", "Wav2Vec2ForMaskedLM"),
         ("xlm-roberta", "XLMRobertaForMaskedLM"),
         ("xlm-roberta-xl", "XLMRobertaXLForMaskedLM"),
@@ -256,6 +260,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("gemma2", "Gemma2ForSequenceClassification"),
         ("glm", "GlmForSequenceClassification"),
         ("llama", "LlamaForSequenceClassification"),
+        ("mobilebert", "MobileBertForSequenceClassification"),
         ("mt5", "MT5ForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("qwen2", "Qwen2ForSequenceClassification"),
@@ -272,6 +277,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("bert", "BertForQuestionAnswering"),
         ("deberta-v2", "DebertaV2ForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),
+        ("mobilebert", "MobileBertForQuestionAnswering"),
         ("qwen2", "Qwen2ForQuestionAnswering"),
         ("qwen3", "Qwen3ForQuestionAnswering"),
         ("t5", "T5ForQuestionAnswering"),
@@ -293,6 +299,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("bert", "BertForTokenClassification"),
         ("deberta-v2", "DebertaV2ForTokenClassification"),
         ("glm", "GlmForTokenClassification"),
+        ("mobilebert", "MobileBertForTokenClassification"),
         ("mt5", "MT5ForTokenClassification"),
         ("phi3", "Phi3ForTokenClassification"),
         ("qwen2", "Qwen2ForTokenClassification"),
@@ -309,6 +316,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertForMultipleChoice"),
         ("bert", "BertForMultipleChoice"),
         ("deberta-v2", "DebertaV2ForMultipleChoice"),
+        ("mobilebert", "MobileBertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
     ]
 )
@@ -316,6 +324,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_NEXT_SENTENCE_PREDICTION_MAPPING_NAMES = OrderedDict(
     [
         ("bert", "BertForNextSentencePrediction"),
+        ("mobilebert", "MobileBertForNextSentencePrediction"),
     ]
 )
 
@@ -375,6 +384,7 @@ MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
         ("albert", "AlbertModel"),
         ("bert", "BertModel"),
         ("deberta-v2", "DebertaV2Model"),
+        ("mobilebert", "MobileBertModel"),
         ("mt5", "MT5EncoderModel"),
         ("t5", "T5EncoderModel"),
         ("umt5", "UMT5EncoderModel"),
