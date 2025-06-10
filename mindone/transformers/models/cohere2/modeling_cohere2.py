@@ -78,7 +78,7 @@ class Cohere2RotaryEmbedding(nn.Cell):
             self._dynamic_frequency_update(position_ids)
 
         # Core RoPE block
-        inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
+        inv_freq_expanded = self.inv_freq[None, :, None].float().broadcast_to((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
         # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
         freqs = mint.matmul(inv_freq_expanded.float(), position_ids_expanded.float()).swapaxes(1, 2)
@@ -118,7 +118,7 @@ def repeat_kv(hidden_states: mint.Tensor, n_rep: int) -> mint.Tensor:
     batch, num_key_value_heads, slen, head_dim = hidden_states.shape
     if n_rep == 1:
         return hidden_states
-    hidden_states = hidden_states[:, :, None, :, :].expand((batch, num_key_value_heads, n_rep, slen, head_dim))
+    hidden_states = hidden_states[:, :, None, :, :].broadcast_to((batch, num_key_value_heads, n_rep, slen, head_dim))
     return hidden_states.reshape(batch, num_key_value_heads * n_rep, slen, head_dim)
 
 
@@ -225,7 +225,7 @@ class Cohere2Attention(nn.Cell):
         **kwargs: Unpack[FlashAttentionKwargs],
     ) -> Tuple[mint.Tensor, Optional[mint.Tensor], Optional[Tuple[mint.Tensor]]]:
         input_shape = hidden_states.shape[:-1]
-        hidden_shape = (*input_shape, -1, self.head_dim)
+        hidden_shape = input_shape + (-1, self.head_dim)
 
         query_states = self.q_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
         key_states = self.k_proj(hidden_states).view(hidden_shape).swapaxes(1, 2)
@@ -271,7 +271,7 @@ class Cohere2Attention(nn.Cell):
             **kwargs,
         )
 
-        attn_output = attn_output.reshape(*input_shape, -1).contiguous()
+        attn_output = attn_output.reshape(input_shape + (-1,)).contiguous()
         attn_output = self.o_proj(attn_output)
         return attn_output, attn_weights
 
@@ -566,7 +566,9 @@ class Cohere2Model(Cohere2PreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.config.use_cache
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        if (input_ids is None) ^ (inputs_embeds is not None):
+        if ((input_ids is None) and (inputs_embeds is None)) or (
+            (input_ids is not None) and (inputs_embeds is not None)
+        ):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.gradient_checkpointing and self.training and use_cache:
@@ -683,9 +685,9 @@ class Cohere2Model(Cohere2PreTrainedModel):
         dtype = input_tensor.dtype
         sequence_length = input_tensor.shape[1]
         if isinstance(past_key_values, (HybridCache, StaticCache)):
-            try:
+            if hasattr(past_key_values, "get_max_cache_shape"):
                 target_length = past_key_values.get_max_cache_shape()
-            except AttributeError:
+            else:
                 target_length = past_key_values.get_max_length()
         else:
             target_length = attention_mask.shape[-1] if attention_mask is not None else input_tensor.shape[1]
@@ -740,7 +742,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
-            causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
+            causal_mask = causal_mask[None, None, :, :].broadcast_to((batch_size, 1, -1, -1))
             if attention_mask is not None:
                 causal_mask = causal_mask.clone()  # copy to contiguous memory for in-place edit
                 mask_length = attention_mask.shape[-1]
@@ -941,9 +943,9 @@ class Cohere2ForCausalLM(Cohere2PreTrainedModel, GenerationMixin):
                 batch_size, sequence_length, _ = model_inputs["inputs_embeds"].shape
             else:
                 batch_size, sequence_length = model_inputs["input_ids"].shape
-            try:
+            if hasattr(past_key_values, "get_max_cache_shape"):
                 target_length = past_key_values.get_max_cache_shape()
-            except AttributeError:
+            else:
                 target_length = past_key_values.get_max_length()
             attention_mask = self.model._prepare_4d_causal_attention_mask_with_cache_position(
                 attention_mask,
