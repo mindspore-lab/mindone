@@ -29,6 +29,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         # Base model mapping
         ("albert", "AlbertModel"),
         ("bert", "BertModel"),
+        ("bart", "BartModel"),
         ("bit", "BitModel"),
         ("blip-2", "Blip2Model"),
         ("chameleon", "ChameleonModel"),
@@ -70,6 +71,7 @@ MODEL_FOR_PRETRAINING_MAPPING_NAMES = OrderedDict(
     [
         # Model for pre-training mapping
         ("albert", "AlbertForPreTraining"),
+        ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForPreTraining"),
         ("gpt2", "GPT2LMHeadModel"),
         ("hiera", "HieraForPreTraining"),
@@ -87,6 +89,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
     [
         # Model with LM heads mapping
         ("albert", "AlbertForMaskedLM"),
+        ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
         ("gpt2", "GPT2LMHeadModel"),
@@ -102,6 +105,7 @@ MODEL_WITH_LM_HEAD_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Causal LM mapping
+        ("bart", "BartForCausalLM"),
         ("bert", "BertLMHeadModel"),
         ("bert-generation", "BertGenerationDecoder"),
         ("gemma", "GemmaForCausalLM"),
@@ -192,6 +196,7 @@ MODEL_FOR_MASKED_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Masked LM mapping
         ("albert", "AlbertForMaskedLM"),
+        ("bart", "BartForConditionalGeneration"),
         ("bert", "BertForMaskedLM"),
         ("deberta-v2", "DebertaV2ForMaskedLM"),
         ("mobilebert", "MobileBertForMaskedLM"),
@@ -236,6 +241,7 @@ MODEL_FOR_DEPTH_ESTIMATION_MAPPING_NAMES = OrderedDict(
 MODEL_FOR_SEQ_TO_SEQ_CAUSAL_LM_MAPPING_NAMES = OrderedDict(
     [
         # Model for Seq2Seq Causal LM mapping
+        ("bart", "BartForConditionalGeneration"),
         ("mt5", "MT5ForConditionalGeneration"),
         ("qwen2_audio", "Qwen2AudioForConditionalGeneration"),
         ("t5", "T5ForConditionalGeneration"),
@@ -254,6 +260,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
     [
         # Model for Sequence Classification mapping
         ("albert", "AlbertForSequenceClassification"),
+        ("bart", "BartForSequenceClassification"),
         ("bert", "BertForSequenceClassification"),
         ("deberta-v2", "DebertaV2ForSequenceClassification"),
         ("gemma", "GemmaForSequenceClassification"),
@@ -274,6 +281,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
     [
         # Model for Question Answering mapping
         ("albert", "AlbertForQuestionAnswering"),
+        ("bart", "BartForQuestionAnswering"),
         ("bert", "BertForQuestionAnswering"),
         ("deberta-v2", "DebertaV2ForQuestionAnswering"),
         ("llama", "LlamaForQuestionAnswering"),

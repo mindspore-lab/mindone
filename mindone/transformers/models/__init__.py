@@ -1,6 +1,7 @@
 from . import (
     albert,
     auto,
+    bart,
     bert,
     big_bird,
     bigbird_pegasus,

@@ -16,6 +16,16 @@ from .models.albert import (
     AlbertPreTrainedModel,
 )
 from .models.auto import AutoConfig, AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
+from .models.bart import (
+    BartForCausalLM,
+    BartForConditionalGeneration,
+    BartForQuestionAnswering,
+    BartForSequenceClassification,
+    BartModel,
+    BartPretrainedModel,
+    BartPreTrainedModel,
+    PretrainedBartModel,
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,

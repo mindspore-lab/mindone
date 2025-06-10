@@ -33,6 +33,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         # Add configs here
         ("albert", "AlbertConfig"),
         ("bert", "BertConfig"),
+        ("bart", "BartConfig"),
         ("bit", "BitConfig"),
         ("blip-2", "Blip2Config"),
         ("clip", "CLIPConfig"),
@@ -75,6 +76,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         # Add full (and cased) model names here
         ("albert", "ALBERT"),
         ("bert", "BERT"),
+        ("bart", "BART"),
         ("bit", "BiT"),
         ("blip-2", "BLIP-2"),
         ("chameleon", "Chameleon"),
