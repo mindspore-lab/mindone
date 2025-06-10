@@ -26,7 +26,7 @@ Here is the development plan of the project:
     - [x] Multimodal reasoning
     - [x] Text-to-image generation
     - [ ] Gradio Demo
-- MMaDA (8B) Inference:
+- MMaDA (8B) Training:
     - [ ] Pre-training
     - [ ] Fine-tuning
 
