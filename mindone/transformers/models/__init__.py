@@ -1,4 +1,5 @@
 from . import (
+    albert,
     auto,
     bert,
     big_bird,
@@ -21,6 +22,7 @@ from . import (
     llava,
     minicpm4,
     mixtral,
+    mobilebert,
     phi3,
     qwen2,
     qwen2_5_omni,
