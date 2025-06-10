@@ -18,7 +18,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput, logging
@@ -382,7 +382,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         if len(self.timesteps) > 1:
             noise = randn_tensor(model_output.shape, dtype=model_output.dtype, generator=generator)
         else:
-            noise = ops.zeros_like(model_output)
+            noise = mint.zeros_like(model_output)
         z = noise * self.config.s_noise
 
         sigma_hat = sigma_next.clamp(min=sigma_min, max=sigma_max)
@@ -424,7 +424,7 @@ class CMStochasticIterativeScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples
