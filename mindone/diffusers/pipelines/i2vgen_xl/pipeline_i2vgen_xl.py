@@ -21,7 +21,7 @@ import PIL
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPTextModel, CLIPVisionModelWithProjection
 from ...image_processor import PipelineImageInput, VaeImageProcessor
@@ -336,8 +336,8 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         image_embeddings = image_embeddings.view(bs_embed * num_videos_per_prompt, seq_len, -1)
 
         if self.do_classifier_free_guidance:
-            negative_image_embeddings = ops.zeros_like(image_embeddings)
-            image_embeddings = ops.cat([negative_image_embeddings, image_embeddings])
+            negative_image_embeddings = mint.zeros_like(image_embeddings)
+            image_embeddings = mint.cat([negative_image_embeddings, image_embeddings])
 
         return image_embeddings
 
@@ -352,7 +352,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
             for i in range(0, latents.shape[0], decode_chunk_size):
                 frame = self.vae.decode(latents[i : i + decode_chunk_size])[0]
                 frames.append(frame)
-            image = ops.cat(frames, axis=0)
+            image = mint.cat(frames, dim=0)
         else:
             image = self.vae.decode(latents)[0]
 
@@ -444,16 +444,16 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         frame_position_mask = []
         for frame_idx in range(num_frames - 1):
             scale = (frame_idx + 1) / (num_frames - 1)
-            frame_position_mask.append(ops.ones_like(image_latents[:, :, :1]) * scale)
+            frame_position_mask.append(mint.ones_like(image_latents[:, :, :1]) * scale)
         if frame_position_mask:
-            frame_position_mask = ops.cat(frame_position_mask, axis=2)
-            image_latents = ops.cat([image_latents, frame_position_mask], axis=2)
+            frame_position_mask = mint.cat(frame_position_mask, dim=2)
+            image_latents = mint.cat([image_latents, frame_position_mask], dim=2)
 
         # duplicate image_latents for each generation per prompt, using mps friendly method
         image_latents = image_latents.tile((num_videos_per_prompt, 1, 1, 1, 1))
 
         if self.do_classifier_free_guidance:
-            image_latents = ops.cat([image_latents] * 2)
+            image_latents = mint.cat([image_latents] * 2)
 
         return image_latents
 
@@ -612,7 +612,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 3.2 Encode image prompt
         # 3.2.1 Image encodings.
@@ -664,7 +664,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = latent_model_input.dtype
@@ -725,7 +725,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
 def _convert_ms_to_pil(image: Union[ms.Tensor, List[ms.Tensor]]):
     if isinstance(image, list) and isinstance(image[0], ms.Tensor):
-        image = ops.cat(image, 0)
+        image = mint.cat(image, 0)
 
     if isinstance(image, ms.Tensor):
         if image.ndim == 3:

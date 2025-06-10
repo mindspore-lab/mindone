@@ -34,7 +34,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer, PretrainedConfig, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -1220,8 +1220,8 @@ def main(args):
                 tokenize_prompt(tokenizer_two, args.class_prompt, args.max_sequence_length)
             )
 
-            tokens_one = ops.cat([tokens_one, class_tokens_one], axis=0)
-            tokens_two = ops.cat([tokens_two, class_tokens_two], axis=0)
+            tokens_one = mint.cat([tokens_one, class_tokens_one], dim=0)
+            tokens_two = mint.cat([tokens_two, class_tokens_two], dim=0)
 
         # If no type of tuning is done on the text_encoder and custom instance prompts are NOT
         # provided (i.e. the --instance_prompt is used for all images), we encode the instance prompt once to avoid
@@ -1517,7 +1517,7 @@ def compute_weighting_mse_loss(weighting, pred, target):
     target_ndim = target.ndim
     square_loss = ((pred.float() - target.float()) ** 2).tile((repeats,) + (1,) * (target_ndim - 1))
 
-    weighting_mse_loss = ops.mean(
+    weighting_mse_loss = mint.mean(
         (weighting * square_loss).reshape(target.shape[0], -1),
         1,
     )
@@ -1632,20 +1632,20 @@ class TrainStepForFluxDevDB(TrainStep):
         )
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = mint.randn_like(model_input, dtype=model_input.dtype)
         bsz = model_input.shape[0]
 
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
         if self.args.weighting_scheme == "logit_normal":
             # See 3.1 in the SD3 paper ($rf/lognorm(0.00,1.00)$).
-            u = ops.normal(mean=self.args.logit_mean, stddev=self.args.logit_std, shape=(bsz,))
-            u = ops.sigmoid(u)
+            u = mint.normal(mean=self.args.logit_mean, std=self.args.logit_std, size=(bsz,))
+            u = mint.sigmoid(u)
         elif self.args.weighting_scheme == "mode":
-            u = ops.rand(bsz)
-            u = 1 - u - self.args.mode_scale * (ops.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
+            u = mint.rand(bsz)
+            u = 1 - u - self.args.mode_scale * (mint.cos(ms.numpy.pi * u / 2) ** 2 - 1 + u)
         else:
-            u = ops.rand(bsz)
+            u = mint.rand(bsz)
 
         indices = (u * self.noise_scheduler_num_train_timesteps).long()
         timesteps = self.noise_scheduler.timesteps[indices]
@@ -1698,8 +1698,8 @@ class TrainStepForFluxDevDB(TrainStep):
 
         if self.args.with_prior_preservation:
             # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
-            model_pred, model_pred_prior = ops.chunk(model_pred, 2, axis=0)
-            target, target_prior = ops.chunk(target, 2, axis=0)
+            model_pred, model_pred_prior = mint.chunk(model_pred, 2, dim=0)
+            target, target_prior = mint.chunk(target, 2, dim=0)
 
             # Compute prior loss
             prior_loss = compute_weighting_mse_loss(weighting, model_pred_prior, target_prior)

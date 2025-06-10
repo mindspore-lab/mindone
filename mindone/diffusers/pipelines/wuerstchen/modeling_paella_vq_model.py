@@ -16,7 +16,7 @@
 from typing import Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.autoencoders.vae import DecoderOutput, VectorQuantizer
@@ -35,17 +35,17 @@ class MixingResidualBlock(nn.Cell):
         # depthwise
         self.norm1 = LayerNorm(inp_channels, elementwise_affine=False, eps=1e-6)
         self.depthwise = nn.SequentialCell(
-            nn.Identity(),
-            nn.Conv2d(inp_channels, inp_channels, kernel_size=3, group=inp_channels, has_bias=True, pad_mode="valid"),
+            mint.nn.Identity(),
+            mint.nn.Conv2d(inp_channels, inp_channels, kernel_size=3, groups=inp_channels),
         )
 
         # channelwise
         self.norm2 = LayerNorm(inp_channels, elementwise_affine=False, eps=1e-6)
         self.channelwise = nn.SequentialCell(
-            nn.Dense(inp_channels, embed_dim), nn.GELU(), nn.Dense(embed_dim, inp_channels)
+            mint.nn.Linear(inp_channels, embed_dim), mint.nn.GELU(), mint.nn.Linear(embed_dim, inp_channels)
         )
 
-        self.gammas = ms.Parameter(ops.zeros(6), requires_grad=True, name="gammas")
+        self.gammas = ms.Parameter(mint.zeros(6), requires_grad=True, name="gammas")
 
     def construct(self, x):
         mods = self.gammas
@@ -93,25 +93,20 @@ class PaellaVQModel(ModelMixin, ConfigMixin):
         c_levels = [embed_dim // (2**i) for i in reversed(range(levels))]
         # Encoder blocks
         self.in_block = nn.SequentialCell(
+            # todo: unavailable mint interface
             nn.PixelUnshuffle(up_down_scale_factor),
-            nn.Conv2d(
-                in_channels * up_down_scale_factor**2, c_levels[0], kernel_size=1, has_bias=True, pad_mode="valid"
-            ),
+            mint.nn.Conv2d(in_channels * up_down_scale_factor**2, c_levels[0], kernel_size=1),
         )
         down_blocks = []
         for i in range(levels):
             if i > 0:
-                down_blocks.append(
-                    nn.Conv2d(
-                        c_levels[i - 1], c_levels[i], kernel_size=4, stride=2, has_bias=True, padding=1, pad_mode="pad"
-                    )
-                )
+                down_blocks.append(mint.nn.Conv2d(c_levels[i - 1], c_levels[i], kernel_size=4, stride=2, padding=1))
             block = MixingResidualBlock(c_levels[i], c_levels[i] * 4)
             down_blocks.append(block)
         down_blocks.append(
             nn.SequentialCell(
-                nn.Conv2d(c_levels[-1], latent_channels, kernel_size=1, has_bias=False, pad_mode="valid"),
-                nn.BatchNorm2d(latent_channels),  # then normalize them to have mean 0 and std 1
+                mint.nn.Conv2d(c_levels[-1], latent_channels, kernel_size=1, bias=False),
+                mint.nn.BatchNorm2d(latent_channels),  # then normalize them to have mean 0 and std 1
             )
         )
         self.down_blocks = nn.SequentialCell(*down_blocks)
@@ -120,30 +115,21 @@ class PaellaVQModel(ModelMixin, ConfigMixin):
         self.vquantizer = VectorQuantizer(num_vq_embeddings, vq_embed_dim=latent_channels, legacy=False, beta=0.25)
 
         # Decoder blocks
-        up_blocks = [
-            nn.SequentialCell(nn.Conv2d(latent_channels, c_levels[-1], kernel_size=1, has_bias=True, pad_mode="valid"))
-        ]
+        up_blocks = [nn.SequentialCell(mint.nn.Conv2d(latent_channels, c_levels[-1], kernel_size=1))]
         for i in range(levels):
             for j in range(bottleneck_blocks if i == 0 else 1):
                 block = MixingResidualBlock(c_levels[levels - 1 - i], c_levels[levels - 1 - i] * 4)
                 up_blocks.append(block)
             if i < levels - 1:
                 up_blocks.append(
-                    nn.Conv2dTranspose(
-                        c_levels[levels - 1 - i],
-                        c_levels[levels - 2 - i],
-                        kernel_size=4,
-                        stride=2,
-                        padding=1,
-                        pad_mode="pad",
-                        has_bias=True,
+                    mint.nn.ConvTranspose2d(
+                        c_levels[levels - 1 - i], c_levels[levels - 2 - i], kernel_size=4, stride=2, padding=1
                     )
                 )
         self.up_blocks = nn.SequentialCell(*up_blocks)
         self.out_block = nn.SequentialCell(
-            nn.Conv2d(
-                c_levels[0], out_channels * up_down_scale_factor**2, kernel_size=1, has_bias=True, pad_mode="valid"
-            ),
+            mint.nn.Conv2d(c_levels[0], out_channels * up_down_scale_factor**2, kernel_size=1),
+            # todo: unavailable mint interface
             nn.PixelShuffle(up_down_scale_factor),
         )
 
@@ -197,7 +183,7 @@ def _pad(input, pad, mode="constant", value=0):
     padded_height = height + top + bottom
     padded_width = width + left + right
 
-    output = ops.full((batch_size, channels, padded_height, padded_width), value, dtype=input.dtype)
+    output = mint.full((batch_size, channels, padded_height, padded_width), value, dtype=input.dtype)
     output[:, :, top : top + height, left : left + width] = input
 
     if mode == "replicate":

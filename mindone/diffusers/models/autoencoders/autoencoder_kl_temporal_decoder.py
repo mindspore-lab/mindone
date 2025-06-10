@@ -16,7 +16,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import CROSS_ATTENTION_PROCESSORS, AttentionProcessor, AttnProcessor
@@ -38,9 +38,7 @@ class TemporalDecoder(nn.Cell):
         super().__init__()
         self.layers_per_block = layers_per_block
 
-        self.conv_in = nn.Conv2d(
-            in_channels, block_out_channels[-1], kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_in = mint.nn.Conv2d(in_channels, block_out_channels[-1], kernel_size=3, stride=1, padding=1)
         self.mid_block = MidBlockTemporalDecoder(
             num_layers=self.layers_per_block,
             in_channels=block_out_channels[-1],
@@ -69,26 +67,21 @@ class TemporalDecoder(nn.Cell):
 
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=32, eps=1e-6)
 
-        self.conv_act = nn.SiLU()
-        self.conv_out = nn.Conv2d(
+        self.conv_act = mint.nn.SiLU()
+        self.conv_out = mint.nn.Conv2d(
             in_channels=block_out_channels[0],
             out_channels=out_channels,
             kernel_size=3,
-            pad_mode="pad",
             padding=1,
-            has_bias=True,
         )
 
         conv_out_kernel_size = (3, 1, 1)
-        # padding = [int(k // 2) for k in conv_out_kernel_size]
-        padding = (1, 1, 0, 0, 0, 0)
-        self.time_conv_out = nn.Conv3d(
+        padding = (1, 0, 0)
+        self.time_conv_out = mint.nn.Conv3d(
             in_channels=out_channels,
             out_channels=out_channels,
             kernel_size=conv_out_kernel_size,
-            pad_mode="pad",
             padding=padding,
-            has_bias=True,
         )
 
         self.gradient_checkpointing = False
@@ -190,7 +183,7 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
             layers_per_block=layers_per_block,
         )
 
-        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
+        self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
     def _set_gradient_checkpointing(self, module, value=False):
@@ -313,7 +306,7 @@ class AutoencoderKLTemporalDecoder(ModelMixin, ConfigMixin):
 
         """
         batch_size = z.shape[0] // num_frames
-        image_only_indicator = ops.zeros((batch_size, num_frames), dtype=z.dtype)
+        image_only_indicator = mint.zeros((batch_size, num_frames), dtype=z.dtype)
         decoded = self.decoder(z, num_frames=num_frames, image_only_indicator=image_only_indicator)
 
         if not return_dict:

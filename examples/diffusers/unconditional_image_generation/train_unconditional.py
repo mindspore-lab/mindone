@@ -12,7 +12,7 @@ from datasets import disable_caching, load_dataset
 from tqdm.auto import tqdm
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -584,10 +584,10 @@ class TrainStepForGen(TrainStep):
     def forward(self, images):
         clean_images = images.to(self.weight_dtype)
         # Sample noise that we'll add to the images
-        noise = ops.randn(clean_images.shape, dtype=self.weight_dtype)
+        noise = mint.randn(clean_images.shape, dtype=self.weight_dtype)
         bsz = clean_images.shape[0]
         # Sample a random timestep for each image
-        timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,)).long()
+        timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,)).long()
 
         # Add noise to the clean images according to the noise magnitude at each timestep
         # (this is the forward diffusion process)
@@ -600,12 +600,12 @@ class TrainStepForGen(TrainStep):
         model_pred = self.unet(noisy_images, timesteps, return_dict=False)[0]
 
         if self.noise_scheduler_prediction_type == "epsilon":
-            loss = ops.mse_loss(model_pred.float(), noise.float())  # this could have different weights!
+            loss = mint.nn.functional.mse_loss(model_pred.float(), noise.float())  # this could have different weights!
         elif self.noise_scheduler_prediction_type == "sample":
             alpha_t = self.noise_scheduler.alphas_cumprod[timesteps].reshape(clean_images.shape[0], 1, 1, 1)
             snr_weights = alpha_t / (1 - alpha_t)
             # use SNR weighting from distillation paper
-            loss = snr_weights * ops.mse_loss(model_pred.float(), clean_images.float(), reduction="none")
+            loss = snr_weights * mint.nn.functional.mse_loss(model_pred.float(), clean_images.float(), reduction="none")
             loss = loss.mean()
         else:
             raise ValueError(f"Unsupported prediction type: {self.noise_scheduler_prediction_type}")

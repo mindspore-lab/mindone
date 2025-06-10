@@ -16,7 +16,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
@@ -115,12 +115,8 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
             mid_block_add_attention=mid_block_add_attention,
         )
 
-        self.quant_conv = (
-            nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True) if use_quant_conv else None
-        )
-        self.post_quant_conv = (
-            nn.Conv2d(latent_channels, latent_channels, 1, has_bias=True) if use_post_quant_conv else None
-        )
+        self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1) if use_quant_conv else None
+        self.post_quant_conv = mint.nn.Conv2d(latent_channels, latent_channels, 1) if use_post_quant_conv else None
         self.diag_gauss_dist = DiagonalGaussianDistribution()
 
         self.use_slicing = False
@@ -270,7 +266,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
         """
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self._encode(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self._encode(x)
 
@@ -313,7 +309,7 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
         """
         if self.use_slicing and z.shape[0] > 1:
             decoded_slices = [self._decode(z_slice)[0] for z_slice in z.split(1)]
-            decoded = ops.cat(decoded_slices)
+            decoded = mint.cat(decoded_slices)
         else:
             decoded = self._decode(z)[0]
 
@@ -377,9 +373,9 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
                 result_row.append(tile[:, :, :row_limit, :row_limit])
-            result_rows.append(ops.cat(result_row, axis=3))
+            result_rows.append(mint.cat(result_row, dim=3))
 
-        enc = ops.cat(result_rows, axis=2)
+        enc = mint.cat(result_rows, dim=2)
         return enc
 
     def tiled_encode(self, x: ms.Tensor, return_dict: bool = False) -> AutoencoderKLOutput:
@@ -434,9 +430,9 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
                 result_row.append(tile[:, :, :row_limit, :row_limit])
-            result_rows.append(ops.cat(result_row, axis=3))
+            result_rows.append(mint.cat(result_row, dim=3))
 
-        moments = ops.cat(result_rows, axis=2)
+        moments = mint.cat(result_rows, dim=2)
 
         if not return_dict:
             return (moments,)
@@ -484,9 +480,9 @@ class AutoencoderKL(ModelMixin, ConfigMixin, FromOriginalModelMixin, PeftAdapter
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
                 result_row.append(tile[:, :, :row_limit, :row_limit])
-            result_rows.append(ops.cat(result_row, axis=3))
+            result_rows.append(mint.cat(result_row, dim=3))
 
-        dec = ops.cat(result_rows, axis=2)
+        dec = mint.cat(result_rows, dim=2)
         if not return_dict:
             return (dec,)
 
