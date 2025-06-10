@@ -346,7 +346,7 @@ class Cohere2DecoderLayer(nn.Cell):
             # Otherwise, the mask is 4D of shape [bs, 1, query_len, max_cache_len] thus we must slice
             # from the left, with an offset if we are beyond the sliding window
             else:
-                min_dtype = _DTYPE_2_MIN[hidden_states.dtype]
+                min_dtype = float(_DTYPE_2_MIN[hidden_states.dtype])
                 sliding_window_mask = mint.tril(
                     mint.ones_like(attention_mask, dtype=ms.bool_), diagonal=-self.sliding_window
                 )
@@ -589,7 +589,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
             )
 
         if cache_position is None:
-            past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
+            past_seen_tokens = int(past_key_values.get_seq_length()) if past_key_values is not None else 0
             cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -735,7 +735,7 @@ class Cohere2Model(Cohere2PreTrainedModel):
             # In this case we assume that the mask comes already in inverted form and requires no inversion or slicing.
             causal_mask = attention_mask
         else:
-            min_dtype = _DTYPE_2_MIN[dtype]
+            min_dtype = float(_DTYPE_2_MIN[dtype])
             causal_mask = mint.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
