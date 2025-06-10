@@ -22,6 +22,7 @@ from . import (
     llama,
     llava,
     minicpm4,
+    mixtral,
     mobilebert,
     phi3,
     qwen2,

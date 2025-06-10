@@ -158,6 +158,14 @@ from .models.levit import (
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mixtral import (
+    MixtralForCausalLM,
+    MixtralForQuestionAnswering,
+    MixtralForSequenceClassification,
+    MixtralForTokenClassification,
+    MixtralModel,
+    MixtralPreTrainedModel,
+)
 from .models.mobilebert import (
     MobileBertForMaskedLM,
     MobileBertForMultipleChoice,
