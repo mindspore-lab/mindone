@@ -101,6 +101,28 @@ If you want change to another prompt, please set `--prompt` to the new prompt.
 
 If you want to run T2V inference using sequence parallel (Ulysses SP), please use `scripts/hyvideo/run_t2v_sample_sp.sh`. You can revise the SP size using `--sp-size`, which should be aligned with `ASCEND_RT_VISIBLE_DEVICES`, `--worker_num` and `--local_worker_num`. See more usage information about `msrun` from this [website](https://www.mindspore.cn/docs/en/r2.5.0/model_train/parallel/msrun_launcher.html).
 
+### Inference Acceleration
+
+#### TeaCache
+
+Timestep Embedding Aware Cache (TeaCache) is a training-free caching approach that estimates and leverages the dynamic
+variations in model outputs across timesteps to accelerate inference.
+
+To enable TeaCache, set `--enable-teacache` to `True` and specify a desired value for `--teacache-thresh` (recommended
+range: 0.1–0.15).
+
+##### Performance
+
+| Resolution | Length | Inference Steps |   Mode   | SP | Vanilla (s) | TeaCache (s)</br>𝝳=0.1 | TeaCache (s)</br>𝝳=0.15 |
+|:----------:|:------:|:---------------:|:--------:|:--:|:-----------:|:-----------------------:|:------------------------:|
+|  544x960   |  129   |       50        |  Graph   | -  |    1790     |     1083 (1.65x ↓)      |      757 (2.36x ↓)       |
+|  544x960   |  129   |       50        | PyNative | -  |    1778     |     1067 (1.67x ↓)      |      746 (2.38x ↓)       |
+|  544x960   |  129   |       50        |  Graph   | 8  |     239     |      145 (1.65x ↓)      |      102 (2.34x ↓)       |
+|  544x960   |  129   |       50        | PyNative | 8  |     236     |      143 (1.65x ↓)      |      101 (2.34x ↓)       |
+
+> [!NOTE]
+> The measured time includes only the backbone denoising steps, excluding VAE decoding.
+
 ### Run Image-to-Video Inference
 
 Please find more information about HunyuanVideo Image-to-Video Inference at this [url](https://github.com/mindspore-lab/mindone/tree/master/examples/hunyuanvideo-i2v).
