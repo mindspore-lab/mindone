@@ -203,7 +203,7 @@ class MarigoldIntrinsicsPipelineFastTests(PipelineTesterMixin, unittest.TestCase
 
     @data(*test_cases)
     @unpack
-    def test_marigold_depth_dummy_defaults(self, mode, dtype):
+    def test_marigold_intrinsics_dummy_defaults(self, mode, dtype):
         self._test_marigold_intrinsics(generator_seed=0, mode=mode, dtype=dtype)
 
 
@@ -212,7 +212,7 @@ class MarigoldIntrinsicsPipelineFastTests(PipelineTesterMixin, unittest.TestCase
 class MarigoldIntrinsicsPipelineIntegrationTests(PipelineTesterMixin, unittest.TestCase):
     @data(*test_cases)
     @unpack
-    def test_marigold_normals(self, mode, dtype):
+    def test_marigold_intrinsics(self, mode, dtype):
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
@@ -228,7 +228,7 @@ class MarigoldIntrinsicsPipelineIntegrationTests(PipelineTesterMixin, unittest.T
         )
         intrinsics = pipe(image)
 
-        image = pipe.image_processor.visualize_intrinsics(intrinsics.prediction, pipe.target_properties)[0]["albedo"]
+        image = pipe.image_processor.visualize_intrinsics(intrinsics[0], pipe.target_properties)[0]["albedo"]
 
         expected_image = load_downloaded_numpy_from_hf_hub(
             "The-truth/mindone-testing-arrays",

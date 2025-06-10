@@ -135,8 +135,10 @@ class OmniGenPipelineSlowTests(unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_omnigen_inference(self, mode, dtype):
-        if dtype == "float32":
-            pytest.skip("Skipping this case since this pipeline has oom issue in float32")
+        if dtype == "float16":
+            pytest.skip(
+                "Skipping this case since the pipeline generates black pic in float16 in both pytorch and mindspore"
+            )
         ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
