@@ -193,7 +193,7 @@ class DataLoader:
                 return len(self.sampler) // self._batch_size
 
 
-class MetaLoader:
+class CombinedLoader:
     """wraps multiple data loaders"""
 
     def __init__(self, loaders, datalen, task_num=1):

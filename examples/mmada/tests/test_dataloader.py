@@ -3,9 +3,9 @@ import math
 
 import torch
 from parquet import RefinedWebDataset  # Assuming this is from a 'parquet' library
+from parquet.loader import CombinedLoader
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
-from training.loader import CombinedLoader
 
 logger = logging.getLogger(__name__)
 

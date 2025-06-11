@@ -6,11 +6,12 @@ import random
 
 import numpy as np
 import pyarrow.parquet as pq
-from loader import DataLoader
 from PIL import Image
 
 import mindspore.dataset.vision as transforms
 from mindspore.dataset.vision import Inter
+
+from .loader import DataLoader
 
 
 class RefinedWebDataset:

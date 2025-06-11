@@ -2,9 +2,8 @@ import collections
 from typing import Any, Callable, Optional
 
 import numpy as np
+from training.image_folder_dataset import DatasetFolder
 from training.utils import image_transform
-
-import mindspore.dataset.ImageFolderDataset as DatasetFolder
 
 
 class ImageNetDataset(DatasetFolder):
