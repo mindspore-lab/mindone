@@ -256,7 +256,7 @@ class Hiera(nn.Cell):
         dpr = [x for x in mint.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
 
         cur_stage = 1
-        self.blocks = nn.CellList()
+        self.blocks = ms.nn.CellList()
 
         for i in range(depth):
             dim_out = embed_dim

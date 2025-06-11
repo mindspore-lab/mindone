@@ -1,9 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
 from typing import List, Optional, Tuple, Type
 
 from sam2.modeling.sam2_utils import MLP, LayerNorm2d
@@ -75,7 +69,7 @@ class MaskDecoder(nn.Cell):
             self.conv_s0 = nn.Conv2d(transformer_dim, transformer_dim // 8, kernel_size=1, stride=1)
             self.conv_s1 = nn.Conv2d(transformer_dim, transformer_dim // 4, kernel_size=1, stride=1)
 
-        self.output_hypernetworks_mlps = nn.CellList(
+        self.output_hypernetworks_mlps = ms.nn.CellList(
             [MLP(transformer_dim, transformer_dim, transformer_dim // 8, 3) for i in range(self.num_mask_tokens)]
         )
 

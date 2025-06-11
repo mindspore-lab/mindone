@@ -78,7 +78,7 @@ def get_activation_fn(activation):
 
 
 def get_clones(module, N):
-    return nn.CellList([copy.deepcopy(module) for i in range(N)])
+    return ms.nn.CellList([copy.deepcopy(module) for i in range(N)])
 
 
 class DropPath(nn.Cell):
@@ -114,7 +114,7 @@ class MLP(nn.Cell):
         super().__init__()
         self.num_layers = num_layers
         h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.CellList([nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
+        self.layers = ms.nn.CellList([nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])])
         self.sigmoid_output = sigmoid_output
         self.act = activation()
 

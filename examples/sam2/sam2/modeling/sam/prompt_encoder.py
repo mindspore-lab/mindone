@@ -1,9 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
 from typing import Optional, Tuple, Type
 
 from sam2.modeling.position_encoding import PositionEmbeddingRandom
@@ -45,14 +39,14 @@ class PromptEncoder(nn.Cell):
 
         self.num_point_embeddings: int = 4  # pos/neg point + 2 box corners
         point_embeddings = [nn.Embedding(1, embed_dim) for i in range(self.num_point_embeddings)]
-        self.point_embeddings = nn.CellList(point_embeddings)
+        self.point_embeddings = ms.nn.CellList(point_embeddings)
         self.not_a_point_embed = nn.Embedding(1, embed_dim)
 
         self.mask_input_size = (
             4 * image_embedding_size[0],
             4 * image_embedding_size[1],
         )
-        self.mask_downscaling = nn.SequentialCell(
+        self.mask_downscaling = ms.nn.SequentialCell(
             nn.Conv2d(1, mask_in_chans // 4, kernel_size=2, stride=2),
             LayerNorm2d(mask_in_chans // 4),
             activation(),

@@ -63,11 +63,11 @@ class FpnNeck(nn.Cell):
         """
         super().__init__()
         self.position_encoding = position_encoding
-        self.convs = nn.CellList()
+        self.convs = ms.nn.CellList()
         self.backbone_channel_list = backbone_channel_list
         self.d_model = d_model
         for dim in backbone_channel_list:
-            current = nn.SequentialCell()
+            current = ms.nn.SequentialCell()
             current.append(
                 nn.Conv2d(
                     in_channels=dim,
