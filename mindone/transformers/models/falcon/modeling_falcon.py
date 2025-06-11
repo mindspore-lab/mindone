@@ -40,10 +40,10 @@ from transformers.utils import (
     add_code_sample_docstrings,
     add_start_docstrings,
     add_start_docstrings_to_model_forward,
-    is_flash_attn_2_available,
-    is_flash_attn_greater_or_equal_2_10,
     logging,
 )
+
+from ...utils import is_flash_attn_2_available
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.models.falcon.configuration_falcon import FalconConfig
 
