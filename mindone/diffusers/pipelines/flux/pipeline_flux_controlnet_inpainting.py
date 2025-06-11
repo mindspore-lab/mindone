@@ -6,7 +6,7 @@ import PIL
 from transformers import CLIPTokenizer, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, T5EncoderModel
 
@@ -394,7 +394,7 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros((prompt_embeds.shape[1], 3)).to(dtype=dtype)
+        text_ids = mint.zeros((prompt_embeds.shape[1], 3)).to(dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -405,7 +405,7 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
                 retrieve_latents(self.vae.encode(image[i : i + 1]), generator=generator[i])
                 for i in range(image.shape[0])
             ]
-            image_latents = ops.cat(image_latents, axis=0)
+            image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator=generator)
 
@@ -499,9 +499,9 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
     @staticmethod
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._prepare_latent_image_ids
     def _prepare_latent_image_ids(batch_size, height, width, dtype):
-        latent_image_ids = ops.zeros((height, width, 3))
-        latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height)[:, None]
-        latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width)[None, :]
+        latent_image_ids = mint.zeros((height, width, 3))
+        latent_image_ids[..., 1] = latent_image_ids[..., 1] + mint.arange(height)[:, None]
+        latent_image_ids[..., 2] = latent_image_ids[..., 2] + mint.arange(width)[None, :]
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
@@ -569,13 +569,13 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
         if batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] == 0:
             # expand init_latents for batch_size
             additional_image_per_prompt = batch_size // image_latents.shape[0]
-            image_latents = ops.cat([image_latents] * additional_image_per_prompt, axis=0)
+            image_latents = mint.cat([image_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {image_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            image_latents = ops.cat([image_latents], axis=0)
+            image_latents = mint.cat([image_latents], dim=0)
 
         if latents is None:
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -609,7 +609,7 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
         # resize the mask to latents shape as we concatenate the mask to the latents
         # we do that before converting to dtype to avoid breaking in case we're using cpu_offload
         # and half precision
-        mask = ops.interpolate(mask, size=(height, width))
+        mask = mint.nn.functional.interpolate(mask, size=(height, width))
         mask = mask.to(dtype=dtype)
 
         batch_size = batch_size * num_images_per_prompt
@@ -690,7 +690,7 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
         image = image.to(dtype=dtype)
 
         if do_classifier_free_guidance and not guess_mode:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 
@@ -1061,7 +1061,7 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
                 else:
                     use_guidance = self.controlnet.config.guidance_embeds
                 if use_guidance:
-                    guidance = ops.full([1], guidance_scale, dtype=ms.float32)
+                    guidance = mint.full([1], guidance_scale, dtype=ms.float32)
                     guidance = guidance.broadcast_to((latents.shape[0],))
                 else:
                     guidance = None
@@ -1090,7 +1090,7 @@ class FluxControlNetInpaintPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
                 )
 
                 if self.transformer.config.guidance_embeds:
-                    guidance = ops.full([1], guidance_scale, dtype=ms.float32)
+                    guidance = mint.full([1], guidance_scale, dtype=ms.float32)
                     guidance = guidance.broadcast_to((latents.shape[0],))
                 else:
                     guidance = None

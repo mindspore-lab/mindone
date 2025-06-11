@@ -25,7 +25,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from ....transformers import CLIPTextModel
 from ...image_processor import PipelineImageInput
@@ -472,7 +472,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
 
             self.scheduler.set_timesteps(num_inference_steps)
             for t in self.progress_bar(self.scheduler.timesteps, leave=False, desc="Diffusion steps..."):
-                batch_latent = ops.cat([batch_image_latent, batch_pred_latent], axis=1)  # [B,8,h,w]
+                batch_latent = mint.cat([batch_image_latent, batch_pred_latent], dim=1)  # [B,8,h,w]
                 noise = self.unet(batch_latent, t, encoder_hidden_states=text, return_dict=False)[0]  # [B,4,h,w]
                 batch_pred_latent = self.scheduler.step(noise, t, batch_pred_latent, generator=generator)[
                     0
@@ -480,7 +480,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
 
             pred_latents.append(batch_pred_latent)
 
-        pred_latent = ops.cat(pred_latents, axis=0)  # [N*E,4,h,w]
+        pred_latent = mint.cat(pred_latents, dim=0)  # [N*E,4,h,w]
 
         del (
             pred_latents,
@@ -496,12 +496,12 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         # 6. Decode predictions from latent into pixel space. The resulting `N * E` predictions have shape `(PPH, PPW)`,
         # which requires slight postprocessing. Decoding into pixel space happens in batches of size `batch_size`.
         # Model invocation: self.vae.decoder.
-        prediction = ops.cat(
+        prediction = mint.cat(
             [
                 self.decode_prediction(pred_latent[i : i + batch_size])
                 for i in range(0, pred_latent.shape[0], batch_size)
             ],
-            axis=0,
+            dim=0,
         )  # [N*E,3,PPH,PPW]
 
         if not output_latent:
@@ -523,9 +523,9 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
                 for i in range(num_images)
             ]  # [ [[1,3,PH,PW], [1,1,PH,PW]], ... ]
             prediction, uncertainty = zip(*prediction)  # [[1,3,PH,PW], ... ], [[1,1,PH,PW], ... ]
-            prediction = ops.cat(prediction, axis=0)  # [N,3,PH,PW]
+            prediction = mint.cat(prediction, dim=0)  # [N,3,PH,PW]
             if output_uncertainty:
-                uncertainty = ops.cat(uncertainty, axis=0)  # [N,1,PH,PW]
+                uncertainty = mint.cat(uncertainty, dim=0)  # [N,1,PH,PW]
             else:
                 uncertainty = None
 
@@ -577,12 +577,12 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
             else:
                 return encoder_output
 
-        image_latent = ops.cat(
+        image_latent = mint.cat(
             [
                 retrieve_latents(self.vae.encode(image[i : i + batch_size])[0])
                 for i in range(0, image.shape[0], batch_size)
             ],
-            axis=0,
+            dim=0,
         )  # [N,4,h,w]
         image_latent = image_latent * self.vae.config.scaling_factor
         image_latent = image_latent.repeat_interleave(ensemble_size, dim=0)  # [N*E,4,h,w]
@@ -605,7 +605,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
 
         prediction = self.vae.decode(pred_latent / self.vae.config.scaling_factor, return_dict=False)[0]  # [B,3,H,W]
 
-        prediction = ops.clip(prediction, -1.0, 1.0)
+        prediction = mint.clip(prediction, -1.0, 1.0)
 
         if not self.use_full_z_range:
             prediction[:, 2, :, :] *= 0.5
@@ -620,7 +620,7 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         if normals.ndim != 4 or normals.shape[1] != 3:
             raise ValueError(f"Expecting 4D tensor of shape [B,3,H,W]; got {normals.shape}.")
 
-        norm = ops.norm(normals, dim=1, keepdim=True)
+        norm = mint.norm(normals, dim=1, keepdim=True)
         normals /= norm.clamp(min=eps)
 
         return normals
@@ -651,21 +651,21 @@ class MarigoldNormalsPipeline(DiffusionPipeline):
         if reduction not in ("closest", "mean"):
             raise ValueError(f"Unrecognized reduction method: {reduction}.")
 
-        mean_normals = normals.mean(axis=0, keep_dims=True)  # [1,3,H,W]
+        mean_normals = normals.mean(dim=0, keep_dims=True)  # [1,3,H,W]
         mean_normals = MarigoldNormalsPipeline.normalize_normals(mean_normals)  # [1,3,H,W]
 
-        sim_cos = (mean_normals * normals).sum(axis=1, keepdims=True)  # [E,1,H,W]
+        sim_cos = (mean_normals * normals).sum(dim=1, keepdims=True)  # [E,1,H,W]
         sim_cos = sim_cos.clamp(-1.0, 1.0)  # required to avoid NaN in uncertainty with fp16
 
         uncertainty = None
         if output_uncertainty:
             uncertainty = sim_cos.arccos()  # [E,1,H,W]
-            uncertainty = uncertainty.mean(axis=0, keep_dims=True) / ms.numpy.pi  # [1,1,H,W]
+            uncertainty = uncertainty.mean(dim=0, keep_dims=True) / ms.numpy.pi  # [1,1,H,W]
 
         if reduction == "mean":
             return mean_normals, uncertainty  # [1,3,H,W], [1,1,H,W]
 
-        closest_indices = sim_cos.argmax(axis=0, keepdims=True)  # [1,1,H,W]
+        closest_indices = sim_cos.argmax(dim=0, keepdims=True)  # [1,1,H,W]
         closest_indices = closest_indices.tile((1, 3, 1, 1))  # [1,3,H,W]
         closest_normals = ops.gather_elements(normals, 0, closest_indices)  # [1,3,H,W]
 

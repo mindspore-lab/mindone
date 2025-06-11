@@ -15,7 +15,7 @@ import os
 from typing import Callable, List, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import logging
@@ -303,8 +303,9 @@ class FullAdapter(nn.Cell):
 
         in_channels = in_channels * downscale_factor**2
 
+        # todo: unavailable mint interface nn.PixelUnshuffle
         self.unshuffle = nn.PixelUnshuffle(downscale_factor)
-        self.conv_in = nn.Conv2d(in_channels, channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_in = mint.nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1)
 
         self.body = nn.CellList(
             [
@@ -353,8 +354,9 @@ class FullAdapterXL(nn.Cell):
 
         in_channels = in_channels * downscale_factor**2
 
+        # todo unavailable mint interface nn.PixelUnshuffle
         self.unshuffle = nn.PixelUnshuffle(downscale_factor)
-        self.conv_in = nn.Conv2d(in_channels, channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.conv_in = mint.nn.Conv2d(in_channels, channels[0], kernel_size=3, padding=1)
 
         self.body = []
         # blocks to extract XL features with dimensions of [320, 64, 64], [640, 64, 64], [1280, 32, 32], [1280, 32, 32]
@@ -408,11 +410,11 @@ class AdapterBlock(nn.Cell):
 
         self.downsample = None
         if down:
-            self.downsample = AvgPool2dDownsample()
+            self.downsample = mint.nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
         self.in_conv = None
         if in_channels != out_channels:
-            self.in_conv = nn.Conv2d(in_channels, out_channels, kernel_size=1, has_bias=True)
+            self.in_conv = mint.nn.Conv2d(in_channels, out_channels, kernel_size=1)
 
         self.resnets = nn.SequentialCell(
             *[AdapterResnetBlock(out_channels) for _ in range(num_res_blocks)],
@@ -446,9 +448,9 @@ class AdapterResnetBlock(nn.Cell):
 
     def __init__(self, channels: int):
         super().__init__()
-        self.block1 = nn.Conv2d(channels, channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-        self.act = nn.ReLU()
-        self.block2 = nn.Conv2d(channels, channels, kernel_size=1, has_bias=True)
+        self.block1 = mint.nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.act = mint.nn.ReLU()
+        self.block2 = mint.nn.Conv2d(channels, channels, kernel_size=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -481,6 +483,7 @@ class LightAdapter(nn.Cell):
 
         in_channels = in_channels * downscale_factor**2
 
+        # todo unavailable mint interface nn.PixelUnshuffle
         self.unshuffle = nn.PixelUnshuffle(downscale_factor)
 
         self.body = nn.CellList(
@@ -534,11 +537,11 @@ class LightAdapterBlock(nn.Cell):
 
         self.downsample = None
         if down:
-            self.downsample = AvgPool2dDownsample()
+            self.downsample = mint.nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True)
 
-        self.in_conv = nn.Conv2d(in_channels, mid_channels, kernel_size=1, has_bias=True)
+        self.in_conv = mint.nn.Conv2d(in_channels, mid_channels, kernel_size=1)
         self.resnets = nn.SequentialCell(*[LightAdapterResnetBlock(mid_channels) for _ in range(num_res_blocks)])
-        self.out_conv = nn.Conv2d(mid_channels, out_channels, kernel_size=1, has_bias=True)
+        self.out_conv = mint.nn.Conv2d(mid_channels, out_channels, kernel_size=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -567,9 +570,9 @@ class LightAdapterResnetBlock(nn.Cell):
 
     def __init__(self, channels: int):
         super().__init__()
-        self.block1 = nn.Conv2d(channels, channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-        self.act = nn.ReLU()
-        self.block2 = nn.Conv2d(channels, channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
+        self.block1 = mint.nn.Conv2d(channels, channels, kernel_size=3, padding=1)
+        self.act = mint.nn.ReLU()
+        self.block2 = mint.nn.Conv2d(channels, channels, kernel_size=3, padding=1)
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
         r"""
@@ -581,21 +584,3 @@ class LightAdapterResnetBlock(nn.Cell):
         h = self.block2(h)
 
         return h + x
-
-
-class AvgPool2dDownsample(nn.Cell):
-    """
-    AdapterBlocks/LightAdapterBlock employ MindSpore Cell nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True) during
-    downsampling, which internally calls ops.operations.AvgPool3D and it may not be supported in certain scenarios.
-    This class serves as an equivalent replacement for nn.AvgPool2d(kernel_size=2, stride=2, ceil_mode=True)."""
-
-    def construct(self, x):
-        # ceil_mode
-        paddings = ((0, 0),) * (x.ndim - 2) + ((0, x.shape[-2] % 2), (0, x.shape[-1] % 2))
-        paddings = ms.Tensor(paddings, dtype=ms.int64)
-        x = ops.MirrorPad(mode="SYMMETRIC")(x, paddings)
-
-        # AvgPool(kernel_size=2, stride=2)
-        b, c, h, w = x.shape
-        x = x.reshape(b, c, h // 2, 2, w // 2, 2).transpose(0, 1, 2, 4, 3, 5).mean(axis=(4, 5))
-        return x
