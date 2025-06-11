@@ -26,8 +26,9 @@ from tests.modeling_test_utils import (
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
-DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-2, "bf16": 5e-2}
-MODES = [1]
+DTYPE_AND_THRESHOLDS = {"fp32": 5e-2, "fp16": 5e-3, "bf16": 5e-2}
+# Since some operators not supported in CPU for fp16, all evaluation is under **ms.precision vs torch.float32**
+MODES = [1]  # Note that Idefics3VisionTransformer does not support Graph mode
 
 
 class Idefics3ModelTester:
@@ -52,6 +53,7 @@ class Idefics3ModelTester:
         max_position_embeddings=512,
         use_sliding_window=False,
         attn_implementation="eager",
+        torch_dtype="bfloat16",
     ):
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -72,10 +74,7 @@ class Idefics3ModelTester:
         self.max_position_embeddings = max_position_embeddings
         self.use_sliding_window = use_sliding_window
         self.attn_implementation = attn_implementation
-        # self.rope_scaling = {
-        #     "mrope_section": [2, 3, 3],
-        #     "type": "mrope",
-        # }  # sum*2=16 = head_dim = hidden_size//num_attention_heads = 128//8=16
+        self.torch_dtype = torch_dtype
 
     def get_large_model_config(self):
         return Idefics3Config.from_pretrained("Qwen/Qwen2.5-Omni-7B")
@@ -92,7 +91,7 @@ class Idefics3ModelTester:
         height = 64
         width = 64
         pixel_values = ids_numpy([image_batch_size, num_images, num_channels, height, width], vocab_size=256)
-        pixel_values = (pixel_values.astype(np.float32) / 255.) * 2 -1 # in range [-1, 1]
+        pixel_values = (pixel_values.astype(np.float32) / 255.0) * 2 - 1  # in range [-1, 1]
 
         config = self.get_config()
         # config._attn_implementation = self.attn_implementation
@@ -110,7 +109,8 @@ class Idefics3ModelTester:
             hidden_act=self.hidden_act,
             max_position_embeddings=self.max_position_embeddings,
             use_cache=self.use_cache,
-            attn_implementation = self.attn_implementation
+            attn_implementation=self.attn_implementation,
+            torch_dtype=self.torch_dtype,  # ??
         )
         vision_config = Idefics3VisionConfig(
             hidden_size=self.hidden_size,
@@ -120,13 +120,13 @@ class Idefics3ModelTester:
             num_channels=3,
             image_size=64,
             patch_size=32,
-            attn_implementation = self.attn_implementation
+            attn_implementation=self.attn_implementation,
         )
         config = Idefics3Config(
             use_cache=self.use_cache,
             vision_config=vision_config,
             text_config=text_config,
-            attn_implementation = self.attn_implementation
+            attn_implementation=self.attn_implementation,
         )
 
         return config
@@ -142,7 +142,7 @@ model_tester = Idefics3ModelTester()
 
 
 TEST_CASES = [
-    [ # text Q&A
+    [  # text Q&A
         "Idefics3Model",
         "transformers.Idefics3Model",
         "mindone.transformers.Idefics3Model",
@@ -154,10 +154,10 @@ TEST_CASES = [
             "attention_mask": attention_mask,
         },
         {
-            "last_hidden_state": 0, # text_model, i.e., LlamaModel
+            "last_hidden_state": 0,  # text_model, i.e., LlamaModel
         },
     ],
-    [ # VQA
+    [  # VQA
         "Idefics3Model",
         "transformers.Idefics3Model",
         "mindone.transformers.Idefics3Model",
@@ -170,8 +170,8 @@ TEST_CASES = [
             "pixel_values": pixel_values,
         },
         {
-            # "last_hidden_state": 0, # text_model, i.e., LlamaModel
-            "image_hidden_states": -1, # vision_modal, i.e., Idefics3VisionTransformer
+            "last_hidden_state": 0,  # text_model, i.e., LlamaModel
+            "image_hidden_states": -1,  # vision_modal, i.e., Idefics3VisionTransformer
         },
     ],
 ]

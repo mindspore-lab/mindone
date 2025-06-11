@@ -578,18 +578,20 @@ class LlamaModel(LlamaPreTrainedModel):
         use_cache = use_cache if use_cache is not None else self.use_cache
         return_dict = return_dict if return_dict is not None else self.use_return_dict
 
-        if (input_ids is not None) and (inputs_embeds is not None):
+        if ((input_ids is not None) and (inputs_embeds is not None)) or (
+            (input_ids is None) and (inputs_embeds is None)
+        ):
             raise ValueError("You must specify exactly one of input_ids or inputs_embeds")
 
         if self.training:
             use_cache = False
 
-        if inputs_embeds is None:
+        if input_ids is not None and inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids)
 
         if cache_position is None:
             past_seen_tokens = get_seq_length(past_key_values) if past_key_values is not None else 0
-            cache_position = ops.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1], dtype=ms.int32)
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)

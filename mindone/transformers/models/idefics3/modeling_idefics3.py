@@ -42,7 +42,6 @@ from ...utils import is_flash_attn_2_available
 # from ..auto import AutoModel
 
 if is_flash_attn_2_available():
-    # from ...modeling_flash_attention_utils import _flash_attention_forward
     from ...integrations.flash_attention import flash_attention_forward
 
 from mindone.models.utils import normal_, zeros_
@@ -52,37 +51,6 @@ from ..llama import LlamaModel
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "Idefics3Config"
-
-
-def _tensor_unfold(tensor, dimension, size, step) -> ms.Tensor:
-    new_tensor = []
-    length = tensor.shape[dimension]
-    for i in range(0, length, step):
-        if i + size >= length:
-            break
-        new_tensor.append(tensor[i : i + size])
-    new_tensor = mint.stack(new_tensor, dim=0)
-    return new_tensor.to(tensor.dtype)
-
-
-# def _tensor_unfold(tensor, dimension, size, step):
-#     new_tensor = []
-#     length = tensor.shape[dimension]
-#     new_shape = ((length - size) // step + 1, ) + tensor.shape[:dimension] + tensor.shape[dimension+1:] + (size,)
-#     new_tensor = torch.zeros(new_shape, dtype=tensor.dtype)
-#     for i in range(0, length, step):
-#         if i+size > length:
-#             break
-#         new_tensor
-#         if dimension == 0:
-#             # new_tensor.append(tensor[i: i+ size,...])
-#             new
-#         elif dimension == 1:
-#             new_tensor.append(tensor[:, i: i+ size,...])
-#         elif dimension == 2:
-#             new_tensor.append(tensor[:, :, i: i+ size,...])
-#     new_tensor = torch.stack(new_tensor, dim=0)
-#     return new_tensor.to(tensor.dtype)
 
 
 @dataclass
@@ -197,7 +165,7 @@ class Idefics3VisionEmbeddings(nn.Cell):
         batch_size, _, max_im_h, max_im_w = pixel_values.shape
 
         patch_embeds = self.patch_embedding(pixel_values)
-        embeddings = patch_embeds.flatten(2).swapaxes(1, 2)
+        embeddings = patch_embeds.flatten(start_dim=2).swapaxes(1, 2)
 
         max_nb_patches_h, max_nb_patches_w = max_im_h // self.patch_size, max_im_w // self.patch_size
         boundaries = list(np.arange(1 / self.num_patches_per_side, 1.0, 1 / self.num_patches_per_side))
@@ -207,8 +175,8 @@ class Idefics3VisionEmbeddings(nn.Cell):
             nb_patches_h = p_attn_mask[:, 0].sum()
             nb_patches_w = p_attn_mask[0].sum()
 
-            fractional_coords_h = mint.arange(0, 1 - 1e-6, 1 / nb_patches_h.item(), dtype=ms.int32)
-            fractional_coords_w = mint.arange(0, 1 - 1e-6, 1 / nb_patches_w.item(), dtype=ms.int32)
+            fractional_coords_h = mint.arange(0, 1 - 1e-6, 1 / nb_patches_h.item(), dtype=ms.float32)
+            fractional_coords_w = mint.arange(0, 1 - 1e-6, 1 / nb_patches_w.item(), dtype=ms.float32)
 
             bucket_coords_h = ops.bucketize(fractional_coords_h, boundaries, right=True)
             bucket_coords_w = ops.bucketize(fractional_coords_w, boundaries, right=True)
@@ -429,9 +397,9 @@ class Idefics3EncoderLayer(nn.Cell):
         super().__init__()
         self.embed_dim = config.hidden_size
         self.self_attn = IDEFICS_VISION_ATTENTION_CLASSES[config._attn_implementation](config)
-        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)  # TODO: to fp32?
+        self.layer_norm1 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
         self.mlp = Idefics3VisionMLP(config)
-        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)  # TODO: to fp32?
+        self.layer_norm2 = mint.nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
 
     # Copied from transformers.models.siglip.modeling_siglip.SiglipEncoderLayer.forward
     def construct(
@@ -694,7 +662,7 @@ class Idefics3VisionTransformer(Idefics3PreTrainedModel):
         self.embeddings = Idefics3VisionEmbeddings(config)
         self.encoder = Idefics3Encoder(config)
         self.patch_size = config.patch_size
-        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)  # TODO fp32?
+        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
     # Copied from transformers.models.idefics2.modeling_idefics2.Idefics2VisionTransformer.get_input_embeddings

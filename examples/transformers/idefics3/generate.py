@@ -62,7 +62,6 @@ for k, v in inputs.items():
         inputs[k] = inputs[k].to(ms.int32)
     else:
         inputs[k] = inputs[k].to(model.dtype)
-# print(inputs)
 
 # Generate
 generated_ids = model.generate(**inputs, max_new_tokens=500)
