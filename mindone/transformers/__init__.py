@@ -16,6 +16,16 @@ from .models.albert import (
     AlbertPreTrainedModel,
 )
 from .models.auto import AutoConfig, AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
+from .models.bart import (
+    BartForCausalLM,
+    BartForConditionalGeneration,
+    BartForQuestionAnswering,
+    BartForSequenceClassification,
+    BartModel,
+    BartPretrainedModel,
+    BartPreTrainedModel,
+    PretrainedBartModel,
+)
 from .models.bert import (
     BertForMaskedLM,
     BertForMultipleChoice,
@@ -81,6 +91,15 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.deberta_v2 import (
+    DebertaV2ForMaskedLM,
+    DebertaV2ForMultipleChoice,
+    DebertaV2ForQuestionAnswering,
+    DebertaV2ForSequenceClassification,
+    DebertaV2ForTokenClassification,
+    DebertaV2Model,
+    DebertaV2PreTrainedModel,
+)
 from .models.dpt import DPTForDepthEstimation
 from .models.gemma import (
     GemmaForCausalLM,
@@ -90,6 +109,7 @@ from .models.gemma import (
     GemmaPreTrainedModel,
 )
 from .models.gemma2 import Gemma2Model, Gemma2PreTrainedModel
+from .models.gemma3 import Gemma3ForCausalLM, Gemma3ForConditionalGeneration, Gemma3PreTrainedModel, Gemma3TextModel
 from .models.glm import (
     GlmForCausalLM,
     GlmForSequenceClassification,
@@ -139,6 +159,26 @@ from .models.levit import (
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mixtral import (
+    MixtralForCausalLM,
+    MixtralForQuestionAnswering,
+    MixtralForSequenceClassification,
+    MixtralForTokenClassification,
+    MixtralModel,
+    MixtralPreTrainedModel,
+)
+from .models.mobilebert import (
+    MobileBertForMaskedLM,
+    MobileBertForMultipleChoice,
+    MobileBertForNextSentencePrediction,
+    MobileBertForPreTraining,
+    MobileBertForQuestionAnswering,
+    MobileBertForSequenceClassification,
+    MobileBertForTokenClassification,
+    MobileBertLayer,
+    MobileBertModel,
+    MobileBertPreTrainedModel,
+)
 from .models.mt5 import (
     MT5_PRETRAINED_MODEL_ARCHIVE_LIST,
     MT5EncoderModel,

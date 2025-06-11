@@ -19,7 +19,7 @@ import PIL.Image
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import AutoencoderKL, ControlNetModel, UNet2DConditionModel
 from ...schedulers import PNDMScheduler
@@ -229,7 +229,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
         image = image.to(dtype=dtype)
 
         if do_classifier_free_guidance:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 
@@ -342,7 +342,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            text_embeddings = ops.cat([uncond_embeddings, text_embeddings])
+            text_embeddings = mint.cat([uncond_embeddings, text_embeddings])
         scale_down_factor = 2 ** (len(self.unet.config.block_out_channels) - 1)
         latents = self.prepare_latents(
             batch_size=batch_size,
@@ -371,7 +371,7 @@ class BlipDiffusionControlNetPipeline(DiffusionPipeline):
             # expand the latents if we are doing classifier free guidance
             do_classifier_free_guidance = guidance_scale > 1.0
 
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
             down_block_res_samples, mid_block_res_sample = self.controlnet(
                 latent_model_input,
                 t,

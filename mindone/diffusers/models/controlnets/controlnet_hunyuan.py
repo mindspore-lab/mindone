@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput, logging
@@ -23,7 +23,7 @@ from ..attention_processor import AttentionProcessor
 from ..embeddings import HunyuanCombinedTimestepTextSizeStyleEmbedding, PatchEmbed, PixArtAlphaTextProjection
 from ..modeling_utils import ModelMixin
 from ..transformers.hunyuan_transformer_2d import HunyuanDiTBlock
-from .controlnet import Tuple
+from .controlnet import Tuple, zero_module
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -66,7 +66,7 @@ class HunyuanDiT2DControlNetModel(ModelMixin, ConfigMixin):
         )
 
         self.text_embedding_padding = ms.Parameter(
-            ops.randn((text_len + text_len_t5, cross_attention_dim), dtype=ms.float32)
+            mint.randn((text_len + text_len_t5, cross_attention_dim), dtype=ms.float32)
         )
 
         self.pos_embed = PatchEmbed(
@@ -104,9 +104,10 @@ class HunyuanDiT2DControlNetModel(ModelMixin, ConfigMixin):
                 for layer in range(transformer_num_layers // 2 - 1)
             ]
         )
-        self.input_block = nn.Dense(hidden_size, hidden_size, weight_init="zeros", bias_init="zeros")
+        self.input_block = zero_module(mint.nn.Linear(hidden_size, hidden_size, weight_init="zeros", bias_init="zeros"))
         for _ in range(len(self.blocks)):
-            controlnet_block = nn.Dense(hidden_size, hidden_size, weight_init="zeros", bias_init="zeros")
+            controlnet_block = mint.nn.Linear(hidden_size, hidden_size)
+            controlnet_block = zero_module(controlnet_block)
             controlnet_blocks.append(controlnet_block)
         self.controlnet_blocks = nn.CellList(controlnet_blocks)
 
@@ -273,11 +274,11 @@ class HunyuanDiT2DControlNetModel(ModelMixin, ConfigMixin):
         )
         encoder_hidden_states_t5 = encoder_hidden_states_t5.view(batch_size, sequence_length, -1)
 
-        encoder_hidden_states = ops.cat([encoder_hidden_states, encoder_hidden_states_t5], axis=1)
-        text_embedding_mask = ops.cat([text_embedding_mask, text_embedding_mask_t5], axis=-1)
+        encoder_hidden_states = mint.cat([encoder_hidden_states, encoder_hidden_states_t5], dim=1)
+        text_embedding_mask = mint.cat([text_embedding_mask, text_embedding_mask_t5], dim=-1)
         text_embedding_mask = text_embedding_mask.unsqueeze(2).bool()
 
-        encoder_hidden_states = ops.where(text_embedding_mask, encoder_hidden_states, self.text_embedding_padding)
+        encoder_hidden_states = mint.where(text_embedding_mask, encoder_hidden_states, self.text_embedding_padding)
 
         block_res_samples = ()
         for layer, block in enumerate(self.blocks):

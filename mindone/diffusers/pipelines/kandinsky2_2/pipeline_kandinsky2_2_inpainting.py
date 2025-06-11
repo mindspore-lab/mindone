@@ -20,7 +20,7 @@ from packaging import version
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ... import __version__
 from ...models import UNet2DConditionModel, VQModel
@@ -107,7 +107,7 @@ def prepare_mask(masks):
                 if i != mask.shape[1] - 1 and j != mask.shape[2] - 1:
                     mask[:, i + 1, j + 1] = 0
         prepared_masks.append(mask)
-    return ops.stack(prepared_masks, axis=0)
+    return mint.stack(prepared_masks, dim=0)
 
 
 # Copied from diffusers.pipelines.kandinsky.pipeline_kandinsky_inpaint.prepare_mask_and_masked_image
@@ -405,16 +405,16 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
         self._guidance_scale = guidance_scale
 
         if isinstance(image_embeds, list):
-            image_embeds = ops.cat(image_embeds, axis=0)
+            image_embeds = mint.cat(image_embeds, dim=0)
         batch_size = image_embeds.shape[0] * num_images_per_prompt
         if isinstance(negative_image_embeds, list):
-            negative_image_embeds = ops.cat(negative_image_embeds, axis=0)
+            negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if self.do_classifier_free_guidance:
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0).to(dtype=self.unet.dtype)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
 
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps = self.scheduler.timesteps
@@ -428,7 +428,7 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
         mask_image = mask_image.to(dtype=image_embeds.dtype)
 
         image_shape = tuple(image.shape[-2:])
-        mask_image = ops.interpolate(
+        mask_image = mint.nn.functional.interpolate(
             mask_image,
             image_shape,
             mode="nearest",
@@ -459,8 +459,8 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
         self._num_timesteps = len(timesteps)
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
-            latent_model_input = ops.cat([latent_model_input, masked_image, mask_image], axis=1)
+            latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latent_model_input, masked_image, mask_image], dim=1)
 
             added_cond_kwargs = {"image_embeds": image_embeds}
             noise_pred = self.unet(
@@ -476,7 +476,7 @@ class KandinskyV22InpaintPipeline(DiffusionPipeline):
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, variance_pred_text], axis=1)
+                noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
             if not (
                 hasattr(self.scheduler.config, "variance_type")

@@ -19,7 +19,7 @@ import numpy as np
 from transformers import T5Tokenizer, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...models import AutoencoderOobleck, StableAudioDiTModel
@@ -162,7 +162,9 @@ class StableAudioPipeline(DiffusionPipeline):
             attention_mask = text_inputs.attention_mask
             untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
-            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not ops.equal(text_input_ids, untruncated_ids):
+            if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not mint.equal(
+                text_input_ids, untruncated_ids
+            ):
                 removed_text = self.tokenizer.batch_decode(untruncated_ids[:, self.tokenizer.model_max_length - 1 : -1])
                 logger.warning(
                     f"The following part of your input was truncated because {self.text_encoder.config.model_type} can "
@@ -220,7 +222,7 @@ class StableAudioPipeline(DiffusionPipeline):
 
             if negative_attention_mask is not None:
                 # set the masked tokens to the null embed
-                negative_prompt_embeds = ops.where(
+                negative_prompt_embeds = mint.where(
                     negative_attention_mask.to(ms.bool_).unsqueeze(2), negative_prompt_embeds, 0.0
                 )
 
@@ -229,14 +231,14 @@ class StableAudioPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the negative and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
             if attention_mask is not None and negative_attention_mask is None:
-                negative_attention_mask = ops.ones_like(attention_mask)
+                negative_attention_mask = mint.ones_like(attention_mask)
             elif attention_mask is None and negative_attention_mask is not None:
-                attention_mask = ops.ones_like(negative_attention_mask)
+                attention_mask = mint.ones_like(negative_attention_mask)
 
             if attention_mask is not None:
-                attention_mask = ops.cat([negative_attention_mask, attention_mask])
+                attention_mask = mint.cat([negative_attention_mask, attention_mask])
 
         prompt_embeds = self.projection_model(
             text_hidden_states=prompt_embeds,
@@ -279,8 +281,8 @@ class StableAudioPipeline(DiffusionPipeline):
         # For classifier free guidance, we need to do two forward passes.
         # Here we repeat the audio hidden states to avoid doing two forward passes
         if do_classifier_free_guidance:
-            seconds_start_hidden_states = ops.cat([seconds_start_hidden_states, seconds_start_hidden_states], axis=0)
-            seconds_end_hidden_states = ops.cat([seconds_end_hidden_states, seconds_end_hidden_states], axis=0)
+            seconds_start_hidden_states = mint.cat([seconds_start_hidden_states, seconds_start_hidden_states], dim=0)
+            seconds_end_hidden_states = mint.cat([seconds_end_hidden_states, seconds_end_hidden_states], dim=0)
 
         return seconds_start_hidden_states, seconds_end_hidden_states
 
@@ -626,20 +628,20 @@ class StableAudioPipeline(DiffusionPipeline):
         )
 
         # Create text_audio_duration_embeds and audio_duration_embeds
-        text_audio_duration_embeds = ops.cat(
-            [prompt_embeds, seconds_start_hidden_states, seconds_end_hidden_states], axis=1
+        text_audio_duration_embeds = mint.cat(
+            [prompt_embeds, seconds_start_hidden_states, seconds_end_hidden_states], dim=1
         )
 
-        audio_duration_embeds = ops.cat([seconds_start_hidden_states, seconds_end_hidden_states], axis=2)
+        audio_duration_embeds = mint.cat([seconds_start_hidden_states, seconds_end_hidden_states], dim=2)
 
         # In case of classifier free guidance without negative prompt, we need to create unconditional embeddings and
         # to concatenate it to the embeddings
         if do_classifier_free_guidance and negative_prompt_embeds is None and negative_prompt is None:
-            negative_text_audio_duration_embeds = ops.zeros_like(text_audio_duration_embeds)
-            text_audio_duration_embeds = ops.cat(
-                [negative_text_audio_duration_embeds, text_audio_duration_embeds], axis=0
+            negative_text_audio_duration_embeds = mint.zeros_like(text_audio_duration_embeds)
+            text_audio_duration_embeds = mint.cat(
+                [negative_text_audio_duration_embeds, text_audio_duration_embeds], dim=0
             )
-            audio_duration_embeds = ops.cat([audio_duration_embeds, audio_duration_embeds], axis=0)
+            audio_duration_embeds = mint.cat([audio_duration_embeds, audio_duration_embeds], dim=0)
 
         bs_embed, seq_len, hidden_size = text_audio_duration_embeds.shape
         # duplicate audio_duration_embeds and text_audio_duration_embeds for each generation per prompt, using mps friendly method
@@ -687,7 +689,7 @@ class StableAudioPipeline(DiffusionPipeline):
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual

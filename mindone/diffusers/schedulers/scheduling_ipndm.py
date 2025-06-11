@@ -18,7 +18,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from .scheduling_utils import SchedulerMixin, SchedulerOutput
@@ -93,16 +93,16 @@ class IPNDMScheduler(SchedulerMixin, ConfigMixin):
         """
         self.num_inference_steps = num_inference_steps
         steps = ms.tensor(np.linspace(1, 0, num_inference_steps + 1), dtype=ms.float32)[:-1]
-        steps = ops.cat([steps, ms.tensor([0.0])])
+        steps = mint.cat([steps, ms.tensor([0.0])])
 
         if self.config.trained_betas is not None:
             self.betas = ms.tensor(self.config.trained_betas, dtype=ms.float32)
         else:
-            self.betas = ops.sin(steps * math.pi / 2) ** 2
+            self.betas = mint.sin(steps * math.pi / 2) ** 2
 
         self.alphas = (1.0 - self.betas**2) ** 0.5
 
-        timesteps = (ops.atan2(self.betas, self.alphas) / math.pi * 2)[:-1]
+        timesteps = (mint.atan2(self.betas, self.alphas) / math.pi * 2)[:-1]
         self.timesteps = timesteps
 
         self.ets = []

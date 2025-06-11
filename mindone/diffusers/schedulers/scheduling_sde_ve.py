@@ -21,7 +21,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -146,15 +146,15 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
             self.set_timesteps(num_inference_steps, sampling_eps)
 
         self.sigmas = sigma_min * (sigma_max / sigma_min) ** (self.timesteps / sampling_eps)
-        self.discrete_sigmas = ops.exp(
+        self.discrete_sigmas = mint.exp(
             ms.tensor(np.linspace(math.log(sigma_min), math.log(sigma_max), num_inference_steps), dtype=ms.float32)
         )
         self.sigmas = [sigma_min * (sigma_max / sigma_min) ** t for t in self.timesteps]
 
     def get_adjacent_sigma(self, timesteps, t):
-        return ops.where(
+        return mint.where(
             timesteps == 0,
-            ops.zeros_like(t),
+            mint.zeros_like(t),
             self.discrete_sigmas[timesteps - 1],
         )
 
@@ -194,13 +194,13 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
             )
 
         broadcast_shape = sample.shape
-        timestep = timestep * ops.ones(sample.shape[0])  # ops.repeat_interleave(timestep, sample.shape[0])
+        timestep = timestep * mint.ones(sample.shape[0])  # mint.repeat_interleave(timestep, sample.shape[0])
         timesteps = (timestep * (len(self.timesteps) - 1)).long()
 
         # mps requires indices to be in the same device, so we use cpu as is the default with cuda
         sigma = self.discrete_sigmas[timesteps]
         adjacent_sigma = self.get_adjacent_sigma(timesteps, timestep)
-        drift = ops.zeros_like(sample)
+        drift = mint.zeros_like(sample)
         diffusion = (sigma**2 - adjacent_sigma**2) ** 0.5
 
         # equation 6 in the paper: the model_output modeled by the network is grad_x log pt(x)
@@ -208,7 +208,7 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
         diffusion = diffusion.flatten()
         # while len(diffusion.shape) < len(sample.shape):
         #     diffusion = diffusion.unsqueeze(-1)
-        diffusion = ops.reshape(diffusion, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        diffusion = mint.reshape(diffusion, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
         drift = (drift - diffusion**2 * model_output).to(sample.dtype)
 
         #  equation 6: sample noise for the diffusion term of
@@ -259,17 +259,17 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
         noise = randn_tensor(sample.shape, generator=generator, dtype=ms.float32)
 
         # compute step size from the model_output, the noise, and the snr
-        grad_norm = ops.norm(model_output.reshape(model_output.shape[0], -1), dim=-1).mean()
-        noise_norm = ops.norm(noise.reshape(noise.shape[0], -1), dim=-1).mean()
+        grad_norm = mint.norm(model_output.reshape(model_output.shape[0], -1), dim=-1).mean()
+        noise_norm = mint.norm(noise.reshape(noise.shape[0], -1), dim=-1).mean()
         step_size = (self.config.snr * noise_norm / grad_norm) ** 2 * 2
-        step_size = step_size * ops.ones(sample.shape[0])
+        step_size = step_size * mint.ones(sample.shape[0])
         # self.repeat_scalar(step_size, sample.shape[0])
 
         # compute corrected sample: model_output term and noise term
         step_size = step_size.flatten()
         # while len(step_size.shape) < len(sample.shape):
         #     step_size = step_size.unsqueeze(-1)
-        step_size = ops.reshape(step_size, (sample.shape[0],) + (1,) * (len(sample.shape) - 1))
+        step_size = mint.reshape(step_size, (sample.shape[0],) + (1,) * (len(sample.shape) - 1))
 
         prev_sample_mean = sample + step_size * model_output
         prev_sample = (prev_sample_mean + ((step_size * 2) ** 0.5) * noise).to(sample.dtype)
@@ -290,7 +290,7 @@ class ScoreSdeVeScheduler(SchedulerMixin, ConfigMixin):
         noise = (
             noise * sigmas[:, None, None, None]
             if noise is not None
-            else ops.randn_like(original_samples, dtype=original_samples.dtype) * sigmas[:, None, None, None]
+            else mint.randn_like(original_samples, dtype=original_samples.dtype) * sigmas[:, None, None, None]
         ).to(original_samples.dtype)
         noisy_samples = noise + original_samples
         return noisy_samples

@@ -24,7 +24,7 @@ import numpy as np
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import T5EncoderModel
 
@@ -260,7 +260,7 @@ class LattePipeline(DiffusionPipeline):
             prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
             prompt_embeds = prompt_embeds[0]
         else:
-            prompt_embeds_attention_mask = ops.ones_like(prompt_embeds)
+            prompt_embeds_attention_mask = mint.ones_like(prompt_embeds)
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
@@ -729,7 +729,7 @@ class LattePipeline(DiffusionPipeline):
             mask_feature=mask_feature,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -759,7 +759,7 @@ class LattePipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 current_timestep = t
@@ -793,7 +793,7 @@ class LattePipeline(DiffusionPipeline):
                     hasattr(self.scheduler.config, "variance_type")
                     and self.scheduler.config.variance_type in ["learned", "learned_range"]
                 ):
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
+                    noise_pred = noise_pred.chunk(2, dim=1)[0]
 
                 # compute previous video: x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
@@ -844,7 +844,7 @@ class LattePipeline(DiffusionPipeline):
 
             frame = self.vae.decode(latents[i : i + decode_chunk_size], **decode_kwargs)[0]
             frames.append(frame)
-        frames = ops.cat(frames, axis=0)
+        frames = mint.cat(frames, dim=0)
 
         # [batch*frames, channels, height, width] -> [batch, channels, frames, height, width]
         frames = frames.reshape((-1, video_length) + frames.shape[1:]).permute(0, 2, 1, 3, 4)

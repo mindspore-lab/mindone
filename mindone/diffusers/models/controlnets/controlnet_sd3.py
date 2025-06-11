@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
@@ -28,7 +28,7 @@ from ..embeddings import CombinedTimestepTextProjEmbeddings, PatchEmbed
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
 from ..transformers.transformer_sd3 import SD3SingleTransformerBlock
-from .controlnet import BaseOutput
+from .controlnet import BaseOutput, zero_module
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -83,7 +83,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
             embedding_dim=self.inner_dim, pooled_projection_dim=pooled_projection_dim
         )
         if joint_attention_dim is not None:
-            self.context_embedder = nn.Dense(joint_attention_dim, caption_projection_dim)
+            self.context_embedder = mint.nn.Linear(joint_attention_dim, caption_projection_dim)
 
             # `attention_head_dim` is doubled to account for the mixing.
             # It needs to crafted when we get the actual checkpoints.
@@ -116,12 +116,7 @@ class SD3ControlNetModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOriginal
         # controlnet_blocks
         self.controlnet_blocks = []
         for _ in range(len(self.transformer_blocks)):
-            controlnet_block = nn.Dense(
-                self.inner_dim,
-                self.inner_dim,
-                weight_init="zeros",
-                bias_init="zeros",
-            )  # zero_module
+            controlnet_block = zero_module(mint.nn.Linear(self.inner_dim, self.inner_dim))  # zero_module
             self.controlnet_blocks.append(controlnet_block)
         self.controlnet_blocks = nn.CellList(self.controlnet_blocks)
 

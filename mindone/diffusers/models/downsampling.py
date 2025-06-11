@@ -14,10 +14,10 @@
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from .layers_compat import pad
-from .normalization import LayerNorm, RMSNorm
+from .normalization import RMSNorm
 from .upsampling import upfirdn2d_native
 
 
@@ -54,6 +54,7 @@ class Downsample1D(nn.Cell):
         self.name = name
 
         if use_conv:
+            # todo: unavailable mint interface
             self.conv = nn.Conv1d(
                 self.channels,
                 self.out_channels,
@@ -65,6 +66,7 @@ class Downsample1D(nn.Cell):
             )
         else:
             assert self.channels == self.out_channels
+            # todo: unavailable mint interface
             self.conv = nn.AvgPool1d(kernel_size=stride, stride=stride)
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
@@ -110,7 +112,7 @@ class Downsample2D(nn.Cell):
         self.name = name
 
         if norm_type == "ln_norm":
-            self.norm = LayerNorm(channels, eps, elementwise_affine)
+            self.norm = mint.nn.LayerNorm(channels, eps, elementwise_affine)
         elif norm_type == "rms_norm":
             self.norm = RMSNorm(channels, eps, elementwise_affine)
         elif norm_type is None:
@@ -119,23 +121,12 @@ class Downsample2D(nn.Cell):
             raise ValueError(f"unknown norm_type: {norm_type}")
 
         if use_conv:
-            conv = nn.Conv2d(
-                self.channels,
-                self.out_channels,
-                kernel_size=kernel_size,
-                stride=stride,
-                pad_mode="pad",
-                padding=padding,
-                has_bias=bias,
+            conv = mint.nn.Conv2d(
+                self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias
             )
-            if padding == 0:
-                self.pad = nn.Pad(paddings=((0, 0), (0, 0), (0, 1), (0, 1)))
-            else:
-                self.pad = nn.Identity()
         else:
             assert self.channels == self.out_channels
-            conv = nn.AvgPool2d(kernel_size=stride, stride=stride)
-            self.pad = nn.Identity()
+            conv = mint.nn.AvgPool2d(kernel_size=stride, stride=stride)
 
         # TODO(Suraj, Patrick) - clean up after weight dicts are correctly renamed
         if name == "conv":
@@ -153,7 +144,8 @@ class Downsample2D(nn.Cell):
             hidden_states = self.norm(hidden_states.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)
 
         if self.use_conv and self.padding == 0:
-            hidden_states = self.pad(hidden_states)
+            pad = (0, 1, 0, 1)
+            hidden_states = mint.nn.functional.pad(hidden_states, pad, mode="constant", value=0)
 
         assert hidden_states.shape[1] == self.channels
 
@@ -186,9 +178,7 @@ class FirDownsample2D(nn.Cell):
         super().__init__()
         out_channels = out_channels if out_channels else channels
         if use_conv:
-            self.Conv2d_0 = nn.Conv2d(
-                channels, out_channels, kernel_size=3, stride=1, pad_mode="pad", padding=1, has_bias=True
-            )
+            self.Conv2d_0 = mint.nn.Conv2d(channels, out_channels, kernel_size=3, stride=1, padding=1)
         self.fir_kernel = fir_kernel
         self.use_conv = use_conv
         self.out_channels = out_channels
@@ -233,8 +223,8 @@ class FirDownsample2D(nn.Cell):
         # setup kernel
         kernel = ms.Tensor(kernel, dtype=ms.float32)
         if kernel.ndim == 1:
-            kernel = ops.outer(kernel, kernel)
-        kernel /= ops.sum(kernel)
+            kernel = mint.outer(kernel, kernel)
+        kernel /= mint.sum(kernel)
 
         kernel = kernel * gain
 
@@ -247,7 +237,7 @@ class FirDownsample2D(nn.Cell):
                 kernel,  # has been tensor before
                 pad=((pad_value + 1) // 2, pad_value // 2),
             )
-            output = ops.conv2d(upfirdn_input, weight, stride=stride_value, padding=0)
+            output = mint.nn.funtional.conv2d(upfirdn_input, weight, stride=stride_value, padding=0)
         else:
             pad_value = kernel.shape[0] - factor
             output = upfirdn2d_native(
@@ -285,7 +275,7 @@ class KDownsample2D(nn.Cell):
         self.kernel = kernel_1d.T @ kernel_1d
 
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
-        inputs = ops.pad(inputs, (self.pad,) * 4, self.pad_mode)
+        inputs = mint.nn.functional.pad(inputs, (self.pad,) * 4, self.pad_mode)
         weight = inputs.new_zeros(
             [
                 inputs.shape[1],
@@ -295,10 +285,10 @@ class KDownsample2D(nn.Cell):
             ],
             dtype=inputs.dtype,
         )
-        indices = ops.arange(inputs.shape[1])
+        indices = mint.arange(inputs.shape[1])
         kernel = self.kernel.to(weight.dtype)[None, :].broadcast_to((inputs.shape[1], -1, -1))
         weight[indices, indices] = kernel
-        return ops.conv2d(inputs, weight, stride=2)
+        return mint.nn.functional.conv2d(inputs, weight, stride=2)
 
 
 class CogVideoXDownsample3D(nn.Cell):
@@ -332,15 +322,7 @@ class CogVideoXDownsample3D(nn.Cell):
     ):
         super().__init__()
 
-        self.conv = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            pad_mode="pad",
-            has_bias=True,
-        )
+        self.conv = mint.nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding)
         self.compress_time = compress_time
 
     def construct(self, x: ms.Tensor) -> ms.Tensor:
@@ -355,15 +337,15 @@ class CogVideoXDownsample3D(nn.Cell):
                 if x_rest.shape[-1] > 0:
                     # (batch_size * height * width, channels, frames - 1) -> (batch_size * height * width, channels, (frames - 1) // 2)
                     # x_rest = ops.avg_pool1d(x_rest, kernel_size=2, stride=2) does NOT support BFloat16, so we will switch to the following equivalent method:
-                    x_rest = x_rest.reshape(batch_size * height * width, channels, -1, 2).mean(axis=-1, keep_dims=False)
+                    x_rest = x_rest.reshape(batch_size * height * width, channels, -1, 2).mean(dim=-1, keepdim=False)
 
-                x = ops.cat([x_first[..., None], x_rest], axis=-1)
+                x = mint.cat([x_first[..., None], x_rest], dim=-1)
                 # (batch_size * height * width, channels, (frames // 2) + 1) -> (batch_size, height, width, channels, (frames // 2) + 1) -> (batch_size, channels, (frames // 2) + 1, height, width)  # noqa: E501
                 x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
             else:
                 # (batch_size * height * width, channels, frames) -> (batch_size * height * width, channels, frames // 2)
                 # x = ops.avg_pool1d(x, kernel_size=2, stride=2) does NOT support BFloat16, so we will switch to the following equivalent method:
-                x = x.reshape(batch_size * height * width, channels, -1, 2).mean(axis=-1, keep_dims=False)
+                x = x.reshape(batch_size * height * width, channels, -1, 2).mean(dim=-1, keepdim=False)
                 # (batch_size * height * width, channels, frames // 2) -> (batch_size, height, width, channels, frames // 2) -> (batch_size, channels, frames // 2, height, width)  # noqa: E501
                 x = x.reshape(batch_size, height, width, channels, x.shape[-1]).permute(0, 3, 4, 1, 2)
 
@@ -413,8 +395,8 @@ def downsample_2d(
 
     kernel = ms.Tensor(kernel, dtype=ms.float32)
     if kernel.ndim == 1:
-        kernel = ops.outer(kernel, kernel)
-    kernel /= ops.sum(kernel)
+        kernel = mint.outer(kernel, kernel)
+    kernel /= mint.sum(kernel)
 
     kernel = kernel * gain
     pad_value = kernel.shape[0] - factor

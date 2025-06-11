@@ -22,7 +22,7 @@ from PIL import Image
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -370,7 +370,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
                         retrieve_latents(self.vae, self.vae.encode(vid.unsqueeze(0))[0], generator) for vid in video
                     ]
 
-            init_latents = ops.cat(init_latents, axis=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
+            init_latents = mint.cat(init_latents, dim=0).to(dtype).permute(0, 2, 1, 3, 4)  # [B, F, C, H, W]
             init_latents = self.vae.config.scaling_factor * init_latents
 
             noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -694,7 +694,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
             max_sequence_length=max_sequence_length,
         )
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps)
@@ -750,7 +750,7 @@ class CogVideoXVideoToVideoPipeline(DiffusionPipeline):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

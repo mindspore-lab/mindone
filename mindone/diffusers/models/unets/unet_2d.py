@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...utils import BaseOutput
@@ -139,9 +139,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             )
 
         # input
-        self.conv_in = nn.Conv2d(
-            in_channels, block_out_channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_in = mint.nn.Conv2d(in_channels, block_out_channels[0], kernel_size=3, padding=1)
 
         # time
         if time_embedding_type == "fourier":
@@ -151,18 +149,18 @@ class UNet2DModel(ModelMixin, ConfigMixin):
             self.time_proj = Timesteps(block_out_channels[0], flip_sin_to_cos, freq_shift)
             timestep_input_dim = block_out_channels[0]
         elif time_embedding_type == "learned":
-            self.time_proj = nn.Embedding(num_train_timesteps, block_out_channels[0])
+            self.time_proj = mint.nn.Embedding(num_train_timesteps, block_out_channels[0])
             timestep_input_dim = block_out_channels[0]
 
         self.time_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
 
         # class embedding
         if class_embed_type is None and num_class_embeds is not None:
-            self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
+            self.class_embedding = mint.nn.Embedding(num_class_embeds, time_embed_dim)
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity()
+            self.class_embedding = mint.nn.Identity()
         else:
             self.class_embedding = None
 
@@ -246,9 +244,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         num_groups_out = norm_num_groups if norm_num_groups is not None else min(block_out_channels[0] // 4, 32)
         self.conv_norm_out = GroupNorm(num_channels=block_out_channels[0], num_groups=num_groups_out, eps=norm_eps)
         self.conv_act = get_activation(act_fn)()
-        self.conv_out = nn.Conv2d(
-            block_out_channels[0], out_channels, kernel_size=3, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_out = mint.nn.Conv2d(block_out_channels[0], out_channels, kernel_size=3, padding=1)
 
         self.center_input_sample = self.config.center_input_sample
         self.class_embed_type = self.config.class_embed_type
@@ -287,8 +283,10 @@ class UNet2DModel(ModelMixin, ConfigMixin):
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             timesteps = ms.Tensor([timesteps], dtype=ms.int64)
+        # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
