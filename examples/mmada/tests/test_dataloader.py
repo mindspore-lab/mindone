@@ -2,9 +2,9 @@ import logging
 import math
 
 import torch
-from lightning.pytorch.utilities import CombinedLoader
 from parquet import RefinedWebDataset  # Assuming this is from a 'parquet' library
 from training.data import Text2ImageDataset
+from training.loader import CombinedLoader
 from training.imagenet_dataset import ImageNetDataset
 
 logger = logging.getLogger(__name__)
@@ -43,17 +43,17 @@ class MockPreprocessingConfig:
 
 class MockDatasetParamsConfig:
     def __init__(self):
-        self.train_t2i_shards_path_or_url = "dummy_t2i_path"
-        self.train_mmu_shards_path_or_url = "dummy_mmu_path"
-        self.train_lm_shards_path_or_url = "dummy_lm_path"
+        self.train_t2i_shards_path_or_url = "train_datasets/imagenet-1k/data/train/"
+        self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00999}.tar"
+        self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/data/*parquet"
         self.num_workers = 0
         self.shuffle_buffer_size = 1000
         self.pin_memory = False
         self.persistent_workers = False
-        self.external_caption_path = None
-        self.external_journeydb_caption_path = None
-        self.external_laion12m_caption_path = None
-        self.external_cc12m_caption_path = None
+        self.external_caption_path = ""
+        self.external_journeydb_caption_path = ""
+        self.external_laion12m_caption_path = ""
+        self.external_cc12m_caption_path = ""
         self.add_caption_prompt = False
         self.resolution = 256
 
