@@ -51,7 +51,7 @@ class FalconModelTester:
         type_vocab_size=16,
         type_sequence_label_size=2,
         initializer_range=0.02,
-        num_labels=3,
+        num_labels=2,
         num_choices=4,
         scope=None,
     ):
@@ -194,7 +194,6 @@ BERT_CASES = [
         (input_ids,),
         {
             "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
             "start_positions": sequence_labels,
             "end_positions": sequence_labels,
         },
