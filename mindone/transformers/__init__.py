@@ -219,6 +219,14 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.falcon import (
+    FalconForCausalLM,
+    FalconModel,
+    FalconPreTrainedModel,
+    FalconForSequenceClassification,
+    FalconForTokenClassification,
+    FalconForQuestionAnswering,
+)
 from .models.switch_transformers import (
     SwitchTransformersEncoderModel,
     SwitchTransformersForConditionalGeneration,
