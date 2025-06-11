@@ -33,6 +33,7 @@ from . import (
     qwen2_vl,
     qwen3,
     speecht5,
+    falcon,
     switch_transformers,
     t5,
     umt5,
