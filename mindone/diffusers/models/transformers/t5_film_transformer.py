@@ -14,7 +14,7 @@
 from typing import Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ..attention_processor import Attention
@@ -61,18 +61,21 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
         super().__init__()
 
         self.conditioning_emb = nn.SequentialCell(
-            nn.Dense(d_model, d_model * 4, has_bias=False),
-            nn.SiLU(),
-            nn.Dense(d_model * 4, d_model * 4, has_bias=False),
-            nn.SiLU(),
+            mint.nn.Linear(d_model, d_model * 4, bias=False),
+            mint.nn.SiLU(),
+            mint.nn.Linear(d_model * 4, d_model * 4, bias=False),
+            mint.nn.SiLU(),
         )
 
-        self.position_encoding = nn.Embedding(targets_length, d_model)
-        self.position_encoding.embedding_table.requires_grad = False
+        self.position_encoding = mint.nn.Embedding(targets_length, d_model)
+        self.position_encoding.weight.requires_grad = False
 
-        self.continuous_inputs_projection = nn.Dense(input_dims, d_model, has_bias=False)
+        self.position_encoding = mint.nn.Embedding(targets_length, d_model)
+        self.position_encoding.weight.requires_grad = False
 
-        self.dropout = nn.Dropout(p=dropout_rate)
+        self.continuous_inputs_projection = mint.nn.Linear(input_dims, d_model, bias=False)
+
+        self.dropout = mint.nn.Dropout(p=dropout_rate)
 
         self.decoders = []
         for lyr_num in range(num_layers):
@@ -83,11 +86,11 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
 
         self.decoder_norm = T5LayerNorm(d_model)
 
-        self.post_dropout = nn.Dropout(p=dropout_rate)
-        self.spec_out = nn.Dense(d_model, input_dims, has_bias=False)
+        self.post_dropout = mint.nn.Dropout(p=dropout_rate)
+        self.spec_out = mint.nn.Linear(d_model, input_dims, bias=False)
 
     def encoder_decoder_mask(self, query_input: ms.Tensor, key_input: ms.Tensor) -> ms.Tensor:
-        mask = ops.mul(query_input.unsqueeze(-1), key_input.unsqueeze(-2))
+        mask = mint.mul(query_input.unsqueeze(-1), key_input.unsqueeze(-2))
         return mask.unsqueeze(-3)
 
     def construct(self, encodings_and_masks, decoder_input_tokens, decoder_noise_time):
@@ -101,7 +104,7 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
             max_period=self.config["max_decoder_noise_time"],
         ).to(dtype=self.dtype)
 
-        conditioning_emb = self.conditioning_emb(time_steps).unsqueeze(1)
+        conditioning_emb = mint.unsqueeze(self.conditioning_emb(time_steps), 1)
 
         assert conditioning_emb.shape == (batch, 1, self.config["d_model"] * 4)
 
@@ -109,7 +112,7 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
 
         # If we want to use relative positions for audio context, we can just offset
         # this sequence by the length of encodings_and_masks.
-        decoder_positions = ops.broadcast_to(ops.arange(seq_length), (batch, seq_length))
+        decoder_positions = mint.broadcast_to(mint.arange(seq_length), (batch, seq_length))
 
         position_encodings = self.position_encoding(decoder_positions)
 
@@ -118,14 +121,14 @@ class T5FilmDecoder(ModelMixin, ConfigMixin):
         y = self.dropout(inputs)
 
         # decoder: No padding present.
-        decoder_mask = ops.ones(decoder_input_tokens.shape[:2], dtype=inputs.dtype)
+        decoder_mask = mint.ones(decoder_input_tokens.shape[:2], dtype=inputs.dtype)
 
         # Translate encoding masks to encoder-decoder masks.
         encodings_and_encdec_masks = [(x, self.encoder_decoder_mask(decoder_mask, y)) for x, y in encodings_and_masks]
 
         # cross attend style: concat encodings
-        encoded = ops.cat([x[0] for x in encodings_and_encdec_masks], axis=1)
-        encoder_decoder_mask = ops.cat([x[1] for x in encodings_and_encdec_masks], axis=-1)
+        encoded = mint.cat([x[0] for x in encodings_and_encdec_masks], dim=1)
+        encoder_decoder_mask = mint.cat([x[1] for x in encodings_and_encdec_masks], dim=-1)
 
         for lyr in self.decoders:
             y = lyr(
@@ -206,7 +209,7 @@ class DecoderLayer(nn.Cell):
         )
 
         if encoder_hidden_states is not None:
-            encoder_extended_attention_mask = ops.where(
+            encoder_extended_attention_mask = mint.where(
                 encoder_attention_mask > 0, ms.Tensor(0.0), ms.Tensor(-1e10)
             ).to(encoder_hidden_states.dtype)
 
@@ -242,7 +245,7 @@ class T5LayerSelfAttentionCond(nn.Cell):
         self.layer_norm = T5LayerNorm(d_model)
         self.FiLMLayer = T5FiLMLayer(in_features=d_model * 4, out_features=d_model)
         self.attention = Attention(query_dim=d_model, heads=num_heads, dim_head=d_kv, out_bias=False, scale_qk=False)
-        self.dropout = nn.Dropout(p=dropout_rate)
+        self.dropout = mint.nn.Dropout(p=dropout_rate)
 
     def construct(
         self,
@@ -285,7 +288,7 @@ class T5LayerCrossAttention(nn.Cell):
         super().__init__()
         self.attention = Attention(query_dim=d_model, heads=num_heads, dim_head=d_kv, out_bias=False, scale_qk=False)
         self.layer_norm = T5LayerNorm(d_model, eps=layer_norm_epsilon)
-        self.dropout = nn.Dropout(p=dropout_rate)
+        self.dropout = mint.nn.Dropout(p=dropout_rate)
 
     def construct(
         self,
@@ -323,7 +326,7 @@ class T5LayerFFCond(nn.Cell):
         self.DenseReluDense = T5DenseGatedActDense(d_model=d_model, d_ff=d_ff, dropout_rate=dropout_rate)
         self.film = T5FiLMLayer(in_features=d_model * 4, out_features=d_model)
         self.layer_norm = T5LayerNorm(d_model, eps=layer_norm_epsilon)
-        self.dropout = nn.Dropout(p=dropout_rate)
+        self.dropout = mint.nn.Dropout(p=dropout_rate)
 
     def construct(self, hidden_states: ms.Tensor, conditioning_emb: Optional[ms.Tensor] = None) -> ms.Tensor:
         forwarded_states = self.layer_norm(hidden_states)
@@ -350,10 +353,10 @@ class T5DenseGatedActDense(nn.Cell):
 
     def __init__(self, d_model: int, d_ff: int, dropout_rate: float):
         super().__init__()
-        self.wi_0 = nn.Dense(d_model, d_ff, has_bias=False)
-        self.wi_1 = nn.Dense(d_model, d_ff, has_bias=False)
-        self.wo = nn.Dense(d_ff, d_model, has_bias=False)
-        self.dropout = nn.Dropout(p=dropout_rate)
+        self.wi_0 = mint.nn.Linear(d_model, d_ff, bias=False)
+        self.wi_1 = mint.nn.Linear(d_model, d_ff, bias=False)
+        self.wo = mint.nn.Linear(d_ff, d_model, bias=False)
+        self.dropout = mint.nn.Dropout(p=dropout_rate)
         self.act = NewGELUActivation()
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -382,7 +385,7 @@ class T5LayerNorm(nn.Cell):
         Construct a layernorm module in the T5 style. No bias and no subtraction of mean.
         """
         super().__init__()
-        self.weight = ms.Parameter(ops.ones(hidden_size), name="weight")
+        self.weight = ms.Parameter(mint.ones(hidden_size), name="weight")
         self.variance_epsilon = eps
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
@@ -391,8 +394,8 @@ class T5LayerNorm(nn.Cell):
         # w/o mean and there is no bias. Additionally we want to make sure that the accumulation for
         # half-precision inputs is done in fp32
 
-        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.variance_epsilon)
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.variance_epsilon)
 
         # convert into half-precision if necessary
         if self.weight.dtype in [ms.float16, ms.bfloat16]:
@@ -409,7 +412,7 @@ class NewGELUActivation(nn.Cell):
 
     def construct(self, input: ms.Tensor) -> ms.Tensor:
         # Magic number 0.797885 comes from math.sqrt(2.0 / math.pi) as float32
-        return 0.5 * input * (1.0 + ops.tanh(0.797885 * (input + 0.044715 * ops.pow(input, 3.0))))
+        return 0.5 * input * (1.0 + mint.tanh(0.797885 * (input + 0.044715 * mint.pow(input, 3.0))))
 
 
 class T5FiLMLayer(nn.Cell):
@@ -425,10 +428,10 @@ class T5FiLMLayer(nn.Cell):
 
     def __init__(self, in_features: int, out_features: int):
         super().__init__()
-        self.scale_bias = nn.Dense(in_features, out_features * 2, has_bias=False)
+        self.scale_bias = mint.nn.Linear(in_features, out_features * 2, bias=False)
 
     def construct(self, x: ms.Tensor, conditioning_emb: ms.Tensor) -> ms.Tensor:
         emb = self.scale_bias(conditioning_emb)
-        scale, shift = ops.chunk(emb, 2, -1)
+        scale, shift = mint.chunk(emb, 2, -1)
         x = x * (1 + scale) + shift
         return x
