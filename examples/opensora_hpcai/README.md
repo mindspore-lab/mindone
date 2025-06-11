@@ -622,7 +622,25 @@ video_embed_folder
 
 ## Training
 
+### Open-Sora 2.0
+
+Once the data in a CSV file is prepared, training can be started by running the appropriate bash scripts located in the
+`scripts/v2.0/run` directory.
+
+#### Training Performance
+
+| Model name | Cards | Batch size |            Mode            | JIT level | Method | Resolution | Frames | Sequence Parallel | ZeRO stage | VAE cache | Text Cache | Step time (s) |                         Recipe                         |
+|:----------:|:-----:|:----------:|:--------------------------:|:---------:|:------:|:----------:|:------:|:-----------------:|:----------:|:---------:|:----------:|:-------------:|:------------------------------------------------------:|
+|    11B     |   8   |     1      |           Graph            |    O1     |  t2v   |  256x256   |  129   |         -         |     3      |    Yes    |    Yes     |     4.58      | [yaml](configs/opensora-v2-0/train/stage1_latent.yaml) |
+|    11B     |   8   |     1      |          Pynative          |     -     |  t2v   |  256x256   |  129   |         -         |     3      |    Yes    |    Yes     |     6.57      | [yaml](configs/opensora-v2-0/train/stage1_latent.yaml) |
+|    11B     |   8   |     2      | MMDiT Graph + VAE Pynative |    O1     |  t2v   |  256x256   |  129   |         -         |     3      |    No     |    Yes     |     11.8      |    [yaml](configs/opensora-v2-0/train/stage1.yaml)     |
+|    11B     |   8   |     1      |           Graph            |    O1     |  t2v   |  768x768   |  129   |         8         |     3      |    Yes    |    Yes     |     16.5      | [yaml](configs/opensora-v2-0/train/stage2_latent.yaml) |
+|    11B     |   8   |     1      |          Pynative          |     -     |  t2v   |  768x768   |  129   |         8         |     3      |    Yes    |    Yes     |     18.9      | [yaml](configs/opensora-v2-0/train/stage2_latent.yaml) |
+
 ### Open-Sora 1.2
+
+<details>
+<summary>Instructions</summary>
 
 Once you prepare the data in a csv file, you may run the following commands to launch training on a single card.
 
@@ -681,6 +699,7 @@ More details on the bucket configuration can be found in [Multi-resolution Train
 
 The instruction for launching the dynamic training task is smilar to the previous section. An example running script is `scripts/run/run_train_os1.2_stage2.sh`.
 
+</details>
 
 ### Open-Sora 1.1
 

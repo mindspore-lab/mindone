@@ -35,6 +35,7 @@ dataset:
   sample_n_frames: 5
   csv_path: CSV_PATH
   video_folder: VIDEO_FOLDER
+  vae_latent_folder: VAE_LATENT_FOLDER
   text_emb_folder:
     t5: UL2_FOLDER
     clip: BYT5_FOLDER
