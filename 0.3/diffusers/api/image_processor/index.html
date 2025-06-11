@@ -8997,13 +8997,13 @@ specific language governing permissions and limitations under the License.
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;resize_mode </span><span class="si">{</span><span class="n">resize_mode</span><span class="si">}</span><span class="s2"> is not supported&quot;</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
                 <span class="n">image</span><span class="p">,</span>
                 <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
             <span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
                 <span class="n">image</span><span class="p">,</span>
                 <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
             <span class="p">)</span>
@@ -9041,7 +9041,7 @@ specific language governing permissions and limitations under the License.
         <span class="k">if</span> <span class="n">do_denormalize</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">denormalize</span><span class="p">(</span><span class="n">images</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_normalize</span> <span class="k">else</span> <span class="n">images</span>
 
-        <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
+        <span class="k">return</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span>
             <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">denormalize</span><span class="p">(</span><span class="n">images</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="k">if</span> <span class="n">do_denormalize</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">else</span> <span class="n">images</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">images</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">])]</span>
         <span class="p">)</span>
 
@@ -9160,7 +9160,7 @@ specific language governing permissions and limitations under the License.
                 <span class="s2">&quot;Please concatenate the list along the batch dimension and pass it as a single 4d ms.Tensor&quot;</span><span class="p">,</span>
                 <span class="ne">FutureWarning</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid_image_imagelist</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -9192,7 +9192,7 @@ specific language governing permissions and limitations under the License.
                 <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
 
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_convert_grayscale</span> <span class="ow">and</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
                 <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -11424,7 +11424,7 @@ The preprocessed image.</p>
             <span class="s2">&quot;Please concatenate the list along the batch dimension and pass it as a single 4d ms.Tensor&quot;</span><span class="p">,</span>
             <span class="ne">FutureWarning</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">is_valid_image_imagelist</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -11456,7 +11456,7 @@ The preprocessed image.</p>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">resize</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">)</span>
 
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">do_convert_grayscale</span> <span class="ow">and</span> <span class="n">image</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
             <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
@@ -11707,13 +11707,13 @@ The resized image.</p>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;resize_mode </span><span class="si">{</span><span class="n">resize_mode</span><span class="si">}</span><span class="s2"> is not supported&quot;</span><span class="p">)</span>
 
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
             <span class="n">image</span><span class="p">,</span>
             <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
         <span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">numpy_to_ms</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
-        <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+        <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
             <span class="n">image</span><span class="p">,</span>
             <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">),</span>
         <span class="p">)</span>
@@ -11888,11 +11888,7 @@ The resized image.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1191</span>
-<span class="normal">1192</span>
-<span class="normal">1193</span>
-<span class="normal">1194</span>
-<span class="normal">1195</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1195</span>
 <span class="normal">1196</span>
 <span class="normal">1197</span>
 <span class="normal">1198</span>
@@ -11987,7 +11983,11 @@ The resized image.</p>
 <span class="normal">1287</span>
 <span class="normal">1288</span>
 <span class="normal">1289</span>
-<span class="normal">1290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PixArtImageProcessor</span><span class="p">(</span><span class="n">VaeImageProcessor</span><span class="p">):</span>
+<span class="normal">1290</span>
+<span class="normal">1291</span>
+<span class="normal">1292</span>
+<span class="normal">1293</span>
+<span class="normal">1294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PixArtImageProcessor</span><span class="p">(</span><span class="n">VaeImageProcessor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Image processor for PixArt image resize and crop.</span>
 
@@ -12199,11 +12199,7 @@ The resized image.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1232</span>
-<span class="normal">1233</span>
-<span class="normal">1234</span>
-<span class="normal">1235</span>
-<span class="normal">1236</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1236</span>
 <span class="normal">1237</span>
 <span class="normal">1238</span>
 <span class="normal">1239</span>
@@ -12215,7 +12211,11 @@ The resized image.</p>
 <span class="normal">1245</span>
 <span class="normal">1246</span>
 <span class="normal">1247</span>
-<span class="normal">1248</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">1248</span>
+<span class="normal">1249</span>
+<span class="normal">1250</span>
+<span class="normal">1251</span>
+<span class="normal">1252</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">classify_height_width_bin</span><span class="p">(</span><span class="n">height</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">ratios</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Returns the binned height and width based on the aspect ratio.</span>
@@ -12265,11 +12265,7 @@ Returns:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/image_processor.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1250</span>
-<span class="normal">1251</span>
-<span class="normal">1252</span>
-<span class="normal">1253</span>
-<span class="normal">1254</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1254</span>
 <span class="normal">1255</span>
 <span class="normal">1256</span>
 <span class="normal">1257</span>
@@ -12305,7 +12301,11 @@ Returns:
 <span class="normal">1287</span>
 <span class="normal">1288</span>
 <span class="normal">1289</span>
-<span class="normal">1290</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">1290</span>
+<span class="normal">1291</span>
+<span class="normal">1292</span>
+<span class="normal">1293</span>
+<span class="normal">1294</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">resize_and_crop_tensor</span><span class="p">(</span><span class="n">samples</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">new_width</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">new_height</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Resizes and crops a tensor of images to the specified dimensions.</span>
@@ -12591,7 +12591,11 @@ Returns:
 <span class="normal">1185</span>
 <span class="normal">1186</span>
 <span class="normal">1187</span>
-<span class="normal">1188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">IPAdapterMaskProcessor</span><span class="p">(</span><span class="n">VaeImageProcessor</span><span class="p">):</span>
+<span class="normal">1188</span>
+<span class="normal">1189</span>
+<span class="normal">1190</span>
+<span class="normal">1191</span>
+<span class="normal">1192</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">IPAdapterMaskProcessor</span><span class="p">(</span><span class="n">VaeImageProcessor</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Image processor for IP Adapter image masks.</span>
 
@@ -12660,7 +12664,9 @@ Returns:
         <span class="n">mask_h</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mask_h</span><span class="p">)</span> <span class="o">+</span> <span class="nb">int</span><span class="p">((</span><span class="n">num_queries</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">mask_h</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
         <span class="n">mask_w</span> <span class="o">=</span> <span class="n">num_queries</span> <span class="o">//</span> <span class="n">mask_h</span>
 
-        <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">mask_h</span><span class="p">,</span> <span class="n">mask_w</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;bicubic&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+            <span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">mask_h</span><span class="p">,</span> <span class="n">mask_w</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;bicubic&quot;</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># Repeat batch_size times</span>
         <span class="k">if</span> <span class="n">mask_downsample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">batch_size</span><span class="p">:</span>
@@ -12672,7 +12678,9 @@ Returns:
         <span class="c1"># If the output image and the mask do not have the same aspect ratio, tensor shapes will not match</span>
         <span class="c1"># Pad tensor if downsampled_mask.shape[1] is smaller than num_queries</span>
         <span class="k">if</span> <span class="n">downsampled_area</span> <span class="o">&lt;</span> <span class="n">num_queries</span><span class="p">:</span>
-            <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span><span class="n">paddings</span><span class="o">=</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_queries</span> <span class="o">-</span> <span class="n">mask_downsample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])))(</span><span class="n">mask_downsample</span><span class="p">)</span>
+            <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+                <span class="n">mask_downsample</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_queries</span> <span class="o">-</span> <span class="n">mask_downsample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span>
+            <span class="p">)</span>
         <span class="c1"># Discard last embeddings if downsampled_mask.shape[1] is bigger than num_queries</span>
         <span class="k">if</span> <span class="n">downsampled_area</span> <span class="o">&gt;</span> <span class="n">num_queries</span><span class="p">:</span>
             <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">mask_downsample</span><span class="p">[:,</span> <span class="p">:</span><span class="n">num_queries</span><span class="p">]</span>
@@ -12858,7 +12866,11 @@ The downsampled mask tensor.</p>
 <span class="normal">1185</span>
 <span class="normal">1186</span>
 <span class="normal">1187</span>
-<span class="normal">1188</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
+<span class="normal">1188</span>
+<span class="normal">1189</span>
+<span class="normal">1190</span>
+<span class="normal">1191</span>
+<span class="normal">1192</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@staticmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">downsample</span><span class="p">(</span><span class="n">mask</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">num_queries</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">value_embed_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Downsamples the provided mask tensor to match the expected dimensions for scaled dot-product attention. If the</span>
@@ -12886,7 +12898,9 @@ The downsampled mask tensor.</p>
     <span class="n">mask_h</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">mask_h</span><span class="p">)</span> <span class="o">+</span> <span class="nb">int</span><span class="p">((</span><span class="n">num_queries</span> <span class="o">%</span> <span class="nb">int</span><span class="p">(</span><span class="n">mask_h</span><span class="p">))</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
     <span class="n">mask_w</span> <span class="o">=</span> <span class="n">num_queries</span> <span class="o">//</span> <span class="n">mask_h</span>
 
-    <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">mask_h</span><span class="p">,</span> <span class="n">mask_w</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;bicubic&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+        <span class="n">mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">mask_h</span><span class="p">,</span> <span class="n">mask_w</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;bicubic&quot;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># Repeat batch_size times</span>
     <span class="k">if</span> <span class="n">mask_downsample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">batch_size</span><span class="p">:</span>
@@ -12898,7 +12912,9 @@ The downsampled mask tensor.</p>
     <span class="c1"># If the output image and the mask do not have the same aspect ratio, tensor shapes will not match</span>
     <span class="c1"># Pad tensor if downsampled_mask.shape[1] is smaller than num_queries</span>
     <span class="k">if</span> <span class="n">downsampled_area</span> <span class="o">&lt;</span> <span class="n">num_queries</span><span class="p">:</span>
-        <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span><span class="n">paddings</span><span class="o">=</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_queries</span> <span class="o">-</span> <span class="n">mask_downsample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">])))(</span><span class="n">mask_downsample</span><span class="p">)</span>
+        <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+            <span class="n">mask_downsample</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">num_queries</span> <span class="o">-</span> <span class="n">mask_downsample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]),</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span>
+        <span class="p">)</span>
     <span class="c1"># Discard last embeddings if downsampled_mask.shape[1] is bigger than num_queries</span>
     <span class="k">if</span> <span class="n">downsampled_area</span> <span class="o">&gt;</span> <span class="n">num_queries</span><span class="p">:</span>
         <span class="n">mask_downsample</span> <span class="o">=</span> <span class="n">mask_downsample</span><span class="p">[:,</span> <span class="p">:</span><span class="n">num_queries</span><span class="p">]</span>

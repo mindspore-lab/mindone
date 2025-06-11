@@ -8276,9 +8276,7 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
 <span class="normal">604</span>
 <span class="normal">605</span>
 <span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet3DConditionModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">):</span>
+<span class="normal">607</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet3DConditionModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A conditional 3D UNet model that takes a noisy sample, conditional state, and a timestep and returns a sample</span>
 <span class="sd">    shaped output.</span>
@@ -8386,13 +8384,11 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
         <span class="n">conv_in_kernel</span> <span class="o">=</span> <span class="mi">3</span>
         <span class="n">conv_out_kernel</span> <span class="o">=</span> <span class="mi">3</span>
         <span class="n">conv_in_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_in_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
             <span class="n">in_channels</span><span class="p">,</span>
             <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_in_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
             <span class="n">padding</span><span class="o">=</span><span class="n">conv_in_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># time</span>
@@ -8513,13 +8509,11 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
             <span class="bp">self</span><span class="o">.</span><span class="n">conv_act</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="n">conv_out_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_out_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
             <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">out_channels</span><span class="p">,</span>
             <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_out_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
             <span class="n">padding</span><span class="o">=</span><span class="n">conv_out_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="nd">@property</span>
@@ -8707,6 +8701,7 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
 
         <span class="c1"># 1. time</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
@@ -8734,6 +8729,7 @@ If <code>None</code>, normalization and activation layers is skipped in post-pro
 
         <span class="c1"># 2. pre-process</span>
         <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_frames</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span>
+
         <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
 
         <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_in</span><span class="p">(</span>
@@ -9150,7 +9146,11 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_3d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">416</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
 <span class="normal">417</span>
 <span class="normal">418</span>
 <span class="normal">419</span>
@@ -9341,9 +9341,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 <span class="normal">604</span>
 <span class="normal">605</span>
 <span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">607</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -9413,6 +9411,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 
     <span class="c1"># 1. time</span>
     <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+    <span class="c1"># todo: unavailable mint interface</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
         <span class="c1"># TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
@@ -9440,6 +9439,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 
     <span class="c1"># 2. pre-process</span>
     <span class="n">sample</span> <span class="o">=</span> <span class="n">sample</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_frames</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">sample</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">:])</span>
+
     <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
 
     <span class="n">sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_in</span><span class="p">(</span>
@@ -9609,7 +9609,11 @@ or dim=1 (sequence length).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_3d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">358</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">354</span>
+<span class="normal">355</span>
+<span class="normal">356</span>
+<span class="normal">357</span>
+<span class="normal">358</span>
 <span class="normal">359</span>
 <span class="normal">360</span>
 <span class="normal">361</span>
@@ -9632,11 +9636,7 @@ or dim=1 (sequence length).</p>
 <span class="normal">378</span>
 <span class="normal">379</span>
 <span class="normal">380</span>
-<span class="normal">381</span>
-<span class="normal">382</span>
-<span class="normal">383</span>
-<span class="normal">384</span>
-<span class="normal">385</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">381</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use [feed forward</span>
 <span class="sd">    chunking](https://huggingface.co/blog/reformer#2-chunked-feed-forward-layers).</span>
@@ -9691,7 +9691,11 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_3d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">327</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
 <span class="normal">328</span>
 <span class="normal">329</span>
 <span class="normal">330</span>
@@ -9716,11 +9720,7 @@ Parameters:
 <span class="normal">349</span>
 <span class="normal">350</span>
 <span class="normal">351</span>
-<span class="normal">352</span>
-<span class="normal">353</span>
-<span class="normal">354</span>
-<span class="normal">355</span>
-<span class="normal">356</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">352</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 <span class="sd">    Parameters:</span>
@@ -9771,18 +9771,18 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_3d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">399</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
 <span class="normal">400</span>
 <span class="normal">401</span>
 <span class="normal">402</span>
 <span class="normal">403</span>
 <span class="normal">404</span>
 <span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span>
-<span class="normal">410</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

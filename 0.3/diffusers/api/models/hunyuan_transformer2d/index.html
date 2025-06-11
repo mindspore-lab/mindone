@@ -8056,8 +8056,7 @@ position embeddings.</p>
 <span class="normal">534</span>
 <span class="normal">535</span>
 <span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiT2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">537</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiT2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    HunYuanDiT: Diffusion model with a Transformer backbone.</span>
 
@@ -8135,7 +8134,7 @@ position embeddings.</p>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
-            <span class="n">ops</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">text_len</span> <span class="o">+</span> <span class="n">text_len_t5</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
+            <span class="n">mint</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="n">text_len</span> <span class="o">+</span> <span class="n">text_len_t5</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">),</span>
             <span class="n">name</span><span class="o">=</span><span class="s2">&quot;text_embedding_padding&quot;</span><span class="p">,</span>
         <span class="p">)</span>
 
@@ -8173,7 +8172,7 @@ position embeddings.</p>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span> <span class="o">=</span> <span class="n">AdaLayerNormContinuous</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="c1"># Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors</span>
@@ -8298,11 +8297,11 @@ position embeddings.</p>
         <span class="p">)</span>
         <span class="n">encoder_hidden_states_t5</span> <span class="o">=</span> <span class="n">encoder_hidden_states_t5</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">text_embedding_mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">bool</span><span class="p">()</span>
 
-        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
+        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
 
         <span class="n">skips</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">):</span>
@@ -8348,8 +8347,7 @@ position embeddings.</p>
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
             <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span>
         <span class="p">)</span>
-        <span class="c1"># hidden_states = ops.einsum(&quot;nhwpqc-&gt;nchpwq&quot;, hidden_states)</span>
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;nhwpqc-&gt;nchpwq&quot;</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">)</span>
         <span class="n">output</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
             <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">width</span> <span class="o">*</span> <span class="n">patch_size</span>
         <span class="p">)</span>
@@ -8619,8 +8617,7 @@ return_dict: bool
 <span class="normal">492</span>
 <span class="normal">493</span>
 <span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">495</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">,</span>
@@ -8677,11 +8674,11 @@ return_dict: bool
     <span class="p">)</span>
     <span class="n">encoder_hidden_states_t5</span> <span class="o">=</span> <span class="n">encoder_hidden_states_t5</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">text_embedding_mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">bool</span><span class="p">()</span>
 
-    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
+    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
 
     <span class="n">skips</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">):</span>
@@ -8727,8 +8724,7 @@ return_dict: bool
     <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
         <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span>
     <span class="p">)</span>
-    <span class="c1"># hidden_states = ops.einsum(&quot;nhwpqc-&gt;nchpwq&quot;, hidden_states)</span>
-    <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;nhwpqc-&gt;nchpwq&quot;</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">)</span>
     <span class="n">output</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
         <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">width</span> <span class="o">*</span> <span class="n">patch_size</span>
     <span class="p">)</span>
@@ -8807,7 +8803,8 @@ or dim=1 (sequence length).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/hunyuan_transformer_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">499</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">498</span>
+<span class="normal">499</span>
 <span class="normal">500</span>
 <span class="normal">501</span>
 <span class="normal">502</span>
@@ -8833,8 +8830,7 @@ or dim=1 (sequence length).</p>
 <span class="normal">522</span>
 <span class="normal">523</span>
 <span class="normal">524</span>
-<span class="normal">525</span>
-<span class="normal">526</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">525</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use [feed forward</span>
 <span class="sd">    chunking](https://huggingface.co/blog/reformer#2-chunked-feed-forward-layers).</span>

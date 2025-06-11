@@ -8297,7 +8297,9 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
 <span class="normal">884</span>
 <span class="normal">885</span>
 <span class="normal">886</span>
-<span class="normal">887</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiTPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiTPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for English/Chinese-to-image generation using HunyuanDiT.</span>
 
@@ -8562,6 +8564,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">safety_checker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">has_nsfw_concept</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
                 <span class="n">feature_extractor_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">postprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s2">&quot;pil&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -8572,7 +8575,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
             <span class="p">)</span>
 
             <span class="c1"># Warning for safety checker operations here as it couldn&#39;t been done in construct()</span>
-            <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">has_nsfw_concept</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">mint</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">has_nsfw_concept</span><span class="p">):</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;Potential NSFW content was detected in one or more images. A black image will be returned instead.&quot;</span>
                     <span class="s2">&quot; Try again with a different prompt and/or seed.&quot;</span>
@@ -8954,12 +8957,12 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
         <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
-            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">])</span>
-            <span class="n">prompt_embeds_2</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds_2</span><span class="p">,</span> <span class="n">prompt_embeds_2</span><span class="p">])</span>
-            <span class="n">prompt_attention_mask_2</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask_2</span><span class="p">,</span> <span class="n">prompt_attention_mask_2</span><span class="p">])</span>
-            <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">style</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">style</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">])</span>
+            <span class="n">prompt_embeds_2</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds_2</span><span class="p">,</span> <span class="n">prompt_embeds_2</span><span class="p">])</span>
+            <span class="n">prompt_attention_mask_2</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask_2</span><span class="p">,</span> <span class="n">prompt_attention_mask_2</span><span class="p">])</span>
+            <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">style</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">style</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">add_time_ids</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
         <span class="n">style</span> <span class="o">=</span> <span class="n">style</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,))</span>
@@ -8973,11 +8976,12 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
                     <span class="k">continue</span>
 
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># expand scalar t to 1-D tensor to match the 1st dim of latent_model_input</span>
                 <span class="c1"># also consider the case where t is not a tensor (the most common case)</span>
+                <span class="c1"># todo: unavailable mint interface</span>
                 <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">):</span>
                     <span class="n">t_expand</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
                 <span class="k">else</span><span class="p">:</span>
@@ -8997,7 +9001,7 @@ HunyuanDiT uses a fine-tuned [bilingual CLIP].</p>
                     <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-                <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
                 <span class="c1"># perform guidance</span>
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
@@ -9596,8 +9600,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/hunyuandit/pipeline_hunyuandit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">563</span>
-<span class="normal">564</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">564</span>
 <span class="normal">565</span>
 <span class="normal">566</span>
 <span class="normal">567</span>
@@ -9920,7 +9923,9 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">884</span>
 <span class="normal">885</span>
 <span class="normal">886</span>
-<span class="normal">887</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10153,12 +10158,12 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
-        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">])</span>
-        <span class="n">prompt_embeds_2</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds_2</span><span class="p">,</span> <span class="n">prompt_embeds_2</span><span class="p">])</span>
-        <span class="n">prompt_attention_mask_2</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask_2</span><span class="p">,</span> <span class="n">prompt_attention_mask_2</span><span class="p">])</span>
-        <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">style</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">style</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">])</span>
+        <span class="n">prompt_embeds_2</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds_2</span><span class="p">,</span> <span class="n">prompt_embeds_2</span><span class="p">])</span>
+        <span class="n">prompt_attention_mask_2</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask_2</span><span class="p">,</span> <span class="n">prompt_attention_mask_2</span><span class="p">])</span>
+        <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">style</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">style</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">add_time_ids</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
     <span class="n">style</span> <span class="o">=</span> <span class="n">style</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,))</span>
@@ -10172,11 +10177,12 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="k">continue</span>
 
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># expand scalar t to 1-D tensor to match the 1st dim of latent_model_input</span>
             <span class="c1"># also consider the case where t is not a tensor (the most common case)</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">):</span>
                 <span class="n">t_expand</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -10196,7 +10202,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
                 <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-            <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
             <span class="c1"># perform guidance</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>

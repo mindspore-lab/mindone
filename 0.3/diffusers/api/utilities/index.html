@@ -7445,7 +7445,7 @@ specific language governing permissions and limitations under the License.
 
     <div class="doc doc-contents first">
 
-        <p>Convert a torch image to a PIL image.</p>
+        <p>Convert a mindspore image to a PIL image.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/utils/pil_utils.py</code></summary>
@@ -7458,7 +7458,7 @@ specific language governing permissions and limitations under the License.
 <span class="normal">32</span>
 <span class="normal">33</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">ms_to_pil</span><span class="p">(</span><span class="n">images</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Convert a torch image to a PIL image.</span>
+<span class="sd">    Convert a mindspore image to a PIL image.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">images</span> <span class="o">=</span> <span class="p">(</span><span class="n">images</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">float</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
@@ -7896,7 +7896,7 @@ passing a list of generators, you can seed each batch size individually.</p>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">generator</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
         <span class="n">shape</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">+</span> <span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="p">[</span><span class="n">randn</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)]</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="n">randn</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 

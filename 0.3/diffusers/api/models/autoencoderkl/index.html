@@ -8298,11 +8298,7 @@ mid_block will only have resnet blocks</p>
 <span class="normal">514</span>
 <span class="normal">515</span>
 <span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKL</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
+<span class="normal">517</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKL</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A VAE model with KL loss for encoding images into latents and decoding latent representations into images.</span>
 
@@ -8389,12 +8385,8 @@ mid_block will only have resnet blocks</p>
             <span class="n">mid_block_add_attention</span><span class="o">=</span><span class="n">mid_block_add_attention</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_quant_conv</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">latent_channels</span><span class="p">,</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_post_quant_conv</span> <span class="k">else</span> <span class="kc">None</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_quant_conv</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">latent_channels</span><span class="p">,</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_post_quant_conv</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">diag_gauss_dist</span> <span class="o">=</span> <span class="n">DiagonalGaussianDistribution</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">False</span>
@@ -8544,7 +8536,7 @@ mid_block will only have resnet blocks</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">encoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x_slice</span><span class="p">)</span> <span class="k">for</span> <span class="n">x_slice</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">h</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
@@ -8587,7 +8579,7 @@ mid_block will only have resnet blocks</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">decoded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
+            <span class="n">decoded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -8651,9 +8643,9 @@ mid_block will only have resnet blocks</p>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">)</span>
                 <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">])</span>
-            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
 
-        <span class="n">enc</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">enc</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">enc</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutoencoderKLOutput</span><span class="p">:</span>
@@ -8708,9 +8700,9 @@ mid_block will only have resnet blocks</p>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">)</span>
                 <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">])</span>
-            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
 
-        <span class="n">moments</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">moments</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">moments</span><span class="p">,)</span>
@@ -8758,9 +8750,9 @@ mid_block will only have resnet blocks</p>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">)</span>
                 <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">])</span>
-            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
 
-        <span class="n">dec</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">dec</span><span class="p">,)</span>
 
@@ -8940,7 +8932,11 @@ mid_block will only have resnet blocks</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">495</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
 <span class="normal">496</span>
 <span class="normal">497</span>
 <span class="normal">498</span>
@@ -8962,11 +8958,7 @@ mid_block will only have resnet blocks</p>
 <span class="normal">514</span>
 <span class="normal">515</span>
 <span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">517</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">sample_posterior</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -9084,7 +9076,11 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">299</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
 <span class="normal">300</span>
 <span class="normal">301</span>
 <span class="normal">302</span>
@@ -9104,11 +9100,7 @@ returned.</p>
 <span class="normal">316</span>
 <span class="normal">317</span>
 <span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
+<span class="normal">319</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decode a batch of images.</span>
 
@@ -9125,7 +9117,7 @@ returned.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">z</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-        <span class="n">decoded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
+        <span class="n">decoded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -9155,12 +9147,12 @@ decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span>
-<span class="normal">168</span>
-<span class="normal">169</span>
-<span class="normal">170</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">161</span>
+<span class="normal">162</span>
+<span class="normal">163</span>
+<span class="normal">164</span>
+<span class="normal">165</span>
+<span class="normal">166</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
 <span class="sd">    decoding in one step.</span>
@@ -9188,12 +9180,12 @@ decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">151</span>
-<span class="normal">152</span>
-<span class="normal">153</span>
-<span class="normal">154</span>
-<span class="normal">155</span>
-<span class="normal">156</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">147</span>
+<span class="normal">148</span>
+<span class="normal">149</span>
+<span class="normal">150</span>
+<span class="normal">151</span>
+<span class="normal">152</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
 <span class="sd">    decoding in one step.</span>
@@ -9221,12 +9213,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">158</span>
-<span class="normal">159</span>
-<span class="normal">160</span>
-<span class="normal">161</span>
-<span class="normal">162</span>
-<span class="normal">163</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">154</span>
+<span class="normal">155</span>
+<span class="normal">156</span>
+<span class="normal">157</span>
+<span class="normal">158</span>
+<span class="normal">159</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
 <span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
@@ -9255,13 +9247,13 @@ processing larger images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">139</span>
+<span class="normal">140</span>
+<span class="normal">141</span>
+<span class="normal">142</span>
+<span class="normal">143</span>
 <span class="normal">144</span>
-<span class="normal">145</span>
-<span class="normal">146</span>
-<span class="normal">147</span>
-<span class="normal">148</span>
-<span class="normal">149</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_tiling</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="normal">145</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">use_tiling</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to</span>
 <span class="sd">    compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow</span>
@@ -9369,7 +9361,11 @@ processing larger images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">258</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">254</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
 <span class="normal">259</span>
 <span class="normal">260</span>
 <span class="normal">261</span>
@@ -9390,11 +9386,7 @@ processing larger images.</p>
 <span class="normal">276</span>
 <span class="normal">277</span>
 <span class="normal">278</span>
-<span class="normal">279</span>
-<span class="normal">280</span>
-<span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AutoencoderKLOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
+<span class="normal">279</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AutoencoderKLOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Encode a batch of images into latents.</span>
 
@@ -9409,7 +9401,7 @@ processing larger images.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">encoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x_slice</span><span class="p">)</span> <span class="k">for</span> <span class="n">x_slice</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-        <span class="n">h</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
@@ -9470,7 +9462,11 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">198</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
 <span class="normal">199</span>
 <span class="normal">200</span>
 <span class="normal">201</span>
@@ -9498,11 +9494,7 @@ processor. This is strongly recommended when setting trainable attention process
 <span class="normal">223</span>
 <span class="normal">224</span>
 <span class="normal">225</span>
-<span class="normal">226</span>
-<span class="normal">227</span>
-<span class="normal">228</span>
-<span class="normal">229</span>
-<span class="normal">230</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">226</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 
@@ -9556,18 +9548,18 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">233</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">229</span>
+<span class="normal">230</span>
+<span class="normal">231</span>
+<span class="normal">232</span>
+<span class="normal">233</span>
 <span class="normal">234</span>
 <span class="normal">235</span>
 <span class="normal">236</span>
 <span class="normal">237</span>
 <span class="normal">238</span>
 <span class="normal">239</span>
-<span class="normal">240</span>
-<span class="normal">241</span>
-<span class="normal">242</span>
-<span class="normal">243</span>
-<span class="normal">244</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">240</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -9670,7 +9662,11 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">446</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
 <span class="normal">447</span>
 <span class="normal">448</span>
 <span class="normal">449</span>
@@ -9713,11 +9709,7 @@ returned.</p>
 <span class="normal">486</span>
 <span class="normal">487</span>
 <span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
+<span class="normal">489</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Decode a batch of images using a tiled decoder.</span>
 
@@ -9758,9 +9750,9 @@ returned.</p>
             <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">)</span>
             <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">])</span>
-        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
 
-    <span class="n">dec</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">dec</span><span class="p">,)</span>
 
@@ -9861,7 +9853,11 @@ If return_dict is True, a [<code>~models.autoencoder_kl.AutoencoderKLOutput</cod
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">385</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">381</span>
+<span class="normal">382</span>
+<span class="normal">383</span>
+<span class="normal">384</span>
+<span class="normal">385</span>
 <span class="normal">386</span>
 <span class="normal">387</span>
 <span class="normal">388</span>
@@ -9916,11 +9912,7 @@ If return_dict is True, a [<code>~models.autoencoder_kl.AutoencoderKLOutput</cod
 <span class="normal">437</span>
 <span class="normal">438</span>
 <span class="normal">439</span>
-<span class="normal">440</span>
-<span class="normal">441</span>
-<span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutoencoderKLOutput</span><span class="p">:</span>
+<span class="normal">440</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">AutoencoderKLOutput</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Encode a batch of images using a tiled encoder.</span>
 
 <span class="sd">    When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several</span>
@@ -9972,9 +9964,9 @@ If return_dict is True, a [<code>~models.autoencoder_kl.AutoencoderKLOutput</cod
             <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">)</span>
             <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">,</span> <span class="p">:</span><span class="n">row_limit</span><span class="p">])</span>
-        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
+        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">))</span>
 
-    <span class="n">moments</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">moments</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">moments</span><span class="p">,)</span>
@@ -10141,8 +10133,7 @@ If return_dict is True, a [<code>~models.autoencoder_kl.AutoencoderKLOutput</cod
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/vae.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">43</span>
-<span class="normal">44</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">44</span>
 <span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
@@ -10152,7 +10143,8 @@ If return_dict is True, a [<code>~models.autoencoder_kl.AutoencoderKLOutput</cod
 <span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
-<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">54</span>
+<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">DecoderOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Output of decoding method.</span>

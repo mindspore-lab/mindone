@@ -5830,6 +5830,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#text-to-video-with-pose-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      Text-To-Video with Pose Control
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#text-to-video-with-edge-control" class="md-nav__link">
     <span class="md-ellipsis">
       Text-To-Video with Edge Control
@@ -7334,6 +7343,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#text-to-video-with-pose-control" class="md-nav__link">
+    <span class="md-ellipsis">
+      Text-To-Video with Pose Control
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#text-to-video-with-edge-control" class="md-nav__link">
     <span class="md-ellipsis">
       Text-To-Video with Edge Control
@@ -7526,6 +7544,54 @@ You can change these parameters in the pipeline call:
 <span class="n">result</span> <span class="o">=</span> <span class="p">[(</span><span class="n">r</span> <span class="o">*</span> <span class="mi">255</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;uint8&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span>
 <span class="n">imageio</span><span class="o">.</span><span class="n">mimsave</span><span class="p">(</span><span class="s2">&quot;video.mp4&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </code></pre></div></p>
+<h3 id="text-to-video-with-pose-control">Text-To-Video with Pose Control<a class="headerlink" href="#text-to-video-with-pose-control" title="Permanent link">&para;</a></h3>
+<p>To generate a video from prompt with additional pose control</p>
+<ol>
+<li>
+<p>Download a demo video</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">huggingface_hub</span><span class="w"> </span><span class="kn">import</span> <span class="n">hf_hub_download</span>
+
+<span class="n">filename</span> <span class="o">=</span> <span class="s2">&quot;__assets__/poses_skeleton_gifs/dance1_corr.mp4&quot;</span>
+<span class="n">repo_id</span> <span class="o">=</span> <span class="s2">&quot;PAIR/Text2Video-Zero&quot;</span>
+<span class="n">video_path</span> <span class="o">=</span> <span class="n">hf_hub_download</span><span class="p">(</span><span class="n">repo_type</span><span class="o">=</span><span class="s2">&quot;space&quot;</span><span class="p">,</span> <span class="n">repo_id</span><span class="o">=</span><span class="n">repo_id</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="n">filename</span><span class="p">)</span>
+</code></pre></div>
+</li>
+<li>
+<p>Read video containing extracted pose images
+    <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">imageio</span>
+
+<span class="n">reader</span> <span class="o">=</span> <span class="n">imageio</span><span class="o">.</span><span class="n">get_reader</span><span class="p">(</span><span class="n">video_path</span><span class="p">,</span> <span class="s2">&quot;ffmpeg&quot;</span><span class="p">)</span>
+<span class="n">frame_count</span> <span class="o">=</span> <span class="mi">8</span>
+<span class="n">pose_images</span> <span class="o">=</span> <span class="p">[</span><span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">reader</span><span class="o">.</span><span class="n">get_data</span><span class="p">(</span><span class="n">i</span><span class="p">))</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">frame_count</span><span class="p">)]</span>
+</code></pre></div>
+    To extract pose from actual video, read <a href="controlnet">ControlNet documentation</a>.</p>
+</li>
+<li>
+<p>Run <code>StableDiffusionControlNetPipeline</code> with our custom attention processor</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ms</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">StableDiffusionControlNetPipeline</span><span class="p">,</span> <span class="n">ControlNetModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.pipelines.text_to_video_synthesis.pipeline_text_to_video_zero</span><span class="w"> </span><span class="kn">import</span> <span class="n">CrossFrameAttnProcessor</span>
+
+<span class="n">model_id</span> <span class="o">=</span> <span class="s2">&quot;stable-diffusion-v1-5/stable-diffusion-v1-5&quot;</span>
+<span class="n">controlnet</span> <span class="o">=</span> <span class="n">ControlNetModel</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;lllyasviel/sd-controlnet-openpose&quot;</span><span class="p">,</span> <span class="n">torch_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
+<span class="n">pipe</span> <span class="o">=</span> <span class="n">StableDiffusionControlNetPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span>
+    <span class="n">model_id</span><span class="p">,</span> <span class="n">controlnet</span><span class="o">=</span><span class="n">controlnet</span><span class="p">,</span> <span class="n">torch_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span>
+<span class="p">)</span>
+
+<span class="c1"># Set the attention processor</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">CrossFrameAttnProcessor</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+<span class="n">pipe</span><span class="o">.</span><span class="n">controlnet</span><span class="o">.</span><span class="n">set_attn_processor</span><span class="p">(</span><span class="n">CrossFrameAttnProcessor</span><span class="p">(</span><span class="n">batch_size</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+
+<span class="c1"># fix latents for all frames</span>
+<span class="n">latents</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">ops</span><span class="o">.</span><span class="n">randn</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">64</span><span class="p">,</span> <span class="mi">64</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pose_images</span><span class="p">),</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Darth Vader dancing in a desert&quot;</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">prompt</span><span class="o">=</span><span class="p">[</span><span class="n">prompt</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">pose_images</span><span class="p">),</span> <span class="n">image</span><span class="o">=</span><span class="n">pose_images</span><span class="p">,</span> <span class="n">latents</span><span class="o">=</span><span class="n">latents</span><span class="p">)</span><span class="o">.</span><span class="n">images</span>
+<span class="n">imageio</span><span class="o">.</span><span class="n">mimsave</span><span class="p">(</span><span class="s2">&quot;video.mp4&quot;</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">fps</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+</code></pre></div>
+</li>
+</ol>
 <h3 id="text-to-video-with-edge-control">Text-To-Video with Edge Control<a class="headerlink" href="#text-to-video-with-edge-control" title="Permanent link">&para;</a></h3>
 <p>To generate a video from prompt with additional Canny edge control, follow the same steps described above for pose-guided generation using <a href="https://huggingface.co/lllyasviel/sd-controlnet-canny">Canny edge ControlNet model</a>.</p>
 <h3 id="video-instruct-pix2pix">Video Instruct-Pix2Pix<a class="headerlink" href="#video-instruct-pix2pix" title="Permanent link">&para;</a></h3>
@@ -11061,7 +11127,7 @@ num_channels)</code>.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="April 11, 2025 15:09:51 UTC">April 11, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="June 11, 2025 06:33:22 UTC">June 11, 2025</span>
   </span>
 
     

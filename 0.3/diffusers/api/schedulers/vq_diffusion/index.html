@@ -7933,16 +7933,16 @@ latent pixel.</p>
         <span class="n">at</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">at</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">))</span>
         <span class="n">bt</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">bt</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">))</span>
         <span class="n">ct</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">ct</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">))</span>
-        <span class="n">log_at</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">at</span><span class="p">)</span>
-        <span class="n">log_bt</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">bt</span><span class="p">)</span>
-        <span class="n">log_ct</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">ct</span><span class="p">)</span>
+        <span class="n">log_at</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">at</span><span class="p">)</span>
+        <span class="n">log_bt</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">bt</span><span class="p">)</span>
+        <span class="n">log_ct</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">ct</span><span class="p">)</span>
 
         <span class="n">att</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">att</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">))</span>
         <span class="n">btt</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">btt</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">))</span>
         <span class="n">ctt</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">ctt</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">&quot;float64&quot;</span><span class="p">))</span>
-        <span class="n">log_cumprod_at</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">att</span><span class="p">)</span>
-        <span class="n">log_cumprod_bt</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">btt</span><span class="p">)</span>
-        <span class="n">log_cumprod_ct</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">ctt</span><span class="p">)</span>
+        <span class="n">log_cumprod_at</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">att</span><span class="p">)</span>
+        <span class="n">log_cumprod_bt</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">btt</span><span class="p">)</span>
+        <span class="n">log_cumprod_ct</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">ctt</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">log_at</span> <span class="o">=</span> <span class="n">log_at</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">log_bt</span> <span class="o">=</span> <span class="n">log_bt</span><span class="o">.</span><span class="n">float</span><span class="p">()</span>
@@ -8005,7 +8005,7 @@ latent pixel.</p>
 
         <span class="n">log_p_x_t_min_1</span> <span class="o">=</span> <span class="n">gumbel_noised</span><span class="p">(</span><span class="n">log_p_x_t_min_1</span><span class="p">,</span> <span class="n">generator</span><span class="p">)</span>
 
-        <span class="n">x_t_min_1</span> <span class="o">=</span> <span class="n">log_p_x_t_min_1</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">x_t_min_1</span> <span class="o">=</span> <span class="n">log_p_x_t_min_1</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">x_t_min_1</span><span class="p">,)</span>
@@ -8052,7 +8052,7 @@ latent pixel.</p>
 
         <span class="c1"># sum_0 = p_0(x_0=C_0 | x_t) / q(x_t | x_0=C_0) + ... + p_0(x_0=C_{k-1} | x_t) / q(x_t | x_0=C_{k-1}), ... ,</span>
         <span class="c1"># sum_n = p_n(x_0=C_0 | x_t) / q(x_t | x_0=C_0) + ... + p_n(x_0=C_{k-1} | x_t) / q(x_t | x_0=C_{k-1})</span>
-        <span class="n">q_log_sum_exp</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">q_log_sum_exp</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># p_0(x_0=C_0 | x_t) / q(x_t | x_0=C_0) / sum_0          ...      p_n(x_0=C_0 | x_t) / q(x_t | x_0=C_0) / sum_n</span>
         <span class="c1">#                        .                             .                                   .</span>
@@ -8229,7 +8229,7 @@ latent pixel.</p>
         <span class="n">log_Q_t</span><span class="p">[</span><span class="n">mask_class_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">cumulative</span><span class="p">:</span>
-            <span class="n">log_Q_t</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">log_Q_t</span><span class="p">,</span> <span class="n">log_onehot_x_t_transitioning_from_masked</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">log_Q_t</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">log_Q_t</span><span class="p">,</span> <span class="n">log_onehot_x_t_transitioning_from_masked</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">log_Q_t</span>
 
@@ -8243,7 +8243,7 @@ latent pixel.</p>
         <span class="n">c</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">bsz</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_latent_pixels</span><span class="p">))</span>
 
         <span class="n">q</span> <span class="o">=</span> <span class="p">(</span><span class="n">q</span> <span class="o">+</span> <span class="n">a</span><span class="p">)</span><span class="o">.</span><span class="n">logaddexp</span><span class="p">(</span><span class="n">b</span><span class="p">)</span>
-        <span class="n">q</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">q</span><span class="p">,</span> <span class="n">c</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">q</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">q</span><span class="p">,</span> <span class="n">c</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">q</span>
 </code></pre></div></td></tr></table></div>
@@ -8581,7 +8581,7 @@ q_0_cumulative(x_t | x_0 = C_{k-1}) ... q_n_cumulative(x_t | x_0 = C_{k-1})
     <span class="n">log_Q_t</span><span class="p">[</span><span class="n">mask_class_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">c</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">cumulative</span><span class="p">:</span>
-        <span class="n">log_Q_t</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">log_Q_t</span><span class="p">,</span> <span class="n">log_onehot_x_t_transitioning_from_masked</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">log_Q_t</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">((</span><span class="n">log_Q_t</span><span class="p">,</span> <span class="n">log_onehot_x_t_transitioning_from_masked</span><span class="p">),</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">log_Q_t</span>
 </code></pre></div></td></tr></table></div>
@@ -8844,7 +8844,7 @@ The log probabilities for the predicted classes of the image at timestep <code>t
 
     <span class="c1"># sum_0 = p_0(x_0=C_0 | x_t) / q(x_t | x_0=C_0) + ... + p_0(x_0=C_{k-1} | x_t) / q(x_t | x_0=C_{k-1}), ... ,</span>
     <span class="c1"># sum_n = p_n(x_0=C_0 | x_t) / q(x_t | x_0=C_0) + ... + p_n(x_0=C_{k-1} | x_t) / q(x_t | x_0=C_{k-1})</span>
-    <span class="n">q_log_sum_exp</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">q_log_sum_exp</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">logsumexp</span><span class="p">(</span><span class="n">q</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="c1"># p_0(x_0=C_0 | x_t) / q(x_t | x_0=C_0) / sum_0          ...      p_n(x_0=C_0 | x_t) / q(x_t | x_0=C_0) / sum_n</span>
     <span class="c1">#                        .                             .                                   .</span>
@@ -9211,7 +9211,7 @@ returned, otherwise a tuple is returned where the first element is the sample te
 
     <span class="n">log_p_x_t_min_1</span> <span class="o">=</span> <span class="n">gumbel_noised</span><span class="p">(</span><span class="n">log_p_x_t_min_1</span><span class="p">,</span> <span class="n">generator</span><span class="p">)</span>
 
-    <span class="n">x_t_min_1</span> <span class="o">=</span> <span class="n">log_p_x_t_min_1</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">x_t_min_1</span> <span class="o">=</span> <span class="n">log_p_x_t_min_1</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">x_t_min_1</span><span class="p">,)</span>

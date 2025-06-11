@@ -8313,7 +8313,8 @@ library implements for all the pipelines (such as downloading or saving, running
 <span class="normal">911</span>
 <span class="normal">912</span>
 <span class="normal">913</span>
-<span class="normal">914</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AllegroPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">914</span>
+<span class="normal">915</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AllegroPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-video generation using Allegro.</span>
 
@@ -8800,6 +8801,7 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">grid_h</span> <span class="o">=</span> <span class="n">grid_h</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
         <span class="n">grid_w</span> <span class="o">=</span> <span class="n">grid_w</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
 
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="n">pos</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cartesian_prod</span><span class="p">(</span><span class="n">grid_t</span><span class="p">,</span> <span class="n">grid_h</span><span class="p">,</span> <span class="n">grid_w</span><span class="p">)</span>
         <span class="n">pos</span> <span class="o">=</span> <span class="n">pos</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">)</span><span class="o">.</span><span class="n">swapaxes</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">contiguous</span><span class="p">()</span>
         <span class="n">grid_t</span><span class="p">,</span> <span class="n">grid_h</span><span class="p">,</span> <span class="n">grid_w</span> <span class="o">=</span> <span class="n">pos</span>
@@ -9007,8 +9009,8 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># b l d -&gt; b 1 l d</span>
 
@@ -9049,7 +9051,7 @@ library implements for all the pipelines (such as downloading or saving, running
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
                     <span class="k">continue</span>
 
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
@@ -9577,8 +9579,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/allegro/pipeline_allegro.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">663</span>
-<span class="normal">664</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">664</span>
 <span class="normal">665</span>
 <span class="normal">666</span>
 <span class="normal">667</span>
@@ -9828,7 +9829,8 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 <span class="normal">911</span>
 <span class="normal">912</span>
 <span class="normal">913</span>
-<span class="normal">914</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">914</span>
+<span class="normal">915</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -9988,8 +9990,8 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
         <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">3</span><span class="p">:</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>  <span class="c1"># b l d -&gt; b 1 l d</span>
 
@@ -10030,7 +10032,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
                 <span class="k">continue</span>
 
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
@@ -10102,12 +10104,12 @@ computing decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/allegro/pipeline_allegro.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">629</span>
-<span class="normal">630</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">630</span>
 <span class="normal">631</span>
 <span class="normal">632</span>
 <span class="normal">633</span>
-<span class="normal">634</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">634</span>
+<span class="normal">635</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable sliced VAE decoding. If `enable_vae_slicing` was previously enabled, this method will go back to</span>
 <span class="sd">    computing decoding in one step.</span>
@@ -10135,12 +10137,12 @@ computing decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/allegro/pipeline_allegro.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">644</span>
-<span class="normal">645</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">645</span>
 <span class="normal">646</span>
 <span class="normal">647</span>
 <span class="normal">648</span>
-<span class="normal">649</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">649</span>
+<span class="normal">650</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable tiled VAE decoding. If `enable_vae_tiling` was previously enabled, this method will go back to</span>
 <span class="sd">    computing decoding in one step.</span>
@@ -10168,12 +10170,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/allegro/pipeline_allegro.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">622</span>
-<span class="normal">623</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">623</span>
 <span class="normal">624</span>
 <span class="normal">625</span>
 <span class="normal">626</span>
-<span class="normal">627</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">627</span>
+<span class="normal">628</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
 <span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
@@ -10202,13 +10204,13 @@ processing larger images.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/allegro/pipeline_allegro.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">636</span>
-<span class="normal">637</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">637</span>
 <span class="normal">638</span>
 <span class="normal">639</span>
 <span class="normal">640</span>
 <span class="normal">641</span>
-<span class="normal">642</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">642</span>
+<span class="normal">643</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_vae_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable tiled VAE decoding. When this option is enabled, the VAE will split the input tensor into tiles to</span>
 <span class="sd">    compute decoding and encoding in several steps. This is useful for saving a large amount of memory and to allow</span>

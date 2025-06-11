@@ -8300,7 +8300,8 @@ about a model's potential harms.</p>
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
-<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionControlNetXSPipeline</span><span class="p">(</span>
+<span class="normal">872</span>
+<span class="normal">873</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionControlNetXSPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span><span class="p">,</span> <span class="n">FromSingleFileMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -8419,7 +8420,7 @@ about a model's potential harms.</p>
         <span class="p">)</span>
 
         <span class="c1"># concatenate for backwards comp</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
 
         <span class="k">return</span> <span class="n">prompt_embeds</span>
 
@@ -8604,6 +8605,7 @@ about a model's potential harms.</p>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">safety_checker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">has_nsfw_concept</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
                 <span class="n">feature_extractor_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">postprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s2">&quot;pil&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -8614,7 +8616,7 @@ about a model's potential harms.</p>
             <span class="p">)</span>
 
             <span class="c1"># Warning for safety checker operations here as it couldn&#39;t been done in construct()</span>
-            <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">has_nsfw_concept</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">mint</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">has_nsfw_concept</span><span class="p">):</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;Potential NSFW content was detected in one or more images. A black image will be returned instead.&quot;</span>
                     <span class="s2">&quot; Try again with a different prompt and/or seed.&quot;</span>
@@ -8775,7 +8777,7 @@ about a model's potential harms.</p>
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">image</span>
 
@@ -8994,7 +8996,7 @@ about a model's potential harms.</p>
         <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
         <span class="c1"># to avoid doing two forward passes</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
         <span class="c1"># 4. Prepare image</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_image</span><span class="p">(</span>
@@ -9033,7 +9035,7 @@ about a model's potential harms.</p>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># predict the noise residual</span>
@@ -9579,8 +9581,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_xs/pipeline_controlnet_xs.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">613</span>
-<span class="normal">614</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">614</span>
 <span class="normal">615</span>
 <span class="normal">616</span>
 <span class="normal">617</span>
@@ -9838,7 +9839,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">869</span>
 <span class="normal">870</span>
 <span class="normal">871</span>
-<span class="normal">872</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">872</span>
+<span class="normal">873</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">PipelineImageInput</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10003,7 +10005,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
     <span class="c1"># to avoid doing two forward passes</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
     <span class="c1"># 4. Prepare image</span>
     <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_image</span><span class="p">(</span>
@@ -10042,7 +10044,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># predict the noise residual</span>

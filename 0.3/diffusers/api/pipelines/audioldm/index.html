@@ -7361,7 +7361,7 @@ sound effects, human speech and music.</p>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>Make sure to check out the Schedulers <a href="../../using-diffusers/schedulers">guide</a> to learn how to explore the tradeoff between scheduler speed and quality, and see the <a href="../../using-diffusers/loading#reuse-a-pipeline">reuse components across pipelines</a> section to learn how to efficiently load the same components into multiple pipelines.</p>
+<p>Make sure to check out the Schedulers <a href="../../using-diffusers/schedulers">guide</a> to learn how to explore the tradeoff between scheduler speed and quality, and see the <a href="../../../using-diffusers/loading/#reuse-a-pipeline">reuse components across pipelines</a> section to learn how to efficiently load the same components into multiple pipelines.</p>
 </div>
 
 
@@ -7969,7 +7969,11 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="normal">533</span>
 <span class="normal">534</span>
 <span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AudioLDMPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AudioLDMPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-audio generation using AudioLDM.</span>
 
@@ -8066,7 +8070,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">mint</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="s2">&quot;The following part of your input was truncated because CLAP can only handle sequences up to&quot;</span>
@@ -8079,6 +8085,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="c1"># additional L_2 normalization over each hidden-state</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="n">normalize</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">L2Normalize</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">)</span>
             <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="p">)</span>
 
@@ -8089,7 +8096,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <span class="n">seq_len</span><span class="p">,</span>
         <span class="p">)</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span>
         <span class="c1"># duplicate text embeddings for each generation per prompt, using mps friendly method</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_waveforms_per_prompt</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_waveforms_per_prompt</span><span class="p">))</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">bs_embed</span> <span class="o">*</span> <span class="n">num_waveforms_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">)</span>
 
         <span class="c1"># get unconditional embeddings for classifier free guidance</span>
@@ -8131,6 +8138,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <span class="p">)</span>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="c1"># additional L_2 normalization over each hidden-state</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="n">normalize</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">L2Normalize</span><span class="p">(</span><span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="mf">1e-12</span><span class="p">)</span>
             <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">normalize</span><span class="p">(</span><span class="n">negative_prompt_embeds</span><span class="p">)</span>
 
@@ -8146,7 +8154,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
         <span class="k">return</span> <span class="n">prompt_embeds</span>
 
@@ -8413,7 +8421,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># predict the noise residual</span>
@@ -8821,11 +8829,7 @@ returned where the first element is a list with the generated audio.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/audioldm/pipeline_audioldm.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">346</span>
-<span class="normal">347</span>
-<span class="normal">348</span>
-<span class="normal">349</span>
-<span class="normal">350</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">350</span>
 <span class="normal">351</span>
 <span class="normal">352</span>
 <span class="normal">353</span>
@@ -9011,7 +9015,11 @@ returned where the first element is a list with the generated audio.</p>
 <span class="normal">533</span>
 <span class="normal">534</span>
 <span class="normal">535</span>
-<span class="normal">536</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">audio_length_in_s</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9161,7 +9169,7 @@ returned where the first element is a list with the generated audio.</p>
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># predict the noise residual</span>
@@ -9305,7 +9313,7 @@ returned where the first element is a list with the generated audio.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2025 02:45:18 UTC">March 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="June 10, 2025 11:52:10 UTC">June 10, 2025</span>
   </span>
 
     
@@ -9325,12 +9333,13 @@ returned where the first element is a list with the generated audio.</p>
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>
+        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>, 
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
     </nav>
   </span>
 

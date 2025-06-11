@@ -7993,7 +7993,7 @@ Video</a> paper).</p>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">timesteps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_noise</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas</span><span class="o">.</span><span class="n">dtype</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">sigmas</span><span class="o">.</span><span class="n">dtype</span><span class="p">)])</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">is_scale_input_called</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -8040,7 +8040,7 @@ Video</a> paper).</p>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
             <span class="n">sigma</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
 
-        <span class="n">c_noise</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">ops</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
+        <span class="n">c_noise</span> <span class="o">=</span> <span class="mf">0.25</span> <span class="o">*</span> <span class="n">mint</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">sigma</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">c_noise</span>
 
@@ -8102,7 +8102,7 @@ Video</a> paper).</p>
         <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">timesteps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_noise</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)])</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)])</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_begin_index</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -8274,7 +8274,7 @@ Video</a> paper).</p>
         <span class="n">sigma</span> <span class="o">=</span> <span class="n">sigmas</span><span class="p">[</span><span class="n">step_indices</span><span class="p">]</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
         <span class="c1"># while len(sigma.shape) &lt; len(original_samples.shape):</span>
         <span class="c1">#     sigma = sigma.unsqueeze(-1)</span>
-        <span class="n">sigma</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">broadcast_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
+        <span class="n">sigma</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">sigma</span><span class="p">,</span> <span class="p">(</span><span class="n">timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span><span class="p">,)</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">broadcast_shape</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span>
 
         <span class="n">noisy_samples</span> <span class="o">=</span> <span class="n">original_samples</span> <span class="o">+</span> <span class="n">noise</span> <span class="o">*</span> <span class="n">sigma</span>
         <span class="k">return</span> <span class="n">noisy_samples</span>
@@ -8619,7 +8619,7 @@ A scaled input sample.</p>
     <span class="n">sigmas</span> <span class="o">=</span> <span class="n">sigmas</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">timesteps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">precondition_noise</span><span class="p">(</span><span class="n">sigmas</span><span class="p">)</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)])</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">sigmas</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sigmas</span><span class="p">,</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">1</span><span class="p">)])</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_step_index</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_begin_index</span> <span class="o">=</span> <span class="kc">None</span>
 </code></pre></div></td></tr></table></div>

@@ -7671,7 +7671,9 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_hunyuan_video.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">498</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
 <span class="normal">499</span>
 <span class="normal">500</span>
 <span class="normal">501</span>
@@ -7919,9 +7921,7 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">743</span>
 <span class="normal">744</span>
 <span class="normal">745</span>
-<span class="normal">746</span>
-<span class="normal">747</span>
-<span class="normal">748</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanVideoTransformer3DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">746</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanVideoTransformer3DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A Transformer model for video-like data used in [HunyuanVideo](https://huggingface.co/tencent/HunyuanVideo).</span>
 
@@ -8019,7 +8019,7 @@ specific language governing permissions and limitations under the License. -->
 
         <span class="c1"># 5. Output projection</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span> <span class="o">=</span> <span class="n">AdaLayerNormContinuous</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size_t</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size_t</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -8134,9 +8134,9 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">latent_sequence_length</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">condition_sequence_length</span> <span class="o">=</span> <span class="n">encoder_hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
         <span class="n">sequence_length</span> <span class="o">=</span> <span class="n">latent_sequence_length</span> <span class="o">+</span> <span class="n">condition_sequence_length</span>
-        <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>  <span class="c1"># [B, N]</span>
+        <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span>  <span class="c1"># [B, N]</span>
 
-        <span class="n">effective_condition_sequence_length</span> <span class="o">=</span> <span class="n">encoder_attention_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>  <span class="c1"># [B,]</span>
+        <span class="n">effective_condition_sequence_length</span> <span class="o">=</span> <span class="n">encoder_attention_mask</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>  <span class="c1"># [B,]</span>
         <span class="n">effective_sequence_length</span> <span class="o">=</span> <span class="n">latent_sequence_length</span> <span class="o">+</span> <span class="n">effective_condition_sequence_length</span>
 
         <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">):</span>
@@ -8287,7 +8287,9 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_hunyuan_video.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">629</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
 <span class="normal">630</span>
 <span class="normal">631</span>
 <span class="normal">632</span>
@@ -8317,9 +8319,7 @@ processor. This is strongly recommended when setting trainable attention process
 <span class="normal">656</span>
 <span class="normal">657</span>
 <span class="normal">658</span>
-<span class="normal">659</span>
-<span class="normal">660</span>
-<span class="normal">661</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">659</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 

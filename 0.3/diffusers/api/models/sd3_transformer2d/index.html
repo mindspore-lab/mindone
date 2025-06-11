@@ -7893,8 +7893,7 @@ it is used to learn a number of position embeddings.</p>
 <span class="normal">396</span>
 <span class="normal">397</span>
 <span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SD3Transformer2DModel</span><span class="p">(</span>
+<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SD3Transformer2DModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">SD3Transformer2DLoadersMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -7954,7 +7953,7 @@ it is used to learn a number of position embeddings.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">time_text_embed</span> <span class="o">=</span> <span class="n">CombinedTimestepTextProjEmbeddings</span><span class="p">(</span>
             <span class="n">embedding_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">pooled_projection_dim</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">pooled_projection_dim</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">context_embedder</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">joint_attention_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">caption_projection_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">context_embedder</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">joint_attention_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">caption_projection_dim</span><span class="p">)</span>
 
         <span class="c1"># `attention_head_dim` is doubled to account for the mixing.</span>
         <span class="c1"># It needs to crafted when we get the actual checkpoints.</span>
@@ -7973,7 +7972,7 @@ it is used to learn a number of position embeddings.</p>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span> <span class="o">=</span> <span class="n">AdaLayerNormContinuous</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -8187,8 +8186,7 @@ it is used to learn a number of position embeddings.</p>
             <span class="n">patch_size</span><span class="p">,</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="c1"># hidden_states = torch.einsum(&quot;nhwpqc-&gt;nchpwq&quot;, hidden_states)</span>
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;nhwpqc-&gt;nchpwq&quot;</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">)</span>
         <span class="n">output</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
             <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">width</span> <span class="o">*</span> <span class="n">patch_size</span>
         <span class="p">)</span>
@@ -8577,8 +8575,7 @@ tuple.</p>
 <span class="normal">396</span>
 <span class="normal">397</span>
 <span class="normal">398</span>
-<span class="normal">399</span>
-<span class="normal">400</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">399</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">encoder_hidden_states</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -8673,8 +8670,7 @@ tuple.</p>
         <span class="n">patch_size</span><span class="p">,</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span>
     <span class="p">)</span>
-    <span class="c1"># hidden_states = torch.einsum(&quot;nhwpqc-&gt;nchpwq&quot;, hidden_states)</span>
-    <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">transpose</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
+    <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">einsum</span><span class="p">(</span><span class="s2">&quot;nhwpqc-&gt;nchpwq&quot;</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">)</span>
     <span class="n">output</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span>
         <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">out_channels</span><span class="p">,</span> <span class="n">height</span> <span class="o">*</span> <span class="n">patch_size</span><span class="p">,</span> <span class="n">width</span> <span class="o">*</span> <span class="n">patch_size</span>
     <span class="p">)</span>

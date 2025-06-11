@@ -7536,8 +7536,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_cogview4.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">312</span>
-<span class="normal">313</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">313</span>
 <span class="normal">314</span>
 <span class="normal">315</span>
 <span class="normal">316</span>
@@ -7664,7 +7663,8 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
 <span class="normal">437</span>
 <span class="normal">438</span>
 <span class="normal">439</span>
-<span class="normal">440</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogView4Transformer2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">440</span>
+<span class="normal">441</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CogView4Transformer2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Args:</span>
 <span class="sd">        patch_size (`int`, defaults to `2`):</span>
@@ -7747,7 +7747,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
 
         <span class="c1"># 4. Output projection</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span> <span class="o">=</span> <span class="n">AdaLayerNormContinuous</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -7776,7 +7776,7 @@ to determine the resolution as <code>sample_size * vae_scale_factor =&gt; 128 * 
         <span class="n">hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">patch_embed</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">)</span>
 
         <span class="n">temb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_condition_embed</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">original_size</span><span class="p">,</span> <span class="n">target_size</span><span class="p">,</span> <span class="n">crop_coords</span><span class="p">,</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
-        <span class="n">temb</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">silu</span><span class="p">(</span><span class="n">temb</span><span class="p">)</span>
+        <span class="n">temb</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">silu</span><span class="p">(</span><span class="n">temb</span><span class="p">)</span>
 
         <span class="c1"># 3. Transformer blocks</span>
         <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span><span class="p">:</span>

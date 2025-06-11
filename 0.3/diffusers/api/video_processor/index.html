@@ -7483,7 +7483,7 @@ the default width.</p>
             <span class="s2">&quot;Please concatenate the list along the batch dimension and pass it as a single 5d ms.Tensor&quot;</span><span class="p">,</span>
             <span class="ne">FutureWarning</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">video</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">video</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">video</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">video</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># ensure the input is a list of videos:</span>
     <span class="c1"># - if it is a batch of videos (5d ms.Tensor or np.ndarray), it is converted to a list of videos (a list of 4d ms.Tensor or np.ndarray)</span>
@@ -7499,7 +7499,7 @@ the default width.</p>
             <span class="s2">&quot;Input is in incorrect format. Currently, we only support numpy.ndarray, ms.Tensor, PIL.Image.Image&quot;</span>
         <span class="p">)</span>
 
-    <span class="n">video</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">video</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">video</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">img</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="n">height</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span> <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">video</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># move the number of channels before the number of frames.</span>
     <span class="n">video</span> <span class="o">=</span> <span class="n">video</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">)</span>
@@ -7614,7 +7614,7 @@ the default width.</p>
     <span class="k">if</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;np&quot;</span><span class="p">:</span>
         <span class="n">outputs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
     <span class="k">elif</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;pt&quot;</span><span class="p">:</span>
-        <span class="n">outputs</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="n">outputs</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
     <span class="k">elif</span> <span class="ow">not</span> <span class="n">output_type</span> <span class="o">==</span> <span class="s2">&quot;pil&quot;</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">output_type</span><span class="si">}</span><span class="s2"> does not exist. Please choose one of [&#39;np&#39;, &#39;pt&#39;, &#39;pil&#39;]&quot;</span><span class="p">)</span>
 

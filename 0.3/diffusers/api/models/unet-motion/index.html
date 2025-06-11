@@ -7443,7 +7443,9 @@ for all models (such as downloading or saving).</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1139</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1137</span>
+<span class="normal">1138</span>
+<span class="normal">1139</span>
 <span class="normal">1140</span>
 <span class="normal">1141</span>
 <span class="normal">1142</span>
@@ -8349,12 +8351,7 @@ for all models (such as downloading or saving).</p>
 <span class="normal">2042</span>
 <span class="normal">2043</span>
 <span class="normal">2044</span>
-<span class="normal">2045</span>
-<span class="normal">2046</span>
-<span class="normal">2047</span>
-<span class="normal">2048</span>
-<span class="normal">2049</span>
-<span class="normal">2050</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNetMotionModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
+<span class="normal">2045</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNetMotionModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A modified conditional 2D UNet model that takes a noisy sample, conditional state, and a timestep and returns a</span>
 <span class="sd">    sample shaped output.</span>
@@ -8463,13 +8460,11 @@ for all models (such as downloading or saving).</p>
         <span class="n">conv_in_kernel</span> <span class="o">=</span> <span class="mi">3</span>
         <span class="n">conv_out_kernel</span> <span class="o">=</span> <span class="mi">3</span>
         <span class="n">conv_in_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_in_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
             <span class="n">in_channels</span><span class="p">,</span>
             <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_in_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
             <span class="n">padding</span><span class="o">=</span><span class="n">conv_in_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># time</span>
@@ -8695,19 +8690,17 @@ for all models (such as downloading or saving).</p>
         <span class="c1"># out</span>
         <span class="k">if</span> <span class="n">norm_num_groups</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">conv_norm_out</span> <span class="o">=</span> <span class="n">GroupNorm</span><span class="p">(</span><span class="n">num_channels</span><span class="o">=</span><span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">num_groups</span><span class="o">=</span><span class="n">norm_num_groups</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">norm_eps</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">conv_act</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">conv_act</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">conv_norm_out</span> <span class="o">=</span> <span class="kc">None</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">conv_act</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="n">conv_out_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_out_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
             <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">out_channels</span><span class="p">,</span>
             <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_out_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
             <span class="n">padding</span><span class="o">=</span><span class="n">conv_out_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="nd">@classmethod</span>
@@ -8795,7 +8788,7 @@ for all models (such as downloading or saving).</p>
         <span class="c1"># while the last 5 channels must be PIA conv_in weights.</span>
         <span class="k">if</span> <span class="n">has_motion_adapter</span> <span class="ow">and</span> <span class="n">motion_adapter</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;conv_in_channels&quot;</span><span class="p">]:</span>
             <span class="n">model</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">motion_adapter</span><span class="o">.</span><span class="n">conv_in</span>
-            <span class="n">updated_conv_in_weight</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">unet</span><span class="o">.</span><span class="n">conv_in</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">motion_adapter</span><span class="o">.</span><span class="n">conv_in</span><span class="o">.</span><span class="n">weight</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:]],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">updated_conv_in_weight</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">unet</span><span class="o">.</span><span class="n">conv_in</span><span class="o">.</span><span class="n">weight</span><span class="p">,</span> <span class="n">motion_adapter</span><span class="o">.</span><span class="n">conv_in</span><span class="o">.</span><span class="n">weight</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">:,</span> <span class="p">:,</span> <span class="p">:]],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">ms</span><span class="o">.</span><span class="n">load_param_into_net</span><span class="p">(</span>
                 <span class="n">model</span><span class="o">.</span><span class="n">conv_in</span><span class="p">,</span>
                 <span class="p">{</span><span class="s2">&quot;conv_in.weight&quot;</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">updated_conv_in_weight</span><span class="p">),</span> <span class="s2">&quot;conv_in.bias&quot;</span><span class="p">:</span> <span class="n">unet</span><span class="o">.</span><span class="n">conv_in</span><span class="o">.</span><span class="n">bias</span><span class="p">},</span>
@@ -9146,7 +9139,7 @@ for all models (such as downloading or saving).</p>
             <span class="n">time_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_time_proj</span><span class="p">(</span><span class="n">time_ids</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
 
-            <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">add_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">aug_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_embedding</span><span class="p">(</span><span class="n">add_embeds</span><span class="p">)</span>
 
@@ -9162,6 +9155,7 @@ for all models (such as downloading or saving).</p>
             <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">added_cond_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_embeds&quot;</span><span class="p">)</span>
             <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span><span class="p">(</span><span class="n">image_embeds</span><span class="p">)</span>
             <span class="n">image_embeds</span> <span class="o">=</span> <span class="p">[</span><span class="n">image_embed</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">repeats</span><span class="o">=</span><span class="n">num_frames</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">image_embed</span> <span class="ow">in</span> <span class="n">image_embeds</span><span class="p">]</span>
+
             <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="p">(</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">image_embeds</span><span class="p">)</span>
 
         <span class="c1"># 2. pre-process</span>
@@ -9549,7 +9543,13 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1826</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1820</span>
+<span class="normal">1821</span>
+<span class="normal">1822</span>
+<span class="normal">1823</span>
+<span class="normal">1824</span>
+<span class="normal">1825</span>
+<span class="normal">1826</span>
 <span class="normal">1827</span>
 <span class="normal">1828</span>
 <span class="normal">1829</span>
@@ -9768,12 +9768,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 <span class="normal">2042</span>
 <span class="normal">2043</span>
 <span class="normal">2044</span>
-<span class="normal">2045</span>
-<span class="normal">2046</span>
-<span class="normal">2047</span>
-<span class="normal">2048</span>
-<span class="normal">2049</span>
-<span class="normal">2050</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">2045</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -9878,7 +9873,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
         <span class="n">time_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_time_proj</span><span class="p">(</span><span class="n">time_ids</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
 
-        <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">add_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">aug_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_embedding</span><span class="p">(</span><span class="n">add_embeds</span><span class="p">)</span>
 
@@ -9894,6 +9889,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
         <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">added_cond_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_embeds&quot;</span><span class="p">)</span>
         <span class="n">image_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span><span class="p">(</span><span class="n">image_embeds</span><span class="p">)</span>
         <span class="n">image_embeds</span> <span class="o">=</span> <span class="p">[</span><span class="n">image_embed</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">repeats</span><span class="o">=</span><span class="n">num_frames</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">for</span> <span class="n">image_embed</span> <span class="ow">in</span> <span class="n">image_embeds</span><span class="p">]</span>
+
         <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="p">(</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">image_embeds</span><span class="p">)</span>
 
     <span class="c1"># 2. pre-process</span>
@@ -10070,7 +10066,13 @@ or dim=1 (sequence length).</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1768</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1762</span>
+<span class="normal">1763</span>
+<span class="normal">1764</span>
+<span class="normal">1765</span>
+<span class="normal">1766</span>
+<span class="normal">1767</span>
+<span class="normal">1768</span>
 <span class="normal">1769</span>
 <span class="normal">1770</span>
 <span class="normal">1771</span>
@@ -10091,13 +10093,7 @@ or dim=1 (sequence length).</p>
 <span class="normal">1786</span>
 <span class="normal">1787</span>
 <span class="normal">1788</span>
-<span class="normal">1789</span>
-<span class="normal">1790</span>
-<span class="normal">1791</span>
-<span class="normal">1792</span>
-<span class="normal">1793</span>
-<span class="normal">1794</span>
-<span class="normal">1795</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">1789</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_forward_chunking</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">chunk_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use [feed forward</span>
 <span class="sd">    chunking](https://huggingface.co/blog/reformer#2-chunked-feed-forward-layers).</span>
@@ -10147,7 +10143,13 @@ unfrozen for fine tuning.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1640</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1634</span>
+<span class="normal">1635</span>
+<span class="normal">1636</span>
+<span class="normal">1637</span>
+<span class="normal">1638</span>
+<span class="normal">1639</span>
+<span class="normal">1640</span>
 <span class="normal">1641</span>
 <span class="normal">1642</span>
 <span class="normal">1643</span>
@@ -10163,13 +10165,7 @@ unfrozen for fine tuning.</p>
 <span class="normal">1653</span>
 <span class="normal">1654</span>
 <span class="normal">1655</span>
-<span class="normal">1656</span>
-<span class="normal">1657</span>
-<span class="normal">1658</span>
-<span class="normal">1659</span>
-<span class="normal">1660</span>
-<span class="normal">1661</span>
-<span class="normal">1662</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">freeze_unet2d_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">1656</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">freeze_unet2d_params</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Freeze the weights of just the UNet2DConditionModel, and leave the motion modules</span>
 <span class="sd">    unfrozen for fine tuning.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -10219,7 +10215,13 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1737</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1731</span>
+<span class="normal">1732</span>
+<span class="normal">1733</span>
+<span class="normal">1734</span>
+<span class="normal">1735</span>
+<span class="normal">1736</span>
+<span class="normal">1737</span>
 <span class="normal">1738</span>
 <span class="normal">1739</span>
 <span class="normal">1740</span>
@@ -10242,13 +10244,7 @@ Parameters:
 <span class="normal">1757</span>
 <span class="normal">1758</span>
 <span class="normal">1759</span>
-<span class="normal">1760</span>
-<span class="normal">1761</span>
-<span class="normal">1762</span>
-<span class="normal">1763</span>
-<span class="normal">1764</span>
-<span class="normal">1765</span>
-<span class="normal">1766</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>  <span class="c1"># type: ignore</span>
+<span class="normal">1760</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>  <span class="c1"># type: ignore</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 <span class="sd">    Parameters:</span>
@@ -10299,18 +10295,18 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_motion_model.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1809</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1803</span>
+<span class="normal">1804</span>
+<span class="normal">1805</span>
+<span class="normal">1806</span>
+<span class="normal">1807</span>
+<span class="normal">1808</span>
+<span class="normal">1809</span>
 <span class="normal">1810</span>
 <span class="normal">1811</span>
 <span class="normal">1812</span>
 <span class="normal">1813</span>
-<span class="normal">1814</span>
-<span class="normal">1815</span>
-<span class="normal">1816</span>
-<span class="normal">1817</span>
-<span class="normal">1818</span>
-<span class="normal">1819</span>
-<span class="normal">1820</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">1814</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

@@ -8330,7 +8330,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             <span class="n">use_positional_embeddings</span><span class="o">=</span><span class="ow">not</span> <span class="n">use_rotary_positional_embeddings</span><span class="p">,</span>
             <span class="n">use_learned_positional_embeddings</span><span class="o">=</span><span class="n">use_learned_positional_embeddings</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_dropout</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_dropout</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout</span><span class="p">)</span>
 
         <span class="c1"># 2. Time embeddings and ofs embedding(Only CogVideoX1.5-5B I2V have)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span> <span class="o">=</span> <span class="n">Timesteps</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">flip_sin_to_cos</span><span class="p">,</span> <span class="n">freq_shift</span><span class="p">)</span>
@@ -8379,7 +8379,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             <span class="c1"># For CogVideoX 1.5</span>
             <span class="n">output_dim</span> <span class="o">=</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size_t</span> <span class="o">*</span> <span class="n">out_channels</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
 
@@ -8561,7 +8561,7 @@ K latent frames, the correct value to pass here would be: ((K - 1) * temporal_co
             <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_final</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># CogVideoX-5B</span>
-            <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">hidden_states</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm_final</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
             <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="p">[:,</span> <span class="n">text_seq_length</span><span class="p">:]</span>
 

@@ -7777,7 +7777,7 @@ specific language governing permissions and limitations under the License. -->
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_frequencies</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
-            <span class="n">ops</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="n">num_attention_heads</span><span class="p">,</span> <span class="n">attention_head_dim</span> <span class="o">//</span> <span class="mi">2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">mint</span><span class="o">.</span><span class="n">full</span><span class="p">((</span><span class="mi">3</span><span class="p">,</span> <span class="n">num_attention_heads</span><span class="p">,</span> <span class="n">attention_head_dim</span> <span class="o">//</span> <span class="mi">2</span><span class="p">),</span> <span class="mf">0.0</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">rope</span> <span class="o">=</span> <span class="n">MochiRoPE</span><span class="p">()</span>
 
@@ -7803,7 +7803,7 @@ specific language governing permissions and limitations under the License. -->
             <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
             <span class="n">norm_type</span><span class="o">=</span><span class="s2">&quot;layer_norm&quot;</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="n">out_channels</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">p</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">patch_size</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>

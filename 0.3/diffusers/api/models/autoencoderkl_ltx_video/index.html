@@ -7733,7 +7733,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 842</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 840</span>
+<span class="normal"> 841</span>
+<span class="normal"> 842</span>
 <span class="normal"> 843</span>
 <span class="normal"> 844</span>
 <span class="normal"> 845</span>
@@ -8177,9 +8179,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="normal">1283</span>
 <span class="normal">1284</span>
 <span class="normal">1285</span>
-<span class="normal">1286</span>
-<span class="normal">1287</span>
-<span class="normal">1288</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLLTXVideo</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">1286</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoencoderKLLTXVideo</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A VAE model with KL loss for encoding images into latents and decoding latent representations into images. Used in</span>
 <span class="sd">    [LTX](https://huggingface.co/Lightricks/LTX-Video).</span>
@@ -8273,8 +8273,8 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             <span class="n">upsample_factor</span><span class="o">=</span><span class="n">upsample_factor</span><span class="p">,</span>
         <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">latents_mean</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">latent_channels</span><span class="p">,)),</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;latents_mean&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">latents_std</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">latent_channels</span><span class="p">,)),</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;latents_std&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">latents_mean</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">latent_channels</span><span class="p">,)),</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;latents_mean&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">latents_std</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">ones</span><span class="p">((</span><span class="n">latent_channels</span><span class="p">,)),</span> <span class="n">requires_grad</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;latents_std&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">spatial_compression_ratio</span> <span class="o">=</span> <span class="n">patch_size</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">**</span> <span class="nb">sum</span><span class="p">(</span><span class="n">spatio_temporal_scaling</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">temporal_compression_ratio</span> <span class="o">=</span> <span class="n">patch_size_t</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">**</span> <span class="nb">sum</span><span class="p">(</span><span class="n">spatio_temporal_scaling</span><span class="p">)</span>
@@ -8399,7 +8399,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
             <span class="n">encoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x_slice</span><span class="p">)</span> <span class="k">for</span> <span class="n">x_slice</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">h</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
+            <span class="n">h</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
@@ -8456,7 +8456,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
                 <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">,</span> <span class="n">t_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span><span class="p">,</span> <span class="n">t_slice</span> <span class="ow">in</span> <span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">temb</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">))]</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-            <span class="n">decoded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
+            <span class="n">decoded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">temb</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -8465,7 +8465,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 
         <span class="k">return</span> <span class="n">DecoderOutput</span><span class="p">(</span><span class="n">sample</span><span class="o">=</span><span class="n">decoded</span><span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">blend_v</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">blend_v</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">blend_extent</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span> <span class="n">blend_extent</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">y</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">blend_extent</span><span class="p">):</span>
             <span class="n">b</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="n">y</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">a</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="o">-</span><span class="n">blend_extent</span> <span class="o">+</span> <span class="n">y</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">y</span> <span class="o">/</span> <span class="n">blend_extent</span><span class="p">)</span> <span class="o">+</span> <span class="n">b</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="n">y</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="p">(</span>
@@ -8473,7 +8473,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">b</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">blend_h</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">blend_h</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">blend_extent</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="n">blend_extent</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">b</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span> <span class="n">blend_extent</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">blend_extent</span><span class="p">):</span>
             <span class="n">b</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="o">-</span><span class="n">blend_extent</span> <span class="o">+</span> <span class="n">x</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">x</span> <span class="o">/</span> <span class="n">blend_extent</span><span class="p">)</span> <span class="o">+</span> <span class="n">b</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="n">x</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span>
@@ -8481,7 +8481,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
             <span class="p">)</span>
         <span class="k">return</span> <span class="n">b</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Encode a batch of images using a tiled encoder.</span>
 
 <span class="sd">        Args:</span>
@@ -8535,9 +8535,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_width</span><span class="p">)</span>
                 <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">tile_latent_stride_height</span><span class="p">,</span> <span class="p">:</span><span class="n">tile_latent_stride_width</span><span class="p">])</span>
-            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
 
-        <span class="n">enc</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">latent_height</span><span class="p">,</span> <span class="p">:</span><span class="n">latent_width</span><span class="p">]</span>
+        <span class="n">enc</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">latent_height</span><span class="p">,</span> <span class="p">:</span><span class="n">latent_width</span><span class="p">]</span>
         <span class="k">return</span> <span class="n">enc</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span>
@@ -8599,9 +8599,9 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
                 <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                     <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_width</span><span class="p">)</span>
                 <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span><span class="p">,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span><span class="p">])</span>
-            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+            <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
 
-        <span class="n">dec</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">sample_height</span><span class="p">,</span> <span class="p">:</span><span class="n">sample_width</span><span class="p">]</span>
+        <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">sample_height</span><span class="p">,</span> <span class="p">:</span><span class="n">sample_width</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">dec</span><span class="p">,)</span>
@@ -8726,7 +8726,9 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1098</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1096</span>
+<span class="normal">1097</span>
+<span class="normal">1098</span>
 <span class="normal">1099</span>
 <span class="normal">1100</span>
 <span class="normal">1101</span>
@@ -8752,9 +8754,7 @@ returned.</p>
 <span class="normal">1121</span>
 <span class="normal">1122</span>
 <span class="normal">1123</span>
-<span class="normal">1124</span>
-<span class="normal">1125</span>
-<span class="normal">1126</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span>
+<span class="normal">1124</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">temb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -8775,7 +8775,7 @@ returned.</p>
             <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">,</span> <span class="n">t_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span><span class="p">,</span> <span class="n">t_slice</span> <span class="ow">in</span> <span class="p">(</span><span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="n">temb</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">))]</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">decoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z_slice</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">z_slice</span> <span class="ow">in</span> <span class="n">z</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-        <span class="n">decoded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
+        <span class="n">decoded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">decoded_slices</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">decoded</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_decode</span><span class="p">(</span><span class="n">z</span><span class="p">,</span> <span class="n">temb</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
@@ -8805,12 +8805,12 @@ decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1020</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1018</span>
+<span class="normal">1019</span>
+<span class="normal">1020</span>
 <span class="normal">1021</span>
 <span class="normal">1022</span>
-<span class="normal">1023</span>
-<span class="normal">1024</span>
-<span class="normal">1025</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">1023</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable sliced VAE decoding. If `enable_slicing` was previously enabled, this method will go back to computing</span>
 <span class="sd">    decoding in one step.</span>
@@ -8838,12 +8838,12 @@ decoding in one step.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1006</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1004</span>
+<span class="normal">1005</span>
+<span class="normal">1006</span>
 <span class="normal">1007</span>
 <span class="normal">1008</span>
-<span class="normal">1009</span>
-<span class="normal">1010</span>
-<span class="normal">1011</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">1009</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">disable_tiling</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disable tiled VAE decoding. If `enable_tiling` was previously enabled, this method will go back to computing</span>
 <span class="sd">    decoding in one step.</span>
@@ -8871,12 +8871,12 @@ compute decoding in several steps. This is useful to save some memory and allow 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1013</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1011</span>
+<span class="normal">1012</span>
+<span class="normal">1013</span>
 <span class="normal">1014</span>
 <span class="normal">1015</span>
-<span class="normal">1016</span>
-<span class="normal">1017</span>
-<span class="normal">1018</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="normal">1016</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_slicing</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Enable sliced VAE decoding. When this option is enabled, the VAE will split the input tensor in slices to</span>
 <span class="sd">    compute decoding in several steps. This is useful to save some memory and allow larger batch sizes.</span>
@@ -8991,7 +8991,9 @@ artifacts produced across the width dimension.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 976</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 974</span>
+<span class="normal"> 975</span>
+<span class="normal"> 976</span>
 <span class="normal"> 977</span>
 <span class="normal"> 978</span>
 <span class="normal"> 979</span>
@@ -9017,9 +9019,7 @@ artifacts produced across the width dimension.</p>
 <span class="normal"> 999</span>
 <span class="normal">1000</span>
 <span class="normal">1001</span>
-<span class="normal">1002</span>
-<span class="normal">1003</span>
-<span class="normal">1004</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
+<span class="normal">1002</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">enable_tiling</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">tile_sample_min_height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">tile_sample_min_width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9149,7 +9149,9 @@ artifacts produced across the width dimension.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1045</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1043</span>
+<span class="normal">1044</span>
+<span class="normal">1045</span>
 <span class="normal">1046</span>
 <span class="normal">1047</span>
 <span class="normal">1048</span>
@@ -9173,9 +9175,7 @@ artifacts produced across the width dimension.</p>
 <span class="normal">1066</span>
 <span class="normal">1067</span>
 <span class="normal">1068</span>
-<span class="normal">1069</span>
-<span class="normal">1070</span>
-<span class="normal">1071</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
+<span class="normal">1069</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">AutoencoderKLOutput</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">DiagonalGaussianDistribution</span><span class="p">]]:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
@@ -9192,7 +9192,7 @@ artifacts produced across the width dimension.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="ow">and</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
         <span class="n">encoded_slices</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x_slice</span><span class="p">)</span> <span class="k">for</span> <span class="n">x_slice</span> <span class="ow">in</span> <span class="n">x</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="mi">1</span><span class="p">)]</span>
-        <span class="n">h</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
+        <span class="n">h</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">encoded_slices</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">h</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_encode</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 
@@ -9293,7 +9293,9 @@ returned.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1203</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1201</span>
+<span class="normal">1202</span>
+<span class="normal">1203</span>
 <span class="normal">1204</span>
 <span class="normal">1205</span>
 <span class="normal">1206</span>
@@ -9357,9 +9359,7 @@ returned.</p>
 <span class="normal">1264</span>
 <span class="normal">1265</span>
 <span class="normal">1266</span>
-<span class="normal">1267</span>
-<span class="normal">1268</span>
-<span class="normal">1269</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span>
+<span class="normal">1267</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_decode</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">temb</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">return_dict</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">DecoderOutput</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -9418,9 +9418,9 @@ returned.</p>
             <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_width</span><span class="p">)</span>
             <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_height</span><span class="p">,</span> <span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">tile_sample_stride_width</span><span class="p">])</span>
-        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
 
-    <span class="n">dec</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">sample_height</span><span class="p">,</span> <span class="p">:</span><span class="n">sample_width</span><span class="p">]</span>
+    <span class="n">dec</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">sample_height</span><span class="p">,</span> <span class="p">:</span><span class="n">sample_width</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">dec</span><span class="p">,)</span>
@@ -9483,7 +9483,7 @@ returned.</p>
           <tr class="doc-section-item">
             <td>
                 <span class="doc-returns-annotation">
-                    <code><span title="mindspore.ops.Tensor">Tensor</span></code>
+                    <code><span title="mindspore.Tensor">Tensor</span></code>
                 </span>
             </td>
             <td class="doc-returns-details">
@@ -9498,7 +9498,9 @@ The latent representation of the encoded videos.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/autoencoders/autoencoder_kl_ltx.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1144</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1142</span>
+<span class="normal">1143</span>
+<span class="normal">1144</span>
 <span class="normal">1145</span>
 <span class="normal">1146</span>
 <span class="normal">1147</span>
@@ -9553,9 +9555,7 @@ The latent representation of the encoded videos.</p>
 <span class="normal">1196</span>
 <span class="normal">1197</span>
 <span class="normal">1198</span>
-<span class="normal">1199</span>
-<span class="normal">1200</span>
-<span class="normal">1201</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ops</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
+<span class="normal">1199</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">tiled_encode</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Encode a batch of images using a tiled encoder.</span>
 
 <span class="sd">    Args:</span>
@@ -9609,9 +9609,9 @@ The latent representation of the encoded videos.</p>
             <span class="k">if</span> <span class="n">j</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">tile</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">blend_h</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="n">j</span> <span class="o">-</span> <span class="mi">1</span><span class="p">],</span> <span class="n">tile</span><span class="p">,</span> <span class="n">blend_width</span><span class="p">)</span>
             <span class="n">result_row</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tile</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">tile_latent_stride_height</span><span class="p">,</span> <span class="p">:</span><span class="n">tile_latent_stride_width</span><span class="p">])</span>
-        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
+        <span class="n">result_rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_row</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">4</span><span class="p">))</span>
 
-    <span class="n">enc</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">latent_height</span><span class="p">,</span> <span class="p">:</span><span class="n">latent_width</span><span class="p">]</span>
+    <span class="n">enc</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">result_rows</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">3</span><span class="p">)[:,</span> <span class="p">:,</span> <span class="p">:,</span> <span class="p">:</span><span class="n">latent_height</span><span class="p">,</span> <span class="p">:</span><span class="n">latent_width</span><span class="p">]</span>
     <span class="k">return</span> <span class="n">enc</span>
 </code></pre></div></td></tr></table></div>
             </details>
@@ -9774,8 +9774,7 @@ The latent representation of the encoded videos.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/vae.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">43</span>
-<span class="normal">44</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">44</span>
 <span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
@@ -9785,7 +9784,8 @@ The latent representation of the encoded videos.</p>
 <span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
-<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">54</span>
+<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">DecoderOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Output of decoding method.</span>

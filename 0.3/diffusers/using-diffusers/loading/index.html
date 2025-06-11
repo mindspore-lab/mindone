@@ -955,6 +955,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reuse-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reuse a pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reuse a pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modify-from_pipe-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modify from_pipe components
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-usage-of-from_pipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Memory usage of from_pipe
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#safety-checker" class="md-nav__link">
     <span class="md-ellipsis">
       Safety checker
@@ -7304,6 +7337,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reuse-a-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reuse a pipeline
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reuse a pipeline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#modify-from_pipe-components" class="md-nav__link">
+    <span class="md-ellipsis">
+      Modify from_pipe components
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-usage-of-from_pipe" class="md-nav__link">
+    <span class="md-ellipsis">
+      Memory usage of from_pipe
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#safety-checker" class="md-nav__link">
     <span class="md-ellipsis">
       Safety checker
@@ -7463,6 +7529,116 @@ git<span class="w"> </span>clone<span class="w"> </span>https://huggingface.co/s
   <span class="n">use_safetensors</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 </code></pre></div>
+<h2 id="reuse-a-pipeline">Reuse a pipeline<a class="headerlink" href="#reuse-a-pipeline" title="Permanent link">&para;</a></h2>
+<p>When you load multiple pipelines that share the same model components, it makes sense to reuse the shared components instead of reloading everything into memory again, especially if your hardware is memory-constrained. For example:</p>
+<ol>
+<li>You generated an image with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a> but you want to improve its quality with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline"><code>StableDiffusionSAGPipeline</code></a>. Both of these pipelines share the same pretrained model, so it'd be a waste of memory to load the same model twice.</li>
+<li>You want to add a model component, like a <a href="../../api/pipelines/animatediff/#animatediffpipeline"><code>MotionAdapter</code></a>, to <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/animatediff/#mindone.diffusers.pipelines.AnimateDiffPipeline"><code>AnimateDiffPipeline</code></a> which was instantiated from an existing <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a>. Again, both pipelines share the same pretrained model, so it'd be a waste of memory to load an entirely new pipeline again.</li>
+</ol>
+<p>With the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a> API, you can switch between multiple pipelines to take advantage of their different features without increasing memory-usage. It is similar to turning on and off a feature in your pipeline.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>To switch between tasks (rather than features), use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a> method with the <a href="../../api/pipelines/auto_pipeline/">AutoPipeline</a> class, which automatically identifies the pipeline class based on the task (learn more in the <a href="../tutorials/autopipeline">AutoPipeline</a> tutorial).</p>
+</div>
+<p>Let's start with a <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a> and then reuse the loaded model components to create a <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline"><code>StableDiffusionSAGPipeline</code></a> to increase generation quality. You'll use the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a> with an <a href="../ip_adapter/">IP-Adapter</a> to generate a bear eating pizza.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionSAGPipeline</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mindspore</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ms</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_image</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+
+<span class="n">image</span> <span class="o">=</span> <span class="n">load_image</span><span class="p">(</span><span class="s2">&quot;https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/diffusers/load_neg_embed.png&quot;</span><span class="p">)</span>
+
+<span class="n">pipe_sd</span> <span class="o">=</span> <span class="n">DiffusionPipeline</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;SG161222/Realistic_Vision_V6.0_B1_noVAE&quot;</span><span class="p">,</span> <span class="n">mindspore_dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">,</span> <span class="n">revision</span><span class="o">=</span><span class="s2">&quot;refs/pr/8&quot;</span><span class="p">)</span>
+<span class="n">pipe_sd</span><span class="o">.</span><span class="n">load_ip_adapter</span><span class="p">(</span><span class="s2">&quot;h94/IP-Adapter&quot;</span><span class="p">,</span> <span class="n">subfolder</span><span class="o">=</span><span class="s2">&quot;models&quot;</span><span class="p">,</span> <span class="n">weight_name</span><span class="o">=</span><span class="s2">&quot;ip-adapter_sd15.safetensors&quot;</span><span class="p">)</span>
+<span class="n">pipe_sd</span><span class="o">.</span><span class="n">set_ip_adapter_scale</span><span class="p">(</span><span class="mf">0.6</span><span class="p">)</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">33</span><span class="p">))</span>
+<span class="n">out_sd</span> <span class="o">=</span> <span class="n">pipe_sd</span><span class="p">(</span>
+    <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;bear eats pizza&quot;</span><span class="p">,</span>
+    <span class="n">negative_prompt</span><span class="o">=</span><span class="s2">&quot;wrong white balance, dark, sketches,worst quality,low quality&quot;</span><span class="p">,</span>
+    <span class="n">ip_adapter_image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span>
+    <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">out_sd</span>
+</code></pre></div>
+<div class="flex justify-center">
+  <img class="rounded-xl" src="https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/from_pipe_out_sd_0.png"/>
+</div>
+
+<p>For reference, you can check how much memory this process consumed.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">MS_MEMORY_STATISTIC</span><span class="o">=</span><span class="m">1</span>
+...
+
+<span class="s2">&quot;Actual peak memory usage (with fragments): 4428M&quot;</span>
+</code></pre></div>
+<p>Now, reuse the same pipeline components from <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a> in <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline"><code>StableDiffusionSAGPipeline</code></a> with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a> method.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Some pipeline methods may not function properly on new pipelines created with <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a>.</p>
+<p>To ensure everything works as expected, we recommend re-applying a pipeline method on a new pipeline created with <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a>.</p>
+</div>
+<div class="highlight"><pre><span></span><code><span class="n">pipe_sag</span> <span class="o">=</span> <span class="n">StableDiffusionSAGPipeline</span><span class="o">.</span><span class="n">from_pipe</span><span class="p">(</span>
+    <span class="n">pipe_sd</span>
+<span class="p">)</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">33</span><span class="p">))</span>
+<span class="n">out_sag</span> <span class="o">=</span> <span class="n">pipe_sag</span><span class="p">(</span>
+    <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;bear eats pizza&quot;</span><span class="p">,</span>
+    <span class="n">negative_prompt</span><span class="o">=</span><span class="s2">&quot;wrong white balance, dark, sketches,worst quality,low quality&quot;</span><span class="p">,</span>
+    <span class="n">ip_adapter_image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span>
+    <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span>
+    <span class="n">guidance_scale</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+    <span class="n">sag_scale</span><span class="o">=</span><span class="mf">0.75</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">out_sag</span>
+</code></pre></div>
+<div class="flex justify-center">
+  <img class="rounded-xl" src="https://huggingface.co/datasets/YiYiXu/testing-images/resolve/main/from_pipe_out_sag_1.png"/>
+</div>
+
+<p>If you check the memory usage, you'll see it remains the same as before because <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a> and <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline"><code>StableDiffusionSAGPipeline</code></a> are sharing the same pipeline components. This allows you to use them interchangeably without any additional memory overhead.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">MS_MEMORY_STATISTIC</span><span class="o">=</span><span class="m">1</span>
+...
+
+<span class="s2">&quot;Actual peak memory usage (with fragments): 4436M&quot;</span>
+</code></pre></div>
+<h3 id="modify-from_pipe-components">Modify from_pipe components<a class="headerlink" href="#modify-from_pipe-components" title="Permanent link">&para;</a></h3>
+<p>Pipelines loaded with <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a> can be customized with different model components or methods. However, whenever you modify the <em>state</em> of the model components, it affects all the other pipelines that share the same components. For example, if you call [<code>unload_ip_adapter</code>] on the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/self_attention_guidance/#mindone.diffusers.StableDiffusionSAGPipeline"><code>StableDiffusionSAGPipeline</code></a>, you won't be able to use IP-Adapter with the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/stable_diffusion/text2img/#mindone.diffusers.StableDiffusionPipeline"><code>StableDiffusionPipeline</code></a> because it's been removed from their shared components.</p>
+<div class="highlight"><pre><span></span><code><span class="n">pipe_sag</span><span class="o">.</span><span class="n">unload_ip_adapter</span><span class="p">()</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">PCG64</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">33</span><span class="p">))</span>
+<span class="n">out_sd</span> <span class="o">=</span> <span class="n">pipe_sd</span><span class="p">(</span>
+    <span class="n">prompt</span><span class="o">=</span><span class="s2">&quot;bear eats pizza&quot;</span><span class="p">,</span>
+    <span class="n">negative_prompt</span><span class="o">=</span><span class="s2">&quot;wrong white balance, dark, sketches,worst quality,low quality&quot;</span><span class="p">,</span>
+    <span class="n">ip_adapter_image</span><span class="o">=</span><span class="n">image</span><span class="p">,</span>
+    <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
+    <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span>
+<span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="s2">&quot;AttributeError: &#39;NoneType&#39; object has no attribute &#39;image_projection_layers&#39;&quot;</span>
+</code></pre></div>
+<h3 id="memory-usage-of-from_pipe">Memory usage of from_pipe<a class="headerlink" href="#memory-usage-of-from_pipe" title="Permanent link">&para;</a></h3>
+<p>The memory requirement of loading multiple pipelines with <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pipe"><code>from_pipe</code></a> is determined by the pipeline with the highest memory-usage regardless of the number of pipelines you create.</p>
+<table>
+<thead>
+<tr>
+<th>Pipeline</th>
+<th>Memory usage (MB)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>StableDiffusionPipeline</td>
+<td>4428</td>
+</tr>
+<tr>
+<td>StableDiffusionSAGPipeline</td>
+<td>4436</td>
+</tr>
+</tbody>
+</table>
+<p>Your memory-usage will not increase if you create additional pipelines. Each pipeline can be used interchangeably without any additional memory overhead.</p>
 <h2 id="safety-checker">Safety checker<a class="headerlink" href="#safety-checker" title="Permanent link">&para;</a></h2>
 <p>Diffusers implements a <a href="https://github.com/The-truthh/mindone/blob/docs/mindone/diffusers/pipelines/stable_diffusion/safety_checker.py">safety checker</a> for Stable Diffusion models which can generate harmful content. The safety checker screens the generated output against known hardcoded not-safe-for-work (NSFW) content. If for whatever reason you'd like to disable the safety checker, pass <code>safety_checker=None</code> to the <a href="https://mindspore-lab.github.io/mindone/latest/diffusers/api/pipelines/overview/#mindone.diffusers.DiffusionPipeline.from_pretrained"><code>from_pretrained</code></a> method.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">mindone.diffusers</span><span class="w"> </span><span class="kn">import</span> <span class="n">DiffusionPipeline</span>
@@ -7744,7 +7920,7 @@ git<span class="w"> </span>clone<span class="w"> </span>https://huggingface.co/s
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 1, 2024 06:29:50 UTC">November 1, 2024</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="June 10, 2025 11:52:10 UTC">June 10, 2025</span>
   </span>
 
     

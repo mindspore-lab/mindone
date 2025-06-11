@@ -7811,7 +7811,7 @@ The maximum length of the sequence over which to apply positional embeddings.</p
         <span class="bp">self</span><span class="o">.</span><span class="n">in_channels</span> <span class="o">=</span> <span class="n">in_channels</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">GroupNorm</span><span class="p">(</span><span class="n">num_groups</span><span class="o">=</span><span class="n">norm_num_groups</span><span class="p">,</span> <span class="n">num_channels</span><span class="o">=</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span> <span class="n">affine</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
 
         <span class="c1"># 3. Define transformers blocks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">transformer_blocks</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">(</span>
@@ -7833,7 +7833,7 @@ The maximum length of the sequence over which to apply positional embeddings.</p
             <span class="p">]</span>
         <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">in_channels</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>

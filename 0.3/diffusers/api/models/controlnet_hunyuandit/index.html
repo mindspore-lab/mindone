@@ -7660,7 +7660,8 @@ specific language governing permissions and limitations under the License.
 <span class="normal">301</span>
 <span class="normal">302</span>
 <span class="normal">303</span>
-<span class="normal">304</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiT2DControlNetModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">304</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HunyuanDiT2DControlNetModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
     <span class="nd">@register_to_config</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -7693,7 +7694,7 @@ specific language governing permissions and limitations under the License.
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
-            <span class="n">ops</span><span class="o">.</span><span class="n">randn</span><span class="p">((</span><span class="n">text_len</span> <span class="o">+</span> <span class="n">text_len_t5</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
+            <span class="n">mint</span><span class="o">.</span><span class="n">randn</span><span class="p">((</span><span class="n">text_len</span> <span class="o">+</span> <span class="n">text_len_t5</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">pos_embed</span> <span class="o">=</span> <span class="n">PatchEmbed</span><span class="p">(</span>
@@ -7731,9 +7732,10 @@ specific language governing permissions and limitations under the License.
                 <span class="k">for</span> <span class="n">layer</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">transformer_num_layers</span> <span class="o">//</span> <span class="mi">2</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
             <span class="p">]</span>
         <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">input_block</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">input_block</span> <span class="o">=</span> <span class="n">zero_module</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">))</span>
         <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">)):</span>
-            <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">)</span>
+            <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">)</span>
+            <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">zero_module</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
             <span class="n">controlnet_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_blocks</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">(</span><span class="n">controlnet_blocks</span><span class="p">)</span>
 
@@ -7900,11 +7902,11 @@ specific language governing permissions and limitations under the License.
         <span class="p">)</span>
         <span class="n">encoder_hidden_states_t5</span> <span class="o">=</span> <span class="n">encoder_hidden_states_t5</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-        <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">text_embedding_mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">bool</span><span class="p">()</span>
 
-        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
+        <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
 
         <span class="n">block_res_samples</span> <span class="o">=</span> <span class="p">()</span>
         <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">):</span>
@@ -8041,8 +8043,7 @@ return_dict: bool
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet_hunyuan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">211</span>
-<span class="normal">212</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">212</span>
 <span class="normal">213</span>
 <span class="normal">214</span>
 <span class="normal">215</span>
@@ -8134,7 +8135,8 @@ return_dict: bool
 <span class="normal">301</span>
 <span class="normal">302</span>
 <span class="normal">303</span>
-<span class="normal">304</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">304</span>
+<span class="normal">305</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">,</span>
@@ -8199,11 +8201,11 @@ return_dict: bool
     <span class="p">)</span>
     <span class="n">encoder_hidden_states_t5</span> <span class="o">=</span> <span class="n">encoder_hidden_states_t5</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">sequence_length</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
-    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="n">encoder_hidden_states_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">text_embedding_mask_t5</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
     <span class="n">text_embedding_mask</span> <span class="o">=</span> <span class="n">text_embedding_mask</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">bool</span><span class="p">()</span>
 
-    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
+    <span class="n">encoder_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">text_embedding_mask</span><span class="p">,</span> <span class="n">encoder_hidden_states</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_embedding_padding</span><span class="p">)</span>
 
     <span class="n">block_res_samples</span> <span class="o">=</span> <span class="p">()</span>
     <span class="k">for</span> <span class="n">layer</span><span class="p">,</span> <span class="n">block</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">blocks</span><span class="p">):</span>
@@ -8278,8 +8280,7 @@ processors.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet_hunyuan.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">137</span>
-<span class="normal">138</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">138</span>
 <span class="normal">139</span>
 <span class="normal">140</span>
 <span class="normal">141</span>
@@ -8308,7 +8309,8 @@ processors.</p>
 <span class="normal">164</span>
 <span class="normal">165</span>
 <span class="normal">166</span>
-<span class="normal">167</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">167</span>
+<span class="normal">168</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 

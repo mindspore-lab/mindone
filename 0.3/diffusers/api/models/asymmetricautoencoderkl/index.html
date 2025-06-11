@@ -7896,8 +7896,8 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">diag_gauss_dist</span> <span class="o">=</span> <span class="n">DiagonalGaussianDistribution</span><span class="p">()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">latent_channels</span><span class="p">,</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">quant_conv</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">post_quant_conv</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">latent_channels</span><span class="p">,</span> <span class="n">latent_channels</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">use_slicing</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">use_tiling</span> <span class="o">=</span> <span class="kc">False</span>
@@ -8303,8 +8303,7 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/autoencoders/vae.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">43</span>
-<span class="normal">44</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">44</span>
 <span class="normal">45</span>
 <span class="normal">46</span>
 <span class="normal">47</span>
@@ -8314,7 +8313,8 @@ Synthesis with Latent Diffusion Models</a> paper.</p>
 <span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
-<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">54</span>
+<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">DecoderOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Output of decoding method.</span>

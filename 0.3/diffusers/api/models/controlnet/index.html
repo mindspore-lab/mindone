@@ -7976,7 +7976,17 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">116</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
 <span class="normal">117</span>
 <span class="normal">118</span>
 <span class="normal">119</span>
@@ -8670,26 +8680,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
 <span class="normal">807</span>
 <span class="normal">808</span>
 <span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
-<span class="normal">812</span>
-<span class="normal">813</span>
-<span class="normal">814</span>
-<span class="normal">815</span>
-<span class="normal">816</span>
-<span class="normal">817</span>
-<span class="normal">818</span>
-<span class="normal">819</span>
-<span class="normal">820</span>
-<span class="normal">821</span>
-<span class="normal">822</span>
-<span class="normal">823</span>
-<span class="normal">824</span>
-<span class="normal">825</span>
-<span class="normal">826</span>
-<span class="normal">827</span>
-<span class="normal">828</span>
-<span class="normal">829</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ControlNetModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
+<span class="normal">810</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">ControlNetModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A ControlNet model.</span>
 
@@ -8837,13 +8828,8 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
         <span class="c1"># input</span>
         <span class="n">conv_in_kernel</span> <span class="o">=</span> <span class="mi">3</span>
         <span class="n">conv_in_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_in_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-            <span class="n">in_channels</span><span class="p">,</span>
-            <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
-            <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_in_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
-            <span class="n">padding</span><span class="o">=</span><span class="n">conv_in_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+            <span class="n">in_channels</span><span class="p">,</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_in_kernel</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="n">conv_in_padding</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
 
         <span class="c1"># time</span>
@@ -8867,7 +8853,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">encoder_hid_dim_type</span> <span class="o">==</span> <span class="s2">&quot;text_proj&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">encoder_hid_dim</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">encoder_hid_dim</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">encoder_hid_dim_type</span> <span class="o">==</span> <span class="s2">&quot;text_image_proj&quot;</span><span class="p">:</span>
             <span class="c1"># image_embed_dim DOESN&#39;T have to be `cross_attention_dim`. To not clutter the __init__ too much</span>
             <span class="c1"># they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use</span>
@@ -8887,11 +8873,11 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
 
         <span class="c1"># class embedding</span>
         <span class="k">if</span> <span class="n">class_embed_type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_class_embeds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_class_embeds</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_class_embeds</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;timestep&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">TimestepEmbedding</span><span class="p">(</span><span class="n">timestep_input_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;identity&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>  <span class="c1"># time_embed_dim, time_embed_dim</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>  <span class="c1"># time_embed_dim, time_embed_dim</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;projection&quot;</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">projection_class_embeddings_input_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -8953,9 +8939,8 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
         <span class="c1"># down</span>
         <span class="n">output_channel</span> <span class="o">=</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-        <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-            <span class="n">output_channel</span><span class="p">,</span> <span class="n">output_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span>
-        <span class="p">)</span>
+        <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">output_channel</span><span class="p">,</span> <span class="n">output_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">zero_module</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_down_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
 
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">down_block_type</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">down_block_types</span><span class="p">):</span>
@@ -8986,15 +8971,13 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             <span class="bp">self</span><span class="o">.</span><span class="n">down_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">down_block</span><span class="p">)</span>
 
             <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">layers_per_block</span><span class="p">):</span>
-                <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-                    <span class="n">output_channel</span><span class="p">,</span> <span class="n">output_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span>
-                <span class="p">)</span>
+                <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">output_channel</span><span class="p">,</span> <span class="n">output_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">zero_module</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_down_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="ow">not</span> <span class="n">is_final_block</span><span class="p">:</span>
-                <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-                    <span class="n">output_channel</span><span class="p">,</span> <span class="n">output_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span>
-                <span class="p">)</span>
+                <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">output_channel</span><span class="p">,</span> <span class="n">output_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">zero_module</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_down_blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">down_blocks</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">down_blocks</span><span class="p">)</span>
@@ -9003,9 +8986,8 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
         <span class="c1"># mid</span>
         <span class="n">mid_block_channel</span> <span class="o">=</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 
-        <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-            <span class="n">mid_block_channel</span><span class="p">,</span> <span class="n">mid_block_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">weight_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span><span class="p">,</span> <span class="n">bias_init</span><span class="o">=</span><span class="s2">&quot;zeros&quot;</span>
-        <span class="p">)</span>
+        <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">mid_block_channel</span><span class="p">,</span> <span class="n">mid_block_channel</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">controlnet_block</span> <span class="o">=</span> <span class="n">zero_module</span><span class="p">(</span><span class="n">controlnet_block</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">controlnet_mid_block</span> <span class="o">=</span> <span class="n">controlnet_block</span>
 
         <span class="k">if</span> <span class="n">mid_block_type</span> <span class="o">==</span> <span class="s2">&quot;UNetMidBlock2DCrossAttn&quot;</span><span class="p">:</span>
@@ -9252,7 +9234,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             <span class="c1"># in rgb order by default</span>
             <span class="o">...</span>
         <span class="k">elif</span> <span class="n">channel_order</span> <span class="o">==</span> <span class="s2">&quot;bgr&quot;</span><span class="p">:</span>
-            <span class="n">controlnet_cond</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">controlnet_cond</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+            <span class="n">controlnet_cond</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">controlnet_cond</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unknown `controlnet_conditioning_channel_order`: </span><span class="si">{</span><span class="n">channel_order</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
@@ -9263,6 +9245,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
 
         <span class="c1"># 1. time</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can</span>
             <span class="c1"># This would be a good case for the `match` statement (Python 3.10+)</span>
@@ -9325,7 +9308,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
                 <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
                 <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
 
-                <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
                 <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">add_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
                 <span class="n">aug_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_embedding</span><span class="p">(</span><span class="n">add_embeds</span><span class="p">)</span>
 
@@ -9380,6 +9363,7 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
 
         <span class="c1"># 6. scaling</span>
         <span class="k">if</span> <span class="n">guess_mode</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;global_pool_conditions&quot;</span><span class="p">]:</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="n">scales</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># 0.1 to 1.0</span>
             <span class="n">scales</span> <span class="o">=</span> <span class="n">scales</span> <span class="o">*</span> <span class="n">conditioning_scale</span>
             <span class="c1"># Cast scale to sample.dtype manually as torch do the same automatically for scaler tensors</span>
@@ -9392,10 +9376,8 @@ class conditioning with <code>class_embed_type</code> equal to <code>None</code>
             <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="n">mid_block_res_sample</span> <span class="o">*</span> <span class="n">conditioning_scale</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;global_pool_conditions&quot;</span><span class="p">]:</span>
-            <span class="n">down_block_res_samples</span> <span class="o">=</span> <span class="p">[</span>
-                <span class="n">ops</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">down_block_res_samples</span>
-            <span class="p">]</span>
-            <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">mid_block_res_sample</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">down_block_res_samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">mint</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">down_block_res_samples</span><span class="p">]</span>
+            <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">mid_block_res_sample</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">,</span> <span class="n">mid_block_res_sample</span><span class="p">)</span>
@@ -9732,7 +9714,26 @@ returned where the first element is the sample tensor.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">618</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
 <span class="normal">619</span>
 <span class="normal">620</span>
 <span class="normal">621</span>
@@ -9924,26 +9925,7 @@ returned where the first element is the sample tensor.</p>
 <span class="normal">807</span>
 <span class="normal">808</span>
 <span class="normal">809</span>
-<span class="normal">810</span>
-<span class="normal">811</span>
-<span class="normal">812</span>
-<span class="normal">813</span>
-<span class="normal">814</span>
-<span class="normal">815</span>
-<span class="normal">816</span>
-<span class="normal">817</span>
-<span class="normal">818</span>
-<span class="normal">819</span>
-<span class="normal">820</span>
-<span class="normal">821</span>
-<span class="normal">822</span>
-<span class="normal">823</span>
-<span class="normal">824</span>
-<span class="normal">825</span>
-<span class="normal">826</span>
-<span class="normal">827</span>
-<span class="normal">828</span>
-<span class="normal">829</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">810</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -10004,7 +9986,7 @@ returned where the first element is the sample tensor.</p>
         <span class="c1"># in rgb order by default</span>
         <span class="o">...</span>
     <span class="k">elif</span> <span class="n">channel_order</span> <span class="o">==</span> <span class="s2">&quot;bgr&quot;</span><span class="p">:</span>
-        <span class="n">controlnet_cond</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">controlnet_cond</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">controlnet_cond</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">flip</span><span class="p">(</span><span class="n">controlnet_cond</span><span class="p">,</span> <span class="n">dims</span><span class="o">=</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unknown `controlnet_conditioning_channel_order`: </span><span class="si">{</span><span class="n">channel_order</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
@@ -10015,6 +9997,7 @@ returned where the first element is the sample tensor.</p>
 
     <span class="c1"># 1. time</span>
     <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+    <span class="c1"># todo: unavailable mint interface</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
         <span class="c1"># TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can</span>
         <span class="c1"># This would be a good case for the `match` statement (Python 3.10+)</span>
@@ -10077,7 +10060,7 @@ returned where the first element is the sample tensor.</p>
             <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
 
-            <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">add_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">aug_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_embedding</span><span class="p">(</span><span class="n">add_embeds</span><span class="p">)</span>
 
@@ -10132,6 +10115,7 @@ returned where the first element is the sample tensor.</p>
 
     <span class="c1"># 6. scaling</span>
     <span class="k">if</span> <span class="n">guess_mode</span> <span class="ow">and</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;global_pool_conditions&quot;</span><span class="p">]:</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="n">scales</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">logspace</span><span class="p">(</span><span class="o">-</span><span class="mf">1.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>  <span class="c1"># 0.1 to 1.0</span>
         <span class="n">scales</span> <span class="o">=</span> <span class="n">scales</span> <span class="o">*</span> <span class="n">conditioning_scale</span>
         <span class="c1"># Cast scale to sample.dtype manually as torch do the same automatically for scaler tensors</span>
@@ -10144,10 +10128,8 @@ returned where the first element is the sample tensor.</p>
         <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="n">mid_block_res_sample</span> <span class="o">*</span> <span class="n">conditioning_scale</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;global_pool_conditions&quot;</span><span class="p">]:</span>
-        <span class="n">down_block_res_samples</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">ops</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">down_block_res_samples</span>
-        <span class="p">]</span>
-        <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">mid_block_res_sample</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">down_block_res_samples</span> <span class="o">=</span> <span class="p">[</span><span class="n">mint</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">down_block_res_samples</span><span class="p">]</span>
+        <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">mid_block_res_sample</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">return_dict</span><span class="p">:</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">down_block_res_samples</span><span class="p">,</span> <span class="n">mid_block_res_sample</span><span class="p">)</span>
@@ -10207,7 +10189,26 @@ where applicable.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">465</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
 <span class="normal">466</span>
 <span class="normal">467</span>
 <span class="normal">468</span>
@@ -10264,26 +10265,7 @@ where applicable.</p>
 <span class="normal">519</span>
 <span class="normal">520</span>
 <span class="normal">521</span>
-<span class="normal">522</span>
-<span class="normal">523</span>
-<span class="normal">524</span>
-<span class="normal">525</span>
-<span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">522</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_unet</span><span class="p">(</span>
     <span class="bp">cls</span><span class="p">,</span>
     <span class="n">unet</span><span class="p">:</span> <span class="n">UNet2DConditionModel</span><span class="p">,</span>
@@ -10387,7 +10369,26 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">569</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
 <span class="normal">570</span>
 <span class="normal">571</span>
 <span class="normal">572</span>
@@ -10397,26 +10398,7 @@ Parameters:
 <span class="normal">576</span>
 <span class="normal">577</span>
 <span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">579</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 <span class="sd">    Parameters:</span>
@@ -10467,18 +10449,18 @@ Parameters:
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/controlnets/controlnet.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">601</span>
-<span class="normal">602</span>
-<span class="normal">603</span>
-<span class="normal">604</span>
-<span class="normal">605</span>
-<span class="normal">606</span>
-<span class="normal">607</span>
-<span class="normal">608</span>
-<span class="normal">609</span>
-<span class="normal">610</span>
-<span class="normal">611</span>
-<span class="normal">612</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

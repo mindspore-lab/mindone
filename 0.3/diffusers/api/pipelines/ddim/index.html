@@ -7594,7 +7594,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="sd">        &gt;&gt;&gt; image = pipe(eta=0.0, num_inference_steps=50)</span>
 
 <span class="sd">        &gt;&gt;&gt; # process image to PIL</span>
-<span class="sd">        &gt;&gt;&gt; image_processed = image.cpu().permute(0, 2, 3, 1)</span>
+<span class="sd">        &gt;&gt;&gt; image_processed = image.permute(0, 2, 3, 1)</span>
 <span class="sd">        &gt;&gt;&gt; image_processed = (image_processed + 1.0) * 127.5</span>
 <span class="sd">        &gt;&gt;&gt; image_processed = image_processed.numpy().astype(np.uint8)</span>
 <span class="sd">        &gt;&gt;&gt; image_pil = PIL.Image.fromarray(image_processed[0])</span>
@@ -7832,7 +7832,7 @@ downstream to the scheduler (use <code>None</code> for schedulers which don't su
 <span class="o">&gt;&gt;&gt;</span> <span class="n">image</span> <span class="o">=</span> <span class="n">pipe</span><span class="p">(</span><span class="n">eta</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">num_inference_steps</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
 
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># process image to PIL</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">image_processed</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">image_processed</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">image_processed</span> <span class="o">=</span> <span class="p">(</span><span class="n">image_processed</span> <span class="o">+</span> <span class="mf">1.0</span><span class="p">)</span> <span class="o">*</span> <span class="mf">127.5</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">image_processed</span> <span class="o">=</span> <span class="n">image_processed</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">uint8</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">image_pil</span> <span class="o">=</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">fromarray</span><span class="p">(</span><span class="n">image_processed</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
@@ -8021,7 +8021,7 @@ returned where the first element is a list with the generated images</p>
 <span class="sd">    &gt;&gt;&gt; image = pipe(eta=0.0, num_inference_steps=50)</span>
 
 <span class="sd">    &gt;&gt;&gt; # process image to PIL</span>
-<span class="sd">    &gt;&gt;&gt; image_processed = image.cpu().permute(0, 2, 3, 1)</span>
+<span class="sd">    &gt;&gt;&gt; image_processed = image.permute(0, 2, 3, 1)</span>
 <span class="sd">    &gt;&gt;&gt; image_processed = (image_processed + 1.0) * 127.5</span>
 <span class="sd">    &gt;&gt;&gt; image_processed = image_processed.numpy().astype(np.uint8)</span>
 <span class="sd">    &gt;&gt;&gt; image_pil = PIL.Image.fromarray(image_processed[0])</span>

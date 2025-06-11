@@ -7431,7 +7431,7 @@
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 </div>
-<p>Make sure to check out the Schedulers <a href="../../../using-diffusers/schedulers/">guide</a> to learn how to explore the tradeoff between scheduler speed and quality.</p>
+<p>Make sure to check out the Schedulers <a href="../../../using-diffusers/schedulers/">guide</a> to learn how to explore the tradeoff between scheduler speed and quality, and see the <a href="../../../using-diffusers/loading/#reuse-a-pipeline">reuse components across pipelines</a> section to learn how to efficiently load the same components into multiple pipelines.</p>
 <p>Available models:</p>
 <table>
 <thead>
@@ -8460,7 +8460,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">callback_on_step_end_tensor_inputs</span>
         <span class="p">):</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;`callback_on_step_end_tensor_inputs` has to be in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="si">}</span><span class="s2">, but found </span><span class="si">{</span><span class="p">[</span><span class="n">k</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">callback_on_step_end_tensor_inputs</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># noqa: E501</span>
+                <span class="sa">f</span><span class="s2">&quot;`callback_on_step_end_tensor_inputs` has to be in </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="si">}</span><span class="s2">, but found</span><span class="si">{</span><span class="p">[</span><span class="n">k</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">callback_on_step_end_tensor_inputs</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">k</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">_callback_tensor_inputs</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>  <span class="c1"># noqa: E501</span>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">prompt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">prompt_embeds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -8757,8 +8757,8 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># 4. Prepare latent variables</span>
         <span class="n">num_channels_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">in_channels</span>
@@ -8810,7 +8810,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
                     <span class="k">continue</span>
 
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
                 <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
@@ -9801,8 +9801,8 @@ returned where the first element is a list with the generated images.</p>
         <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># 4. Prepare latent variables</span>
     <span class="n">num_channels_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">in_channels</span>
@@ -9854,7 +9854,7 @@ returned where the first element is a list with the generated images.</p>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
                 <span class="k">continue</span>
 
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
             <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
@@ -11427,10 +11427,10 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
                 <span class="k">for</span> <span class="n">img</span> <span class="ow">in</span> <span class="n">image</span>
             <span class="p">]</span>
 
-        <span class="n">init_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">init_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">init_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_normalize_latents</span><span class="p">(</span><span class="n">init_latents</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">latents_mean</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">latents_std</span><span class="p">)</span>
         <span class="n">init_latents</span> <span class="o">=</span> <span class="n">init_latents</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-        <span class="n">conditioning_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mask_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">conditioning_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">mask_shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">conditioning_mask</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1.0</span>
 
         <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_tensor</span><span class="p">(</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
@@ -11616,8 +11616,8 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
             <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># 4. Prepare latent variables</span>
         <span class="k">if</span> <span class="n">latents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -11638,7 +11638,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">conditioning_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">conditioning_mask</span><span class="p">,</span> <span class="n">conditioning_mask</span><span class="p">])</span>
+            <span class="n">conditioning_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">conditioning_mask</span><span class="p">,</span> <span class="n">conditioning_mask</span><span class="p">])</span>
 
         <span class="c1"># 5. Prepare timesteps</span>
         <span class="n">latent_num_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_temporal_compression_ratio</span> <span class="o">+</span> <span class="mi">1</span>
@@ -11677,7 +11677,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
                 <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
                     <span class="k">continue</span>
 
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
                 <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
@@ -11725,7 +11725,7 @@ the <a href="https://huggingface.co/google/t5-v1_1-xxl">google/t5-v1_1-xxl</a> v
                 <span class="n">noise_latents</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span>
                 <span class="n">pred_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise_latents</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-                <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">pred_latents</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">pred_latents</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
                 <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pack_latents</span><span class="p">(</span>
                     <span class="n">latents</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_spatial_patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_temporal_patch_size</span>
                 <span class="p">)</span>
@@ -12752,8 +12752,8 @@ returned where the first element is a list with the generated images.</p>
         <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span> <span class="n">prompt_attention_mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># 4. Prepare latent variables</span>
     <span class="k">if</span> <span class="n">latents</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
@@ -12774,7 +12774,7 @@ returned where the first element is a list with the generated images.</p>
     <span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">conditioning_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">conditioning_mask</span><span class="p">,</span> <span class="n">conditioning_mask</span><span class="p">])</span>
+        <span class="n">conditioning_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">conditioning_mask</span><span class="p">,</span> <span class="n">conditioning_mask</span><span class="p">])</span>
 
     <span class="c1"># 5. Prepare timesteps</span>
     <span class="n">latent_num_frames</span> <span class="o">=</span> <span class="p">(</span><span class="n">num_frames</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_temporal_compression_ratio</span> <span class="o">+</span> <span class="mi">1</span>
@@ -12813,7 +12813,7 @@ returned where the first element is a list with the generated images.</p>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">interrupt</span><span class="p">:</span>
                 <span class="k">continue</span>
 
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
             <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
@@ -12861,7 +12861,7 @@ returned where the first element is a list with the generated images.</p>
             <span class="n">noise_latents</span> <span class="o">=</span> <span class="n">latents</span><span class="p">[:,</span> <span class="p">:,</span> <span class="mi">1</span><span class="p">:]</span>
             <span class="n">pred_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">step</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">noise_latents</span><span class="p">,</span> <span class="n">return_dict</span><span class="o">=</span><span class="kc">False</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
-            <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">pred_latents</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">[:,</span> <span class="p">:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">],</span> <span class="n">pred_latents</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
             <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_pack_latents</span><span class="p">(</span>
                 <span class="n">latents</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_spatial_patch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer_temporal_patch_size</span>
             <span class="p">)</span>
@@ -13362,7 +13362,7 @@ shape <code>(batch_size, num_frames, channels, height, width)</code>.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="March 22, 2025 02:45:18 UTC">March 22, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="June 10, 2025 11:52:10 UTC">June 10, 2025</span>
   </span>
 
     
@@ -13382,12 +13382,13 @@ shape <code>(batch_size, num_frames, channels, height, width)</code>.</p>
   <span class="md-source-file__fact">
     <span class="md-icon" title="Contributors">
       
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 4a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 5.5A3.5 3.5 0 0 1 15.5 9a3.5 3.5 0 0 1-3.5 3.5A3.5 3.5 0 0 1 8.5 9 3.5 3.5 0 0 1 12 5.5M5 8c.56 0 1.08.15 1.53.42-.15 1.43.27 2.85 1.13 3.96C7.16 13.34 6.16 14 5 14a3 3 0 0 1-3-3 3 3 0 0 1 3-3m14 0a3 3 0 0 1 3 3 3 3 0 0 1-3 3c-1.16 0-2.16-.66-2.66-1.62a5.54 5.54 0 0 0 1.13-3.96c.45-.27.97-.42 1.53-.42M5.5 18.25c0-2.07 2.91-3.75 6.5-3.75s6.5 1.68 6.5 3.75V20h-13zM0 20v-1.5c0-1.39 1.89-2.56 4.45-2.9-.59.68-.95 1.62-.95 2.65V20zm24 0h-3.5v-1.75c0-1.03-.36-1.97-.95-2.65 2.56.34 4.45 1.51 4.45 2.9z"/></svg>
       
     </span>
     <nav>
       
-        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>
+        <a href="mailto:73014084+cui-yshoho@users.noreply.github.com">Cui-yshoho</a>, 
+        <a href="mailto:53842165+the-truthh@users.noreply.github.com">The-truthh</a>
     </nav>
   </span>
 

@@ -7350,7 +7350,10 @@ specific language governing permissions and limitations under the License.
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1117</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1114</span>
+<span class="normal">1115</span>
+<span class="normal">1116</span>
+<span class="normal">1117</span>
 <span class="normal">1118</span>
 <span class="normal">1119</span>
 <span class="normal">1120</span>
@@ -7413,10 +7416,7 @@ specific language governing permissions and limitations under the License.
 <span class="normal">1177</span>
 <span class="normal">1178</span>
 <span class="normal">1179</span>
-<span class="normal">1180</span>
-<span class="normal">1181</span>
-<span class="normal">1182</span>
-<span class="normal">1183</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1180</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Default processor for performing attention-related computations.</span>
@@ -7466,7 +7466,7 @@ specific language governing permissions and limitations under the License.
         <span class="n">value</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_to_batch_dim</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
         <span class="n">attention_probs</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">get_attention_scores</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">)</span>
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attention_probs</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attention_probs</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">batch_to_head_dim</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
 
         <span class="c1"># linear proj</span>
@@ -7525,7 +7525,10 @@ encoder.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1291</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1288</span>
+<span class="normal">1289</span>
+<span class="normal">1290</span>
+<span class="normal">1291</span>
 <span class="normal">1292</span>
 <span class="normal">1293</span>
 <span class="normal">1294</span>
@@ -7581,10 +7584,7 @@ encoder.</p>
 <span class="normal">1344</span>
 <span class="normal">1345</span>
 <span class="normal">1346</span>
-<span class="normal">1347</span>
-<span class="normal">1348</span>
-<span class="normal">1349</span>
-<span class="normal">1350</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">1347</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AttnAddedKVProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for performing attention-related computations with extra learnable key and value matrices for the text</span>
@@ -7625,14 +7625,14 @@ encoder.</p>
             <span class="n">value</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">to_v</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
             <span class="n">key</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_to_batch_dim</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_to_batch_dim</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
-            <span class="n">key</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states_key_proj</span><span class="p">,</span> <span class="n">key</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-            <span class="n">value</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states_value_proj</span><span class="p">,</span> <span class="n">value</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">key</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states_key_proj</span><span class="p">,</span> <span class="n">key</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">encoder_hidden_states_value_proj</span><span class="p">,</span> <span class="n">value</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">key</span> <span class="o">=</span> <span class="n">encoder_hidden_states_key_proj</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">encoder_hidden_states_value_proj</span>
 
         <span class="n">attention_probs</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">get_attention_scores</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">)</span>
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attention_probs</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attention_probs</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">batch_to_head_dim</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
 
         <span class="c1"># linear proj</span>
@@ -7807,7 +7807,10 @@ encoder.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1186</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1183</span>
+<span class="normal">1184</span>
+<span class="normal">1185</span>
+<span class="normal">1186</span>
 <span class="normal">1187</span>
 <span class="normal">1188</span>
 <span class="normal">1189</span>
@@ -7906,10 +7909,7 @@ encoder.</p>
 <span class="normal">1282</span>
 <span class="normal">1283</span>
 <span class="normal">1284</span>
-<span class="normal">1285</span>
-<span class="normal">1286</span>
-<span class="normal">1287</span>
-<span class="normal">1288</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CustomDiffusionAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">1285</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">CustomDiffusionAttnProcessor</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing attention for the Custom Diffusion method.</span>
 
@@ -7946,13 +7946,13 @@ encoder.</p>
 
         <span class="c1"># `_custom_diffusion` id for easy serialization and loading.</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_kv</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">to_k_custom_diffusion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">cross_attention_dim</span> <span class="ow">or</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">to_v_custom_diffusion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">cross_attention_dim</span> <span class="ow">or</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to_k_custom_diffusion</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">cross_attention_dim</span> <span class="ow">or</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to_v_custom_diffusion</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">cross_attention_dim</span> <span class="ow">or</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_q_out</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">to_q_custom_diffusion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to_q_custom_diffusion</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">out_bias</span><span class="p">))</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_size</span><span class="p">,</span> <span class="n">hidden_size</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">out_bias</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="n">p</span><span class="o">=</span><span class="n">dropout</span><span class="p">))</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">CellList</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">to_out_custom_diffusion</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
@@ -7987,7 +7987,7 @@ encoder.</p>
             <span class="n">value</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">to_v</span><span class="p">(</span><span class="n">encoder_hidden_states</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">crossattn</span><span class="p">:</span>
-            <span class="n">detach</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+            <span class="n">detach</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
             <span class="n">detach</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">=</span> <span class="n">detach</span><span class="p">[:,</span> <span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span> <span class="o">*</span> <span class="mf">0.0</span>
             <span class="n">key</span> <span class="o">=</span> <span class="n">detach</span> <span class="o">*</span> <span class="n">key</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">detach</span><span class="p">)</span> <span class="o">*</span> <span class="n">key</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
             <span class="n">value</span> <span class="o">=</span> <span class="n">detach</span> <span class="o">*</span> <span class="n">value</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">detach</span><span class="p">)</span> <span class="o">*</span> <span class="n">value</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
@@ -7997,7 +7997,7 @@ encoder.</p>
         <span class="n">value</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_to_batch_dim</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
         <span class="n">attention_probs</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">get_attention_scores</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">)</span>
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attention_probs</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">bmm</span><span class="p">(</span><span class="n">attention_probs</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">attn</span><span class="o">.</span><span class="n">batch_to_head_dim</span><span class="p">(</span><span class="n">hidden_states</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">train_q_out</span><span class="p">:</span>
@@ -8086,7 +8086,10 @@ operator.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/attention_processor.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2585</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2582</span>
+<span class="normal">2583</span>
+<span class="normal">2584</span>
+<span class="normal">2585</span>
 <span class="normal">2586</span>
 <span class="normal">2587</span>
 <span class="normal">2588</span>
@@ -8196,10 +8199,7 @@ operator.</p>
 <span class="normal">2692</span>
 <span class="normal">2693</span>
 <span class="normal">2694</span>
-<span class="normal">2695</span>
-<span class="normal">2696</span>
-<span class="normal">2697</span>
-<span class="normal">2698</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
+<span class="normal">2695</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@ms</span><span class="o">.</span><span class="n">jit_class</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">XFormersAttnProcessor</span><span class="p">:</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Processor for implementing memory efficient attention using xFormers-like interface.</span>
@@ -8283,9 +8283,9 @@ operator.</p>
         <span class="k">assert</span> <span class="n">query_tokens</span> <span class="o">%</span> <span class="mi">16</span> <span class="o">==</span> <span class="mi">0</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;Sequence length of query must be divisible by 16, but got </span><span class="si">{</span><span class="n">query_tokens</span><span class="si">=}</span><span class="s2">.&quot;</span>
         <span class="c1"># Head dimension is checked in Attention.set_use_memory_efficient_attention_xformers. We maybe pad on head_dim.</span>
         <span class="k">if</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">query_padded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
-            <span class="n">key_padded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
-            <span class="n">value_padded</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">query_padded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">key_padded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
+            <span class="n">value_padded</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">attn</span><span class="o">.</span><span class="n">head_dim_padding</span><span class="p">),</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;constant&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">query_padded</span><span class="p">,</span> <span class="n">key_padded</span><span class="p">,</span> <span class="n">value_padded</span> <span class="o">=</span> <span class="n">query</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span>
         <span class="n">flash_attn</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">operations</span><span class="o">.</span><span class="n">nn_ops</span><span class="o">.</span><span class="n">FlashAttentionScore</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">scale_value</span><span class="o">=</span><span class="n">attn</span><span class="o">.</span><span class="n">scale</span><span class="p">)</span>

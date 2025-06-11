@@ -7946,7 +7946,7 @@ dark samples instead of limiting it to samples with medium brightness. Loosely r
             <span class="bp">self</span><span class="o">.</span><span class="n">betas</span> <span class="o">=</span> <span class="n">rescale_zero_terminal_snr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">betas</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">alphas</span> <span class="o">=</span> <span class="mf">1.0</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">betas</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">alphas_cumprod</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cumprod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alphas</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">alphas_cumprod</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cumprod</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">alphas</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># At every step in inverted ddim, we are looking into the next alphas_cumprod</span>
         <span class="c1"># For the initial step, there is no current alphas_cumprod, and the index is out of bounds</span>

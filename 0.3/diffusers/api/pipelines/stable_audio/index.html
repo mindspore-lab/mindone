@@ -8015,7 +8015,9 @@ give the input to the transformer model.</p>
 <span class="normal">729</span>
 <span class="normal">730</span>
 <span class="normal">731</span>
-<span class="normal">732</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableAudioPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableAudioPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-audio generation using StableAudio.</span>
 
@@ -8110,7 +8112,9 @@ give the input to the transformer model.</p>
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span>
             <span class="n">untruncated_ids</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;longest&quot;</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">input_ids</span>
 
-            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">untruncated_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">text_input_ids</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">mint</span><span class="o">.</span><span class="n">equal</span><span class="p">(</span>
+                <span class="n">text_input_ids</span><span class="p">,</span> <span class="n">untruncated_ids</span>
+            <span class="p">):</span>
                 <span class="n">removed_text</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">batch_decode</span><span class="p">(</span><span class="n">untruncated_ids</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">model_max_length</span> <span class="o">-</span> <span class="mi">1</span> <span class="p">:</span> <span class="o">-</span><span class="mi">1</span><span class="p">])</span>
                 <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;The following part of your input was truncated because </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">model_type</span><span class="si">}</span><span class="s2"> can &quot;</span>
@@ -8168,7 +8172,7 @@ give the input to the transformer model.</p>
 
             <span class="k">if</span> <span class="n">negative_attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="c1"># set the masked tokens to the null embed</span>
-                <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
+                <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span>
                     <span class="n">negative_attention_mask</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">bool_</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">2</span><span class="p">),</span> <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="mf">0.0</span>
                 <span class="p">)</span>
 
@@ -8177,14 +8181,14 @@ give the input to the transformer model.</p>
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the negative and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
             <span class="k">if</span> <span class="n">attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">negative_attention_mask</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">negative_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">attention_mask</span><span class="p">)</span>
+                <span class="n">negative_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">attention_mask</span><span class="p">)</span>
             <span class="k">elif</span> <span class="n">attention_mask</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">negative_attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">negative_attention_mask</span><span class="p">)</span>
+                <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">ones_like</span><span class="p">(</span><span class="n">negative_attention_mask</span><span class="p">)</span>
 
             <span class="k">if</span> <span class="n">attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_attention_mask</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">])</span>
+                <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_attention_mask</span><span class="p">,</span> <span class="n">attention_mask</span><span class="p">])</span>
 
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">projection_model</span><span class="p">(</span>
             <span class="n">text_hidden_states</span><span class="o">=</span><span class="n">prompt_embeds</span><span class="p">,</span>
@@ -8227,8 +8231,8 @@ give the input to the transformer model.</p>
         <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
         <span class="c1"># Here we repeat the audio hidden states to avoid doing two forward passes</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">seconds_start_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_start_hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">seconds_end_hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_end_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">seconds_start_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_start_hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">seconds_end_hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_end_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span>
 
@@ -8574,20 +8578,20 @@ give the input to the transformer model.</p>
         <span class="p">)</span>
 
         <span class="c1"># Create text_audio_duration_embeds and audio_duration_embeds</span>
-        <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+        <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span>
         <span class="p">)</span>
 
-        <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
         <span class="c1"># In case of classifier free guidance without negative prompt, we need to create unconditional embeddings and</span>
         <span class="c1"># to concatenate it to the embeddings</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">negative_prompt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">negative_text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">text_audio_duration_embeds</span><span class="p">)</span>
-            <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-                <span class="p">[</span><span class="n">negative_text_audio_duration_embeds</span><span class="p">,</span> <span class="n">text_audio_duration_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
+            <span class="n">negative_text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">text_audio_duration_embeds</span><span class="p">)</span>
+            <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">negative_text_audio_duration_embeds</span><span class="p">,</span> <span class="n">text_audio_duration_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span>
             <span class="p">)</span>
-            <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">audio_duration_embeds</span><span class="p">,</span> <span class="n">audio_duration_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">audio_duration_embeds</span><span class="p">,</span> <span class="n">audio_duration_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="n">bs_embed</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">hidden_size</span> <span class="o">=</span> <span class="n">text_audio_duration_embeds</span><span class="o">.</span><span class="n">shape</span>
         <span class="c1"># duplicate audio_duration_embeds and text_audio_duration_embeds for each generation per prompt, using mps friendly method</span>
@@ -8635,7 +8639,7 @@ give the input to the transformer model.</p>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># predict the noise residual</span>
@@ -9123,9 +9127,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_audio/pipeline_stable_audio.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">471</span>
 <span class="normal">472</span>
 <span class="normal">473</span>
 <span class="normal">474</span>
@@ -9386,7 +9388,9 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 <span class="normal">729</span>
 <span class="normal">730</span>
 <span class="normal">731</span>
-<span class="normal">732</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">audio_end_in_s</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -9546,20 +9550,20 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
     <span class="p">)</span>
 
     <span class="c1"># Create text_audio_duration_embeds and audio_duration_embeds</span>
-    <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-        <span class="p">[</span><span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span>
+    <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span>
     <span class="p">)</span>
 
-    <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">seconds_start_hidden_states</span><span class="p">,</span> <span class="n">seconds_end_hidden_states</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
     <span class="c1"># In case of classifier free guidance without negative prompt, we need to create unconditional embeddings and</span>
     <span class="c1"># to concatenate it to the embeddings</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">negative_prompt</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">negative_text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">text_audio_duration_embeds</span><span class="p">)</span>
-        <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">negative_text_audio_duration_embeds</span><span class="p">,</span> <span class="n">text_audio_duration_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span>
+        <span class="n">negative_text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">text_audio_duration_embeds</span><span class="p">)</span>
+        <span class="n">text_audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">negative_text_audio_duration_embeds</span><span class="p">,</span> <span class="n">text_audio_duration_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span>
         <span class="p">)</span>
-        <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">audio_duration_embeds</span><span class="p">,</span> <span class="n">audio_duration_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">audio_duration_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">audio_duration_embeds</span><span class="p">,</span> <span class="n">audio_duration_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="n">bs_embed</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">hidden_size</span> <span class="o">=</span> <span class="n">text_audio_duration_embeds</span><span class="o">.</span><span class="n">shape</span>
     <span class="c1"># duplicate audio_duration_embeds and text_audio_duration_embeds for each generation per prompt, using mps friendly method</span>
@@ -9607,7 +9611,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># predict the noise residual</span>

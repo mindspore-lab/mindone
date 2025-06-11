@@ -7824,15 +7824,15 @@ rendering method.</p>
 
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="c1"># in Shap-E it normalize the prompt_embeds and then later rescale it</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span> <span class="o">/</span> <span class="n">ops</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span> <span class="o">/</span> <span class="n">mint</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="p">)</span>
+            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="p">)</span>
 
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
         <span class="c1"># Rescale the features to have unit variance</span>
         <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">math</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span> <span class="o">*</span> <span class="n">prompt_embeds</span>
@@ -7922,7 +7922,7 @@ rendering method.</p>
 
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="c1"># TODO: method of scheduler should not change the dtype of input.</span>
             <span class="c1">#  Remove the casting after cuiyushi confirm that.</span>
             <span class="n">tmp_dtype</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">dtype</span>
@@ -7936,12 +7936,12 @@ rendering method.</p>
             <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
             <span class="c1"># remove the variance</span>
-            <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-                <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span>
+            <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+                <span class="n">noise_pred</span><span class="p">,</span> <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span>
             <span class="p">)</span>  <span class="c1"># batch_size, num_embeddings, embedding_dim</span>
 
             <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-                <span class="n">noise_pred_uncond</span><span class="p">,</span> <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">noise_pred_uncond</span><span class="p">,</span> <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
             <span class="c1"># TODO: method of scheduler should not change the dtype of input.</span>
@@ -7979,7 +7979,7 @@ rendering method.</p>
                 <span class="p">)</span>
                 <span class="n">images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
-            <span class="n">images</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+            <span class="n">images</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
             <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
@@ -8454,7 +8454,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)):</span>
         <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
         <span class="c1"># TODO: method of scheduler should not change the dtype of input.</span>
         <span class="c1">#  Remove the casting after cuiyushi confirm that.</span>
         <span class="n">tmp_dtype</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">dtype</span>
@@ -8468,12 +8468,12 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
         <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="c1"># remove the variance</span>
-        <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-            <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span>
+        <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
+            <span class="n">noise_pred</span><span class="p">,</span> <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span>
         <span class="p">)</span>  <span class="c1"># batch_size, num_embeddings, embedding_dim</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">noise_pred_uncond</span><span class="p">,</span> <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">noise_pred_uncond</span><span class="p">,</span> <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="n">noise_pred</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
             <span class="n">noise_pred</span> <span class="o">=</span> <span class="n">noise_pred_uncond</span> <span class="o">+</span> <span class="n">guidance_scale</span> <span class="o">*</span> <span class="p">(</span><span class="n">noise_pred</span> <span class="o">-</span> <span class="n">noise_pred_uncond</span><span class="p">)</span>
 
         <span class="c1"># TODO: method of scheduler should not change the dtype of input.</span>
@@ -8511,7 +8511,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
             <span class="p">)</span>
             <span class="n">images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
-        <span class="n">images</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
         <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
@@ -8939,11 +8939,11 @@ rendering method.</p>
         <span class="n">do_classifier_free_guidance</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">List</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="k">if</span> <span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">4</span> <span class="k">else</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
             <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">pixel_values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">image_encoder</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
@@ -8953,12 +8953,12 @@ rendering method.</p>
         <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">image_embeds</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">num_images_per_prompt</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">negative_image_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_embeds</span><span class="p">)</span>
+            <span class="n">negative_image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_embeds</span><span class="p">)</span>
 
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_embeds</span><span class="p">,</span> <span class="n">image_embeds</span><span class="p">])</span>
+            <span class="n">image_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_embeds</span><span class="p">,</span> <span class="n">image_embeds</span><span class="p">])</span>
 
         <span class="k">return</span> <span class="n">image_embeds</span>
 
@@ -9050,7 +9050,7 @@ rendering method.</p>
 
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="c1"># TODO: method of scheduler should not change the dtype of input.</span>
             <span class="c1">#  Remove the casting after cuiyushi confirm that.</span>
             <span class="n">tmp_dtype</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">dtype</span>
@@ -9065,7 +9065,7 @@ rendering method.</p>
 
             <span class="c1"># remove the variance</span>
             <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-                <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span>
+                <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span>
             <span class="p">)</span>  <span class="c1"># batch_size, num_embeddings, embedding_dim</span>
 
             <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
@@ -9107,7 +9107,7 @@ rendering method.</p>
                 <span class="p">)</span>
                 <span class="n">images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
-            <span class="n">images</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+            <span class="n">images</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
             <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 
@@ -9593,7 +9593,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
     <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)):</span>
         <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
         <span class="c1"># TODO: method of scheduler should not change the dtype of input.</span>
         <span class="c1">#  Remove the casting after cuiyushi confirm that.</span>
         <span class="n">tmp_dtype</span> <span class="o">=</span> <span class="n">latent_model_input</span><span class="o">.</span><span class="n">dtype</span>
@@ -9608,7 +9608,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
         <span class="c1"># remove the variance</span>
         <span class="n">noise_pred</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">noise_pred</span><span class="o">.</span><span class="n">split</span><span class="p">(</span>
-            <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span>
+            <span class="n">scaled_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span>
         <span class="p">)</span>  <span class="c1"># batch_size, num_embeddings, embedding_dim</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
@@ -9650,7 +9650,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
             <span class="p">)</span>
             <span class="n">images</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">image</span><span class="p">)</span>
 
-        <span class="n">images</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
+        <span class="n">images</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">images</span><span class="p">)</span>
 
         <span class="n">images</span> <span class="o">=</span> <span class="n">images</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
 

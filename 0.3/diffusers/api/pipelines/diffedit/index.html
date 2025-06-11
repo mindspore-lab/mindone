@@ -8816,7 +8816,8 @@ about a model's potential harms.</p>
 <span class="normal">1452</span>
 <span class="normal">1453</span>
 <span class="normal">1454</span>
-<span class="normal">1455</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionDiffEditPipeline</span><span class="p">(</span>
+<span class="normal">1455</span>
+<span class="normal">1456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusionDiffEditPipeline</span><span class="p">(</span>
     <span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">StableDiffusionMixin</span><span class="p">,</span> <span class="n">TextualInversionLoaderMixin</span><span class="p">,</span> <span class="n">LoraLoaderMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -8985,7 +8986,7 @@ about a model's potential harms.</p>
         <span class="p">)</span>
 
         <span class="c1"># concatenate for backwards comp</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">prompt_embeds_tuple</span><span class="p">[</span><span class="mi">0</span><span class="p">]])</span>
 
         <span class="k">return</span> <span class="n">prompt_embeds</span>
 
@@ -9168,6 +9169,7 @@ about a model's potential harms.</p>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">safety_checker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">has_nsfw_concept</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># todo: unavailable mint interface</span>
             <span class="k">if</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">image</span><span class="p">):</span>
                 <span class="n">feature_extractor_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">postprocess</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">output_type</span><span class="o">=</span><span class="s2">&quot;pil&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -9353,7 +9355,7 @@ about a model's potential harms.</p>
                     <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">image</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">])</span><span class="o">.</span><span class="n">latent_dist</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="n">generator</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">)</span>
                     <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
                 <span class="p">]</span>
-                <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">latents</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">diag_gauss_dist</span><span class="o">.</span><span class="n">sample</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">image</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">)</span>
 
@@ -9370,13 +9372,13 @@ about a model's potential harms.</p>
                 <span class="p">)</span>
                 <span class="n">deprecate</span><span class="p">(</span><span class="s2">&quot;len(prompt) != len(image)&quot;</span><span class="p">,</span> <span class="s2">&quot;1.0.0&quot;</span><span class="p">,</span> <span class="n">deprecation_message</span><span class="p">,</span> <span class="n">standard_warn</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
                 <span class="n">additional_latents_per_image</span> <span class="o">=</span> <span class="n">batch_size</span> <span class="o">//</span> <span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="n">additional_latents_per_image</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+                <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="n">additional_latents_per_image</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="sa">f</span><span class="s2">&quot;Cannot duplicate `image` of batch size </span><span class="si">{</span><span class="n">latents</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">batch_size</span><span class="si">}</span><span class="s2"> text prompts.&quot;</span>
                 <span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">latents</span>
 
@@ -9543,7 +9545,7 @@ about a model's potential harms.</p>
         <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
         <span class="c1"># to avoid doing two forward passes</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">target_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">target_negative_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
+            <span class="n">target_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">target_negative_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
 
         <span class="n">source_negative_prompt_embeds</span><span class="p">,</span> <span class="n">source_prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_prompt</span><span class="p">(</span>
             <span class="n">source_prompt</span><span class="p">,</span>
@@ -9554,7 +9556,7 @@ about a model's potential harms.</p>
             <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="n">source_negative_prompt_embeds</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">source_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_negative_prompt_embeds</span><span class="p">,</span> <span class="n">source_prompt_embeds</span><span class="p">])</span>
+            <span class="n">source_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_negative_prompt_embeds</span><span class="p">,</span> <span class="n">source_prompt_embeds</span><span class="p">])</span>
 
         <span class="c1"># 4. Preprocess image</span>
         <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">num_maps_per_mask</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -9569,11 +9571,11 @@ about a model's potential harms.</p>
         <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_tensor</span><span class="p">(</span><span class="n">image_latents</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">image_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">add_noise</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">encode_timestep</span><span class="p">)</span>
 
-        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="mi">2</span><span class="p">))</span>
+        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="mi">2</span><span class="p">))</span>
         <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">encode_timestep</span><span class="p">)</span>
 
         <span class="c1"># 7. Predict the noise residual</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
         <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">(</span>
             <span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">encode_timestep</span><span class="p">,</span>
@@ -9591,13 +9593,13 @@ about a model's potential harms.</p>
         <span class="c1"># 8. Compute the mask from the absolute difference of predicted noise residuals</span>
         <span class="c1"># TODO: Consider smoothing mask guidance map</span>
         <span class="n">mask_guidance_map</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">ops</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">noise_pred_target</span> <span class="o">-</span> <span class="n">noise_pred_source</span><span class="p">)</span>
+            <span class="n">mint</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">noise_pred_target</span> <span class="o">-</span> <span class="n">noise_pred_source</span><span class="p">)</span>
             <span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_maps_per_mask</span><span class="p">,</span> <span class="o">*</span><span class="n">noise_pred_target</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span>
             <span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
         <span class="p">)</span>
         <span class="n">clamp_magnitude</span> <span class="o">=</span> <span class="n">mask_guidance_map</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="n">mask_thresholding_ratio</span>
-        <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">mask_guidance_map</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">clamp_magnitude</span><span class="p">)</span> <span class="o">/</span> <span class="n">clamp_magnitude</span>
-        <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">semantic_mask_image</span> <span class="o">&lt;=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+        <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">mask_guidance_map</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">clamp_magnitude</span><span class="p">)</span> <span class="o">/</span> <span class="n">clamp_magnitude</span>
+        <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">semantic_mask_image</span> <span class="o">&lt;=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
         <span class="n">mask_image</span> <span class="o">=</span> <span class="n">semantic_mask_image</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
 
         <span class="c1"># 9. Convert to Numpy array or PIL.</span>
@@ -9746,7 +9748,7 @@ about a model's potential harms.</p>
         <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
         <span class="c1"># to avoid doing two forward passes</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
         <span class="c1"># 6. Prepare timesteps</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inverse_scheduler</span><span class="o">.</span><span class="n">set_timesteps</span><span class="p">(</span><span class="n">num_inference_steps</span><span class="p">)</span>
@@ -9758,7 +9760,7 @@ about a model's potential harms.</p>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># predict the noise residual</span>
@@ -9792,7 +9794,7 @@ about a model's potential harms.</p>
                         <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
 
         <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inverted_latents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">inverted_latents</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">inverted_latents</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># 8. Post-processing</span>
         <span class="n">image</span> <span class="o">=</span> <span class="kc">None</span>
@@ -9954,12 +9956,12 @@ about a model's potential harms.</p>
         <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
         <span class="c1"># to avoid doing two forward passes</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
         <span class="c1"># 4. Preprocess mask</span>
         <span class="n">mask_image</span> <span class="o">=</span> <span class="n">preprocess_mask</span><span class="p">(</span><span class="n">mask_image</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
         <span class="n">latent_height</span><span class="p">,</span> <span class="n">latent_width</span> <span class="o">=</span> <span class="n">mask_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
-        <span class="n">mask_image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mask_image</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">)</span>
+        <span class="n">mask_image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mask_image</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">)</span>
         <span class="n">mask_image</span> <span class="o">=</span> <span class="n">mask_image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="c1"># 5. Set timesteps</span>
@@ -9968,7 +9970,7 @@ about a model's potential harms.</p>
 
         <span class="c1"># 6. Preprocess image latents</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">i</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">5</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">image_latents</span><span class="p">):</span>
-            <span class="n">image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image_latents</span><span class="p">)</span>
+            <span class="n">image_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image_latents</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
             <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span>
         <span class="k">else</span><span class="p">:</span>
@@ -10000,7 +10002,7 @@ about a model's potential harms.</p>
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># predict the noise residual</span>
@@ -10477,8 +10479,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_diffedit/pipeline_stable_diffusion_diffedit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1217</span>
-<span class="normal">1218</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1218</span>
 <span class="normal">1219</span>
 <span class="normal">1220</span>
 <span class="normal">1221</span>
@@ -10715,7 +10716,8 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 <span class="normal">1452</span>
 <span class="normal">1453</span>
 <span class="normal">1454</span>
-<span class="normal">1455</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1455</span>
+<span class="normal">1456</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">mask_image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -10861,12 +10863,12 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
     <span class="c1"># to avoid doing two forward passes</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
     <span class="c1"># 4. Preprocess mask</span>
     <span class="n">mask_image</span> <span class="o">=</span> <span class="n">preprocess_mask</span><span class="p">(</span><span class="n">mask_image</span><span class="p">,</span> <span class="n">batch_size</span><span class="p">)</span>
     <span class="n">latent_height</span><span class="p">,</span> <span class="n">latent_width</span> <span class="o">=</span> <span class="n">mask_image</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">:]</span>
-    <span class="n">mask_image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mask_image</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">)</span>
+    <span class="n">mask_image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">mask_image</span><span class="p">]</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">)</span>
     <span class="n">mask_image</span> <span class="o">=</span> <span class="n">mask_image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">prompt_embeds</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="c1"># 5. Set timesteps</span>
@@ -10875,7 +10877,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
 
     <span class="c1"># 6. Preprocess image latents</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">any</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">i</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">5</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">image_latents</span><span class="p">):</span>
-        <span class="n">image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image_latents</span><span class="p">)</span>
+        <span class="n">image_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">image_latents</span><span class="p">)</span>
     <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">5</span><span class="p">:</span>
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span>
     <span class="k">else</span><span class="p">:</span>
@@ -10907,7 +10909,7 @@ second element is a list of <code>bool</code>s indicating whether the correspond
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># predict the noise residual</span>
@@ -11850,8 +11852,7 @@ self.vae_scale_factor)</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_diffedit/pipeline_stable_diffusion_diffedit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 806</span>
-<span class="normal"> 807</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 807</span>
 <span class="normal"> 808</span>
 <span class="normal"> 809</span>
 <span class="normal"> 810</span>
@@ -12057,7 +12058,8 @@ self.vae_scale_factor)</code>.</p>
 <span class="normal">1010</span>
 <span class="normal">1011</span>
 <span class="normal">1012</span>
-<span class="normal">1013</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">generate_mask</span><span class="p">(</span>
+<span class="normal">1013</span>
+<span class="normal">1014</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">generate_mask</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">target_prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -12203,7 +12205,7 @@ self.vae_scale_factor)</code>.</p>
     <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
     <span class="c1"># to avoid doing two forward passes</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">target_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">target_negative_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
+        <span class="n">target_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">target_negative_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
 
     <span class="n">source_negative_prompt_embeds</span><span class="p">,</span> <span class="n">source_prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">encode_prompt</span><span class="p">(</span>
         <span class="n">source_prompt</span><span class="p">,</span>
@@ -12214,7 +12216,7 @@ self.vae_scale_factor)</code>.</p>
         <span class="n">negative_prompt_embeds</span><span class="o">=</span><span class="n">source_negative_prompt_embeds</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">source_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_negative_prompt_embeds</span><span class="p">,</span> <span class="n">source_prompt_embeds</span><span class="p">])</span>
+        <span class="n">source_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_negative_prompt_embeds</span><span class="p">,</span> <span class="n">source_prompt_embeds</span><span class="p">])</span>
 
     <span class="c1"># 4. Preprocess image</span>
     <span class="n">image</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span><span class="o">.</span><span class="n">preprocess</span><span class="p">(</span><span class="n">image</span><span class="p">)</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="n">num_maps_per_mask</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
@@ -12229,11 +12231,11 @@ self.vae_scale_factor)</code>.</p>
     <span class="n">noise</span> <span class="o">=</span> <span class="n">randn_tensor</span><span class="p">(</span><span class="n">image_latents</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">generator</span><span class="o">=</span><span class="n">generator</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
     <span class="n">image_latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">add_noise</span><span class="p">(</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">noise</span><span class="p">,</span> <span class="n">encode_timestep</span><span class="p">)</span>
 
-    <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="mi">2</span><span class="p">))</span>
+    <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="mi">4</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="mi">2</span><span class="p">))</span>
     <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">encode_timestep</span><span class="p">)</span>
 
     <span class="c1"># 7. Predict the noise residual</span>
-    <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
+    <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">source_prompt_embeds</span><span class="p">,</span> <span class="n">target_prompt_embeds</span><span class="p">])</span>
     <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">(</span>
         <span class="n">latent_model_input</span><span class="p">,</span>
         <span class="n">encode_timestep</span><span class="p">,</span>
@@ -12251,13 +12253,13 @@ self.vae_scale_factor)</code>.</p>
     <span class="c1"># 8. Compute the mask from the absolute difference of predicted noise residuals</span>
     <span class="c1"># TODO: Consider smoothing mask guidance map</span>
     <span class="n">mask_guidance_map</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">ops</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">noise_pred_target</span> <span class="o">-</span> <span class="n">noise_pred_source</span><span class="p">)</span>
+        <span class="n">mint</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">noise_pred_target</span> <span class="o">-</span> <span class="n">noise_pred_source</span><span class="p">)</span>
         <span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">num_maps_per_mask</span><span class="p">,</span> <span class="o">*</span><span class="n">noise_pred_target</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">3</span><span class="p">:])</span>
         <span class="o">.</span><span class="n">mean</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span>
     <span class="p">)</span>
     <span class="n">clamp_magnitude</span> <span class="o">=</span> <span class="n">mask_guidance_map</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span> <span class="o">*</span> <span class="n">mask_thresholding_ratio</span>
-    <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">mask_guidance_map</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">clamp_magnitude</span><span class="p">)</span> <span class="o">/</span> <span class="n">clamp_magnitude</span>
-    <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">semantic_mask_image</span> <span class="o">&lt;=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">mask_guidance_map</span><span class="o">.</span><span class="n">clamp</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">clamp_magnitude</span><span class="p">)</span> <span class="o">/</span> <span class="n">clamp_magnitude</span>
+    <span class="n">semantic_mask_image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">semantic_mask_image</span> <span class="o">&lt;=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
     <span class="n">mask_image</span> <span class="o">=</span> <span class="n">semantic_mask_image</span><span class="o">.</span><span class="n">asnumpy</span><span class="p">()</span>
 
     <span class="c1"># 9. Convert to Numpy array or PIL.</span>
@@ -12691,8 +12693,7 @@ ordered by increasing noise, and the second is the corresponding decoded images 
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_diffusion_diffedit/pipeline_stable_diffusion_diffedit.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1015</span>
-<span class="normal">1016</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1016</span>
 <span class="normal">1017</span>
 <span class="normal">1018</span>
 <span class="normal">1019</span>
@@ -12891,7 +12892,8 @@ ordered by increasing noise, and the second is the corresponding decoded images 
 <span class="normal">1212</span>
 <span class="normal">1213</span>
 <span class="normal">1214</span>
-<span class="normal">1215</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span>
+<span class="normal">1215</span>
+<span class="normal">1216</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">invert</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -13031,7 +13033,7 @@ ordered by increasing noise, and the second is the corresponding decoded images 
     <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
     <span class="c1"># to avoid doing two forward passes</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">])</span>
 
     <span class="c1"># 6. Prepare timesteps</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">inverse_scheduler</span><span class="o">.</span><span class="n">set_timesteps</span><span class="p">(</span><span class="n">num_inference_steps</span><span class="p">)</span>
@@ -13043,7 +13045,7 @@ ordered by increasing noise, and the second is the corresponding decoded images 
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">inverse_scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># predict the noise residual</span>
@@ -13077,7 +13079,7 @@ ordered by increasing noise, and the second is the corresponding decoded images 
                     <span class="n">callback</span><span class="p">(</span><span class="n">step_idx</span><span class="p">,</span> <span class="n">t</span><span class="p">,</span> <span class="n">latents</span><span class="p">)</span>
 
     <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">inverted_latents</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
-    <span class="n">latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">inverted_latents</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
+    <span class="n">latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">reversed</span><span class="p">(</span><span class="n">inverted_latents</span><span class="p">)),</span> <span class="mi">1</span><span class="p">)</span>
 
     <span class="c1"># 8. Post-processing</span>
     <span class="n">image</span> <span class="o">=</span> <span class="kc">None</span>

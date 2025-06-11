@@ -7461,8 +7461,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/stable_video_diffusion/pipeline_stable_video_diffusion.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">135</span>
-<span class="normal">136</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">136</span>
 <span class="normal">137</span>
 <span class="normal">138</span>
 <span class="normal">139</span>
@@ -7920,7 +7919,9 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 <span class="normal">591</span>
 <span class="normal">592</span>
 <span class="normal">593</span>
-<span class="normal">594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableVideoDiffusionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableVideoDiffusionPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline to generate video from an input image using Stable Video Diffusion.</span>
 
@@ -8002,12 +8003,12 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="n">image_embeddings</span> <span class="o">=</span> <span class="n">image_embeddings</span><span class="o">.</span><span class="n">view</span><span class="p">(</span><span class="n">bs_embed</span> <span class="o">*</span> <span class="n">num_videos_per_prompt</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">negative_image_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_embeddings</span><span class="p">)</span>
+            <span class="n">negative_image_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_embeddings</span><span class="p">)</span>
 
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">image_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_embeddings</span><span class="p">,</span> <span class="n">image_embeddings</span><span class="p">])</span>
+            <span class="n">image_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_embeddings</span><span class="p">,</span> <span class="n">image_embeddings</span><span class="p">])</span>
 
         <span class="k">return</span> <span class="n">image_embeddings</span>
 
@@ -8023,12 +8024,12 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">num_videos_per_prompt</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">negative_image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_latents</span><span class="p">)</span>
+            <span class="n">negative_image_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">image_latents</span><span class="p">)</span>
 
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">image_latents</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_latents</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">])</span>
+            <span class="n">image_latents</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_image_latents</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">])</span>
 
         <span class="k">return</span> <span class="n">image_latents</span>
 
@@ -8045,7 +8046,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="n">add_time_ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">fps</span><span class="p">,</span> <span class="n">motion_bucket_id</span><span class="p">,</span> <span class="n">noise_aug_strength</span><span class="p">]</span>
 
         <span class="n">passed_add_embed_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">addition_time_embed_dim</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">add_time_ids</span><span class="p">)</span>
-        <span class="n">expected_add_embed_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">add_embedding</span><span class="o">.</span><span class="n">linear_1</span><span class="o">.</span><span class="n">in_channels</span>
+        <span class="n">expected_add_embed_dim</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">add_embedding</span><span class="o">.</span><span class="n">linear_1</span><span class="o">.</span><span class="n">in_features</span>
 
         <span class="k">if</span> <span class="n">expected_add_embed_dim</span> <span class="o">!=</span> <span class="n">passed_add_embed_dim</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -8058,7 +8059,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">add_time_ids</span><span class="o">.</span><span class="n">tile</span><span class="p">((</span><span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_videos_per_prompt</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">,</span> <span class="n">add_time_ids</span><span class="p">])</span>
+            <span class="n">add_time_ids</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">add_time_ids</span><span class="p">,</span> <span class="n">add_time_ids</span><span class="p">])</span>
 
         <span class="k">return</span> <span class="n">add_time_ids</span>
 
@@ -8082,7 +8083,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
 
             <span class="n">frame</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">latents</span><span class="p">[</span><span class="n">i</span> <span class="p">:</span> <span class="n">i</span> <span class="o">+</span> <span class="n">decode_chunk_size</span><span class="p">],</span> <span class="o">**</span><span class="n">decode_kwargs</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
             <span class="n">frames</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">frame</span><span class="p">)</span>
-        <span class="n">frames</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">frames</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span><span class="n">frames</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># [batch*frames, channels, height, width] -&gt; [batch, channels, frames, height, width]</span>
         <span class="n">frames</span> <span class="o">=</span> <span class="n">frames</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_frames</span><span class="p">,</span> <span class="o">*</span><span class="n">frames</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span><span class="o">.</span><span class="n">permute</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">))</span>
@@ -8283,6 +8284,7 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">image_embeddings</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="c1"># cast back to fp16 if needed</span>
+        <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">needs_upcasting</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
 
@@ -8333,11 +8335,11 @@ implemented for all pipelines (downloading, saving, running on a particular devi
         <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
                 <span class="c1"># Concatenate image_latents over channels dimension</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
                 <span class="c1"># predict the noise residual</span>
                 <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">(</span>
@@ -8800,8 +8802,7 @@ otherwise a <code>tuple</code> of (<code>List[List[PIL.Image.Image]]</code> or <
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/stable_video_diffusion/pipeline_stable_video_diffusion.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">364</span>
-<span class="normal">365</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
 <span class="normal">368</span>
@@ -9030,7 +9031,9 @@ otherwise a <code>tuple</code> of (<code>List[List[PIL.Image.Image]]</code> or <
 <span class="normal">591</span>
 <span class="normal">592</span>
 <span class="normal">593</span>
-<span class="normal">594</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">image</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="n">PIL</span><span class="o">.</span><span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">],</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
     <span class="n">height</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">576</span><span class="p">,</span>
@@ -9164,6 +9167,7 @@ otherwise a <code>tuple</code> of (<code>List[List[PIL.Image.Image]]</code> or <
     <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">image_embeddings</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="c1"># cast back to fp16 if needed</span>
+    <span class="n">_pynative_executor</span><span class="o">.</span><span class="n">sync</span><span class="p">()</span>
     <span class="k">if</span> <span class="n">needs_upcasting</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">float16</span><span class="p">)</span>
 
@@ -9214,11 +9218,11 @@ otherwise a <code>tuple</code> of (<code>List[List[PIL.Image.Image]]</code> or <
     <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">progress_bar</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="n">num_inference_steps</span><span class="p">)</span> <span class="k">as</span> <span class="n">progress_bar</span><span class="p">:</span>
         <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">latent_model_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">scale_model_input</span><span class="p">(</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
 
             <span class="c1"># Concatenate image_latents over channels dimension</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latent_model_input</span><span class="p">,</span> <span class="n">image_latents</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
 
             <span class="c1"># predict the noise residual</span>
             <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">(</span>
@@ -9326,8 +9330,7 @@ num_frames, height, width, num_channels)</code>.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/stable_video_diffusion/pipeline_stable_video_diffusion.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">121</span>
-<span class="normal">122</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
 <span class="normal">125</span>
@@ -9337,7 +9340,8 @@ num_frames, height, width, num_channels)</code>.</p>
 <span class="normal">129</span>
 <span class="normal">130</span>
 <span class="normal">131</span>
-<span class="normal">132</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="normal">132</span>
+<span class="normal">133</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">StableVideoDiffusionPipelineOutput</span><span class="p">(</span><span class="n">BaseOutput</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Output class for Stable Video Diffusion pipeline.</span>

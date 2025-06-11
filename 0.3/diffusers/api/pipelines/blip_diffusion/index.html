@@ -7999,7 +7999,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
+            <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
 
         <span class="n">scale_down_factor</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">block_out_channels</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
@@ -8019,7 +8019,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
             <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
 
             <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">(</span>
                 <span class="n">latent_model_input</span><span class="p">,</span>
@@ -8637,7 +8637,7 @@ to amplify the prompt.</p>
         <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
         <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
         <span class="c1"># to avoid doing two forward passes</span>
-        <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
+        <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
 
     <span class="n">scale_down_factor</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">block_out_channels</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
@@ -8657,7 +8657,7 @@ to amplify the prompt.</p>
         <span class="c1"># expand the latents if we are doing classifier free guidance</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
-        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
 
         <span class="n">noise_pred</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="p">(</span>
             <span class="n">latent_model_input</span><span class="p">,</span>
@@ -9342,7 +9342,7 @@ library implements for all the pipelines (such as downloading or saving, running
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">image</span>
 
@@ -9455,7 +9455,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
             <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
             <span class="c1"># to avoid doing two forward passes</span>
-            <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
+            <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
         <span class="n">scale_down_factor</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">block_out_channels</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
             <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
@@ -9484,7 +9484,7 @@ library implements for all the pipelines (such as downloading or saving, running
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
             <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="n">down_block_res_samples</span><span class="p">,</span> <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controlnet</span><span class="p">(</span>
                 <span class="n">latent_model_input</span><span class="p">,</span>
                 <span class="n">t</span><span class="p">,</span>
@@ -10122,7 +10122,7 @@ to amplify the prompt.</p>
         <span class="c1"># For classifier free guidance, we need to do two forward passes.</span>
         <span class="c1"># Here we concatenate the unconditional and text embeddings into a single batch</span>
         <span class="c1"># to avoid doing two forward passes</span>
-        <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
+        <span class="n">text_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">uncond_embeddings</span><span class="p">,</span> <span class="n">text_embeddings</span><span class="p">])</span>
     <span class="n">scale_down_factor</span> <span class="o">=</span> <span class="mi">2</span> <span class="o">**</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">unet</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">block_out_channels</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
     <span class="n">latents</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prepare_latents</span><span class="p">(</span>
         <span class="n">batch_size</span><span class="o">=</span><span class="n">batch_size</span><span class="p">,</span>
@@ -10151,7 +10151,7 @@ to amplify the prompt.</p>
         <span class="c1"># expand the latents if we are doing classifier free guidance</span>
         <span class="n">do_classifier_free_guidance</span> <span class="o">=</span> <span class="n">guidance_scale</span> <span class="o">&gt;</span> <span class="mf">1.0</span>
 
-        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+        <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
         <span class="n">down_block_res_samples</span><span class="p">,</span> <span class="n">mid_block_res_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">controlnet</span><span class="p">(</span>
             <span class="n">latent_model_input</span><span class="p">,</span>
             <span class="n">t</span><span class="p">,</span>

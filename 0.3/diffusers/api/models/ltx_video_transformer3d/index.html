@@ -7515,8 +7515,7 @@ specific language governing permissions and limitations under the License. -->
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/transformers/transformer_ltx.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">258</span>
-<span class="normal">259</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">259</span>
 <span class="normal">260</span>
 <span class="normal">261</span>
 <span class="normal">262</span>
@@ -7668,7 +7667,8 @@ specific language governing permissions and limitations under the License. -->
 <span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
-<span class="normal">411</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoTransformer3DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
+<span class="normal">411</span>
+<span class="normal">412</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">LTXVideoTransformer3DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A Transformer model for video-like data used in [LTX](https://huggingface.co/Lightricks/LTX-Video).</span>
 
@@ -7721,9 +7721,9 @@ specific language governing permissions and limitations under the License. -->
         <span class="n">out_channels</span> <span class="o">=</span> <span class="n">out_channels</span> <span class="ow">or</span> <span class="n">in_channels</span>
         <span class="n">inner_dim</span> <span class="o">=</span> <span class="n">num_attention_heads</span> <span class="o">*</span> <span class="n">attention_head_dim</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">scale_shift_table</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span> <span class="o">/</span> <span class="n">inner_dim</span><span class="o">**</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;scale_shift_table&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_shift_table</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">randn</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span> <span class="o">/</span> <span class="n">inner_dim</span><span class="o">**</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;scale_shift_table&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time_embed</span> <span class="o">=</span> <span class="n">AdaLayerNormSingle</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">use_additional_conditions</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">caption_projection</span> <span class="o">=</span> <span class="n">PixArtAlphaTextProjection</span><span class="p">(</span><span class="n">in_features</span><span class="o">=</span><span class="n">caption_channels</span><span class="p">,</span> <span class="n">hidden_size</span><span class="o">=</span><span class="n">inner_dim</span><span class="p">)</span>
@@ -7757,7 +7757,7 @@ specific language governing permissions and limitations under the License. -->
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span> <span class="o">=</span> <span class="n">LayerNorm</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">out_channels</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">gradient_checkpointing</span> <span class="o">=</span> <span class="kc">False</span>
 

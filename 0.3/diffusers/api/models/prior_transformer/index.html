@@ -8033,7 +8033,12 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
 <span class="normal">365</span>
 <span class="normal">366</span>
 <span class="normal">367</span>
-<span class="normal">368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PriorTransformer</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
+<span class="normal">368</span>
+<span class="normal">369</span>
+<span class="normal">370</span>
+<span class="normal">371</span>
+<span class="normal">372</span>
+<span class="normal">373</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">PriorTransformer</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A Prior Transformer model.</span>
 
@@ -8102,7 +8107,7 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
         <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span> <span class="o">=</span> <span class="n">Timesteps</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="kc">True</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">time_embedding</span> <span class="o">=</span> <span class="n">TimestepEmbedding</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">,</span> <span class="n">out_dim</span><span class="o">=</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">act_fn</span><span class="o">=</span><span class="n">time_embed_act_fn</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">embedding_proj_norm_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">embedding_proj_norm</span> <span class="o">=</span> <span class="kc">None</span>
@@ -8111,21 +8116,21 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unsupported embedding_proj_norm_type: </span><span class="si">{</span><span class="n">embedding_proj_norm_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_proj_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">embedding_proj</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_proj_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">encoder_hid_proj_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hidden_states_proj</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">elif</span> <span class="n">encoder_hid_proj_type</span> <span class="o">==</span> <span class="s2">&quot;linear&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hidden_states_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hidden_states_proj</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;unsupported encoder_hid_proj_type: </span><span class="si">{</span><span class="n">encoder_hid_proj_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">positional_embedding</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span>
-            <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_embeddings</span> <span class="o">+</span> <span class="n">additional_embeddings</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;positional_embedding&quot;</span>
+            <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">num_embeddings</span> <span class="o">+</span> <span class="n">additional_embeddings</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;positional_embedding&quot;</span>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">added_emb_type</span> <span class="o">==</span> <span class="s2">&quot;prd&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;prd_embedding&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="n">inner_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;prd_embedding&quot;</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">added_emb_type</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">else</span><span class="p">:</span>
@@ -8156,17 +8161,17 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
 
         <span class="bp">self</span><span class="o">.</span><span class="n">norm_out</span> <span class="o">=</span> <span class="n">LayerNorm</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">proj_to_clip_embeddings</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">clip_embed_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">proj_to_clip_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">inner_dim</span><span class="p">,</span> <span class="n">clip_embed_dim</span><span class="p">)</span>
 
-        <span class="n">causal_attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+        <span class="n">causal_attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
             <span class="p">[</span><span class="n">num_embeddings</span> <span class="o">+</span> <span class="n">additional_embeddings</span><span class="p">,</span> <span class="n">num_embeddings</span> <span class="o">+</span> <span class="n">additional_embeddings</span><span class="p">],</span> <span class="o">-</span><span class="mf">10000.0</span>
         <span class="p">)</span>
         <span class="n">causal_attention_mask</span> <span class="o">=</span> <span class="n">causal_attention_mask</span><span class="o">.</span><span class="n">triu</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
         <span class="n">causal_attention_mask</span> <span class="o">=</span> <span class="n">causal_attention_mask</span><span class="p">[</span><span class="kc">None</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">causal_attention_mask</span> <span class="o">=</span> <span class="n">causal_attention_mask</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">clip_mean</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">clip_embed_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;clip_mean&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clip_std</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">clip_embed_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;clip_std&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clip_mean</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">clip_embed_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;clip_mean&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">clip_std</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="n">clip_embed_dim</span><span class="p">)),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;clip_std&quot;</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="c1"># Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors</span>
@@ -8274,13 +8279,15 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
         <span class="n">batch_size</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="n">timesteps</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">elif</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
 
         <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
-        <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span> <span class="o">*</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">timesteps</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+        <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span> <span class="o">*</span> <span class="n">mint</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">timesteps</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">timesteps_projected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
@@ -8325,27 +8332,30 @@ If None, will be set to <code>num_attention_heads * attention_head_dim</code></p
             <span class="n">prd_embedding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
             <span class="n">additional_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prd_embedding</span><span class="p">)</span>
 
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
             <span class="n">additional_embeds</span><span class="p">,</span>
-            <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+            <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># Allow positional_embedding to not include the `addtional_embeddings` and instead pad it with zeros for these additional tokens</span>
         <span class="n">additional_embeddings_len</span> <span class="o">=</span> <span class="n">additional_embeddings_len</span> <span class="o">+</span> <span class="n">proj_embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
         <span class="k">if</span> <span class="n">positional_embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-            <span class="n">positional_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span>
+            <span class="n">positional_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+                <span class="n">positional_embeddings</span><span class="p">,</span>
                 <span class="p">(</span>
-                    <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-                    <span class="p">(</span><span class="n">additional_embeddings_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">),</span>
-                    <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-                <span class="p">)</span>
-            <span class="p">)(</span><span class="n">positional_embeddings</span><span class="p">)</span>
+                    <span class="mi">0</span><span class="p">,</span>
+                    <span class="mi">0</span><span class="p">,</span>
+                    <span class="n">additional_embeddings_len</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+                <span class="p">),</span>
+                <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+            <span class="p">)</span>
 
         <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">+</span> <span class="n">positional_embeddings</span>
 
         <span class="k">if</span> <span class="n">attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">attention_mask</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span> <span class="o">*</span> <span class="o">-</span><span class="mf">10000.0</span>
-            <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_embeddings</span><span class="p">)))(</span><span class="n">attention_mask</span><span class="p">)</span>
+            <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">attention_mask</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_embeddings</span><span class="p">),</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">attention_mask</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">causal_attention_mask</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">attention_mask</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;num_attention_heads&quot;</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
@@ -8718,7 +8728,12 @@ returned, otherwise a tuple is returned where the first element is the sample te
 <span class="normal">361</span>
 <span class="normal">362</span>
 <span class="normal">363</span>
-<span class="normal">364</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">364</span>
+<span class="normal">365</span>
+<span class="normal">366</span>
+<span class="normal">367</span>
+<span class="normal">368</span>
+<span class="normal">369</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">hidden_states</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -8753,13 +8768,15 @@ returned, otherwise a tuple is returned where the first element is the sample te
     <span class="n">batch_size</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+    <span class="c1"># todo: unavailable mint interface</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="n">timesteps</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="c1"># todo: unavailable mint interface</span>
     <span class="k">elif</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
 
     <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
-    <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span> <span class="o">*</span> <span class="n">ops</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">timesteps</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
+    <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span> <span class="o">*</span> <span class="n">mint</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">timesteps</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="n">timesteps_projected</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span>
 
@@ -8804,27 +8821,30 @@ returned, otherwise a tuple is returned where the first element is the sample te
         <span class="n">prd_embedding</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">batch_size</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
         <span class="n">additional_embeds</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">prd_embedding</span><span class="p">)</span>
 
-    <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+    <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
         <span class="n">additional_embeds</span><span class="p">,</span>
-        <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
     <span class="p">)</span>
 
     <span class="c1"># Allow positional_embedding to not include the `addtional_embeddings` and instead pad it with zeros for these additional tokens</span>
     <span class="n">additional_embeddings_len</span> <span class="o">=</span> <span class="n">additional_embeddings_len</span> <span class="o">+</span> <span class="n">proj_embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="mi">1</span>
     <span class="k">if</span> <span class="n">positional_embeddings</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-        <span class="n">positional_embeddings</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(</span>
+        <span class="n">positional_embeddings</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span>
+            <span class="n">positional_embeddings</span><span class="p">,</span>
             <span class="p">(</span>
-                <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-                <span class="p">(</span><span class="n">additional_embeddings_len</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">),</span>
-                <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
-            <span class="p">)</span>
-        <span class="p">)(</span><span class="n">positional_embeddings</span><span class="p">)</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="mi">0</span><span class="p">,</span>
+                <span class="n">additional_embeddings_len</span><span class="p">,</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">prd_embedding</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">0</span><span class="p">,</span>
+            <span class="p">),</span>
+            <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+        <span class="p">)</span>
 
     <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">+</span> <span class="n">positional_embeddings</span>
 
     <span class="k">if</span> <span class="n">attention_mask</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">attention_mask</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span> <span class="o">*</span> <span class="o">-</span><span class="mf">10000.0</span>
-        <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">Pad</span><span class="p">(((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_embeddings</span><span class="p">)))(</span><span class="n">attention_mask</span><span class="p">)</span>
+        <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">pad</span><span class="p">(</span><span class="n">attention_mask</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">additional_embeddings</span><span class="p">),</span> <span class="n">value</span><span class="o">=</span><span class="mf">0.0</span><span class="p">)</span>
         <span class="n">attention_mask</span> <span class="o">=</span> <span class="p">(</span><span class="n">attention_mask</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">causal_attention_mask</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
         <span class="n">attention_mask</span> <span class="o">=</span> <span class="n">attention_mask</span><span class="o">.</span><span class="n">repeat_interleave</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">[</span><span class="s2">&quot;num_attention_heads&quot;</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 

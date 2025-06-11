@@ -8660,7 +8660,7 @@ additional conditioning.</p>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder_3</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="k">return</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
                 <span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer_max_length</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">joint_attention_dim</span><span class="p">),</span>
                 <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
             <span class="p">)</span>
@@ -8838,7 +8838,7 @@ additional conditioning.</p>
                 <span class="n">clip_skip</span><span class="o">=</span><span class="n">clip_skip</span><span class="p">,</span>
                 <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
             <span class="n">t5_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
                 <span class="n">prompt</span><span class="o">=</span><span class="n">prompt_3</span><span class="p">,</span>
@@ -8847,8 +8847,8 @@ additional conditioning.</p>
 
             <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">negative_prompt</span> <span class="o">=</span> <span class="n">negative_prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
@@ -8888,7 +8888,7 @@ additional conditioning.</p>
                 <span class="n">clip_skip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                 <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
             <span class="n">t5_negative_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
                 <span class="n">prompt</span><span class="o">=</span><span class="n">negative_prompt_3</span><span class="p">,</span>
@@ -8900,9 +8900,9 @@ additional conditioning.</p>
                 <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">negative_clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
             <span class="p">)</span>
 
-            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-                <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span>
+            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span>
             <span class="p">)</span>
 
         <span class="k">return</span> <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">,</span> <span class="n">negative_pooled_prompt_embeds</span>
@@ -9053,7 +9053,7 @@ additional conditioning.</p>
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">guess_mode</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">image</span>
 
@@ -9300,8 +9300,8 @@ additional conditioning.</p>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># 3. Prepare control image</span>
         <span class="k">if</span> <span class="n">controlnet_config</span><span class="o">.</span><span class="n">force_zeros_for_pooled_projection</span><span class="p">:</span>
@@ -9376,7 +9376,7 @@ additional conditioning.</p>
 
         <span class="k">if</span> <span class="n">controlnet_config</span><span class="o">.</span><span class="n">force_zeros_for_pooled_projection</span><span class="p">:</span>
             <span class="c1"># instantx sd3 controlnet used zero pooled projection</span>
-            <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
+            <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">controlnet_pooled_projections</span> <span class="ow">or</span> <span class="n">pooled_prompt_embeds</span>
 
@@ -9393,7 +9393,7 @@ additional conditioning.</p>
                     <span class="k">continue</span>
 
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
                 <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
 
@@ -10696,8 +10696,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># 3. Prepare control image</span>
     <span class="k">if</span> <span class="n">controlnet_config</span><span class="o">.</span><span class="n">force_zeros_for_pooled_projection</span><span class="p">:</span>
@@ -10772,7 +10772,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
     <span class="k">if</span> <span class="n">controlnet_config</span><span class="o">.</span><span class="n">force_zeros_for_pooled_projection</span><span class="p">:</span>
         <span class="c1"># instantx sd3 controlnet used zero pooled projection</span>
-        <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
+        <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">controlnet_pooled_projections</span> <span class="ow">or</span> <span class="n">pooled_prompt_embeds</span>
 
@@ -10789,7 +10789,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="k">continue</span>
 
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
             <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
 
@@ -11367,7 +11367,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">clip_skip</span><span class="o">=</span><span class="n">clip_skip</span><span class="p">,</span>
             <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">t5_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
             <span class="n">prompt</span><span class="o">=</span><span class="n">prompt_3</span><span class="p">,</span>
@@ -11376,8 +11376,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
         <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">negative_prompt</span> <span class="o">=</span> <span class="n">negative_prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
@@ -11417,7 +11417,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">clip_skip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">t5_negative_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
             <span class="n">prompt</span><span class="o">=</span><span class="n">negative_prompt_3</span><span class="p">,</span>
@@ -11429,9 +11429,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">negative_clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
         <span class="p">)</span>
 
-        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span>
+        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span>
         <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">,</span> <span class="n">negative_pooled_prompt_embeds</span>
@@ -12587,7 +12587,9 @@ additional conditioning.</p>
 <span class="normal">1098</span>
 <span class="normal">1099</span>
 <span class="normal">1100</span>
-<span class="normal">1101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusion3ControlNetInpaintingPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">SD3LoraLoaderMixin</span><span class="p">,</span> <span class="n">FromSingleFileMixin</span><span class="p">):</span>
+<span class="normal">1101</span>
+<span class="normal">1102</span>
+<span class="normal">1103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">StableDiffusion3ControlNetInpaintingPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">SD3LoraLoaderMixin</span><span class="p">,</span> <span class="n">FromSingleFileMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Args:</span>
 <span class="sd">        transformer ([`SD3Transformer2DModel`]):</span>
@@ -12697,7 +12699,7 @@ additional conditioning.</p>
         <span class="n">batch_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">prompt</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder_3</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
+            <span class="k">return</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span>
                 <span class="p">(</span>
                     <span class="n">batch_size</span> <span class="o">*</span> <span class="n">num_images_per_prompt</span><span class="p">,</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer_max_length</span><span class="p">,</span>
@@ -12894,7 +12896,7 @@ additional conditioning.</p>
                 <span class="n">clip_skip</span><span class="o">=</span><span class="n">clip_skip</span><span class="p">,</span>
                 <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
             <span class="n">t5_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
                 <span class="n">prompt</span><span class="o">=</span><span class="n">prompt_3</span><span class="p">,</span>
@@ -12904,8 +12906,8 @@ additional conditioning.</p>
 
             <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">negative_prompt</span> <span class="o">=</span> <span class="n">negative_prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
@@ -12945,7 +12947,7 @@ additional conditioning.</p>
                 <span class="n">clip_skip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                 <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
             <span class="n">t5_negative_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
                 <span class="n">prompt</span><span class="o">=</span><span class="n">negative_prompt_3</span><span class="p">,</span>
@@ -12958,9 +12960,9 @@ additional conditioning.</p>
                 <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">negative_clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
             <span class="p">)</span>
 
-            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-            <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-                <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span>
+            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+            <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -13150,12 +13152,14 @@ additional conditioning.</p>
         <span class="n">image_latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">image_latents</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">shift_factor</span><span class="p">)</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">scaling_factor</span>
         <span class="n">image_latents</span> <span class="o">=</span> <span class="n">image_latents</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
 
-        <span class="n">mask</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor</span><span class="p">,</span> <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor</span><span class="p">))</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span>
+            <span class="n">mask</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">height</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor</span><span class="p">,</span> <span class="n">width</span> <span class="o">//</span> <span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor</span><span class="p">)</span>
+        <span class="p">)</span>
         <span class="n">mask</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">mask</span>
-        <span class="n">control_image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">mask</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">control_image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">image_latents</span><span class="p">,</span> <span class="n">mask</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">guess_mode</span><span class="p">:</span>
-            <span class="n">control_image</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">control_image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">control_image</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">control_image</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">control_image</span>
 
@@ -13405,8 +13409,8 @@ additional conditioning.</p>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="c1"># 3. Prepare control image</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">controlnet</span><span class="p">,</span> <span class="n">SD3ControlNetModel</span><span class="p">):</span>
@@ -13432,7 +13436,7 @@ additional conditioning.</p>
             <span class="k">assert</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">controlnet_pooled_projections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
+            <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">controlnet_pooled_projections</span> <span class="ow">or</span> <span class="n">pooled_prompt_embeds</span>
 
@@ -13469,7 +13473,7 @@ additional conditioning.</p>
                     <span class="k">continue</span>
 
                 <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+                <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
                 <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
                 <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
 
@@ -14206,9 +14210,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/controlnet_sd3/pipeline_stable_diffusion_3_controlnet_inpainting.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 746</span>
-<span class="normal"> 747</span>
-<span class="normal"> 748</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 748</span>
 <span class="normal"> 749</span>
 <span class="normal"> 750</span>
 <span class="normal"> 751</span>
@@ -14561,7 +14563,9 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
 <span class="normal">1098</span>
 <span class="normal">1099</span>
 <span class="normal">1100</span>
-<span class="normal">1101</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">1101</span>
+<span class="normal">1102</span>
+<span class="normal">1103</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">prompt_2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -14780,8 +14784,8 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
     <span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span><span class="p">:</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_pooled_prompt_embeds</span><span class="p">,</span> <span class="n">pooled_prompt_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
     <span class="c1"># 3. Prepare control image</span>
     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">controlnet</span><span class="p">,</span> <span class="n">SD3ControlNetModel</span><span class="p">):</span>
@@ -14807,7 +14811,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
         <span class="k">assert</span> <span class="kc">False</span>
 
     <span class="k">if</span> <span class="n">controlnet_pooled_projections</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
+        <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="n">pooled_prompt_embeds</span><span class="p">)</span>
     <span class="k">else</span><span class="p">:</span>
         <span class="n">controlnet_pooled_projections</span> <span class="o">=</span> <span class="n">controlnet_pooled_projections</span> <span class="ow">or</span> <span class="n">pooled_prompt_embeds</span>
 
@@ -14844,7 +14848,7 @@ will be passed as <code>callback_kwargs</code> argument. You will only be able t
                 <span class="k">continue</span>
 
             <span class="c1"># expand the latents if we are doing classifier free guidance</span>
-            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
+            <span class="n">latent_model_input</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">latents</span><span class="p">]</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">do_classifier_free_guidance</span> <span class="k">else</span> <span class="n">latents</span>
             <span class="c1"># broadcast to batch dimension in a way that&#39;s compatible with ONNX/Core ML</span>
             <span class="n">timestep</span> <span class="o">=</span> <span class="n">t</span><span class="o">.</span><span class="n">broadcast_to</span><span class="p">((</span><span class="n">latent_model_input</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],))</span>
 
@@ -15479,7 +15483,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">clip_skip</span><span class="o">=</span><span class="n">clip_skip</span><span class="p">,</span>
             <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">prompt_embed</span><span class="p">,</span> <span class="n">prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">t5_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
             <span class="n">prompt</span><span class="o">=</span><span class="n">prompt_3</span><span class="p">,</span>
@@ -15489,8 +15493,8 @@ the output of the pre-final layer will be used for computing the prompt embeddin
 
         <span class="n">clip_prompt_embeds</span> <span class="o">=</span> <span class="n">pad</span><span class="p">(</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]))</span>
 
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">pooled_prompt_embed</span><span class="p">,</span> <span class="n">pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">negative_prompt</span> <span class="o">=</span> <span class="n">negative_prompt</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
@@ -15530,7 +15534,7 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="n">clip_skip</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
             <span class="n">clip_model_index</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">negative_clip_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_prompt_embed</span><span class="p">,</span> <span class="n">negative_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">t5_negative_prompt_embed</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_t5_prompt_embeds</span><span class="p">(</span>
             <span class="n">prompt</span><span class="o">=</span><span class="n">negative_prompt_3</span><span class="p">,</span>
@@ -15543,9 +15547,9 @@ the output of the pre-final layer will be used for computing the prompt embeddin
             <span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">negative_clip_prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]),</span>
         <span class="p">)</span>
 
-        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
-        <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
-            <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span>
+        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">negative_clip_prompt_embeds</span><span class="p">,</span> <span class="n">t5_negative_prompt_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">2</span><span class="p">)</span>
+        <span class="n">negative_pooled_prompt_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">negative_pooled_prompt_embed</span><span class="p">,</span> <span class="n">negative_pooled_prompt_2_embed</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span>
         <span class="p">)</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>

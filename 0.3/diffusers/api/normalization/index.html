@@ -7622,12 +7622,12 @@ specific language governing permissions and limitations under the License.
         <span class="n">output_dim</span> <span class="o">=</span> <span class="n">output_dim</span> <span class="ow">or</span> <span class="n">embedding_dim</span> <span class="o">*</span> <span class="mi">2</span>
 
         <span class="k">if</span> <span class="n">num_embeddings</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">emb</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_embeddings</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">emb</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_embeddings</span><span class="p">,</span> <span class="n">embedding_dim</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">emb</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">LayerNorm</span><span class="p">(</span><span class="n">output_dim</span> <span class="o">//</span> <span class="mi">2</span><span class="p">,</span> <span class="n">norm_eps</span><span class="p">,</span> <span class="n">norm_elementwise_affine</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
@@ -7641,11 +7641,11 @@ specific language governing permissions and limitations under the License.
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">chunk_dim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
             <span class="c1"># This is a bit weird why we have the order of &quot;shift, scale&quot; here and &quot;scale, shift&quot; in the</span>
             <span class="c1"># other if-branch. This branch is specific to CogVideoX for now.</span>
-            <span class="n">shift</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="n">temb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">shift</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="n">temb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">shift</span> <span class="o">=</span> <span class="n">shift</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
             <span class="n">scale</span> <span class="o">=</span> <span class="n">scale</span><span class="p">[:,</span> <span class="kc">None</span><span class="p">,</span> <span class="p">:]</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">temb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">temb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
 
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">scale</span><span class="p">)</span> <span class="o">+</span> <span class="n">shift</span>
         <span class="k">return</span> <span class="n">x</span>
@@ -7793,8 +7793,8 @@ specific language governing permissions and limitations under the License.
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">emb</span> <span class="o">=</span> <span class="kc">None</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">norm_type</span> <span class="o">==</span> <span class="s2">&quot;layer_norm&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">LayerNorm</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">norm_type</span> <span class="o">==</span> <span class="s2">&quot;fp32_layer_norm&quot;</span><span class="p">:</span>
@@ -7815,7 +7815,7 @@ specific language governing permissions and limitations under the License.
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">emb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">emb</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="n">class_labels</span><span class="p">,</span> <span class="n">hidden_dtype</span><span class="o">=</span><span class="n">hidden_dtype</span><span class="p">)</span>
         <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">silu</span><span class="p">(</span><span class="n">emb</span><span class="p">))</span>
-        <span class="n">shift_msa</span><span class="p">,</span> <span class="n">scale_msa</span><span class="p">,</span> <span class="n">gate_msa</span><span class="p">,</span> <span class="n">shift_mlp</span><span class="p">,</span> <span class="n">scale_mlp</span><span class="p">,</span> <span class="n">gate_mlp</span> <span class="o">=</span> <span class="n">emb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">shift_msa</span><span class="p">,</span> <span class="n">scale_msa</span><span class="p">,</span> <span class="n">gate_msa</span><span class="p">,</span> <span class="n">shift_mlp</span><span class="p">,</span> <span class="n">scale_mlp</span><span class="p">,</span> <span class="n">gate_mlp</span> <span class="o">=</span> <span class="n">emb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="c1"># x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">scale_msa</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">))</span> <span class="o">+</span> <span class="n">shift_msa</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">x</span><span class="p">,</span> <span class="n">gate_msa</span><span class="p">,</span> <span class="n">shift_mlp</span><span class="p">,</span> <span class="n">scale_mlp</span><span class="p">,</span> <span class="n">gate_mlp</span>
@@ -7956,8 +7956,8 @@ specific language governing permissions and limitations under the License.
             <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">size_emb_dim</span><span class="o">=</span><span class="n">embedding_dim</span> <span class="o">//</span> <span class="mi">3</span><span class="p">,</span> <span class="n">use_additional_conditions</span><span class="o">=</span><span class="n">use_additional_conditions</span>
         <span class="p">)</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">embedding_dim</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -8162,14 +8162,14 @@ specific language governing permissions and limitations under the License.
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">act</span> <span class="o">=</span> <span class="n">get_activation</span><span class="p">(</span><span class="n">act_fn</span><span class="p">)()</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">out_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">out_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">emb</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">act</span><span class="p">:</span>
             <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">act</span><span class="p">(</span><span class="n">emb</span><span class="p">)</span>
         <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="n">emb</span><span class="p">)</span>
         <span class="n">emb</span> <span class="o">=</span> <span class="n">emb</span><span class="p">[:,</span> <span class="p">:,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span>
-        <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">emb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">emb</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">x</span> <span class="o">=</span> <span class="n">group_norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_groups</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
         <span class="n">x</span> <span class="o">=</span> <span class="n">x</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">scale</span><span class="p">)</span> <span class="o">+</span> <span class="n">shift</span>
@@ -8262,8 +8262,8 @@ specific language governing permissions and limitations under the License.
         <span class="n">norm_type</span><span class="o">=</span><span class="s2">&quot;layer_norm&quot;</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">conditioning_embedding_dim</span><span class="p">,</span> <span class="n">embedding_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">silu</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">SiLU</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">linear</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">conditioning_embedding_dim</span><span class="p">,</span> <span class="n">embedding_dim</span> <span class="o">*</span> <span class="mi">2</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">norm_type</span> <span class="o">==</span> <span class="s2">&quot;layer_norm&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">norm</span> <span class="o">=</span> <span class="n">LayerNorm</span><span class="p">(</span><span class="n">embedding_dim</span><span class="p">,</span> <span class="n">eps</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="p">,</span> <span class="n">bias</span><span class="o">=</span><span class="n">bias</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">norm_type</span> <span class="o">==</span> <span class="s2">&quot;rms_norm&quot;</span><span class="p">:</span>
@@ -8274,7 +8274,7 @@ specific language governing permissions and limitations under the License.
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">conditioning_embedding</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">:</span>
         <span class="c1"># convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)</span>
         <span class="n">emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">silu</span><span class="p">(</span><span class="n">conditioning_embedding</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
-        <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="n">emb</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">scale</span><span class="p">,</span> <span class="n">shift</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">chunk</span><span class="p">(</span><span class="n">emb</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="c1"># x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]</span>
         <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">scale</span><span class="p">)</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="o">+</span> <span class="n">shift</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">x</span>
@@ -8329,7 +8329,7 @@ the last 2 dimensions of the input (i.e. <code>input.mean((-2, -1))</code>).
 :math:<code>\gamma</code> and :math:<code>\beta</code> are learnable affine transform parameters of
 :attr:<code>normalized_shape</code> if :attr:<code>elementwise_affine</code> is <code>True</code>.
 The standard-deviation is calculated via the biased estimator, equivalent to
-<code>ops.var(input, unbiased=False)</code>.</p>
+<code>mint.var(input, unbiased=False)</code>.</p>
 <p>.. note::
     Unlike Batch Normalization and Instance Normalization, which applies
     scalar scale and bias for each entire channel/plane with the
@@ -8449,14 +8449,14 @@ The values are initialized to 1.</p>
 </ul>
 </details>        <div class="highlight"><pre><span></span><code>&gt;&gt;&gt; # NLP Example
 &gt;&gt;&gt; batch, sentence_length, embedding_dim = 20, 5, 10
-&gt;&gt;&gt; embedding = ops.randn(batch, sentence_length, embedding_dim)
+&gt;&gt;&gt; embedding = mint.randn(batch, sentence_length, embedding_dim)
 &gt;&gt;&gt; layer_norm = LayerNorm(embedding_dim)
 &gt;&gt;&gt; # Activate module
 &gt;&gt;&gt; layer_norm(embedding)
 &gt;&gt;&gt;
 &gt;&gt;&gt; # Image Example
 &gt;&gt;&gt; N, C, H, W = 20, 5, 10, 10
-&gt;&gt;&gt; input = ops.randn(N, C, H, W)
+&gt;&gt;&gt; input = mint.randn(N, C, H, W)
 &gt;&gt;&gt; # Normalize over the last three dimensions (i.e. the channel and spatial dimensions)
 &gt;&gt;&gt; # as shown in the image below
 &gt;&gt;&gt; layer_norm = LayerNorm([C, H, W])
@@ -8581,7 +8581,7 @@ The values are initialized to 1.</p>
 <span class="sd">    :math:`\gamma` and :math:`\beta` are learnable affine transform parameters of</span>
 <span class="sd">    :attr:`normalized_shape` if :attr:`elementwise_affine` is ``True``.</span>
 <span class="sd">    The standard-deviation is calculated via the biased estimator, equivalent to</span>
-<span class="sd">    `ops.var(input, unbiased=False)`.</span>
+<span class="sd">    `mint.var(input, unbiased=False)`.</span>
 
 <span class="sd">    .. note::</span>
 <span class="sd">        Unlike Batch Normalization and Instance Normalization, which applies</span>
@@ -8623,14 +8623,14 @@ The values are initialized to 1.</p>
 
 <span class="sd">        &gt;&gt;&gt; # NLP Example</span>
 <span class="sd">        &gt;&gt;&gt; batch, sentence_length, embedding_dim = 20, 5, 10</span>
-<span class="sd">        &gt;&gt;&gt; embedding = ops.randn(batch, sentence_length, embedding_dim)</span>
+<span class="sd">        &gt;&gt;&gt; embedding = mint.randn(batch, sentence_length, embedding_dim)</span>
 <span class="sd">        &gt;&gt;&gt; layer_norm = LayerNorm(embedding_dim)</span>
 <span class="sd">        &gt;&gt;&gt; # Activate module</span>
 <span class="sd">        &gt;&gt;&gt; layer_norm(embedding)</span>
 <span class="sd">        &gt;&gt;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; # Image Example</span>
 <span class="sd">        &gt;&gt;&gt; N, C, H, W = 20, 5, 10, 10</span>
-<span class="sd">        &gt;&gt;&gt; input = ops.randn(N, C, H, W)</span>
+<span class="sd">        &gt;&gt;&gt; input = mint.randn(N, C, H, W)</span>
 <span class="sd">        &gt;&gt;&gt; # Normalize over the last three dimensions (i.e. the channel and spatial dimensions)</span>
 <span class="sd">        &gt;&gt;&gt; # as shown in the image below</span>
 <span class="sd">        &gt;&gt;&gt; layer_norm = LayerNorm([C, H, W])</span>
@@ -8661,11 +8661,11 @@ The values are initialized to 1.</p>
             <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">_bias</span><span class="p">)</span>
         <span class="c1"># TODO: In fact, we need -len(normalized_shape) instead of -1, but LayerNorm doesn&#39;t allow it.</span>
         <span class="c1">#  For positive axis, the ndim of input is needed. Put it in construct?</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layer_norm</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">LayerNorm</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">epsilon</span><span class="o">=</span><span class="n">eps</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">:</span> <span class="n">Tensor</span><span class="p">):</span>
-        <span class="n">x</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">layer_norm</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">))</span>
-        <span class="k">return</span> <span class="n">x</span>
+        <span class="k">return</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">functional</span><span class="o">.</span><span class="n">layer_norm</span><span class="p">(</span>
+            <span class="n">x</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">normalized_shape</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">bias</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span>
+        <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
               </details>
 
@@ -8804,7 +8804,7 @@ and zeros (for biases). Default: <code>True</code>.</p>
 <li>Input: :math:<code>(N, C, *)</code> where :math:<code>C=\text{num\_channels}</code></li>
 <li>Output: :math:<code>(N, C, *)</code> (same shape as input)</li>
 </ul>
-</details>        <div class="highlight"><pre><span></span><code>&gt;&gt;&gt; input = ops.randn(20, 6, 10, 10)
+</details>        <div class="highlight"><pre><span></span><code>&gt;&gt;&gt; input = mint.randn(20, 6, 10, 10)
 &gt;&gt;&gt; # Separate 6 channels into 3 groups
 &gt;&gt;&gt; m = GroupNorm(3, 6)
 &gt;&gt;&gt; # Separate 6 channels into 6 groups (equivalent with InstanceNorm)
@@ -8817,8 +8817,7 @@ and zeros (for biases). Default: <code>True</code>.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/normalization.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">566</span>
-<span class="normal">567</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">567</span>
 <span class="normal">568</span>
 <span class="normal">569</span>
 <span class="normal">570</span>
@@ -8889,7 +8888,8 @@ and zeros (for biases). Default: <code>True</code>.</p>
 <span class="normal">635</span>
 <span class="normal">636</span>
 <span class="normal">637</span>
-<span class="normal">638</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">GroupNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">638</span>
+<span class="normal">639</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">GroupNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Applies Group Normalization over a mini-batch of inputs.</span>
 
 <span class="sd">    This layer implements the operation as described in</span>
@@ -8922,7 +8922,7 @@ and zeros (for biases). Default: <code>True</code>.</p>
 
 <span class="sd">    Examples::</span>
 
-<span class="sd">        &gt;&gt;&gt; input = ops.randn(20, 6, 10, 10)</span>
+<span class="sd">        &gt;&gt;&gt; input = mint.randn(20, 6, 10, 10)</span>
 <span class="sd">        &gt;&gt;&gt; # Separate 6 channels into 3 groups</span>
 <span class="sd">        &gt;&gt;&gt; m = GroupNorm(3, 6)</span>
 <span class="sd">        &gt;&gt;&gt; # Separate 6 channels into 6 groups (equivalent with InstanceNorm)</span>
@@ -9003,8 +9003,7 @@ and zeros (for biases). Default: <code>True</code>.</p>
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/models/normalization.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">641</span>
-<span class="normal">642</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">642</span>
 <span class="normal">643</span>
 <span class="normal">644</span>
 <span class="normal">645</span>
@@ -9038,7 +9037,8 @@ and zeros (for biases). Default: <code>True</code>.</p>
 <span class="normal">673</span>
 <span class="normal">674</span>
 <span class="normal">675</span>
-<span class="normal">676</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RMSNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
+<span class="normal">676</span>
+<span class="normal">677</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">RMSNorm</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Cell</span><span class="p">):</span>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">dim</span><span class="p">,</span> <span class="n">eps</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">elementwise_affine</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">bias</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">):</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
 
@@ -9054,14 +9054,14 @@ and zeros (for biases). Default: <code>True</code>.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="k">if</span> <span class="n">elementwise_affine</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dim</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">dim</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;weight&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">bias</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">ops</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">dim</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;bias&quot;</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">bias</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Parameter</span><span class="p">(</span><span class="n">mint</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">dim</span><span class="p">),</span> <span class="n">name</span><span class="o">=</span><span class="s2">&quot;bias&quot;</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">hidden_states</span><span class="p">):</span>
         <span class="n">input_dtype</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">dtype</span>
-        <span class="n">variance</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keep_dims</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">*</span> <span class="n">ops</span><span class="o">.</span><span class="n">rsqrt</span><span class="p">(</span><span class="n">variance</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
+        <span class="n">variance</span> <span class="o">=</span> <span class="n">hidden_states</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">ms</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span><span class="o">.</span><span class="n">pow</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="n">keepdim</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">hidden_states</span> <span class="o">=</span> <span class="n">hidden_states</span> <span class="o">*</span> <span class="n">mint</span><span class="o">.</span><span class="n">rsqrt</span><span class="p">(</span><span class="n">variance</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">eps</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">weight</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="c1"># convert into half-precision if necessary</span>

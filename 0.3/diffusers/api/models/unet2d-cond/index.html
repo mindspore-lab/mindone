@@ -9297,10 +9297,7 @@ otherwise.</p>
 <span class="normal">1205</span>
 <span class="normal">1206</span>
 <span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet2DConditionModel</span><span class="p">(</span>
+<span class="normal">1208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet2DConditionModel</span><span class="p">(</span>
     <span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">,</span> <span class="n">FromOriginalModelMixin</span><span class="p">,</span> <span class="n">UNet2DConditionLoadersMixin</span><span class="p">,</span> <span class="n">PeftAdapterMixin</span>
 <span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -9489,13 +9486,11 @@ otherwise.</p>
 
         <span class="c1"># input</span>
         <span class="n">conv_in_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_in_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
             <span class="n">in_channels</span><span class="p">,</span>
             <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_in_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
             <span class="n">padding</span><span class="o">=</span><span class="n">conv_in_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="c1"># time</span>
@@ -9722,13 +9717,11 @@ otherwise.</p>
             <span class="bp">self</span><span class="o">.</span><span class="n">conv_act</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="n">conv_out_padding</span> <span class="o">=</span> <span class="p">(</span><span class="n">conv_out_kernel</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span> <span class="o">//</span> <span class="mi">2</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
             <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
             <span class="n">out_channels</span><span class="p">,</span>
             <span class="n">kernel_size</span><span class="o">=</span><span class="n">conv_out_kernel</span><span class="p">,</span>
-            <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span>
             <span class="n">padding</span><span class="o">=</span><span class="n">conv_out_padding</span><span class="p">,</span>
-            <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">_set_pos_net_if_use_gligen</span><span class="p">(</span><span class="n">attention_type</span><span class="o">=</span><span class="n">attention_type</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="o">=</span><span class="n">cross_attention_dim</span><span class="p">)</span>
@@ -9835,7 +9828,7 @@ otherwise.</p>
             <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">encoder_hid_dim_type</span> <span class="o">==</span> <span class="s2">&quot;text_proj&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">encoder_hid_dim</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">encoder_hid_proj</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">encoder_hid_dim</span><span class="p">,</span> <span class="n">cross_attention_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">encoder_hid_dim_type</span> <span class="o">==</span> <span class="s2">&quot;text_image_proj&quot;</span><span class="p">:</span>
             <span class="c1"># image_embed_dim DOESN&#39;T have to be `cross_attention_dim`. To not clutter the __init__ too much</span>
             <span class="c1"># they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use</span>
@@ -9868,11 +9861,11 @@ otherwise.</p>
         <span class="n">timestep_input_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="n">class_embed_type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_class_embeds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_class_embeds</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_class_embeds</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;timestep&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">TimestepEmbedding</span><span class="p">(</span><span class="n">timestep_input_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">,</span> <span class="n">act_fn</span><span class="o">=</span><span class="n">act_fn</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;identity&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;projection&quot;</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">projection_class_embeddings_input_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
@@ -9891,7 +9884,7 @@ otherwise.</p>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
                     <span class="s2">&quot;`class_embed_type`: &#39;simple_projection&#39; requires `projection_class_embeddings_input_dim` be set&quot;</span>
                 <span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Dense</span><span class="p">(</span><span class="n">projection_class_embeddings_input_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">projection_class_embeddings_input_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -10029,6 +10022,7 @@ otherwise.</p>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">get_time_embed</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="c1"># TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can</span>
             <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">timestep</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
@@ -10100,7 +10094,7 @@ otherwise.</p>
             <span class="c1"># there might be better ways to encapsulate this.</span>
             <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">time_embeds</span> <span class="o">=</span> <span class="n">time_embeds</span><span class="o">.</span><span class="n">reshape</span><span class="p">((</span><span class="n">text_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
-            <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">text_embeds</span><span class="p">,</span> <span class="n">time_embeds</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
             <span class="n">add_embeds</span> <span class="o">=</span> <span class="n">add_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">emb</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>
             <span class="n">aug_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">add_embedding</span><span class="p">(</span><span class="n">add_embeds</span><span class="p">)</span>
         <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">addition_embed_type</span> <span class="o">==</span> <span class="s2">&quot;image&quot;</span><span class="p">:</span>
@@ -10268,7 +10262,7 @@ otherwise.</p>
         <span class="n">class_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_class_embed</span><span class="p">(</span><span class="n">sample</span><span class="o">=</span><span class="n">sample</span><span class="p">,</span> <span class="n">class_labels</span><span class="o">=</span><span class="n">class_labels</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">class_emb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_embeddings_concat</span><span class="p">:</span>
-                <span class="n">emb</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">emb</span><span class="p">,</span> <span class="n">class_emb</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">emb</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">emb</span><span class="p">,</span> <span class="n">class_emb</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">emb</span> <span class="o">=</span> <span class="n">emb</span> <span class="o">+</span> <span class="n">class_emb</span>
 
@@ -10277,7 +10271,7 @@ otherwise.</p>
         <span class="p">)</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">addition_embed_type</span> <span class="o">==</span> <span class="s2">&quot;image_hint&quot;</span><span class="p">:</span>
             <span class="n">aug_emb</span><span class="p">,</span> <span class="n">hint</span> <span class="o">=</span> <span class="n">aug_emb</span>
-            <span class="n">sample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sample</span><span class="p">,</span> <span class="n">hint</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">sample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sample</span><span class="p">,</span> <span class="n">hint</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="n">emb</span> <span class="o">=</span> <span class="n">emb</span> <span class="o">+</span> <span class="n">aug_emb</span> <span class="k">if</span> <span class="n">aug_emb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">emb</span>
 
@@ -10807,7 +10801,10 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 924</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 921</span>
+<span class="normal"> 922</span>
+<span class="normal"> 923</span>
+<span class="normal"> 924</span>
 <span class="normal"> 925</span>
 <span class="normal"> 926</span>
 <span class="normal"> 927</span>
@@ -11091,10 +11088,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
 <span class="normal">1205</span>
 <span class="normal">1206</span>
 <span class="normal">1207</span>
-<span class="normal">1208</span>
-<span class="normal">1209</span>
-<span class="normal">1210</span>
-<span class="normal">1211</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">1208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -11202,7 +11196,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
     <span class="n">class_emb</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_class_embed</span><span class="p">(</span><span class="n">sample</span><span class="o">=</span><span class="n">sample</span><span class="p">,</span> <span class="n">class_labels</span><span class="o">=</span><span class="n">class_labels</span><span class="p">)</span>
     <span class="k">if</span> <span class="n">class_emb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">class_embeddings_concat</span><span class="p">:</span>
-            <span class="n">emb</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">emb</span><span class="p">,</span> <span class="n">class_emb</span><span class="p">],</span> <span class="n">axis</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">emb</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">emb</span><span class="p">,</span> <span class="n">class_emb</span><span class="p">],</span> <span class="n">dim</span><span class="o">=-</span><span class="mi">1</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">emb</span> <span class="o">=</span> <span class="n">emb</span> <span class="o">+</span> <span class="n">class_emb</span>
 
@@ -11211,7 +11205,7 @@ otherwise a <code>tuple</code> is returned where the first element is the sample
     <span class="p">)</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">addition_embed_type</span> <span class="o">==</span> <span class="s2">&quot;image_hint&quot;</span><span class="p">:</span>
         <span class="n">aug_emb</span><span class="p">,</span> <span class="n">hint</span> <span class="o">=</span> <span class="n">aug_emb</span>
-        <span class="n">sample</span> <span class="o">=</span> <span class="n">ops</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sample</span><span class="p">,</span> <span class="n">hint</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">sample</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">cat</span><span class="p">([</span><span class="n">sample</span><span class="p">,</span> <span class="n">hint</span><span class="p">],</span> <span class="n">dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
     <span class="n">emb</span> <span class="o">=</span> <span class="n">emb</span> <span class="o">+</span> <span class="n">aug_emb</span> <span class="k">if</span> <span class="n">aug_emb</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">emb</span>
 
@@ -11432,7 +11426,11 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">738</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
 <span class="normal">739</span>
 <span class="normal">740</span>
 <span class="normal">741</span>
@@ -11460,11 +11458,7 @@ processor. This is strongly recommended when setting trainable attention process
 <span class="normal">763</span>
 <span class="normal">764</span>
 <span class="normal">765</span>
-<span class="normal">766</span>
-<span class="normal">767</span>
-<span class="normal">768</span>
-<span class="normal">769</span>
-<span class="normal">770</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
+<span class="normal">766</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">processor</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">AttentionProcessor</span><span class="p">,</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">AttentionProcessor</span><span class="p">]]):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Sets the attention processor to use to compute attention.</span>
 
@@ -11518,7 +11512,11 @@ processor. This is strongly recommended when setting trainable attention process
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d_condition.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">772</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">768</span>
+<span class="normal">769</span>
+<span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span>
 <span class="normal">773</span>
 <span class="normal">774</span>
 <span class="normal">775</span>
@@ -11527,11 +11525,7 @@ processor. This is strongly recommended when setting trainable attention process
 <span class="normal">778</span>
 <span class="normal">779</span>
 <span class="normal">780</span>
-<span class="normal">781</span>
-<span class="normal">782</span>
-<span class="normal">783</span>
-<span class="normal">784</span>
-<span class="normal">785</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">781</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">set_default_attn_processor</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Disables custom attention processors and sets the default attention implementation.</span>
 <span class="sd">    &quot;&quot;&quot;</span>

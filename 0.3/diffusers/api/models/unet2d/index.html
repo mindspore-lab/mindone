@@ -8140,9 +8140,7 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
 <span class="normal">363</span>
 <span class="normal">364</span>
 <span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">366</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">UNet2DModel</span><span class="p">(</span><span class="n">ModelMixin</span><span class="p">,</span> <span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A 2D UNet model that takes a noisy sample and a timestep and returns a sample shaped output.</span>
 
@@ -8242,9 +8240,7 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
             <span class="p">)</span>
 
         <span class="c1"># input</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-            <span class="n">in_channels</span><span class="p">,</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_in</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">in_channels</span><span class="p">,</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="c1"># time</span>
         <span class="k">if</span> <span class="n">time_embedding_type</span> <span class="o">==</span> <span class="s2">&quot;fourier&quot;</span><span class="p">:</span>
@@ -8254,18 +8250,18 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
             <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span> <span class="o">=</span> <span class="n">Timesteps</span><span class="p">(</span><span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">flip_sin_to_cos</span><span class="p">,</span> <span class="n">freq_shift</span><span class="p">)</span>
             <span class="n">timestep_input_dim</span> <span class="o">=</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
         <span class="k">elif</span> <span class="n">time_embedding_type</span> <span class="o">==</span> <span class="s2">&quot;learned&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_train_timesteps</span><span class="p">,</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">time_proj</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_train_timesteps</span><span class="p">,</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
             <span class="n">timestep_input_dim</span> <span class="o">=</span> <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">time_embedding</span> <span class="o">=</span> <span class="n">TimestepEmbedding</span><span class="p">(</span><span class="n">timestep_input_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
 
         <span class="c1"># class embedding</span>
         <span class="k">if</span> <span class="n">class_embed_type</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">num_class_embeds</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_class_embeds</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Embedding</span><span class="p">(</span><span class="n">num_class_embeds</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;timestep&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">TimestepEmbedding</span><span class="p">(</span><span class="n">timestep_input_dim</span><span class="p">,</span> <span class="n">time_embed_dim</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">class_embed_type</span> <span class="o">==</span> <span class="s2">&quot;identity&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Identity</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">class_embedding</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -8349,9 +8345,7 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
         <span class="n">num_groups_out</span> <span class="o">=</span> <span class="n">norm_num_groups</span> <span class="k">if</span> <span class="n">norm_num_groups</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="nb">min</span><span class="p">(</span><span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">//</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">32</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">conv_norm_out</span> <span class="o">=</span> <span class="n">GroupNorm</span><span class="p">(</span><span class="n">num_channels</span><span class="o">=</span><span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">num_groups</span><span class="o">=</span><span class="n">num_groups_out</span><span class="p">,</span> <span class="n">eps</span><span class="o">=</span><span class="n">norm_eps</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">conv_act</span> <span class="o">=</span> <span class="n">get_activation</span><span class="p">(</span><span class="n">act_fn</span><span class="p">)()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span>
-            <span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">pad_mode</span><span class="o">=</span><span class="s2">&quot;pad&quot;</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">has_bias</span><span class="o">=</span><span class="kc">True</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">conv_out</span> <span class="o">=</span> <span class="n">mint</span><span class="o">.</span><span class="n">nn</span><span class="o">.</span><span class="n">Conv2d</span><span class="p">(</span><span class="n">block_out_channels</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">out_channels</span><span class="p">,</span> <span class="n">kernel_size</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">padding</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">center_input_sample</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">center_input_sample</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">class_embed_type</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">class_embed_type</span>
@@ -8390,8 +8384,10 @@ conditioning with <code>class_embed_type</code> equal to <code>None</code>.</p>
 
         <span class="c1"># 1. time</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="n">timesteps</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+        <span class="c1"># todo: unavailable mint interface</span>
         <span class="k">elif</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
 
@@ -8601,7 +8597,11 @@ returned where the first element is the sample tensor.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/models/unets/unet_2d.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">260</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
 <span class="normal">261</span>
 <span class="normal">262</span>
 <span class="normal">263</span>
@@ -8707,9 +8707,7 @@ returned where the first element is the sample tensor.</p>
 <span class="normal">363</span>
 <span class="normal">364</span>
 <span class="normal">365</span>
-<span class="normal">366</span>
-<span class="normal">367</span>
-<span class="normal">368</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
+<span class="normal">366</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">construct</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">sample</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
     <span class="n">timestep</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">],</span>
@@ -8739,8 +8737,10 @@ returned where the first element is the sample tensor.</p>
 
     <span class="c1"># 1. time</span>
     <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timestep</span>
+    <span class="c1"># todo: unavailable mint interface</span>
     <span class="k">if</span> <span class="ow">not</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">):</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="p">([</span><span class="n">timesteps</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">ms</span><span class="o">.</span><span class="n">int64</span><span class="p">)</span>
+    <span class="c1"># todo: unavailable mint interface</span>
     <span class="k">elif</span> <span class="n">ops</span><span class="o">.</span><span class="n">is_tensor</span><span class="p">(</span><span class="n">timesteps</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">timesteps</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
         <span class="n">timesteps</span> <span class="o">=</span> <span class="n">timesteps</span><span class="p">[</span><span class="kc">None</span><span class="p">]</span>
 
