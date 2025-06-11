@@ -17,7 +17,7 @@
 import math
 from typing import TYPE_CHECKING, Optional, Tuple, Union
 import mindspore as ms
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 from mindspore.mint.nn import functional as F
 
 from ...activations import get_activation
@@ -1075,7 +1075,7 @@ class FalconModel(FalconPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full(
+            causal_mask = ops.full(
                 (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
             )
             if sequence_length != 1:
