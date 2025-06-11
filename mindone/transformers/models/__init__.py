@@ -32,6 +32,7 @@ from . import (
     qwen2_audio,
     qwen2_vl,
     qwen3,
+    siglip,
     speecht5,
     switch_transformers,
     t5,
