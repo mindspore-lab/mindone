@@ -1,5 +1,6 @@
 # tests/models/llama/test_modeling_llama.py
 import inspect
+
 import numpy as np
 import pytest
 import torch
@@ -19,12 +20,14 @@ from tests.transformers_tests.models.modeling_common import ids_numpy
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "fp16": 5e-3, "bf16": 5e-2}
 MODES = [1]
 
+
 def random_attention_mask(shape, rng=None, name=None):
     attn_mask = ids_numpy(shape, vocab_size=2, rng=None, name=None)
     # make sure that at least one token is attended to for each batch
     # we choose the 1st token so this property of `at least one being non-zero` still holds after applying causal mask
     attn_mask[:, 0] = 1
     return attn_mask
+
 
 class ElectraModelTester:
     def __init__(
@@ -122,8 +125,18 @@ class ElectraModelTester:
             initializer_range=self.initializer_range,
         )
 
+
 model_tester = ElectraModelTester()
-config, input_ids, token_type_ids, input_mask, sequence_labels, token_labels, choice_labels, fake_token_labels = model_tester.prepare_config_and_inputs()
+(
+    config,
+    input_ids,
+    token_type_ids,
+    input_mask,
+    sequence_labels,
+    token_labels,
+    choice_labels,
+    fake_token_labels,
+) = model_tester.prepare_config_and_inputs()
 
 LLAMA_CASES = [
     [
@@ -133,11 +146,7 @@ LLAMA_CASES = [
         (config,),
         {},
         (input_ids,),
-        {
-            "attention_mask":input_mask,
-            "token_type_ids":token_type_ids,
-            "labels":token_labels
-        },
+        {"attention_mask": input_mask, "token_type_ids": token_type_ids, "labels": token_labels},
         {
             "logits": 0,  # key: torch attribute, value: mindspore idx
         },
@@ -149,11 +158,7 @@ LLAMA_CASES = [
         (config,),
         {},
         (input_ids,),
-        {
-            "attention_mask":input_mask,
-            "token_type_ids":token_type_ids,
-            "labels":token_labels
-        },
+        {"attention_mask": input_mask, "token_type_ids": token_type_ids, "labels": token_labels},
         {
             "logits": 0,  # key: torch attribute, value: mindspore idx
         },
@@ -218,10 +223,7 @@ LLAMA_CASES = [
         (config,),
         {},
         (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids
-        },
+        {"attention_mask": input_mask, "token_type_ids": token_type_ids},
         {
             "last_hidden_state": 0,  # key: torch attribute, value: mindspore idx
         },
@@ -233,16 +235,13 @@ LLAMA_CASES = [
         (config,),
         {},
         (input_ids,),
-        {
-            "attention_mask": input_mask,
-            "token_type_ids": token_type_ids,
-            "labels": token_labels
-        },
+        {"attention_mask": input_mask, "token_type_ids": token_type_ids, "labels": token_labels},
         {
             "logits": 0,  # key: torch attribute, value: mindspore idx
         },
     ],
 ]
+
 
 @pytest.mark.parametrize(
     "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",

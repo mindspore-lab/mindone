@@ -19,11 +19,22 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+from transformers.models.electra.configuration_electra import ElectraConfig
+from transformers.utils import (
+    ModelOutput,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+
 import mindspore as ms
 from mindspore import mint, nn
 
 from ...activations import ACT2FN, get_activation
 from ...generation import GenerationMixin
+from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
 from ...modeling_outputs import (
     BaseModelOutputWithCrossAttentions,
     BaseModelOutputWithPastAndCrossAttentions,
@@ -35,17 +46,6 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_utils import PreTrainedModel, SequenceSummary
-from ...mindspore_utils import apply_chunking_to_forward, find_pruneable_heads_and_indices, prune_linear_layer
-from transformers.utils import (
-    ModelOutput,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.models.electra.configuration_electra import ElectraConfig
-
 
 logger = logging.get_logger(__name__)
 
@@ -140,7 +140,9 @@ class ElectraEmbeddings(nn.Cell):
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = mint.nn.Embedding(config.vocab_size, config.embedding_size, padding_idx=config.pad_token_id)
+        self.word_embeddings = mint.nn.Embedding(
+            config.vocab_size, config.embedding_size, padding_idx=config.pad_token_id
+        )
         self.position_embeddings = mint.nn.Embedding(config.max_position_embeddings, config.embedding_size)
         self.token_type_embeddings = mint.nn.Embedding(config.type_vocab_size, config.embedding_size)
 
@@ -222,12 +224,12 @@ class ElectraSelfAttention(nn.Cell):
         self.value = mint.nn.Linear(config.hidden_size, self.all_head_size)
 
         self.dropout = mint.nn.Dropout(config.attention_probs_dropout_prob)
-        self.position_embedding_type = position_embedding_type or getattr(
-            config, "position_embedding_type", "absolute"
-        )
+        self.position_embedding_type = position_embedding_type or getattr(config, "position_embedding_type", "absolute")
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             self.max_position_embeddings = config.max_position_embeddings
-            self.distance_embedding = mint.nn.Embedding(2 * config.max_position_embeddings - 1, self.attention_head_size)
+            self.distance_embedding = mint.nn.Embedding(
+                2 * config.max_position_embeddings - 1, self.attention_head_size
+            )
 
         self.is_decoder = config.is_decoder
 
@@ -290,9 +292,7 @@ class ElectraSelfAttention(nn.Cell):
         if self.position_embedding_type == "relative_key" or self.position_embedding_type == "relative_key_query":
             query_length, key_length = query_layer.shape[2], key_layer.shape[2]
             if use_cache:
-                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int64).view(
-                    -1, 1
-                )
+                position_ids_l = ms.Tensor(key_length - 1, dtype=ms.int64).view(-1, 1)
             else:
                 position_ids_l = mint.arange(query_length, dtype=ms.int64).view(-1, 1)
             position_ids_r = mint.arange(key_length, dtype=ms.int64).view(1, -1)
@@ -1664,9 +1664,7 @@ class ElectraForCausalLM(ElectraPreTrainedModel, GenerationMixin):
     def _reorder_cache(self, past_key_values, beam_idx):
         reordered_past = ()
         for layer_past in past_key_values:
-            reordered_past += (
-                tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),
-            )
+            reordered_past += (tuple(past_state.index_select(0, beam_idx) for past_state in layer_past),)
         return reordered_past
 
 
