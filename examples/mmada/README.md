@@ -80,7 +80,7 @@ huggingface-cli download --resume-download Gen-Verse/MMaDA-8B-MixCoT
 Please download the image files and text files for multimodal generation from this [URL](https://huggingface.co/datasets/ddengwtomin/mmada-repository/tree/main). You can also download them using the following command:
 ```bash
 cd examples/mmada
-huggingface-cli download --resume-download ddengwtomin/mmada-repository --local-dir ./ --exclude "README.md" ".gitattributes" --repo-type dataset
+huggingface-cli download --resume-download ddengwtomin/mmada-repository --local-dir ./ --exclude "README.md" ".gitattributes" "train_datasets/*" --repo-type dataset
 ```
 
 ### 1. Text Generation
