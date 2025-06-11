@@ -55,6 +55,10 @@ image = pipe(
 image.save("output.png")
 ```
 
+<div class="flex justify-center">
+    <img src="https://github.com/user-attachments/assets/5ee287f8-c113-40b4-bf1f-6d9ef919bfed"/>
+</div>
+
 ## Image edit
 
 OmniGen supports multimodal inputs.
@@ -82,6 +86,18 @@ image = pipe(
 )[0][0]
 image.save("output.png")
 ```
+https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/t2i_woman_with_book.png
+
+<div class="flex flex-row gap-4">
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/t2i_woman_with_book.png"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">original image</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/1c0ae6ce-ba00-4ec0-ab53-e2e927c2952b"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">edited image</figcaption>
+  </div>
+</div>
 
 
 OmniGen has some interesting features, such as visual reasoning, as shown in the example below.
@@ -99,6 +115,10 @@ image = pipe(
 )[0][0]
 image.save("output.png")
 ```
+
+<div class="flex justify-center">
+    <img src="https://github.com/user-attachments/assets/91ae03a8-6634-47f1-8382-f2215684f9b7" alt="generated image"/>
+</div>
 
 
 ## Controllable generation
@@ -139,6 +159,20 @@ image2 = pipe(
 image2.save("image2.png")
 ```
 
+<div class="flex flex-row gap-4">
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/edit.png"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">original image</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/5724475c-a172-4025-857f-4789d1619874"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">detected skeleton</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/e86bb02f-50d7-462b-a58e-9214d2850f43"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">skeleton to image</figcaption>
+  </div>
+</div>
 
 OmniGen can also directly use relevant information from input images to generate new images.
 
@@ -163,7 +197,12 @@ image = pipe(
 )[0][0]
 image.save("output.png")
 ```
-
+<div class="flex flex-row gap-4">
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/5a724f2b-838d-4b5a-ab25-914e86839a8f"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">generated image</figcaption>
+  </div>
+</div>
 
 ## ID and object preserving
 
@@ -191,11 +230,24 @@ image = pipe(
     width=1024,
     guidance_scale=2.5,
     img_guidance_scale=1.6,
-    generator = np.random.Generator(np.random.PCG64(666)),
 )[0][0]
 image.save("output.png")
 ```
 
+<div class="flex flex-row gap-4">
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/3.png"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">input_image_1</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/4.png"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">input_image_2</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/baf0e56d-9e00-48e4-9547-6e4bda6291de"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">generated image</figcaption>
+  </div>
+</div>
 
 ```py
 import mindspore
@@ -221,3 +273,17 @@ image = pipe(
 )[0][0]
 image.save("output.png")
 ```
+<div class="flex flex-row gap-4">
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/emma.jpeg"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">person image</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://raw.githubusercontent.com/VectorSpaceLab/OmniGen/main/imgs/docs_img/dress.jpg"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">clothe image</figcaption>
+  </div>
+  <div class="flex-1">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/8451d894-daa7-4439-ac91-f744b598280d"/>
+    <figcaption class="mt-2 text-center text-sm text-gray-500">generated image</figcaption>
+  </div>
+</div>

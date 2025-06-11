@@ -12,8 +12,6 @@ specific language governing permissions and limitations under the License.
 
 # Marigold Computer Vision
 
-# Marigold Computer Vision
-
 **Marigold** is a diffusion-based [method](https://huggingface.co/papers/2312.02145) and a collection of [pipelines](../api/pipelines/marigold) designed for
 dense computer vision tasks, including **monocular depth prediction**, **surface normals estimation**, and **intrinsic
 image decomposition**.
@@ -196,6 +194,21 @@ Both models share the same pipeline while supporting different decomposition typ
 The exact decomposition parameterization (e.g., sRGB vs. linear space) is stored in the
 `pipe.target_properties` dictionary, which is passed into the
 [`~pipelines.marigold.marigold_image_processing.MarigoldImageProcessor.visualize_intrinsics`] function.
+
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+  <div style="flex: 1 1 50%; max-width: 50%;">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/cf6847bf-60b9-4f9f-af22-28afb3f68995"/>
+    <figcaption class="mt-1 text-center text-sm text-gray-500">
+      Predicted albedo ("Appearance" model)
+    </figcaption>
+  </div>
+  <div style="flex: 1 1 50%; max-width: 50%;">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/1aeab6e4-8ffc-406b-a981-f77d12047a37"/>
+    <figcaption class="mt-1 text-center text-sm text-gray-500">
+      Predicted diffuse shading ("Lighting" model)
+    </figcaption>
+  </div>
+</div>
 
 
 ### Speeding up inference
@@ -510,6 +523,26 @@ uncertainty = pipe.image_processor.visualize_uncertainty(depth[1])
 uncertainty[0].save("einstein_depth_uncertainty.png")
 ```
 
+<div style="display: flex; justify-content: center; align-items: flex-start; text-align: center; max-width: 98%; margin: 0 auto; gap: 1vw;">
+  <div style="flex: 1 1 33%; max-width: 33%;">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/f3eaacc8-986b-4ca3-951f-d68758245dd2"/>
+    <figcaption class="mt-1 text-center text-sm text-gray-500">
+      Depth uncertainty
+    </figcaption>
+  </div>
+  <div style="flex: 1 1 33%; max-width: 33%;">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/01723692-a57d-4ab6-9946-dc718a76e0fe"/>
+    <figcaption class="mt-1 text-center text-sm text-gray-500">
+      Surface normals uncertainty
+    </figcaption>
+  </div>
+  <div style="flex: 1 1 33%; max-width: 33%;">
+    <img class="rounded-xl" src="https://github.com/user-attachments/assets/4515872c-67d2-401d-bfee-64aa7ad5c8c4"/>
+    <figcaption class="mt-1 text-center text-sm text-gray-500">
+      Albedo uncertainty
+    </figcaption>
+  </div>
+</div>
 
 The interpretation of uncertainty is easy: higher values (white) correspond to pixels, where the model struggles to
 make consistent predictions.
