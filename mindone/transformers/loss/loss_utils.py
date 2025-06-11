@@ -66,6 +66,7 @@ def ForTokenClassification(logits, labels, config, **kwargs):
     # Flatten the tokens
     return fixed_cross_entropy(logits, labels, **kwargs)
 
+
 LOSS_MAPPING = {
     "ForCausalLM": ForCausalLMLoss,
     "ForSequenceClassification": ForSequenceClassificationLoss,

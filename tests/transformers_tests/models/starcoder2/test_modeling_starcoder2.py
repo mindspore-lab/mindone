@@ -13,6 +13,7 @@ import numpy as np
 import pytest
 import torch
 from transformers import Starcoder2Config
+
 import mindspore as ms
 
 from tests.modeling_test_utils import (
@@ -126,6 +127,7 @@ class Starcoder2ModelTester:
             bos_token_id=self.pad_token_id,
         )
 
+
 model_tester = Starcoder2ModelTester()
 (
     config,
@@ -134,7 +136,7 @@ model_tester = Starcoder2ModelTester()
     input_mask,
     sequence_labels,
     token_labels,
-    choice_labels
+    choice_labels,
 ) = model_tester.prepare_config_and_inputs()
 
 BERT_CASES = [

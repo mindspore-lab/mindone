@@ -157,6 +157,13 @@ from .models.speecht5 import (
     SpeechT5Model,
     SpeechT5PreTrainedModel,
 )
+from .models.starcoder2 import (
+    Starcoder2ForCausalLM,
+    Starcoder2ForSequenceClassification,
+    Starcoder2ForTokenClassification,
+    Starcoder2Model,
+    Starcoder2PreTrainedModel,
+)
 from .models.t5 import (
     T5_PRETRAINED_MODEL_ARCHIVE_LIST,
     T5EncoderModel,
@@ -191,13 +198,6 @@ from .models.whisper import (
     WhisperModel,
     WhisperPreTrainedModel,
     WhisperProcessor,
-)
-from .models.starcoder2 import (
-    Starcoder2ForCausalLM,
-    Starcoder2Model,
-    Starcoder2PreTrainedModel,
-    Starcoder2ForSequenceClassification,
-    Starcoder2ForTokenClassification,
 )
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline

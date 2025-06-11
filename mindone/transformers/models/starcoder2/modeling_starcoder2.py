@@ -26,38 +26,37 @@
 
 from typing import Callable, List, Optional, Tuple, Union
 
+from transformers.models.starcoder2.configuration_starcoder2 import Starcoder2Config
+from transformers.utils import (  # can_return_tuple,
+    LossKwargs,
+    add_code_sample_docstrings,
+    add_start_docstrings,
+    add_start_docstrings_to_model_forward,
+    logging,
+    replace_return_docstrings,
+)
+from transformers.utils.deprecation import deprecate_kwarg
+
 import mindspore as ms
 from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, SlidingWindowCache, StaticCache
 from ...generation import GenerationMixin
+from ...integrations.flash_attention import flash_attention_forward
+from ...loss.loss_utils import ForSequenceClassificationLoss, ForTokenClassification
+from ...mindspore_adapter import DTYPE_FP16_MIN, dtype_to_min, scaled_dot_product_attention
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
-from ...loss.loss_utils import ForSequenceClassificationLoss, ForTokenClassification
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
-from ...integrations.flash_attention import flash_attention_forward
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS, dynamic_rope_update
 from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, PreTrainedModel
-from ...mindspore_adapter import dtype_to_min, scaled_dot_product_attention, DTYPE_FP16_MIN
 from ...processing_utils import Unpack
-from transformers.utils import (
-    LossKwargs,
-    add_code_sample_docstrings,
-    add_start_docstrings,
-    add_start_docstrings_to_model_forward,
-    # can_return_tuple,
-    logging,
-    replace_return_docstrings,
-)
-from transformers.utils.deprecation import deprecate_kwarg
-from transformers.models.starcoder2.configuration_starcoder2 import Starcoder2Config
-
 
 logger = logging.get_logger(__name__)
 _CHECKPOINT_FOR_DOC = "bigcode/starcoder2-7b"
@@ -167,10 +166,18 @@ class Starcoder2Attention(nn.Cell):
         self.scaling = self.head_dim**-0.5
         self.attention_dropout = config.attention_dropout
         self.is_causal = True
-        self.q_proj = mint.nn.Linear(config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.use_bias)
-        self.k_proj = mint.nn.Linear(config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias)
-        self.v_proj = mint.nn.Linear(config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias)
-        self.o_proj = mint.nn.Linear(config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.use_bias)
+        self.q_proj = mint.nn.Linear(
+            config.hidden_size, config.num_attention_heads * self.head_dim, bias=config.use_bias
+        )
+        self.k_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias
+        )
+        self.v_proj = mint.nn.Linear(
+            config.hidden_size, config.num_key_value_heads * self.head_dim, bias=config.use_bias
+        )
+        self.o_proj = mint.nn.Linear(
+            config.num_attention_heads * self.head_dim, config.hidden_size, bias=config.use_bias
+        )
         self.residual_dropout = config.residual_dropout
 
     def construct(
@@ -217,7 +224,6 @@ class Starcoder2Attention(nn.Cell):
         )  # diff with Llama
 
         return attn_output, attn_weights
-
 
 
 class Starcoder2FlashAttention2(Starcoder2Attention):
@@ -300,12 +306,7 @@ class Starcoder2SdpaAttention(Starcoder2Attention):
                 'eager attention. This warning can be removed using the argument `attn_implementation="eager"` when loading the model.'
             )
             return super().construct(
-                hidden_states,
-                position_embeddings,
-                attention_mask,
-                past_key_value,
-                cache_position,
-                **kwargs
+                hidden_states, position_embeddings, attention_mask, past_key_value, cache_position, **kwargs
             )
         _, q_len, _ = hidden_states.shape
         input_shape = hidden_states.shape[:-1]
@@ -355,6 +356,7 @@ ATTENTION_CLASSES = {
     "sdpa": Starcoder2SdpaAttention,
     "flash_attention_2": Starcoder2FlashAttention2,
 }
+
 
 class Starcoder2DecoderLayer(nn.Cell):
     def __init__(self, config: Starcoder2Config, layer_idx: int):
@@ -626,9 +628,7 @@ class Starcoder2Model(Starcoder2PreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1]
-            )
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -752,11 +752,7 @@ class Starcoder2Model(Starcoder2PreTrainedModel):
             past_key_values=past_key_values,
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             # Details: https://github.com/pytorch/pytorch/issues/110213
@@ -802,9 +798,7 @@ class Starcoder2Model(Starcoder2PreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype
-            )
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             diagonal_attend_mask = mint.arange(target_length) > cache_position.reshape(-1, 1)
             if config.sliding_window is not None:
                 # if we have sliding window, we should not attend to tokens beyond sliding window length, so we mask them out also
@@ -813,8 +807,9 @@ class Starcoder2Model(Starcoder2PreTrainedModel):
                     sliding_attend_mask = mint.arange(target_length) <= (
                         cache_position.reshape(-1, 1) - config.sliding_window
                     )
-                    diagonal_attend_mask = mint.bitwise_or(diagonal_attend_mask.to(ms.int32), sliding_attend_mask.to(ms.int32)).to(
-                        sliding_attend_mask.dtype)
+                    diagonal_attend_mask = mint.bitwise_or(
+                        diagonal_attend_mask.to(ms.int32), sliding_attend_mask.to(ms.int32)
+                    ).to(sliding_attend_mask.dtype)
                     # Todo: to remove cast
             causal_mask *= diagonal_attend_mask
             causal_mask = causal_mask[None, None, :, :].expand((batch_size, 1, -1, -1))
@@ -831,7 +826,8 @@ class Starcoder2Model(Starcoder2PreTrainedModel):
         return causal_mask
 
 
-class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
+class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs):
+    ...
 
 
 class Starcoder2ForCausalLM(Starcoder2PreTrainedModel, GenerationMixin):

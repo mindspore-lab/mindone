@@ -1,6 +1,6 @@
 import math
-from typing import Optional, Tuple
 from functools import wraps
+from typing import Optional, Tuple
 
 from transformers import PretrainedConfig
 from transformers.utils import logging
