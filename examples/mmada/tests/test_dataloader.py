@@ -15,6 +15,7 @@ class MockConfig:
     def __init__(self):
         self.training = MockTrainingConfig()
         self.dataset = MockDatasetConfig()
+        self.experiment = MockExperimentConfig()
 
 
 class MockTrainingConfig:
@@ -33,6 +34,12 @@ class MockDatasetConfig:
         self.gen_type = "t2i"  # or "t2i_parquet", "imagenet1k"
         self.und_type = "captioning"  # or "captioning_parquet"
         self.combined_loader_mode = "max_size_cycle"
+
+
+class MockExperimentConfig:
+    def __init__(self):
+        self.max_train_examples_t2i = 1000
+        self.max_train_examples_mmu = 1000
 
 
 class MockPreprocessingConfig:
