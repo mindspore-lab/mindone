@@ -1,4 +1,4 @@
-from . import (
+from . import (  # qwen3,
     albert,
     auto,
     bart,
@@ -31,7 +31,6 @@ from . import (
     qwen2_5_vl,
     qwen2_audio,
     qwen2_vl,
-    qwen3,
     speecht5,
     switch_transformers,
     t5,
