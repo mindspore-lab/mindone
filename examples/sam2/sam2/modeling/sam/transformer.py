@@ -1,9 +1,3 @@
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-
 import math
 from functools import partial
 from typing import Tuple, Type
@@ -88,7 +82,7 @@ class TwoWayTransformer(nn.Cell):
         self.embedding_dim = embedding_dim
         self.num_heads = num_heads
         self.mlp_dim = mlp_dim
-        self.layers = nn.CellList()
+        self.layers = ms.nn.CellList()
 
         for i in range(depth):
             self.layers.append(
