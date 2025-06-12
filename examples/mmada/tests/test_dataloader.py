@@ -152,7 +152,10 @@ def create_dataloaders(config):
         train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
         for x in train_dataloader_t2i:
             for k, v in x.items():
-                print(k, v.shape)
+                if isinstance(v, (list, tuple)):
+                    print(k, len(v))
+                else:
+                    print(k, v.shape)
             break
         num_update_steps_per_epoch = math.ceil(len(dataset_imagenet) / total_batch_size_t2i)
         num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
@@ -185,7 +188,10 @@ def create_dataloaders(config):
         train_dataloader_mmu = dataset_mmu.train_dataloader
         for x in train_dataloader_mmu:
             for k, v in x.items():
-                print(k, v.shape)
+                if isinstance(v, (list, tuple)):
+                    print(k, len(v))
+                else:
+                    print(k, v.shape)
             break
     elif config.dataset.und_type == "captioning_parquet":
         train_dataloader_mmu = create_imagetext_dataloader(
@@ -222,7 +228,10 @@ def create_dataloaders(config):
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
     for x in train_dataloader_lm:
         for k, v in x.items():
-            print(k, v.shape)
+            if isinstance(v, (list, tuple)):
+                print(k, len(v))
+            else:
+                print(k, v.shape)
         break
     # Combine these dataloaders into a single iterable model
     iterables = {
