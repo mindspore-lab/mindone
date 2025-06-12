@@ -450,7 +450,7 @@ if __name__ == "__main__":
     )
 
     train_dataloader = create_dataloader(dataset, column_names=["input_ids"], batch_size=1, sampler=None, num_workers=1)
-    train_dataloader = train_dataloader.create_dict_iterator(num_epochs=1)
+    train_dataloader = train_dataloader.create_dict_iterator(num_epochs=1, output_numpy=True)
     print("Starting data loading test...")
     for i, batch in enumerate(train_dataloader):
         if i == 0:

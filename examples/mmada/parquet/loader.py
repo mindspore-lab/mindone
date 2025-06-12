@@ -1,4 +1,3 @@
-import logging
 from collections import defaultdict
 
 import numpy as np
@@ -6,8 +5,6 @@ import numpy as np
 import mindspore as ms
 from mindspore.communication.management import get_local_rank, get_local_rank_size
 from mindspore.dataset import GeneratorDataset
-
-_logger = logging.getLogger(__name__)
 
 
 def create_dataloader(
@@ -52,8 +49,6 @@ def create_dataloader(
         num_shards=None if device_num == 1 else device_num,
         shard_id=None if device_num == 1 else rank_id,
     ).batch(batch_size)
-
-    _logger.info("dataset size per shard: {}".format(dl.get_dataset_size()))
 
     return dl
 
