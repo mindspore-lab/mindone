@@ -15,7 +15,6 @@
 """ MindSpore T5 model."""
 
 import copy
-import warnings
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -24,7 +23,7 @@ from transformers.utils import DUMMY_INPUTS, DUMMY_MASK, logging
 
 import mindspore as ms
 import mindspore.nn as nn
-from mindspore import mint, Parameter, Tensor, ops
+from mindspore import Parameter, Tensor, mint, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from ...activations import ACT2FN
@@ -1265,6 +1264,7 @@ class T5EncoderModel(T5PreTrainedModel):
 
         return encoder_outputs
 
+
 class T5ForSequenceClassification(T5PreTrainedModel):
     _keys_to_ignore_on_load_unexpected = ["decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight"]
     _tied_weights_keys = ["encoder.embed_tokens.weight", "decoder.embed_tokens.weight"]
@@ -1450,6 +1450,7 @@ class T5ForTokenClassification(T5PreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
+
 
 class T5ForQuestionAnswering(T5PreTrainedModel):
     _keys_to_ignore_on_load_unexpected = ["decoder.block.0.layer.1.EncDecAttention.relative_attention_bias.weight"]
