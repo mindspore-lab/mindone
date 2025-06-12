@@ -16,7 +16,7 @@ def create_dataloader(
     dataset,
     batch_size,
     column_names=["video"],
-    num_parallel_workers=12,
+    num_workers=12,
     max_rowsize=32,
     shuffle=True,
     device_num=1,
@@ -58,7 +58,7 @@ def create_dataloader(
         loader,
         column_names=column_names,
         shuffle=shuffle,
-        num_parallel_workers=num_parallel_workers,
+        num_parallel_workers=num_workers,
         max_rowsize=max_rowsize,
     )
     dl.dataset_size = len(loader)

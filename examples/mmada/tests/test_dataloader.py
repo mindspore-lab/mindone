@@ -3,7 +3,7 @@ import math
 
 import torch
 from parquet import RefinedWebDataset  # Assuming this is from a 'parquet' library
-from parquet.loader import CombinedLoader
+from parquet.loader import CombinedLoader, create_dataloader
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 
@@ -31,7 +31,7 @@ class MockDatasetConfig:
     def __init__(self):
         self.preprocessing = MockPreprocessingConfig()
         self.params = MockDatasetParamsConfig()
-        self.gen_type = "t2i"  # or "t2i_parquet", "imagenet1k"
+        self.gen_type = "imagenet1k"  # or "t2i_parquet", "imagenet1k"
         self.und_type = "captioning"  # or "captioning_parquet"
         self.combined_loader_mode = "max_size_cycle"
 
@@ -53,7 +53,7 @@ class MockDatasetParamsConfig:
         self.train_t2i_shards_path_or_url = "train_datasets/imagenet-1k/data/train/"
         self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00999}.tar"
         self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/data/*parquet"
-        self.num_workers = 0
+        self.num_workers = 1
         self.shuffle_buffer_size = 1000
         self.pin_memory = False
         self.persistent_workers = False
@@ -141,11 +141,11 @@ def create_dataloaders(config):
         sampler = None
         shuffle = True
 
-        train_dataloader_t2i = torch.utils.data.DataLoader(
+        train_dataloader_t2i = create_dataloader(
             dataset_imagenet,
+            column_names=["image", "input_ids", "class_ids"],
             batch_size=config.training.batch_size_t2i,
             sampler=sampler,
-            collate_fn=dataset_imagenet.collate_fn,
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
         )
