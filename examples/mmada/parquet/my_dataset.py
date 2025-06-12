@@ -1,4 +1,3 @@
-
 import glob
 import json
 import os
@@ -38,19 +37,11 @@ class RefinedWebDataset:
 
         self.files = self.files[self.rank :: self.world_size]
 
-        self._length = 0
-        for file_path in self.files:
-            table = pq.read_table(file_path, columns=["content"])
-            self._length += len(table)
-
     def read_parquet_file(self, file_path):
         table = pq.read_table(file_path, columns=["content"])
         df = table.to_pandas()
         for _, row in df.iterrows():
             yield {"content": row["content"]}
-
-    def __len__(self):
-        return self._length
 
     def __iter__(self):
         while True:
@@ -458,9 +449,8 @@ if __name__ == "__main__":
         buffer_size=0,
     )
 
-    train_dataloader = create_dataloader(dataset,
-        column_names=["input_ids"], batch_size=1, sampler=None, num_workers=0)
-
+    train_dataloader = create_dataloader(dataset, column_names=["input_ids"], batch_size=1, sampler=None, num_workers=1)
+    train_dataloader = train_dataloader.create_dict_iterator(num_epochs=1)
     print("Starting data loading test...")
     for i, batch in enumerate(train_dataloader):
         if i == 0:
