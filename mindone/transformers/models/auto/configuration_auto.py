@@ -45,6 +45,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("qwen2", "Qwen2Config"),
         ("t5", "T5Config"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("xlm-roberta-xl", "XLMRobertaXLConfig"),
     ]
 )
 

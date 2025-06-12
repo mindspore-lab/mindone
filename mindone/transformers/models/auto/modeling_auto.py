@@ -41,6 +41,7 @@ MODEL_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5Model"),
         ("t5", "T5Model"),
         ("xlm-roberta", "XLMRobertaModel"),
+        ("xlm-roberta-xl", "XLMRobertaXLModel"),
     ]
 )
 
@@ -188,6 +189,7 @@ MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("mt5", "MT5ForSequenceClassification"),
         ("phi3", "Phi3ForSequenceClassification"),
         ("t5", "T5ForSequenceClassification"),
+        ("xlm-roberta-xl", "XLMRobertaXLForSequenceClassification"),
     ]
 )
 
@@ -199,6 +201,7 @@ MODEL_FOR_QUESTION_ANSWERING_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForQuestionAnswering"),
         ("umt5", "UMT5ForQuestionAnswering"),
         ("xlm-roberta", "XLMRobertaForQuestionAnswering"),
+        ("xlm-roberta-xl", "XLMRobertaXLForQuestionAnswering"),
     ]
 )
 
@@ -216,6 +219,7 @@ MODEL_FOR_TOKEN_CLASSIFICATION_MAPPING_NAMES = OrderedDict(
         ("t5", "T5ForTokenClassification"),
         ("umt5", "UMT5ForTokenClassification"),
         ("xlm-roberta", "XLMRobertaForTokenClassification"),
+        ("xlm-roberta-xl", "XLMRobertaXLForTokenClassification"),
     ]
 )
 
@@ -224,6 +228,7 @@ MODEL_FOR_MULTIPLE_CHOICE_MAPPING_NAMES = OrderedDict(
         # Model for Multiple Choice mapping
         ("bert", "BertForMultipleChoice"),
         ("xlm-roberta", "XLMRobertaForMultipleChoice"),
+        ("xlm-roberta-xl", "XLMRobertaXLForMultipleChoice"),
     ]
 )
 
@@ -262,6 +267,7 @@ MODEL_FOR_TEXT_ENCODING_MAPPING_NAMES = OrderedDict(
         ("t5", "T5EncoderModel"),
         ("umt5", "UMT5EncoderModel"),
         ("xlm-roberta", "XLMRobertaModel"),
+        ("xlm-roberta-xl", "XLMRobertaXLModel"),
     ]
 )
 
