@@ -14241,10 +14241,10 @@ watermarker will be used.</p>
 
     <span class="c1"># Modified from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.StableDiffusionPipeline.prepare_latents</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">prepare_latents</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">latents</span><span class="p">):</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="n">latents</span><span class="o">.</span><span class="n">dtype</span>
 
         <span class="c1"># scale the initial noise by the standard deviation required by the scheduler</span>
-        <span class="n">latents</span> <span class="o">=</span> <span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span>
+        <span class="n">latents</span> <span class="o">=</span> <span class="p">(</span><span class="n">latents</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">scheduler</span><span class="o">.</span><span class="n">init_noise_sigma</span><span class="p">)</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">latents</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_get_add_time_ids</span><span class="p">(</span>
