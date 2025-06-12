@@ -12,7 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""PyTorch VITS model."""
+"""MindSpore VITS model."""
 
 import math
 from dataclasses import dataclass
