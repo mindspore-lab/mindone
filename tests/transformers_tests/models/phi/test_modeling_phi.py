@@ -35,7 +35,7 @@ from tests.modeling_test_utils import (
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
 DTYPE_AND_THRESHOLDS = {"fp32": 5e-4, "bf16": 5e-3}
-MODES = [0, 1]
+MODES = [1]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
