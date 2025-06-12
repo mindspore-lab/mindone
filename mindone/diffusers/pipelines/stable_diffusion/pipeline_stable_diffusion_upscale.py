@@ -21,7 +21,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -53,13 +53,13 @@ def preprocess(image):
         w, h = (x - x % 64 for x in (w, h))  # resize to integer multiple of 64
 
         image = [np.array(i.resize((w, h)))[None, :] for i in image]
-        image = np.concatenate(image, axis=0)
+        image = np.concatenate(image, dim=0)
         image = np.array(image).astype(np.float32) / 255.0
         image = image.transpose(0, 3, 1, 2)
         image = 2.0 * image - 1.0
         image = ms.Tensor.from_numpy(image)
     elif isinstance(image[0], ms.Tensor):
-        image = ops.cat(image, axis=0)
+        image = mint.cat(image, dim=0)
     return image
 
 
@@ -188,7 +188,7 @@ class StableDiffusionUpscalePipeline(
         )
 
         # concatenate for backwards comp
-        prompt_embeds = ops.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
+        prompt_embeds = mint.cat([prompt_embeds_tuple[1], prompt_embeds_tuple[0]])
 
         return prompt_embeds
 
@@ -651,7 +651,7 @@ class StableDiffusionUpscalePipeline(
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Preprocess image
         image = self.image_processor.preprocess(image)
@@ -671,8 +671,8 @@ class StableDiffusionUpscalePipeline(
         image = self.low_res_scheduler.add_noise(image, noise, noise_level)
 
         batch_multiplier = 2 if do_classifier_free_guidance else 1
-        image = ops.cat([image] * batch_multiplier * num_images_per_prompt)
-        noise_level = ops.cat([noise_level] * image.shape[0])
+        image = mint.cat([image] * batch_multiplier * num_images_per_prompt)
+        noise_level = mint.cat([noise_level] * image.shape[0])
 
         # 6. Prepare latent variables
         height, width = image.shape[2:]
@@ -706,11 +706,11 @@ class StableDiffusionUpscalePipeline(
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
 
                 # concat latents, mask, masked_image_latents in the channel dimension
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
-                latent_model_input = ops.cat([latent_model_input, image], axis=1)
+                latent_model_input = mint.cat([latent_model_input, image], dim=1)
 
                 # predict the noise residual
                 noise_pred = self.unet(

@@ -20,7 +20,7 @@ import numpy as np
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel
 
@@ -428,7 +428,7 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
         # Here we concatenate the unconditional and text embeddings into a single batch
         # to avoid doing two forward passes
         text_encoder_hidden_states = (
-            ops.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
+            mint.cat([prompt_embeds, negative_prompt_embeds]) if negative_prompt_embeds is not None else prompt_embeds
         )
 
         # 3. Determine latent shape of image embeddings
@@ -457,15 +457,15 @@ class WuerstchenPriorPipeline(DiffusionPipeline, LoraLoaderMixin):
 
             # 7. Denoise image embeddings
             predicted_image_embedding = self.prior(
-                ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
-                r=ops.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
+                mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents,
+                r=mint.cat([ratio] * 2) if self.do_classifier_free_guidance else ratio,
                 c=text_encoder_hidden_states,
             )
 
             # 8. Check for classifier free guidance and apply it
             if self.do_classifier_free_guidance:
                 predicted_image_embedding_text, predicted_image_embedding_uncond = predicted_image_embedding.chunk(2)
-                predicted_image_embedding = ops.lerp(
+                predicted_image_embedding = mint.lerp(
                     predicted_image_embedding_uncond,
                     predicted_image_embedding_text,
                     ms.tensor(self.guidance_scale, dtype=predicted_image_embedding_text.dtype),
