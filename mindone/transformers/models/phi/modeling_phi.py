@@ -7,7 +7,7 @@
 from typing import Callable, List, Optional, Tuple, Union
 
 import mindspore
-from mindspore import mint, nn
+from mindspore import mint, nn, ops
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
@@ -566,7 +566,7 @@ class PhiModel(PhiPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = mint.full(
+            causal_mask = ops.full(
                 (sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
