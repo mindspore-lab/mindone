@@ -15,6 +15,11 @@ _import_structure = {
         "AnimateDiffVideoToVideoControlNetPipeline",
     ],
     "audioldm": ["AudioLDMPipeline"],
+    "audioldm2": [
+        "AudioLDM2Pipeline",
+        "AudioLDM2ProjectionModel",
+        "AudioLDM2UNet2DConditionModel",
+    ],
     "aura_flow": ["AuraFlowPipeline"],
     "auto_pipeline": [
         "AutoPipelineForImage2Image",
@@ -64,6 +69,11 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
+    "easyanimate": [
+        "EasyAnimatePipeline",
+        "EasyAnimateInpaintPipeline",
+        "EasyAnimateControlPipeline",
+    ],
     "flux": [
         "FluxControlImg2ImgPipeline",
         "FluxControlInpaintPipeline",
@@ -118,6 +128,7 @@ _import_structure = {
     "latte": ["LattePipeline"],
     "ltx": ["LTXPipeline", "LTXImageToVideoPipeline"],
     "lumina": ["LuminaText2ImgPipeline"],
+    "lumina2": ["Lumina2Pipeline", "Lumina2Text2ImgPipeline"],
     "marigold": [
         "MarigoldDepthPipeline",
         "MarigoldNormalsPipeline",
@@ -149,7 +160,7 @@ _import_structure = {
         "PixArtAlphaPipeline",
         "PixArtSigmaPipeline",
     ],
-    "sana": ["SanaPipeline"],
+    "sana": ["SanaPipeline", "SanaSprintPipeline"],
     "semantic_stable_diffusion": ["SemanticStableDiffusionPipeline"],
     "shap_e": ["ShapEImg2ImgPipeline", "ShapEPipeline"],
     "stable_audio": ["StableAudioProjectionModel", "StableAudioPipeline"],
@@ -176,6 +187,7 @@ _import_structure = {
         "StableDiffusion3Img2ImgPipeline",
         "StableDiffusion3InpaintPipeline",
     ],
+    "stable_diffusion_attend_and_excite": ["StableDiffusionAttendAndExcitePipeline"],
     "stable_diffusion_safe": ["StableDiffusionPipelineSafe"],
     "stable_diffusion_sag": ["StableDiffusionSAGPipeline"],
     "stable_diffusion_gligen": [
@@ -238,6 +250,7 @@ if TYPE_CHECKING:
         AnimateDiffVideoToVideoPipeline,
     )
     from .audioldm import AudioLDMPipeline
+    from .audioldm2 import AudioLDM2Pipeline, AudioLDM2ProjectionModel, AudioLDM2UNet2DConditionModel
     from .aura_flow import AuraFlowPipeline
     from .auto_pipeline import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
     from .blip_diffusion import BlipDiffusionPipeline
@@ -276,6 +289,7 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
+    from .easyanimate import EasyAnimateControlPipeline, EasyAnimateInpaintPipeline, EasyAnimatePipeline
     from .flux import (
         FluxControlImg2ImgPipeline,
         FluxControlInpaintPipeline,
@@ -326,6 +340,7 @@ if TYPE_CHECKING:
     )
     from .ltx import LTXImageToVideoPipeline, LTXPipeline
     from .lumina import LuminaText2ImgPipeline
+    from .lumina2 import Lumina2Pipeline, Lumina2Text2ImgPipeline
     from .marigold import MarigoldDepthPipeline, MarigoldNormalsPipeline
     from .mochi import MochiPipeline
     from .musicldm import MusicLDMPipeline
@@ -352,7 +367,7 @@ if TYPE_CHECKING:
     from .pia import PIAPipeline
     from .pipeline_utils import AudioPipelineOutput, DiffusionPipeline, ImagePipelineOutput, StableDiffusionMixin
     from .pixart_alpha import PixArtAlphaPipeline, PixArtSigmaPipeline
-    from .sana import SanaPipeline
+    from .sana import SanaPipeline, SanaSprintPipeline
     from .semantic_stable_diffusion import SemanticStableDiffusionPipeline
     from .shap_e import ShapEImg2ImgPipeline, ShapEPipeline
     from .stable_audio import StableAudioPipeline, StableAudioProjectionModel
@@ -375,6 +390,7 @@ if TYPE_CHECKING:
         StableDiffusion3InpaintPipeline,
         StableDiffusion3Pipeline,
     )
+    from .stable_diffusion_attend_and_excite import StableDiffusionAttendAndExcitePipeline
     from .stable_diffusion_diffedit import StableDiffusionDiffEditPipeline
     from .stable_diffusion_gligen import StableDiffusionGLIGENPipeline, StableDiffusionGLIGENTextImagePipeline
     from .stable_diffusion_k_diffusion import StableDiffusionKDiffusionPipeline, StableDiffusionXLKDiffusionPipeline

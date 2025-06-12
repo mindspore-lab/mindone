@@ -118,6 +118,7 @@ class PaliGemmaVisionText2TextModelTester:
 
     def get_config(self):
         return PaliGemmaConfig(
+            attn_implementation="eager",
             text_config=self.text_config,
             vision_config=self.vision_config,
             ignore_index=self.ignore_index,
@@ -240,7 +241,8 @@ def test_named_modules_1(
         pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
         ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
     pt_inputs_kwargs.update({"labels": torch.tensor(labels, dtype=torch.long)})
-
+    if mode == 0:
+        ms_inputs_kwargs.update({"return_dict": False, "use_cache": False})
     with torch.no_grad():
         pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
     ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
