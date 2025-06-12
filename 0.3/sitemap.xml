@@ -105,6 +105,10 @@
          <lastmod>2025-06-12</lastmod>
     </url>
     <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.3/diffusers/api/models/autoencoder_kl_wan/</loc>
+         <lastmod>2025-06-12</lastmod>
+    </url>
+    <url>
          <loc>https://mindspore-lab.github.io/mindone/0.3/diffusers/api/models/autoencoder_oobleck/</loc>
          <lastmod>2025-06-12</lastmod>
     </url>
@@ -278,6 +282,10 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.3/diffusers/api/models/vq/</loc>
+         <lastmod>2025-06-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.3/diffusers/api/models/wan_transformer_3d/</loc>
          <lastmod>2025-06-12</lastmod>
     </url>
     <url>
@@ -538,6 +546,10 @@
     </url>
     <url>
          <loc>https://mindspore-lab.github.io/mindone/0.3/diffusers/api/pipelines/unidiffuser/</loc>
+         <lastmod>2025-06-12</lastmod>
+    </url>
+    <url>
+         <loc>https://mindspore-lab.github.io/mindone/0.3/diffusers/api/pipelines/wan/</loc>
          <lastmod>2025-06-12</lastmod>
     </url>
     <url>
