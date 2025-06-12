@@ -212,6 +212,7 @@ from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen
 
 # from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.siglip2 import Siglip2VisionModel, Siglip2TextModel, Siglip2PreTrainedModel, Siglip2Model, Siglip2ForImageClassification
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
