@@ -15,10 +15,9 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(model_id)
     model = Cohere2ForCausalLM.from_pretrained(model_id, mindspore_dtype=ms.float16)
 
-    message = [{"role": "user", "content": "How do plants make energy?"}]
-    prompt = tokenizer.apply_chat_template(message, add_generation_prompt=True, tokenize=False)
+    messages = [{"role": "user", "content": "How do plants make energy?"}]
+    input_ids = tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True, return_tensors="np")
 
-    input_ids = tokenizer(prompt, return_tensors="np")["input_ids"]
     input_ids = (
         Tensor(input_ids) if (len(input_ids.shape) == 2 and input_ids.shape[0] == 1) else Tensor(input_ids).unsqueeze(0)
     )  # (1, L)

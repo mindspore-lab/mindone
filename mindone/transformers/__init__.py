@@ -91,6 +91,7 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.deberta_v2 import (
     DebertaV2ForMaskedLM,
     DebertaV2ForMultipleChoice,
@@ -100,7 +101,6 @@ from .models.deberta_v2 import (
     DebertaV2Model,
     DebertaV2PreTrainedModel,
 )
-from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.dpt import DPTForDepthEstimation
 from .models.gemma import (
     GemmaForCausalLM,
