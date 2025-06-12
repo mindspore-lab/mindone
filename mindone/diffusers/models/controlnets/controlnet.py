@@ -15,7 +15,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.common.initializer as init
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
@@ -73,40 +74,29 @@ class ControlNetConditioningEmbedding(nn.Cell):
     ):
         super().__init__()
 
-        self.conv_in = nn.Conv2d(
-            conditioning_channels, block_out_channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_in = mint.nn.Conv2d(conditioning_channels, block_out_channels[0], kernel_size=3, padding=1, bias=True)
 
         blocks = []
 
         for i in range(len(block_out_channels) - 1):
             channel_in = block_out_channels[i]
             channel_out = block_out_channels[i + 1]
-            blocks.append(nn.Conv2d(channel_in, channel_in, kernel_size=3, pad_mode="pad", padding=1, has_bias=True))
-            blocks.append(
-                nn.Conv2d(channel_in, channel_out, kernel_size=3, pad_mode="pad", padding=1, stride=2, has_bias=True)
-            )
+            blocks.append(mint.nn.Conv2d(channel_in, channel_in, kernel_size=3, padding=1, bias=True))
+            blocks.append(mint.nn.Conv2d(channel_in, channel_out, kernel_size=3, padding=1, stride=2, bias=True))
 
         self.blocks = nn.CellList(blocks)
 
-        self.conv_out = nn.Conv2d(
-            block_out_channels[-1],
-            conditioning_embedding_channels,
-            kernel_size=3,
-            pad_mode="pad",
-            padding=1,
-            has_bias=True,
-            weight_init="zeros",
-            bias_init="zeros",
+        self.conv_out = zero_module(
+            mint.nn.Conv2d(block_out_channels[-1], conditioning_embedding_channels, kernel_size=3, padding=1, bias=True)
         )
 
     def construct(self, conditioning):
         embedding = self.conv_in(conditioning)
-        embedding = ops.silu(embedding)
+        embedding = mint.nn.functional.silu(embedding)
 
         for block in self.blocks:
             embedding = block(embedding)
-            embedding = ops.silu(embedding)
+            embedding = mint.nn.functional.silu(embedding)
 
         embedding = self.conv_out(embedding)
 
@@ -261,13 +251,8 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # input
         conv_in_kernel = 3
         conv_in_padding = (conv_in_kernel - 1) // 2
-        self.conv_in = nn.Conv2d(
-            in_channels,
-            block_out_channels[0],
-            kernel_size=conv_in_kernel,
-            pad_mode="pad",
-            padding=conv_in_padding,
-            has_bias=True,
+        self.conv_in = mint.nn.Conv2d(
+            in_channels, block_out_channels[0], kernel_size=conv_in_kernel, padding=conv_in_padding, bias=True
         )
 
         # time
@@ -291,7 +276,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             )
 
         if encoder_hid_dim_type == "text_proj":
-            self.encoder_hid_proj = nn.Dense(encoder_hid_dim, cross_attention_dim)
+            self.encoder_hid_proj = mint.nn.Linear(encoder_hid_dim, cross_attention_dim)
         elif encoder_hid_dim_type == "text_image_proj":
             # image_embed_dim DOESN'T have to be `cross_attention_dim`. To not clutter the __init__ too much
             # they are set to `cross_attention_dim` here as this is exactly the required dimension for the currently only use
@@ -311,11 +296,11 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # class embedding
         if class_embed_type is None and num_class_embeds is not None:
-            self.class_embedding = nn.Embedding(num_class_embeds, time_embed_dim)
+            self.class_embedding = mint.nn.Embedding(num_class_embeds, time_embed_dim)
         elif class_embed_type == "timestep":
             self.class_embedding = TimestepEmbedding(timestep_input_dim, time_embed_dim)
         elif class_embed_type == "identity":
-            self.class_embedding = nn.Identity()  # time_embed_dim, time_embed_dim
+            self.class_embedding = mint.nn.Identity()  # time_embed_dim, time_embed_dim
         elif class_embed_type == "projection":
             if projection_class_embeddings_input_dim is None:
                 raise ValueError(
@@ -377,9 +362,8 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # down
         output_channel = block_out_channels[0]
 
-        controlnet_block = nn.Conv2d(
-            output_channel, output_channel, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-        )
+        controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+        controlnet_block = zero_module(controlnet_block)
         self.controlnet_down_blocks.append(controlnet_block)
 
         for i, down_block_type in enumerate(down_block_types):
@@ -410,15 +394,13 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             self.down_blocks.append(down_block)
 
             for _ in range(layers_per_block):
-                controlnet_block = nn.Conv2d(
-                    output_channel, output_channel, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-                )
+                controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+                controlnet_block = zero_module(controlnet_block)
                 self.controlnet_down_blocks.append(controlnet_block)
 
             if not is_final_block:
-                controlnet_block = nn.Conv2d(
-                    output_channel, output_channel, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-                )
+                controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+                controlnet_block = zero_module(controlnet_block)
                 self.controlnet_down_blocks.append(controlnet_block)
 
         self.down_blocks = nn.CellList(self.down_blocks)
@@ -427,9 +409,8 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # mid
         mid_block_channel = block_out_channels[-1]
 
-        controlnet_block = nn.Conv2d(
-            mid_block_channel, mid_block_channel, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-        )
+        controlnet_block = mint.nn.Conv2d(mid_block_channel, mid_block_channel, kernel_size=1)
+        controlnet_block = zero_module(controlnet_block)
         self.controlnet_mid_block = controlnet_block
 
         if mid_block_type == "UNetMidBlock2DCrossAttn":
@@ -676,7 +657,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             # in rgb order by default
             ...
         elif channel_order == "bgr":
-            controlnet_cond = ops.flip(controlnet_cond, dims=[1])
+            controlnet_cond = mint.flip(controlnet_cond, dims=[1])
         else:
             raise ValueError(f"unknown `controlnet_conditioning_channel_order`: {channel_order}")
 
@@ -687,6 +668,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             # This would be a good case for the `match` statement (Python 3.10+)
@@ -749,7 +731,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 time_embeds = time_embeds.to(emb.dtype)
                 time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
-                add_embeds = ops.concat([text_embeds, time_embeds], axis=-1)
+                add_embeds = mint.concat([text_embeds, time_embeds], dim=-1)
                 add_embeds = add_embeds.to(emb.dtype)
                 aug_emb = self.add_embedding(add_embeds)
 
@@ -804,6 +786,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # 6. scaling
         if guess_mode and not self.config["global_pool_conditions"]:
+            # todo: unavailable mint interface
             scales = ops.logspace(-1.0, 0.0, len(down_block_res_samples) + 1)  # 0.1 to 1.0
             scales = scales * conditioning_scale
             # Cast scale to sample.dtype manually as torch do the same automatically for scaler tensors
@@ -816,10 +799,8 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             mid_block_res_sample = mid_block_res_sample * conditioning_scale
 
         if self.config["global_pool_conditions"]:
-            down_block_res_samples = [
-                ops.mean(sample, axis=(2, 3), keep_dims=True) for sample in down_block_res_samples
-            ]
-            mid_block_res_sample = ops.mean(mid_block_res_sample, axis=(2, 3), keep_dims=True)
+            down_block_res_samples = [mint.mean(sample, dim=(2, 3), keepdim=True) for sample in down_block_res_samples]
+            mid_block_res_sample = mint.mean(mid_block_res_sample, dim=(2, 3), keepdim=True)
 
         if not return_dict:
             return (down_block_res_samples, mid_block_res_sample)
@@ -830,8 +811,9 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
 
 def zero_module(module: nn.Cell):
-    logger.warning(
-        "Method 'zero_module' does nothing because changing parameter data after initiating will make "
-        "parameter.set_dtype() invalid sometimes. Use arguments like 'weight_init' in instantiation instead"
-    )
+    for name, m in module.cells_and_names():
+        if isinstance(m, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm, mint.nn.BatchNorm2d)):
+            m.weight.set_data(init.initializer("zeros", m.weight.shape, m.weight.dtype))
+            if m.bias is not None:
+                m.bias.set_data(init.initializer("zeros", m.bias.shape, m.bias.dtype))
     return module

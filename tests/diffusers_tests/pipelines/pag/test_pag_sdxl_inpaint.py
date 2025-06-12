@@ -1,4 +1,5 @@
 import random
+import sys
 import unittest
 
 import numpy as np
@@ -11,6 +12,7 @@ import mindspore as ms
 
 from mindone.diffusers import StableDiffusionXLPAGInpaintPipeline
 from mindone.diffusers.utils.testing_utils import (
+    fast,
     load_downloaded_image_from_hf_hub,
     load_downloaded_numpy_from_hf_hub,
     slow,
@@ -24,6 +26,7 @@ from ..pipeline_test_utils import (
     floats_tensor,
     get_module,
     get_pipeline_components,
+    randn_tensor,
 )
 
 test_cases = [
@@ -34,6 +37,7 @@ test_cases = [
 ]
 
 
+@fast
 @ddt
 class StableDiffusionXLPAGInpaintPipelineFastTests(
     PipelineTesterMixin,
@@ -275,21 +279,24 @@ class StableDiffusionXLPAGInpaintPipelineFastTests(
 
 @slow
 @ddt
-class StableDiffusionXLPAGInpaintPipelineIntegrationTests(
-    PipelineTesterMixin,
-    unittest.TestCase,
-):
+class StableDiffusionXLPAGInpaintPipelineIntegrationTests(unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_pag_inference(self, mode, dtype):
-        ms.set_context(mode=mode)
+        # TODO: synchronize issue, and we need to put the replacement of randn_tensor after initialization.
+        if mode == ms.PYNATIVE_MODE:
+            ms.set_context(mode=mode, pynative_synchronize=True)
+        else:
+            ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
         pipe = StableDiffusionXLPAGInpaintPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-base-1.0",
-            mindspore_dtype=ms_dtype,
-            enable_pag=True,
+            "stabilityai/stable-diffusion-xl-base-1.0", mindspore_dtype=ms_dtype, enable_pag=True
         )
+
+        sys.modules[pipe.__module__].randn_tensor = randn_tensor
+        sys.modules[pipe.vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor
+
         init_image = load_downloaded_image_from_hf_hub(
             "The-truth/mindone-testing-arrays",
             "inpaint_input.png",
@@ -300,8 +307,8 @@ class StableDiffusionXLPAGInpaintPipelineIntegrationTests(
             "inpaint_mask.png",
             subfolder="stable_diffusion_xl",
         ).convert("RGB")
-
         prompt = "A majestic tiger sitting on a bench"
+
         torch.manual_seed(0)
         image = pipe(
             prompt=prompt,

@@ -16,7 +16,7 @@
 from typing import Dict, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models.attention import FeedForward
@@ -112,7 +112,7 @@ class CogView3PlusTransformerBlock(nn.Cell):
         norm_encoder_hidden_states = norm_encoder_hidden_states * (1 + c_scale_mlp[:, None]) + c_shift_mlp[:, None]
 
         # feed-forward
-        norm_hidden_states = ops.cat([norm_encoder_hidden_states, norm_hidden_states], axis=1)
+        norm_hidden_states = mint.cat([norm_encoder_hidden_states, norm_hidden_states], dim=1)
         ff_output = self.ff(norm_hidden_states)
 
         hidden_states = hidden_states + gate_mlp.unsqueeze(1) * ff_output[:, text_seq_length:]
@@ -218,7 +218,7 @@ class CogView3PlusTransformer2DModel(ModelMixin, ConfigMixin):
             elementwise_affine=False,
             eps=1e-6,
         )
-        self.proj_out = nn.Dense(self.inner_dim, patch_size * patch_size * self.out_channels, has_bias=True)
+        self.proj_out = mint.nn.Linear(self.inner_dim, patch_size * patch_size * self.out_channels, bias=True)
 
         self.gradient_checkpointing = False
         self.patch_size = self.config.patch_size
