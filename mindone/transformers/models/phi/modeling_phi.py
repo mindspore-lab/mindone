@@ -6,12 +6,16 @@
 #                🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨
 from typing import Callable, List, Optional, Tuple, Union
 
+from transformers.models.phi.configuration_phi import PhiConfig
+
 import mindspore
 from mindspore import mint, nn, ops
+from mindspore.common.initializer import Normal, Zero, initializer
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache, StaticCache
 from ...generation import GenerationMixin
+from ...mindspore_adapter import dtype_to_min
 from ...modeling_attn_mask_utils import AttentionMaskConverter
 from ...modeling_flash_attention_utils import FlashAttentionKwargs
 from ...modeling_outputs import (
@@ -21,17 +25,9 @@ from ...modeling_outputs import (
     TokenClassifierOutput,
 )
 from ...modeling_rope_utils import ROPE_INIT_FUNCTIONS
-from ...modeling_utils import ALL_ATTENTION_FUNCTIONS
+from ...modeling_utils import ALL_ATTENTION_FUNCTIONS, MSPreTrainedModel
 from ...processing_utils import Unpack
 from ...utils import logging
-from ...mindspore_adapter import dtype_to_min
-
-from transformers.models.phi.configuration_phi import PhiConfig
-from mindspore.common.initializer import Normal, Zero, initializer
-
-
-from ...modeling_utils import MSPreTrainedModel
-
 
 logger = logging.get_logger(__name__)
 
@@ -237,7 +233,9 @@ class PhiDecoderLayer(nn.Cell):
         output_attentions: Optional[bool] = False,
         use_cache: Optional[bool] = False,
         cache_position: Optional[mindspore.tensor] = None,
-        position_embeddings: Optional[Tuple[mindspore.tensor, mindspore.tensor]] = None,  # necessary, but kept here for BC
+        position_embeddings: Optional[
+            Tuple[mindspore.tensor, mindspore.tensor]
+        ] = None,  # necessary, but kept here for BC
         **kwargs,
     ) -> Tuple[mindspore.tensor, Optional[Tuple[mindspore.tensor, mindspore.tensor]]]:
         residual = hidden_states
@@ -291,7 +289,7 @@ class PhiRotaryEmbedding(nn.Cell):
         inv_freq_expanded = self.inv_freq[None, :, None].float().expand((position_ids.shape[0], -1, 1))
         position_ids_expanded = position_ids[:, None, :].float()
         # Force float32 (see https://github.com/huggingface/transformers/pull/29285)
-        
+
         freqs = (inv_freq_expanded.float() @ position_ids_expanded.float()).transpose(1, 2)
         emb = mint.cat((freqs, freqs), dim=-1)
         cos = emb.cos()
@@ -346,9 +344,7 @@ class PhiModel(PhiPreTrainedModel):
         self.vocab_size = config.vocab_size
 
         self.embed_tokens = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=self.padding_idx)
-        self.layers = nn.CellList(
-            [PhiDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)]
-        )
+        self.layers = nn.CellList([PhiDecoderLayer(config, layer_idx) for layer_idx in range(config.num_hidden_layers)])
         self.rotary_emb = PhiRotaryEmbedding(config=config)
         self.gradient_checkpointing = False
         self.embed_dropout = mint.nn.Dropout(config.embd_pdrop)
@@ -401,8 +397,7 @@ class PhiModel(PhiPreTrainedModel):
 
         if cache_position is None:
             past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
-            cache_position = mint.arange(
-                past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
+            cache_position = mint.arange(past_seen_tokens, past_seen_tokens + inputs_embeds.shape[1])
 
         if position_ids is None:
             position_ids = cache_position.unsqueeze(0)
@@ -519,11 +514,7 @@ class PhiModel(PhiPreTrainedModel):
             batch_size=input_tensor.shape[0],
         )
 
-        if (
-            self.config._attn_implementation == "sdpa"
-            and attention_mask is not None
-            and not output_attentions
-        ):
+        if self.config._attn_implementation == "sdpa" and attention_mask is not None and not output_attentions:
             # Attend to all tokens in fully masked rows in the causal_mask, for example the relevant first rows when
             # using left padding. This is required by F.scaled_dot_product_attention memory-efficient attention path.
             min_dtype = dtype_to_min(dtype)
@@ -566,8 +557,7 @@ class PhiModel(PhiPreTrainedModel):
             causal_mask = attention_mask
         else:
             min_dtype = dtype_to_min(dtype)
-            causal_mask = ops.full(
-                (sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
+            causal_mask = ops.full((sequence_length, target_length), fill_value=min_dtype, dtype=dtype)
             if sequence_length != 1:
                 causal_mask = mint.triu(causal_mask, diagonal=1)
             causal_mask *= mint.arange(target_length) > cache_position.reshape(-1, 1)
@@ -690,7 +680,7 @@ class PhiForCausalLM(PhiPreTrainedModel, GenerationMixin):
 
         loss = None
         if labels is not None:
-            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size, **kwargs)
+            loss = self.loss_function(logits=logits, labels=labels, vocab_size=self.config.vocab_size)
 
         if not return_dict:
             output = (logits,) + outputs[1:]
