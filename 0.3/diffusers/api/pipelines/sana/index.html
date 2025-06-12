@@ -14,7 +14,7 @@
         <link rel="prev" href="../pixart_sigma/">
       
       
-        <link rel="next" href="../self_attention_guidance/">
+        <link rel="next" href="../sana_sprint/">
       
       
       <link rel="icon" href="../../../../assets/images/favicon.png">
@@ -3155,6 +3155,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/easyanimate_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    EasyAnimateTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/flux_transformer/" class="md-nav__link">
         
   
@@ -3253,6 +3276,29 @@
   
   <span class="md-ellipsis">
     LuminaNextDiT2DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/lumina2_transformer2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lumina2Transformer2DModel
     
   </span>
   
@@ -3855,6 +3901,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_magvit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AutoencoderKLMagvit
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/autoencoderkl_mochi/" class="md-nav__link">
         
   
@@ -4336,6 +4405,29 @@
   
   <span class="md-ellipsis">
     ControlNet with Flux.1
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../easyanimate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    EasyAnimate
     
   </span>
   
@@ -4974,6 +5066,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../lumina2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lumina 2.0
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../lumina/" class="md-nav__link">
         
   
@@ -5321,6 +5436,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../sana_sprint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sana Sprint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../self_attention_guidance/" class="md-nav__link">
         
   
@@ -5426,10 +5564,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_55" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_58" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_55" id="__nav_2_10_4_55_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_58" id="__nav_2_10_4_58_label" tabindex="0">
             
   
   
@@ -5442,8 +5580,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_55_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_55">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_58_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_58">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -8222,7 +8360,31 @@
 <span class="normal">866</span>
 <span class="normal">867</span>
 <span class="normal">868</span>
-<span class="normal">869</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">SanaLoraLoaderMixin</span><span class="p">):</span>
+<span class="normal">869</span>
+<span class="normal">870</span>
+<span class="normal">871</span>
+<span class="normal">872</span>
+<span class="normal">873</span>
+<span class="normal">874</span>
+<span class="normal">875</span>
+<span class="normal">876</span>
+<span class="normal">877</span>
+<span class="normal">878</span>
+<span class="normal">879</span>
+<span class="normal">880</span>
+<span class="normal">881</span>
+<span class="normal">882</span>
+<span class="normal">883</span>
+<span class="normal">884</span>
+<span class="normal">885</span>
+<span class="normal">886</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span>
+<span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span>
+<span class="normal">893</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SanaPipeline</span><span class="p">(</span><span class="n">DiffusionPipeline</span><span class="p">,</span> <span class="n">SanaLoraLoaderMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Pipeline for text-to-image generation using [Sana](https://huggingface.co/papers/2410.10629).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
@@ -8254,6 +8416,60 @@
             <span class="k">else</span> <span class="mi">32</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">image_processor</span> <span class="o">=</span> <span class="n">PixArtImageProcessor</span><span class="p">(</span><span class="n">vae_scale_factor</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">vae_scale_factor</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_get_gemma_prompt_embeds</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+        <span class="n">dtype</span><span class="p">:</span> <span class="n">ms</span><span class="o">.</span><span class="n">Type</span><span class="p">,</span>
+        <span class="n">clean_caption</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">max_sequence_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">300</span><span class="p">,</span>
+        <span class="n">complex_human_instruction</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">):</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Encodes the prompt into text encoder hidden states.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            prompt (`str` or `List[str]`, *optional*):</span>
+<span class="sd">                prompt to be encoded</span>
+<span class="sd">            clean_caption (`bool`, defaults to `False`):</span>
+<span class="sd">                If `True`, the function will preprocess and clean the provided caption before encoding.</span>
+<span class="sd">            max_sequence_length (`int`, defaults to 300): Maximum sequence length to use for the prompt.</span>
+<span class="sd">            complex_human_instruction (`list[str]`, defaults to `complex_human_instruction`):</span>
+<span class="sd">                If `complex_human_instruction` is not empty, the function will use the complex Human instruction for</span>
+<span class="sd">                the prompt.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">prompt</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">prompt</span>
+
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;tokenizer&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">padding_side</span> <span class="o">=</span> <span class="s2">&quot;right&quot;</span>
+
+        <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_preprocessing</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">)</span>
+
+        <span class="c1"># prepare complex human instruction</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">complex_human_instruction</span><span class="p">:</span>
+            <span class="n">max_length_all</span> <span class="o">=</span> <span class="n">max_sequence_length</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">chi_prompt</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">complex_human_instruction</span><span class="p">)</span>
+            <span class="n">prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">chi_prompt</span> <span class="o">+</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prompt</span><span class="p">]</span>
+            <span class="n">num_chi_prompt_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">chi_prompt</span><span class="p">))</span>
+            <span class="n">max_length_all</span> <span class="o">=</span> <span class="n">num_chi_prompt_tokens</span> <span class="o">+</span> <span class="n">max_sequence_length</span> <span class="o">-</span> <span class="mi">2</span>
+
+        <span class="n">text_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span>
+            <span class="n">prompt</span><span class="p">,</span>
+            <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;max_length&quot;</span><span class="p">,</span>
+            <span class="n">max_length</span><span class="o">=</span><span class="n">max_length_all</span><span class="p">,</span>
+            <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
+
+        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
+
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">prompt_attention_mask</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
@@ -8296,6 +8512,13 @@
 <span class="sd">                If `complex_human_instruction` is not empty, the function will use the complex Human instruction for</span>
 <span class="sd">                the prompt.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">dtype</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>
+
         <span class="c1"># set lora scale so that monkey patched LoRA</span>
         <span class="c1"># function of text encoder can correctly access it</span>
         <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">SanaLoraLoaderMixin</span><span class="p">):</span>
@@ -8319,41 +8542,15 @@
         <span class="n">select_index</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">max_length</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
 
         <span class="k">if</span> <span class="n">prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_preprocessing</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">)</span>
-
-            <span class="c1"># prepare complex human instruction</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">complex_human_instruction</span><span class="p">:</span>
-                <span class="n">max_length_all</span> <span class="o">=</span> <span class="n">max_length</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="n">chi_prompt</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">complex_human_instruction</span><span class="p">)</span>
-                <span class="n">prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">chi_prompt</span> <span class="o">+</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prompt</span><span class="p">]</span>
-                <span class="n">num_chi_prompt_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">chi_prompt</span><span class="p">))</span>
-                <span class="n">max_length_all</span> <span class="o">=</span> <span class="n">num_chi_prompt_tokens</span> <span class="o">+</span> <span class="n">max_length</span> <span class="o">-</span> <span class="mi">2</span>
-
-            <span class="n">text_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span>
-                <span class="n">prompt</span><span class="p">,</span>
-                <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;max_length&quot;</span><span class="p">,</span>
-                <span class="n">max_length</span><span class="o">=</span><span class="n">max_length_all</span><span class="p">,</span>
-                <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
+            <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_gemma_prompt_embeds</span><span class="p">(</span>
+                <span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">,</span>
+                <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
+                <span class="n">complex_human_instruction</span><span class="o">=</span><span class="n">complex_human_instruction</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-
-            <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
-
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
-            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">][:,</span> <span class="n">select_index</span><span class="p">]</span>
+            <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[:,</span> <span class="n">select_index</span><span class="p">]</span>
             <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">prompt_attention_mask</span><span class="p">[:,</span> <span class="n">select_index</span><span class="p">]</span>
-
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
-        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">dtype</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>
-
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
         <span class="n">bs_embed</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span>
         <span class="c1"># duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method</span>
@@ -8364,25 +8561,14 @@
 
         <span class="c1"># get unconditional embeddings for classifier free guidance</span>
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">uncond_tokens</span> <span class="o">=</span> <span class="p">[</span><span class="n">negative_prompt</span><span class="p">]</span> <span class="o">*</span> <span class="n">batch_size</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">negative_prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">negative_prompt</span>
-            <span class="n">uncond_tokens</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_preprocessing</span><span class="p">(</span><span class="n">uncond_tokens</span><span class="p">,</span> <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">)</span>
-            <span class="n">max_length</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-            <span class="n">uncond_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span>
-                <span class="n">uncond_tokens</span><span class="p">,</span>
-                <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;max_length&quot;</span><span class="p">,</span>
-                <span class="n">max_length</span><span class="o">=</span><span class="n">max_length</span><span class="p">,</span>
-                <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">return_attention_mask</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-                <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
+            <span class="n">negative_prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">negative_prompt</span><span class="p">]</span> <span class="o">*</span> <span class="n">batch_size</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">negative_prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">negative_prompt</span>
+            <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_gemma_prompt_embeds</span><span class="p">(</span>
+                <span class="n">prompt</span><span class="o">=</span><span class="n">negative_prompt</span><span class="p">,</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+                <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">,</span>
+                <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
+                <span class="n">complex_human_instruction</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="p">)</span>
-            <span class="n">negative_prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">uncond_input</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
-
-            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span>
-                <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">uncond_input</span><span class="o">.</span><span class="n">input_ids</span><span class="p">),</span>
-                <span class="n">attention_mask</span><span class="o">=</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span>
-            <span class="p">)</span>
-            <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
         <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
             <span class="c1"># duplicate unconditional embeddings for each generation per prompt, using mps friendly method</span>
@@ -9511,31 +9697,7 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/sana/pipeline_sana.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">578</span>
-<span class="normal">579</span>
-<span class="normal">580</span>
-<span class="normal">581</span>
-<span class="normal">582</span>
-<span class="normal">583</span>
-<span class="normal">584</span>
-<span class="normal">585</span>
-<span class="normal">586</span>
-<span class="normal">587</span>
-<span class="normal">588</span>
-<span class="normal">589</span>
-<span class="normal">590</span>
-<span class="normal">591</span>
-<span class="normal">592</span>
-<span class="normal">593</span>
-<span class="normal">594</span>
-<span class="normal">595</span>
-<span class="normal">596</span>
-<span class="normal">597</span>
-<span class="normal">598</span>
-<span class="normal">599</span>
-<span class="normal">600</span>
-<span class="normal">601</span>
-<span class="normal">602</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">602</span>
 <span class="normal">603</span>
 <span class="normal">604</span>
 <span class="normal">605</span>
@@ -9802,7 +9964,31 @@ otherwise a <code>tuple</code> is returned where the first element is a list wit
 <span class="normal">866</span>
 <span class="normal">867</span>
 <span class="normal">868</span>
-<span class="normal">869</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
+<span class="normal">869</span>
+<span class="normal">870</span>
+<span class="normal">871</span>
+<span class="normal">872</span>
+<span class="normal">873</span>
+<span class="normal">874</span>
+<span class="normal">875</span>
+<span class="normal">876</span>
+<span class="normal">877</span>
+<span class="normal">878</span>
+<span class="normal">879</span>
+<span class="normal">880</span>
+<span class="normal">881</span>
+<span class="normal">882</span>
+<span class="normal">883</span>
+<span class="normal">884</span>
+<span class="normal">885</span>
+<span class="normal">886</span>
+<span class="normal">887</span>
+<span class="normal">888</span>
+<span class="normal">889</span>
+<span class="normal">890</span>
+<span class="normal">891</span>
+<span class="normal">892</span>
+<span class="normal">893</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">negative_prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
@@ -10289,61 +10475,7 @@ the prompt.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/sana/pipeline_sana.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">164</span>
-<span class="normal">165</span>
-<span class="normal">166</span>
-<span class="normal">167</span>
-<span class="normal">168</span>
-<span class="normal">169</span>
-<span class="normal">170</span>
-<span class="normal">171</span>
-<span class="normal">172</span>
-<span class="normal">173</span>
-<span class="normal">174</span>
-<span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span>
-<span class="normal">178</span>
-<span class="normal">179</span>
-<span class="normal">180</span>
-<span class="normal">181</span>
-<span class="normal">182</span>
-<span class="normal">183</span>
-<span class="normal">184</span>
-<span class="normal">185</span>
-<span class="normal">186</span>
-<span class="normal">187</span>
-<span class="normal">188</span>
-<span class="normal">189</span>
-<span class="normal">190</span>
-<span class="normal">191</span>
-<span class="normal">192</span>
-<span class="normal">193</span>
-<span class="normal">194</span>
-<span class="normal">195</span>
-<span class="normal">196</span>
-<span class="normal">197</span>
-<span class="normal">198</span>
-<span class="normal">199</span>
-<span class="normal">200</span>
-<span class="normal">201</span>
-<span class="normal">202</span>
-<span class="normal">203</span>
-<span class="normal">204</span>
-<span class="normal">205</span>
-<span class="normal">206</span>
-<span class="normal">207</span>
-<span class="normal">208</span>
-<span class="normal">209</span>
-<span class="normal">210</span>
-<span class="normal">211</span>
-<span class="normal">212</span>
-<span class="normal">213</span>
-<span class="normal">214</span>
-<span class="normal">215</span>
-<span class="normal">216</span>
-<span class="normal">217</span>
-<span class="normal">218</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">218</span>
 <span class="normal">219</span>
 <span class="normal">220</span>
 <span class="normal">221</span>
@@ -10438,7 +10570,31 @@ the prompt.</p>
 <span class="normal">310</span>
 <span class="normal">311</span>
 <span class="normal">312</span>
-<span class="normal">313</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span>
+<span class="normal">323</span>
+<span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">encode_prompt</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">prompt</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
     <span class="n">do_classifier_free_guidance</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
@@ -10479,6 +10635,13 @@ the prompt.</p>
 <span class="sd">            If `complex_human_instruction` is not empty, the function will use the complex Human instruction for</span>
 <span class="sd">            the prompt.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">dtype</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>
+
     <span class="c1"># set lora scale so that monkey patched LoRA</span>
     <span class="c1"># function of text encoder can correctly access it</span>
     <span class="k">if</span> <span class="n">lora_scale</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">SanaLoraLoaderMixin</span><span class="p">):</span>
@@ -10502,41 +10665,15 @@ the prompt.</p>
     <span class="n">select_index</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="o">-</span><span class="n">max_length</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
 
     <span class="k">if</span> <span class="n">prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">prompt</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_preprocessing</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">)</span>
-
-        <span class="c1"># prepare complex human instruction</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">complex_human_instruction</span><span class="p">:</span>
-            <span class="n">max_length_all</span> <span class="o">=</span> <span class="n">max_length</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">chi_prompt</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">complex_human_instruction</span><span class="p">)</span>
-            <span class="n">prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">chi_prompt</span> <span class="o">+</span> <span class="n">p</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prompt</span><span class="p">]</span>
-            <span class="n">num_chi_prompt_tokens</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">chi_prompt</span><span class="p">))</span>
-            <span class="n">max_length_all</span> <span class="o">=</span> <span class="n">num_chi_prompt_tokens</span> <span class="o">+</span> <span class="n">max_length</span> <span class="o">-</span> <span class="mi">2</span>
-
-        <span class="n">text_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span>
-            <span class="n">prompt</span><span class="p">,</span>
-            <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;max_length&quot;</span><span class="p">,</span>
-            <span class="n">max_length</span><span class="o">=</span><span class="n">max_length_all</span><span class="p">,</span>
-            <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
+        <span class="n">prompt_embeds</span><span class="p">,</span> <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_gemma_prompt_embeds</span><span class="p">(</span>
+            <span class="n">prompt</span><span class="o">=</span><span class="n">prompt</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">,</span>
+            <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
+            <span class="n">complex_human_instruction</span><span class="o">=</span><span class="n">complex_human_instruction</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">text_input_ids</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">input_ids</span><span class="p">)</span>
-
-        <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">text_inputs</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
-
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span><span class="n">text_input_ids</span><span class="p">,</span> <span class="n">attention_mask</span><span class="o">=</span><span class="n">prompt_attention_mask</span><span class="p">)</span>
-        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">][:,</span> <span class="n">select_index</span><span class="p">]</span>
+        <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="p">[:,</span> <span class="n">select_index</span><span class="p">]</span>
         <span class="n">prompt_attention_mask</span> <span class="o">=</span> <span class="n">prompt_attention_mask</span><span class="p">[:,</span> <span class="n">select_index</span><span class="p">]</span>
-
-    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">transformer</span><span class="o">.</span><span class="n">dtype</span>
-    <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">dtype</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="o">.</span><span class="n">dtype</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">dtype</span> <span class="o">=</span> <span class="kc">None</span>
-
-    <span class="n">prompt_embeds</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">)</span>
 
     <span class="n">bs_embed</span><span class="p">,</span> <span class="n">seq_len</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span>
     <span class="c1"># duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method</span>
@@ -10547,25 +10684,14 @@ the prompt.</p>
 
     <span class="c1"># get unconditional embeddings for classifier free guidance</span>
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span> <span class="ow">and</span> <span class="n">negative_prompt_embeds</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">uncond_tokens</span> <span class="o">=</span> <span class="p">[</span><span class="n">negative_prompt</span><span class="p">]</span> <span class="o">*</span> <span class="n">batch_size</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">negative_prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">negative_prompt</span>
-        <span class="n">uncond_tokens</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_text_preprocessing</span><span class="p">(</span><span class="n">uncond_tokens</span><span class="p">,</span> <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">)</span>
-        <span class="n">max_length</span> <span class="o">=</span> <span class="n">prompt_embeds</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">uncond_input</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">(</span>
-            <span class="n">uncond_tokens</span><span class="p">,</span>
-            <span class="n">padding</span><span class="o">=</span><span class="s2">&quot;max_length&quot;</span><span class="p">,</span>
-            <span class="n">max_length</span><span class="o">=</span><span class="n">max_length</span><span class="p">,</span>
-            <span class="n">truncation</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">return_attention_mask</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span>
+        <span class="n">negative_prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">negative_prompt</span><span class="p">]</span> <span class="o">*</span> <span class="n">batch_size</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">negative_prompt</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="n">negative_prompt</span>
+        <span class="n">negative_prompt_embeds</span><span class="p">,</span> <span class="n">negative_prompt_attention_mask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_gemma_prompt_embeds</span><span class="p">(</span>
+            <span class="n">prompt</span><span class="o">=</span><span class="n">negative_prompt</span><span class="p">,</span>
+            <span class="n">dtype</span><span class="o">=</span><span class="n">dtype</span><span class="p">,</span>
+            <span class="n">clean_caption</span><span class="o">=</span><span class="n">clean_caption</span><span class="p">,</span>
+            <span class="n">max_sequence_length</span><span class="o">=</span><span class="n">max_sequence_length</span><span class="p">,</span>
+            <span class="n">complex_human_instruction</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="n">negative_prompt_attention_mask</span> <span class="o">=</span> <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">uncond_input</span><span class="o">.</span><span class="n">attention_mask</span><span class="p">)</span>
-
-        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">text_encoder</span><span class="p">(</span>
-            <span class="n">ms</span><span class="o">.</span><span class="n">Tensor</span><span class="o">.</span><span class="n">from_numpy</span><span class="p">(</span><span class="n">uncond_input</span><span class="o">.</span><span class="n">input_ids</span><span class="p">),</span>
-            <span class="n">attention_mask</span><span class="o">=</span><span class="n">negative_prompt_attention_mask</span><span class="p">,</span>
-        <span class="p">)</span>
-        <span class="n">negative_prompt_embeds</span> <span class="o">=</span> <span class="n">negative_prompt_embeds</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="n">do_classifier_free_guidance</span><span class="p">:</span>
         <span class="c1"># duplicate unconditional embeddings for each generation per prompt, using mps friendly method</span>
@@ -13895,13 +14021,13 @@ the prompt.</p>
         
         
           
-          <a href="../self_attention_guidance/" class="md-footer__link md-footer__link--next" aria-label="Next: Self-Attention Guidance">
+          <a href="../sana_sprint/" class="md-footer__link md-footer__link--next" aria-label="Next: Sana Sprint">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Self-Attention Guidance
+                Sana Sprint
               </div>
             </div>
             <div class="md-footer__button md-icon">

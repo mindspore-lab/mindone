@@ -3155,6 +3155,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../models/easyanimate_transformer3d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    EasyAnimateTransformer3DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../models/flux_transformer/" class="md-nav__link">
         
   
@@ -3253,6 +3276,29 @@
   
   <span class="md-ellipsis">
     LuminaNextDiT2DModel
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/lumina2_transformer2d/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lumina2Transformer2DModel
     
   </span>
   
@@ -3838,6 +3884,29 @@
   
   <span class="md-ellipsis">
     AutoencoderKLLTXVideo
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../models/autoencoderkl_magvit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    AutoencoderKLMagvit
     
   </span>
   
@@ -4494,6 +4563,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../easyanimate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    EasyAnimate
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../flux/" class="md-nav__link">
         
   
@@ -5115,6 +5207,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../lumina2/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Lumina 2.0
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../lumina/" class="md-nav__link">
         
   
@@ -5345,6 +5460,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../sana_sprint/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sana Sprint
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../self_attention_guidance/" class="md-nav__link">
         
   
@@ -5450,10 +5588,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_55" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_10_4_58" >
         
           
-          <label class="md-nav__link" for="__nav_2_10_4_55" id="__nav_2_10_4_55_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_2_10_4_58" id="__nav_2_10_4_58_label" tabindex="0">
             
   
   
@@ -5466,8 +5604,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_55_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_10_4_55">
+        <nav class="md-nav" data-md-level="4" aria-labelledby="__nav_2_10_4_58_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10_4_58">
             <span class="md-nav__icon md-icon"></span>
             Stable Diffusion
           </label>
@@ -7489,9 +7627,7 @@ specific underlying pipeline class is automatically selected from either the
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">247</span>
-<span class="normal">248</span>
-<span class="normal">249</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">249</span>
 <span class="normal">250</span>
 <span class="normal">251</span>
 <span class="normal">252</span>
@@ -7760,7 +7896,9 @@ specific underlying pipeline class is automatically selected from either the
 <span class="normal">515</span>
 <span class="normal">516</span>
 <span class="normal">517</span>
-<span class="normal">518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoPipelineForText2Image</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoPipelineForText2Image</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 
 <span class="sd">    [`AutoPipelineForText2Image`] is a generic pipeline class that instantiates a text-to-image pipeline class. The</span>
@@ -8106,9 +8244,7 @@ additional memory.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">408</span>
 <span class="normal">409</span>
 <span class="normal">410</span>
 <span class="normal">411</span>
@@ -8218,7 +8354,9 @@ additional memory.</p>
 <span class="normal">515</span>
 <span class="normal">516</span>
 <span class="normal">517</span>
-<span class="normal">518</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pipe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Instantiates a text-to-image MindSpore diffusion pipeline from another instantiated diffusion pipeline class.</span>
@@ -8627,9 +8765,7 @@ loading <code>from_flax</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">272</span>
-<span class="normal">273</span>
-<span class="normal">274</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">274</span>
 <span class="normal">275</span>
 <span class="normal">276</span>
 <span class="normal">277</span>
@@ -8759,7 +8895,9 @@ loading <code>from_flax</code>.</p>
 <span class="normal">401</span>
 <span class="normal">402</span>
 <span class="normal">403</span>
-<span class="normal">404</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -8933,9 +9071,7 @@ specific underlying pipeline class is automatically selected from either the
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">521</span>
-<span class="normal">522</span>
-<span class="normal">523</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">523</span>
 <span class="normal">524</span>
 <span class="normal">525</span>
 <span class="normal">526</span>
@@ -9219,7 +9355,9 @@ specific underlying pipeline class is automatically selected from either the
 <span class="normal">804</span>
 <span class="normal">805</span>
 <span class="normal">806</span>
-<span class="normal">807</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoPipelineForImage2Image</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoPipelineForImage2Image</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 
 <span class="sd">    [`AutoPipelineForImage2Image`] is a generic pipeline class that instantiates an image-to-image pipeline class. The</span>
@@ -9580,9 +9718,7 @@ additional memory.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">691</span>
-<span class="normal">692</span>
-<span class="normal">693</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">693</span>
 <span class="normal">694</span>
 <span class="normal">695</span>
 <span class="normal">696</span>
@@ -9696,7 +9832,9 @@ additional memory.</p>
 <span class="normal">804</span>
 <span class="normal">805</span>
 <span class="normal">806</span>
-<span class="normal">807</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">807</span>
+<span class="normal">808</span>
+<span class="normal">809</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pipe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Instantiates a image-to-image Pytorch diffusion pipeline from another instantiated diffusion pipeline class.</span>
@@ -10110,9 +10248,7 @@ loading <code>from_flax</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">546</span>
-<span class="normal">547</span>
-<span class="normal">548</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">548</span>
 <span class="normal">549</span>
 <span class="normal">550</span>
 <span class="normal">551</span>
@@ -10253,7 +10389,9 @@ loading <code>from_flax</code>.</p>
 <span class="normal">686</span>
 <span class="normal">687</span>
 <span class="normal">688</span>
-<span class="normal">689</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
@@ -10438,9 +10576,7 @@ specific underlying pipeline class is automatically selected from either the
 
               <details class="quote">
                 <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 810</span>
-<span class="normal"> 811</span>
-<span class="normal"> 812</span>
+                <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 812</span>
 <span class="normal"> 813</span>
 <span class="normal"> 814</span>
 <span class="normal"> 815</span>
@@ -10719,7 +10855,9 @@ specific underlying pipeline class is automatically selected from either the
 <span class="normal">1088</span>
 <span class="normal">1089</span>
 <span class="normal">1090</span>
-<span class="normal">1091</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoPipelineForInpainting</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
+<span class="normal">1091</span>
+<span class="normal">1092</span>
+<span class="normal">1093</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">AutoPipelineForInpainting</span><span class="p">(</span><span class="n">ConfigMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 
 <span class="sd">    [`AutoPipelineForInpainting`] is a generic pipeline class that instantiates an inpainting pipeline class. The</span>
@@ -11075,9 +11213,7 @@ additional memory.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 977</span>
-<span class="normal"> 978</span>
-<span class="normal"> 979</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 979</span>
 <span class="normal"> 980</span>
 <span class="normal"> 981</span>
 <span class="normal"> 982</span>
@@ -11189,7 +11325,9 @@ additional memory.</p>
 <span class="normal">1088</span>
 <span class="normal">1089</span>
 <span class="normal">1090</span>
-<span class="normal">1091</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">1091</span>
+<span class="normal">1092</span>
+<span class="normal">1093</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pipe</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pipeline</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Instantiates a inpainting MindSpore diffusion pipeline from another instantiated diffusion pipeline class.</span>
@@ -11600,9 +11738,7 @@ loading <code>from_flax</code>.</p>
 
             <details class="quote">
               <summary>Source code in <code>mindone/diffusers/pipelines/auto_pipeline.py</code></summary>
-              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">835</span>
-<span class="normal">836</span>
-<span class="normal">837</span>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">837</span>
 <span class="normal">838</span>
 <span class="normal">839</span>
 <span class="normal">840</span>
@@ -11740,7 +11876,9 @@ loading <code>from_flax</code>.</p>
 <span class="normal">972</span>
 <span class="normal">973</span>
 <span class="normal">974</span>
-<span class="normal">975</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
+<span class="normal">975</span>
+<span class="normal">976</span>
+<span class="normal">977</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="nd">@classmethod</span>
 <span class="nd">@validate_hf_hub_args</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">from_pretrained</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">pretrained_model_or_path</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
