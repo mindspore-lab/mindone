@@ -651,7 +651,7 @@ class PhiForCausalLM(PhiPreTrainedModel, GenerationMixin):
         ```python
         >>> import mindspore
         >>> from transformers import AutoTokenizer
-        >>> from mindway.transformers import PhiForCausalLM
+        >>> from mindone.transformers import PhiForCausalLM
 
         >>> model = PhiForCausalLM.from_pretrained("microsoft/phi-2")
         >>> tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
@@ -662,7 +662,6 @@ class PhiForCausalLM(PhiPreTrainedModel, GenerationMixin):
         >>> # Generate
         >>> generate_ids = model.generate(mindspore.tensor(inputs.input_ids), max_length=30)
         >>> tokenizer.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
-        "Hey, are you conscious? Can you talk to me?\nI'm not conscious, but I can talk to you."
         ```"""
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
