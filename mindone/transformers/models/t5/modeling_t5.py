@@ -613,6 +613,8 @@ class T5PreTrainedModel(MSPreTrainedModel):
     supports_gradient_checkpointing = True
     _no_split_modules = ["T5Block"]
     _keep_in_fp32_modules = ["wo"]
+    _supports_cache_class = False
+    _supports_dynamic_input = True
 
     @property
     def dummy_inputs(self):
