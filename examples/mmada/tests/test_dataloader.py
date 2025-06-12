@@ -51,7 +51,7 @@ class MockPreprocessingConfig:
 class MockDatasetParamsConfig:
     def __init__(self):
         self.train_t2i_shards_path_or_url = "train_datasets/imagenet-1k/data/train/"
-        self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00999}.tar"
+        self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
         self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/data/*parquet"
         self.num_workers = 1
         self.shuffle_buffer_size = 1000
@@ -204,7 +204,7 @@ def create_dataloaders(config):
         num_workers=dataset_config.num_workers,
     )
 
-    train_dataloader_lm = torch.utils.data.DataLoader(
+    train_dataloader_lm = create_dataloader(
         dataset_lm,
         batch_size=config.training.batch_size_lm,
         sampler=None,

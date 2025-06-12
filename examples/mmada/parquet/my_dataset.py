@@ -28,6 +28,7 @@ class RefinedWebDataset:
     ):
         super().__init__()
         self.files = sorted(glob.glob(data_path))
+        print(f"{len(self.files)} files detected in {data_path}")
         self.rank = rank
         self.world_size = world_size
         self.shuffle = shuffle
