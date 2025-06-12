@@ -1,17 +1,15 @@
-import collections
+
 import glob
 import json
 import os
 import random
 
-import numpy as np
 import pyarrow.parquet as pq
+from parquet.loader import create_dataloader
 from PIL import Image
 
 import mindspore.dataset.vision as transforms
 from mindspore.dataset.vision import Inter
-
-from .loader import DataLoader
 
 
 class RefinedWebDataset:
@@ -78,29 +76,17 @@ class RefinedWebDataset:
                         if self.shuffle:
                             random.shuffle(buffer)
                         for item in buffer:
-                            yield item
+                            yield item["input_ids"]
                         buffer = []
 
                 if buffer:
                     if self.shuffle:
                         random.shuffle(buffer)
                     for item in buffer:
-                        yield item
+                        yield item["input_ids"]
 
             if not self.repeat:
                 break
-
-    def collate_fn(self, batch):
-        batched = collections.defaultdict(list)
-        for data in batch:
-            for k, v in data.items():
-                batched[k].append(v)
-
-        for k, v in batched.items():
-            if k not in ("key", "input_ids", "similarity"):
-                batched[k] = np.stack(v, axis=0)
-
-        return batched
 
 
 class ChatDataset:
@@ -167,29 +153,17 @@ class ChatDataset:
                         if self.shuffle:
                             random.shuffle(buffer)
                         for item in buffer:
-                            yield item
+                            yield item["input_ids"]
                         buffer = []
 
                 if buffer:
                     if self.shuffle:
                         random.shuffle(buffer)
                     for item in buffer:
-                        yield item
+                        yield item["input_ids"]
 
             if not self.repeat:
                 break
-
-    def collate_fn(self, batch):
-        batched = collections.defaultdict(list)
-        for data in batch:
-            for k, v in data.items():
-                batched[k].append(v)
-
-        for k, v in batched.items():
-            if k not in ("key", "input_ids", "similarity"):
-                batched[k] = np.stack(v, axis=0)
-
-        return batched
 
 
 class R2iDataset:
@@ -292,7 +266,7 @@ class R2iDataset:
                             if self.shuffle:
                                 random.shuffle(buffer)
                             for item in buffer:
-                                yield item
+                                yield item["images"], item["input_ids"]
                             buffer = []
 
                     except Exception as e:
@@ -303,22 +277,10 @@ class R2iDataset:
                     if self.shuffle:
                         random.shuffle(buffer)
                     for item in buffer:
-                        yield item
+                        yield item["images"], item["input_ids"]
 
             if not self.repeat:
                 break
-
-    def collate_fn(self, batch):
-        batched = collections.defaultdict(list)
-        for data in batch:
-            for k, v in data.items():
-                batched[k].append(v)
-
-        for k, v in batched.items():
-            if k not in ("key", "input_ids", "similarity"):
-                batched[k] = np.stack(v, axis=0)
-
-        return batched
 
 
 class VQADataset:
@@ -428,7 +390,7 @@ class VQADataset:
                         if self.shuffle:
                             random.shuffle(buffer)
                         for buf_item in buffer:
-                            yield buf_item
+                            yield buf_item["images"], buf_item["input_ids"]
                         buffer = []
                 except FileNotFoundError:
                     print(f"Warning: Image file not found at {image_path}, skipping item.")
@@ -440,19 +402,9 @@ class VQADataset:
                 if self.shuffle:
                     random.shuffle(buffer)
                 for buf_item in buffer:
-                    yield buf_item
+                    yield buf_item["images"], buf_item["input_ids"]
             if not self.repeat:
                 break
-
-    def collate_fn(self, batch):
-        batched = collections.defaultdict(list)
-        for data in batch:
-            for k, v in data.items():
-                batched[k].append(v)
-        for k, v in batched.items():
-            if k not in ("key", "input_ids", "similarity"):
-                batched[k] = np.stack(v, axis=0)
-        return batched
 
 
 def image_transform_clip(sample, resolution=256):
@@ -506,7 +458,8 @@ if __name__ == "__main__":
         buffer_size=0,
     )
 
-    train_dataloader = DataLoader(dataset, batch_size=1, sampler=None, collate_fn=dataset.collate_fn, num_workers=0)
+    train_dataloader = create_dataloader(dataset,
+        column_names=["input_ids"], batch_size=1, sampler=None, num_workers=0)
 
     print("Starting data loading test...")
     for i, batch in enumerate(train_dataloader):

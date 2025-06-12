@@ -206,9 +206,9 @@ def create_dataloaders(config):
 
     train_dataloader_lm = create_dataloader(
         dataset_lm,
+        column_names=["input_ids"],
         batch_size=config.training.batch_size_lm,
         sampler=None,
-        collate_fn=dataset_lm.collate_fn,
         num_workers=dataset_config.num_workers,
     )
 
