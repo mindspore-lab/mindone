@@ -510,3 +510,12 @@ class FluxTransformer2DModel(
             return (output,)
 
         return Transformer2DModelOutput(sample=output)
+
+
+class _GELU(nn.Cell):
+    def __init__(self, approximate: str = "none") -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def construct(self, input: ms.Tensor) -> ms.Tensor:
+        return mint.nn.functional.gelu(input, approximate=self.approximate)

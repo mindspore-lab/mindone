@@ -270,7 +270,7 @@ class StableVideoDiffusionPipeline(DiffusionPipeline):
                 "Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."
             )
 
-        add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
         add_time_ids = add_time_ids.tile((batch_size * num_videos_per_prompt, 1))
 
         if do_classifier_free_guidance:
@@ -678,7 +678,7 @@ def _filter2d(input, kernel):
 
 def _gaussian(window_size: int, sigma):
     if isinstance(sigma, float):
-        sigma = ms.Tensor([[sigma]])
+        sigma = ms.tensor([[sigma]])
 
     batch_size = sigma.shape[0]
 
@@ -694,7 +694,7 @@ def _gaussian(window_size: int, sigma):
 
 def _gaussian_blur2d(input, kernel_size, sigma):
     if isinstance(sigma, tuple):
-        sigma = ms.Tensor([sigma], dtype=input.dtype)
+        sigma = ms.tensor([sigma], dtype=input.dtype)
     else:
         sigma = sigma.to(dtype=input.dtype)
 

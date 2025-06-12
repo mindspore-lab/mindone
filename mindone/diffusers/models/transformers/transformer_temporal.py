@@ -313,19 +313,21 @@ class TransformerSpatioTemporalModel(nn.Cell):
         batch_size = batch_frames // num_frames
 
         time_context = encoder_hidden_states
-        time_context_first_timestep = time_context[None, :].reshape(batch_size, num_frames, -1, time_context.shape[-1])[
-            :, 0
-        ]
-        time_context = time_context_first_timestep[:, None].broadcast_to(
-            (batch_size, height * width, time_context.shape[-2], time_context.shape[-1])
+        time_context_first_timestep = mint.reshape(
+            time_context[None, :], (batch_size, num_frames, -1, time_context.shape[-1])
+        )[:, 0]
+        time_context = mint.broadcast_to(
+            time_context_first_timestep[:, None],
+            (batch_size, height * width, time_context.shape[-2], time_context.shape[-1]),
         )
-        time_context = time_context.reshape(batch_size * height * width, -1, time_context.shape[-1])
+        time_context = mint.reshape(time_context, (batch_size * height * width, -1, time_context.shape[-1]))
 
         residual = hidden_states
 
         hidden_states = self.norm(hidden_states)
         inner_dim = hidden_states.shape[1]
         hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch_frames, height * width, inner_dim)
+
         hidden_states = self.proj_in(hidden_states)
 
         num_frames_emb = mint.arange(num_frames)

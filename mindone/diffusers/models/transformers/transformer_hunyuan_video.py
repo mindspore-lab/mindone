@@ -57,9 +57,9 @@ class HunyuanVideoAttnProcessor2_0:
         key = attn.to_k(hidden_states)
         value = attn.to_v(hidden_states)
 
-        query = unflatten(query, 2, (attn.heads, -1)).swapaxes(1, 2)
-        key = unflatten(key, 2, (attn.heads, -1)).swapaxes(1, 2)
-        value = unflatten(value, 2, (attn.heads, -1)).swapaxes(1, 2)
+        query = mint.transpose(unflatten(query, 2, (attn.heads, -1)), 1, 2)
+        key = mint.transpose(unflatten(key, 2, (attn.heads, -1)), 1, 2)
+        value = mint.transpose(unflatten(value, 2, (attn.heads, -1)), 1, 2)
 
         # 2. QK normalization
         if attn.norm_q is not None:
@@ -1107,3 +1107,12 @@ class HunyuanVideoTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, 
             return (hidden_states,)
 
         return Transformer2DModelOutput(sample=hidden_states)
+
+
+class _GELU(nn.Cell):
+    def __init__(self, approximate: str = "none") -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def construct(self, input: ms.Tensor) -> ms.Tensor:
+        return mint.nn.functional.gelu(input, approximate=self.approximate)

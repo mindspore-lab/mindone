@@ -152,7 +152,7 @@ class UnCLIPPipeline(DiffusionPipeline):
                 )
                 text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
 
-            text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids))
+            text_encoder_output = self.text_encoder(ms.tensor(text_input_ids))
 
             prompt_embeds = text_encoder_output[0]
             text_enc_hid_states = text_encoder_output[1]

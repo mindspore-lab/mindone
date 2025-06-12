@@ -39,8 +39,8 @@ generated_ids = model.generate(
     use_cache=False,
 )
 
-generated_ids = generated_ids.asnumpy()
+generated_ids = [output_ids[len(input_ids) :] for input_ids, output_ids in zip(input_ids, generated_ids)]
 
-outputs = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
+outputs = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
 print(outputs)

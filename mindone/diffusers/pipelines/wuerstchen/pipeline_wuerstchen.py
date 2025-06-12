@@ -132,7 +132,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        attention_mask = ms.Tensor(text_inputs.attention_mask)
+        attention_mask = ms.tensor(text_inputs.attention_mask)
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
 
@@ -147,7 +147,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
             text_input_ids = text_input_ids[:, : self.tokenizer.model_max_length]
             attention_mask = attention_mask[:, : self.tokenizer.model_max_length]
 
-        text_encoder_output = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=attention_mask)
+        text_encoder_output = self.text_encoder(ms.tensor(text_input_ids), attention_mask=attention_mask)
         text_encoder_hidden_states = text_encoder_output[0]
         text_encoder_hidden_states = text_encoder_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
 
@@ -180,7 +180,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
                 return_tensors="np",
             )
             negative_prompt_embeds_text_encoder_output = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids), attention_mask=ms.Tensor(uncond_input.attention_mask)
+                ms.tensor(uncond_input.input_ids), attention_mask=ms.tensor(uncond_input.attention_mask)
             )
 
             uncond_text_encoder_hidden_states = negative_prompt_embeds_text_encoder_output[0]
@@ -329,7 +329,7 @@ class WuerstchenDecoderPipeline(DiffusionPipeline):
         if isinstance(image_embeddings, list):
             image_embeddings = mint.cat(image_embeddings, dim=0)
         if isinstance(image_embeddings, np.ndarray):
-            image_embeddings = ms.Tensor(image_embeddings).to(dtype=dtype)
+            image_embeddings = ms.tensor(image_embeddings).to(dtype=dtype)
         if not isinstance(image_embeddings, ms.Tensor):
             raise TypeError(
                 f"'image_embeddings' must be of type 'ms.Tensor' or 'np.array', but got {type(image_embeddings)}."

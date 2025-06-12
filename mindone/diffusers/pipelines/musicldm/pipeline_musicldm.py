@@ -148,9 +148,9 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                 truncation=True,
                 return_tensors="np",
             )
-            text_input_ids = ms.Tensor(text_inputs.input_ids)
-            attention_mask = ms.Tensor(text_inputs.attention_mask)
-            untruncated_ids = ms.Tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
+            text_input_ids = ms.tensor(text_inputs.input_ids)
+            attention_mask = ms.tensor(text_inputs.attention_mask)
+            untruncated_ids = ms.tensor(self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids)
 
             if untruncated_ids.shape[-1] >= text_input_ids.shape[-1] and not mint.equal(
                 text_input_ids, untruncated_ids
@@ -206,8 +206,8 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
                 return_tensors="np",
             )
 
-            uncond_input_ids = ms.Tensor(uncond_input.input_ids)
-            attention_mask = ms.Tensor(uncond_input.attention_mask)
+            uncond_input_ids = ms.tensor(uncond_input.input_ids)
+            attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder.get_text_features(
                 uncond_input_ids,
@@ -249,11 +249,11 @@ class MusicLDMPipeline(DiffusionPipeline, StableDiffusionMixin):
         #         "generated. To enable automatic scoring, install `librosa` with: `pip install librosa`."
         #     )
         #     return audio
-        inputs = ms.Tensor(self.tokenizer(text, return_tensors="np", padding=True))
+        inputs = ms.tensor(self.tokenizer(text, return_tensors="np", padding=True))
         resampled_audio = librosa.resample(
             audio.numpy(), orig_sr=self.vocoder.config.sampling_rate, target_sr=self.feature_extractor.sampling_rate
         )
-        inputs["input_features"] = ms.Tensor(
+        inputs["input_features"] = ms.tensor(
             self.feature_extractor(
                 list(resampled_audio), return_tensors="np", sampling_rate=self.feature_extractor.sampling_rate
             ).input_features.type(dtype)

@@ -24,7 +24,6 @@ from mindone.safetensors.mindspore import load_file
 from mindone.transformers import CLIPVisionModelWithProjection, SiglipVisionModel
 
 from ..models.attention_processor import (
-    AttnProcessor,
     AttnProcessor2_0,
     FluxAttnProcessor2_0,
     FluxIPAdapterJointAttnProcessor2_0,

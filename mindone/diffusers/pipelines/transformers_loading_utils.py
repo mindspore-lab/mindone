@@ -15,7 +15,7 @@
 import contextlib
 import os
 import tempfile
-from typing import TYPE_CHECKING, Dict
+from typing import Dict
 
 from huggingface_hub import DDUFEntry
 from tqdm import tqdm

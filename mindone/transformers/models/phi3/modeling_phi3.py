@@ -1,7 +1,6 @@
 import math
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 from transformers.models.phi3.configuration_phi3 import Phi3Config
 from transformers.utils import logging
 
@@ -12,6 +11,7 @@ from mindspore.ops.operations.nn_ops import FlashAttentionScore as FlashAttentio
 
 from ...activations import ACT2FN
 from ...cache_utils import Cache, DynamicCache
+from ...mindspore_adapter import dtype_to_min
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
@@ -578,25 +578,8 @@ class Phi3Model(Phi3PreTrainedModel):
         self.norm = Phi3RMSNorm(config.hidden_size, eps=config.rms_norm_eps)
         self.gradient_checkpointing = False
 
-        self.min_fp16 = ms.tensor(np.finfo(np.float16).min, dtype=ms.float16)
-        self.min_fp32 = ms.tensor(np.finfo(np.float32).min, dtype=ms.float32)
-        self.min_fp64 = ms.tensor(np.finfo(np.float64).min, dtype=ms.float64)
-        self.min_bf16 = ms.tensor(float.fromhex("-0x1.fe00000000000p+127"), dtype=ms.bfloat16)
-
         # Initialize weights and apply final processing
         self.post_init()
-
-    def dtype_to_min(self, dtype):
-        if dtype == ms.float16:
-            return self.min_fp16
-        if dtype == ms.float32:
-            return self.min_fp32
-        if dtype == ms.float64:
-            return self.min_fp64
-        if dtype == ms.bfloat16:
-            return self.min_bf16
-        else:
-            raise ValueError(f"Only support get minimum value of (float16, ), but got {dtype}")
 
     def get_input_embeddings(self):
         return self.embed_tokens
@@ -736,7 +719,7 @@ class Phi3Model(Phi3PreTrainedModel):
         past_seen_tokens = past_key_values.get_seq_length() if past_key_values is not None else 0
 
         dtype = input_tensor.dtype
-        min_dtype = self.dtype_to_min(dtype)
+        min_dtype = dtype_to_min(dtype)
         sequence_length = input_tensor.shape[1]
 
         target_length = (

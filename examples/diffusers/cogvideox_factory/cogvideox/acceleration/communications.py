@@ -5,7 +5,6 @@ import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore import Tensor
 from mindspore.communication import GlobalComm, get_group_size, get_rank
-from mindspore.ops.auto_generate.gen_ops_prim import slice_ext_op
 
 try:
     from typing import Literal
@@ -17,8 +16,7 @@ def _split(x: Tensor, dim: int, rank: int, world_size: int) -> Tensor:
     dim_size = x.shape[dim]
     start_idx = (dim_size // world_size) * rank
     end_idx = (dim_size // world_size) * (rank + 1)
-    # FIXME: change to mint.narrow
-    x = slice_ext_op(x, dim, start_idx, end_idx, 1)
+    x = mint.narrow(x, dim, start_idx, end_idx - start_idx)
     # tensor_list = x.split(dim_size // world_size, axis=dim)
     # x = tensor_list[rank]
     return x

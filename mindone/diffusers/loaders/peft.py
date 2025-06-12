@@ -177,7 +177,7 @@ class PeftAdapterMixin:
         use_safetensors = kwargs.pop("use_safetensors", None)
         adapter_name = kwargs.pop("adapter_name", None)
         network_alphas = kwargs.pop("network_alphas", None)
-        _pipeline = kwargs.pop("_pipeline", None)
+        _pipeline = kwargs.pop("_pipeline", None)  # noqa
         allow_pickle = False
 
         user_agent = {

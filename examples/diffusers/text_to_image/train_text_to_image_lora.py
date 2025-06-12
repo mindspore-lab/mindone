@@ -32,7 +32,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -893,15 +893,15 @@ class TrainStepForSDLoRA(TrainStep):
         latents = latents * self.vae_scaling_factor
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(latents, dtype=latents.dtype)
+        noise = mint.randn_like(latents, dtype=latents.dtype)
         if self.args.noise_offset:
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-            noise_offset = self.args.noise_offset * ops.randn((latents.shape[0], latents.shape[1], 1, 1))
+            noise_offset = self.args.noise_offset * mint.randn((latents.shape[0], latents.shape[1], 1, 1))
             noise += noise_offset.to(noise.dtype)
 
         bsz = latents.shape[0]
         # Sample a random timestep for each image
-        timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
         timesteps = timesteps.long()
 
         # Add noise to the latents according to the noise magnitude at each timestep
@@ -925,20 +925,20 @@ class TrainStepForSDLoRA(TrainStep):
         model_pred = self.unet(noisy_latents, timesteps, encoder_hidden_states, return_dict=False)[0]
 
         if self.args.snr_gamma is None:
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
         else:
             # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
             # Since we predict the noise instead of x_0, the original formulation is slightly changed.
             # This is discussed in Section 4.2 of the same paper.
             snr = compute_snr(self.noise_scheduler, timesteps)
-            mse_loss_weights = ops.stack([snr, self.args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(axis=1)[0]
+            mse_loss_weights = mint.stack([snr, self.args.snr_gamma * mint.ones_like(timesteps)], dim=1).min(dim=1)[0]
             if self.noise_scheduler_prediction_type == "epsilon":
                 mse_loss_weights = mse_loss_weights / snr
             elif self.noise_scheduler_prediction_type == "v_prediction":
                 mse_loss_weights = mse_loss_weights / (snr + 1)
 
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
-            loss = loss.mean(axis=list(range(1, len(loss.shape)))) * mse_loss_weights
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
             loss = loss.mean()
 
         loss = self.scale_loss(loss)

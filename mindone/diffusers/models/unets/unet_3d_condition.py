@@ -476,7 +476,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
                 dtype = ms.float32
             else:
                 dtype = ms.int32
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
@@ -499,6 +499,7 @@ class UNet3DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin)
 
         # 2. pre-process
         sample = sample.permute(0, 2, 1, 3, 4).reshape((sample.shape[0] * num_frames, -1) + sample.shape[3:])
+
         sample = self.conv_in(sample)
 
         sample = self.transformer_in(

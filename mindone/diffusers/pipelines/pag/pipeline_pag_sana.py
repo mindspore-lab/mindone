@@ -16,7 +16,6 @@ import html
 import inspect
 import re
 import urllib.parse as ul
-import warnings
 from typing import Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np

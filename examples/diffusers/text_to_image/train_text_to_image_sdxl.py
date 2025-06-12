@@ -33,7 +33,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
-from mindspore import Tensor, nn, ops
+from mindspore import Tensor, mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -485,7 +485,7 @@ def encode_prompt(batch, text_encoders, tokenizers, proportion_empty_prompts, ca
         prompt_embeds = prompt_embeds.view(bs_embed, seq_len, -1)
         prompt_embeds_list.append(prompt_embeds)
 
-    prompt_embeds = ops.concat(prompt_embeds_list, axis=-1)
+    prompt_embeds = mint.concat(prompt_embeds_list, dim=-1)
     pooled_prompt_embeds = pooled_prompt_embeds.view(bs_embed, -1)
     return {"prompt_embeds": prompt_embeds.numpy(), "pooled_prompt_embeds": pooled_prompt_embeds.numpy()}
 
@@ -502,7 +502,7 @@ def compute_vae_encodings(batch, vae):
 
 
 def generate_timestep_weights(args, num_timesteps):
-    weights = ops.ones(num_timesteps)
+    weights = mint.ones(num_timesteps)
 
     # Determine the indices to bias
     num_to_bias = int(args.timestep_bias_portion * num_timesteps)
@@ -537,7 +537,7 @@ def generate_timestep_weights(args, num_timesteps):
         )
 
     # Apply the bias
-    weights[bias_indices] = ops.ones(num_to_bias) * args.timestep_bias_multiplier
+    weights[bias_indices] = mint.ones(num_to_bias) * args.timestep_bias_multiplier
 
     # Normalize
     weights /= weights.sum()
@@ -1065,16 +1065,16 @@ class TrainStepForSDXL(TrainStep):
 
     def forward(self, model_input, prompt_embeds, pooled_prompt_embeds, add_time_ids):
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = mint.randn_like(model_input, dtype=model_input.dtype)
         if self.args.noise_offset:
             # https://www.crosslabs.org//blog/diffusion-with-offset-noise
-            noise_offset = self.args.noise_offset * ops.randn((model_input.shape[0], model_input.shape[1], 1, 1))
+            noise_offset = self.args.noise_offset * mint.randn((model_input.shape[0], model_input.shape[1], 1, 1))
             noise += noise_offset.to(noise.dtype)
 
         bsz = model_input.shape[0]
         if self.args.timestep_bias_strategy == "none":
             # Sample a random timestep for each image without bias.
-            timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+            timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
         else:
             # Sample a random timestep for each image, potentially biased by the timestep weights.
             # Biasing the timestep weights allows us to spend less time training irrelevant timesteps.
@@ -1112,20 +1112,20 @@ class TrainStepForSDXL(TrainStep):
             raise ValueError(f"Unknown prediction type {self.noise_scheduler_prediction_type}")
 
         if self.args.snr_gamma is None:
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
         else:
             # Compute loss-weights as per Section 3.4 of https://arxiv.org/abs/2303.09556.
             # Since we predict the noise instead of x_0, the original formulation is slightly changed.
             # This is discussed in Section 4.2 of the same paper.
             snr = compute_snr(self.noise_scheduler, timesteps)
-            mse_loss_weights = ops.stack([snr, self.args.snr_gamma * ops.ones_like(timesteps)], axis=1).min(axis=1)[0]
+            mse_loss_weights = mint.stack([snr, self.args.snr_gamma * mint.ones_like(timesteps)], dim=1).min(dim=1)[0]
             if self.noise_scheduler_prediction_type == "epsilon":
                 mse_loss_weights = mse_loss_weights / snr
             elif self.noise_scheduler_prediction_type == "v_prediction":
                 mse_loss_weights = mse_loss_weights / (snr + 1)
 
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="none")
-            loss = loss.mean(axis=list(range(1, len(loss.shape)))) * mse_loss_weights
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="none")
+            loss = loss.mean(dim=list(range(1, len(loss.shape)))) * mse_loss_weights
             loss = loss.mean()
 
         loss = self.scale_loss(loss)

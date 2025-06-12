@@ -22,7 +22,6 @@
 import math
 from typing import List, Optional, Tuple, Union
 
-import numpy as np
 from transformers import Qwen2Config, logging
 
 import mindspore as ms
@@ -30,8 +29,8 @@ from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 from mindone.transformers.cache_utils import Cache, get_max_length, get_seq_length, update
+from mindone.transformers.generation import GenerationMixin
 from mindone.transformers.mindspore_adapter import str_to_dtype
-from mindone.transformers.mindspore_adapter.paged_attention_block_tables import BlockTables
 from mindone.transformers.mindspore_adapter.paged_attention_freqs import FreqsMgr
 from mindone.transformers.mindspore_adapter.paged_attention_infer_attention_block import InferAttention
 from mindone.transformers.mindspore_adapter.paged_attention_mask import LowerTriangularMaskWithDynamic
@@ -42,6 +41,7 @@ from mindone.transformers.modeling_outputs import (
     SequenceClassifierOutputWithPast,
     TokenClassifierOutput,
 )
+from mindone.transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
 from mindone.transformers.modeling_utils import MSPreTrainedModel
 
 logger = logging.get_logger(__name__)
@@ -140,19 +140,23 @@ class Qwen2RMSNorm(nn.Cell):
 
 # Copied from transformers.models.mixtral.modeling_mixtral.MixtralRotaryEmbedding with Mixtral->Qwen2
 class Qwen2RotaryEmbedding(nn.Cell):
-    def __init__(self, dim, max_position_embeddings=2048, base=10000, device=None):
+    def __init__(self, config: Qwen2Config, device=None):
         super().__init__()
 
-        self.dim = dim
-        self.max_position_embeddings = max_position_embeddings
-        self.base = base
-        inv_freq = 1.0 / (self.base ** (ops.arange(0, self.dim, 2, dtype=ms.int64).float() / self.dim))
+        # BC: "rope_type" was originally "type"
+        if hasattr(config, "rope_scaling") and config.rope_scaling is not None:
+            rope_type = config.rope_scaling.get("rope_type", config.rope_scaling.get("type"))
+        else:
+            rope_type = "default"
+
+        rope_init_fn = ROPE_INIT_FUNCTIONS[rope_type]
+
+        inv_freq, _ = rope_init_fn(config)
         self.inv_freq = inv_freq
-
         # Build here to make `torch.jit.trace` work.
-        self._set_cos_sin_cache(seq_len=max_position_embeddings, device=None, dtype=ms.float32)
+        self._set_cos_sin_cache(seq_len=config.max_position_embeddings, dtype=ms.float32)
 
-    def _set_cos_sin_cache(self, seq_len, device, dtype):
+    def _set_cos_sin_cache(self, seq_len, dtype):
         self.max_seq_len_cached = seq_len
         t = ops.arange(self.max_seq_len_cached, dtype=ms.int64).type_as(self.inv_freq)
 
@@ -164,8 +168,8 @@ class Qwen2RotaryEmbedding(nn.Cell):
 
     def construct(self, x, seq_len=None):
         # x: [bs, num_attention_heads, seq_len, head_size]
-        if seq_len > self.max_seq_len_cached:
-            self._set_cos_sin_cache(seq_len=seq_len, device=None, dtype=x.dtype)
+        # if seq_len > self.max_seq_len_cached:
+        #     self._set_cos_sin_cache(seq_len=seq_len, device=None, dtype=x.dtype)
 
         return (
             self.cos_cached[:seq_len].to(dtype=x.dtype),
@@ -276,11 +280,7 @@ class Qwen2Attention(nn.Cell):
         self.v_proj = nn.Dense(self.hidden_size, self.num_key_value_heads * self.head_dim, has_bias=True)
         self.o_proj = nn.Dense(self.num_heads * self.head_dim, self.hidden_size, has_bias=False)
 
-        self.rotary_emb = Qwen2RotaryEmbedding(
-            self.head_dim,
-            max_position_embeddings=self.max_position_embeddings,
-            base=self.rope_theta,
-        )
+        self.rotary_emb = Qwen2RotaryEmbedding(config)
 
         self.scale = self.head_dim**-0.5
 
@@ -835,7 +835,7 @@ class Qwen2Model(Qwen2PreTrainedModel):
         return causal_mask
 
 
-class Qwen2ForCausalLM(Qwen2PreTrainedModel):
+class Qwen2ForCausalLM(Qwen2PreTrainedModel, GenerationMixin):
     _tied_weights_keys = ["lm_head.weight"]
 
     def __init__(self, config):
@@ -903,7 +903,7 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
         output_attentions = False
         output_hidden_states = False
         return_dict = False
-        cache_position = Tensor(shape=[None], dtype=ms.int64)
+        cache_position = None
         block_tables = Tensor(shape=[None, None], dtype=ms.int32)
         slot_mapping = Tensor(shape=[None], dtype=ms.int32)
         batch_valid_length = ms.mutable(Tensor(shape=[None], dtype=ms.int32))
@@ -1030,140 +1030,6 @@ class Qwen2ForCausalLM(Qwen2PreTrainedModel):
             hidden_states=outputs.hidden_states,
             attentions=outputs.attentions,
         )
-
-    # Copied from transformers.models.llama.modeling_llama.LlamaForCausalLM.prepare_inputs_for_generation
-    def prepare_inputs_for_generation(
-        self,
-        input_ids,
-        past_key_values=None,
-        attention_mask=None,
-        inputs_embeds=None,
-        cache_position=None,
-        use_cache=False,
-        **kwargs,
-    ):
-        past_length = 0
-        if past_key_values is not None:
-            # Past key values are always initialized with a `Cache` object -> no need for if-else anymore
-            past_length = cache_position[0] if cache_position is not None else get_seq_length(past_key_values)
-            max_cache_length = get_max_length(past_key_values) if get_max_length(past_key_values) is not None else None
-            cache_length = past_length if max_cache_length is None else ops.minimum(max_cache_length, past_length)
-
-            # Keep only the unprocessed tokens:
-            # 1 - If the length of the attention_mask exceeds the length of input_ids, then we are in a setting where
-            # some of the inputs are exclusively passed as part of the cache (e.g. when passing input_embeds as input)
-
-            if attention_mask is not None and int(attention_mask.sum(-1).max()) > input_ids.shape[1]:
-                input_ids = input_ids[:, -(int(attention_mask.sum(-1).max()) - int(past_length)) :]
-            # 2 - If the past_length is smaller than input_ids', then input_ids holds all input tokens. We can discard
-            # input_ids based on the past_length.
-            elif past_length < input_ids.shape[1]:
-                input_ids = input_ids[:, int(past_length) :]
-            # 3 - Otherwise (past_length >= input_ids.shape[1]), let's assume input_ids only has unprocessed tokens.
-
-            # If we are about to go beyond the maximum cache length, we need to crop the input attention mask.
-            if (
-                max_cache_length is not None
-                and attention_mask is not None
-                and cache_length + input_ids.shape[1] > max_cache_length
-            ):
-                attention_mask = attention_mask[:, -max_cache_length:]
-
-        position_ids = kwargs.get("position_ids", None)
-        if attention_mask is not None and position_ids is None:
-            # create position_ids on the fly for batch generation
-            position_ids = attention_mask.to(ms.int32).cumsum(-1) - 1
-            position_ids = position_ids.masked_fill(attention_mask == 0, 1)
-            if past_key_values and past_length > 0:
-                cur_len = attention_mask.sum(-1).max()
-                position_ids = position_ids[:, cur_len - input_ids.shape[1] : cur_len]
-
-        # if `inputs_embeds` are passed, we only want to use them in the 1st generation step
-        if inputs_embeds is not None and past_length == 0:
-            model_inputs = {"inputs_embeds": inputs_embeds}
-        else:
-            # TODO: use `next_tokens` directly instead.
-            if not isinstance(input_ids, Tensor):
-                input_ids = Tensor(input_ids, dtype=ms.int32)
-
-            # Padding to max_len when no cache
-            if past_key_values is None:
-                pad_len = max(0, attention_mask.shape[1] - input_ids.shape[1])
-                input_ids = ops.pad(input_ids, (0, pad_len), value=0)
-
-            model_inputs = {"input_ids": input_ids}
-
-        input_length = position_ids.shape[-1] if position_ids is not None else input_ids.shape[-1]
-
-        if cache_position is None:
-            cache_position = ops.arange(past_length, past_length + input_length)
-        elif use_cache:
-            if input_length < cache_position.shape[0]:
-                assert cache_position.shape[0] == attention_mask.shape[-1]
-                cur_len = int(attention_mask.sum(-1).max())
-                cache_position = cache_position[cur_len - input_length : cur_len]
-            else:
-                cache_position = cache_position[-input_length:]
-
-        model_inputs.update(
-            {
-                "position_ids": position_ids,
-                "cache_position": cache_position,
-                "past_key_values": ms.mutable(past_key_values) if past_key_values is not None else None,
-                "use_cache": use_cache,
-                "attention_mask": attention_mask,
-            }
-        )
-        if self.config._attn_implementation == "paged_attention":
-            bs, seq_len = input_ids.shape
-            step = kwargs["step"]
-            if step == 0:
-                self.enable_dynamic_shape()
-
-                # init block tables
-                self.block_mgr = BlockTables(1024, 32, self.config.max_position_embeddings)
-                self.block_mgr.init_cache_engine(bs)
-
-                # get slot mapping and block tables
-                max_input_length = self.config.max_position_embeddings
-                self.valid_length_each_example = ms.tensor(seq_len).reshape(bs)
-                block_tables, slot_mapping = self.block_mgr.assemble_pa_full_inputs(
-                    max_input_length, self.valid_length_each_example, [False]
-                )
-                slot_mapping = np.delete(slot_mapping, np.where(slot_mapping == -1))
-
-                # set batch valid length
-                self.batch_valid_length = ms.tensor(seq_len).to(ms.int32).reshape(bs)
-
-                self.phase = "prefill"
-                self._add_flags_custom(True)
-            else:
-                model_inputs.update({"input_ids": input_ids[:, -1].reshape(bs, 1)})
-
-                # get slot mapping and block tables
-                self.valid_length_each_example += 1
-                block_tables, slot_mapping = self.block_mgr.assemble_pa_inc_inputs(
-                    self.valid_length_each_example, [False]
-                )
-
-                # set batch valid length
-                self.batch_valid_length += 1
-
-                if step == 1:
-                    self.phase = "increment"
-                    self._add_flags_custom(False)
-            slot_mapping = ms.tensor(slot_mapping)
-            block_tables = ms.tensor(block_tables)
-            model_inputs.update(
-                {
-                    "block_tables": block_tables,
-                    "slot_mapping": slot_mapping,
-                    "batch_valid_length": self.batch_valid_length,
-                }
-            )
-            model_inputs.pop("step", None)
-
-        return model_inputs
 
     # FIXME
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):

@@ -1,8 +1,11 @@
 import random
 
 import numpy as np
+import torch
 
-global_rng = random.Random()
+import mindspore as ms
+
+global_rng = random.Random(42)  # fix seed for reproducibility
 
 
 def ids_numpy(shape, vocab_size, rng=None, name=None):
@@ -43,3 +46,21 @@ def floats_numpy(shape, scale=1.0, rng=None, name=None):
         values.append(rng.random() * scale)
 
     return np.array(values, dtype=np.float32).reshape(shape)
+
+
+def set_random_seed_for_all(seed, python=True, numpy=True, mindspore=True, pytorch=True):
+    """Set random seed for reproducibility if the seed value is valid."""
+    seed = int(seed)
+    assert seed > 0 and seed < 4294967295
+    if python:
+        random.seed(seed)
+    if numpy:
+        np.random.seed(seed)
+    if mindspore:
+        ms.set_seed(seed)
+    if pytorch:
+        torch.manual_seed(seed)
+    print(
+        f"set global seed for {'python' if python else ''}, {'numpy' if numpy else ''}, "
+        f"{'mindspore' if mindspore else ''}, {'pytorch' if pytorch else ''} to {seed}"
+    )

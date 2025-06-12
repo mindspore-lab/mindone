@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -1007,10 +1007,10 @@ class TrainStepForControlNet(TrainStep):
         latents = latents * self.vae_scaling_factor
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(latents, dtype=latents.dtype)
+        noise = mint.randn_like(latents, dtype=latents.dtype)
         bsz = latents.shape[0]
         # Sample a random timestep for each image
-        timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
         timesteps = timesteps.long()
 
         # Add noise to the latents according to the noise magnitude at each timestep
@@ -1049,7 +1049,7 @@ class TrainStepForControlNet(TrainStep):
             target = self.noise_scheduler.get_velocity(latents, noise, timesteps)
         else:
             raise ValueError(f"Unknown prediction type {self.noise_scheduler_prediction_type}")
-        loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+        loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
 
         loss = self.scale_loss(loss)
         return loss, model_pred

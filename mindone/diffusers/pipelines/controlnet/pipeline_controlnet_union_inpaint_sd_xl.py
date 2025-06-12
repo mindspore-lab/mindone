@@ -358,7 +358,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
                 if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
@@ -419,7 +419,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 )
 
                 negative_prompt_embeds = text_encoder(
-                    ms.Tensor(uncond_input.input_ids),
+                    ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
 
@@ -480,7 +480,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
@@ -1005,8 +1005,8 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 f"Model expects an added time embedding vector of length {expected_add_embed_dim}, but a vector of {passed_add_embed_dim} was created. The model has an incorrect config. Please check `unet.config.time_embedding_type` and `text_encoder_2.config.projection_dim`."  # noqa: E501
             )
 
-        add_time_ids = ms.Tensor([add_time_ids], dtype=dtype)
-        add_neg_time_ids = ms.Tensor([add_neg_time_ids], dtype=dtype)
+        add_time_ids = ms.tensor([add_time_ids], dtype=dtype)
+        add_neg_time_ids = ms.tensor([add_neg_time_ids], dtype=dtype)
 
         return add_time_ids, add_neg_time_ids
 
@@ -1320,7 +1320,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 padding_mask_crop,
             )
 
-        control_type = ms.Tensor(control_type)
+        control_type = ms.tensor(control_type)
 
         self._guidance_scale = guidance_scale
         self._clip_skip = clip_skip
@@ -1653,7 +1653,7 @@ class StableDiffusionXLControlNetUnionInpaintPipeline(
                 if i < len(timesteps) - 1:
                     noise_timestep = timesteps[i + 1]
                     init_latents_proper = self.scheduler.add_noise(
-                        init_latents_proper, noise, ms.Tensor([noise_timestep.numpy()])
+                        init_latents_proper, noise, ms.tensor([noise_timestep.numpy()])
                     )
 
                 latents = (1 - init_mask) * init_latents_proper + init_mask * latents

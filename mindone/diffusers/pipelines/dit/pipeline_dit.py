@@ -165,8 +165,8 @@ class DiTPipeline(DiffusionPipeline):
         )
         latent_model_input = mint.cat([latents] * 2) if guidance_scale > 1 else latents
 
-        class_labels = mint.reshape(ms.Tensor(class_labels), (-1,))
-        class_null = ms.Tensor([1000] * batch_size)
+        class_labels = mint.reshape(ms.tensor(class_labels), (-1,))
+        class_null = ms.tensor([1000] * batch_size)
         class_labels_input = mint.cat([class_labels, class_null], 0) if guidance_scale > 1 else class_labels
 
         # set step values
@@ -184,7 +184,7 @@ class DiTPipeline(DiffusionPipeline):
                     dtype = ms.float32
                 else:
                     dtype = ms.int32
-                timesteps = ms.Tensor([timesteps], dtype=dtype)
+                timesteps = ms.tensor([timesteps], dtype=dtype)
             elif len(timesteps.shape) == 0:
                 timesteps = timesteps[None]
             # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

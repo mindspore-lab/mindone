@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 from transformers import logging
 
-from .cache_engine import BlockMemPool, CacheEngine
+from .paged_attention_cache_engine import BlockMemPool, CacheEngine
 
 logger = logging.get_logger(__name__)
 

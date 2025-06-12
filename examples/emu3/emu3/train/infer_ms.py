@@ -8,7 +8,7 @@ DEVICE_ID=0 python emu3/train/infer_ms.py \
 --model_path outputs/Emu3-T2I-SFT \
 --tokenizer_path BAAI/Emu3-Stage1 \
 --vision_tokenizer_path BAAI/Emu3-VisionTokenizer \
---ckpt_dir outputs/Emu3-T2I-SFT/rank_all_8/ckpt/emu3-e50.ckpt \
+--ckpt_dir outputs/Emu3-T2I-SFT/rank_all_8/ckpt/emu3-e5.ckpt \
 --prompt "A girl."
 --task img-gen \
 --output_path output
@@ -17,7 +17,7 @@ DEVICE_ID=0 python emu3/train/infer_ms.py \
 --model_path outputs/Emu3-VQA-SFT \
 --tokenizer_path BAAI/Emu3-Stage1 \
 --vision_tokenizer_path BAAI/Emu3-VisionTokenizer \
---ckpt_dir outputs/Emu3-VQA-SFT/rank_all_8/ckpt/emu3-e50.ckpt \
+--ckpt_dir outputs/Emu3-VQA-SFT/rank_all_8/ckpt/emu3-e5.ckpt \
 --image img_prompt.jpg \
 --prompt "Describe this image."
 --task vqa \

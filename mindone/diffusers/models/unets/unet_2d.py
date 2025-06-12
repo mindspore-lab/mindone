@@ -289,7 +289,7 @@ class UNet2DModel(ModelMixin, ConfigMixin):
         timesteps = timestep
         # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
-            timesteps = ms.Tensor([timesteps], dtype=ms.int64)
+            timesteps = ms.tensor([timesteps], dtype=ms.int64)
         # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]

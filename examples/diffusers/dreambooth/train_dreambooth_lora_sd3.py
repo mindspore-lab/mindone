@@ -33,7 +33,7 @@ from tqdm.auto import tqdm
 from transformers import CLIPTokenizer, PretrainedConfig, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.dataset import GeneratorDataset, transforms, vision
 from mindspore.nn.wrap.loss_scale import DynamicLossScaleUpdateCell
 
@@ -1126,9 +1126,9 @@ def main():
             class_tokens_two = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_two, args.class_prompt))
             class_tokens_three = ms.Tensor.from_numpy(tokenize_prompt(tokenizer_three, args.class_prompt))
 
-            tokens_one = ops.cat([tokens_one, class_tokens_one], axis=0)
-            tokens_two = ops.cat([tokens_two, class_tokens_two], axis=0)
-            tokens_three = ops.cat([tokens_three, class_tokens_three], axis=0)
+            tokens_one = mint.cat([tokens_one, class_tokens_one], dim=0)
+            tokens_two = mint.cat([tokens_two, class_tokens_two], dim=0)
+            tokens_three = mint.cat([tokens_three, class_tokens_three], dim=0)
     else:
         tokens_one, tokens_two, tokens_three = None, None, None
 
@@ -1395,7 +1395,7 @@ def compute_weighting_mse_loss(weighting, pred, target):
     target_ndim = target.ndim
     square_loss = ((pred.float() - target.float()) ** 2).tile((repeats,) + (1,) * (target_ndim - 1))
 
-    weighting_mse_loss = ops.mean(
+    weighting_mse_loss = mint.mean(
         (weighting * square_loss).reshape(target.shape[0], -1),
         1,
     )
@@ -1484,8 +1484,8 @@ class SD3DBLoRANetworkWithLoss(nn.Cell):
         prompt_embeds_two = prompt_embeds_two.tile((num_images_per_prompt, 1, 1))
 
         # CLIPs
-        clip_prompt_embeds = ops.cat([prompt_embeds_one, prompt_embeds_two], axis=-1)
-        pooled_prompt_embeds = ops.cat([pooled_prompt_embeds_one, pooled_prompt_embeds_two], axis=-1)
+        clip_prompt_embeds = mint.cat([prompt_embeds_one, prompt_embeds_two], dim=-1)
+        pooled_prompt_embeds = mint.cat([pooled_prompt_embeds_one, pooled_prompt_embeds_two], dim=-1)
 
         # T5 (text encoder three)
         t5_prompt_embed = self._encode_prompt_with_t5(
@@ -1494,19 +1494,19 @@ class SD3DBLoRANetworkWithLoss(nn.Cell):
         )
 
         # integreted
-        clip_prompt_embeds = ops.Pad(
-            paddings=((0, 0), (0, 0), (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1]))
-        )(clip_prompt_embeds)
-        prompt_embeds = ops.cat([clip_prompt_embeds, t5_prompt_embed], axis=-2)
+        clip_prompt_embeds = mint.nn.functional.pad(
+            clip_prompt_embeds, (0, t5_prompt_embed.shape[-1] - clip_prompt_embeds.shape[-1])
+        )
+        prompt_embeds = mint.cat([clip_prompt_embeds, t5_prompt_embed], dim=-2)
 
         return prompt_embeds, pooled_prompt_embeds
 
     def diagonal_gaussian_distribution_sample(self, latent_dist: ms.Tensor) -> ms.Tensor:
-        mean, logvar = ops.chunk(latent_dist, 2, axis=1)
-        logvar = ops.clamp(logvar, -30.0, 20.0)
-        std = ops.exp(0.5 * logvar)
+        mean, logvar = mint.chunk(latent_dist, 2, dim=1)
+        logvar = mint.clamp(logvar, -30.0, 20.0)
+        std = mint.exp(0.5 * logvar)
 
-        sample = ops.randn_like(mean, dtype=mean.dtype)
+        sample = mint.randn_like(mean, dtype=mean.dtype)
         x = mean + std * sample
 
         return x
@@ -1538,7 +1538,7 @@ class SD3DBLoRANetworkWithLoss(nn.Cell):
             model_input = model_input.to(dtype=self.weight_dtype)
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = mint.randn_like(model_input, dtype=model_input.dtype)
         bsz = model_input.shape[0]
 
         # Sample a random timestep for each image
@@ -1584,8 +1584,8 @@ class SD3DBLoRANetworkWithLoss(nn.Cell):
 
         if self.args.with_prior_preservation:
             # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
-            model_pred, model_pred_prior = ops.chunk(model_pred, 2, axis=0)
-            target, target_prior = ops.chunk(target, 2, axis=0)
+            model_pred, model_pred_prior = mint.chunk(model_pred, 2, dim=0)
+            target, target_prior = mint.chunk(target, 2, dim=0)
 
             # Compute prior loss
             prior_loss = compute_weighting_mse_loss(weighting, model_pred_prior, target_prior)

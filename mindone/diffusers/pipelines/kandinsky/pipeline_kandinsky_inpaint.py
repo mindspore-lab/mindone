@@ -314,7 +314,7 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
                 f" {self.tokenizer.model_max_length} tokens: {removed_text}"
             )
 
-        text_mask = ms.Tensor(text_inputs.attention_mask)
+        text_mask = ms.tensor(text_inputs.attention_mask)
 
         prompt_embeds, text_encoder_hidden_states = self.text_encoder(
             input_ids=ms.tensor(text_input_ids), attention_mask=text_mask
@@ -353,8 +353,8 @@ class KandinskyInpaintPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            uncond_text_input_ids = ms.Tensor(uncond_input.input_ids)
-            uncond_text_mask = ms.Tensor(uncond_input.attention_mask)
+            uncond_text_input_ids = ms.tensor(uncond_input.input_ids)
+            uncond_text_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds, uncond_text_encoder_hidden_states = self.text_encoder(
                 input_ids=uncond_text_input_ids, attention_mask=uncond_text_mask

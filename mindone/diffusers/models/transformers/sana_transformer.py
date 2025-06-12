@@ -15,7 +15,6 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-import mindspore.mint.nn.functional as F
 from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
@@ -99,7 +98,7 @@ class SanaCombinedTimestepGuidanceEmbeddings(nn.Cell):
         self.guidance_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
         self.guidance_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
 
-        self.silu = nn.SiLU()
+        self.silu = mint.nn.SiLU()
         self.linear = mint.nn.Linear(embedding_dim, 6 * embedding_dim, bias=True)
 
     def construct(self, timestep: ms.Tensor, guidance: ms.Tensor = None, hidden_dtype: ms.Type = None):

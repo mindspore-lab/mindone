@@ -240,7 +240,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
 
             prompt_attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
 
-            prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids), attention_mask=prompt_attention_mask)
+            prompt_embeds = self.text_encoder(ms.tensor(text_input_ids), attention_mask=prompt_attention_mask)
             prompt_embeds = prompt_embeds[0]
 
         if self.text_encoder is not None:
@@ -776,7 +776,7 @@ class PixArtSigmaPAGPipeline(DiffusionPipeline, PAGMixin):
                         dtype = ms.float32
                     else:
                         dtype = ms.int32
-                    current_timestep = ms.Tensor([current_timestep], dtype=dtype)
+                    current_timestep = ms.tensor([current_timestep], dtype=dtype)
                 elif len(current_timestep.shape) == 0:
                     current_timestep = current_timestep[None]
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML

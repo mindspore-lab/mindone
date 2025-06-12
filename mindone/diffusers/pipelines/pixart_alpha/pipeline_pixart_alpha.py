@@ -385,10 +385,10 @@ class PixArtAlphaPipeline(DiffusionPipeline):
                 add_special_tokens=True,
                 return_tensors="np",
             )
-            negative_prompt_attention_mask = ms.Tensor(uncond_input.attention_mask)
+            negative_prompt_attention_mask = ms.tensor(uncond_input.attention_mask)
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids), attention_mask=negative_prompt_attention_mask
+                ms.tensor(uncond_input.input_ids), attention_mask=negative_prompt_attention_mask
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
 

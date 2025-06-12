@@ -32,10 +32,10 @@ from mindspore.ops.operations.nn_ops import FlashAttentionScore
 from ...activations import ACT2FN
 from ...cache_utils import get_max_length, get_seq_length, init_static_cache, update
 from ...mindspore_adapter import recompute_except_output
+from ...mindspore_adapter.utils import _MIN_FP16  # , dtype_to_min
 
 # from ...mindspore_adapter.attention import FlashAttention2
 from ...mindspore_utils import ALL_LAYERNORM_LAYERS
-from ...modeling_attn_mask_utils import _MIN_FP16  # , dtype_to_min
 from ...modeling_outputs import BaseModelOutputWithPast, CausalLMOutputWithPast, SequenceClassifierOutputWithPast
 from ...modeling_utils import MSPreTrainedModel as PreTrainedModel
 

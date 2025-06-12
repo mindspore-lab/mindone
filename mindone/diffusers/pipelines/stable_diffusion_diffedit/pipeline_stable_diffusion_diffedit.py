@@ -165,7 +165,7 @@ def preprocess(image):
         image = np.array(image).astype(np.float32) / 255.0
         image = image.transpose(0, 3, 1, 2)
         image = 2.0 * image - 1.0
-        image = ms.Tensor(image)
+        image = ms.tensor(image)
     elif isinstance(image[0], ms.Tensor):
         image = mint.cat(image, dim=0)
     return image
@@ -182,7 +182,7 @@ def preprocess_mask(mask, batch_size: int = 1):
                 mask = [np.array(m.convert("L")).astype(np.float32) / 255.0 for m in mask]
             if isinstance(mask[0], np.ndarray):
                 mask = np.stack(mask, axis=0) if mask[0].ndim < 3 else np.concatenate(mask, axis=0)
-                mask = ms.Tensor(mask)
+                mask = ms.tensor(mask)
             elif isinstance(mask[0], ms.Tensor):
                 mask = mint.stack(mask, dim=0) if mask[0].ndim < 3 else mint.cat(mask, dim=0)
 
@@ -549,12 +549,12 @@ class StableDiffusionDiffEditPipeline(
             )
 
             if hasattr(self.text_encoder.config, "use_attention_mask") and self.text_encoder.config.use_attention_mask:
-                attention_mask = ms.Tensor(uncond_input.attention_mask)
+                attention_mask = ms.tensor(uncond_input.attention_mask)
             else:
                 attention_mask = None
 
             negative_prompt_embeds = self.text_encoder(
-                ms.Tensor(uncond_input.input_ids),
+                ms.tensor(uncond_input.input_ids),
                 attention_mask=attention_mask,
             )
             negative_prompt_embeds = negative_prompt_embeds[0]
@@ -1010,7 +1010,7 @@ class StableDiffusionDiffEditPipeline(
         )
         clamp_magnitude = mask_guidance_map.mean() * mask_thresholding_ratio
         semantic_mask_image = mask_guidance_map.clamp(ms.tensor(0), clamp_magnitude) / clamp_magnitude
-        semantic_mask_image = mint.where(semantic_mask_image <= 0.5, ms.Tensor(0), ms.Tensor(1))
+        semantic_mask_image = mint.where(semantic_mask_image <= 0.5, ms.tensor(0), ms.tensor(1))
         mask_image = semantic_mask_image.asnumpy()
 
         # 9. Convert to Numpy array or PIL.

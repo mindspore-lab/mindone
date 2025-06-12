@@ -321,8 +321,8 @@ class BoundingBoxVolume(nn.Cell):
         self.min_dist = min_dist
         self.min_t_range = min_t_range
 
-        self.bbox_min = ms.Tensor(bbox_min)
-        self.bbox_max = ms.Tensor(bbox_max)
+        self.bbox_min = ms.tensor(bbox_min)
+        self.bbox_max = ms.tensor(bbox_max)
         self.bbox = mint.stack([self.bbox_min, self.bbox_max])
         assert self.bbox.shape == (2, 3)
         assert min_dist >= 0.0
@@ -545,7 +545,7 @@ class MeshDecoder(nn.Cell):
         masks = self.masks.bool()
 
         grid_size = field.shape
-        grid_size_tensor = ms.Tensor(grid_size).to(size.dtype)
+        grid_size_tensor = ms.tensor(grid_size).to(size.dtype)
 
         # Create bitmasks between 0 and 255 (inclusive) indicating the state
         # of the eight corners of each cube.
@@ -1032,7 +1032,7 @@ class ShapERenderer(ModelMixin, ConfigMixin):
             mesh_mask.append(True)
             raw_meshes.append(raw_mesh)
 
-        mesh_mask = ms.Tensor(mesh_mask)
+        mesh_mask = ms.tensor(mesh_mask)
         max_vertices = max(len(m.verts) for m in raw_meshes)
 
         # 3.2. query the texture color head at each vertex of the resulting mesh.

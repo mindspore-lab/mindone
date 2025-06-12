@@ -3859,7 +3859,7 @@ class HunyuanVideoLoraLoaderMixin(LoraBaseMixin):
         )
 
     @classmethod
-    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->HunyuanVideoTransformer3DModel
+    # Copied from mindone.diffusers.loaders.lora_pipeline.SD3LoraLoaderMixin.load_lora_into_transformer with SD3Transformer2DModel->HunyuanVideoTransformer3DModel # noqa
     def load_lora_into_transformer(
         cls, state_dict, transformer, adapter_name=None, _pipeline=None, hotswap: bool = False
     ):
@@ -4124,7 +4124,7 @@ class Lumina2LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -4441,7 +4441,7 @@ class WanLoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
@@ -4465,10 +4465,10 @@ class WanLoraLoaderMixin(LoraBaseMixin):
 
             for i in range(num_blocks):
                 for o, c in zip(["k_img", "v_img"], ["add_k_proj", "add_v_proj"]):
-                    state_dict[f"transformer.blocks.{i}.attn2.{c}.lora_A.weight"] = torch.zeros_like(
+                    state_dict[f"transformer.blocks.{i}.attn2.{c}.lora_A.weight"] = mint.zeros_like(
                         state_dict[f"transformer.blocks.{i}.attn2.to_k.lora_A.weight"]
                     )
-                    state_dict[f"transformer.blocks.{i}.attn2.{c}.lora_B.weight"] = torch.zeros_like(
+                    state_dict[f"transformer.blocks.{i}.attn2.{c}.lora_B.weight"] = mint.zeros_like(
                         state_dict[f"transformer.blocks.{i}.attn2.to_k.lora_B.weight"]
                     )
 
@@ -4782,7 +4782,7 @@ class CogView4LoraLoaderMixin(LoraBaseMixin):
 
         is_dora_scale_present = any("dora_scale" in k for k in state_dict)
         if is_dora_scale_present:
-            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."
+            warn_msg = "It seems like you are using a DoRA checkpoint that is not compatible in Diffusers at the moment. So, we are going to filter out the keys associated to 'dora_scale` from the state dict. If you think this is a mistake please open an issue https://github.com/huggingface/diffusers/issues/new."  # noqa
             logger.warning(warn_msg)
             state_dict = {k: v for k, v in state_dict.items() if "dora_scale" not in k}
 
