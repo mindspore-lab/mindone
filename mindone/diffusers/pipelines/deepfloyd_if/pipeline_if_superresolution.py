@@ -9,7 +9,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import T5EncoderModel
 from ...loaders import LoraLoaderMixin
@@ -444,7 +444,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 images=image,
                 clip_input=ms.Tensor.from_numpy(safety_checker_input.pixel_values).to(dtype=dtype),
             )
-            if ops.any(ops.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], axis=1), axis=1):
+            if mint.any(mint.cat([nsfw_detected[..., None].int(), watermark_detected[..., None].int()], dim=1), dim=1):
                 logger.warning(
                     "Potential NSFW or watermarked content was detected in one or more images. A black image will be returned instead."
                     " Try again with a different prompt and/or seed."
@@ -586,9 +586,9 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
             dims = image[0].ndim
 
             if dims == 3:
-                image = ops.stack(image, axis=0)
+                image = mint.stack(image, dim=0)
             elif dims == 4:
-                image = ops.concat(image, axis=0)
+                image = mint.concat(image, dim=0)
             else:
                 raise ValueError(f"Image must have 3 or 4 dimensions, instead got {dims}")
 
@@ -738,7 +738,7 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         )
 
         if do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
 
         # 4. Prepare timesteps
         if timesteps is not None:
@@ -768,14 +768,14 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
 
         # 7. Prepare upscaled image and noise level
         image = self.preprocess_image(image, num_images_per_prompt)
-        upscaled = ops.interpolate(image, (height, width), mode="bilinear", align_corners=True)
+        upscaled = mint.nn.functional.interpolate(image, (height, width), mode="bilinear", align_corners=True)
 
         noise_level = ms.Tensor([noise_level] * upscaled.shape[0])
         noise = randn_tensor(upscaled.shape, generator=generator, dtype=upscaled.dtype)
         upscaled = self.image_noising_scheduler.add_noise(upscaled, noise, timesteps=noise_level)
 
         if do_classifier_free_guidance:
-            noise_level = ops.cat([noise_level] * 2)
+            noise_level = mint.cat([noise_level] * 2)
 
         # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
         # to the unet and will raise RuntimeError.
@@ -788,9 +788,9 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
-                model_input = ops.cat([intermediate_images, upscaled], axis=1)
+                model_input = mint.cat([intermediate_images, upscaled], dim=1)
 
-                model_input = ops.cat([model_input] * 2) if do_classifier_free_guidance else model_input
+                model_input = mint.cat([model_input] * 2) if do_classifier_free_guidance else model_input
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = model_input.dtype
@@ -810,13 +810,13 @@ class IFSuperResolutionPipeline(DiffusionPipeline, LoraLoaderMixin):
                 # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, axis=1)
-                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, axis=1)
+                    noise_pred_uncond, _ = noise_pred_uncond.split(model_input.shape[1] // 2, dim=1)
+                    noise_pred_text, predicted_variance = noise_pred_text.split(model_input.shape[1] // 2, dim=1)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
-                    noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                    noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
                 if self.scheduler.config.variance_type not in ["learned", "learned_range"]:
-                    noise_pred, _ = noise_pred.split(intermediate_images.shape[1], axis=1)
+                    noise_pred, _ = noise_pred.split(intermediate_images.shape[1], dim=1)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 # TODO: method of scheduler should not change the dtype of input.

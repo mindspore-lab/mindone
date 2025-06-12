@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import random
+import sys
 import unittest
 
 import numpy as np
@@ -25,6 +26,7 @@ import mindspore as ms
 
 from mindone.diffusers import KolorsImg2ImgPipeline
 from mindone.diffusers.utils.testing_utils import (
+    fast,
     load_downloaded_image_from_hf_hub,
     load_downloaded_numpy_from_hf_hub,
     slow,
@@ -38,6 +40,7 @@ from ..pipeline_test_utils import (
     floats_tensor,
     get_module,
     get_pipeline_components,
+    randn_tensor,
 )
 
 test_cases = [
@@ -48,6 +51,7 @@ test_cases = [
 ]
 
 
+@fast
 @ddt
 class KolorsPipelineImg2ImgFastTests(PipelineTesterMixin, unittest.TestCase):
     pipeline_config = [
@@ -201,19 +205,26 @@ class KolorsPipelineImg2ImgFastTests(PipelineTesterMixin, unittest.TestCase):
 
 @slow
 @ddt
-class KolorsPipelineImg2ImgIntegrationTests(PipelineTesterMixin, unittest.TestCase):
+class KolorsPipelineImg2ImgIntegrationTests(unittest.TestCase):
     @data(*test_cases)
     @unpack
     def test_inference(self, mode, dtype):
         if dtype == "float32":
             pytest.skip("diffusers doesn't support fp32")
 
-        ms.set_context(mode=mode)
+        # TODO: synchronize issue, and we need to put the replacement of randn_tensor after initialization.
+        if mode == ms.PYNATIVE_MODE:
+            ms.set_context(mode=mode, pynative_synchronize=True)
+        else:
+            ms.set_context(mode=mode)
         ms_dtype = getattr(ms, dtype)
 
         pipe = KolorsImg2ImgPipeline.from_pretrained(
             "Kwai-Kolors/Kolors-diffusers", variant="fp16", mindspore_dtype=ms_dtype
         )
+
+        sys.modules[pipe.__module__].randn_tensor = randn_tensor
+        sys.modules[pipe.vae.diag_gauss_dist.__module__].randn_tensor = randn_tensor
 
         init_image = load_downloaded_image_from_hf_hub(
             "huggingface/documentation-images",
