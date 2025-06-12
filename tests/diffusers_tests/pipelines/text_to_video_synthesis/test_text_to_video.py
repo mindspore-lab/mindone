@@ -18,16 +18,18 @@ import unittest
 import numpy as np
 import torch
 from ddt import data, ddt, unpack
+from PIL import Image
 from transformers import CLIPTextConfig
 
 import mindspore as ms
 
 from mindone.diffusers import TextToVideoSDPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
     THRESHOLD_FP32,
+    THRESHOLD_PIXEL,
     PipelineTesterMixin,
     get_module,
     get_pipeline_components,
@@ -190,12 +192,11 @@ class TextToVideoSDPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         prompt = "Spiderman is surfing"
 
         torch.manual_seed(0)
-        video_frames = pipe(prompt, num_inference_steps=2)[0][0]
+        video_frame = Image.fromarray((pipe(prompt, num_inference_steps=2)[0][0][-1] * 255).astype("uint8"))
 
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"t2v_synth_{dtype}.npy",
             subfolder="text_to_video_synthesis",
         )
-        threshold = THRESHOLD_FP32 if dtype == "float32" else THRESHOLD_FP16
-        assert np.linalg.norm(expected_video - video_frames) / np.linalg.norm(expected_video) < threshold
+        assert np.mean(np.abs(np.array(video_frame, dtype=np.float32) - expected_video)) < THRESHOLD_PIXEL

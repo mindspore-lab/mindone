@@ -178,7 +178,7 @@ class VaeImageProcessor(ConfigMixin):
         if images.ndim == 3:
             images = images[..., None]
 
-        images = ms.Tensor(images.transpose(0, 3, 1, 2))
+        images = ms.tensor(images.transpose(0, 3, 1, 2))
         return images
 
     @staticmethod

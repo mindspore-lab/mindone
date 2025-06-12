@@ -24,7 +24,7 @@ from transformers import CLIPTextConfig
 import mindspore as ms
 
 from mindone.diffusers import VideoToVideoSDPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import (
     THRESHOLD_FP16,
@@ -215,8 +215,8 @@ class VideoToVideoSDPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         torch.manual_seed(0)
         video_frames = pipe(prompt, video=video, num_inference_steps=3)[0][0]
 
-        expected_video = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_video = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"v2v_synth_{dtype}.npy",
             subfolder="text_to_video_synthesis",
         )

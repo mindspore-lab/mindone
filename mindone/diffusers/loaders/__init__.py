@@ -66,6 +66,7 @@ _import_structure = {
         "LoraLoaderMixin",
         "FluxLoraLoaderMixin",
         "CogVideoXLoraLoaderMixin",
+        "CogView4LoraLoaderMixin",
         "Mochi1LoraLoaderMixin",
         "HunyuanVideoLoraLoaderMixin",
         "SanaLoraLoaderMixin",
@@ -84,6 +85,7 @@ if TYPE_CHECKING:
     from .lora_pipeline import (
         AmusedLoraLoaderMixin,
         CogVideoXLoraLoaderMixin,
+        CogView4LoraLoaderMixin,
         FluxLoraLoaderMixin,
         HunyuanVideoLoraLoaderMixin,
         LoraLoaderMixin,

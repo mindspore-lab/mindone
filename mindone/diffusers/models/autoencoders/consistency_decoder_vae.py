@@ -54,13 +54,15 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
 
         >>> vae = ConsistencyDecoderVAE.from_pretrained("openai/consistency-decoder", mindspore_dtype=mindspore.float16)
         >>> pipe = StableDiffusionPipeline.from_pretrained(
-        ...     "runwayml/stable-diffusion-v1-5", vae=vae, mindspore_dtype=mindspore.float16
+        ...     "stable-diffusion-v1-5/stable-diffusion-v1-5", vae=vae, mindspore_dtype=mindspore.float16
         ... )
 
         >>> image = pipe("horse")[0][0]
         >>> image
         ```
     """
+
+    _supports_group_offloading = False
 
     @register_to_config
     def __init__(
@@ -136,8 +138,8 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         self.decoder_scheduler = ConsistencyDecoderScheduler()
         self.register_to_config(block_out_channels=encoder_block_out_channels)
         self.register_to_config(force_upcast=False)
-        self.means = ms.Tensor([0.38862467, 0.02253063, 0.07381133, -0.0171294])[None, :, None, None]
-        self.stds = ms.Tensor([0.9654121, 1.0440036, 0.76147926, 0.77022034])[None, :, None, None]
+        self.means = ms.tensor([0.38862467, 0.02253063, 0.07381133, -0.0171294])[None, :, None, None]
+        self.stds = ms.tensor([0.9654121, 1.0440036, 0.76147926, 0.77022034])[None, :, None, None]
 
         self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
 

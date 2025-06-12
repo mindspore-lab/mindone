@@ -21,7 +21,7 @@ from ddt import data, ddt, unpack
 
 import mindspore as ms
 
-from mindone.diffusers.utils.testing_utils import load_downloaded_numpy_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import load_numpy_from_local_file, slow
 
 from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin, get_module
 
@@ -63,8 +63,8 @@ class StableDiffusionPipelineIntegrationTests(PipelineTesterMixin, unittest.Test
         torch.manual_seed(0)
         image = sd_pipe(**inputs)[0][0]
 
-        expected_image = load_downloaded_numpy_from_hf_hub(
-            "The-truth/mindone-testing-arrays",
+        expected_image = load_numpy_from_local_file(
+            "mindone-testing-arrays",
             f"sd_1_5_lms_{dtype}.npy",
             subfolder="stable_diffusion_k_diffusion",
         )
