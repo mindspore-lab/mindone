@@ -19,7 +19,7 @@ import PIL.Image
 from PIL import Image
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ...models import UNet2DConditionModel, VQModel
 from ...schedulers import DDPMScheduler
@@ -84,7 +84,7 @@ def prepare_image(pil_image, w=512, h=512):
     arr = np.array(pil_image.convert("RGB"))
     arr = arr.astype(np.float32) / 127.5 - 1
     arr = np.transpose(arr, [2, 0, 1])
-    image = ms.Tensor.from_numpy(arr).unsqueeze(0)
+    image = mint.unsqueeze(ms.Tensor.from_numpy(arr), 0)
     return image
 
 
@@ -154,13 +154,13 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 init_latents = [
                     self.movq.diag_gauss_dist.sample(self.movq.encode(image[i : i + 1])[0]) for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = self.movq.diag_gauss_dist.sample(self.movq.encode(image)[0])
 
             init_latents = self.movq.config.scaling_factor * init_latents
 
-        init_latents = ops.cat([init_latents], axis=0)
+        init_latents = mint.cat([init_latents], dim=0)
 
         shape = init_latents.shape
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
@@ -286,16 +286,16 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         self._guidance_scale = guidance_scale
 
         if isinstance(image_embeds, list):
-            image_embeds = ops.cat(image_embeds, axis=0)
+            image_embeds = mint.cat(image_embeds, dim=0)
         batch_size = image_embeds.shape[0]
         if isinstance(negative_image_embeds, list):
-            negative_image_embeds = ops.cat(negative_image_embeds, axis=0)
+            negative_image_embeds = mint.cat(negative_image_embeds, dim=0)
 
         if self.do_classifier_free_guidance:
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
             negative_image_embeds = negative_image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
-            image_embeds = ops.cat([negative_image_embeds, image_embeds], axis=0).to(dtype=self.unet.dtype)
+            image_embeds = mint.cat([negative_image_embeds, image_embeds], dim=0).to(dtype=self.unet.dtype)
 
         if not isinstance(image, list):
             image = [image]
@@ -304,7 +304,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
                 f"Input is in incorrect format: {[type(i) for i in image]}. Currently, we only support  PIL image and mindspore tensor"
             )
 
-        image = ops.cat([prepare_image(i, width, height) for i in image], axis=0)
+        image = mint.cat([prepare_image(i, width, height) for i in image], dim=0)
         image = image.to(dtype=image_embeds.dtype)
 
         latents = self.movq.encode(image)[0]
@@ -319,7 +319,7 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
         self._num_timesteps = len(timesteps)
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
 
             added_cond_kwargs = {"image_embeds": image_embeds}
             noise_pred = self.unet(
@@ -331,17 +331,17 @@ class KandinskyV22Img2ImgPipeline(DiffusionPipeline):
             )[0]
 
             if self.do_classifier_free_guidance:
-                noise_pred, variance_pred = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, variance_pred = noise_pred.split(latents.shape[1], dim=1)
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                 _, variance_pred_text = variance_pred.chunk(2)
                 noise_pred = noise_pred_uncond + self.guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, variance_pred_text], axis=1)
+                noise_pred = mint.cat([noise_pred, variance_pred_text], dim=1)
 
             if not (
                 hasattr(self.scheduler.config, "variance_type")
                 and self.scheduler.config.variance_type in ["learned", "learned_range"]
             ):
-                noise_pred, _ = noise_pred.split(latents.shape[1], axis=1)
+                noise_pred, _ = noise_pred.split(latents.shape[1], dim=1)
 
             # compute the previous noisy sample x_t -> x_t-1
             latents = self.scheduler.step(

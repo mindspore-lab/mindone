@@ -419,10 +419,10 @@ class GraniteMoeSharedFlashAttention2(GraniteMoeSharedAttention):
             else:
                 # attention_mask has beed inverted before in _prepare_4d_causal_mask: 0: retain, -inf: discard
                 min_dtype = dtype_to_min(attention_mask.dtype)
-                attention_mask = ops.select(
-                    ops.equal(attention_mask, min_dtype),
-                    ops.ones((), ms.uint8),
-                    ops.zeros((), ms.uint8),
+                attention_mask = mint.where(
+                    attention_mask == min_dtype,
+                    mint.ones((), dtype=ms.uint8),
+                    mint.zeros((), dtype=ms.uint8),
                 )
         return attention_mask
 

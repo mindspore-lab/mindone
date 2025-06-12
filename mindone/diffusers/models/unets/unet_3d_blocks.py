@@ -15,7 +15,7 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...utils import deprecate, logging
 from ..attention import Attention
@@ -741,7 +741,7 @@ class CrossAttnUpBlock3D(nn.Cell):
             if is_freeu_enabled:
                 raise NotImplementedError("apply_freeu is not implemented")
 
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
             hidden_states = temp_conv(hidden_states, num_frames=num_frames)
@@ -849,7 +849,7 @@ class UpBlock3D(nn.Cell):
             if is_freeu_enabled:
                 raise NotImplementedError("apply_freeu is not implemented")
 
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(hidden_states, temb)
             hidden_states = temp_conv(hidden_states, num_frames=num_frames)
@@ -1275,7 +1275,7 @@ class UpBlockSpatioTemporal(nn.Cell):
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
 
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(
                 hidden_states,
@@ -1362,7 +1362,7 @@ class CrossAttnUpBlockSpatioTemporal(nn.Cell):
             res_hidden_states = res_hidden_states_tuple[-1]
             res_hidden_states_tuple = res_hidden_states_tuple[:-1]
 
-            hidden_states = ops.cat([hidden_states, res_hidden_states], axis=1)
+            hidden_states = mint.cat([hidden_states, res_hidden_states], dim=1)
 
             hidden_states = resnet(
                 hidden_states,

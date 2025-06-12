@@ -5,7 +5,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -84,14 +84,14 @@ class ConsistencyDecoderScheduler(SchedulerMixin, ConfigMixin):
         betas = betas_for_alpha_bar(num_train_timesteps)
 
         alphas = 1.0 - betas
-        alphas_cumprod = ops.cumprod(alphas, dim=0)
+        alphas_cumprod = mint.cumprod(alphas, dim=0)
 
-        self.sqrt_alphas_cumprod = ops.sqrt(alphas_cumprod)
-        self.sqrt_one_minus_alphas_cumprod = ops.sqrt(1.0 - alphas_cumprod)
+        self.sqrt_alphas_cumprod = mint.sqrt(alphas_cumprod)
+        self.sqrt_one_minus_alphas_cumprod = mint.sqrt(1.0 - alphas_cumprod)
 
-        sigmas = ops.sqrt(1.0 / alphas_cumprod - 1)
+        sigmas = mint.sqrt(1.0 / alphas_cumprod - 1)
 
-        sqrt_recip_alphas_cumprod = ops.sqrt(1.0 / alphas_cumprod)
+        sqrt_recip_alphas_cumprod = mint.sqrt(1.0 / alphas_cumprod)
 
         self.c_skip = sqrt_recip_alphas_cumprod * sigma_data**2 / (sigmas**2 + sigma_data**2)
         self.c_out = sigmas * sigma_data / (sigmas**2 + sigma_data**2) ** 0.5

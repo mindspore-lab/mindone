@@ -47,7 +47,7 @@ This pipeline was contributed by [PommesPeter](https://github.com/PommesPeter). 
 
 !!! tip
 
-    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality.
+    Make sure to check out the Schedulers [guide](../../using-diffusers/schedulers.md) to learn how to explore the tradeoff between scheduler speed and quality, and see the [reuse components across pipelines](../../using-diffusers/loading.md#reuse-a-pipeline) section to learn how to efficiently load the same components into multiple pipelines.
 
 ### Inference (Text-to-Image)
 

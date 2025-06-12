@@ -518,7 +518,7 @@ class GraniteMoeFlashAttention2(GraniteMoeAttention):
             head_num=self.num_heads,
             keep_prob=1 - self.dropout,
             scale_value=self.scaling,
-            input_layout="BNSD",
+            input_layout="BSND",
         )
 
     def convert_mask_to_fa_format(self, attention_mask):
@@ -530,10 +530,10 @@ class GraniteMoeFlashAttention2(GraniteMoeAttention):
             else:
                 # attention_mask has beed inverted before in _prepare_4d_causal_mask: 0: retain, -inf: discard
                 min_dtype = dtype_to_min(attention_mask.dtype)
-                attention_mask = ops.select(
-                    ops.equal(attention_mask, min_dtype),
-                    ops.ones((), ms.uint8),
-                    ops.zeros((), ms.uint8),
+                attention_mask = mint.where(
+                    attention_mask == min_dtype,
+                    mint.ones((), dtype=ms.uint8),
+                    mint.zeros((), dtype=ms.uint8),
                 )
         return attention_mask
 
@@ -751,7 +751,7 @@ class GraniteMoePreTrainedModel(PreTrainedModel):
     _skip_keys_device_placement = ["past_key_values"]
     _supports_flash_attn_2 = True
     _supports_sdpa = True
-    _supports_cache_class = False
+    _supports_cache_class = True
     _supports_quantized_cache = True
     _supports_static_cache = False
 
