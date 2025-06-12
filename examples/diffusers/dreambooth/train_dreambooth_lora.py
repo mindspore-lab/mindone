@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.amp import StaticLossScaler
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -1279,10 +1279,10 @@ class TrainStepForDB(TrainStep):
             model_input = pixel_values
 
         # Sample noise that we'll add to the latents
-        noise = ops.randn_like(model_input, dtype=model_input.dtype)
+        noise = mint.randn_like(model_input, dtype=model_input.dtype)
         bsz, channels, height, width = model_input.shape
         # Sample a random timestep for each image
-        timesteps = ops.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
+        timesteps = mint.randint(0, self.noise_scheduler_num_train_timesteps, (bsz,))
         timesteps = timesteps.long()
 
         # Add noise to the model input according to the noise magnitude at each timestep
@@ -1301,7 +1301,7 @@ class TrainStepForDB(TrainStep):
             )
 
         if self.unet_in_channels == channels * 2:
-            noisy_model_input = ops.cat([noisy_model_input, noisy_model_input], axis=1)
+            noisy_model_input = mint.cat([noisy_model_input, noisy_model_input], dim=1)
 
         if self.args.class_labels_conditioning == "timesteps":
             class_labels = timesteps
@@ -1317,7 +1317,7 @@ class TrainStepForDB(TrainStep):
         # simplified training objective. This means that all schedulers using the fine tuned
         # model must be configured to use one of the fixed variance variance types.
         if model_pred.shape[1] == 6:
-            model_pred, _ = ops.chunk(model_pred, 2, axis=1)
+            model_pred, _ = mint.chunk(model_pred, 2, dim=1)
 
         # Get the target for loss depending on the prediction type
         if self.noise_scheduler_prediction_type == "epsilon":
@@ -1329,19 +1329,19 @@ class TrainStepForDB(TrainStep):
 
         if self.args.with_prior_preservation:
             # Chunk the noise and model_pred into two parts and compute the loss on each part separately.
-            model_pred, model_pred_prior = ops.chunk(model_pred, 2, axis=0)
-            target, target_prior = ops.chunk(target, 2, axis=0)
+            model_pred, model_pred_prior = mint.chunk(model_pred, 2, dim=0)
+            target, target_prior = mint.chunk(target, 2, dim=0)
 
             # Compute instance loss
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
 
             # Compute prior loss
-            prior_loss = ops.mse_loss(model_pred_prior.float(), target_prior.float(), reduction="mean")
+            prior_loss = mint.nn.functional.mse_loss(model_pred_prior.float(), target_prior.float(), reduction="mean")
 
             # Add the prior loss to the instance loss.
             loss = loss + self.args.prior_loss_weight * prior_loss
         else:
-            loss = ops.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            loss = mint.nn.functional.mse_loss(model_pred.float(), target.float(), reduction="mean")
 
         loss = self.scale_loss(loss)
         return loss, model_pred

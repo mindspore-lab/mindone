@@ -20,7 +20,7 @@ import PIL.Image
 from PIL import Image, ImageFilter, ImageOps
 
 import mindspore as ms
-from mindspore import mint, ops
+from mindspore import mint
 
 from .configuration_utils import ConfigMixin, register_to_config
 from .utils import CONFIG_NAME, PIL_INTERPOLATION, deprecate
@@ -490,13 +490,13 @@ class VaeImageProcessor(ConfigMixin):
                 raise ValueError(f"resize_mode {resize_mode} is not supported")
 
         elif isinstance(image, ms.Tensor):
-            image = ops.interpolate(
+            image = mint.nn.functional.interpolate(
                 image,
                 size=(height, width),
             )
         elif isinstance(image, np.ndarray):
             image = self.numpy_to_ms(image)
-            image = ops.interpolate(
+            image = mint.nn.functional.interpolate(
                 image,
                 size=(height, width),
             )
@@ -534,7 +534,7 @@ class VaeImageProcessor(ConfigMixin):
         if do_denormalize is None:
             return self.denormalize(images) if self.config.do_normalize else images
 
-        return ops.stack(
+        return mint.stack(
             [self.denormalize(images[i]) if do_denormalize[i] else images[i] for i in range(images.shape[0])]
         )
 
@@ -653,7 +653,7 @@ class VaeImageProcessor(ConfigMixin):
                 "Please concatenate the list along the batch dimension and pass it as a single 4d ms.Tensor",
                 FutureWarning,
             )
-            image = ops.cat(image, axis=0)
+            image = mint.cat(image, dim=0)
 
         if not is_valid_image_imagelist(image):
             raise ValueError(
@@ -685,7 +685,7 @@ class VaeImageProcessor(ConfigMixin):
                 image = self.resize(image, height, width)
 
         elif isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
+            image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
             if self.config.do_convert_grayscale and image.ndim == 3:
                 image = image.unsqueeze(1)
@@ -1163,7 +1163,9 @@ class IPAdapterMaskProcessor(VaeImageProcessor):
         mask_h = int(mask_h) + int((num_queries % int(mask_h)) != 0)
         mask_w = num_queries // mask_h
 
-        mask_downsample = ops.interpolate(mask.unsqueeze(0), size=(mask_h, mask_w), mode="bicubic").squeeze(0)
+        mask_downsample = mint.nn.functional.interpolate(
+            mask.unsqueeze(0), size=(mask_h, mask_w), mode="bicubic"
+        ).squeeze(0)
 
         # Repeat batch_size times
         if mask_downsample.shape[0] < batch_size:
@@ -1175,7 +1177,9 @@ class IPAdapterMaskProcessor(VaeImageProcessor):
         # If the output image and the mask do not have the same aspect ratio, tensor shapes will not match
         # Pad tensor if downsampled_mask.shape[1] is smaller than num_queries
         if downsampled_area < num_queries:
-            mask_downsample = ops.Pad(paddings=((0, 0), (0, num_queries - mask_downsample.shape[1])))(mask_downsample)
+            mask_downsample = mint.nn.functional.pad(
+                mask_downsample, (0, num_queries - mask_downsample.shape[1]), value=0.0
+            )
         # Discard last embeddings if downsampled_mask.shape[1] is bigger than num_queries
         if downsampled_area > num_queries:
             mask_downsample = mask_downsample[:, :num_queries]

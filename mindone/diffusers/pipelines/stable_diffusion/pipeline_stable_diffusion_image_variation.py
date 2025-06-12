@@ -21,7 +21,7 @@ from packaging import version
 from transformers import CLIPImageProcessor
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint, ops
 
 from mindone.transformers import CLIPVisionModelWithProjection
 
@@ -151,12 +151,12 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
         image_embeddings = image_embeddings.view(bs_embed * num_images_per_prompt, seq_len, -1)
 
         if do_classifier_free_guidance:
-            negative_prompt_embeds = ops.zeros_like(image_embeddings)
+            negative_prompt_embeds = mint.zeros_like(image_embeddings)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            image_embeddings = ops.cat([negative_prompt_embeds, image_embeddings])
+            image_embeddings = mint.cat([negative_prompt_embeds, image_embeddings])
 
         return image_embeddings
 
@@ -165,6 +165,7 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
         if self.safety_checker is None:
             has_nsfw_concept = None
         else:
+            # todo: unavailable mint interface
             if ops.is_tensor(image):
                 feature_extractor_input = self.image_processor.postprocess(image, output_type="pil")
             else:
@@ -379,7 +380,7 @@ class StableDiffusionImageVariationPipeline(DiffusionPipeline, StableDiffusionMi
         with self.progress_bar(total=num_inference_steps) as progress_bar:
             for i, t in enumerate(timesteps):
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
                 latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
                 # predict the noise residual
