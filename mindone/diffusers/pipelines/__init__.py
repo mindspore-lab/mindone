@@ -64,6 +64,11 @@ _import_structure = {
         "IFSuperResolutionPipeline",
     ],
     "dit": ["DiTPipeline"],
+    "easyanimate": [
+        "EasyAnimatePipeline",
+        "EasyAnimateInpaintPipeline",
+        "EasyAnimateControlPipeline",
+    ],
     "flux": [
         "FluxControlImg2ImgPipeline",
         "FluxControlInpaintPipeline",
@@ -276,6 +281,7 @@ if TYPE_CHECKING:
         IFSuperResolutionPipeline,
     )
     from .dit import DiTPipeline
+    from .easyanimate import EasyAnimateControlPipeline, EasyAnimateInpaintPipeline, EasyAnimatePipeline
     from .flux import (
         FluxControlImg2ImgPipeline,
         FluxControlInpaintPipeline,
