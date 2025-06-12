@@ -29,6 +29,7 @@ class RefinedWebDataset:
         super().__init__()
         self.files = sorted(glob.glob(data_path))
         print(f"{len(self.files)} files detected in {data_path}")
+        assert len(self.files) > 0, f"No files found in {data_path}"
         self.rank = rank
         self.world_size = world_size
         self.shuffle = shuffle
@@ -39,11 +40,19 @@ class RefinedWebDataset:
 
         self.files = self.files[self.rank :: self.world_size]
 
+        self._length = 0
+        for file_path in self.files:
+            table = pq.read_table(file_path, columns=["content"])
+            self._length += len(table)
+
     def read_parquet_file(self, file_path):
         table = pq.read_table(file_path, columns=["content"])
         df = table.to_pandas()
         for _, row in df.iterrows():
             yield {"content": row["content"]}
+
+    def __len__(self):
+        return self._length
 
     def __iter__(self):
         while True:
