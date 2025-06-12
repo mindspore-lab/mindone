@@ -16,7 +16,7 @@
 from typing import Any, Dict, Optional, Tuple
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
@@ -65,8 +65,8 @@ class MochiLayerNormContinuous(nn.Cell):
         super().__init__()
 
         # AdaLN
-        self.silu = nn.SiLU()
-        self.linear_1 = nn.Dense(conditioning_embedding_dim, embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear_1 = mint.nn.Linear(conditioning_embedding_dim, embedding_dim, bias=bias)
         self.norm = MochiModulatedRMSNorm(eps=eps)
 
     def construct(
@@ -96,15 +96,15 @@ class MochiRMSNormZero(nn.Cell):
     ) -> None:
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Linear(embedding_dim, hidden_dim)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, hidden_dim)
         self.norm = RMSNorm(0, eps, False)
 
     def construct(self, hidden_states: ms.Tensor, emb: ms.Tensor) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         hidden_states_dtype = hidden_states.dtype
 
         emb = self.linear(self.silu(emb))
-        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, axis=1)
+        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
         hidden_states = self.norm(hidden_states.to(ms.float32)) * (1 + scale_msa[:, None].to(ms.float32))
         hidden_states = hidden_states.to(hidden_states_dtype)
 
@@ -218,21 +218,21 @@ class MochiTransformerBlock(nn.Cell):
             attention_mask=encoder_attention_mask,
         )
 
-        hidden_states = hidden_states + self.norm2(attn_hidden_states, ops.tanh(gate_msa).unsqueeze(1))
+        hidden_states = hidden_states + self.norm2(attn_hidden_states, mint.tanh(gate_msa).unsqueeze(1))
         norm_hidden_states = self.norm3(hidden_states, (1 + scale_mlp.unsqueeze(1).to(ms.float32)))
         ff_output = self.ff(norm_hidden_states)
-        hidden_states = hidden_states + self.norm4(ff_output, ops.tanh(gate_mlp).unsqueeze(1))
+        hidden_states = hidden_states + self.norm4(ff_output, mint.tanh(gate_mlp).unsqueeze(1))
 
         if not self.context_pre_only:
             encoder_hidden_states = encoder_hidden_states + self.norm2_context(
-                context_attn_hidden_states, ops.tanh(enc_gate_msa).unsqueeze(1)
+                context_attn_hidden_states, mint.tanh(enc_gate_msa).unsqueeze(1)
             )
             norm_encoder_hidden_states = self.norm3_context(
                 encoder_hidden_states, (1 + enc_scale_mlp.unsqueeze(1).to(ms.float32))
             )
             context_ff_output = self.ff_context(norm_encoder_hidden_states)
             encoder_hidden_states = encoder_hidden_states + self.norm4_context(
-                context_ff_output, ops.tanh(enc_gate_mlp).unsqueeze(1)
+                context_ff_output, mint.tanh(enc_gate_mlp).unsqueeze(1)
             )
 
         return hidden_states, encoder_hidden_states
@@ -255,7 +255,7 @@ class MochiRoPE(nn.Cell):
         self.target_area = base_height * base_width
 
     def _centers(self, start, stop, num, dtype) -> ms.Tensor:
-        edges = ops.linspace(start, stop, num + 1).to(dtype=dtype)
+        edges = mint.linspace(start, stop, num + 1).to(dtype=dtype)
         return (edges[:-1] + edges[1:]) / 2
 
     def _get_positions(
@@ -267,22 +267,22 @@ class MochiRoPE(nn.Cell):
     ) -> ms.Tensor:
         scale = (self.target_area / (height * width)) ** 0.5
 
-        t = ops.arange(num_frames, dtype=dtype)
+        t = mint.arange(num_frames, dtype=dtype)
         h = self._centers(-height * scale / 2, height * scale / 2, height, dtype)
         w = self._centers(-width * scale / 2, width * scale / 2, width, dtype)
 
-        grid_t, grid_h, grid_w = ops.meshgrid(t, h, w, indexing="ij")
+        grid_t, grid_h, grid_w = mint.meshgrid(t, h, w, indexing="ij")
 
-        positions = ops.stack([grid_t, grid_h, grid_w], axis=-1).view(-1, 3)
+        positions = mint.stack([grid_t, grid_h, grid_w], dim=-1).view(-1, 3)
         return positions
 
     def _create_rope(self, freqs: ms.Tensor, pos: ms.Tensor) -> ms.Tensor:
         # Always run ROPE freqs computation in FP32
         # freqs = torch.einsum("nd,dhf->nhf", pos.to(ms.float32), freqs.to(ms.float32))
-        freqs = ops.mul(pos[..., None, None].to(ms.float32), freqs[None, ...].to(ms.float32)).sum(axis=1)
+        freqs = mint.sum(mint.mul(pos[..., None, None].to(ms.float32), freqs[None, ...].to(ms.float32)), dim=1)
 
-        freqs_cos = ops.cos(freqs)
-        freqs_sin = ops.sin(freqs)
+        freqs_cos = mint.cos(freqs)
+        freqs_sin = mint.sin(freqs)
         return freqs_cos, freqs_sin
 
     def construct(
@@ -367,7 +367,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
         )
 
         self.pos_frequencies = ms.Parameter(
-            ops.full((3, num_attention_heads, attention_head_dim // 2), 0.0, dtype=ms.float32)
+            mint.full((3, num_attention_heads, attention_head_dim // 2), 0.0, dtype=ms.float32)
         )
         self.rope = MochiRoPE()
 
@@ -393,7 +393,7 @@ class MochiTransformer3DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOri
             eps=1e-6,
             norm_type="layer_norm",
         )
-        self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * out_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
         self.p = self.config.patch_size
 
         self._gradient_checkpointing = False

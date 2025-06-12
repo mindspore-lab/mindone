@@ -15,7 +15,7 @@
 import re
 from typing import Dict, List, Tuple, Union
 
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...models.attention_processor import (
     Attention,
@@ -142,10 +142,10 @@ class PAGMixin:
             ms.Tensor: The prepared perturbed attention guidance tensor.
         """
 
-        cond = ops.cat([cond] * 2, axis=0)
+        cond = mint.cat([cond] * 2, dim=0)
 
         if do_classifier_free_guidance:
-            cond = ops.cat([uncond, cond], axis=0)
+            cond = mint.cat([uncond, cond], dim=0)
         return cond
 
     def set_pag_applied_layers(

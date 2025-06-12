@@ -38,7 +38,7 @@ from .timm import (
     Mlp,
     PatchDropout,
     PatchEmbed,
-    _no_grad_trunc_normal_,
+    no_grad_trunc_normal_,
     resample_abs_pos_embed,
 )
 
@@ -60,13 +60,13 @@ def trunc_normal_(tensor, mean=0.0, std=1.0, a=-2.0, b=2.0):
         b: the maximum cutoff value
     Examples:
         >>> w = mint.empty(3, 5)
-        >>> nn.init.trunc_normal_(w)
+        >>> trunc_normal_(w)
     """
 
     # with ms._no_grad(): # dosn't support graph mode
     dtype = tensor.dtype
     tensor_fp32 = tensor.float()
-    tensor_fp32 = _no_grad_trunc_normal_(tensor_fp32, mean, std, a, b)
+    tensor_fp32 = no_grad_trunc_normal_(tensor_fp32, mean, std, a, b)
     tensor_dtype = tensor_fp32.to(dtype=dtype)
     tensor.copy_(tensor_dtype)
 
@@ -84,7 +84,7 @@ def init_weights_vit_timm(module: nn.Cell, name: str = "") -> None:
     if isinstance(module, mint.nn.Linear):
         trunc_normal_(module.weight, std=0.02)
         if module.bias is not None:
-            nn.init.zeros_(module.bias)
+            module.bias.fill_(0)
     elif hasattr(module, "init_weights"):
         module.init_weights()
 
@@ -285,7 +285,7 @@ class VisionTransformer(nn.Cell):
 
         self.num_classes = num_classes
         self.global_pool = global_pool
-        self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
+        self.num_features = self.embed_dim = embed_dim  # num_features for with other models
         self.num_prefix_tokens = 1 if class_token else 0
         self.num_prefix_tokens += reg_tokens
         self.num_reg_tokens = reg_tokens
@@ -639,36 +639,3 @@ def create_siglip_vit(
     )
 
     return model
-
-
-if __name__ == "__main__":
-    from mindone.utils.logger import set_logger
-
-    ms.set_context(device_id=7)
-    _debug = True
-    # put name as ""
-    logger = set_logger(name="", output_dir=str(".") if not _debug else None)
-
-    jp1b = "/mnt/disk2/fredhong/hf_ckpts/Janus-Pro-1B"
-
-    # load input and golden gt, run this testing under Janus dir
-    input_tensor = Tensor(np.load("./image_tensor.npy")).to(ms.bfloat16)
-    gt_tensor = np.load("./image_forward_outs.npy")
-    print(input_tensor)
-    print(f"gt tensor dtype is {gt_tensor.dtype}")
-
-    # default setup, unit load hard to load ckpt this way, do entire model loading
-    from modeling_vlm import MultiModalityCausalLM
-
-    vl_gpt: MultiModalityCausalLM = MultiModalityCausalLM.from_pretrained(jp1b, local_files_only=True)
-    vl_gpt = vl_gpt.to(ms.bfloat16)
-    vision_tower = vl_gpt.vision_model.vision_tower
-
-    # cal & eval
-    out = vision_tower(input_tensor)
-    out = out.to(ms.float32).asnumpy()
-
-    assert np.allclose(
-        out, gt_tensor, rtol=1e-1, atol=1e-1
-    ), f"recal result is not closed to gt!, out:{out.shape}\n{out}\ngt:{gt_tensor.shape}\n{gt_tensor}"
-    print("test success")

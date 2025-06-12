@@ -161,6 +161,8 @@ class OpenSoraAttnProcessor2_0:
         self.interpolation_scale_thw = interpolation_scale_thw
 
         self._init_rope(interpolation_scale_thw, dim_head=dim_head)
+        self.pos_thw = None
+        self.pos_thw_shape = (0, 0, 0, 0)
 
         # if npu_config.enable_FA:
         #     FLASH_IS_AVAILABLE = check_valid_flash_attention()
@@ -306,8 +308,13 @@ class OpenSoraAttnProcessor2_0:
         # print(f'q {query.shape}, k {key.shape}, v {value.shape}')
         if not self.is_cross_attn:
             # require the shape of (ntokens x batch_size x nheads x dim) or (batch_size x ntokens x nheads x dim)
-            pos_thw = self.position_getter(batch_size, t=total_frame, h=height, w=width)
+            # self.position_getter has a certain output when the input is certain.
+            # just run the func once when the processor is initialized to prevent subsequent double calculation.
+            if self.pos_thw is None or self.pos_thw_shape != (batch_size, total_frame, height, width):
+                self.pos_thw = self.position_getter(batch_size, t=total_frame, h=height, w=width)
+                self.pos_thw_shape = (batch_size, total_frame, height, width)
             # print(f'pos_thw {pos_thw}')
+            pos_thw = self.pos_thw
             query = self.rope(query, pos_thw)
             key = self.rope(key, pos_thw)
 

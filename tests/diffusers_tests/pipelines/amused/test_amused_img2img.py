@@ -21,9 +21,13 @@ from ddt import data, ddt, unpack
 import mindspore as ms
 
 from mindone.diffusers import AmusedImg2ImgPipeline
-from mindone.diffusers.utils.testing_utils import load_downloaded_image_from_hf_hub, slow
+from mindone.diffusers.utils.testing_utils import (
+    load_downloaded_image_from_hf_hub,
+    load_downloaded_numpy_from_hf_hub,
+    slow,
+)
 
-from ..pipeline_test_utils import PipelineTesterMixin
+from ..pipeline_test_utils import THRESHOLD_PIXEL, PipelineTesterMixin
 
 test_cases = [
     {"mode": ms.PYNATIVE_MODE, "dtype": "float32"},
@@ -55,14 +59,13 @@ class AmusedPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
             "winter mountains",
             image,
             generator=ms.Generator().manual_seed(0),
-            num_inference_steps=2,
-            output_type="np",
-        )[0]
-        image_slice = image[0, -3:, -3:, -1].flatten()
+        )[
+            0
+        ][0]
 
-        if dtype == "float32":
-            expected_slice = np.array([0.1984, 0.1867, 0.1718, 0.1611, 0.1800, 0.1752, 0.1613, 0.2151, 0.1300])
-            assert np.abs(image_slice - expected_slice).max() < 0.1
-        else:
-            expected_slice = np.array([0.2305, 0.2235, 0.2257, 0.2332, 0.2520, 0.2375, 0.2236, 0.2635, 0.1815])
-            assert np.abs(image_slice - expected_slice).max() < 0.1
+        expected_image = load_downloaded_numpy_from_hf_hub(
+            "The-truth/mindone-testing-arrays",
+            f"i2i_{dtype}.npy",
+            subfolder="amused",
+        )
+        assert np.mean(np.abs(np.array(image, dtype=np.float32) - expected_image)) < THRESHOLD_PIXEL
