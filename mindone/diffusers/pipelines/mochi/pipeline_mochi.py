@@ -208,8 +208,8 @@ class MochiPipeline(DiffusionPipeline, Mochi1LoraLoaderMixin):
             return_tensors="np",
         )
 
-        text_input_ids = ms.Tensor(text_inputs.input_ids)
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask, dtype=ms.bool_)
+        text_input_ids = ms.tensor(text_inputs.input_ids)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask, dtype=ms.bool_)
 
         # The original Mochi implementation zeros out empty negative prompts
         # but this can lead to overflow when placing the entire pipeline under the autocast context

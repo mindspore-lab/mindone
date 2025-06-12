@@ -29,7 +29,7 @@ def preprocess(image):
     image = image.resize((w, h), resample=PIL_INTERPOLATION["lanczos"])
     image = np.array(image).astype(np.float32) / 255.0
     image = image[None].transpose(0, 3, 1, 2)
-    image = ms.Tensor(image)
+    image = ms.tensor(image)
     return 2.0 * image - 1.0
 
 

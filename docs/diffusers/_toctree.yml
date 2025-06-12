@@ -192,6 +192,8 @@
         title: CogView4Transformer2DModel
       - local: api/models/dit_transformer2d
         title: DiTTransformer2DModel
+      - local: api/models/easyanimate_transformer3d
+        title: EasyAnimateTransformer3DModel
       - local: api/models/flux_transformer
         title: FluxTransformer2DModel
       - local: api/models/hunyuan_transformer2d
@@ -202,6 +204,8 @@
         title: LatteTransformer3DModel
       - local: api/models/lumina_nextdit2d
         title: LuminaNextDiT2DModel
+      - local: api/models/lumina2_transformer2d
+        title: Lumina2Transformer2DModel
       - local: api/models/ltx_video_transformer3d
         title: LTXVideoTransformer3DModel
       - local: api/models/mochi_transformer3d
@@ -248,6 +252,8 @@
         title: AutoencoderKLHunyuanVideo
       - local: api/models/autoencoderkl_ltx_video
         title: AutoencoderKLLTXVideo
+      - local: api/models/autoencoderkl_magvit
+        title: AutoencoderKLMagvit
       - local: api/models/autoencoderkl_mochi
         title: AutoencoderKLMochi
       - local: api/models/asymmetricautoencoderkl
@@ -290,6 +296,8 @@
       title: ControlNet
     - local: api/pipelines/controlnet_flux
       title: ControlNet with Flux.1
+    - local: api/pipelines/easyanimate
+      title: EasyAnimate
     - local: api/pipelines/flux
       title: Flux
     - local: api/pipelines/control_flux_inpaint
@@ -344,6 +352,8 @@
       title: Latte
     - local: api/pipelines/ltx_video
       title: LTXVideo
+    - local: api/pipelines/lumina2
+      title: Lumina 2.0
     - local: api/pipelines/lumina
       title: Lumina-T2X
     - local: api/pipelines/marigold
@@ -364,6 +374,8 @@
       title: PixArt-Σ
     - local: api/pipelines/sana
       title: Sana
+    - local: api/pipelines/sana_sprint
+      title: Sana Sprint
     - local: api/pipelines/self_attention_guidance
       title: Self-Attention Guidance
     - local: api/pipelines/semantic_stable_diffusion

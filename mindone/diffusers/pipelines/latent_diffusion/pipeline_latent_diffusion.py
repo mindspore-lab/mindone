@@ -21,7 +21,6 @@ from transformers.utils import logging
 
 import mindspore as ms
 from mindspore import mint, nn
-from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers import MSPreTrainedModel
 from mindone.transformers.activations import ACT2FN
@@ -563,21 +562,13 @@ class LDMBertPreTrainedModel(MSPreTrainedModel):
     def _init_weights(self, module):
         std = self.config.init_std
         if isinstance(module, mint.nn.Linear):
-            module.weight.set_data(initializer(Normal(sigma=std, mean=0.0), module.weight.shape, module.weight.dtype))
+            module.weight.data.normal_(mean=0.0, std=std)
             if module.bias is not None:
-                module.bias.set_data(initializer(Constant(0), module.bias.shape, module.bias.dtype))
+                module.bias.data.zero_()
         elif isinstance(module, mint.nn.Embedding):
-            module.embedding_table.set_data(
-                initializer(Normal(sigma=std, mean=0.0), module.embedding_table.shape, module.embedding_table.dtype)
-            )
+            module.weight.data.normal_(mean=0.0, std=std)
             if module.padding_idx is not None:
-                module.embedding_table[module.padding_idx].set_data(
-                    initializer(
-                        Constant(0),
-                        module.embedding_table[module.padding_idx].shape,
-                        module.embedding_table[module.padding_idx].dtype,
-                    )
-                )
+                module.weight.data[module.padding_idx].zero_()
 
     @property
     def dummy_inputs(self):

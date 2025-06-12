@@ -379,7 +379,7 @@ class FluxFillPipeline(
         mask = mask.view(
             batch_size, height, self.vae_scale_factor, width, self.vae_scale_factor
         )  # batch_size, height, 8, width, 8
-        mask = mask.permute(0, 2, 4, 1, 3)  # batch_size, 8, 8, height, width
+        mask = mint.permute(mask, (0, 2, 4, 1, 3))  # batch_size, 8, 8, height, width
         mask = mask.reshape(
             batch_size, self.vae_scale_factor * self.vae_scale_factor, height, width
         )  # batch_size, 8*8, height, width

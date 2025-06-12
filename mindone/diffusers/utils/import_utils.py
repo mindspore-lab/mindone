@@ -183,10 +183,6 @@ def is_invisible_watermark_available():
     return _invisible_watermark_available
 
 
-def is_mindspore_available():
-    return _mindspore_available
-
-
 def is_matplotlib_available():
     return _matplotlib_available
 

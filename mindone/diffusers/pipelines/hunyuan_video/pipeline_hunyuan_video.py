@@ -230,8 +230,8 @@ class HunyuanVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoaderMixin):
             return_overflowing_tokens=False,
             return_attention_mask=True,
         )
-        text_input_ids = ms.Tensor(text_inputs.input_ids)
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
+        text_input_ids = ms.tensor(text_inputs.input_ids)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
 
         prompt_embeds = self.text_encoder(
             input_ids=text_input_ids,
@@ -284,7 +284,7 @@ class HunyuanVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoaderMixin):
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder_2(ms.Tensor(text_input_ids), output_hidden_states=False)[1]
+        prompt_embeds = self.text_encoder_2(ms.tensor(text_input_ids), output_hidden_states=False)[1]
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
         prompt_embeds = prompt_embeds.tile((1, num_videos_per_prompt))
@@ -657,7 +657,7 @@ class HunyuanVideoPipeline(DiffusionPipeline, HunyuanVideoLoraLoaderMixin):
         )
 
         # 6. Prepare guidance condition
-        guidance = ms.Tensor([guidance_scale] * latents.shape[0], dtype=transformer_dtype) * 1000.0
+        guidance = ms.tensor([guidance_scale] * latents.shape[0], dtype=transformer_dtype) * 1000.0
 
         # 7. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order

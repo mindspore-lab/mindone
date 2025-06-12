@@ -710,7 +710,7 @@ class StableDiffusionXLControlNetUnionPipeline(
                 raise ValueError("For multiple controlnets: elements of `image` must be list of conditionings.")
             elif len(image) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."
+                    f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."  # noqa
                 )
 
             for images_ in image:
@@ -738,7 +738,7 @@ class StableDiffusionXLControlNetUnionPipeline(
         if isinstance(controlnet, MultiControlNetUnionModel):
             if len(control_guidance_start) != len(self.controlnet.nets):
                 raise ValueError(
-                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."
+                    f"`control_guidance_start`: {control_guidance_start} has {len(control_guidance_start)} elements but there are {len(self.controlnet.nets)} controlnets available. Make sure to provide {len(self.controlnet.nets)}."  # noqa
                 )
 
         for start, end in zip(control_guidance_start, control_guidance_end):

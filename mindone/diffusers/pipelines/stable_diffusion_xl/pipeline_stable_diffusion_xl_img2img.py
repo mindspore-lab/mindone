@@ -385,7 +385,7 @@ class StableDiffusionXLImg2ImgPipeline(
                         f" {tokenizer.model_max_length} tokens: {removed_text}"
                     )
 
-                prompt_embeds = text_encoder(ms.Tensor(text_input_ids), output_hidden_states=True)
+                prompt_embeds = text_encoder(ms.tensor(text_input_ids), output_hidden_states=True)
 
                 # We are only ALWAYS interested in the pooled output of the final text encoder
                 if pooled_prompt_embeds is None and prompt_embeds[0].ndim == 2:
@@ -446,7 +446,7 @@ class StableDiffusionXLImg2ImgPipeline(
                 )
 
                 negative_prompt_embeds = text_encoder(
-                    ms.Tensor(uncond_input.input_ids),
+                    ms.tensor(uncond_input.input_ids),
                     output_hidden_states=True,
                 )
 
@@ -728,7 +728,7 @@ class StableDiffusionXLImg2ImgPipeline(
 
         if not isinstance(image, ms.Tensor):
             image = self.feature_extractor(image, return_tensors="np").pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         if output_hidden_states:
@@ -881,7 +881,7 @@ class StableDiffusionXLImg2ImgPipeline(
         w = w * 1000.0
 
         half_dim = embedding_dim // 2
-        emb = mint.log(ms.Tensor(10000.0)) / (half_dim - 1)
+        emb = mint.log(ms.tensor(10000.0)) / (half_dim - 1)
         emb = mint.exp(mint.arange(half_dim, dtype=dtype) * -emb)
         emb = w.to(dtype)[:, None] * emb[None, :]
         emb = mint.cat([mint.sin(emb), mint.cos(emb)], dim=1)

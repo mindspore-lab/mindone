@@ -61,7 +61,8 @@ def http_user_agent(user_agent: Union[Dict, str, None] = None) -> str:
     Formats a user-agent string with basic info about a request.
     """
     ua = f"diffusers/{__version__}; python/{sys.version.split()[0]}; session_id/{SESSION_ID}"
-    return ua + "; telemetry/off"
+    if HF_HUB_DISABLE_TELEMETRY or HF_HUB_OFFLINE:
+        return ua + "; telemetry/off"
 
 
 def load_or_create_model_card(

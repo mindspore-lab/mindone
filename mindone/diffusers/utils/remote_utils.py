@@ -19,6 +19,7 @@ from typing import List, Literal, Optional, Union, cast
 
 import numpy as np
 import requests
+from PIL import Image
 
 import mindspore as ms
 
@@ -32,9 +33,6 @@ DTYPE_MAP = {
     "bfloat16": ms.bfloat16,
     "uint8": ms.uint8,
 }
-
-
-from PIL import Image
 
 
 def detect_image_type(data: bytes) -> str:

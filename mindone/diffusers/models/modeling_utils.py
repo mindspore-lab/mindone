@@ -809,7 +809,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
         # set dtype to instantiate the model under:
         # 1. If mindspore_dtype is not None, we use that dtype
         # 2. If mindspore_dtype is float8, we don't use _set_default_mindspore_dtype and we downcast after loading the model
-        dtype_orig = None
+        dtype_orig = None  # noqa
         if mindspore_dtype is not None:
             if not isinstance(mindspore_dtype, ms.Type):
                 raise ValueError(
@@ -970,7 +970,7 @@ class ModelMixin(nn.Cell, PushToHubMixin):
 
         if len(unexpected_keys) > 0:
             logger.warning(
-                f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when initializing {cls.__name__}: \n {[', '.join(unexpected_keys)]}"
+                f"Some weights of the model checkpoint at {pretrained_model_name_or_path} were not used when initializing {cls.__name__}: \n {[', '.join(unexpected_keys)]}"  # noqa
             )
         else:
             logger.info(f"All model checkpoint weights were used when initializing {model.__class__.__name__}.\n")

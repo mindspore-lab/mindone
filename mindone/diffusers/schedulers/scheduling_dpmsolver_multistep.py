@@ -301,7 +301,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         # setable values
         self.num_inference_steps = None
         timesteps = np.linspace(0, num_train_timesteps - 1, num_train_timesteps, dtype=np.float32)[::-1].copy()
-        self.timesteps = ms.Tensor(timesteps)
+        self.timesteps = ms.tensor(timesteps)
         self.model_outputs = [None] * solver_order
         self.lower_order_nums = 0
         self._step_index = None
@@ -436,7 +436,7 @@ class DPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.concatenate([sigmas, [sigma_last]]).astype(np.float32)
 
-        self.sigmas = ms.Tensor(sigmas)
+        self.sigmas = ms.tensor(sigmas)
         self.timesteps = ms.tensor(timesteps, dtype=ms.int64)
 
         self.num_inference_steps = len(timesteps)

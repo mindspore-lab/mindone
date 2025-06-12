@@ -34,7 +34,7 @@ from ...models.embeddings import get_2d_rotary_pos_embed_lumina
 from ...models.transformers.lumina_nextdit2d import LuminaNextDiT2DModel
 from ...schedulers import FlowMatchEulerDiscreteScheduler
 from ...utils import BACKENDS_MAPPING, deprecate, is_bs4_available, is_ftfy_available, logging
-from ...utils.mindspore_utils import randn_tensor
+from ...utils.mindspore_utils import pynative_context, randn_tensor
 from ..pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
 XLA_AVAILABLE = False
@@ -221,10 +221,11 @@ class LuminaPipeline(DiffusionPipeline):
             )
 
         prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
-        prompt_embeds = self.text_encoder(
-            ms.tensor(text_input_ids), attention_mask=prompt_attention_mask, output_hidden_states=True
-        )
-        prompt_embeds = prompt_embeds[1][-2]
+        with pynative_context():
+            prompt_embeds = self.text_encoder(
+                ms.tensor(text_input_ids), attention_mask=prompt_attention_mask, output_hidden_states=True
+            )
+            prompt_embeds = prompt_embeds.hidden_states[-2]
 
         if self.text_encoder is not None:
             dtype = self.text_encoder.dtype
@@ -326,14 +327,15 @@ class LuminaPipeline(DiffusionPipeline):
             negative_text_input_ids = ms.tensor(negative_text_inputs.input_ids)
             negative_prompt_attention_mask = ms.tensor(negative_text_inputs.attention_mask)
             # Get the negative prompt embeddings
-            negative_prompt_embeds = self.text_encoder(
-                negative_text_input_ids,
-                attention_mask=negative_prompt_attention_mask,
-                output_hidden_states=True,
-            )
+            with pynative_context():
+                negative_prompt_embeds = self.text_encoder(
+                    negative_text_input_ids,
+                    attention_mask=negative_prompt_attention_mask,
+                    output_hidden_states=True,
+                )
 
-            negative_dtype = self.text_encoder.dtype
-            negative_prompt_embeds = negative_prompt_embeds[1][-2]
+                negative_dtype = self.text_encoder.dtype
+                negative_prompt_embeds = negative_prompt_embeds.hidden_states[-2]
             _, seq_len, _ = negative_prompt_embeds.shape
 
             negative_prompt_embeds = negative_prompt_embeds.to(dtype=negative_dtype)
@@ -384,7 +386,7 @@ class LuminaPipeline(DiffusionPipeline):
             k in self._callback_tensor_inputs for k in callback_on_step_end_tensor_inputs
         ):
             raise ValueError(
-                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"
+                f"`callback_on_step_end_tensor_inputs` has to be in {self._callback_tensor_inputs}, but found {[k for k in callback_on_step_end_tensor_inputs if k not in self._callback_tensor_inputs]}"  # noqa
             )
 
         if prompt is not None and prompt_embeds is not None:
@@ -894,7 +896,7 @@ class LuminaText2ImgPipeline(LuminaPipeline):
         text_encoder: GemmaPreTrainedModel,
         tokenizer: Union[GemmaTokenizer, GemmaTokenizerFast],
     ):
-        deprecation_message = "`LuminaText2ImgPipeline` has been renamed to `LuminaPipeline` and will be removed in a future version. Please use `LuminaPipeline` instead."
+        deprecation_message = "`LuminaText2ImgPipeline` has been renamed to `LuminaPipeline` and will be removed in a future version. Please use `LuminaPipeline` instead."  # noqa
         deprecate("diffusers.pipelines.lumina.pipeline_lumina.LuminaText2ImgPipeline", "0.34", deprecation_message)
         super().__init__(
             transformer=transformer,

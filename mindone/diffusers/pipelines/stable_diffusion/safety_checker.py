@@ -74,7 +74,7 @@ class StableDiffusionSafetyChecker(MSPreTrainedModel):
         if ops.is_tensor(images):
             images[has_nsfw_concepts] = 0.0  # black image
         else:
-            # TODO: if has_nsfw_concepts is tensor and image is array, the images will be wrong.
+            # TODO: if has_nsfw_concepts is tensor and images is array, the images will be wrong.
             images[has_nsfw_concepts.numpy()] = 0.0  # black image
 
         return images, has_nsfw_concepts

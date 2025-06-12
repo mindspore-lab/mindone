@@ -16,7 +16,6 @@ import html
 import inspect
 import re
 import urllib.parse as ul
-import warnings
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -332,7 +331,6 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 If `complex_human_instruction` is not empty, the function will use the complex Human instruction for
                 the prompt.
         """
-
         if self.transformer is not None:
             dtype = self.transformer.dtype
         elif self.text_encoder is not None:
@@ -371,7 +369,6 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 max_sequence_length=max_sequence_length,
                 complex_human_instruction=complex_human_instruction,
             )
-
             prompt_embeds = prompt_embeds[:, select_index]
             prompt_attention_mask = prompt_attention_mask[:, select_index]
 

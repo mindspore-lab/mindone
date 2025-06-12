@@ -56,7 +56,7 @@ def get_timestep_embedding(
     assert len(timesteps.shape) == 1, "Timesteps should be a 1d-array"
 
     half_dim = embedding_dim // 2
-    exponent = -mint.log(ms.Tensor(max_period, dtype=ms.float32)) * mint.arange(start=0, end=half_dim, dtype=ms.float32)
+    exponent = -mint.log(ms.tensor(max_period, dtype=ms.float32)) * mint.arange(start=0, end=half_dim, dtype=ms.float32)
     exponent = exponent / (half_dim - downscale_freq_shift)
 
     emb = mint.exp(exponent)
@@ -1209,7 +1209,7 @@ def apply_rotary_emb(
         return out
     else:
         # used for lumina
-        x_rotated = view_as_complex(x.float().reshape((*x.shape[:-1], -1, 2)))
+        x_rotated = view_as_complex(x.float().reshape(x.shape[:-1] + (-1, 2)))
         freqs_cis = freqs_cis.unsqueeze(2)
         # todo: unavailable mint interface
         x_out = ops.view_as_real(x_rotated * freqs_cis).flatten(start_dim=3)
@@ -2638,3 +2638,12 @@ class MultiIPAdapterImageProjection(nn.Cell):
             projected_image_embeds.append(image_embed)
 
         return projected_image_embeds
+
+
+class _GELU(nn.Cell):
+    def __init__(self, approximate: str = "none") -> None:
+        super().__init__()
+        self.approximate = approximate
+
+    def construct(self, input: ms.Tensor) -> ms.Tensor:
+        return mint.nn.functional.gelu(input, approximate=self.approximate)

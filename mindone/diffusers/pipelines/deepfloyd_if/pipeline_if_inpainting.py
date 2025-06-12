@@ -16,15 +16,7 @@ from mindone.transformers import T5EncoderModel
 from ...loaders import StableDiffusionLoraLoaderMixin
 from ...models import UNet2DConditionModel
 from ...schedulers import DDPMScheduler
-from ...utils import (
-    BACKENDS_MAPPING,
-    PIL_INTERPOLATION,
-    is_bs4_available,
-    is_ftfy_available,
-    logging,
-    scale_lora_layers,
-    unscale_lora_layers,
-)
+from ...utils import BACKENDS_MAPPING, PIL_INTERPOLATION, is_bs4_available, is_ftfy_available, logging
 from ...utils.mindspore_utils import randn_tensor
 from ..pipeline_utils import DiffusionPipeline
 from .pipeline_output import IFPipelineOutput

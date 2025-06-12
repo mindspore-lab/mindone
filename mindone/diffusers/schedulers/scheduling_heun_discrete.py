@@ -337,10 +337,10 @@ class HeunDiscreteScheduler(SchedulerMixin, ConfigMixin):
             timesteps = np.array([self._sigma_to_t(sigma, log_sigmas) for sigma in sigmas])
 
         sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float32)
-        sigmas = ms.Tensor(sigmas)
+        sigmas = ms.tensor(sigmas)
         self.sigmas = mint.cat([sigmas[:1], sigmas[1:-1].repeat_interleave(2), sigmas[-1:]])
 
-        timesteps = ms.Tensor(timesteps)
+        timesteps = ms.tensor(timesteps)
         timesteps = mint.cat([timesteps[:1], timesteps[1:].repeat_interleave(2)])
 
         self.timesteps = timesteps.to(dtype=ms.float32)

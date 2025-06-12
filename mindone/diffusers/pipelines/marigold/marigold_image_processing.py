@@ -303,14 +303,14 @@ class MarigoldImageProcessor(ConfigMixin):
             out = out[..., :3]  # [?,3]
 
             if arg_is_ms:
-                out = ms.Tensor(out)
+                out = ms.tensor(out)
 
             return out
 
         def method_custom(image, cmap, bytes=False):
             arg_is_np = isinstance(image, np.ndarray)
             if arg_is_np:
-                image = ms.Tensor(image)
+                image = ms.tensor(image)
             if image.dtype == ms.uint8:
                 image = image.float() / 255
             else:
@@ -328,7 +328,7 @@ class MarigoldImageProcessor(ConfigMixin):
             cmap = supported_cmaps[cmap]
             if is_cmap_reversed:
                 cmap = cmap[::-1]
-            cmap = ms.Tensor(cmap, dtype=ms.float32)  # [K,3]
+            cmap = ms.tensor(cmap, dtype=ms.float32)  # [K,3]
             K = cmap.shape[0]
 
             pos = image.clamp(min=0, max=1) * (K - 1)
@@ -494,7 +494,7 @@ class MarigoldImageProcessor(ConfigMixin):
         """
         flip_vec = None
         if any((flip_x, flip_y, flip_z)):
-            flip_vec = ms.Tensor(
+            flip_vec = ms.tensor(
                 [
                     (-1) ** flip_x,
                     (-1) ** flip_y,

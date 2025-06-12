@@ -260,6 +260,7 @@ class LTXVideoTransformerBlock(nn.Cell):
 
         num_ada_params = self.scale_shift_table.shape[0]
         ada_values = self.scale_shift_table[None, None] + temb.reshape(batch_size, temb.shape[1], num_ada_params, -1)
+
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ada_values.unbind(dim=2)
         norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
 
@@ -396,7 +397,7 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
 
-        image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale)
+        image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale, video_coords)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:

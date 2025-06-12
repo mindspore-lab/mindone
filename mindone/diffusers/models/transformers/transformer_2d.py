@@ -387,12 +387,12 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
             # convert mask into a bias that can be added to attention scores:
             #       (keep = +0,     discard = -10000.0)
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = attention_mask.unsqueeze(1)
+            attention_mask = mint.unsqueeze(attention_mask, 1)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
             encoder_attention_mask = (1 - encoder_attention_mask.to(hidden_states.dtype)) * -10000.0
-            encoder_attention_mask = encoder_attention_mask.unsqueeze(1)
+            encoder_attention_mask = mint.unsqueeze(encoder_attention_mask, 1)
 
         # 1. Input
         # define variables outside to fool ai compiler
@@ -501,7 +501,7 @@ class Transformer2DModel(LegacyModelMixin, LegacyConfigMixin):
         hidden_states = self.norm_out(hidden_states)
         logits = self.out(hidden_states)
         # (batch, self.num_vector_embeds - 1, self.num_latent_pixels)
-        logits = logits.permute(0, 2, 1)
+        logits = mint.permute(logits, (0, 2, 1))
         # log(p(x_0))
         output = F.log_softmax(logits.double(), dim=1).float()
         return output

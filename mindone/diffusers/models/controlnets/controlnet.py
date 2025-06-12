@@ -666,7 +666,7 @@ class ControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 dtype = ms.float32
             else:
                 dtype = ms.int32
-            timesteps = ms.Tensor([timesteps], dtype=dtype)
+            timesteps = ms.tensor([timesteps], dtype=dtype)
         elif len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 

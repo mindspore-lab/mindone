@@ -24,7 +24,6 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar, Union
-from zipfile import is_zipfile
 
 from huggingface_hub import DDUFEntry
 from huggingface_hub.utils import EntryNotFoundError

@@ -217,7 +217,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
             return_tensors="np",
         )
         text_input_ids = text_inputs.input_ids
-        prompt_attention_mask = ms.Tensor(text_inputs.attention_mask)
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
         prompt_attention_mask = prompt_attention_mask.bool()
 
         untruncated_ids = self.tokenizer(prompt, padding="longest", return_tensors="np").input_ids
@@ -231,7 +231,7 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 f" {max_sequence_length} tokens: {removed_text}"
             )
 
-        prompt_embeds = self.text_encoder(ms.Tensor(text_input_ids))[0]
+        prompt_embeds = self.text_encoder(ms.tensor(text_input_ids))[0]
         prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         # duplicate text embeddings for each generation per prompt, using mps friendly method
@@ -762,8 +762,8 @@ class LTXPipeline(DiffusionPipeline, FromSingleFileMixin, LTXVideoLoraLoaderMixi
                 elif not isinstance(decode_noise_scale, list):
                     decode_noise_scale = [decode_noise_scale] * batch_size
 
-                timestep = ms.Tensor(decode_timestep, dtype=latents.dtype)
-                decode_noise_scale = ms.Tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
+                timestep = ms.tensor(decode_timestep, dtype=latents.dtype)
+                decode_noise_scale = ms.tensor(decode_noise_scale, dtype=latents.dtype)[:, None, None, None, None]
                 latents = (1 - decode_noise_scale) * latents + decode_noise_scale * noise
 
             video = self.vae.decode(latents, timestep, return_dict=False)[0]

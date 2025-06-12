@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 import requests
-import transformers
 from huggingface_hub import DDUFEntry, ModelCard, model_info, snapshot_download
 from huggingface_hub.utils import OfflineModeIsEnabled, validate_hf_hub_args
 from packaging import version

@@ -327,7 +327,7 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
                 do_rescale=False,
                 return_tensors="np",
             ).pixel_values
-            image = ms.Tensor(image)
+            image = ms.tensor(image)
 
         image = image.to(dtype=dtype)
         image_embeddings = self.image_encoder(image)[0]
@@ -637,9 +637,9 @@ class I2VGenXLPipeline(DiffusionPipeline, StableDiffusionMixin):
 
         # 3.3 Prepare additional conditions for the UNet.
         if self.do_classifier_free_guidance:
-            fps_tensor = ms.Tensor([target_fps, target_fps])
+            fps_tensor = ms.tensor([target_fps, target_fps])
         else:
-            fps_tensor = ms.Tensor([target_fps])
+            fps_tensor = ms.tensor([target_fps])
         fps_tensor = fps_tensor.tile((batch_size * num_videos_per_prompt, 1)).ravel()
 
         # 4. Prepare timesteps

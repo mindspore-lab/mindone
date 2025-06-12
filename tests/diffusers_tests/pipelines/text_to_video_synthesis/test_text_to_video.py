@@ -192,7 +192,7 @@ class TextToVideoSDPipelineSlowTests(PipelineTesterMixin, unittest.TestCase):
         prompt = "Spiderman is surfing"
 
         torch.manual_seed(0)
-        video_frame = Image.fromarray((pipe(prompt, num_inference_steps=2)[0][0][-1] * 255).astype("uint8"))
+        video_frame = Image.fromarray((pipe(prompt)[0][0][-1] * 255).astype("uint8"))
 
         expected_video = load_numpy_from_local_file(
             "mindone-testing-arrays",

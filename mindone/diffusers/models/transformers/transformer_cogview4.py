@@ -271,6 +271,7 @@ class CogView4TransformerBlock(nn.Cell):
 
         # 3. Feedforward
         norm_hidden_states = self.norm2(hidden_states) * (1 + scale_mlp.unsqueeze(1)) + shift_mlp.unsqueeze(1)
+
         norm_encoder_hidden_states = self.norm2_context(encoder_hidden_states) * (
             1 + c_scale_mlp.unsqueeze(1)
         ) + c_shift_mlp.unsqueeze(1)
