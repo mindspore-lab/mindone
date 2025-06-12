@@ -52,7 +52,7 @@ class MockDatasetParamsConfig:
     def __init__(self):
         self.train_t2i_shards_path_or_url = "train_datasets/imagenet-1k/data/train/"
         self.train_mmu_shards_path_or_url = "train_datasets/laion-aesthetics-12m-data/{00000..00000}.tar"
-        self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/data/*parquet"
+        self.train_lm_shards_path_or_url = "train_datasets/falcon-refinedweb/data/*parquet"
         self.num_workers = 1
         self.shuffle_buffer_size = 1000
         self.pin_memory = False

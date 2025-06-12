@@ -118,6 +118,8 @@ class ChatDataset:
     ):
         super().__init__()
         self.files = sorted(glob.glob(data_path))
+        print(f"{len(self.files)} files detected in {data_path}")
+        assert len(self.files) > 0, f"No files found in {data_path}"
         self.rank = rank
         self.world_size = world_size
         self.shuffle = shuffle
@@ -497,7 +499,7 @@ def image_transform_pad(sample, resolution=256, fill_color=(255, 255, 255)):
 
 
 if __name__ == "__main__":
-    data_path = "/data_storage/shared/datasets/falcon-refinedweb/data/data/*.parquet"
+    data_path = "train_datasets/falcon-refinedweb/data/*parquet"
     dataset = RefinedWebDataset(
         data_path=data_path,
         max_length=8000,
