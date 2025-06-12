@@ -34,7 +34,8 @@ from ...cache_utils import get_max_length, get_seq_length, init_static_cache, up
 from ...generation import GenerationMixin
 from ...mindspore_adapter import recompute_except_output
 from ...mindspore_adapter.attention import FlashAttention2
-from ...modeling_attn_mask_utils import _MIN_FP16, dtype_to_min
+from ...mindspore_adapter.utils import _MIN_FP16
+from ...modeling_attn_mask_utils import dtype_to_min
 from ...modeling_outputs import (
     BaseModelOutputWithPast,
     CausalLMOutputWithPast,

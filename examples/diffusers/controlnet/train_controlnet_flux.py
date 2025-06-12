@@ -31,7 +31,7 @@ from tqdm.auto import tqdm
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 from mindspore.amp import auto_mixed_precision
 from mindspore.dataset import GeneratorDataset, transforms, vision
 
@@ -49,6 +49,7 @@ from mindone.diffusers.training_utils import (
     set_seed,
 )
 from mindone.transformers import CLIPTextModel, T5EncoderModel
+from mindone.utils.config import str2bool
 
 logger = logging.getLogger(__name__)
 
@@ -420,6 +421,12 @@ def parse_args(input_args=None):
         ),
     )
     parser.add_argument(
+        "--dataset_iterator_no_copy",
+        default=True,
+        type=str2bool,
+        help="dataset iterator optimization strategy. Whether dataset iterator creates a Tensor without copy.",
+    )
+    parser.add_argument(
         "--dataset_name",
         type=str,
         default=None,
@@ -759,7 +766,7 @@ def encode_prompt(prompt_batch, text_encoders, tokenizers, proportion_empty_prom
         max_sequence_length=512,
     )
     dtype = text_encoders[0].dtype
-    text_ids = ops.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
+    text_ids = mint.zeros((prompt_embeds.shape[1], 3), dtype=dtype)
 
     return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -1165,7 +1172,13 @@ def main():
         # Only show the progress bar once on each machine.
         disable=not is_master(args),
     )
-    train_dataloader_iter = train_dataloader.create_tuple_iterator(num_epochs=args.num_train_epochs - first_epoch)
+    # do_copy=False enables the dataset iterator to not do copy when creating a tensor which takes less time.
+    # Currently the default value of do_copy is True,
+    # it is expected that the default value of do_copy will be changed to False in MindSpore 2.7.0.
+    train_dataloader_iter = train_dataloader.create_tuple_iterator(
+        num_epochs=args.num_train_epochs - first_epoch,
+        do_copy=not args.dataset_iterator_no_copy,
+    )
 
     for epoch in range(first_epoch, args.num_train_epochs):
         flux_controlnet.set_train(True)
@@ -1356,7 +1369,7 @@ class FluxControlNetWithLoss(nn.Cell):
         )
 
         bsz = pixel_latents.shape[0]
-        noise = ops.randn_like(pixel_latents).to(dtype=self.weight_dtype)
+        noise = mint.randn_like(pixel_latents).to(dtype=self.weight_dtype)
         # Sample a random timestep for each image
         # for weighting schemes where we sample timesteps non-uniformly
         u = compute_density_for_timestep_sampling(
@@ -1375,7 +1388,7 @@ class FluxControlNetWithLoss(nn.Cell):
 
         # handle guidance
         if self.flux_transformer_config_guidance_embeds:
-            guidance_vec = ops.full(
+            guidance_vec = mint.full(
                 (noisy_model_input.shape[0],),
                 self.args.guidance_scale,
                 dtype=self.weight_dtype,
@@ -1414,7 +1427,7 @@ class FluxControlNetWithLoss(nn.Cell):
             return_dict=False,
         )[0]
 
-        loss = ops.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
+        loss = mint.nn.functional.mse_loss(noise_pred.float(), (noise - pixel_latents).float(), reduction="mean")
 
         return loss
 

@@ -16,7 +16,7 @@ from tqdm import tqdm
 from transformers import T5Tokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 from mindspore.dataset import GeneratorDataset, vision
 
 from mindone.diffusers import AutoencoderKLCogVideoX
@@ -441,11 +441,11 @@ def main():
                 if args.use_slicing:
                     if args.save_image_latents:
                         encoded_slices = [vae._encode(image_slice) for image_slice in images.split(1)]
-                        image_latents = ops.cat(encoded_slices)
+                        image_latents = mint.cat(encoded_slices)
                         image_latents = image_latents.to(dtype=weight_dtype).float().asnumpy()
 
                     encoded_slices = [vae._encode(video_slice) for video_slice in videos.split(1)]
-                    video_latents = ops.cat(encoded_slices)
+                    video_latents = mint.cat(encoded_slices)
 
                 else:
                     if args.save_image_latents:
