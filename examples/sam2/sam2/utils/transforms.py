@@ -38,7 +38,7 @@ class SAM2Transforms(nn.Module):
 
     def transform_coords(self, coords: ms.Tensor, normalize=False, orig_hw=None) -> ms.Tensor:
         """
-        Expects a torch tensor with length 2 in the last dimension. The coordinates can be in absolute image or normalized coordinates,
+        Expects a tensor with length 2 in the last dimension. The coordinates can be in absolute image or normalized coordinates,
         If the coords are in absolute image coordinates, normalize should be set to True and original image size is required.
 
         Returns
