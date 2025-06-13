@@ -15,7 +15,15 @@ from .models.albert import (
     AlbertModel,
     AlbertPreTrainedModel,
 )
-from .models.auto import AutoConfig, AutoImageProcessor, AutoModel, AutoModelForCausalLM, AutoModelForMaskedLM
+from .models.auto import (
+    AutoConfig,
+    AutoFeatureExtractor,
+    AutoImageProcessor,
+    AutoModel,
+    AutoModelForCausalLM,
+    AutoModelForMaskedLM,
+    AutoProcessor,
+)
 from .models.bart import (
     BartForCausalLM,
     BartForConditionalGeneration,
