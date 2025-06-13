@@ -294,7 +294,12 @@ class Hiera(nn.Cell):
         if weights_path is not None:
             with g_pathmgr.open(weights_path, "rb") as f:
                 chkpt = torch.load(f, map_location="cpu")
-            logging.info("loading Hiera", self.load_state_dict(chkpt, strict=False))
+            pt_pnames = list(chkpt.keys())
+            target_data = {}
+            for pt_pname in pt_pnames:
+                target_data[pt_pname] = ms.Tensor(chkpt[pt_pname].detach().numpy())
+
+            logging.info("loading Hiera", self.load_state_dict(target_data, strict=False))
 
     def _get_pos_embed(self, hw: Tuple[int, int]) -> ms.Tensor:
         h, w = hw

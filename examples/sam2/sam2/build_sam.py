@@ -7,6 +7,8 @@ from hydra import compose
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 
+import mindspore as ms
+
 # Check if the user is running Python from the parent directory of the sam2 repo
 # (i.e. the directory where this repo is cloned into) -- this is not supported since
 # it could shadow the sam2 package and cause issues.
@@ -153,7 +155,13 @@ def build_sam2_video_predictor_hf(model_id, **kwargs):
 def _load_checkpoint(model, ckpt_path):
     if ckpt_path is not None:
         sd = torch.load(ckpt_path, map_location="cpu", weights_only=True)["model"]
-        missing_keys, unexpected_keys = model.load_state_dict(sd)
+
+        pt_pnames = list(sd.keys())
+        target_data = {}
+        for pt_pname in pt_pnames:
+            target_data[pt_pname] = ms.Tensor(sd[pt_pname].detach().numpy())
+
+        missing_keys, unexpected_keys = model.load_state_dict(target_data)
         if missing_keys:
             logging.error(missing_keys)
             raise RuntimeError()

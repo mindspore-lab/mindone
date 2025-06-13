@@ -57,7 +57,7 @@ class MaskDecoder(nn.Cell):
             self.obj_score_token = nn.Embedding(1, transformer_dim)
         self.use_multimask_token_for_obj_ptr = use_multimask_token_for_obj_ptr
 
-        self.output_upscaling = ms.nn.Sequential(
+        self.output_upscaling = ms.nn.SequentialCell(
             nn.ConvTranspose2d(transformer_dim, transformer_dim // 4, kernel_size=2, stride=2),
             LayerNorm2d(transformer_dim // 4),
             activation(),
