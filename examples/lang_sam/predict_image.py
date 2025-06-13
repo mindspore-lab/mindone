@@ -6,10 +6,34 @@ wget -P assets https://raw.githubusercontent.com/luca-medeiros/lang-segment-anyt
 
 Then run `python predict_image.py`
 """
+import numpy as np
 from lang_sam import LangSAM
+from lang_sam.utils import draw_image
 from PIL import Image
 
-model = LangSAM()
-image_pil = Image.open("./assets/cars.jpeg").convert("RGB")
-text_prompt = "wheel."
-results = model.predict([image_pil], [text_prompt])
+
+def main():
+    model = LangSAM()
+    image_pil = Image.open("./assets/cars.jpeg").convert("RGB")
+    text_prompt = "wheel."
+    results = model.predict([image_pil], [text_prompt])
+    results = results[0]
+
+    if not len(results["masks"]):
+        print("No masks detected!")
+        return
+
+    # Draw results on the image
+    image_array = np.asarray(image_pil)
+    output_image = draw_image(
+        image_array,
+        results["masks"],
+        results["boxes"],
+        results["scores"],
+        results["labels"],
+    )
+    output_image = Image.fromarray(np.uint8(output_image)).convert("RGB")
+    # save image
+    output_image_path = "./assets/cars_with_mask.png"
+    output_image.save(output_image_path)
+    return output_image
