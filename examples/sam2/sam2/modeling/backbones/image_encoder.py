@@ -28,11 +28,11 @@ class ImageEncoder(nn.Cell):
             features, pos = features[: -self.scalp], pos[: -self.scalp]
 
         src = features[-1]
-        output = (
-            src,  # vision_features
-            pos,  # vision_pos_enc
-            features,  # backbone_fpn
-        )
+        output = {
+            "vision_features": src,
+            "vision_pos_enc": pos,
+            "backbone_fpn": features,
+        }
         return output
 
 
