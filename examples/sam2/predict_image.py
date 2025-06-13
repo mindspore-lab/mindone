@@ -109,5 +109,5 @@ if __name__ == "__main__":
     parser.add_argument("--image_path", type=str, default="./images/truck.jpg")
     parser.add_argument("--x", type=int, default=500)
     parser.add_argument("--y", type=int, default=375)
-
-    main()
+    args = parser.parse_args()
+    main(args)

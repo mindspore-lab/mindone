@@ -62,7 +62,7 @@ class TwoWayTransformer(nn.Cell):
         embedding_dim: int,
         num_heads: int,
         mlp_dim: int,
-        activation: Type[nn.Module] = nn.ReLU,
+        activation: Type[nn.Cell] = nn.ReLU,
         attention_downsample_rate: int = 2,
     ) -> None:
         """
@@ -75,7 +75,7 @@ class TwoWayTransformer(nn.Cell):
           num_heads (int): the number of heads for multihead attention. Must
             divide embedding_dim
           mlp_dim (int): the channel dimension internal to the MLP block
-          activation (nn.Module): the activation to use in the MLP block
+          activation (nn.Cell): the activation to use in the MLP block
         """
         super().__init__()
         self.depth = depth
@@ -152,7 +152,7 @@ class TwoWayAttentionBlock(nn.Cell):
         embedding_dim: int,
         num_heads: int,
         mlp_dim: int = 2048,
-        activation: Type[nn.Module] = nn.ReLU,
+        activation: Type[nn.Cell] = nn.ReLU,
         attention_downsample_rate: int = 2,
         skip_first_layer_pe: bool = False,
     ) -> None:
@@ -166,7 +166,7 @@ class TwoWayAttentionBlock(nn.Cell):
           embedding_dim (int): the channel dimension of the embeddings
           num_heads (int): the number of heads in the attention layers
           mlp_dim (int): the hidden dimension of the mlp block
-          activation (nn.Module): the activation of the mlp block
+          activation (nn.Cell): the activation of the mlp block
           skip_first_layer_pe (bool): skip the PE on the first layer
         """
         super().__init__()

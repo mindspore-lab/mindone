@@ -32,10 +32,10 @@ class MaskDecoder(nn.Cell):
 
         Arguments:
           transformer_dim (int): the channel dimension of the transformer
-          transformer (nn.Module): the transformer used to predict masks
+          transformer (nn.Cell): the transformer used to predict masks
           num_multimask_outputs (int): the number of masks to predict
             when disambiguating masks
-          activation (nn.Module): the type of activation to use when
+          activation (nn.Cell): the type of activation to use when
             upscaling masks
           iou_head_depth (int): the depth of the MLP used to predict
             mask quality
