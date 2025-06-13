@@ -27,7 +27,7 @@ class MemoryAttentionLayer(nn.Cell):
         self.self_attn = self_attention
         self.cross_attn_image = cross_attention
 
-        # Implementation of Feedforward model
+        # Implementation of Feedconstruct model
         self.linear1 = nn.Linear(d_model, dim_feedforward)
         self.dropout = nn.Dropout(dropout)
         self.linear2 = nn.Linear(dim_feedforward, d_model)
@@ -47,7 +47,7 @@ class MemoryAttentionLayer(nn.Cell):
         self.pos_enc_at_cross_attn_queries = pos_enc_at_cross_attn_queries
         self.pos_enc_at_cross_attn_keys = pos_enc_at_cross_attn_keys
 
-    def _forward_sa(self, tgt, query_pos):
+    def _construct_sa(self, tgt, query_pos):
         # Self-Attention
         tgt2 = self.norm1(tgt)
         q = k = tgt2 + query_pos if self.pos_enc_at_attn else tgt2
@@ -55,7 +55,7 @@ class MemoryAttentionLayer(nn.Cell):
         tgt = tgt + self.dropout1(tgt2)
         return tgt
 
-    def _forward_ca(self, tgt, memory, query_pos, pos, num_k_exclude_rope=0):
+    def _construct_ca(self, tgt, memory, query_pos, pos, num_k_exclude_rope=0):
         kwds = {}
         if num_k_exclude_rope > 0:
             assert isinstance(self.cross_attn_image, RoPEAttention)
@@ -81,8 +81,8 @@ class MemoryAttentionLayer(nn.Cell):
         num_k_exclude_rope: int = 0,
     ) -> Tensor:
         # Self-Attn, Cross-Attn
-        tgt = self._forward_sa(tgt, query_pos)
-        tgt = self._forward_ca(tgt, memory, query_pos, pos, num_k_exclude_rope)
+        tgt = self._construct_sa(tgt, query_pos)
+        tgt = self._construct_ca(tgt, memory, query_pos, pos, num_k_exclude_rope)
         # MLP
         tgt2 = self.norm3(tgt)
         tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt2))))
