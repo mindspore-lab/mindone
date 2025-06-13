@@ -91,6 +91,7 @@ from .models.clip import (
     CLIPVisionModel,
     CLIPVisionModelWithProjection,
 )
+from .models.cohere2 import Cohere2ForCausalLM, Cohere2Model, Cohere2PreTrainedModel
 from .models.deberta_v2 import (
     DebertaV2ForMaskedLM,
     DebertaV2ForMultipleChoice,
