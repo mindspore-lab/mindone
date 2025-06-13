@@ -264,6 +264,13 @@ from .models.whisper import (
     WhisperPreTrainedModel,
     WhisperProcessor,
 )
+from .models.opt import (
+    OPTForCausalLM,
+    OPTModel,
+    OPTPreTrainedModel,
+    OPTForSequenceClassification,
+    OPTForQuestionAnswering,
+)
 from .models.xlm_roberta import XLMRobertaModel, XLMRobertaPreTrainedModel
 from .pipelines import TextGenerationPipeline, pipeline
 from .processing_utils import ProcessorMixin
