@@ -40,8 +40,8 @@ def batched_nms_ms(boxes: ms.Tensor, scores: ms.Tensor, idxs: ms.Tensor, iou_thr
         curr_indices = mint.where(idxs == class_id)[0]
         # nms in mindspore
         curr_keep_indices = ops.NMSWithMask(iou_threshold)(
-            mint.stack([boxes[curr_indices], scores[curr_indices]], dim=-1)
-        )
+            mint.cat([boxes[curr_indices], scores[curr_indices].unsqeeze(1)], dim=-1)
+        )[-1]
 
         keep_mask[curr_indices[curr_keep_indices]] = True
     keep_indices = mint.where(keep_mask)[0]
