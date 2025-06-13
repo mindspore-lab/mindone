@@ -150,6 +150,8 @@ def create_dataloaders(config):
             num_workers=dataset_config.num_workers,
         )
         train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
+        train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
+
         for x in train_dataloader_t2i:
             for k, v in x.items():
                 if isinstance(v, (list, tuple)):
@@ -226,6 +228,8 @@ def create_dataloaders(config):
         num_workers=dataset_config.num_workers,
     )
     train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
+    train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
+
     for x in train_dataloader_lm:
         for k, v in x.items():
             if isinstance(v, (list, tuple)):
