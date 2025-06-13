@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPVisionModel
 from ...models import PriorTransformer
@@ -132,11 +132,11 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
         do_classifier_free_guidance,
     ):
         if isinstance(image, List) and isinstance(image[0], ms.Tensor):
-            image = ops.cat(image, axis=0) if image[0].ndim == 4 else ops.stack(image, axis=0)
+            image = mint.cat(image, dim=0) if image[0].ndim == 4 else mint.stack(image, dim=0)
 
         if not isinstance(image, ms.Tensor):
             image = self.image_processor(image, return_tensors="np").pixel_values[0]
-            image = ms.Tensor.from_numpy(image).unsqueeze(0)
+            image = ms.tensor(image).unsqueeze(0)
 
         image = image.to(dtype=self.image_encoder.dtype)
 
@@ -146,12 +146,12 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
         image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
 
         if do_classifier_free_guidance:
-            negative_image_embeds = ops.zeros_like(image_embeds)
+            negative_image_embeds = mint.zeros_like(image_embeds)
 
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            image_embeds = ops.cat([negative_image_embeds, image_embeds])
+            image_embeds = mint.cat([negative_image_embeds, image_embeds])
 
         return image_embeds
 
@@ -243,7 +243,7 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(timesteps)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([latents] * 2) if do_classifier_free_guidance else latents
+            latent_model_input = mint.cat([latents] * 2) if do_classifier_free_guidance else latents
             # TODO: method of scheduler should not change the dtype of input.
             #  Remove the casting after cuiyushi confirm that.
             tmp_dtype = latent_model_input.dtype
@@ -258,7 +258,7 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
 
             # remove the variance
             noise_pred, _ = noise_pred.split(
-                scaled_model_input.shape[2], axis=2
+                scaled_model_input.shape[2], dim=2
             )  # batch_size, num_embeddings, embedding_dim
 
             if do_classifier_free_guidance:
@@ -300,7 +300,7 @@ class ShapEImg2ImgPipeline(DiffusionPipeline):
                 )
                 images.append(image)
 
-            images = ops.stack(images)
+            images = mint.stack(images)
 
             images = images.numpy()
 

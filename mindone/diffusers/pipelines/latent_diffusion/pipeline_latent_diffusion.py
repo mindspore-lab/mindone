@@ -20,7 +20,7 @@ from transformers import PretrainedConfig, PreTrainedTokenizer
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import Constant, Normal, initializer
 
 from mindone.transformers import MSPreTrainedModel
@@ -227,8 +227,8 @@ class LDMTextToImagePipeline(DiffusionPipeline):
                 # For classifier free guidance, we need to do two forward passes.
                 # Here we concatenate the unconditional and text embeddings into a single batch
                 # to avoid doing two forward passes
-                latents_input = ops.cat([latents] * 2)
-                context = ops.cat([negative_prompt_embeds, prompt_embeds])
+                latents_input = mint.cat([latents] * 2)
+                context = mint.cat([negative_prompt_embeds, prompt_embeds])
 
             # predict the noise residual
             noise_pred = self.unet(latents_input, t, encoder_hidden_states=context)[0]
@@ -401,8 +401,8 @@ class LDMBertAttention(nn.Cell):
             # reuse k, v, self_attention
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
             value_states = self._shape(self.v_proj(hidden_states), -1, bsz)
-            key_states = ops.cat([past_key_value[0], key_states], axis=2)
-            value_states = ops.cat([past_key_value[1], value_states], axis=2)
+            key_states = mint.cat([past_key_value[0], key_states], dim=2)
+            value_states = mint.cat([past_key_value[1], value_states], dim=2)
         else:
             # self_attention
             key_states = self._shape(self.k_proj(hidden_states), -1, bsz)
@@ -424,7 +424,7 @@ class LDMBertAttention(nn.Cell):
         value_states = value_states.view(*proj_shape)
 
         src_len = key_states.shape[1]
-        attn_weights = ops.bmm(query_states, key_states.swapaxes(1, 2))
+        attn_weights = mint.bmm(query_states, mint.swapaxes(key_states, 1, 2))
 
         if attn_weights.shape != (bsz * self.num_heads, tgt_len, src_len):
             raise ValueError(
@@ -440,7 +440,7 @@ class LDMBertAttention(nn.Cell):
             attn_weights = attn_weights.view(bsz, self.num_heads, tgt_len, src_len) + attention_mask
             attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
-        attn_weights = ops.softmax(attn_weights, axis=-1)
+        attn_weights = mint.nn.functional.softmax(attn_weights, dim=-1)
 
         if layer_head_mask is not None:
             if layer_head_mask.shape != (self.num_heads,):
@@ -461,9 +461,9 @@ class LDMBertAttention(nn.Cell):
         else:
             attn_weights_reshaped = None
 
-        attn_probs = ops.dropout(attn_weights, p=self.dropout, training=self.training)
+        attn_probs = mint.nn.functional.dropout(attn_weights, p=self.dropout, training=self.training)
 
-        attn_output = ops.bmm(attn_probs, value_states)
+        attn_output = mint.bmm(attn_probs, value_states)
 
         if attn_output.shape != (bsz * self.num_heads, tgt_len, self.head_dim):
             raise ValueError(
@@ -527,20 +527,20 @@ class LDMBertEncoderLayer(nn.Cell):
             layer_head_mask=layer_head_mask,
             output_attentions=output_attentions,
         )
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
 
         residual = hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
         hidden_states = self.activation_fn(self.fc1(hidden_states))
-        hidden_states = ops.dropout(hidden_states, p=self.activation_dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.activation_dropout, training=self.training)
         hidden_states = self.fc2(hidden_states)
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
         hidden_states = residual + hidden_states
 
-        if hidden_states.dtype == ms.float16 and (ops.isinf(hidden_states).any() or ops.isnan(hidden_states).any()):
+        if hidden_states.dtype == ms.float16 and (mint.isinf(hidden_states).any() or mint.isnan(hidden_states).any()):
             clamp_value = dtype_to_max(hidden_states.dtype) - 1000
-            hidden_states = ops.clamp(hidden_states, min=-clamp_value, max=clamp_value)
+            hidden_states = mint.clamp(hidden_states, min=-clamp_value, max=clamp_value)
 
         outputs = (hidden_states,)
 
@@ -697,11 +697,11 @@ class LDMBertEncoder(LDMBertPreTrainedModel):
         seq_len = input_shape[1]
         if position_ids is None:
             # strict graph mode do not support broadcast_to((1, -1))
-            position_ids = ops.arange(seq_len, dtype=ms.int32).broadcast_to((1, seq_len))
+            position_ids = mint.arange(seq_len, dtype=ms.int32).broadcast_to((1, seq_len))
         embed_pos = self.embed_positions(position_ids)
 
         hidden_states = inputs_embeds + embed_pos
-        hidden_states = ops.dropout(hidden_states, p=self.dropout, training=self.training)
+        hidden_states = mint.nn.functional.dropout(hidden_states, p=self.dropout, training=self.training)
 
         # expand attention_mask
         if attention_mask is not None:

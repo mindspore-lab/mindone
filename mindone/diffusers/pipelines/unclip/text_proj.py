@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...models import ModelMixin
@@ -40,19 +40,19 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
         super().__init__()
 
         self.learned_classifier_free_guidance_embeddings = ms.Parameter(
-            ops.zeros(clip_embeddings_dim), name="learned_classifier_free_guidance_embeddings"
+            mint.zeros(clip_embeddings_dim), name="learned_classifier_free_guidance_embeddings"
         )
 
         # parameters for additional clip time embeddings
-        self.embedding_proj = nn.Dense(clip_embeddings_dim, time_embed_dim)
-        self.clip_image_embeddings_project_to_time_embeddings = nn.Dense(clip_embeddings_dim, time_embed_dim)
+        self.embedding_proj = mint.nn.Linear(clip_embeddings_dim, time_embed_dim)
+        self.clip_image_embeddings_project_to_time_embeddings = mint.nn.Linear(clip_embeddings_dim, time_embed_dim)
 
         # parameters for encoder hidden states
         self.clip_extra_context_tokens = clip_extra_context_tokens
-        self.clip_extra_context_tokens_proj = nn.Dense(
+        self.clip_extra_context_tokens_proj = mint.nn.Linear(
             clip_embeddings_dim, self.clip_extra_context_tokens * cross_attention_dim
         )
-        self.encoder_hidden_states_proj = nn.Dense(clip_embeddings_dim, cross_attention_dim)
+        self.encoder_hidden_states_proj = mint.nn.Linear(clip_embeddings_dim, cross_attention_dim)
         self.text_encoder_hidden_states_norm = LayerNorm(cross_attention_dim)
 
     def construct(self, *, image_embeddings, prompt_embeds, text_encoder_hidden_states, do_classifier_free_guidance):
@@ -63,7 +63,7 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
             classifier_free_guidance_embeddings = classifier_free_guidance_embeddings.broadcast_to(
                 (image_embeddings_batch_size, -1)
             )
-            image_embeddings = ops.cat([classifier_free_guidance_embeddings, image_embeddings], axis=0)
+            image_embeddings = mint.cat([classifier_free_guidance_embeddings, image_embeddings], dim=0)
 
         # The image embeddings batch size and the text embeddings batch size are equal
         assert image_embeddings.shape[0] == prompt_embeds.shape[0]
@@ -84,6 +84,6 @@ class UnCLIPTextProjModel(ModelMixin, ConfigMixin):
 
         text_encoder_hidden_states = self.encoder_hidden_states_proj(text_encoder_hidden_states)
         text_encoder_hidden_states = self.text_encoder_hidden_states_norm(text_encoder_hidden_states)
-        text_encoder_hidden_states = ops.cat([clip_extra_context_tokens, text_encoder_hidden_states], axis=1)
+        text_encoder_hidden_states = mint.cat([clip_extra_context_tokens, text_encoder_hidden_states], dim=1)
 
         return text_encoder_hidden_states, additive_clip_time_embeddings

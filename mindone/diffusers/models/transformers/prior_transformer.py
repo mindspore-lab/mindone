@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Dict, Optional, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin, UNet2DConditionLoadersMixin
@@ -96,7 +96,7 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         self.time_proj = Timesteps(inner_dim, True, 0)
         self.time_embedding = TimestepEmbedding(inner_dim, time_embed_dim, out_dim=inner_dim, act_fn=time_embed_act_fn)
 
-        self.proj_in = nn.Dense(embedding_dim, inner_dim)
+        self.proj_in = mint.nn.Linear(embedding_dim, inner_dim)
 
         if embedding_proj_norm_type is None:
             self.embedding_proj_norm = None
@@ -105,21 +105,21 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         else:
             raise ValueError(f"unsupported embedding_proj_norm_type: {embedding_proj_norm_type}")
 
-        self.embedding_proj = nn.Dense(embedding_proj_dim, inner_dim)
+        self.embedding_proj = mint.nn.Linear(embedding_proj_dim, inner_dim)
 
         if encoder_hid_proj_type is None:
             self.encoder_hidden_states_proj = None
         elif encoder_hid_proj_type == "linear":
-            self.encoder_hidden_states_proj = nn.Dense(embedding_dim, inner_dim)
+            self.encoder_hidden_states_proj = mint.nn.Linear(embedding_dim, inner_dim)
         else:
             raise ValueError(f"unsupported encoder_hid_proj_type: {encoder_hid_proj_type}")
 
         self.positional_embedding = ms.Parameter(
-            ops.zeros((1, num_embeddings + additional_embeddings, inner_dim)), name="positional_embedding"
+            mint.zeros((1, num_embeddings + additional_embeddings, inner_dim)), name="positional_embedding"
         )
 
         if added_emb_type == "prd":
-            self.prd_embedding = ms.Parameter(ops.zeros((1, 1, inner_dim)), name="prd_embedding")
+            self.prd_embedding = ms.Parameter(mint.zeros((1, 1, inner_dim)), name="prd_embedding")
         elif added_emb_type is None:
             self.prd_embedding = None
         else:
@@ -150,17 +150,17 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
 
         self.norm_out = LayerNorm(inner_dim)
 
-        self.proj_to_clip_embeddings = nn.Dense(inner_dim, clip_embed_dim)
+        self.proj_to_clip_embeddings = mint.nn.Linear(inner_dim, clip_embed_dim)
 
-        causal_attention_mask = ops.full(
+        causal_attention_mask = mint.full(
             [num_embeddings + additional_embeddings, num_embeddings + additional_embeddings], -10000.0
         )
         causal_attention_mask = causal_attention_mask.triu(1)
         causal_attention_mask = causal_attention_mask[None, ...]
         self.causal_attention_mask = causal_attention_mask
 
-        self.clip_mean = ms.Parameter(ops.zeros((1, clip_embed_dim)), name="clip_mean")
-        self.clip_std = ms.Parameter(ops.zeros((1, clip_embed_dim)), name="clip_std")
+        self.clip_mean = ms.Parameter(mint.zeros((1, clip_embed_dim)), name="clip_mean")
+        self.clip_std = ms.Parameter(mint.zeros((1, clip_embed_dim)), name="clip_std")
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
@@ -268,13 +268,15 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
         batch_size = hidden_states.shape[0]
 
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             timesteps = ms.Tensor([timesteps], dtype=ms.int64)
+        # todo: unavailable mint interface
         elif ops.is_tensor(timesteps) and len(timesteps.shape) == 0:
             timesteps = timesteps[None]
 
         # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = timesteps * ops.ones(batch_size, dtype=timesteps.dtype)
+        timesteps = timesteps * mint.ones(batch_size, dtype=timesteps.dtype)
 
         timesteps_projected = self.time_proj(timesteps)
 
@@ -319,27 +321,30 @@ class PriorTransformer(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin, Pef
             prd_embedding = self.prd_embedding.to(hidden_states.dtype).broadcast_to((batch_size, -1, -1))
             additional_embeds.append(prd_embedding)
 
-        hidden_states = ops.cat(
+        hidden_states = mint.cat(
             additional_embeds,
-            axis=1,
+            dim=1,
         )
 
         # Allow positional_embedding to not include the `addtional_embeddings` and instead pad it with zeros for these additional tokens
         additional_embeddings_len = additional_embeddings_len + proj_embeddings.shape[1] + 1
         if positional_embeddings.shape[1] < hidden_states.shape[1]:
-            positional_embeddings = ops.Pad(
+            positional_embeddings = mint.nn.functional.pad(
+                positional_embeddings,
                 (
-                    (0, 0),
-                    (additional_embeddings_len, self.prd_embedding.shape[1] if self.prd_embedding is not None else 0),
-                    (0, 0),
-                )
-            )(positional_embeddings)
+                    0,
+                    0,
+                    additional_embeddings_len,
+                    self.prd_embedding.shape[1] if self.prd_embedding is not None else 0,
+                ),
+                value=0.0,
+            )
 
         hidden_states = hidden_states + positional_embeddings
 
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(hidden_states.dtype)) * -10000.0
-            attention_mask = ops.Pad(((0, 0), (0, self.additional_embeddings)))(attention_mask)
+            attention_mask = mint.nn.functional.pad(attention_mask, (0, self.additional_embeddings), value=0.0)
             attention_mask = (attention_mask[:, None, :] + self.causal_attention_mask).to(hidden_states.dtype)
             attention_mask = attention_mask.repeat_interleave(self.config["num_attention_heads"], dim=0)
 
