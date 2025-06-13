@@ -198,7 +198,7 @@ class SAM2Base(nn.Cell):
         if compile_image_encoder:
             # MindSpore does not have torch.compile equivalent for this usage.
             # Compilation is handled by MindSpore's JIT compilation.
-            print("Image encoder compilation is enabled. First forward pass will be slow.")
+            print("Image encoder compilation is enabled. First construct pass will be slow.")
 
     def construct(self, *args, **kwargs):
         # This method should be implemented by subclasses for specific inference or training logic.
@@ -256,7 +256,7 @@ class SAM2Base(nn.Cell):
         else:
             self.obj_ptr_tpos_proj = nn.Identity()
 
-    def _forward_sam_heads(
+    def _construct_sam_heads(
         self,
         backbone_features,
         point_inputs=None,
@@ -416,7 +416,7 @@ class SAM2Base(nn.Cell):
     def _use_mask_as_output(self, backbone_features, high_res_features, mask_inputs):
         """
         Directly turn binary `mask_inputs` into a output mask logits without using SAM.
-        (same input and output shapes as in _forward_sam_heads above).
+        (same input and output shapes as in _construct_sam_heads above).
         """
         # Use -10/+10 as logits for neg/pos pixels (very close to 0/1 in prob after sigmoid).
         out_scale, out_bias = 20.0, -10.0  # sigmoid(-10.0)=4.5398e-05
@@ -436,7 +436,7 @@ class SAM2Base(nn.Cell):
             obj_ptr = mint.zeros((mask_inputs.shape[0], self.hidden_dim))
         else:
             # produce an object pointer using the SAM decoder from the mask input
-            _, _, _, _, _, obj_ptr, _ = self._forward_sam_heads(
+            _, _, _, _, _, obj_ptr, _ = self._construct_sam_heads(
                 backbone_features=backbone_features,
                 mask_inputs=self.mask_downsample(mask_inputs_float),
                 high_res_features=high_res_features,
@@ -647,7 +647,7 @@ class SAM2Base(nn.Cell):
             to_cat_memory = [self.no_mem_embed.expand(1, B, self.mem_dim)]
             to_cat_memory_pos_embed = [self.no_mem_pos_enc.expand(1, B, self.mem_dim)]
 
-        # Step 2: Concatenate the memories and forward through the transformer encoder
+        # Step 2: Concatenate the memories and construct through the transformer encoder
         memory = mint.cat(to_cat_memory, dim=0)
         memory_pos_embed = mint.cat(to_cat_memory_pos_embed, dim=0)
 
@@ -755,7 +755,7 @@ class SAM2Base(nn.Cell):
                 assert point_inputs is not None and mask_inputs is None
                 mask_inputs = prev_sam_mask_logits
             multimask_output = self._use_multimask(is_init_cond_frame, point_inputs)
-            sam_outputs = self._forward_sam_heads(
+            sam_outputs = self._construct_sam_heads(
                 backbone_features=pix_feat,
                 point_inputs=point_inputs,
                 mask_inputs=mask_inputs,

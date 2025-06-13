@@ -81,7 +81,7 @@ class PromptEncoder(nn.Cell):
             padding_label = -mint.ones((labels.shape[0], 1), dtype=ms.int32)
             points = mint.cat([points, padding_point], dim=1)
             labels = mint.cat([labels, padding_label], dim=1)
-        point_embedding = self.pe_layer.forward_with_coords(points, self.input_image_size)
+        point_embedding = self.pe_layer.construct_with_coords(points, self.input_image_size)
 
         point_embedding = mint.where(
             (labels == -1).unsqueeze(-1),
@@ -114,7 +114,7 @@ class PromptEncoder(nn.Cell):
         """Embeds box prompts."""
         boxes = boxes + 0.5  # Shift to center of pixel
         coords = boxes.reshape(-1, 2, 2)
-        corner_embedding = self.pe_layer.forward_with_coords(coords, self.input_image_size)
+        corner_embedding = self.pe_layer.construct_with_coords(coords, self.input_image_size)
         corner_embedding[:, 0, :] += self.point_embeddings[2].weight
         corner_embedding[:, 1, :] += self.point_embeddings[3].weight
         return corner_embedding
