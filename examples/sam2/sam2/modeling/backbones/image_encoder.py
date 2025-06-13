@@ -76,8 +76,8 @@ class FpnNeck(nn.Cell):
         self.convs = ms.nn.CellList()
         self.backbone_channel_list = backbone_channel_list
         self.d_model = d_model
+        current = ms.nn.SequentialCell()
         for dim in backbone_channel_list:
-            current = ms.nn.SequentialCell()
             current.append(
                 Conv2dWrapper(
                     in_channels=dim,
@@ -88,7 +88,7 @@ class FpnNeck(nn.Cell):
                 )
             )
 
-            self.convs.append(current)
+        self.convs = current
         self.fpn_interp_model = fpn_interp_model
         assert fuse_type in ["sum", "avg"]
         self.fuse_type = fuse_type
