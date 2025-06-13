@@ -24,6 +24,7 @@ from transformers.utils import (
 from ..feature_extraction_utils import PreTrainedFeatureExtractor
 from ..image_processing_utils import BaseImageProcessor
 from ..models.auto.configuration_auto import AutoConfig
+from ..models.auto.modeling_auto import AutoModelForMaskedLM
 from ..processing_utils import ProcessorMixin
 from ..utils import is_mindspore_available
 from .base import (
@@ -38,6 +39,7 @@ from .base import (
     get_default_model_and_revision,
     infer_framework_load_model,
 )
+from .fill_mask import FillMaskPipeline
 from .text_generation import TextGenerationPipeline
 
 if is_mindspore_available():
@@ -67,6 +69,16 @@ SUPPORTED_TASKS = {
         "impl": TextGenerationPipeline,
         "ms": (AutoModelForCausalLM,) if is_mindspore_available() else (),
         "default": {"model": {"ms": ("openai-community/gpt2", "607a30d"), "tf": ("openai-community/gpt2", "607a30d")}},
+        "type": "text",
+    },
+    "fill-mask": {
+        "impl": FillMaskPipeline,
+        "ms": (AutoModelForMaskedLM,) if is_mindspore_available() else (),
+        "default": {
+            "model": {
+                "ms": ("distilbert/distilroberta-base", "fb53ab8"),
+            }
+        },
         "type": "text",
     },
 }
