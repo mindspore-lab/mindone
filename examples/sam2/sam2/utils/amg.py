@@ -287,7 +287,7 @@ def batched_mask_to_box(masks: ms.Tensor) -> ms.Tensor:
     """
     # mint.max below raises an error on empty inputs, just skip in this case
     if mint.numel(masks) == 0:
-        return mint.zeros(*masks.shape[:-2], 4)
+        return mint.zeros((*masks.shape[:-2], 4))
 
     # Normalize shape to CxHxW
     shape = masks.shape

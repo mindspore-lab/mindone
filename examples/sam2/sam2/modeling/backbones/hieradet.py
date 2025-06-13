@@ -250,8 +250,8 @@ class Hiera(nn.Cell):
 
         # Windowed positional embedding (https://arxiv.org/abs/2311.05613)
         self.window_pos_embed_bkg_spatial_size = window_pos_embed_bkg_spatial_size
-        self.pos_embed = ms.Parameter(mint.zeros(1, embed_dim, *self.window_pos_embed_bkg_spatial_size))
-        self.pos_embed_window = ms.Parameter(mint.zeros(1, embed_dim, self.window_spec[0], self.window_spec[0]))
+        self.pos_embed = ms.Parameter(mint.zeros((1, embed_dim, *self.window_pos_embed_bkg_spatial_size)))
+        self.pos_embed_window = ms.Parameter(mint.zeros((1, embed_dim, self.window_spec[0], self.window_spec[0])))
 
         dpr = [x for x in mint.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
 
