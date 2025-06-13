@@ -2314,9 +2314,11 @@ class GenerationMixin:
             input_ids_length=input_ids_length,
         )
 
-        # This lines will always select the last logits, which is not the right way for static shape
-        # if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
-        #     model_kwargs["logits_to_keep"] = 1
+        # If the model supports `logits_to_keep` in forward(), set it to 1 to avoid computing the whole
+        # logit matrix. This can save a lot of memory during the first forward pass. Note that assisted decoding
+        # dynamically overrides this value as it can need more than the last token logits
+        if self._supports_logits_to_keep() and "logits_to_keep" not in model_kwargs:
+            model_kwargs["logits_to_keep"] = 1
 
         self._validate_generated_length(generation_config, input_ids_length, has_default_max_length)
 
