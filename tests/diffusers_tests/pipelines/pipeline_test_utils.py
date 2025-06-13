@@ -1,3 +1,4 @@
+import copy
 import importlib
 import inspect
 import logging
@@ -134,8 +135,14 @@ def get_pipeline_components(components, pipeline_config):
                 pt_modules_instance = pt_module_cls.from_pretrained(**init_kwargs, torch_dtype=pt_config.torch_dtype)
             else:
                 pt_modules_instance = pt_module_cls.from_pretrained(**init_kwargs)
+            if "low_cpu_mem_usage" and "device_map" in init_kwargs:
+                ms_init_kwargs = copy.deepcopy(init_kwargs)
+                ms_init_kwargs.pop("low_cpu_mem_usage")
+                ms_init_kwargs.pop("device_map")
+            else:
+                ms_init_kwargs = init_kwargs
             ms_modules_instance = (
-                pt_modules_instance if pt_module == ms_module else ms_module_cls.from_pretrained(**init_kwargs)
+                pt_modules_instance if pt_module == ms_module else ms_module_cls.from_pretrained(**ms_init_kwargs)
             )
         elif "unet" in init_kwargs:
             init_kwargs["unet"] = components["unet"][0]
