@@ -123,7 +123,7 @@ class Latte(nn.Cell):
         w = self.x_embedder.proj.weight
         # xavier_uniform_(w.view(w.shape[0], -1))
         w_flatted = w.view(w.shape[0], -1)
-        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).reshape(w.shape))
+        w.set_data(initializer(XavierUniform(), w_flatted.shape, w_flatted.dtype).init_data().reshape(w.shape))
         constant_(self.x_embedder.proj.bias, 0)
 
         # Initialize label embedding table:
