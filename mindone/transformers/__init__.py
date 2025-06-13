@@ -158,7 +158,18 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.llava_next import LlavaNextForConditionalGeneration, LlavaNextPreTrainedModel
+from .models.llava_next_video import LlavaNextVideoForConditionalGeneration, LlavaNextVideoPreTrainedModel
+from .models.llava_onevision import LlavaOnevisionForConditionalGeneration, LlavaOnevisionPreTrainedModel
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
