@@ -101,6 +101,7 @@ from .models.deberta_v2 import (
     DebertaV2PreTrainedModel,
 )
 from .models.dpt import DPTForDepthEstimation
+from .models.fuyu import FuyuForCausalLM, FuyuPreTrainedModel
 from .models.gemma import (
     GemmaForCausalLM,
     GemmaForSequenceClassification,
@@ -185,6 +186,13 @@ from .models.mt5 import (
     MT5ForConditionalGeneration,
     MT5Model,
     MT5PreTrainedModel,
+)
+from .models.persimmon import (
+    PersimmonForCausalLM,
+    PersimmonForSequenceClassification,
+    PersimmonForTokenClassification,
+    PersimmonModel,
+    PersimmonPreTrainedModel,
 )
 from .models.phi3 import (
     Phi3ForCausalLM,
