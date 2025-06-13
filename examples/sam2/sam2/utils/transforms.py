@@ -1,13 +1,13 @@
 import warnings
 
 import mindspore as ms
-import mindspore.mint.nn as nn
 import mindspore.mint.nn.functional as F
 from mindspore import mint
-from mindspore.dataset.vision import Compose, Inter, Normalize, Resize, ToTensor
+from mindspore.dataset.transforms import Compose
+from mindspore.dataset.vision import Inter, Normalize, Resize, ToTensor
 
 
-class SAM2Transforms(nn.Module):
+class SAM2Transforms:
     def __init__(self, resolution, mask_threshold, max_hole_area=0.0, max_sprinkle_area=0.0):
         """
         Transforms for SAM2.
