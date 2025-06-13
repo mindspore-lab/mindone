@@ -133,6 +133,7 @@ from .models.gpt2 import (
     GPT2Model,
     GPT2PreTrainedModel,
 )
+from .models.granite import GraniteForCausalLM, GraniteModel, GranitePreTrainedModel
 from .models.hiera import (
     HieraBackbone,
     HieraForImageClassification,
