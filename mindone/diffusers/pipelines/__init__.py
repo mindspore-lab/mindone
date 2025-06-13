@@ -88,7 +88,11 @@ _import_structure = {
         "FluxPriorReduxPipeline",
     ],
     "hunyuandit": ["HunyuanDiTPipeline"],
-    "hunyuan_video": ["HunyuanVideoPipeline"],
+    "hunyuan_video": [
+        "HunyuanVideoPipeline",
+        "HunyuanSkyreelsImageToVideoPipeline",
+        "HunyuanVideoImageToVideoPipeline",
+    ],
     "i2vgen_xl": ["I2VGenXLPipeline"],
     "latent_diffusion": ["LDMSuperResolutionPipeline", "LDMTextToImagePipeline"],
     "ledits_pp": ["LEditsPPPipelineStableDiffusion", "LEditsPPPipelineStableDiffusionXL"],
@@ -304,7 +308,11 @@ if TYPE_CHECKING:
         FluxPipeline,
         FluxPriorReduxPipeline,
     )
-    from .hunyuan_video import HunyuanVideoPipeline
+    from .hunyuan_video import (
+        HunyuanSkyreelsImageToVideoPipeline,
+        HunyuanVideoImageToVideoPipeline,
+        HunyuanVideoPipeline,
+    )
     from .hunyuandit import HunyuanDiTPipeline
     from .i2vgen_xl import I2VGenXLPipeline
     from .kandinsky import (
