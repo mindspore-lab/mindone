@@ -17,7 +17,7 @@ import math
 
 import numpy as np
 
-from mindspore import nn, ops
+from mindspore import mint, nn
 from mindspore.common.initializer import Constant, Normal, XavierUniform, initializer
 
 from ...configuration_utils import ConfigMixin, register_to_config
@@ -53,18 +53,19 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
             dropout = [dropout] * len(c_hidden)
 
         # CONDITIONING
-        self.clip_mapper = nn.Dense(clip_embd, c_cond)
+        self.clip_mapper = mint.nn.Linear(clip_embd, c_cond)
         self.effnet_mappers = nn.CellList(
             [
-                nn.Conv2d(effnet_embd, c_cond, kernel_size=1, has_bias=True, pad_mode="valid") if inject else NoneCell()
+                mint.nn.Conv2d(effnet_embd, c_cond, kernel_size=1) if inject else NoneCell()
                 for inject in inject_effnet + list(reversed(inject_effnet))
             ]
         )
         self.seq_norm = LayerNorm(c_cond, elementwise_affine=False, eps=1e-6)
 
         self.embedding = nn.SequentialCell(
+            # todo: unavailable mint interface
             nn.PixelUnshuffle(patch_size),
-            nn.Conv2d(c_in * (patch_size**2), c_hidden[0], kernel_size=1, has_bias=True, pad_mode="valid"),
+            mint.nn.Conv2d(c_in * (patch_size**2), c_hidden[0], kernel_size=1),
             WuerstchenLayerNorm(c_hidden[0], elementwise_affine=False, eps=1e-6),
         )
 
@@ -87,9 +88,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
                 down_block.append(
                     nn.SequentialCell(
                         WuerstchenLayerNorm(c_hidden[i - 1], elementwise_affine=False, eps=1e-6),
-                        nn.Conv2d(
-                            c_hidden[i - 1], c_hidden[i], kernel_size=2, stride=2, has_bias=True, pad_mode="valid"
-                        ),
+                        mint.nn.Conv2d(c_hidden[i - 1], c_hidden[i], kernel_size=2, stride=2),
                     )
                 )
             for _ in range(blocks[i]):
@@ -112,9 +111,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
                 up_block.append(
                     nn.SequentialCell(
                         WuerstchenLayerNorm(c_hidden[i], elementwise_affine=False, eps=1e-6),
-                        nn.Conv2dTranspose(
-                            c_hidden[i], c_hidden[i - 1], kernel_size=2, stride=2, has_bias=True, pad_mode="valid"
-                        ),
+                        mint.nn.ConvTranspose2d(c_hidden[i], c_hidden[i - 1], kernel_size=2, stride=2),
                     )
                 )
             up_blocks.append(nn.CellList(up_block))
@@ -123,7 +120,8 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
         # OUTPUT
         self.clf = nn.SequentialCell(
             WuerstchenLayerNorm(c_hidden[0], elementwise_affine=False, eps=1e-6),
-            nn.Conv2d(c_hidden[0], 2 * c_out * (patch_size**2), kernel_size=1, has_bias=True, pad_mode="valid"),
+            mint.nn.Conv2d(c_hidden[0], 2 * c_out * (patch_size**2), kernel_size=1),
+            # todo: unavailable mint interface
             nn.PixelShuffle(patch_size),
         )
 
@@ -132,7 +130,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
 
     def _init_weights(self, m):
         # General init
-        if isinstance(m, (nn.Conv2d, nn.Dense)):
+        if isinstance(m, (mint.nn.Conv2d, mint.nn.Linear)):
             m.weight.set_data(initializer(XavierUniform(), m.weight.shape, m.weight.dtype))
             if m.bias is not None:
                 m.bias.set_data(initializer(Constant(0), m.bias.shape, m.bias.dtype))
@@ -175,11 +173,11 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
         r = r * max_positions
         half_dim = self.c_r // 2
         emb = math.log(max_positions) / (half_dim - 1)
-        emb = ops.arange(half_dim).float().mul(-emb).exp()
+        emb = mint.arange(half_dim).float().mul(-emb).exp()
         emb = r[:, None] * emb[None, :]
-        emb = ops.cat([emb.sin(), emb.cos()], axis=1)
+        emb = mint.cat([emb.sin(), emb.cos()], dim=1)
         if self.c_r % 2 == 1:  # zero pad
-            emb = ops.pad(emb, (0, 1), mode="constant")
+            emb = mint.nn.functional.pad(emb, (0, 1), mode="constant")
         return emb.to(dtype=r.dtype)
 
     def gen_c_embeddings(self, clip):
@@ -196,9 +194,9 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
                     if effnet_c is None and not isinstance(self.effnet_mappers[i], NoneCell):
                         dtype = effnet.dtype
                         effnet_c = self.effnet_mappers[i](
-                            ops.interpolate(effnet.float(), size=x.shape[-2:], mode="bicubic", align_corners=True).to(
-                                dtype
-                            )
+                            mint.nn.functional.interpolate(
+                                effnet.float(), size=x.shape[-2:], mode="bicubic", align_corners=True
+                            ).to(dtype)
                         )
                     skip = effnet_c if not isinstance(self.effnet_mappers[i], NoneCell) else None
                     x = block(x, skip)
@@ -220,14 +218,14 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
                     if effnet_c is None and not isinstance(self.effnet_mappers[len(self.down_blocks) + i], NoneCell):
                         dtype = effnet.dtype
                         effnet_c = self.effnet_mappers[len(self.down_blocks) + i](
-                            ops.interpolate(effnet.float(), size=x.shape[-2:], mode="bicubic", align_corners=True).to(
-                                dtype
-                            )
+                            mint.nn.functional.interpolate(
+                                effnet.float(), size=x.shape[-2:], mode="bicubic", align_corners=True
+                            ).to(dtype)
                         )
                     skip = level_outputs[i] if j == 0 and i > 0 else None
                     if effnet_c is not None:
                         if skip is not None:
-                            skip = ops.cat([skip, effnet_c], axis=1)
+                            skip = mint.cat([skip, effnet_c], dim=1)
                         else:
                             skip = effnet_c
                     x = block(x, skip)
@@ -241,7 +239,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
 
     def construct(self, x, r, effnet, clip=None, x_cat=None, eps=1e-3, return_noise=True):
         if x_cat is not None:
-            x = ops.cat([x, x_cat], axis=1)
+            x = mint.cat([x, x_cat], dim=1)
         # Process the conditioning embeddings
         r_embed = self.gen_r_embedding(r)
         if clip is not None:
@@ -252,7 +250,7 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
         x = self.embedding(x)
         level_outputs = self._down_encode(x, r_embed, effnet, clip)
         x = self._up_decode(level_outputs, r_embed, effnet, clip)
-        a, b = self.clf(x).chunk(2, axis=1)
+        a, b = self.clf(x).chunk(2, dim=1)
         b = sigmoid(b) * (1 - eps * 2) + eps
         if return_noise:
             return (x_in - a) / b
@@ -263,23 +261,21 @@ class WuerstchenDiffNeXt(ModelMixin, ConfigMixin):
 class ResBlockStageB(nn.Cell):
     def __init__(self, c, c_skip=0, kernel_size=3, dropout=0.0):
         super().__init__()
-        self.depthwise = nn.Conv2d(
-            c, c, kernel_size=kernel_size, padding=kernel_size // 2, group=c, has_bias=True, pad_mode="pad"
-        )
+        self.depthwise = mint.nn.Conv2d(c, c, kernel_size=kernel_size, padding=kernel_size // 2, groups=c)
         self.norm = WuerstchenLayerNorm(c, elementwise_affine=False, eps=1e-6)
         self.channelwise = nn.SequentialCell(
-            nn.Dense(c + c_skip, c * 4),
-            nn.GELU(),
+            mint.nn.Linear(c + c_skip, c * 4),
+            mint.nn.GELU(),
             GlobalResponseNorm(c * 4),
             nn.Dropout(p=dropout),
-            nn.Dense(c * 4, c),
+            mint.nn.Linear(c * 4, c),
         )
 
     def construct(self, x, x_skip=None):
         x_res = x
         x = self.norm(self.depthwise(x))
         if x_skip is not None:
-            x = ops.cat([x, x_skip], axis=1)
+            x = mint.cat([x, x_skip], dim=1)
         x = self.channelwise(x.permute((0, 2, 3, 1))).permute((0, 3, 1, 2))
         return x + x_res
 

@@ -18,7 +18,7 @@ from transformers.models.blip_2.configuration_blip_2 import Blip2Config, Blip2Vi
 from transformers.utils import logging
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from mindone.transformers.activations import QuickGELUActivation as QuickGELU
 from mindone.transformers.modeling_outputs import (
@@ -46,16 +46,16 @@ class Blip2TextEmbeddings(nn.Cell):
 
     def __init__(self, config):
         super().__init__()
-        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
-        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.word_embeddings = mint.nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = mint.nn.Embedding(config.max_position_embeddings, config.hidden_size)
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
-        self.LayerNorm = nn.LayerNorm((config.hidden_size,), epsilon=config.layer_norm_eps)
+        self.LayerNorm = mint.nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(p=config.hidden_dropout_prob)
 
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
-        self.position_ids = ops.arange(config.max_position_embeddings).broadcast_to((1, -1))
+        self.position_ids = mint.arange(config.max_position_embeddings).broadcast_to((1, -1))
         self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
 
         self.config = config
@@ -84,8 +84,8 @@ class Blip2TextEmbeddings(nn.Cell):
             if query_embeds is not None:
                 batch_size = embeddings.shape[0]
                 # repeat the query embeddings for batch size
-                query_embeds = query_embeds.tile((batch_size, 1, 1))
-                embeddings = ops.cat((query_embeds, embeddings), axis=1)
+                query_embeds = mint.tile(query_embeds, (batch_size, 1, 1))
+                embeddings = mint.cat((query_embeds, embeddings), dim=1)
         else:
             embeddings = query_embeds
         embeddings = embeddings.to(query_embeds.dtype)
@@ -103,32 +103,27 @@ class Blip2VisionEmbeddings(nn.Cell):
         self.image_size = config.image_size
         self.patch_size = config.patch_size
 
-        self.class_embedding = ms.Parameter(ops.randn((1, 1, self.embed_dim)), name="class_embedding")
+        self.class_embedding = ms.Parameter(mint.randn((1, 1, self.embed_dim)), name="class_embedding")
 
-        self.patch_embedding = nn.Conv2d(
-            in_channels=3,
-            out_channels=self.embed_dim,
-            kernel_size=self.patch_size,
-            stride=self.patch_size,
-            has_bias=False,
-            pad_mode="valid",
+        self.patch_embedding = mint.nn.Conv2d(
+            in_channels=3, out_channels=self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size, bias=False
         )
 
         self.num_patches = (self.image_size // self.patch_size) ** 2
         self.num_positions = self.num_patches + 1
 
         self.position_embedding = ms.Parameter(
-            ops.randn((1, self.num_positions, self.embed_dim)), name="position_embedding"
+            mint.randn((1, self.num_positions, self.embed_dim)), name="position_embedding"
         )
 
     def construct(self, pixel_values: ms.Tensor) -> ms.Tensor:
         batch_size = pixel_values.shape[0]
         target_dtype = self.patch_embedding.weight.dtype
         patch_embeds = self.patch_embedding(pixel_values.to(dtype=target_dtype))  # shape = [*, width, grid, grid]
-        patch_embeds = patch_embeds.flatten(start_dim=2).transpose(0, 2, 1)
+        patch_embeds = patch_embeds.flatten(start_dim=2).swapaxes(1, 2)
 
         class_embeds = self.class_embedding.broadcast_to((batch_size, 1, -1)).to(target_dtype)
-        embeddings = ops.cat([class_embeds, patch_embeds], axis=1)
+        embeddings = mint.cat([class_embeds, patch_embeds], dim=1)
         embeddings = embeddings + self.position_embedding[:, : embeddings.shape[1], :].to(target_dtype)
         return embeddings
 
@@ -291,7 +286,7 @@ class Blip2QFormerLayer(nn.Cell):
 
             if attention_output.shape[1] > query_length:
                 layer_output_text = self.feed_forward_chunk(attention_output[:, query_length:, :])
-                layer_output = ops.cat([layer_output, layer_output_text], axis=1)
+                layer_output = mint.cat([layer_output, layer_output_text], dim=1)
         else:
             layer_output = self.feed_forward_chunk(attention_output)
         outputs = (layer_output,) + outputs
@@ -317,12 +312,12 @@ class ProjLayer(nn.Cell):
         super().__init__()
 
         # Dense1 -> Act -> Dense2 -> Drop -> Res -> Norm
-        self.dense1 = nn.Dense(in_dim, hidden_dim)
+        self.dense1 = mint.nn.Linear(in_dim, hidden_dim)
         self.act_fn = QuickGELU()
-        self.dense2 = nn.Dense(hidden_dim, out_dim)
+        self.dense2 = mint.nn.Linear(hidden_dim, out_dim)
         self.dropout = nn.Dropout(p=drop_p)
 
-        self.LayerNorm = nn.LayerNorm((out_dim,), epsilon=eps)
+        self.LayerNorm = mint.nn.LayerNorm(out_dim, eps=eps)
 
     def construct(self, x):
         x_in = x
@@ -346,9 +341,9 @@ class Blip2VisionModel(Blip2PreTrainedModel):
         self.use_return_dict = config.use_return_dict
         embed_dim = config.hidden_size
         self.embeddings = Blip2VisionEmbeddings(config)
-        self.pre_layernorm = nn.LayerNorm((embed_dim,), epsilon=config.layer_norm_eps)
+        self.pre_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
         self.encoder = Blip2Encoder(config)
-        self.post_layernorm = nn.LayerNorm((embed_dim,), epsilon=config.layer_norm_eps)
+        self.post_layernorm = mint.nn.LayerNorm(embed_dim, eps=config.layer_norm_eps)
 
         self.post_init()
 
@@ -415,7 +410,7 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
         self.embeddings = Blip2TextEmbeddings(config.qformer_config)
         self.visual_encoder = Blip2VisionModel(config.vision_config)
         self.query_tokens = ms.Parameter(
-            ops.zeros((1, config.num_query_tokens, config.qformer_config.hidden_size)), name="query_tokens"
+            mint.zeros((1, config.num_query_tokens, config.qformer_config.hidden_size)), name="query_tokens"
         )
         if not hasattr(config, "tokenizer") or config.tokenizer is None:
             self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", truncation_side="right")
@@ -525,8 +520,8 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
         """
 
         batch_size = text_input_ids.shape[0]
-        query_atts = ops.ones((batch_size, self.query_tokens.shape[1]), dtype=ms.int64)
-        attention_mask = ops.cat([query_atts, text_attention_mask], axis=1)
+        query_atts = mint.ones((batch_size, self.query_tokens.shape[1]), dtype=ms.int64)
+        attention_mask = mint.cat([query_atts, text_attention_mask], dim=1)
 
         output_attentions = output_attentions if output_attentions is not None else self.output_attentions
         output_hidden_states = output_hidden_states if output_hidden_states is not None else self.output_hidden_states
@@ -556,7 +551,7 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
         encoder_hidden_states = image_embeds_frozen
 
         if attention_mask is None:
-            attention_mask = ops.ones(((batch_size, seq_length + past_key_values_length)))
+            attention_mask = mint.ones(((batch_size, seq_length + past_key_values_length)))
 
         # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
@@ -574,7 +569,7 @@ class Blip2QFormerModel(Blip2PreTrainedModel):
             if isinstance(encoder_attention_mask, list):
                 encoder_extended_attention_mask = [self.invert_attention_mask(mask) for mask in encoder_attention_mask]
             elif encoder_attention_mask is None:
-                encoder_attention_mask = ops.ones(encoder_hidden_shape)
+                encoder_attention_mask = mint.ones(encoder_hidden_shape)
                 encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)
             else:
                 encoder_extended_attention_mask = self.invert_attention_mask(encoder_attention_mask)

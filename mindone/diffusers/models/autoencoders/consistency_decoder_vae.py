@@ -17,7 +17,7 @@ from typing import Dict, Optional, Tuple, Union
 import numpy as np
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...schedulers import ConsistencyDecoderScheduler
@@ -139,7 +139,7 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         self.means = ms.Tensor([0.38862467, 0.02253063, 0.07381133, -0.0171294])[None, :, None, None]
         self.stds = ms.Tensor([0.9654121, 1.0440036, 0.76147926, 0.77022034])[None, :, None, None]
 
-        self.quant_conv = nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1, has_bias=True)
+        self.quant_conv = mint.nn.Conv2d(2 * latent_channels, 2 * latent_channels, 1)
 
         self.use_slicing = False
         self.use_tiling = False
@@ -280,7 +280,7 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
 
         if self.use_slicing and x.shape[0] > 1:
             encoded_slices = [self.encoder(x_slice) for x_slice in x.split(1)]
-            h = ops.cat(encoded_slices)
+            h = mint.cat(encoded_slices)
         else:
             h = self.encoder(x)
 
@@ -314,7 +314,9 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         z = ((z * self.config["scaling_factor"] - self.means) / self.stds).to(z.dtype)
 
         scale_factor = 2 ** (len(self.config["block_out_channels"]) - 1)
-        z = ops.interpolate(z, mode="nearest", size=(z.shape[-2] * scale_factor, z.shape[-1] * scale_factor))
+        z = mint.nn.functional.interpolate(
+            z, mode="nearest", size=(z.shape[-2] * scale_factor, z.shape[-1] * scale_factor)
+        )
 
         batch_size, _, height, width = z.shape
 
@@ -327,7 +329,7 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
         )
 
         for t in self.decoder_scheduler.timesteps:
-            model_input = ops.concat([self.decoder_scheduler.scale_model_input(x_t, t).to(z.dtype), z], axis=1)
+            model_input = mint.concat([self.decoder_scheduler.scale_model_input(x_t, t).to(z.dtype), z], dim=1)
             model_output = self.decoder_unet(model_input, t)[0][:, :3, :, :]
             prev_sample = self.decoder_scheduler.step(model_output, t, x_t, generator)[0]
             x_t = prev_sample
@@ -398,9 +400,9 @@ class ConsistencyDecoderVAE(ModelMixin, ConfigMixin):
                 if j > 0:
                     tile = self.blend_h(row[j - 1], tile, blend_extent)
                 result_row.append(tile[:, :, :row_limit, :row_limit])
-            result_rows.append(ops.cat(result_row, axis=3))
+            result_rows.append(mint.cat(result_row, dim=3))
 
-        moments = ops.cat(result_rows, axis=2)
+        moments = mint.cat(result_rows, dim=2)
 
         if not return_dict:
             return (moments,)

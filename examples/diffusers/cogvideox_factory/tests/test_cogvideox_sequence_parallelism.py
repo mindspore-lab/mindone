@@ -5,6 +5,7 @@ from cogvideox.acceleration import create_parallel_group, get_sequence_parallel_
 from cogvideox.models.cogvideox_transformer_3d_sp import CogVideoXTransformer3DModel_SP
 
 import mindspore as ms
+import mindspore.mint as mint
 import mindspore.nn as nn
 import mindspore.ops as ops
 from mindspore.communication import get_group_size, init
@@ -34,7 +35,7 @@ def get_sample_data(use_rotary_positional_embeddings=False, dtype=ms.bfloat16):
     w = 1360 // 8
     h = 768 // 8
     max_s = 224
-    x = ops.rand([batch_size, frame, 16, h, w], dtype=dtype)  # (B, C, T, H, W)
+    x = mint.rand([batch_size, frame, 16, h, w], dtype=dtype)  # (B, C, T, H, W)
     timestep = ms.Tensor(
         [
             32,
@@ -42,9 +43,9 @@ def get_sample_data(use_rotary_positional_embeddings=False, dtype=ms.bfloat16):
         * batch_size,
         dtype=ms.int64,
     )
-    y = ops.rand(batch_size, max_s, 4096, dtype=dtype)
+    y = mint.rand(batch_size, max_s, 4096, dtype=dtype)
     if use_rotary_positional_embeddings:
-        image_rotary_emb = ops.rand(2, frame * h * w // 8, 64, dtype=dtype)
+        image_rotary_emb = mint.rand(2, frame * h * w // 8, 64, dtype=dtype)
     else:
         image_rotary_emb = None
     return dict(

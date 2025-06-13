@@ -16,7 +16,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+import mindspore.common.initializer as init
+from mindspore import mint, nn, ops
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin
@@ -66,41 +67,28 @@ class SparseControlNetConditioningEmbedding(nn.Cell):
     ):
         super().__init__()
 
-        self.conv_in = nn.Conv2d(
-            conditioning_channels, block_out_channels[0], kernel_size=3, pad_mode="pad", padding=1, has_bias=True
-        )
+        self.conv_in = mint.nn.Conv2d(conditioning_channels, block_out_channels[0], kernel_size=3, padding=1, bias=True)
         self.blocks = []
 
         for i in range(len(block_out_channels) - 1):
             channel_in = block_out_channels[i]
             channel_out = block_out_channels[i + 1]
-            self.blocks.append(
-                nn.Conv2d(channel_in, channel_in, kernel_size=3, pad_mode="pad", padding=1, has_bias=True)
-            )
-            self.blocks.append(
-                nn.Conv2d(channel_in, channel_out, kernel_size=3, pad_mode="pad", padding=1, stride=2, has_bias=True)
-            )
+            self.blocks.append(mint.nn.Conv2d(channel_in, channel_in, kernel_size=3, padding=1, bias=True))
+            self.blocks.append(mint.nn.Conv2d(channel_in, channel_out, kernel_size=3, padding=1, stride=2, bias=True))
 
         self.blocks = nn.CellList(self.blocks)
 
-        self.conv_out = nn.Conv2d(
-            block_out_channels[-1],
-            conditioning_embedding_channels,
-            kernel_size=3,
-            pad_mode="pad",
-            padding=1,
-            has_bias=True,
-            weight_init="zeros",
-            bias_init="zeros",
+        self.conv_out = zero_module(
+            mint.nn.Conv2d(block_out_channels[-1], conditioning_embedding_channels, kernel_size=3, padding=1, bias=True)
         )
 
     def construct(self, conditioning: ms.Tensor) -> ms.Tensor:
         embedding = self.conv_in(conditioning)
-        embedding = ops.silu(embedding)
+        embedding = mint.nn.functional.silu(embedding)
 
         for block in self.blocks:
             embedding = block(embedding)
-            embedding = ops.silu(embedding)
+            embedding = mint.nn.functional.silu(embedding)
 
         embedding = self.conv_out(embedding)
         return embedding
@@ -247,13 +235,8 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # input
         conv_in_kernel = 3
         conv_in_padding = (conv_in_kernel - 1) // 2
-        self.conv_in = nn.Conv2d(
-            in_channels,
-            block_out_channels[0],
-            kernel_size=conv_in_kernel,
-            padding=conv_in_padding,
-            pad_mode="pad",
-            has_bias=True,
+        self.conv_in = mint.nn.Conv2d(
+            in_channels, block_out_channels[0], kernel_size=conv_in_kernel, padding=conv_in_padding
         )
 
         if concat_conditioning_mask:
@@ -263,15 +246,8 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # control net conditioning embedding
         if use_simplified_condition_embedding:
-            self.controlnet_cond_embedding = nn.Conv2d(
-                conditioning_channels,
-                block_out_channels[0],
-                kernel_size=3,
-                pad_mode="pad",
-                padding=1,
-                has_bias=True,
-                weight_init="zeros",
-                bias_init="zeros",
+            self.controlnet_cond_embedding = zero_module(
+                mint.nn.Conv2d(conditioning_channels, block_out_channels[0], kernel_size=3, padding=1)
             )
         else:
             self.controlnet_cond_embedding = SparseControlNetConditioningEmbedding(
@@ -312,15 +288,8 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # down
         output_channel = block_out_channels[0]
 
-        controlnet_block = nn.Conv2d(
-            output_channel,
-            output_channel,
-            kernel_size=1,
-            has_bias=True,
-            pad_mode="same",
-            weight_init="zeros",
-            bias_init="zeros",
-        )
+        controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+        controlnet_block = zero_module(controlnet_block)
         self.controlnet_down_blocks.append(controlnet_block)
 
         for i, down_block_type in enumerate(down_block_types):
@@ -379,15 +348,13 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             self.down_blocks.append(down_block)
 
             for _ in range(layers_per_block):
-                controlnet_block = nn.Conv2d(
-                    output_channel, output_channel, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-                )
+                controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+                controlnet_block = zero_module(controlnet_block)
                 self.controlnet_down_blocks.append(controlnet_block)
 
             if not is_final_block:
-                controlnet_block = nn.Conv2d(
-                    output_channel, output_channel, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-                )
+                controlnet_block = mint.nn.Conv2d(output_channel, output_channel, kernel_size=1)
+                controlnet_block = zero_module(controlnet_block)
                 self.controlnet_down_blocks.append(controlnet_block)
 
         self.down_blocks = nn.CellList(self.down_blocks)
@@ -396,9 +363,8 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # mid
         mid_block_channels = block_out_channels[-1]
 
-        controlnet_block = nn.Conv2d(
-            mid_block_channels, mid_block_channels, kernel_size=1, has_bias=True, weight_init="zeros", bias_init="zeros"
-        )
+        controlnet_block = mint.nn.Conv2d(mid_block_channels, mid_block_channels, kernel_size=1)
+        controlnet_block = zero_module(controlnet_block)
         self.controlnet_mid_block = controlnet_block
 
         if transformer_layers_per_mid_block is None:
@@ -623,7 +589,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
                 returned where the first element is the sample tensor.
         """
         sample_batch_size, sample_channels, sample_num_frames, sample_height, sample_width = sample.shape
-        sample = ops.zeros_like(sample)
+        sample = mint.zeros_like(sample)
 
         # check channel order
         channel_order = self.config.controlnet_conditioning_channel_order
@@ -632,7 +598,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             # in rgb order by default
             ...
         elif channel_order == "bgr":
-            controlnet_cond = ops.flip(controlnet_cond, dims=[1])
+            controlnet_cond = mint.flip(controlnet_cond, dims=[1])
         else:
             raise ValueError(f"unknown `controlnet_conditioning_channel_order`: {channel_order}")
 
@@ -643,6 +609,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # 1. time
         timesteps = timestep
+        # todo: unavailable mint interface
         if not ops.is_tensor(timesteps):
             if isinstance(timestep, float):
                 dtype = ms.float64
@@ -675,7 +642,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         sample = sample[:, None].reshape(sample_batch_size, sample_num_frames, channels, height, width)
 
         if self.concat_conditioning_mask:
-            controlnet_cond = ops.cat([controlnet_cond, conditioning_mask], axis=1)
+            controlnet_cond = mint.cat([controlnet_cond, conditioning_mask], dim=1)
 
         batch_size, channels, num_frames, height, width = controlnet_cond.shape
         controlnet_cond = controlnet_cond.permute(0, 2, 1, 3, 4).reshape(
@@ -732,6 +699,7 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         # 6. scaling
         if guess_mode and not self.config.global_pool_conditions:
+            # todo: unavailable mint interface
             scales = ops.logspace(-1, 0, len(down_block_res_samples) + 1)  # 0.1 to 1.0
             scales = scales * conditioning_scale
             down_block_res_samples = [sample * scale for sample, scale in zip(down_block_res_samples, scales)]
@@ -741,10 +709,8 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             mid_block_res_sample = mid_block_res_sample * conditioning_scale
 
         if self.config.global_pool_conditions:
-            down_block_res_samples = [
-                ops.mean(sample, axis=(2, 3), keep_dims=True) for sample in down_block_res_samples
-            ]
-            mid_block_res_sample = ops.mean(mid_block_res_sample, axis=(2, 3), keep_dims=True)
+            down_block_res_samples = [mint.mean(sample, dim=(2, 3), keepdim=True) for sample in down_block_res_samples]
+            mid_block_res_sample = mint.mean(mid_block_res_sample, dim=(2, 3), keepdim=True)
 
         if not return_dict:
             return (down_block_res_samples, mid_block_res_sample)
@@ -756,8 +722,9 @@ class SparseControlNetModel(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
 # Copied from diffusers.models.controlnet.zero_module
 def zero_module(module: nn.Cell):
-    logger.warning(
-        "Method 'zero_module' does nothing because changing parameter data after initiating will make "
-        "parameter.set_dtype() invalid sometimes. Use arguments like 'weight_init' in instantiation instead"
-    )
+    for name, m in module.cells_and_names():
+        if isinstance(m, (mint.nn.Linear, mint.nn.Conv2d, mint.nn.LayerNorm, mint.nn.BatchNorm2d)):
+            m.weight.set_data(init.initializer("zeros", m.weight.shape, m.weight.dtype))
+            if m.bias is not None:
+                m.bias.set_data(init.initializer("zeros", m.bias.shape, m.bias.dtype))
     return module

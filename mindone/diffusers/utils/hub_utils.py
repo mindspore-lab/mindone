@@ -445,7 +445,7 @@ def _get_checkpoint_shard_files(
             user_agent=user_agent,
         )
         if subfolder is not None:
-            cached_folder = os.path.join(cache_dir, subfolder)
+            cached_folder = os.path.join(cached_folder, subfolder)
 
     # We have already dealt with RepositoryNotFoundError and RevisionNotFoundError when getting the index, so
     # we don't have to catch them here. We have also dealt with EntryNotFoundError.
