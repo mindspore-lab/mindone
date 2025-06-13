@@ -711,14 +711,18 @@ class HYVideoDiffusionTransformer(ModelMixin, ConfigMixin):
         if self._teacache:
             if ms.get_context("mode") == ms.GRAPH_MODE:
                 seq_len = shape[2] * (shape[3] // 2) * (shape[4] // 2)
-                self._accum_rel_l1_distance = ms.Parameter(tensor(0, dtype=self.param_dtype))
+                self._accum_rel_l1_distance = ms.Parameter(
+                    tensor(0, dtype=self.param_dtype), name="accum_rel_l1_distance"
+                )
                 self._prev_mod_input = ms.Parameter(
-                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype)
+                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype),
+                    name="prev_mod_input",
                 )
                 if (sp_group := get_sequence_parallel_group()) is not None:  # Sequence Parallel case
                     seq_len //= get_group_size(sp_group)
                 self._prev_residual = ms.Parameter(
-                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype)
+                    tensor(np.zeros((shape[0], seq_len, self.hidden_size)), dtype=self.param_dtype),
+                    name="prev_residual",
                 )
             else:
                 self._accum_rel_l1_distance = tensor(0, dtype=self.param_dtype)
