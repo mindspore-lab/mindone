@@ -329,7 +329,7 @@ class SAM2Base(nn.Cell):
                     size=self.sam_prompt_encoder.mask_input_size,
                     align_corners=False,
                     mode="bilinear",
-                    antialias=True,  # use antialias for downsampling
+                    # antialias=True,
                 )
             else:
                 sam_mask_prompt = mask_inputs
@@ -427,7 +427,7 @@ class SAM2Base(nn.Cell):
             size=(high_res_masks.shape[-2] // 4, high_res_masks.shape[-1] // 4),
             align_corners=False,
             mode="bilinear",
-            antialias=True,  # use antialias for downsampling
+            # antialias=True,
         )
         # a dummy IoU prediction of all 1's under mask input
         ious = mint.ones((mask_inputs.shape[0], 1))
