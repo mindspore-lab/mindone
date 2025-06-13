@@ -36,6 +36,16 @@ class ImageEncoder(nn.Cell):
         return output
 
 
+class Conv2dWrapper(nn.Cell):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        # a wrapper over nn.Conv2d to handle name "conv":
+        self.conv = nn.Conv2d(*args, **kwargs)
+
+    def construct(self, *args, **kwargs):
+        return self.conv(*args, **kwargs)
+
+
 class FpnNeck(nn.Cell):
     """
     A modified variant of Feature Pyramid Network (FPN) neck
@@ -69,7 +79,7 @@ class FpnNeck(nn.Cell):
         for dim in backbone_channel_list:
             current = ms.nn.SequentialCell()
             current.append(
-                nn.Conv2d(
+                Conv2dWrapper(
                     in_channels=dim,
                     out_channels=d_model,
                     kernel_size=kernel_size,
