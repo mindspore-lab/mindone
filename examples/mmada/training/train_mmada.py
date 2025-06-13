@@ -13,32 +13,21 @@ from typing import Union
 
 import numpy as np
 import torch
-from lightning.pytorch.utilities import CombinedLoader
 from models import MAGVITv2, MMadaConfig, MMadaModelLM, get_mask_schedule
-from models.logging import set_verbosity_error, set_verbosity_info
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
 from parquet import RefinedWebDataset
+from parquet.loader import CombinedLoader, create_dataloader
 from PIL import Image
 from torch.optim import AdamW
-from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
 from training.data import Text2ImageDataset
 from training.imagenet_dataset import ImageNetDataset
 from training.prompting_utils import UniversalPrompting
-from training.utils import flatten_omega_conf, get_config, image_transform
 from transformers import AutoConfig, AutoTokenizer
 
 SYSTEM_PROMPT_LEN = 28
 
-from training.utils import AverageMeter, flatten_omega_conf, get_config, mask_or_random_replace_tokens
-
-try:
-    import apex
-
-    is_apex_available = True
-except ImportError:
-    is_apex_available = False
+from training.utils import AverageMeter, get_config, image_transform, mask_or_random_replace_tokens
 
 logger = logging.getLogger(__name__)
 
@@ -256,14 +245,17 @@ def main():
         sampler = None
         shuffle = True
 
-        train_dataloader_t2i = DataLoader(
+        train_dataloader_t2i = create_dataloader(
             dataset_imagenet,
+            column_names=["image", "input_ids", "class_ids"],
             batch_size=config.training.batch_size_t2i,
             sampler=sampler,
-            collate_fn=dataset_imagenet.collate_fn,
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
         )
+        train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
+        train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
+
         num_update_steps_per_epoch = math.ceil(len(dataset_imagenet) / total_batch_size_t2i)
         num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
@@ -293,6 +285,7 @@ def main():
             add_caption_prompt=dataset_config.add_caption_prompt,
         )
         train_dataloader_mmu = dataset_mmu.train_dataloader
+        train_dataloader_mmu.dataset_size = train_dataloader_mmu.num_batches
 
     elif config.dataset.und_type == "captioning_parquet":
         train_dataloader_mmu = create_imagetext_dataloader(
@@ -319,13 +312,15 @@ def main():
         num_workers=dataset_config.num_workers,
     )
 
-    train_dataloader_lm = torch.utils.data.DataLoader(
+    train_dataloader_lm = create_dataloader(
         dataset_lm,
+        column_names=["input_ids"],
         batch_size=config.training.batch_size_lm,
         sampler=None,
-        collate_fn=dataset_lm.collate_fn,
         num_workers=dataset_config.num_workers,
     )
+    train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
+    train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
 
     # Combine these dataloaders into a single iterable model
     iterables = {

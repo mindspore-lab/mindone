@@ -17,15 +17,14 @@ import ImageReward as RM
 import numpy as np
 import pandas
 import torch
-from lightning.pytorch.utilities import CombinedLoader
 from models import MAGVITv2, MMadaModelLM, get_mask_schedule
 from models.logging import set_verbosity_error, set_verbosity_info
 from models.lr_schedulers import get_scheduler
 from omegaconf import OmegaConf
 from parquet import ChatDataset
+from parquet.loader import CombinedLoader, create_dataloader
 from PIL import Image
 from torch.optim import AdamW
-from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torchmetrics.functional.multimodal import clip_score
 from training.data import Text2ImageDataset
@@ -253,26 +252,20 @@ def main():
             image_size=preproc_config.resolution,
         )
 
-        if accelerator.num_processes > 1:
-            sampler = DistributedSampler(
-                dataset_imagenet,
-                num_replicas=accelerator.num_processes,
-                rank=accelerator.process_index,
-                shuffle=True,
-            )
-            shuffle = False
-        else:
-            sampler = None
-            shuffle = True
+        sampler = None
+        shuffle = True
 
-        train_dataloader_t2i = DataLoader(
+        train_dataloader_t2i = create_dataloader(
             dataset_imagenet,
+            column_names=["image", "input_ids", "class_ids"],
             batch_size=config.training.batch_size_t2i,
             sampler=sampler,
-            collate_fn=dataset_imagenet.collate_fn,
             shuffle=shuffle,
             num_workers=dataset_config.num_workers,
         )
+        train_dataloader_t2i = train_dataloader_t2i.create_dict_iterator(num_epochs=1, output_numpy=True)
+        train_dataloader_t2i.dataset_size = len(dataset_imagenet) // config.training.batch_size_t2i
+
         num_update_steps_per_epoch = math.ceil(len(dataset_imagenet) / total_batch_size_t2i)
         num_train_epochs = math.ceil(config.training.max_train_steps / num_update_steps_per_epoch)
 
@@ -307,6 +300,7 @@ def main():
             add_caption_prompt=dataset_config.add_caption_prompt,
         )
         train_dataloader_mmu = dataset_mmu.train_dataloader
+        train_dataloader_mmu.dataset_size = train_dataloader_mmu.num_batches
 
     elif config.dataset.und_type == "captioning_parquet":
         train_dataloader_mmu = create_imagetext_dataloader(
@@ -334,13 +328,15 @@ def main():
         tokenizer=uni_prompting.text_tokenizer,
     )
 
-    train_dataloader_lm = torch.utils.data.DataLoader(
+    train_dataloader_lm = create_dataloader(
         dataset_lm,
+        column_names=["input_ids"],
         batch_size=config.training.batch_size_lm,
         sampler=None,
-        collate_fn=dataset_lm.collate_fn,
         num_workers=dataset_config.num_workers,
     )
+    train_dataloader_lm = train_dataloader_lm.create_dict_iterator(num_epochs=1, output_numpy=True)
+    train_dataloader_lm.dataset_size = len(dataset_lm) // config.training.batch_size_lm
 
     # Combine these dataloaders into a single iterable model
     iterables = {
