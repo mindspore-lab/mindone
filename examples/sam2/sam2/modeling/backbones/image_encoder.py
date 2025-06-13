@@ -120,7 +120,7 @@ class FpnNeck(nn.Cell):
                     scale_factor=2.0,
                     mode=self.fpn_interp_model,
                     align_corners=(None if self.fpn_interp_model == "nearest" else False),
-                    antialias=False,
+                    # antialias=False,
                 )
                 prev_features = lateral_features + top_down_features
                 if self.fuse_type == "avg":
