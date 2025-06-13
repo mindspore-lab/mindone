@@ -1,5 +1,8 @@
 import warnings
 
+import numpy as np
+from PIL import Image
+
 import mindspore as ms
 import mindspore.mint.nn.functional as F
 from mindspore import mint
@@ -28,10 +31,13 @@ class SAM2Transforms:
         )
 
     def __call__(self, x):
+        if isinstance(x, np.ndarray):
+            x = Image.fromarray(x.to(np.uint8))
+        x = self.transforms(x)
         x = self.to_tensor(x)
-        return self.transforms(x)
+        return ms.tensor(x)
 
-    def forward_batch(self, img_list):
+    def construct_batch(self, img_list):
         img_batch = [self.transforms(self.to_tensor(img)) for img in img_list]
         img_batch = mint.stack(img_batch, dim=0)
         return img_batch
