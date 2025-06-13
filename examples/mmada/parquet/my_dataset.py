@@ -37,6 +37,12 @@ class RefinedWebDataset:
 
         self.files = self.files[self.rank :: self.world_size]
 
+        # compute length ahead
+        self.length = sum(len(pq.read_table(file, columns=["content"])) for file in self.files)
+
+    def __len__(self):
+        return self.length
+
     def read_parquet_file(self, file_path):
         table = pq.read_table(file_path, columns=["content"])
         df = table.to_pandas()
