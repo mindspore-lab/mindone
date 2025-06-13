@@ -2,6 +2,8 @@ import itertools
 import random
 from typing import Any, Dict, Iterator, Tuple
 
+import numpy as np
+
 import mindspore as ms
 from mindspore.communication.management import get_local_rank, get_local_rank_size
 from mindspore.dataset import GeneratorDataset
@@ -64,9 +66,10 @@ class CombinedLoader:
             - "min_size": Stop when the shortest dataloader is exhausted
             - "sequential": Iterate through dataloaders sequentially
             - "random": Randomly sample from dataloaders at each step
+        output_numpy: if True, returns numpy arrays for each element, except for strings
     """
 
-    def __init__(self, iterables: Dict[str, Iterator], mode: str = "max_size_cycle"):
+    def __init__(self, iterables: Dict[str, Iterator], mode: str = "max_size_cycle", output_numpy=True):
         self.iterables = iterables
         self.mode = mode
         self.dataloader_names = list(iterables.keys())
@@ -75,6 +78,7 @@ class CombinedLoader:
         self.lengths = {name: loader.dataset_size for name, loader in iterables.items()}
         self.max_length = max(self.lengths.values())
         self.min_length = min(self.lengths.values())
+        self.output_numpy = output_numpy
 
         if mode == "max_size_cycle":
             self.total_length = self.max_length
@@ -89,6 +93,17 @@ class CombinedLoader:
 
     def __len__(self) -> int:
         return self.total_length
+
+    def _convert_to_numpy(self, input):
+        if isinstance(input, str):
+            return input
+        else:
+            output = np.array(input)
+            assert isinstance(output, np.ndarray)
+            return output
+
+    def convert_to_numpy(self, input_dict):
+        return {key: self._convert_to_numpy(value) for key, value in input_dict.items()}
 
     def __iter__(self) -> Iterator[Tuple[Dict[str, Any], int, int]]:
         if self.mode == "max_size_cycle":
@@ -113,12 +128,12 @@ class CombinedLoader:
             for dataloader_idx, name in enumerate(self.dataloader_names):
                 try:
                     batch_data = next(iterators[name])
-                    combined_batch[name] = batch_data
+                    combined_batch[name] = batch_data if not self.output_numpy else self.convert_to_numpy(batch_data)
                 except StopIteration:
                     # This shouldn't happen with cycle, but just in case
                     iterators[name] = itertools.cycle(self.iterables[name])
                     batch_data = next(iterators[name])
-                    combined_batch[name] = batch_data
+                    combined_batch[name] = batch_data if not self.output_numpy else self.convert_to_numpy(batch_data)
 
             yield combined_batch
 
@@ -131,7 +146,7 @@ class CombinedLoader:
             for dataloader_idx, name in enumerate(self.dataloader_names):
                 try:
                     batch_data = next(iterators[name])
-                    combined_batch[name] = batch_data
+                    combined_batch[name] = batch_data if not self.output_numpy else self.convert_to_numpy(batch_data)
                 except StopIteration:
                     return
 
@@ -185,7 +200,9 @@ class CombinedLoader:
                 if name == chosen_loader:
                     try:
                         batch_data = next(iterators[name])
-                        combined_batch[name] = batch_data
+                        combined_batch[name] = (
+                            batch_data if not self.output_numpy else self.convert_to_numpy(batch_data)
+                        )
                     except StopIteration:
                         exhausted.add(name)
                         # Try to get from another loader
