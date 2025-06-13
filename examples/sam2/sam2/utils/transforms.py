@@ -32,7 +32,7 @@ class SAM2Transforms:
 
     def __call__(self, x):
         if isinstance(x, np.ndarray):
-            x = Image.fromarray(x.to(np.uint8))
+            x = Image.fromarray(x.astype(np.uint8))
         x = self.transforms(x)[0]
         x = self.to_tensor(x)
         return ms.tensor(x)
