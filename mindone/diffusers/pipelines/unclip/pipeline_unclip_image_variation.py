@@ -20,7 +20,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 from ...models import UNet2DConditionModel, UNet2DModel
@@ -173,10 +173,10 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             # For classifier free guidance, we need to do two forward passes.
             # Here we concatenate the unconditional and text embeddings into a single batch
             # to avoid doing two forward passes
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds])
-            text_encoder_hidden_states = ops.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds])
+            text_encoder_hidden_states = mint.cat([uncond_text_encoder_hidden_states, text_encoder_hidden_states])
 
-            text_mask = ops.cat([uncond_text_mask, text_mask])
+            text_mask = mint.cat([uncond_text_mask, text_mask])
 
         return prompt_embeds, text_encoder_hidden_states, text_mask
 
@@ -279,7 +279,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             do_classifier_free_guidance=do_classifier_free_guidance,
         )
 
-        decoder_text_mask = ops.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=True)
+        decoder_text_mask = mint.nn.functional.pad(text_mask, (self.text_proj.clip_extra_context_tokens, 0), value=True)
 
         self.decoder_scheduler.set_timesteps(decoder_num_inference_steps)
         decoder_timesteps_tensor = self.decoder_scheduler.timesteps
@@ -299,7 +299,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
 
         for i, t in enumerate(self.progress_bar(decoder_timesteps_tensor)):
             # expand the latents if we are doing classifier free guidance
-            latent_model_input = ops.cat([decoder_latents] * 2) if do_classifier_free_guidance else decoder_latents
+            latent_model_input = mint.cat([decoder_latents] * 2) if do_classifier_free_guidance else decoder_latents
 
             noise_pred = self.decoder(
                 sample=latent_model_input,
@@ -311,10 +311,10 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
 
             if do_classifier_free_guidance:
                 noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
-                noise_pred_uncond, _ = noise_pred_uncond.split(latent_model_input.shape[1], axis=1)
-                noise_pred_text, predicted_variance = noise_pred_text.split(latent_model_input.shape[1], axis=1)
+                noise_pred_uncond, _ = noise_pred_uncond.split(latent_model_input.shape[1], dim=1)
+                noise_pred_text, predicted_variance = noise_pred_text.split(latent_model_input.shape[1], dim=1)
                 noise_pred = noise_pred_uncond + decoder_guidance_scale * (noise_pred_text - noise_pred_uncond)
-                noise_pred = ops.cat([noise_pred, predicted_variance], axis=1)
+                noise_pred = mint.cat([noise_pred, predicted_variance], dim=1)
 
             if i + 1 == decoder_timesteps_tensor.shape[0]:
                 prev_timestep = None
@@ -351,10 +351,10 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             )
 
         interpolate_antialias = {}
-        if "antialias" in inspect.signature(ops.interpolate).parameters:
+        if "antialias" in inspect.signature(mint.nn.functional.interpolate).parameters:
             interpolate_antialias["antialias"] = True
 
-        image_upscaled = ops.interpolate(
+        image_upscaled = mint.nn.functional.interpolate(
             image_small, size=[height, width], mode="bicubic", align_corners=False, **interpolate_antialias
         )
 
@@ -366,7 +366,7 @@ class UnCLIPImageVariationPipeline(DiffusionPipeline):
             else:
                 unet = self.super_res_first
 
-            latent_model_input = ops.cat([super_res_latents, image_upscaled], axis=1)
+            latent_model_input = mint.cat([super_res_latents, image_upscaled], dim=1)
 
             noise_pred = unet(
                 sample=latent_model_input,

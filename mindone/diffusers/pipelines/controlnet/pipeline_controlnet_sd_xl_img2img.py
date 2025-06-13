@@ -21,7 +21,7 @@ import PIL.Image
 from transformers import CLIPImageProcessor, CLIPTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import CLIPTextModel, CLIPTextModelWithProjection, CLIPVisionModelWithProjection
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -385,13 +385,13 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
 
                 prompt_embeds_list.append(prompt_embeds)
 
-            prompt_embeds = ops.concat(prompt_embeds_list, axis=-1)
+            prompt_embeds = mint.concat(prompt_embeds_list, dim=-1)
 
         # get unconditional embeddings for classifier free guidance
         zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt
         if do_classifier_free_guidance and negative_prompt_embeds is None and zero_out_negative_prompt:
-            negative_prompt_embeds = ops.zeros_like(prompt_embeds)
-            negative_pooled_prompt_embeds = ops.zeros_like(pooled_prompt_embeds)
+            negative_prompt_embeds = mint.zeros_like(prompt_embeds)
+            negative_pooled_prompt_embeds = mint.zeros_like(pooled_prompt_embeds)
         elif do_classifier_free_guidance and negative_prompt_embeds is None:
             negative_prompt = negative_prompt or ""
             negative_prompt_2 = negative_prompt_2 or negative_prompt
@@ -438,7 +438,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
 
                 negative_prompt_embeds_list.append(negative_prompt_embeds)
 
-            negative_prompt_embeds = ops.concat(negative_prompt_embeds_list, axis=-1)
+            negative_prompt_embeds = mint.concat(negative_prompt_embeds_list, dim=-1)
 
         if self.text_encoder_2 is not None:
             prompt_embeds = prompt_embeds.to(dtype=self.text_encoder_2.dtype)
@@ -494,7 +494,9 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         if output_hidden_states:
             image_enc_hidden_states = self.image_encoder(image, output_hidden_states=True)[2][-2]
             image_enc_hidden_states = image_enc_hidden_states.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_enc_hidden_states = self.image_encoder(ops.zeros_like(image), output_hidden_states=True)[2][-2]
+            uncond_image_enc_hidden_states = self.image_encoder(mint.zeros_like(image), output_hidden_states=True)[2][
+                -2
+            ]
             uncond_image_enc_hidden_states = uncond_image_enc_hidden_states.repeat_interleave(
                 num_images_per_prompt, dim=0
             )
@@ -502,7 +504,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         else:
             image_embeds = self.image_encoder(image)[0]
             image_embeds = image_embeds.repeat_interleave(num_images_per_prompt, dim=0)
-            uncond_image_embeds = ops.zeros_like(image_embeds)
+            uncond_image_embeds = mint.zeros_like(image_embeds)
 
             return image_embeds, uncond_image_embeds
 
@@ -527,11 +529,11 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
                 single_image_embeds, single_negative_image_embeds = self.encode_image(
                     single_ip_adapter_image, 1, output_hidden_state
                 )
-                single_image_embeds = ops.stack([single_image_embeds] * num_images_per_prompt, axis=0)
-                single_negative_image_embeds = ops.stack([single_negative_image_embeds] * num_images_per_prompt, axis=0)
+                single_image_embeds = mint.stack([single_image_embeds] * num_images_per_prompt, dim=0)
+                single_negative_image_embeds = mint.stack([single_negative_image_embeds] * num_images_per_prompt, dim=0)
 
                 if do_classifier_free_guidance:
-                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+                    single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
 
                 image_embeds.append(single_image_embeds)
         else:
@@ -539,14 +541,14 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
             image_embeds = []
             for single_image_embeds in ip_adapter_image_embeds:
                 if do_classifier_free_guidance:
-                    single_negative_image_embeds, single_image_embeds = single_image_embeds.chunk(2)
+                    single_negative_image_embeds, single_image_embeds = mint.chunk(single_image_embeds, 2)
                     single_image_embeds = single_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
                     )
                     single_negative_image_embeds = single_negative_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_negative_image_embeds.shape[1:])))
                     )
-                    single_image_embeds = ops.cat([single_negative_image_embeds, single_image_embeds])
+                    single_image_embeds = mint.cat([single_negative_image_embeds, single_image_embeds])
                 else:
                     single_image_embeds = single_image_embeds.tile(
                         (num_images_per_prompt, *(repeat_dims * len(single_image_embeds.shape[1:])))
@@ -819,7 +821,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         image = image.to(dtype)
 
         if do_classifier_free_guidance and not guess_mode:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 
@@ -874,7 +876,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
                     retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator)
                     for i in range(batch_size)
                 ]
-                init_latents = ops.cat(init_latents, axis=0)
+                init_latents = mint.cat(init_latents, dim=0)
             else:
                 init_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator)
 
@@ -892,13 +894,13 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         if batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] == 0:
             # expand init_latents for batch_size
             additional_image_per_prompt = batch_size // init_latents.shape[0]
-            init_latents = ops.cat([init_latents] * additional_image_per_prompt, axis=0)
+            init_latents = mint.cat([init_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > init_latents.shape[0] and batch_size % init_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {init_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            init_latents = ops.cat([init_latents], axis=0)
+            init_latents = mint.cat([init_latents], dim=0)
 
         if add_noise:
             shape = init_latents.shape
@@ -936,7 +938,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         passed_add_embed_dim = (
             self.unet.config.addition_time_embed_dim * len(add_time_ids) + text_encoder_projection_dim
         )
-        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_channels
+        expected_add_embed_dim = self.unet.add_embedding.linear_1.in_features
 
         if (
             expected_add_embed_dim > passed_add_embed_dim
@@ -1360,7 +1362,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         # 5. Prepare timesteps
         self.scheduler.set_timesteps(num_inference_steps)
         timesteps, num_inference_steps = self.get_timesteps(num_inference_steps, strength)
-        latent_timestep = timesteps[:1].tile((batch_size * num_images_per_prompt,))
+        latent_timestep = mint.tile(timesteps[:1], (batch_size * num_images_per_prompt,))
         self._num_timesteps = len(timesteps)
 
         # 6. Prepare latent variables
@@ -1420,10 +1422,10 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
         add_time_ids = add_time_ids.tile((batch_size * num_images_per_prompt, 1))
 
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            add_text_embeds = ops.cat([negative_pooled_prompt_embeds, add_text_embeds], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            add_text_embeds = mint.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
             add_neg_time_ids = add_neg_time_ids.tile((batch_size * num_images_per_prompt, 1))
-            add_time_ids = ops.cat([add_neg_time_ids, add_time_ids], axis=0)
+            add_time_ids = mint.cat([add_neg_time_ids, add_time_ids], dim=0)
 
         # we're popping the `scale` instead of getting it because otherwise `scale` will be propagated
         # to the unet and will raise RuntimeError.
@@ -1440,7 +1442,7 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
                     continue
 
                 # expand the latents if we are doing classifier free guidance
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 # TODO: method of scheduler should not change the dtype of input.
                 #  Remove the casting after cuiyushi confirm that.
                 tmp_dtype = latent_model_input.dtype
@@ -1486,8 +1488,8 @@ class StableDiffusionXLControlNetImg2ImgPipeline(
                     # Infered ControlNet only for the conditional batch.
                     # To apply the output of ControlNet to both the unconditional and conditional batches,
                     # add 0 to the unconditional batch to keep it unchanged.
-                    down_block_res_samples = [ops.cat([ops.zeros_like(d), d]) for d in down_block_res_samples]
-                    mid_block_res_sample = ops.cat([ops.zeros_like(mid_block_res_sample), mid_block_res_sample])
+                    down_block_res_samples = [mint.cat([mint.zeros_like(d), d]) for d in down_block_res_samples]
+                    mid_block_res_sample = mint.cat([mint.zeros_like(mid_block_res_sample), mid_block_res_sample])
 
                 if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
                     added_cond_kwargs["image_embeds"] = image_embeds

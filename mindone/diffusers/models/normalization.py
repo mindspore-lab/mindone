@@ -18,7 +18,7 @@ from typing import Dict, Optional, Tuple
 import numpy as np
 
 import mindspore as ms
-from mindspore import Parameter, Tensor, nn, ops
+from mindspore import Parameter, Tensor, mint, nn, ops
 from mindspore.common.initializer import initializer
 
 from .activations import get_activation
@@ -54,12 +54,12 @@ class AdaLayerNorm(nn.Cell):
         output_dim = output_dim or embedding_dim * 2
 
         if num_embeddings is not None:
-            self.emb = nn.Embedding(num_embeddings, embedding_dim)
+            self.emb = mint.nn.Embedding(num_embeddings, embedding_dim)
         else:
             self.emb = None
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, output_dim)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, output_dim)
         self.norm = LayerNorm(output_dim // 2, norm_eps, norm_elementwise_affine)
 
     def construct(
@@ -73,11 +73,11 @@ class AdaLayerNorm(nn.Cell):
         if self.chunk_dim == 1:
             # This is a bit weird why we have the order of "shift, scale" here and "scale, shift" in the
             # other if-branch. This branch is specific to CogVideoX for now.
-            shift, scale = temb.chunk(2, axis=1)
+            shift, scale = temb.chunk(2, dim=1)
             shift = shift[:, None, :]
             scale = scale[:, None, :]
         else:
-            scale, shift = temb.chunk(2, axis=0)
+            scale, shift = temb.chunk(2, dim=0)
 
         x = self.norm(x) * (1 + scale) + shift
         return x
@@ -95,8 +95,8 @@ class SD35AdaLayerNormZeroX(nn.Cell):
     def __init__(self, embedding_dim: int, norm_type: str = "layer_norm", bias: bool = True) -> None:
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 9 * embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 9 * embedding_dim, bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         else:
@@ -109,7 +109,7 @@ class SD35AdaLayerNormZeroX(nn.Cell):
     ) -> Tuple[ms.Tensor, ...]:
         emb = self.linear(self.silu(emb))
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp, shift_msa2, scale_msa2, gate_msa2 = emb.chunk(
-            9, axis=1
+            9, dim=1
         )
         norm_hidden_states = self.norm(hidden_states)
         hidden_states = norm_hidden_states * (1 + scale_msa[:, None]) + shift_msa[:, None]
@@ -133,8 +133,8 @@ class AdaLayerNormZero(nn.Cell):
         else:
             self.emb = None
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 6 * embedding_dim, bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         elif norm_type == "fp32_layer_norm":
@@ -155,7 +155,7 @@ class AdaLayerNormZero(nn.Cell):
         if self.emb is not None:
             emb = self.emb(timestep, class_labels, hidden_dtype=hidden_dtype)
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = emb.chunk(6, dim=1)
         # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
         x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa, shift_mlp, scale_mlp, gate_mlp
@@ -173,8 +173,8 @@ class AdaLayerNormZeroSingle(nn.Cell):
     def __init__(self, embedding_dim: int, norm_type="layer_norm", bias=True):
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 3 * embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 3 * embedding_dim, bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, elementwise_affine=False, eps=1e-6)
         else:
@@ -188,7 +188,7 @@ class AdaLayerNormZeroSingle(nn.Cell):
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
         emb = self.linear(self.silu(emb))
-        shift_msa, scale_msa, gate_msa = emb.chunk(3, axis=1)
+        shift_msa, scale_msa, gate_msa = emb.chunk(3, dim=1)
         # x = self.norm(x) * (1 + scale_msa[:, None]) + shift_msa[:, None]
         x = self.norm(x) * (1 + scale_msa.expand_dims(axis=1)) + shift_msa.expand_dims(axis=1)
         return x, gate_msa
@@ -204,22 +204,21 @@ class LuminaRMSNormZero(nn.Cell):
 
     def __init__(self, embedding_dim: int, norm_eps: float, norm_elementwise_affine: bool):
         super().__init__()
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(
             min(embedding_dim, 1024),
             4 * embedding_dim,
-            has_bias=True,
+            bias=True,
         )
-        self.norm = RMSNorm(embedding_dim, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm = RMSNorm(embedding_dim, eps=norm_eps)
 
     def construct(
         self,
         x: ms.Tensor,
         emb: Optional[ms.Tensor] = None,
     ) -> Tuple[ms.Tensor, ms.Tensor, ms.Tensor, ms.Tensor]:
-        # emb = self.emb(timestep, encoder_hidden_states, encoder_mask)
         emb = self.linear(self.silu(emb))
-        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, axis=1)
+        scale_msa, gate_msa, scale_mlp, gate_mlp = emb.chunk(4, dim=1)
         x = self.norm(x) * (1 + scale_msa[:, None])
 
         return x, gate_msa, scale_mlp, gate_mlp
@@ -243,8 +242,8 @@ class AdaLayerNormSingle(nn.Cell):
             embedding_dim, size_emb_dim=embedding_dim // 3, use_additional_conditions=use_additional_conditions
         )
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 6 * embedding_dim, has_bias=True)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 6 * embedding_dim, bias=True)
 
     def construct(
         self,
@@ -283,14 +282,14 @@ class AdaGroupNorm(nn.Cell):
         else:
             self.act = get_activation(act_fn)()
 
-        self.linear = nn.Dense(embedding_dim, out_dim * 2)
+        self.linear = mint.nn.Linear(embedding_dim, out_dim * 2)
 
     def construct(self, x: ms.Tensor, emb: ms.Tensor) -> ms.Tensor:
         if self.act:
             emb = self.act(emb)
         emb = self.linear(emb)
         emb = emb[:, :, None, None]
-        scale, shift = emb.chunk(2, axis=1)
+        scale, shift = emb.chunk(2, dim=1)
 
         x = group_norm(x, self.num_groups, None, None, self.eps)
         x = x * (1 + scale) + shift
@@ -313,8 +312,8 @@ class AdaLayerNormContinuous(nn.Cell):
         norm_type="layer_norm",
     ):
         super().__init__()
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(conditioning_embedding_dim, embedding_dim * 2, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(conditioning_embedding_dim, embedding_dim * 2, bias=bias)
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias=bias)
         elif norm_type == "rms_norm":
@@ -325,7 +324,7 @@ class AdaLayerNormContinuous(nn.Cell):
     def construct(self, x: ms.Tensor, conditioning_embedding: ms.Tensor) -> ms.Tensor:
         # convert back to the original dtype in case `conditioning_embedding`` is upcasted to float32 (needed for hunyuanDiT)
         emb = self.linear(self.silu(conditioning_embedding).to(x.dtype))
-        scale, shift = ops.chunk(emb, 2, axis=1)
+        scale, shift = mint.chunk(emb, 2, dim=1)
         # x = self.norm(x) * (1 + scale)[:, None, :] + shift[:, None, :]
         x = self.norm(x) * (1 + scale).expand_dims(axis=1) + shift.expand_dims(axis=1)
         return x
@@ -350,8 +349,8 @@ class LuminaLayerNormContinuous(nn.Cell):
         super().__init__()
 
         # AdaLN
-        self.silu = nn.SiLU()
-        self.linear_1 = nn.Dense(conditioning_embedding_dim, embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear_1 = mint.nn.Linear(conditioning_embedding_dim, embedding_dim, bias=bias)
 
         if norm_type == "layer_norm":
             self.norm = LayerNorm(embedding_dim, eps, elementwise_affine, bias)
@@ -362,7 +361,7 @@ class LuminaLayerNormContinuous(nn.Cell):
 
         self.linear_2 = None
         if out_dim is not None:
-            self.linear_2 = nn.Dense(embedding_dim, out_dim, has_bias=bias)
+            self.linear_2 = mint.nn.Linear(embedding_dim, out_dim, bias=bias)
 
     def construct(
         self,
@@ -392,8 +391,8 @@ class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
     def __init__(self, embedding_dim: int, dim: int):
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(embedding_dim, 12 * dim, has_bias=True)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 12 * dim, bias=True)
         self.norm_x = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
         self.norm_c = LayerNorm(dim, elementwise_affine=False, eps=1e-5)
 
@@ -417,7 +416,7 @@ class CogView3PlusAdaLayerNormZeroTextImage(nn.Cell):
             c_shift_mlp,
             c_scale_mlp,
             c_gate_mlp,
-        ) = emb.chunk(12, axis=1)
+        ) = emb.chunk(12, dim=1)
         normed_x = self.norm_x(x)
         normed_context = self.norm_c(context)
         x = normed_x * (1 + scale_msa[:, None]) + shift_msa[:, None]
@@ -436,14 +435,14 @@ class CogVideoXLayerNormZero(nn.Cell):
     ) -> None:
         super().__init__()
 
-        self.silu = nn.SiLU()
-        self.linear = nn.Dense(conditioning_dim, 6 * embedding_dim, has_bias=bias)
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(conditioning_dim, 6 * embedding_dim, bias=bias)
         self.norm = LayerNorm(embedding_dim, eps=eps, elementwise_affine=elementwise_affine)
 
     def construct(
         self, hidden_states: ms.Tensor, encoder_hidden_states: ms.Tensor, temb: ms.Tensor
     ) -> Tuple[ms.Tensor, ms.Tensor]:
-        shift, scale, gate, enc_shift, enc_scale, enc_gate = self.linear(self.silu(temb)).chunk(6, axis=1)
+        shift, scale, gate, enc_shift, enc_scale, enc_gate = self.linear(self.silu(temb)).chunk(6, dim=1)
         hidden_states = self.norm(hidden_states) * (1 + scale)[:, None, :] + shift[:, None, :]
         encoder_hidden_states = self.norm(encoder_hidden_states) * (1 + enc_scale)[:, None, :] + enc_shift[:, None, :]
         return hidden_states, encoder_hidden_states, gate[:, None, :], enc_gate[:, None, :]
@@ -465,7 +464,7 @@ class LayerNorm(nn.Cell):
     :math:`\gamma` and :math:`\beta` are learnable affine transform parameters of
     :attr:`normalized_shape` if :attr:`elementwise_affine` is ``True``.
     The standard-deviation is calculated via the biased estimator, equivalent to
-    `ops.var(input, unbiased=False)`.
+    `mint.var(input, unbiased=False)`.
 
     .. note::
         Unlike Batch Normalization and Instance Normalization, which applies
@@ -507,14 +506,14 @@ class LayerNorm(nn.Cell):
 
         >>> # NLP Example
         >>> batch, sentence_length, embedding_dim = 20, 5, 10
-        >>> embedding = ops.randn(batch, sentence_length, embedding_dim)
+        >>> embedding = mint.randn(batch, sentence_length, embedding_dim)
         >>> layer_norm = LayerNorm(embedding_dim)
         >>> # Activate module
         >>> layer_norm(embedding)
         >>>
         >>> # Image Example
         >>> N, C, H, W = 20, 5, 10, 10
-        >>> input = ops.randn(N, C, H, W)
+        >>> input = mint.randn(N, C, H, W)
         >>> # Normalize over the last three dimensions (i.e. the channel and spatial dimensions)
         >>> # as shown in the image below
         >>> layer_norm = LayerNorm([C, H, W])
@@ -545,22 +544,23 @@ class LayerNorm(nn.Cell):
             self.bias = ms.Tensor.from_numpy(_bias)
         # TODO: In fact, we need -len(normalized_shape) instead of -1, but LayerNorm doesn't allow it.
         #  For positive axis, the ndim of input is needed. Put it in construct?
-        self.layer_norm = ops.LayerNorm(-1, -1, epsilon=eps)
 
     def construct(self, x: Tensor):
-        x, _, _ = self.layer_norm(x, self.weight.to(x.dtype), self.bias.to(x.dtype))
-        return x
+        return mint.nn.functional.layer_norm(
+            x, self.normalized_shape, self.weight.to(x.dtype), self.bias.to(x.dtype), self.eps
+        )
 
 
 class FP32LayerNorm(LayerNorm):
     def construct(self, inputs: ms.Tensor) -> ms.Tensor:
         origin_dtype = inputs.dtype
-        x, _, _ = self.layer_norm(
+        return mint.nn.functional.layer_norm(
             inputs.float(),
+            self.normalized_shape,
             self.weight.float() if self.weight is not None else None,
             self.bias.float() if self.bias is not None else None,
-        )
-        return x.to(origin_dtype)
+            self.eps,
+        ).to(origin_dtype)
 
 
 class GroupNorm(nn.Cell):
@@ -596,7 +596,7 @@ class GroupNorm(nn.Cell):
 
     Examples::
 
-        >>> input = ops.randn(20, 6, 10, 10)
+        >>> input = mint.randn(20, 6, 10, 10)
         >>> # Separate 6 channels into 3 groups
         >>> m = GroupNorm(3, 6)
         >>> # Separate 6 channels into 6 groups (equivalent with InstanceNorm)
@@ -654,24 +654,21 @@ class RMSNorm(nn.Cell):
         self.bias = None
 
         if elementwise_affine:
-            self.weight = ms.Parameter(ops.ones(dim), name="weight")
+            self.weight = ms.Parameter(mint.ones(dim), name="weight")
             if bias:
-                self.bias = ms.Parameter(ops.zeros(dim), name="bias")
+                self.bias = ms.Parameter(mint.zeros(dim), name="bias")
 
     def construct(self, hidden_states):
-        input_dtype = hidden_states.dtype
-        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
-
         if self.weight is not None:
             # convert into half-precision if necessary
             if self.weight.dtype in [ms.float16, ms.bfloat16]:
                 hidden_states = hidden_states.to(self.weight.dtype)
-            hidden_states = hidden_states * self.weight
-            if self.bias is not None:
-                hidden_states = hidden_states + self.bias
+            weight = self.weight
         else:
-            hidden_states = hidden_states.to(input_dtype)
+            weight = ops.ones(hidden_states.shape[-1], dtype=hidden_states.dtype)
+        hidden_states = ops.rms_norm(hidden_states, weight, epsilon=self.eps)[0]
+        if self.bias is not None:
+            hidden_states = hidden_states + self.bias
 
         return hidden_states
 
@@ -690,14 +687,14 @@ class MochiRMSNorm(nn.Cell):
         self.dim = dim
 
         if elementwise_affine:
-            self.weight = ms.Parameter(ops.ones(dim), name="weight")
+            self.weight = ms.Parameter(mint.ones(dim), name="weight")
         else:
             self.weight = None
 
     def construct(self, hidden_states):
         input_dtype = hidden_states.dtype
-        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keep_dims=True)
-        hidden_states = hidden_states * ops.rsqrt(variance + self.eps)
+        variance = hidden_states.to(ms.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * mint.rsqrt(variance + self.eps)
 
         if self.weight is not None:
             hidden_states = hidden_states * self.weight
@@ -710,12 +707,12 @@ class GlobalResponseNorm(nn.Cell):
     # Taken from https://github.com/facebookresearch/ConvNeXt-V2/blob/3608f67cc1dae164790c5d0aead7bf2d73d9719b/models/utils.py#L105
     def __init__(self, dim):
         super().__init__()
-        self.gamma = ms.Parameter(ops.zeros(size=(1, 1, 1, dim)), name="gamma")
-        self.beta = ms.Parameter(ops.zeros(size=(1, 1, 1, dim)), name="beta")
+        self.gamma = ms.Parameter(mint.zeros(size=(1, 1, 1, dim)), name="gamma")
+        self.beta = ms.Parameter(mint.zeros(size=(1, 1, 1, dim)), name="beta")
 
     def construct(self, x):
-        gx = ms.mint.norm(x, p=2, dim=(1, 2), keepdim=True)
-        nx = gx / (gx.mean(axis=-1, keep_dims=True) + 1e-6)
+        gx = mint.norm(x, p=2, dim=(1, 2), keepdim=True)
+        nx = gx / (gx.mean(dim=-1, keepdim=True) + 1e-6)
         out = (self.gamma * (x * nx) + self.beta + x).to(x.dtype)
         return out
 
@@ -729,7 +726,7 @@ class LpNorm(nn.Cell):
         self.eps = eps
 
     def construct(self, hidden_states: ms.Tensor) -> ms.Tensor:
-        return hidden_states / ops.LpNorm(axis=self.dim, p=self.p, epsilon=self.eps)(hidden_states)
+        return mint.nn.functional.normalize(hidden_states, p=self.p, dim=self.dim, eps=self.eps)
 
 
 def get_normalization(
@@ -744,7 +741,7 @@ def get_normalization(
     elif norm_type == "layer_norm":
         norm = LayerNorm(num_features, eps=eps, elementwise_affine=elementwise_affine, bias=bias)
     elif norm_type == "batch_norm":
-        norm = nn.BatchNorm2d(num_features, eps=eps, affine=elementwise_affine)
+        norm = mint.nn.BatchNorm2d(num_features, eps=eps, affine=elementwise_affine)
     else:
         raise ValueError(f"{norm_type=} is not supported.")
     return norm

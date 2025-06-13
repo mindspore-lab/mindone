@@ -276,13 +276,18 @@ def compute_diffs(pt_outputs: torch.Tensor, ms_outputs: ms.Tensor):
         if isinstance(p, BaseOutput):
             p = tuple(p.values())[0]
 
-        p = p.detach().cpu().numpy()
-        m = m.asnumpy()
-
-        # relative error defined by Frobenius norm
-        # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
-        d = np.linalg.norm(p - m) / np.linalg.norm(p)
-
-        diffs.append(d)
+        if isinstance(p, tuple):
+            for index, value in enumerate(p):
+                p = p[index] if isinstance(p[index], np.ndarray) else p[index].detach().cpu().numpy()
+                m = m[index] if isinstance(m[index], np.ndarray) else m[index].asnumpy()
+                d = np.linalg.norm(p - m) / np.linalg.norm(p)
+                diffs.append(d)
+        else:
+            p = p.detach().cpu().numpy()
+            m = m.asnumpy()
+            # relative error defined by Frobenius norm
+            # dist(x, y) := ||x - y|| / ||y||, where ||·|| means Frobenius norm
+            d = np.linalg.norm(p - m) / np.linalg.norm(p)
+            diffs.append(d)
 
     return diffs

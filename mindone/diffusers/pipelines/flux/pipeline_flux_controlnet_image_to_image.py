@@ -5,7 +5,7 @@ import numpy as np
 from transformers import CLIPTokenizer, T5TokenizerFast
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from mindone.transformers import CLIPTextModel, T5EncoderModel
 
@@ -382,7 +382,7 @@ class FluxControlNetImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
                 unscale_lora_layers(self.text_encoder_2, lora_scale)
 
         dtype = self.text_encoder.dtype if self.text_encoder is not None else self.transformer.dtype
-        text_ids = ops.zeros((prompt_embeds.shape[1], 3)).to(dtype=dtype)
+        text_ids = mint.zeros((prompt_embeds.shape[1], 3)).to(dtype=dtype)
 
         return prompt_embeds, pooled_prompt_embeds, text_ids
 
@@ -393,7 +393,7 @@ class FluxControlNetImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
                 retrieve_latents(self.vae, self.vae.encode(image[i : i + 1])[0], generator=generator[i])
                 for i in range(image.shape[0])
             ]
-            image_latents = ops.cat(image_latents, axis=0)
+            image_latents = mint.cat(image_latents, dim=0)
         else:
             image_latents = retrieve_latents(self.vae, self.vae.encode(image)[0], generator=generator)
 
@@ -470,9 +470,9 @@ class FluxControlNetImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
     @staticmethod
     # Copied from diffusers.pipelines.flux.pipeline_flux.FluxPipeline._prepare_latent_image_ids
     def _prepare_latent_image_ids(batch_size, height, width, dtype):
-        latent_image_ids = ops.zeros((height, width, 3))
-        latent_image_ids[..., 1] = latent_image_ids[..., 1] + ops.arange(height)[:, None]
-        latent_image_ids[..., 2] = latent_image_ids[..., 2] + ops.arange(width)[None, :]
+        latent_image_ids = mint.zeros((height, width, 3))
+        latent_image_ids[..., 1] = latent_image_ids[..., 1] + mint.arange(height)[:, None]
+        latent_image_ids[..., 2] = latent_image_ids[..., 2] + mint.arange(width)[None, :]
 
         latent_image_id_height, latent_image_id_width, latent_image_id_channels = latent_image_ids.shape
 
@@ -542,13 +542,13 @@ class FluxControlNetImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
         if batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] == 0:
             # expand init_latents for batch_size
             additional_image_per_prompt = batch_size // image_latents.shape[0]
-            image_latents = ops.cat([image_latents] * additional_image_per_prompt, axis=0)
+            image_latents = mint.cat([image_latents] * additional_image_per_prompt, dim=0)
         elif batch_size > image_latents.shape[0] and batch_size % image_latents.shape[0] != 0:
             raise ValueError(
                 f"Cannot duplicate `image` of batch size {image_latents.shape[0]} to {batch_size} text prompts."
             )
         else:
-            image_latents = ops.cat([image_latents], axis=0)
+            image_latents = mint.cat([image_latents], dim=0)
 
         noise = randn_tensor(shape, generator=generator, dtype=dtype)
         latents = self.scheduler.scale_noise(image_latents, timestep, noise)
@@ -585,7 +585,7 @@ class FluxControlNetImg2ImgPipeline(DiffusionPipeline, FluxLoraLoaderMixin, From
         image = image.to(dtype=dtype)
 
         if do_classifier_free_guidance and not guess_mode:
-            image = ops.cat([image] * 2)
+            image = mint.cat([image] * 2)
 
         return image
 

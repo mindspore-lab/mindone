@@ -21,7 +21,7 @@ import scipy.stats
 from scipy import integrate
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ..configuration_utils import ConfigMixin, register_to_config
 from ..utils import BaseOutput
@@ -168,7 +168,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
             raise NotImplementedError(f"{beta_schedule} is not implemented for {self.__class__}")
 
         self.alphas = 1.0 - self.betas
-        self.alphas_cumprod = ops.cumprod(self.alphas, dim=0)
+        self.alphas_cumprod = mint.cumprod(self.alphas, dim=0)
 
         sigmas = (((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5).asnumpy()
         sigmas = np.concatenate([sigmas[::-1], [0.0]]).astype(np.float32)
@@ -543,7 +543,7 @@ class LMSDiscreteScheduler(SchedulerMixin, ConfigMixin):
         sigma = sigmas[step_indices].flatten()
         # while len(sigma.shape) < len(original_samples.shape):
         #     sigma = sigma.unsqueeze(-1)
-        sigma = ops.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
+        sigma = mint.reshape(sigma, (timesteps.shape[0],) + (1,) * (len(broadcast_shape) - 1))
 
         noisy_samples = original_samples + noise * sigma
         return noisy_samples

@@ -15,7 +15,7 @@
 
 from typing import Dict, Union
 
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
@@ -72,7 +72,7 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
     ):
         super().__init__()
 
-        self.encoder_proj = nn.Dense(encoder_hidden_size, hidden_size, has_bias=use_bias)
+        self.encoder_proj = mint.nn.Linear(encoder_hidden_size, hidden_size, bias=use_bias)
         self.encoder_proj_layer_norm = RMSNorm(hidden_size, layer_norm_eps, ln_elementwise_affine)
 
         self.embed = UVit2DConvEmbed(
@@ -98,7 +98,7 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         self.project_to_hidden_norm = RMSNorm(block_out_channels, layer_norm_eps, ln_elementwise_affine)
-        self.project_to_hidden = nn.Dense(block_out_channels, hidden_size, has_bias=use_bias)
+        self.project_to_hidden = mint.nn.Linear(block_out_channels, hidden_size, bias=use_bias)
 
         self.transformer_layers = nn.CellList(
             [
@@ -123,7 +123,7 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         self.project_from_hidden_norm = RMSNorm(hidden_size, layer_norm_eps, ln_elementwise_affine)
-        self.project_from_hidden = nn.Dense(hidden_size, block_out_channels, has_bias=use_bias)
+        self.project_from_hidden = mint.nn.Linear(hidden_size, block_out_channels, bias=use_bias)
 
         self.up_block = UVitBlock(
             block_out_channels,
@@ -153,12 +153,15 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         encoder_hidden_states = self.encoder_proj_layer_norm(encoder_hidden_states)
 
         micro_cond_embeds = get_timestep_embedding(
-            micro_conds.flatten(), self.config["micro_cond_encode_dim"], flip_sin_to_cos=True, downscale_freq_shift=0
+            micro_conds.flatten(),
+            self.config["micro_cond_encode_dim"],
+            flip_sin_to_cos=True,
+            downscale_freq_shift=0,
         )
 
         micro_cond_embeds = micro_cond_embeds.reshape((input_ids.shape[0], -1)).to(pooled_text_emb.dtype)
 
-        pooled_text_emb = ops.cat([pooled_text_emb, micro_cond_embeds], axis=1)
+        pooled_text_emb = mint.cat([pooled_text_emb, micro_cond_embeds], dim=1)
         pooled_text_emb = pooled_text_emb.to(dtype=encoder_hidden_states.dtype)
         pooled_text_emb = self.cond_embed(pooled_text_emb).to(encoder_hidden_states.dtype)
 
@@ -172,7 +175,7 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         )
 
         batch_size, channels, height, width = hidden_states.shape
-        hidden_states = hidden_states.permute(0, 2, 3, 1).reshape(batch_size, height * width, channels)
+        hidden_states = mint.reshape(mint.permute(hidden_states, (0, 2, 3, 1)), (batch_size, height * width, channels))
 
         hidden_states = self.project_to_hidden_norm(hidden_states)
         hidden_states = self.project_to_hidden(hidden_states)
@@ -278,9 +281,9 @@ class UVit2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 class UVit2DConvEmbed(nn.Cell):
     def __init__(self, in_channels, block_out_channels, vocab_size, elementwise_affine, eps, bias):
         super().__init__()
-        self.embeddings = nn.Embedding(vocab_size, in_channels)
+        self.embeddings = mint.nn.Embedding(vocab_size, in_channels)
         self.layer_norm = RMSNorm(in_channels, eps, elementwise_affine)
-        self.conv = nn.Conv2d(in_channels, block_out_channels, kernel_size=1, has_bias=bias)
+        self.conv = mint.nn.Conv2d(in_channels, block_out_channels, kernel_size=1, bias=bias)
 
     def construct(self, input_ids):
         embeddings = self.embeddings(input_ids)
@@ -394,22 +397,21 @@ class ConvNextBlock(nn.Cell):
         self, channels, layer_norm_eps, ln_elementwise_affine, use_bias, hidden_dropout, hidden_size, res_ffn_factor=4
     ):
         super().__init__()
-        self.depthwise = nn.Conv2d(
+        self.depthwise = mint.nn.Conv2d(
             channels,
             channels,
             kernel_size=3,
-            pad_mode="pad",
             padding=1,
-            group=channels,
-            has_bias=use_bias,
+            groups=channels,
+            bias=use_bias,
         )
         self.norm = RMSNorm(channels, layer_norm_eps, ln_elementwise_affine)
-        self.channelwise_linear_1 = nn.Dense(channels, int(channels * res_ffn_factor), has_bias=use_bias)
-        self.channelwise_act = nn.GELU(approximate=False)
+        self.channelwise_linear_1 = mint.nn.Linear(channels, int(channels * res_ffn_factor), bias=use_bias)
+        self.channelwise_act = mint.nn.GELU()
         self.channelwise_norm = GlobalResponseNorm(int(channels * res_ffn_factor))
-        self.channelwise_linear_2 = nn.Dense(int(channels * res_ffn_factor), channels, has_bias=use_bias)
-        self.channelwise_dropout = nn.Dropout(p=hidden_dropout)
-        self.cond_embeds_mapper = nn.Dense(hidden_size, channels * 2, has_bias=use_bias)
+        self.channelwise_linear_2 = mint.nn.Linear(int(channels * res_ffn_factor), channels, bias=use_bias)
+        self.channelwise_dropout = mint.nn.Dropout(p=hidden_dropout)
+        self.cond_embeds_mapper = mint.nn.Linear(hidden_size, channels * 2, bias=use_bias)
 
     def construct(self, x, cond_embeds):
         x_res = x
@@ -429,7 +431,7 @@ class ConvNextBlock(nn.Cell):
 
         x = x + x_res
 
-        scale, shift = self.cond_embeds_mapper(ops.silu(cond_embeds)).chunk(2, axis=1)
+        scale, shift = self.cond_embeds_mapper(mint.nn.functional.silu(cond_embeds)).chunk(2, dim=1)
         x = x * (1 + scale[:, :, None, None]) + shift[:, :, None, None]
 
         return x
@@ -446,9 +448,9 @@ class ConvMlmLayer(nn.Cell):
         codebook_size: int,
     ):
         super().__init__()
-        self.conv1 = nn.Conv2d(block_out_channels, in_channels, kernel_size=1, has_bias=use_bias)
+        self.conv1 = mint.nn.Conv2d(block_out_channels, in_channels, kernel_size=1, bias=use_bias)
         self.layer_norm = RMSNorm(in_channels, layer_norm_eps, ln_elementwise_affine)
-        self.conv2 = nn.Conv2d(in_channels, codebook_size, kernel_size=1, has_bias=use_bias)
+        self.conv2 = mint.nn.Conv2d(in_channels, codebook_size, kernel_size=1, bias=use_bias)
 
     def construct(self, hidden_states):
         hidden_states = self.conv1(hidden_states)
