@@ -3,7 +3,7 @@
 from typing import Tuple
 
 import mindspore as ms
-import mindspore.mint.functional as F
+import mindspore.mint.nn.functional as F
 from mindspore.mint import nn
 
 
