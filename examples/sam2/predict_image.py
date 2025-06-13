@@ -65,6 +65,8 @@ def show_masks(image, masks, scores, point_coords=None, box_coords=None, input_l
         if len(scores) > 1:
             plt.title(f"Mask {i+1}, Score: {score:.3f}", fontsize=18)
         plt.axis("off")
+        fig_path = args.image_path.replace(".jpg", f"_infer_{i}.jpg")
+        plt.savefig(fig_path)
         plt.show()
 
 
@@ -85,7 +87,9 @@ def main(args):
     show_points(input_point, input_label, plt.gca())
     plt.axis("on")
     # save image
-    plt.savefig(args.image_path.replace(".jpg", "_point.jpg"))
+    fig_path = args.image_path.replace(".jpg", "_point.jpg")
+    plt.savefig(fig_path)
+    print(f"Image with point saved to {fig_path}")
     plt.show()
 
     predictor.set_image(image)
