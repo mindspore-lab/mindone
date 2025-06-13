@@ -114,7 +114,14 @@ class PositionEmbeddingRandom(nn.Cell):
         super().__init__()
         if scale is None or scale <= 0.0:
             scale = 1.0
-        self.positional_encoding_gaussian_matrix = scale * mint.randn((2, num_pos_feats))
+        # self.register_buffer(
+        #     "positional_encoding_gaussian_matrix",
+        #     scale * torch.randn((2, num_pos_feats)),
+        # )
+
+        self.positional_encoding_gaussian_matrix = ms.Parameter(
+            scale * mint.randn((2, num_pos_feats)), requires_grad=False
+        )
 
     def _pe_encoding(self, coords: ms.Tensor) -> ms.Tensor:
         """Positionally encode points that are normalized to [0,1]."""
