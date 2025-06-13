@@ -6,6 +6,7 @@ wget -P images https://raw.githubusercontent.com/facebookresearch/sam2/main/note
 
 Then run `python predict_mask.py`
 """
+import argparse
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,3 +64,10 @@ def main(args):
     plt.savefig(fig_path)
     print(f"save to {fig_path}")
     plt.show()
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--image_path", type=str, default="./images/cars.jpg")
+    args = parser.parse_args()
+    main(args)
