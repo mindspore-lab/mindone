@@ -1,12 +1,13 @@
 import os
 import sys
 
-import midnspore as ms
 import numpy as np
 import torch
 from hydra import compose
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
+
+import mindspore as ms
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sam2_lib_path = os.path.abspath(os.path.join(__dir__, "../../../sam2/"))
