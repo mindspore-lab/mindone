@@ -15,16 +15,16 @@
 from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import PeftAdapterMixin
 from ...utils import logging
-from ..attention_processor import Attention, AttentionProcessor, AttnProcessor2_0, SanaLinearAttnProcessor2_0
-from ..embeddings import PatchEmbed, PixArtAlphaTextProjection
+from ..attention_processor import Attention, AttentionProcessor, SanaLinearAttnProcessor2_0
+from ..embeddings import PatchEmbed, PixArtAlphaTextProjection, TimestepEmbedding, Timesteps
 from ..modeling_outputs import Transformer2DModelOutput
 from ..modeling_utils import ModelMixin
-from ..normalization import AdaLayerNormSingle, LayerNorm, RMSNorm
+from ..normalization import AdaLayerNormSingle, RMSNorm
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
@@ -44,19 +44,18 @@ class GLUMBConv(nn.Cell):
         self.norm_type = norm_type
         self.residual_connection = residual_connection
 
-        self.nonlinearity = nn.SiLU()
-        self.conv_inverted = nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, pad_mode="pad", padding=0, has_bias=True)
-        self.conv_depth = nn.Conv2d(
+        self.nonlinearity = mint.nn.SiLU()
+        self.conv_inverted = mint.nn.Conv2d(in_channels, hidden_channels * 2, 1, 1, padding=0, bias=True)
+        self.conv_depth = mint.nn.Conv2d(
             hidden_channels * 2,
             hidden_channels * 2,
             3,
             1,
-            pad_mode="pad",
             padding=1,
-            group=hidden_channels * 2,
-            has_bias=True,
+            groups=hidden_channels * 2,
+            bias=True,
         )
-        self.conv_point = nn.Conv2d(hidden_channels, out_channels, 1, 1, pad_mode="pad", padding=0, has_bias=False)
+        self.conv_point = mint.nn.Conv2d(hidden_channels, out_channels, 1, 1, padding=0, bias=False)
 
         self.norm = None
         if norm_type == "rms_norm":
@@ -71,7 +70,7 @@ class GLUMBConv(nn.Cell):
         hidden_states = self.nonlinearity(hidden_states)
 
         hidden_states = self.conv_depth(hidden_states)
-        hidden_states, gate = ops.chunk(hidden_states, 2, axis=1)
+        hidden_states, gate = mint.chunk(hidden_states, 2, dim=1)
         hidden_states = hidden_states * self.nonlinearity(gate)
 
         hidden_states = self.conv_point(hidden_states)
@@ -82,6 +81,102 @@ class GLUMBConv(nn.Cell):
 
         if self.residual_connection:
             hidden_states = hidden_states + residual
+
+        return hidden_states
+
+
+class SanaModulatedNorm(nn.Cell):
+    def __init__(self, dim: int, elementwise_affine: bool = False, eps: float = 1e-6):
+        super().__init__()
+        self.norm = mint.nn.LayerNorm(dim, elementwise_affine=elementwise_affine, eps=eps)
+
+    def construct(self, hidden_states: ms.Tensor, temb: ms.Tensor, scale_shift_table: ms.Tensor) -> ms.Tensor:
+        hidden_states = self.norm(hidden_states)
+        shift, scale = (scale_shift_table[None] + temb[:, None]).chunk(2, dim=1)
+        hidden_states = hidden_states * (1 + scale) + shift
+        return hidden_states
+
+
+class SanaCombinedTimestepGuidanceEmbeddings(nn.Cell):
+    def __init__(self, embedding_dim):
+        super().__init__()
+        self.time_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.timestep_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+        self.guidance_condition_proj = Timesteps(num_channels=256, flip_sin_to_cos=True, downscale_freq_shift=0)
+        self.guidance_embedder = TimestepEmbedding(in_channels=256, time_embed_dim=embedding_dim)
+
+        self.silu = mint.nn.SiLU()
+        self.linear = mint.nn.Linear(embedding_dim, 6 * embedding_dim, bias=True)
+
+    def construct(self, timestep: ms.Tensor, guidance: ms.Tensor = None, hidden_dtype: ms.Type = None):
+        timesteps_proj = self.time_proj(timestep)
+        timesteps_emb = self.timestep_embedder(timesteps_proj.to(dtype=hidden_dtype))  # (N, D)
+
+        guidance_proj = self.guidance_condition_proj(guidance)
+        guidance_emb = self.guidance_embedder(guidance_proj.to(dtype=hidden_dtype))
+        conditioning = timesteps_emb + guidance_emb
+
+        return self.linear(self.silu(conditioning)), conditioning
+
+
+class SanaAttnProcessor2_0:
+    r"""
+    Processor for implementing scaled dot-product attention (enabled by default if you're using PyTorch 2.0).
+    """
+
+    def __call__(
+        self,
+        attn: Attention,
+        hidden_states: ms.Tensor,
+        encoder_hidden_states: Optional[ms.Tensor] = None,
+        attention_mask: Optional[ms.Tensor] = None,
+    ) -> ms.Tensor:
+        batch_size, sequence_length, _ = (
+            hidden_states.shape if encoder_hidden_states is None else encoder_hidden_states.shape
+        )
+
+        if attention_mask is not None:
+            attention_mask = attn.prepare_attention_mask(attention_mask, sequence_length, batch_size)
+            # scaled_dot_product_attention expects attention_mask shape to be
+            # (batch, heads, source_length, target_length)
+            attention_mask = attention_mask.view(batch_size, attn.heads, -1, attention_mask.shape[-1])
+
+        query = attn.to_q(hidden_states)
+
+        if encoder_hidden_states is None:
+            encoder_hidden_states = hidden_states
+
+        key = attn.to_k(encoder_hidden_states)
+        value = attn.to_v(encoder_hidden_states)
+
+        if attn.norm_q is not None:
+            query = attn.norm_q(query)
+        if attn.norm_k is not None:
+            key = attn.norm_k(key)
+
+        inner_dim = key.shape[-1]
+        head_dim = inner_dim // attn.heads
+
+        query = query.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        key = key.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+        value = value.view(batch_size, -1, attn.heads, head_dim).swapaxes(1, 2)
+
+        # the output of sdp = (batch, num_heads, seq_len, head_dim)
+        hidden_states = attn.scaled_dot_product_attention(
+            query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
+        )
+
+        hidden_states = hidden_states.swapaxes(1, 2).reshape(batch_size, -1, attn.heads * head_dim)
+        hidden_states = hidden_states.to(query.dtype)
+
+        # linear proj
+        hidden_states = attn.to_out[0](hidden_states)
+        # dropout
+        hidden_states = attn.to_out[1](hidden_states)
+
+        hidden_states = hidden_states / attn.rescale_output_factor
 
         return hidden_states
 
@@ -105,15 +200,18 @@ class SanaTransformerBlock(nn.Cell):
         norm_eps: float = 1e-6,
         attention_out_bias: bool = True,
         mlp_ratio: float = 2.5,
+        qk_norm: Optional[str] = None,
     ) -> None:
         super().__init__()
 
         # 1. Self Attention
-        self.norm1 = LayerNorm(dim, elementwise_affine=False, eps=norm_eps)
+        self.norm1 = mint.nn.LayerNorm(dim, elementwise_affine=False, eps=norm_eps)
         self.attn1 = Attention(
             query_dim=dim,
             heads=num_attention_heads,
             dim_head=attention_head_dim,
+            kv_heads=num_attention_heads if qk_norm is not None else None,
+            qk_norm=qk_norm,
             dropout=dropout,
             bias=attention_bias,
             cross_attention_dim=None,
@@ -122,22 +220,24 @@ class SanaTransformerBlock(nn.Cell):
 
         # 2. Cross Attention
         if cross_attention_dim is not None:
-            self.norm2 = LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
+            self.norm2 = mint.nn.LayerNorm(dim, elementwise_affine=norm_elementwise_affine, eps=norm_eps)
             self.attn2 = Attention(
                 query_dim=dim,
+                qk_norm=qk_norm,
+                kv_heads=num_cross_attention_heads if qk_norm is not None else None,
                 cross_attention_dim=cross_attention_dim,
                 heads=num_cross_attention_heads,
                 dim_head=cross_attention_head_dim,
                 dropout=dropout,
                 bias=True,
                 out_bias=attention_out_bias,
-                processor=AttnProcessor2_0(),
+                processor=SanaAttnProcessor2_0(),
             )
 
         # 3. Feed-forward
         self.ff = GLUMBConv(dim, dim, mlp_ratio, norm_type=None, residual_connection=False)
 
-        self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -152,9 +252,9 @@ class SanaTransformerBlock(nn.Cell):
         batch_size = hidden_states.shape[0]
 
         # 1. Modulation
-        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
-            self.scale_shift_table[None] + timestep.reshape(batch_size, 6, -1)
-        ).chunk(6, axis=1)
+        shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = mint.chunk(
+            self.scale_shift_table[None] + mint.reshape(timestep, (batch_size, 6, -1)), 6, dim=1
+        )
 
         # 2. Self Attention
         norm_hidden_states = self.norm1(hidden_states)
@@ -225,10 +325,15 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             Whether to use elementwise affinity in the normalization layer.
         norm_eps (`float`, defaults to `1e-6`):
             The epsilon value for the normalization layer.
+        qk_norm (`str`, *optional*, defaults to `None`):
+            The normalization to use for the query and key.
+        timestep_scale (`float`, defaults to `1.0`):
+            The scale to use for the timesteps.
     """
 
     _supports_gradient_checkpointing = True
-    _no_split_modules = ["SanaTransformerBlock", "PatchEmbed"]
+    _no_split_modules = ["SanaTransformerBlock", "PatchEmbed", "SanaModulatedNorm"]
+    _skip_layerwise_casting_patterns = ["patch_embed", "norm"]
 
     @register_to_config
     def __init__(
@@ -250,6 +355,10 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         norm_elementwise_affine: bool = False,
         norm_eps: float = 1e-6,
         interpolation_scale: Optional[int] = None,
+        guidance_embeds: bool = False,
+        guidance_embeds_scale: float = 0.1,
+        qk_norm: Optional[str] = None,
+        timestep_scale: float = 1.0,
     ) -> None:
         super().__init__()
 
@@ -257,7 +366,6 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         inner_dim = num_attention_heads * attention_head_dim
 
         # 1. Patch Embedding
-        interpolation_scale = interpolation_scale if interpolation_scale is not None else max(sample_size // 64, 1)
         self.patch_embed = PatchEmbed(
             height=sample_size,
             width=sample_size,
@@ -265,10 +373,14 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             in_channels=in_channels,
             embed_dim=inner_dim,
             interpolation_scale=interpolation_scale,
+            pos_embed_type="sincos" if interpolation_scale is not None else None,
         )
 
         # 2. Additional condition embeddings
-        self.time_embed = AdaLayerNormSingle(inner_dim)
+        if guidance_embeds:
+            self.time_embed = SanaCombinedTimestepGuidanceEmbeddings(inner_dim)
+        else:
+            self.time_embed = AdaLayerNormSingle(inner_dim)
 
         self.caption_projection = PixArtAlphaTextProjection(in_features=caption_channels, hidden_size=inner_dim)
         self.caption_norm = RMSNorm(inner_dim, eps=1e-5, elementwise_affine=True)
@@ -288,16 +400,16 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
                     norm_elementwise_affine=norm_elementwise_affine,
                     norm_eps=norm_eps,
                     mlp_ratio=mlp_ratio,
+                    qk_norm=qk_norm,
                 )
                 for _ in range(num_layers)
             ]
         )
 
         # 4. Output blocks
-        self.scale_shift_table = ms.Parameter(ops.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
-
-        self.norm_out = LayerNorm(inner_dim, elementwise_affine=False, eps=1e-6)
-        self.proj_out = nn.Dense(inner_dim, patch_size * patch_size * out_channels)
+        self.scale_shift_table = ms.Parameter(mint.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
+        self.norm_out = SanaModulatedNorm(inner_dim, elementwise_affine=False, eps=1e-6)
+        self.proj_out = mint.nn.Linear(inner_dim, patch_size * patch_size * out_channels)
 
         self._gradient_checkpointing = False
 
@@ -381,6 +493,7 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
         hidden_states: ms.Tensor,
         encoder_hidden_states: ms.Tensor,
         timestep: ms.Tensor,
+        guidance: Optional[ms.Tensor] = None,
         encoder_attention_mask: Optional[ms.Tensor] = None,
         attention_mask: Optional[ms.Tensor] = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
@@ -428,7 +541,12 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
 
         hidden_states = self.patch_embed(hidden_states)
 
-        timestep, embedded_timestep = self.time_embed(timestep, batch_size=batch_size, hidden_dtype=hidden_states.dtype)
+        if guidance is not None:
+            timestep, embedded_timestep = self.time_embed(timestep, guidance=guidance, hidden_dtype=hidden_states.dtype)
+        else:
+            timestep, embedded_timestep = self.time_embed(
+                timestep, batch_size=batch_size, hidden_dtype=hidden_states.dtype
+            )
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states.view(batch_size, -1, hidden_states.shape[-1])
@@ -448,11 +566,8 @@ class SanaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin):
             )
 
         # 3. Normalization
-        shift, scale = (self.scale_shift_table[None] + embedded_timestep[:, None]).chunk(2, axis=1)
-        hidden_states = self.norm_out(hidden_states)
+        hidden_states = self.norm_out(hidden_states, embedded_timestep, self.scale_shift_table)
 
-        # 4. Modulation
-        hidden_states = hidden_states * (1 + scale) + shift
         hidden_states = self.proj_out(hidden_states)
 
         # 5. Unpatchify

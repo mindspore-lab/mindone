@@ -14,10 +14,10 @@
 # limitations under the License.
 
 import math
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, Union
 
 import mindspore as ms
-from mindspore import nn, ops
+from mindspore import mint, nn
 
 from ...configuration_utils import ConfigMixin, register_to_config
 from ...loaders import FromOriginalModelMixin, PeftAdapterMixin
@@ -105,22 +105,20 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
         self.patch_size_t = patch_size_t
         self.theta = theta
 
-    def construct(
+    def _prepare_video_coords(
         self,
-        hidden_states: ms.Tensor,
+        batch_size: int,
         num_frames: int,
         height: int,
         width: int,
-        rope_interpolation_scale: Optional[Tuple[ms.Tensor, float, float]] = None,
-    ) -> Tuple[ms.Tensor, ms.Tensor]:
-        batch_size = hidden_states.shape[0]
-
+        rope_interpolation_scale: Tuple[ms.Tensor, float, float],
+    ) -> ms.Tensor:
         # Always compute rope in fp32
-        grid_h = ops.arange(height, dtype=ms.float32)
-        grid_w = ops.arange(width, dtype=ms.float32)
-        grid_f = ops.arange(num_frames, dtype=ms.float32)
-        grid = ops.meshgrid(grid_f, grid_h, grid_w, indexing="ij")
-        grid = ops.stack(grid, axis=0)
+        grid_h = mint.arange(height, dtype=ms.float32)
+        grid_w = mint.arange(width, dtype=ms.float32)
+        grid_f = mint.arange(num_frames, dtype=ms.float32)
+        grid = mint.meshgrid(grid_f, grid_h, grid_w, indexing="ij")
+        grid = mint.stack(grid, dim=0)
         grid = grid.unsqueeze(0).tile((batch_size, 1, 1, 1, 1))
 
         if rope_interpolation_scale is not None:
@@ -130,9 +128,40 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
 
         grid = grid.flatten(start_dim=2, end_dim=4).swapaxes(1, 2)
 
+        return grid
+
+    def construct(
+        self,
+        hidden_states: ms.Tensor,
+        num_frames: Optional[int] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        rope_interpolation_scale: Optional[Tuple[ms.Tensor, float, float]] = None,
+        video_coords: Optional[ms.Tensor] = None,
+    ) -> Tuple[ms.Tensor, ms.Tensor]:
+        batch_size = hidden_states.shape[0]
+
+        if video_coords is None:
+            grid = self._prepare_video_coords(
+                batch_size,
+                num_frames,
+                height,
+                width,
+                rope_interpolation_scale=rope_interpolation_scale,
+            )
+        else:
+            grid = mint.stack(
+                [
+                    video_coords[:, 0] / self.base_num_frames,
+                    video_coords[:, 1] / self.base_height,
+                    video_coords[:, 2] / self.base_width,
+                ],
+                dim=-1,
+            )
+
         start = 1.0
         end = self.theta
-        freqs = self.theta ** ops.linspace(
+        freqs = self.theta ** mint.linspace(
             math.log(start, self.theta),
             math.log(end, self.theta),
             self.dim // 6,
@@ -145,10 +174,10 @@ class LTXVideoRotaryPosEmbed(nn.Cell):
         sin_freqs = freqs.sin().repeat_interleave(2, dim=-1)
 
         if self.dim % 6 != 0:
-            cos_padding = ops.ones_like(cos_freqs[:, :, : self.dim % 6])
-            sin_padding = ops.zeros_like(cos_freqs[:, :, : self.dim % 6])
-            cos_freqs = ops.cat([cos_padding, cos_freqs], axis=-1)
-            sin_freqs = ops.cat([sin_padding, sin_freqs], axis=-1)
+            cos_padding = mint.ones_like(cos_freqs[:, :, : self.dim % 6])
+            sin_padding = mint.zeros_like(cos_freqs[:, :, : self.dim % 6])
+            cos_freqs = mint.cat([cos_padding, cos_freqs], dim=-1)
+            sin_freqs = mint.cat([sin_padding, sin_freqs], dim=-1)
 
         return cos_freqs, sin_freqs
 
@@ -215,7 +244,7 @@ class LTXVideoTransformerBlock(nn.Cell):
 
         self.ff = FeedForward(dim, activation_fn=activation_fn)
 
-        self.scale_shift_table = ms.Parameter(ops.randn(6, dim) / dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(6, dim) / dim**0.5, name="scale_shift_table")
 
     def construct(
         self,
@@ -230,6 +259,7 @@ class LTXVideoTransformerBlock(nn.Cell):
 
         num_ada_params = self.scale_shift_table.shape[0]
         ada_values = self.scale_shift_table[None, None] + temb.reshape(batch_size, temb.shape[1], num_ada_params, -1)
+
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = ada_values.unbind(dim=2)
         norm_hidden_states = norm_hidden_states * (1 + scale_msa) + shift_msa
 
@@ -308,9 +338,9 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         out_channels = out_channels or in_channels
         inner_dim = num_attention_heads * attention_head_dim
 
-        self.proj_in = nn.Dense(in_channels, inner_dim)
+        self.proj_in = mint.nn.Linear(in_channels, inner_dim)
 
-        self.scale_shift_table = ms.Parameter(ops.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
+        self.scale_shift_table = ms.Parameter(mint.randn(2, inner_dim) / inner_dim**0.5, name="scale_shift_table")
         self.time_embed = AdaLayerNormSingle(inner_dim, use_additional_conditions=False)
 
         self.caption_projection = PixArtAlphaTextProjection(in_features=caption_channels, hidden_size=inner_dim)
@@ -344,7 +374,7 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         )
 
         self.norm_out = LayerNorm(inner_dim, eps=1e-6)
-        self.proj_out = nn.Dense(inner_dim, out_channels)
+        self.proj_out = mint.nn.Linear(inner_dim, out_channels)
 
         self.gradient_checkpointing = False
 
@@ -358,17 +388,18 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
         encoder_hidden_states: ms.Tensor,
         timestep: ms.Tensor,
         encoder_attention_mask: ms.Tensor,
-        num_frames: int,
-        height: int,
-        width: int,
-        rope_interpolation_scale: Optional[Tuple[float, float, float]] = None,
+        num_frames: Optional[int] = None,
+        height: Optional[int] = None,
+        width: Optional[int] = None,
+        rope_interpolation_scale: Optional[Union[Tuple[float, float, float], ms.Tensor]] = None,
+        video_coords: Optional[ms.Tensor] = None,
         attention_kwargs: Optional[Dict[str, Any]] = None,
         return_dict: bool = False,
     ) -> ms.Tensor:
         if attention_kwargs is not None:
             attention_kwargs = attention_kwargs.copy()
 
-        image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale)
+        image_rotary_emb = self.rope(hidden_states, num_frames, height, width, rope_interpolation_scale, video_coords)
 
         # convert encoder_attention_mask to a bias the same way we do for attention_mask
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
@@ -414,6 +445,6 @@ class LTXVideoTransformer3DModel(ModelMixin, ConfigMixin, FromOriginalModelMixin
 def apply_rotary_emb(x, freqs):
     cos, sin = freqs
     x_real, x_imag = unflatten(x, 2, (-1, 2)).unbind(-1)  # [B, S, H, D // 2]
-    x_rotated = ops.stack([-x_imag, x_real], axis=-1).flatten(start_dim=2)
+    x_rotated = mint.stack([-x_imag, x_real], dim=-1).flatten(start_dim=2)
     out = (x.float() * cos + x_rotated.float() * sin).to(x.dtype)
     return out

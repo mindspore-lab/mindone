@@ -118,6 +118,7 @@ def _load_state_dict_into_model(
     local_state = {k: v for k, v in model_to_load.parameters_and_names()}
     for k, v in state_dict.items():
         if k in local_state:
+            # todo: unavailable mint interface
             if ops.is_floating_point(v):
                 if (
                     keep_in_fp32_modules is not None
