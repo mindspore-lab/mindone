@@ -146,11 +146,11 @@ class SAM2Base(nn.Cell):
             self.mem_dim = self.memory_encoder.out_proj.weight.shape[0]
         self.num_maskmem = num_maskmem  # Number of memories accessible
         # Temporal encoding of the memories
-        self.maskmem_tpos_enc = Parameter(mint.zeros((num_maskmem, 1, 1, self.mem_dim), ms.float32))
+        self.maskmem_tpos_enc = Parameter(mint.zeros((num_maskmem, 1, 1, self.mem_dim)))
         trunc_normal_(self.maskmem_tpos_enc, std=0.02)
         # a single token to indicate no memory embedding from previous frames
-        self.no_mem_embed = Parameter(mint.zeros((1, 1, self.hidden_dim), ms.float32))
-        self.no_mem_pos_enc = Parameter(mint.zeros((1, 1, self.hidden_dim), ms.float32))
+        self.no_mem_embed = Parameter(mint.zeros((1, 1, self.hidden_dim)))
+        self.no_mem_pos_enc = Parameter(mint.zeros((1, 1, self.hidden_dim)))
         trunc_normal_(self.no_mem_embed, std=0.02)
         trunc_normal_(self.no_mem_pos_enc, std=0.02)
         self.directly_add_no_mem_embed = directly_add_no_mem_embed
@@ -184,12 +184,12 @@ class SAM2Base(nn.Cell):
             assert self.pred_obj_scores
             assert self.use_obj_ptrs_in_encoder
         if self.pred_obj_scores and self.use_obj_ptrs_in_encoder:
-            self.no_obj_ptr = Parameter(mint.zeros((1, self.hidden_dim), ms.float32))
+            self.no_obj_ptr = Parameter(mint.zeros((1, self.hidden_dim)))
             trunc_normal_(self.no_obj_ptr, std=0.02)
         self.use_mlp_for_obj_ptr_proj = use_mlp_for_obj_ptr_proj
         self.no_obj_embed_spatial = None
         if no_obj_embed_spatial:
-            self.no_obj_embed_spatial = Parameter(mint.zeros((1, self.mem_dim), ms.float32))
+            self.no_obj_embed_spatial = Parameter(mint.zeros((1, self.mem_dim)))
             trunc_normal_(self.no_obj_embed_spatial, std=0.02)
 
         self._build_sam_heads()
@@ -316,8 +316,8 @@ class SAM2Base(nn.Cell):
             assert sam_point_coords.shape[0] == B and sam_point_labels.shape[0] == B
         else:
             # If no points are provide, pad with an empty point (with label -1)
-            sam_point_coords = mint.zeros((B, 1, 2), ms.float32)
-            sam_point_labels = -mint.ones((B, 1), ms.int32)
+            sam_point_coords = mint.zeros((B, 1, 2))
+            sam_point_labels = -mint.ones((B, 1), dtype=ms.int32)
 
         # b) Handle mask prompts
         if mask_inputs is not None:
@@ -431,10 +431,10 @@ class SAM2Base(nn.Cell):
             antialias=True,  # use antialias for downsampling
         )
         # a dummy IoU prediction of all 1's under mask input
-        ious = mint.ones((mask_inputs.shape[0], 1), ms.float32)
+        ious = mint.ones((mask_inputs.shape[0], 1))
         if not self.use_obj_ptrs_in_encoder:
             # all zeros as a dummy object pointer (of shape [B, C])
-            obj_ptr = mint.zeros((mask_inputs.shape[0], self.hidden_dim), ms.float32)
+            obj_ptr = mint.zeros((mask_inputs.shape[0], self.hidden_dim))
         else:
             # produce an object pointer using the SAM decoder from the mask input
             _, _, _, _, _, obj_ptr, _ = self._forward_sam_heads(

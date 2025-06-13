@@ -147,7 +147,7 @@ class PositionEmbeddingRandom(nn.Cell):
 
 def init_t_xy(end_x: int, end_y: int):
     t = mint.arange(end_x * end_y, dtype=ms.float32)
-    t_x = ops.mod(t, end_x).astype(ms.float32)
+    t_x = ops.Mod()(t, end_x).astype(ms.float32)
     t_y = mint.floor(t / end_x).astype(ms.float32)
     return t_x, t_y
 

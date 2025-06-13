@@ -3,6 +3,7 @@ from typing import Tuple
 
 from sam2.modeling.sam2_utils import DropPath, LayerNorm2d, get_clones
 
+import mindspore as ms
 import mindspore.mint.nn as nn
 import mindspore.mint.nn.functional as F
 from mindspore import Parameter, Tensor, mint
@@ -29,7 +30,7 @@ class MaskDownSampler(nn.Cell):
         super().__init__()
         num_layers = int(math.log2(total_stride) // math.log2(stride))
         assert stride**num_layers == total_stride
-        self.encoder = nn.SequentialCell()
+        self.encoder = ms.nn.SequentialCell()
         mask_in_chans, mask_out_chans = 1, 1
         for _ in range(num_layers):
             mask_out_chans = mask_in_chans * (stride**2)
