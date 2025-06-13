@@ -18,9 +18,8 @@ def trunc_normal_(tensor: Parameter, mean: float = 0.0, std: float = 1.0, a: flo
     # From PyTorch's _no_grad_trunc_normal_
     # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
     # get normal distribution
-    normal_ = Normal(std, mean)
+    tmp = initializer(Normal(std, mean), tensor.shape, tensor.dtype)
     # get truncated normal distribution
-    tmp = normal_.sample(tensor.shape)
     tmp = ops.clip_by_value(tmp, ms.Tensor(a, tmp.dtype), ms.Tensor(b, tmp.dtype))
     tensor.set_data(tmp)
 
