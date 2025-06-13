@@ -120,7 +120,7 @@ class CombinedLoader:
                     batch_data = next(iterators[name])
                     combined_batch[name] = batch_data
 
-            yield combined_batch, batch_idx, 0  # dataloader_idx is 0 for combined
+            yield combined_batch
 
     def _iter_min_size(self) -> Iterator[Tuple[Dict[str, Any], int, int]]:
         """Stop when the shortest dataloader is exhausted."""
@@ -135,7 +135,7 @@ class CombinedLoader:
                 except StopIteration:
                     return
 
-            yield combined_batch, batch_idx, 0
+            yield combined_batch
 
     def _iter_sequential(self) -> Iterator[Tuple[Dict[str, Any], int, int]]:
         """Iterate through dataloaders sequentially."""
@@ -153,7 +153,7 @@ class CombinedLoader:
                         # Create empty batch structure - this might need adjustment based on your data structure
                         combined_batch[loader_name] = self._create_empty_batch(loader_name)
 
-                yield combined_batch, batch_idx, dataloader_idx
+                yield combined_batch
                 batch_idx += 1
 
     def _iter_random(self) -> Iterator[Tuple[Dict[str, Any], int, int]]:
@@ -201,7 +201,7 @@ class CombinedLoader:
                 else:
                     combined_batch[name] = self._create_empty_batch(name)
 
-            yield combined_batch, batch_idx, dataloader_idx
+            yield combined_batch
 
     def _create_empty_batch(self, loader_name: str) -> Dict[str, Any]:
         """Create an empty batch structure for a given loader."""
