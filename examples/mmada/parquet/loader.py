@@ -72,7 +72,7 @@ class CombinedLoader:
         self.dataloader_names = list(iterables.keys())
 
         # Calculate lengths for different modes
-        self.lengths = {name: len(loader) for name, loader in iterables.items()}
+        self.lengths = {name: loader.dataset_size for name, loader in iterables.items()}
         self.max_length = max(self.lengths.values())
         self.min_length = min(self.lengths.values())
 

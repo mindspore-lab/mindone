@@ -188,6 +188,7 @@ def create_dataloaders(config):
             add_caption_prompt=dataset_config.add_caption_prompt,
         )
         train_dataloader_mmu = dataset_mmu.train_dataloader
+        train_dataloader_mmu.dataset_size = train_dataloader_mmu.num_batches
         for x in train_dataloader_mmu:
             for k, v in x.items():
                 if isinstance(v, (list, tuple)):
