@@ -44,7 +44,7 @@ class MaskData:
             if v is None:
                 self._stats[k] = None
             elif isinstance(v, ms.Tensor):
-                self._stats[k] = v[mint.tensor(keep)]
+                self._stats[k] = v[ms.Tensor(keep)]
             elif isinstance(v, np.ndarray):
                 self._stats[k] = v[keep.asnumpy()]
             elif isinstance(v, list) and keep.dtype == ms.bool_:
@@ -75,8 +75,8 @@ class MaskData:
 
 def is_box_near_crop_edge(boxes: ms.Tensor, crop_box: List[int], orig_box: List[int], atol: float = 20.0) -> ms.Tensor:
     """Filter masks at the edge of a crop, but not at the edge of the original image."""
-    crop_box_torch = mint.tensor(crop_box, dtype=ms.float32)
-    orig_box_torch = mint.tensor(orig_box, dtype=ms.float32)
+    crop_box_torch = ms.Tensor(crop_box, dtype=ms.float32)
+    orig_box_torch = ms.Tensor(orig_box, dtype=ms.float32)
     boxes = uncrop_boxes_xyxy(boxes, crop_box).float()
     near_crop_edge = mint.isclose(boxes, crop_box_torch[None, :], atol=atol, rtol=0)
     near_image_edge = mint.isclose(boxes, orig_box_torch[None, :], atol=atol, rtol=0)
@@ -119,9 +119,9 @@ def mask_to_rle_pytorch(tensor: ms.Tensor) -> List[Dict[str, Any]]:
         cur_idxs = change_indices[change_indices[:, 0] == i, 1]
         cur_idxs = mint.cat(
             [
-                mint.tensor([0], dtype=cur_idxs.dtype),
+                ms.Tensor([0], dtype=cur_idxs.dtype),
                 cur_idxs + 1,
-                mint.tensor([h * w], dtype=cur_idxs.dtype),
+                ms.Tensor([h * w], dtype=cur_idxs.dtype),
             ]
         )
         btw_idxs = cur_idxs[1:] - cur_idxs[:-1]
@@ -157,8 +157,8 @@ def calculate_stability_score(masks: ms.Tensor, mask_threshold: float, threshold
     """
     # One mask is always contained inside the other.
     # Save memory by preventing unnecessary cast to mint.int64
-    intersections = (masks > (mask_threshold + threshold_offset)).sum(-1, dtype=mint.int16).sum(-1, dtype=mint.int32)
-    unions = (masks > (mask_threshold - threshold_offset)).sum(-1, dtype=mint.int16).sum(-1, dtype=mint.int32)
+    intersections = (masks > (mask_threshold + threshold_offset)).sum(-1, dtype=ms.int32).sum(-1, dtype=ms.int32)
+    unions = (masks > (mask_threshold - threshold_offset)).sum(-1, dtype=ms.int32).sum(-1, dtype=ms.int32)
     return intersections / unions
 
 
@@ -220,7 +220,7 @@ def generate_crop_boxes(
 
 def uncrop_boxes_xyxy(boxes: ms.Tensor, crop_box: List[int]) -> ms.Tensor:
     x0, y0, _, _ = crop_box
-    offset = mint.tensor([[x0, y0, x0, y0]])
+    offset = ms.Tensor([[x0, y0, x0, y0]])
     # Check if boxes has a channel dimension
     if len(boxes.shape) == 3:
         offset = offset.unsqueeze(1)
@@ -229,7 +229,7 @@ def uncrop_boxes_xyxy(boxes: ms.Tensor, crop_box: List[int]) -> ms.Tensor:
 
 def uncrop_points(points: ms.Tensor, crop_box: List[int]) -> ms.Tensor:
     x0, y0, _, _ = crop_box
-    offset = mint.tensor([[x0, y0]])
+    offset = ms.Tensor([[x0, y0]])
     # Check if points has a channel dimension
     if len(points.shape) == 3:
         offset = offset.unsqueeze(1)

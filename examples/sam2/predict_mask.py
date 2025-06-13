@@ -42,7 +42,7 @@ def show_anns(anns, borders=True):
 
 
 def main(args):
-    sam2_checkpoint = "../checkpoints/sam2.1_hiera_large.pt"
+    sam2_checkpoint = "checkpoints/sam2.1_hiera_large.pt"
     model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
 
     sam2 = build_sam2(model_cfg, sam2_checkpoint, apply_postprocessing=False)
