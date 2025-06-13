@@ -126,7 +126,7 @@ def mask_to_rle_pytorch(tensor: ms.Tensor) -> List[Dict[str, Any]]:
         )
         btw_idxs = cur_idxs[1:] - cur_idxs[:-1]
         counts = [] if tensor[i, 0] == 0 else [0]
-        counts.extend(btw_idxs.detach().cpu().tolist())
+        counts.extend(btw_idxs.asnumpy.tolist())
         out.append({"size": [h, w], "counts": counts})
     return out
 
@@ -286,7 +286,7 @@ def batched_mask_to_box(masks: ms.Tensor) -> ms.Tensor:
     an empty mask. For input shape C1xC2x...xHxW, the output shape is C1xC2x...x4.
     """
     # mint.max below raises an error on empty inputs, just skip in this case
-    if mint.numel(masks) == 0:
+    if masks.numel() == 0:
         return mint.zeros((*masks.shape[:-2], 4))
 
     # Normalize shape to CxHxW
