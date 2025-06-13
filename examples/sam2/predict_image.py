@@ -76,7 +76,7 @@ def main(args):
     image_path = args.image_path
     image = Image.open(image_path)
     image = np.array(image.convert("RGB"))
-    input_point = np.array([args.x, args.y])
+    input_point = np.array([[args.x, args.y]])
     input_label = np.array([1])
 
     # show image with point

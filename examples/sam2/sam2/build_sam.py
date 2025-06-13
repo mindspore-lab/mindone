@@ -86,7 +86,7 @@ def build_sam2(
     _load_checkpoint(model, ckpt_path)
 
     if mode == "eval":
-        model.eval()
+        model.set_train(False)
     return model
 
 

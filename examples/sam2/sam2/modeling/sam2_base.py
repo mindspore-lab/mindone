@@ -463,7 +463,7 @@ class SAM2Base(nn.Cell):
             object_score_logits,
         )
 
-    def forward_image(self, img_batch: ms.Tensor):
+    def construct_image(self, img_batch: ms.Tensor):
         """Get the image feature on the input batch."""
         backbone_out = self.image_encoder(img_batch)
         if self.use_high_res_features_in_sam:
