@@ -266,8 +266,8 @@ def sample_one_point_from_error_center(gt_masks, pred_masks, padding=True):
 
     fp_masks = fp_masks.asnumpy()
     fn_masks = fn_masks.asnumpy()
-    points = mint.zeros(B, 1, 2, dtype=ms.float32)
-    labels = mint.ones(B, 1, dtype=ms.int32)
+    points = mint.zeros((B, 1, 2), dtype=ms.float32)
+    labels = mint.ones((B, 1), dtype=ms.int32)
     for b in range(B):
         fn_mask = fn_masks[b, 0]
         fp_mask = fp_masks[b, 0]
