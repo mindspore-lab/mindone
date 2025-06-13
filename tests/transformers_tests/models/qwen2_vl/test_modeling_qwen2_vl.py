@@ -9,20 +9,25 @@
 # it is necessary to develop distinct, dedicated test cases.
 
 import inspect
+import unittest
 
 import numpy as np
 import pytest
 import torch
-from transformers import Qwen2VLConfig
+from parameterized import parameterized
+from transformers import Qwen2VLConfig, AutoProcessor
 
 import mindspore as ms
+from transformers.testing_utils import slow
 
+from mindone.transformers import Qwen2VLForConditionalGeneration
 from tests.modeling_test_utils import (
     MS_DTYPE_MAPPING,
     PT_DTYPE_MAPPING,
-    compute_diffs,
     generalized_parse_args,
     get_modules,
+    forward_compare,
+    prepare_img,
 )
 from tests.transformers_tests.models.modeling_common import ids_numpy
 
@@ -108,95 +113,111 @@ class Qwen2VLModelTester:
         return config
 
 
-model_tester = Qwen2VLModelTester()
-(config, input_ids, attention_mask) = model_tester.prepare_config_and_inputs()
+class Qwen2VLModelTest(unittest.TestCase):
+    def setUp(self):
+        self.model_tester = Qwen2VLModelTester()
 
-
-T5_CASES = [
-    [
-        "Qwen2VLModel",
-        "transformers.Qwen2VLModel",  # NOTE: name is different from latest version
-        "mindone.transformers.Qwen2VLModel",
-        (config,),
-        {},
-        (),
-        {"input_ids": input_ids, "attention_mask": attention_mask, "return_dict": True},
-        {
-            "last_hidden_state": "last_hidden_state",
-        },
-    ],
-]
-
-
-@pytest.mark.parametrize(
-    "name,pt_module,ms_module,init_args,init_kwargs,inputs_args,inputs_kwargs,outputs_map,dtype,mode",
-    [
-        case
-        + [
-            dtype,
-        ]
-        + [
-            mode,
-        ]
-        for case in T5_CASES
-        for dtype in DTYPE_AND_THRESHOLDS.keys()
-        for mode in MODES
-    ],
-)
-def test_named_modules(
-    name,
-    pt_module,
-    ms_module,
-    init_args,
-    init_kwargs,
-    inputs_args,
-    inputs_kwargs,
-    outputs_map,
-    dtype,
-    mode,
-):
-    ms.set_context(mode=mode)
-
-    (
-        pt_model,
-        ms_model,
-        pt_dtype,
-        ms_dtype,
-    ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
-    pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
-        pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+    @parameterized.expand(
+        [(dtype,) + (mode,) for dtype in DTYPE_AND_THRESHOLDS for mode in MODES]
     )
+    def test_model_forward(self, dtype, mode):
+        ms.set_context(mode=mode)
+        name = "Qwen2VLModel"
+        pt_module = f"transformers.{name}"
+        ms_module = f"mindone.transformers.{name}"
+        config, input_ids, attention_mask = self.model_tester.prepare_config_and_inputs()
+        init_args = (config,)
+        init_kwargs = {}
+        inputs_args = (input_ids,)
+        inputs_kwargs = {"attention_mask": attention_mask, "return_dict": True}
+        outputs_map = {"last_hidden_state": "last_hidden_state"}  # key: torch attribute, value: mindspore idx
 
-    # set `hidden_dtype` if requiring, for some modules always compute in float
-    # precision and require specific `hidden_dtype` to cast before return
-    if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
-        pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
-        ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+        diffs, pt_dtype, ms_dtype = forward_compare(
+            pt_module, ms_module, init_args, init_kwargs, inputs_args, inputs_kwargs, outputs_map, dtype
+        )
 
-    with torch.no_grad():
-        pt_outputs = pt_model(*pt_inputs_args, **pt_inputs_kwargs)
-    ms_outputs = ms_model(*ms_inputs_args, **ms_inputs_kwargs)
-    # print("ms:", ms_outputs)
-    # print("pt:", pt_outputs)
-    if outputs_map:
-        pt_outputs_n = []
-        ms_outputs_n = []
-        for pt_key, ms_idx in outputs_map.items():
-            # print("===map", pt_key, ms_idx)
-            pt_output = getattr(pt_outputs, pt_key)
-            ms_output = getattr(ms_outputs, ms_idx)
-            if isinstance(pt_output, (list, tuple)):
-                pt_outputs_n += list(pt_output)
-                ms_outputs_n += list(ms_output)
-            else:
-                pt_outputs_n.append(pt_output)
-                ms_outputs_n.append(ms_output)
-        diffs = compute_diffs(pt_outputs_n, ms_outputs_n)
-    else:
-        diffs = compute_diffs(pt_outputs, ms_outputs)
+        THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
+        self.assertTrue(
+            (np.array(diffs) < THRESHOLD).all(),
+            f"For {name} forward test, mode: {mode}, ms_dtype: {ms_dtype}, pt_type:{pt_dtype},"
+            f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
+        )
 
-    THRESHOLD = DTYPE_AND_THRESHOLDS[ms_dtype]
-    assert (np.array(diffs) < THRESHOLD).all(), (
-        f"ms_dtype: {ms_dtype}, pt_type:{pt_dtype}, "
-        f"Outputs({np.array(diffs).tolist()}) has diff bigger than {THRESHOLD}"
+    @parameterized.expand(
+        [(dtype,) + (mode,) for dtype in DTYPE_AND_THRESHOLDS for mode in MODES]
     )
+    def test_model_generate(self, dtype, mode):
+        ms.set_context(mode=mode)
+        name = "Qwen2VLForConditionalGeneration"
+        pt_module = f"transformers.{name}"
+        ms_module = f"mindone.transformers.{name}"
+        config, input_ids, _ = self.model_tester.prepare_config_and_inputs()
+        init_args = (config,)
+        init_kwargs = {}
+        inputs_args = (input_ids,)
+        inputs_kwargs = {"max_new_tokens": 15, "do_sample": False}
+
+        (
+            pt_model,
+            ms_model,
+            pt_dtype,
+            ms_dtype,
+        ) = get_modules(pt_module, ms_module, dtype, *init_args, **init_kwargs)
+
+        pt_inputs_args, pt_inputs_kwargs, ms_inputs_args, ms_inputs_kwargs = generalized_parse_args(
+            pt_dtype, ms_dtype, *inputs_args, **inputs_kwargs
+        )
+
+        if "hidden_dtype" in inspect.signature(pt_model.forward).parameters:
+            pt_inputs_kwargs.update({"hidden_dtype": PT_DTYPE_MAPPING[pt_dtype]})
+            ms_inputs_kwargs.update({"hidden_dtype": MS_DTYPE_MAPPING[ms_dtype]})
+
+        with torch.no_grad():
+            pt_outputs = pt_model.generate(*pt_inputs_args, **pt_inputs_kwargs)
+        ms_outputs = ms_model.generate(*ms_inputs_args, **ms_inputs_kwargs)
+        pt_outputs_np, ms_outputs_np = pt_outputs.numpy(), ms_outputs.asnumpy()
+
+        self.assertTrue(
+            ms_outputs_np.shape == pt_outputs_np.shape and (ms_outputs_np == pt_outputs_np).all(),
+            f"For {name} test, mode: {mode}, ms_dtype: {ms_dtype}, pt_type:{pt_dtype},"
+            f"ms_outputs_shape: {ms_outputs_np.shape}, pt_outputs_shape: {pt_outputs_np.shape},"
+            f"ms_outputs: {ms_outputs_np}, pt_outputs: {pt_outputs_np}"
+        )
+
+
+class Qwen2VLIntegrationTest(unittest.TestCase):
+    def setUp(self):
+        model_name = "Qwen/Qwen2-VL-2B-Instruct"
+        self.processor = AutoProcessor.from_pretrained(model_name)
+        self.messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": "What kind of dog is this?"},
+                ],
+            }
+        ]
+        image_url = "https://qianwen-res.oss-accelerate-overseas.aliyuncs.com/Qwen2-VL/demo_small.jpg"
+        self.image = prepare_img(image_url)
+
+    @parameterized.expand(MODES)
+    @slow
+    def test_model_2b_generate(self, mode):
+        ms.set_context(mode=mode)
+        model_name = "Qwen/Qwen2-VL-2B-Instruct"
+        model = Qwen2VLForConditionalGeneration.from_pretrained(model_name)
+
+        text = self.processor.apply_chat_template(self.messages,
+                                                  tokenize=False,
+                                                  add_generation_prompt=True)
+        inputs = self.processor(text=[text], images=[self.image], return_tensors="np")
+        for k, v in inputs.items():
+            inputs[k] = ms.Tensor(v)
+
+        generate_ids = model.generate(**inputs, max_new_tokens=20)
+        output_text = self.processor.decode(generate_ids[0], skip_special_tokens=True)
+        EXPECTED_TEXT = ("system\nYou are a helpful assistant.\nuser\nWhat kind of dog is this?\nassistant\nThe dog in "
+                         "the picture is a Labrador Retriever. Labrador Retrievers are known for their intelligence")
+
+        self.assertEqual(output_text, EXPECTED_TEXT)
