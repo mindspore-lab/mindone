@@ -211,6 +211,7 @@ from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGener
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
 
 # from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
+from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
 from .models.rembert import (
     RemBertForCausalLM,
     RemBertForMaskedLM,
