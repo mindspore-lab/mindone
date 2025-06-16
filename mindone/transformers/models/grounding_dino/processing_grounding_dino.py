@@ -6,15 +6,15 @@ import pathlib
 import warnings
 from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
+from transformers.tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
+
 import mindspore as ms
-from mindspore import dtype as mstype
 from mindspore import mint
 
 from ...image_processing_utils import BatchFeature
 from ...image_transforms import center_to_corners_format
 from ...image_utils import AnnotationFormat, ImageInput
 from ...processing_utils import ImagesKwargs, ProcessingKwargs, ProcessorMixin, Unpack
-from ...tokenization_utils_base import BatchEncoding, PreTokenizedInput, TextInput
 
 if TYPE_CHECKING:
     from .modeling_grounding_dino import GroundingDinoObjectDetectionOutput
@@ -226,10 +226,10 @@ class GroundingDinoProcessor(ProcessorMixin):
     def post_process_grounded_object_detection(
         self,
         outputs: "GroundingDinoObjectDetectionOutput",
-        input_ids: Optional[mstype] = None,
+        input_ids: Optional[ms.Tensor] = None,
         threshold: float = 0.25,
         text_threshold: float = 0.25,
-        target_sizes: Optional[Union[mstype, List[Tuple]]] = None,
+        target_sizes: Optional[Union[ms.Tensor, List[Tuple]]] = None,
         text_labels: Optional[List[List[str]]] = None,
     ):
         """
