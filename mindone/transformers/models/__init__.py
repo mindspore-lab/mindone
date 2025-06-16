@@ -37,6 +37,7 @@ from . import (  # qwen3,
     switch_transformers,
     t5,
     umt5,
+    vits,
     wav2vec2,
     xlm_roberta,
 )

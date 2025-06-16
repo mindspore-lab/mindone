@@ -69,6 +69,8 @@ _import_structure = {
         "Mochi1LoraLoaderMixin",
         "HunyuanVideoLoraLoaderMixin",
         "SanaLoraLoaderMixin",
+        "Lumina2LoraLoaderMixin",
+        "WanLoraLoaderMixin",
     ],
     "peft": ["PeftAdapterMixin"],
     "single_file": ["FromSingleFileMixin"],
@@ -86,11 +88,13 @@ if TYPE_CHECKING:
         HunyuanVideoLoraLoaderMixin,
         LoraLoaderMixin,
         LTXVideoLoraLoaderMixin,
+        Lumina2LoraLoaderMixin,
         Mochi1LoraLoaderMixin,
         SanaLoraLoaderMixin,
         SD3LoraLoaderMixin,
         StableDiffusionLoraLoaderMixin,
         StableDiffusionXLLoraLoaderMixin,
+        WanLoraLoaderMixin,
     )
     from .peft import PeftAdapterMixin
     from .single_file import FromSingleFileMixin
