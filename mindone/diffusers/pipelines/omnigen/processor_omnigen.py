@@ -148,7 +148,7 @@ class OmniGenMultiModalProcessor:
             cur_instruction = instructions[i]
             cur_input_images = None if input_images is None else input_images[i]
             if cur_input_images is not None and len(cur_input_images) > 0:
-                cur_input_images = [ms.Tensor(self.process_image(x)[0]) for x in cur_input_images]
+                cur_input_images = [ms.tensor(self.process_image(x)[0]) for x in cur_input_images]
             else:
                 cur_input_images = None
                 assert "<img><|image_1|></img>" not in cur_instruction
@@ -195,7 +195,7 @@ class OmniGenCollator:
                 range(temp_l + img_length + 1)
             )  # we add a time embedding into the sequence, so add one more token
             position_ids.append(temp_position)
-        return ms.Tensor(position_ids)
+        return ms.tensor(position_ids)
 
     def create_mask(self, attention_mask, num_tokens_for_output_images):
         """
@@ -269,7 +269,7 @@ class OmniGenCollator:
                     new_inx.append([x + pad_l for x in old_inx])
                 image_sizes[i] = new_inx
 
-        return ms.Tensor(padded_ids), ms.Tensor(attention_mask), image_sizes
+        return ms.tensor(padded_ids), ms.tensor(attention_mask), image_sizes
 
     def process_mllm_input(self, mllm_inputs, target_img_size):
         num_tokens_for_output_images = []
