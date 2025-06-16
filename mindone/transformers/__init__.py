@@ -254,6 +254,7 @@ from .models.rembert import (
     RemBertPreTrainedModel,
 )
 from .models.siglip import SiglipModel, SiglipPreTrainedModel, SiglipTextModel, SiglipVisionModel
+from .models.siglip2 import Siglip2VisionModel, Siglip2TextModel, Siglip2PreTrainedModel, Siglip2Model, Siglip2ForImageClassification
 from .models.speecht5 import (
     SpeechT5ForSpeechToSpeech,
     SpeechT5ForSpeechToText,
