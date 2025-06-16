@@ -71,6 +71,7 @@ CONFIG_MAPPING_NAMES = OrderedDict(
         ("wav2vec2", "Wav2Vec2Config"),
         ("whisper", "WhisperConfig"),
         ("xlm-roberta", "XLMRobertaConfig"),
+        ("zamba2", "Zamba2Config"),
     ]
 )
 
@@ -126,6 +127,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("whisper", "Whisper"),
         ("xlm-roberta", "XLM-RoBERTa"),
         ("xlm-roberta-xl", "XLM-RoBERTa-XL"),
+        ("zamba2", "Zamba2"),
     ]
 )
 
