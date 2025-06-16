@@ -7,9 +7,11 @@ _import_structure = {}
 
 
 _import_structure["pipeline_sana"] = ["SanaPipeline"]
+_import_structure["pipeline_sana_sprint"] = ["SanaSprintPipeline"]
 
 if TYPE_CHECKING:
     from .pipeline_sana import SanaPipeline
+    from .pipeline_sana_sprint import SanaSprintPipeline
 else:
     import sys
 

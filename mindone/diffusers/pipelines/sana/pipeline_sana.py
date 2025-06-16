@@ -22,7 +22,7 @@ import numpy as np
 from transformers import AutoTokenizer
 
 import mindspore as ms
-from mindspore import ops
+from mindspore import mint
 
 from ....transformers import MSPreTrainedModel
 from ...callbacks import MultiPipelineCallbacks, PipelineCallback
@@ -161,6 +161,60 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         )
         self.image_processor = PixArtImageProcessor(vae_scale_factor=self.vae_scale_factor)
 
+    def _get_gemma_prompt_embeds(
+        self,
+        prompt: Union[str, List[str]],
+        dtype: ms.Type,
+        clean_caption: bool = False,
+        max_sequence_length: int = 300,
+        complex_human_instruction: Optional[List[str]] = None,
+    ):
+        r"""
+        Encodes the prompt into text encoder hidden states.
+
+        Args:
+            prompt (`str` or `List[str]`, *optional*):
+                prompt to be encoded
+            clean_caption (`bool`, defaults to `False`):
+                If `True`, the function will preprocess and clean the provided caption before encoding.
+            max_sequence_length (`int`, defaults to 300): Maximum sequence length to use for the prompt.
+            complex_human_instruction (`list[str]`, defaults to `complex_human_instruction`):
+                If `complex_human_instruction` is not empty, the function will use the complex Human instruction for
+                the prompt.
+        """
+        prompt = [prompt] if isinstance(prompt, str) else prompt
+
+        if getattr(self, "tokenizer", None) is not None:
+            self.tokenizer.padding_side = "right"
+
+        prompt = self._text_preprocessing(prompt, clean_caption=clean_caption)
+
+        # prepare complex human instruction
+        if not complex_human_instruction:
+            max_length_all = max_sequence_length
+        else:
+            chi_prompt = "\n".join(complex_human_instruction)
+            prompt = [chi_prompt + p for p in prompt]
+            num_chi_prompt_tokens = len(self.tokenizer.encode(chi_prompt))
+            max_length_all = num_chi_prompt_tokens + max_sequence_length - 2
+
+        text_inputs = self.tokenizer(
+            prompt,
+            padding="max_length",
+            max_length=max_length_all,
+            truncation=True,
+            add_special_tokens=True,
+            return_tensors="np",
+        )
+        text_input_ids = ms.tensor(text_inputs.input_ids)
+
+        prompt_attention_mask = ms.tensor(text_inputs.attention_mask)
+
+        prompt_embeds = self.text_encoder(text_input_ids, attention_mask=prompt_attention_mask)
+        prompt_embeds = prompt_embeds[0].to(dtype=dtype)
+
+        return prompt_embeds, prompt_attention_mask
+
     def encode_prompt(
         self,
         prompt: Union[str, List[str]],
@@ -202,6 +256,13 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 If `complex_human_instruction` is not empty, the function will use the complex Human instruction for
                 the prompt.
         """
+        if self.transformer is not None:
+            dtype = self.transformer.dtype
+        elif self.text_encoder is not None:
+            dtype = self.text_encoder.dtype
+        else:
+            dtype = None
+
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
         if lora_scale is not None and isinstance(self, SanaLoraLoaderMixin):
@@ -225,41 +286,15 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
         select_index = [0] + list(range(-max_length + 1, 0))
 
         if prompt_embeds is None:
-            prompt = self._text_preprocessing(prompt, clean_caption=clean_caption)
-
-            # prepare complex human instruction
-            if not complex_human_instruction:
-                max_length_all = max_length
-            else:
-                chi_prompt = "\n".join(complex_human_instruction)
-                prompt = [chi_prompt + p for p in prompt]
-                num_chi_prompt_tokens = len(self.tokenizer.encode(chi_prompt))
-                max_length_all = num_chi_prompt_tokens + max_length - 2
-
-            text_inputs = self.tokenizer(
-                prompt,
-                padding="max_length",
-                max_length=max_length_all,
-                truncation=True,
-                add_special_tokens=True,
-                return_tensors="np",
+            prompt_embeds, prompt_attention_mask = self._get_gemma_prompt_embeds(
+                prompt=prompt,
+                dtype=dtype,
+                clean_caption=clean_caption,
+                max_sequence_length=max_sequence_length,
+                complex_human_instruction=complex_human_instruction,
             )
-            text_input_ids = ms.Tensor.from_numpy(text_inputs.input_ids)
-
-            prompt_attention_mask = ms.Tensor.from_numpy(text_inputs.attention_mask)
-
-            prompt_embeds = self.text_encoder(text_input_ids, attention_mask=prompt_attention_mask)
-            prompt_embeds = prompt_embeds[0][:, select_index]
+            prompt_embeds = prompt_embeds[:, select_index]
             prompt_attention_mask = prompt_attention_mask[:, select_index]
-
-        if self.transformer is not None:
-            dtype = self.transformer.dtype
-        elif self.text_encoder is not None:
-            dtype = self.text_encoder.dtype
-        else:
-            dtype = None
-
-        prompt_embeds = prompt_embeds.to(dtype=dtype)
 
         bs_embed, seq_len, _ = prompt_embeds.shape
         # duplicate text embeddings and attention mask for each generation per prompt, using mps friendly method
@@ -270,25 +305,14 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
         # get unconditional embeddings for classifier free guidance
         if do_classifier_free_guidance and negative_prompt_embeds is None:
-            uncond_tokens = [negative_prompt] * batch_size if isinstance(negative_prompt, str) else negative_prompt
-            uncond_tokens = self._text_preprocessing(uncond_tokens, clean_caption=clean_caption)
-            max_length = prompt_embeds.shape[1]
-            uncond_input = self.tokenizer(
-                uncond_tokens,
-                padding="max_length",
-                max_length=max_length,
-                truncation=True,
-                return_attention_mask=True,
-                add_special_tokens=True,
-                return_tensors="np",
+            negative_prompt = [negative_prompt] * batch_size if isinstance(negative_prompt, str) else negative_prompt
+            negative_prompt_embeds, negative_prompt_attention_mask = self._get_gemma_prompt_embeds(
+                prompt=negative_prompt,
+                dtype=dtype,
+                clean_caption=clean_caption,
+                max_sequence_length=max_sequence_length,
+                complex_human_instruction=False,
             )
-            negative_prompt_attention_mask = ms.Tensor.from_numpy(uncond_input.attention_mask)
-
-            negative_prompt_embeds = self.text_encoder(
-                ms.Tensor.from_numpy(uncond_input.input_ids),
-                attention_mask=negative_prompt_attention_mask,
-            )
-            negative_prompt_embeds = negative_prompt_embeds[0]
 
         if do_classifier_free_guidance:
             # duplicate unconditional embeddings for each generation per prompt, using mps friendly method
@@ -768,8 +792,8 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
             lora_scale=lora_scale,
         )
         if self.do_classifier_free_guidance:
-            prompt_embeds = ops.cat([negative_prompt_embeds, prompt_embeds], axis=0)
-            prompt_attention_mask = ops.cat([negative_prompt_attention_mask, prompt_attention_mask], axis=0)
+            prompt_embeds = mint.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+            prompt_attention_mask = mint.cat([negative_prompt_attention_mask, prompt_attention_mask], dim=0)
 
         # 4. Prepare timesteps
         timesteps, num_inference_steps = retrieve_timesteps(self.scheduler, num_inference_steps, timesteps, sigmas)
@@ -803,7 +827,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
                 if self.interrupt:
                     continue
 
-                latent_model_input = ops.cat([latents] * 2) if self.do_classifier_free_guidance else latents
+                latent_model_input = mint.cat([latents] * 2) if self.do_classifier_free_guidance else latents
                 latent_model_input = latent_model_input.to(prompt_embeds.dtype)
 
                 # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
@@ -827,7 +851,7 @@ class SanaPipeline(DiffusionPipeline, SanaLoraLoaderMixin):
 
                 # learned sigma
                 if self.transformer.config.out_channels // 2 == latent_channels:
-                    noise_pred = noise_pred.chunk(2, axis=1)[0]
+                    noise_pred = noise_pred.chunk(2, dim=1)[0]
                 else:
                     noise_pred = noise_pred
 
