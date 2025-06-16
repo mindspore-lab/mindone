@@ -174,6 +174,18 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.megatron_bert import (
+    MegatronBertForCausalLM,
+    MegatronBertForMaskedLM,
+    MegatronBertForMultipleChoice,
+    MegatronBertForNextSentencePrediction,
+    MegatronBertForPreTraining,
+    MegatronBertForQuestionAnswering,
+    MegatronBertForSequenceClassification,
+    MegatronBertForTokenClassification,
+    MegatronBertModel,
+    MegatronBertPreTrainedModel,
+)
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
 from .models.mixtral import (
     MixtralForCausalLM,
