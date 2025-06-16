@@ -178,6 +178,9 @@ from .models.levit import (
 )
 from .models.llama import LlamaForCausalLM, LlamaForSequenceClassification, LlamaModel, LlamaPreTrainedModel
 from .models.llava import LlavaConfig, LlavaForConditionalGeneration
+from .models.llava_next import LlavaNextForConditionalGeneration, LlavaNextPreTrainedModel
+from .models.llava_next_video import LlavaNextVideoForConditionalGeneration, LlavaNextVideoPreTrainedModel
+from .models.llava_onevision import LlavaOnevisionForConditionalGeneration, LlavaOnevisionPreTrainedModel
 from .models.megatron_bert import (
     MegatronBertForCausalLM,
     MegatronBertForMaskedLM,
@@ -191,6 +194,14 @@ from .models.megatron_bert import (
     MegatronBertPreTrainedModel,
 )
 from .models.minicpm4 import MiniCPMForCausalLM, MiniCPMForSequenceClassification, MiniCPMModel
+from .models.mistral import (
+    MistralForCausalLM,
+    MistralForQuestionAnswering,
+    MistralForSequenceClassification,
+    MistralForTokenClassification,
+    MistralModel,
+    MistralPreTrainedModel,
+)
 from .models.mixtral import (
     MixtralForCausalLM,
     MixtralForQuestionAnswering,
@@ -248,7 +259,6 @@ from .models.qwen2_5_omni import (
 from .models.qwen2_5_vl import Qwen2_5_VLForConditionalGeneration, Qwen2_5_VLModel, Qwen2_5_VLPreTrainedModel
 from .models.qwen2_audio import Qwen2AudioEncoder, Qwen2AudioForConditionalGeneration, Qwen2AudioPreTrainedModel
 from .models.qwen2_vl import Qwen2VLForConditionalGeneration, Qwen2VLModel, Qwen2VLPreTrainedModel
-from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 
 # from .models.qwen3 import Qwen3ForCausalLM, Qwen3Model, Qwen3PreTrainedModel
 from .models.recurrent_gemma import RecurrentGemmaForCausalLM, RecurrentGemmaModel, RecurrentGemmaPreTrainedModel
