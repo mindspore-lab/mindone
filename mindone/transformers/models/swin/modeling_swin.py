@@ -9,7 +9,7 @@ from transformers.utils import (
     ModelOutput,
     add_code_sample_docstrings,
     add_start_docstrings,
-    add_start_docstrings_to_model_construct,
+    add_start_docstrings_to_model_forward,
     logging,
     replace_return_docstrings,
 )
@@ -986,7 +986,7 @@ class SwinModel(SwinPreTrainedModel):
         for layer, heads in heads_to_prune.items():
             self.encoder.layer[layer].attention.prune_heads(heads)
 
-    @add_start_docstrings_to_model_construct(SWIN_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(SWIN_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
         checkpoint=_CHECKPOINT_FOR_DOC,
         output_type=SwinModelOutput,
@@ -1088,7 +1088,7 @@ class SwinForMaskedImageModeling(SwinPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_construct(SWIN_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(SWIN_INPUTS_DOCSTRING)
     @replace_return_docstrings(output_type=SwinMaskedImageModelingOutput, config_class=_CONFIG_FOR_DOC)
     def construct(
         self,
@@ -1208,7 +1208,7 @@ class SwinForImageClassification(SwinPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
-    @add_start_docstrings_to_model_construct(SWIN_INPUTS_DOCSTRING)
+    @add_start_docstrings_to_model_forward(SWIN_INPUTS_DOCSTRING)
     @add_code_sample_docstrings(
         checkpoint=_IMAGE_CLASS_CHECKPOINT,
         output_type=SwinImageClassifierOutput,
